@@ -6,7 +6,7 @@ import {
   Avatar, Button, Empty, IconButton, Input, List, Load, Page, Pill, Row, Section, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle,
   dayLabel, isoDate, relative, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
-import { Chips, CopyLink } from './_parts.jsx';
+import { Chips, CopyLink, DOC_KINDS, docKindLabel, SIA_TYPES } from './_parts.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
 
 const TABS = [
@@ -232,8 +232,32 @@ function UserSheet({ u, me, venues, onClose, onDone }) {
 
 /* ---------------- Roles & bank holidays ---------------- */
 
+const ROLE_DOCS = DOC_KINDS.filter((d) => !['sia', 'contract', 'other'].includes(d.value));
+
+function RoleSheet({ role, onClose, onSaved }) {
+  const [run, busy] = useAction();
+  const [v, setV] = useState({ requires_sia: role.requires_sia, accepted_licences: role.accepted_licences || [], required_docs: role.required_docs || [] });
+  const save = () => run(() => api('roles.update', { code: role.code, ...v, accepted_licences: v.requires_sia ? v.accepted_licences : [] }), 'Role updated').then(onSaved).catch(() => {});
+  return (
+    <Sheet open onClose={onClose} title={role.name} footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={save}>Save</Button></>}>
+      <div className="space-y-4">
+        <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.requires_sia} onChange={(x) => setV((s) => ({ ...s, requires_sia: x }))} label="SIA licence required" hint="Officers need a valid licence to work this role" /></div>
+        {v.requires_sia && (
+          <div>
+            <Chips label="Licences that cover this role" options={SIA_TYPES} value={v.accepted_licences} onChange={(x) => setV((s) => ({ ...s, accepted_licences: x }))} />
+            <p className="mt-1.5 text-[12px] text-muted">{v.accepted_licences.length ? 'Officers with another licence type are flagged when rostered on this role.' : 'None picked: any SIA licence is accepted.'}</p>
+          </div>
+        )}
+        <Chips label="Other documents officers need" options={ROLE_DOCS} value={v.required_docs} onChange={(x) => setV((s) => ({ ...s, required_docs: x }))} />
+      </div>
+    </Sheet>
+  );
+}
+
 function CalendarTab() {
+  const { user } = useAuth();
   const roles = useApi('roles.list');
+  const [editing, setEditing] = useState(null);
   const bh = useApi('bankHolidays.list');
   const confirm = useConfirm();
   const [run, busy] = useAction();
@@ -257,11 +281,17 @@ function CalendarTab() {
           <Load q={roles}>
             {(rows) => (
               <List>
-                {rows.map((r) => <Row key={r.code} title={r.name} subtitle={r.code} right={r.requires_sia ? <Pill tone="blue">SIA required</Pill> : <Pill tone="grey">No SIA</Pill>} />)}
+                {rows.map((r) => (
+                  <Row key={r.code} title={r.name} chevron={user.role === 'company'} onClick={user.role === 'company' ? () => setEditing(r) : undefined}
+                    subtitle={[r.accepted_licences?.length ? r.accepted_licences.join(' or ') : r.requires_sia ? 'Any SIA licence' : null, r.required_docs?.length ? `Needs ${r.required_docs.map(docKindLabel).join(', ').toLowerCase()}` : null].filter(Boolean).join(' · ') || r.code}
+                    right={r.requires_sia ? <Pill tone="blue">SIA required</Pill> : <Pill tone="grey">No SIA</Pill>} />
+                ))}
               </List>
             )}
           </Load>
+          {user.role === 'company' && <p className="mt-2 px-1 text-[12px] text-muted">Tap a role to set which licences cover it and which documents officers need. The compliance check uses these.</p>}
         </Section>
+        {editing && <RoleSheet role={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); roles.reload(); }} />}
       </div>
       <div className="lg:col-span-3">
         <Section title="Bank holidays" className="mt-0" action={<button type="button" className="text-[13px] font-semibold text-blue" onClick={() => setShowPast((x) => !x)}>{showPast ? 'Hide past' : 'Show past'}</button>}>

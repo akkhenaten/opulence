@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'node:crypto';
 
@@ -26,4 +26,14 @@ export async function downloadUrl(key, filename) {
 export async function getObjectBytes(key) {
   const res = await client().send(new GetObjectCommand({ Bucket: process.env.STORAGE_BUCKET, Key: key }));
   return Buffer.from(await res.Body.transformToByteArray());
+}
+
+// Size and type of an uploaded object, or null when it does not exist
+export async function headObject(key) {
+  try {
+    const r = await client().send(new HeadObjectCommand({ Bucket: process.env.STORAGE_BUCKET, Key: key }));
+    return { size: Number(r.ContentLength || 0), mime: r.ContentType || '' };
+  } catch {
+    return null;
+  }
 }

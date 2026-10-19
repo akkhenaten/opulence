@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, History, MessageSquareReply, Pencil, RotateCcw, X,
+  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Download, FilePlus, FileText, History, ImagePlus, MessageSquareReply, Pencil, RefreshCw, RotateCcw, Sparkles, Trash2, X,
 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Button, cx, dateTime, KV, List, Load, Page, Pill, Row, Section, Sheet, Spinner, Textarea, Tile, useAction, useApi, useConfirm,
+  Button, cx, dateTime, KV, List, Load, Page, Pill, Row, Section, Sheet, Spinner, Textarea, Tile, useAction, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
 import { INCIDENT_STATUS, typeLabel } from '../officer/_parts.jsx';
+import { DOC_ACCEPT, fileSize, MAX_FILES, useUploads } from './evidence.jsx';
 
 const yn = (b, ref) => (b ? `Yes${ref ? ` (ref ${ref})` : ''}` : 'No');
 const LABELS = {
@@ -39,6 +40,8 @@ function Detail({ inc, reload, base }) {
   const canEdit = isOfficer && inc.status !== 'closed' && (inc.status === 'changes_requested' || inc.reported_by === user.id);
   const [lightbox, setLightbox] = useState(null);
   const [version, setVersion] = useState(null);
+  const [prefill, setPrefill] = useState(null);
+  const canAdd = isMgr || (isOfficer && inc.status !== 'closed');
   const images = inc.attachments.filter((a) => a.mime?.startsWith('image/'));
   const files = inc.attachments.filter((a) => !a.mime?.startsWith('image/'));
 
@@ -57,6 +60,7 @@ function Detail({ inc, reload, base }) {
             <Pill status={inc.severity}>{inc.severity === 'critical' ? 'Critical' : `${inc.severity[0].toUpperCase()}${inc.severity.slice(1)} severity`}</Pill>
             <Pill status={inc.status}>{INCIDENT_STATUS[inc.status]}</Pill>
             {inc.version > 1 && <Pill tone="grey">Version {inc.version}</Pill>}
+            {isMgr && inc.ai_assisted && <Pill tone="blue"><Sparkles size={12} />AI-assisted</Pill>}
           </div>
           <KV items={[
             ['Occurred', dateTime(inc.occurred_at)],
@@ -104,28 +108,14 @@ function Detail({ inc, reload, base }) {
           </Section>
         )}
 
-        {inc.attachments.length > 0 && (
-          <Section title={`Photos and files (${inc.attachments.length})`} className="!mt-4">
-            {images.length > 0 && (
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {images.map((a, i) => (
-                  <button key={a.id} type="button" onClick={() => setLightbox(i)} className="aspect-square overflow-hidden rounded-2xl bg-bg shadow-tile">
-                    <img src={a.url} alt={a.name || 'Incident photo'} loading="lazy" className="h-full w-full object-cover transition hover:scale-105" />
-                  </button>
-                ))}
-              </div>
-            )}
-            {files.length > 0 && (
-              <List className="mt-2">
-                {files.map((a) => <Row key={a.id} left={<FileText size={20} className="text-muted" />} title={a.name || 'File'} onClick={() => window.open(a.url, '_blank', 'noopener')} chevron />)}
-              </List>
-            )}
-          </Section>
+        {(inc.attachments.length > 0 || canAdd || inc.removed?.length > 0) && (
+          <Attachments inc={inc} images={images} files={files} canAdd={canAdd} reload={reload} openImage={setLightbox} />
         )}
       </div>
 
       <aside className="space-y-3">
-        {isMgr && <ReviewPanel inc={inc} reload={reload} />}
+        {isMgr && <ReviewPanel inc={inc} reload={reload} prefill={prefill} clearPrefill={() => setPrefill(null)} />}
+        {isMgr && inc.attachments.length > 0 && <EvidenceReview inc={inc} onRequest={(text) => setPrefill(text)} />}
         {inc.versions.length > 0 && (
           <Section title="History" className="!mt-0 lg:!mt-0">
             <List>
@@ -174,11 +164,17 @@ function StatusBanner({ inc, isOfficer }) {
   return null;
 }
 
-function ReviewPanel({ inc, reload }) {
+function ReviewPanel({ inc, reload, prefill, clearPrefill }) {
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const [mode, setMode] = useState(null); // changes_requested | close
   const [comment, setComment] = useState('');
+  useEffect(() => {
+    if (!prefill) return;
+    setComment((c) => (c.trim() ? `${c.trim()}\n${prefill}` : prefill));
+    setMode('changes_requested');
+    clearPrefill();
+  }, [prefill]); // eslint-disable-line react-hooks/exhaustive-deps
   const decide = (decision, c = '') => run(() => api('incidents.review', { id: inc.id, decision, comment: c }),
     { close: 'Incident closed', changes_requested: 'Sent back to the officer', reopen: 'Incident reopened' }[decision])
     .then(() => { setMode(null); setComment(''); reload(); }).catch(() => {});
@@ -202,6 +198,148 @@ function ReviewPanel({ inc, reload }) {
         {mode === 'changes_requested' && <p className="mt-2 text-[13px] text-muted">{inc.officer_name || 'The officer'} will get a notification and email.</p>}
       </Sheet>
     </Tile>
+  );
+}
+
+function Attachments({ inc, images, files, canAdd, reload, openImage }) {
+  const toast = useToast();
+  const confirm = useConfirm();
+  const [run, busy] = useAction();
+  const lib = useRef(null);
+  const doc = useRef(null);
+  const uploads = useUploads({ existingCount: inc.attachments.length, toast });
+  const pick = (e) => { const fs = [...(e.target.files || [])]; e.target.value = ''; if (fs.length) uploads.add(fs); };
+  const pending = uploads.items.length > 0;
+  const save = () => run(() => api('incidents.addAttachments', { id: inc.id, attachments: uploads.attachments }), 'Files added')
+    .then(() => { uploads.items.forEach((x) => uploads.remove(x.uid)); reload(); }).catch(() => {});
+  const remove = async (a) => {
+    if (!(await confirm({ title: `Remove ${a.name || 'this file'}?`, body: 'It comes off the report and the PDF. The report history keeps a note that it was removed.', confirm: 'Remove', danger: true }))) return;
+    run(() => api('incidents.removeAttachment', { id: a.id }), 'File removed').then(reload).catch(() => {});
+  };
+  const meta = (a) => [fileSize(a.size_bytes), a.uploaded_by_name, dateTime(a.created_at)].filter(Boolean).join(' · ');
+  const full = inc.attachments.length + uploads.items.length >= MAX_FILES;
+  return (
+    <Section title={`Photos and files (${inc.attachments.length})`} className="!mt-4"
+      action={canAdd && !full && (
+        <div className="flex gap-1">
+          <Button size="sm" variant="ghost" icon={ImagePlus} onClick={() => lib.current?.click()}>Photo</Button>
+          <Button size="sm" variant="ghost" icon={FilePlus} onClick={() => doc.current?.click()}>File</Button>
+        </div>
+      )}>
+      <input ref={lib} type="file" accept="image/*" multiple className="hidden" onChange={pick} />
+      <input ref={doc} type="file" accept={DOC_ACCEPT} multiple className="hidden" onChange={pick} />
+      {images.length > 0 && (
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {images.map((a, i) => (
+            <div key={a.id} className="group relative aspect-square overflow-hidden rounded-2xl bg-bg shadow-tile">
+              <button type="button" onClick={() => openImage(i)} className="block h-full w-full" title={meta(a)}>
+                <img src={a.url} alt={a.name || 'Incident photo'} loading="lazy" className="h-full w-full object-cover transition hover:scale-105" />
+              </button>
+              {a.can_remove && (
+                <button type="button" aria-label={`Remove ${a.name || 'photo'}`} disabled={busy} onClick={() => remove(a)}
+                  className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full bg-ink/70 text-white"><Trash2 size={15} /></button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {files.length > 0 && (
+        <List className="mt-2">
+          {files.map((a) => (
+            <Row key={a.id} left={<FileText size={20} className="text-muted" />} title={<a href={a.url} target="_blank" rel="noopener noreferrer" className="hover:text-blue">{a.name || 'File'}</a>} subtitle={meta(a)}
+              right={(
+                <div className="flex gap-1">
+                  <a href={a.url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${a.name || 'file'}`} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-bg"><Download size={16} /></a>
+                  {a.can_remove && <button type="button" aria-label={`Remove ${a.name || 'file'}`} disabled={busy} onClick={() => remove(a)} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-red-soft hover:text-red"><Trash2 size={16} /></button>}
+                </div>
+              )} />
+          ))}
+        </List>
+      )}
+      {images.length > 0 && <p className="mt-2 px-1 text-[12px] text-muted">{images.length} photo{images.length > 1 ? 's' : ''} · added by {[...new Set(images.map((a) => a.uploaded_by_name).filter(Boolean))].join(', ') || 'the officer'}</p>}
+      {!inc.attachments.length && !pending && <p className="rounded-2xl bg-bg px-4 py-3 text-[14px] text-muted">No photos or files yet.</p>}
+      {pending && (
+        <div className="mt-3 rounded-2xl border border-line p-3">
+          <ul className="space-y-1 text-[14px]">
+            {uploads.items.map((x) => (
+              <li key={x.uid} className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate">{x.name}</span>
+                <span className={cx('shrink-0 text-[12px]', x.status === 'error' ? 'text-red' : 'text-muted')}>{x.status === 'uploading' ? 'Uploading…' : x.status === 'error' ? 'Failed' : fileSize(x.size)}</span>
+                <button type="button" aria-label={`Remove ${x.name}`} onClick={() => uploads.remove(x.uid)} className="text-muted"><X size={16} /></button>
+              </li>
+            ))}
+          </ul>
+          <Button className="mt-3 w-full" busy={busy} disabled={uploads.uploading || !uploads.done.length} onClick={save}>
+            {uploads.uploading ? 'Uploading…' : `Add ${uploads.done.length} to the report`}
+          </Button>
+        </div>
+      )}
+      {inc.removed?.length > 0 && (
+        <p className="mt-2 px-1 text-[12px] text-muted">
+          Removed: {inc.removed.map((r) => `${r.name || 'file'} (${[r.removed_by_name, dateTime(r.removed_at)].filter(Boolean).join(', ')})`).join('; ')}
+        </p>
+      )}
+    </Section>
+  );
+}
+
+function EvidenceReview({ inc, onRequest }) {
+  const [state, setState] = useState({ data: inc.ai_summary || null, stale: inc.ai_summary_stale, loading: false, error: null });
+  const load = (force) => {
+    setState((s) => ({ ...s, loading: true, error: null }));
+    api('incidents.aiReview', { id: inc.id, force })
+      .then((data) => setState({ data, stale: false, loading: false, error: null }))
+      .catch((e) => setState((s) => ({ ...s, loading: false, error: e.message })));
+  };
+  const d = state.data;
+  const byId = Object.fromEntries(inc.attachments.map((a, i) => [a.id, { ...a, n: i + 1 }]));
+  return (
+    <Tile title={<span className="inline-flex items-center gap-1.5"><Sparkles size={16} className="text-blue" />Evidence review</span>}
+      action={d && !d.error && <Button size="sm" variant="ghost" icon={RefreshCw} busy={state.loading} onClick={() => load(true)}>Refresh</Button>}>
+      {state.error && <p className="mb-2 rounded-xl bg-amber-soft px-3 py-2 text-[13px] text-amber">{state.error}</p>}
+      {(!d || d.error) ? (
+        <div className="grid gap-2">
+          <p className="text-[13px] text-muted">{d?.error ? 'The last review could not finish.' : 'AI reads the photos and files and checks them against the written report.'}</p>
+          <Button variant="secondary" icon={Sparkles} busy={state.loading} onClick={() => load(!!d)}>Review evidence</Button>
+        </div>
+      ) : (
+        <div className="space-y-3 text-[14px]">
+          {state.stale && <p className="rounded-xl bg-bg px-3 py-2 text-[12px] text-muted">The report or its files changed since this review. It refreshes by itself shortly, or tap Refresh.</p>}
+          {d.summary && <p className="leading-relaxed">{d.summary}</p>}
+          {d.mismatches?.length > 0 && (
+            <div>
+              <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-red">Doesn't match the report</div>
+              <ul className="space-y-1.5">{d.mismatches.map((m) => <Finding key={m} text={m} onRequest={onRequest} />)}</ul>
+            </div>
+          )}
+          {d.missing?.length > 0 && (
+            <div>
+              <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-amber">Missing from the report</div>
+              <ul className="space-y-1.5">{d.missing.map((m) => <Finding key={m} text={m} onRequest={onRequest} />)}</ul>
+            </div>
+          )}
+          {d.captions?.length > 0 && (
+            <details className="rounded-xl bg-bg px-3 py-2">
+              <summary className="cursor-pointer text-[13px] font-semibold">What each file shows ({d.captions.length})</summary>
+              <ul className="mt-2 space-y-1.5 text-[13px]">
+                {d.captions.map((c) => <li key={c.attachment_id || c.text}><span className="font-semibold">{byId[c.attachment_id] ? `${byId[c.attachment_id].n}. ${byId[c.attachment_id].name || 'File'}` : 'File'}:</span> {c.text}</li>)}
+              </ul>
+            </details>
+          )}
+          {d.skipped?.length > 0 && <p className="text-[12px] text-muted">Not read: {d.skipped.join(', ')}</p>}
+          <p className="text-[12px] text-faint">AI can be wrong. Check the photos yourself before acting.</p>
+        </div>
+      )}
+    </Tile>
+  );
+}
+
+function Finding({ text, onRequest }) {
+  return (
+    <li className="flex items-start gap-2">
+      <span className="min-w-0 flex-1">{text}</span>
+      <button type="button" onClick={() => onRequest(text)} className="shrink-0 rounded-lg px-2 py-0.5 text-[12px] font-semibold text-blue hover:bg-blue-soft">Ask officer</button>
+    </li>
   );
 }
 

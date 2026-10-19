@@ -12,7 +12,9 @@ const KIND = {
   venue_request: { label: 'Venue request', tone: 'amber' },
   reconcile: { label: 'Hours check', tone: 'red' },
   feedback: { label: 'Feedback', tone: 'grey' },
+  compliance: { label: 'Compliance', tone: 'red' },
 };
+const SEVERITY = { urgent: { label: 'Urgent', tone: 'red' }, soon: { label: 'Soon', tone: 'amber' }, advisory: { label: 'Advisory', tone: 'grey' } };
 const ITEM_STATUS = { approved: 'Offers sent', done: 'Done', rejected: 'Rejected', expired: 'Expired', pending: 'Waiting' };
 
 export default function OpsAI() {
@@ -57,6 +59,7 @@ function Inbox({ onChange }) {
 }
 
 function ItemCard({ it, onDone }) {
+  const { user } = useBase();
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const [edit, setEdit] = useState(false);
@@ -64,7 +67,9 @@ function ItemCard({ it, onDone }) {
   const k = KIND[it.kind];
   const pending = it.status === 'pending';
   const p = it.payload || {};
-  const approveLabel = { cover: 'Send offers', venue_request: 'Approve & publish', reconcile: p.info_only ? 'Mark reviewed' : 'Approve fix', feedback: 'Mark reviewed' }[it.kind];
+  const approveLabel = { cover: 'Send offers', venue_request: 'Approve & publish', reconcile: p.info_only ? 'Mark reviewed' : 'Approve fix', feedback: 'Mark reviewed', compliance: 'Apply selected' }[it.kind];
+  const allowed = (a) => !a.company_only || user.role === 'company';
+  const [picked, setPicked] = useState(() => new Set((p.issues || []).flatMap((i) => i.actions.filter((a) => a.default && allowed(a)).map((a) => a.id))));
 
   const decide = (decision, extra = {}) => run(async () => {
     await api('ops.decide', { id: it.id, decision, ...extra });
@@ -77,6 +82,7 @@ function ItemCard({ it, onDone }) {
       const add = await confirm({ title: 'Add to HR notes?', body: 'Keep a record of this feedback on the officer\'s HR notes.', confirm: 'Add to HR notes' });
       return decide('approve', { edits: { hr_note: add } });
     }
+    if (it.kind === 'compliance') return decide('approve', { edits: { actions: [...picked] } });
     return decide('approve');
   };
 
@@ -84,6 +90,7 @@ function ItemCard({ it, onDone }) {
     <Tile className="flex flex-col">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Pill tone={k.tone}>{k.label}</Pill>
+        {it.kind === 'compliance' && SEVERITY[p.severity] && <Pill tone={SEVERITY[p.severity].tone}>{SEVERITY[p.severity].label}</Pill>}
         {it.venue_name && <span className="truncate text-[13px] font-semibold text-muted">{it.venue_name}</span>}
         <span className="ml-auto text-[12px] text-faint">{relative(it.created_at)}</span>
       </div>
@@ -94,12 +101,13 @@ function ItemCard({ it, onDone }) {
         {it.kind === 'cover' && <CoverBody it={it} />}
         {it.kind === 'venue_request' && <RequestBody it={it} />}
         {it.kind === 'reconcile' && <ReconcileBody p={p} />}
+        {it.kind === 'compliance' && <ComplianceBody it={it} pending={pending} picked={picked} setPicked={setPicked} allowed={allowed} onChanged={onDone} />}
         {it.kind === 'feedback' && <div className="flex items-center gap-1 text-amber">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={18} fill={n <= p.rating ? 'currentColor' : 'none'} />)}<span className="ml-2 text-[13px] text-muted">{p.shift}</span></div>}
       </div>
 
       {pending ? (
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button icon={Check} busy={busy} onClick={approve} disabled={it.kind === 'cover' && !(p.officer_ids || []).length}>{approveLabel}</Button>
+          <Button icon={Check} busy={busy} onClick={approve} disabled={(it.kind === 'cover' && !(p.officer_ids || []).length) || (it.kind === 'compliance' && !picked.size)}>{approveLabel}</Button>
           {['cover', 'venue_request'].includes(it.kind) && <Button variant="secondary" icon={Pencil} onClick={() => setEdit(true)}>Edit</Button>}
           <Button variant="ghost" icon={X} onClick={() => setRejecting(true)}>Reject</Button>
         </div>
@@ -231,6 +239,53 @@ function ReconcileBody({ p }) {
   );
 }
 
+function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged }) {
+  const { base } = useBase();
+  const p = it.payload || {};
+  const [dismiss, setDismiss] = useState(null);
+  const [reason, setReason] = useState('');
+  const [run, busy] = useAction();
+  const toggle = (id, on) => setPicked((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n; });
+  const done = new Set(it.result?.done || []);
+  const doDismiss = () => run(() => api('ops.dismissIssue', { id: it.id, key: dismiss.key, reason: reason.trim() }), 'Dismissed')
+    .then(() => { setDismiss(null); setReason(''); onChanged(); }).catch(() => {});
+  return (
+    <div className="space-y-2">
+      {p.officer_id && <Button size="sm" variant="soft" to={`${base}/staff/${p.officer_id}`}>Open {p.officer_name}</Button>}
+      {(p.issues || []).map((i) => (
+        <div key={i.key} className="rounded-2xl border border-line p-3">
+          <div className="flex items-start gap-2">
+            <span className={cx('mt-1.5 h-2 w-2 shrink-0 rounded-full', i.severity === 'urgent' ? 'bg-red' : i.severity === 'soon' ? 'bg-amber' : 'bg-faint')} />
+            <div className="min-w-0 flex-1">
+              <div className="text-[14px] font-semibold">{i.title}</div>
+              {i.detail && <p className="text-[13px] text-muted">{i.detail}</p>}
+            </div>
+            {pending && <button type="button" onClick={() => setDismiss(i)} className="shrink-0 rounded-lg px-2 py-0.5 text-[12px] font-semibold text-muted hover:bg-bg">Dismiss</button>}
+          </div>
+          {pending && i.actions.filter(allowed).length > 0 && (
+            <div className="mt-2 space-y-1 pl-4">
+              {i.actions.filter(allowed).map((a) => (
+                <label key={a.id} className="flex cursor-pointer items-start gap-2 text-[13px]">
+                  <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-blue)]" checked={picked.has(a.id)} onChange={(e) => toggle(a.id, e.target.checked)} />
+                  <span>{a.label}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {!pending && done.size > 0 && i.actions.some((a) => done.has(a.id)) && (
+            <p className="mt-1 pl-4 text-[12px] text-green">Done: {i.actions.filter((a) => done.has(a.id)).map((a) => a.label).join(' · ')}</p>
+          )}
+        </div>
+      ))}
+      <Sheet open={!!dismiss} onClose={() => setDismiss(null)} title="Dismiss this issue?" size="sm"
+        footer={<><Button variant="secondary" onClick={() => setDismiss(null)}>Cancel</Button><Button busy={busy} onClick={doDismiss}>Dismiss</Button></>}>
+        <p className="mb-3 text-[14px] text-muted">{dismiss?.title}. It won't be raised again unless the details behind it change.</p>
+        <Textarea label="Reason (kept on record)" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Renewal confirmed by phone, card in the post." />
+      </Sheet>
+    </div>
+  );
+}
+
 function RejectSheet({ open, busy, venue, onClose, onReject }) {
   const [reason, setReason] = useState('');
   return (
@@ -336,6 +391,8 @@ const JOBS = [
   { k: 'venue_requests', label: 'Venue request chat', hint: 'Venues ask for staff in plain words' },
   { k: 'reconcile', label: 'Check hours against pay and invoices', hint: 'Weekly, and after each pay run or invoice run' },
   { k: 'chat', label: 'Ask Ops AI chat', hint: 'For managers' },
+  { k: 'compliance', label: 'Compliance checks', hint: 'Licences, right to work and documents against the rota. Weekly' },
+  { k: 'incident_ai', label: 'AI on incident reports', hint: 'Drafts from officers\' notes and photos; evidence review for managers' },
 ];
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -343,6 +400,7 @@ function OpsSettings() {
   const q = useApi('ops.settings.get', {});
   const [run, busy] = useAction();
   const [runNow, running] = useAction();
+  const [runCheck, checking] = useAction();
   const [v, setV] = useState(null);
   useEffect(() => { if (q.data) setV(q.data); }, [q.data]);
   if (!v) return <Load q={q}>{() => null}</Load>;
@@ -353,7 +411,7 @@ function OpsSettings() {
   const save = () => run(async () => {
     const r = await api('ops.settings.save', {
       ops_jobs: v.ops_jobs, ops_escalate_minutes: Number(v.ops_escalate_minutes), ops_offer_wait_minutes: Number(v.ops_offer_wait_minutes),
-      ops_reconcile_dow: Number(v.ops_reconcile_dow), ops_ai_cap_credits: Number(v.ops_ai_cap_credits),
+      ops_reconcile_dow: Number(v.ops_reconcile_dow), ops_compliance_dow: Number(v.ops_compliance_dow), ops_ai_cap_credits: Number(v.ops_ai_cap_credits),
     });
     q.setData(r);
   }, 'Saved');
@@ -370,7 +428,8 @@ function OpsSettings() {
           <div className="grid gap-3 sm:grid-cols-2">
             <Input label="Escalate after no reply (min)" type="number" min="1" max="240" value={v.ops_escalate_minutes} onChange={(e) => set('ops_escalate_minutes', e.target.value)} hint="After the grace period" />
             <Input label="Wait for cover replies (min)" type="number" min="1" max="240" value={v.ops_offer_wait_minutes} onChange={(e) => set('ops_offer_wait_minutes', e.target.value)} hint="Then offers the next officers" />
-            <Select label="Weekly hours check" value={v.ops_reconcile_dow} onChange={(e) => set('ops_reconcile_dow', e.target.value)} options={DAYS.map((d, i) => ({ value: i + 1, label: d }))} className="sm:col-span-2" />
+            <Select label="Weekly hours check" value={v.ops_reconcile_dow} onChange={(e) => set('ops_reconcile_dow', e.target.value)} options={DAYS.map((d, i) => ({ value: i + 1, label: d }))} />
+            <Select label="Weekly compliance check" value={v.ops_compliance_dow} onChange={(e) => set('ops_compliance_dow', e.target.value)} options={DAYS.map((d, i) => ({ value: i + 1, label: d }))} />
           </div>
         </Tile>
         <Tile title="AI usage this month">
@@ -385,6 +444,7 @@ function OpsSettings() {
         <div className="flex flex-wrap gap-2">
           <Button busy={busy} onClick={save}>Save settings</Button>
           <Button variant="secondary" busy={running} onClick={() => runNow(() => api('ops.runNow', { reconcile: true }), 'Checks run — see the Inbox')}>Run checks now</Button>
+          <Button variant="secondary" busy={checking} onClick={() => runCheck(() => api('ops.complianceRun', {}), (r) => `Checked ${r.checked} officers · ${r.attention} need attention`).catch(() => {})}>Run compliance check</Button>
         </div>
       </div>
     </div>

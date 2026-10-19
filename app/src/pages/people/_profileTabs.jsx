@@ -204,6 +204,18 @@ function BanSheet({ o, onClose, onDone }) {
 
 /* ---------------- Documents ---------------- */
 
+// What the compliance check read off the scan; managers compare it with the record
+function AiRead({ r }) {
+  if (r.readable === false) return <div className="mt-0.5 text-[12px] font-semibold text-amber">AI couldn't read this scan clearly</div>;
+  const bits = [r.number && `No. ${r.number}`, r.expiry && `exp. ${date(r.expiry)}`, r.licence_type, r.name].filter(Boolean);
+  return (
+    <div className="mt-0.5 text-[12px] text-muted">
+      {bits.length > 0 && <div className="truncate"><span className="font-semibold text-blue">AI read:</span> {bits.join(' · ')}</div>}
+      {r.concerns?.length > 0 && <div className="whitespace-normal text-amber">{r.concerns.join('; ')}</div>}
+    </div>
+  );
+}
+
 export function DocumentsTab({ o, isCo, onForbidden }) {
   const q = useTabApi('docs.list', { owner_type: 'officer', owner_id: o.id }, onForbidden);
   const [adding, setAdding] = useState(false);
@@ -239,6 +251,7 @@ export function DocumentsTab({ o, isCo, onForbidden }) {
                     <div className="truncate text-[13px] text-muted">
                       {[docKindLabel(d.kind), d.number && `No. ${d.number}`, d.expiry && `Expires ${date(d.expiry)}`, `Added ${dateShort(d.created_at)}`].filter(Boolean).join(' · ')}
                     </div>
+                    {d.ai_read && d.ai_read_key === d.s3_key && <AiRead r={d.ai_read} />}
                   </div>
                   <div className="flex items-center gap-1.5">
                     {d.verified_at ? <Pill tone="green" className="max-w-[160px] truncate">Verified{d.verified_by_name ? ` · ${d.verified_by_name}` : ''}</Pill> : <Pill tone="amber">Unverified</Pill>}

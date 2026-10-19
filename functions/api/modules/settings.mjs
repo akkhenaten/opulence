@@ -1,5 +1,6 @@
 import { one, q } from '../lib/db.mjs';
-import { pick, required } from '../lib/http.mjs';
+import { fail, need, pick, required } from '../lib/http.mjs';
+import { DOC_KINDS, SIA_TYPES } from '../lib/licences.mjs';
 import { audit } from '../lib/audit.mjs';
 import { ALL, CO, def } from './_def.mjs';
 
@@ -25,6 +26,20 @@ export const actions = {
   }),
 
   'roles.list': def(ALL, async () => q('SELECT * FROM roles ORDER BY name')),
+
+  // Which SIA licences cover a role and which documents it needs (used by the compliance run)
+  'roles.update': def(CO, async (b, { user }) => {
+    required(b, 'code');
+    const lic = b.accepted_licences ?? null;
+    const docs = b.required_docs ?? null;
+    if (lic && (!Array.isArray(lic) || lic.some((x) => !SIA_TYPES.includes(x)))) fail(400, 'Unknown licence type');
+    if (docs && (!Array.isArray(docs) || docs.some((x) => !DOC_KINDS.includes(x)))) fail(400, 'Unknown document type');
+    const r = need(await one(
+      `UPDATE roles SET requires_sia = COALESCE($2, requires_sia), accepted_licences = COALESCE($3, accepted_licences), required_docs = COALESCE($4, required_docs)
+        WHERE code = $1 RETURNING *`, [b.code, typeof b.requires_sia === 'boolean' ? b.requires_sia : null, lic, docs]), 'Role not found');
+    await audit(user, 'roles.update', 'role', null, { code: b.code, requires_sia: b.requires_sia, accepted_licences: lic, required_docs: docs });
+    return r;
+  }),
 
   'bankHolidays.list': def(ALL, async () => q('SELECT * FROM bank_holidays ORDER BY day')),
   'bankHolidays.save': def(CO, async (b) => {

@@ -78,3 +78,13 @@ export async function extract({ model = HAIKU, system, messages, tool, max_token
   const block = (r.content || []).find((c) => c.type === 'tool_use');
   return { input: block?.input || null, credits: r.credits };
 }
+
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+export const canRead = (mime) => IMAGE_TYPES.has(mime) || mime === 'application/pdf';
+
+// Image or PDF content block for vision; null for files the model cannot read
+export function fileBlock(bytes, mime) {
+  if (IMAGE_TYPES.has(mime)) return { type: 'image', source: { type: 'base64', media_type: mime, data: Buffer.from(bytes).toString('base64') } };
+  if (mime === 'application/pdf') return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: Buffer.from(bytes).toString('base64') } };
+  return null;
+}

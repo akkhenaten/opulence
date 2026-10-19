@@ -12,6 +12,8 @@ import { getSettings } from './settings.mjs';
 import { checkOfficerForShift, getShift, filledCount, shiftsWithAssignments, londonToUtc, actions as rota } from './rota.mjs';
 import { recalcStatement, recalcInvoice } from './money.mjs';
 import { ALL, MGR, CO, def } from './_def.mjs';
+import { runCompliance, readDocuments, decideCompliance, computeIssues } from './compliance.mjs';
+import { evidenceScan } from './incidentAi.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const NO_CLOCK_IN = "NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')";
@@ -365,6 +367,23 @@ const JOBS = {
     const lastMonday = addDays(today, -(dow - 1) - 7);
     return runReconcile(lastMonday, addDays(lastMonday, 6));
   },
+
+  async compliance(s) {
+    if (!jobOn(s, 'compliance')) return 'off';
+    const today = londonDate(new Date());
+    const dow = ((new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7) + 1;
+    if (dow !== s.ops_compliance_dow || londonParts(new Date()).hour < 6) return 'not today';
+    if (await one("SELECT 1 FROM ops_activity WHERE kind = 'compliance_run' AND text = $1", [today])) return 'done';
+    await logActivity('compliance_run', today);
+    return runCompliance();
+  },
+
+  async docRead(s) {
+    if (!jobOn(s, 'compliance')) return 'off';
+    return readDocuments(4);
+  },
+
+  evidenceScan,
 };
 
 export async function runOpsJobs(s) {
@@ -496,6 +515,8 @@ const CHAT_TOOLS = [
     input_schema: { type: 'object', properties: { officer: { type: 'string' }, from: { type: 'string' }, to: { type: 'string' } }, required: ['officer', 'from', 'to'] } },
   { name: 'list_officers', description: 'Active officers with roles and home area.', input_schema: { type: 'object', properties: {} } },
   { name: 'list_venues', description: 'Venues this manager looks after.', input_schema: { type: 'object', properties: {} } },
+  { name: 'compliance_status', description: 'Live staff compliance issues: SIA licence and right-to-work expiry against the rota, licence type vs role, missing or mismatched documents. With from/to, only issues putting shifts in that range at risk.',
+    input_schema: { type: 'object', properties: { officer: { type: 'string', description: 'Name (partial ok)' }, from: { type: 'string', description: 'YYYY-MM-DD' }, to: { type: 'string', description: 'YYYY-MM-DD inclusive' } } } },
   { name: 'propose_change', description: 'Prepare a change for the manager to approve in the Ops AI inbox. Never changes anything by itself. kind=cover: offer a shift to officers. kind=rota: add, change or cancel shifts.',
     input_schema: { type: 'object', properties: {
       kind: { type: 'string', enum: ['cover', 'rota'] }, shift_id: { type: 'string', description: 'cover, or rota change/cancel' },
@@ -558,6 +579,16 @@ async function runTool(name, input, user, created) {
     }
     case 'list_officers':
       return (await q("SELECT id, first_name, last_name, roles, postcode FROM officers WHERE status = 'active' ORDER BY first_name")).map((o) => ({ officer_id: o.id, name: firstLast(o), roles: o.roles, area: outward(o.postcode) }));
+    case 'compliance_status': {
+      const scope = await venueScope(user);
+      const o = input.officer ? await findOfficer(input.officer) : null;
+      const inRange = (sh) => sh && (!input.from || londonDate(sh.starts_at) >= input.from) && (!input.to || londonDate(sh.starts_at) <= input.to);
+      return (await computeIssues({ officerId: o?.id })).map((r) => ({
+        officer: firstLast(r.officer),
+        issues: r.issues.filter((i) => (!input.from && !input.to) || inRange(i.shift)).filter((i) => !scope || (i.shift && scope.includes(i.shift.venue_id)))
+          .map((i) => ({ severity: i.severity, issue: i.title, detail: i.detail })),
+      })).filter((r) => r.issues.length);
+    }
     case 'list_venues': {
       const scope = await venueScope(user);
       return q('SELECT id AS venue_id, name, postcode FROM venues WHERE ($1::uuid[] IS NULL OR id = ANY($1)) ORDER BY name', [scope]);
@@ -590,7 +621,7 @@ async function runTool(name, input, user, created) {
 }
 
 // ---------- Actions ----------
-const OPS_SETTINGS = ['ops_jobs', 'ops_escalate_minutes', 'ops_offer_wait_minutes', 'ops_reconcile_dow', 'ops_ai_cap_credits'];
+const OPS_SETTINGS = ['ops_jobs', 'ops_escalate_minutes', 'ops_offer_wait_minutes', 'ops_reconcile_dow', 'ops_compliance_dow', 'ops_ai_cap_credits'];
 
 export const actions = {
   'ops.inbox': def(MGR, async (b, { user }) => {
@@ -621,7 +652,7 @@ export const actions = {
   'ops.activity': def(MGR, async (_b, { user }) => {
     const scope = await venueScope(user);
     return q(
-      `SELECT * FROM ops_activity WHERE kind <> 'reconcile_run' AND ($1::uuid[] IS NULL OR venue_id = ANY($1) ${''}OR (venue_id IS NULL AND $2))
+      `SELECT * FROM ops_activity WHERE kind NOT IN ('reconcile_run','compliance_run') AND ($1::uuid[] IS NULL OR venue_id = ANY($1) ${''}OR (venue_id IS NULL AND $2))
         ORDER BY created_at DESC LIMIT 150`, [scope, user.role === 'company']);
   }),
 
@@ -637,7 +668,7 @@ export const actions = {
       }
       result = { rejected: true, reason: b.reason || '' };
     } else if (b.decision === 'approve') {
-      result = await { cover: decideCover, venue_request: decideVenueRequest, reconcile: decideReconcile, feedback: decideFeedback }[it.kind](it, b, user);
+      result = await { cover: decideCover, venue_request: decideVenueRequest, reconcile: decideReconcile, feedback: decideFeedback, compliance: decideCompliance }[it.kind](it, b, user);
     } else fail(400, 'decision must be approve or reject');
     const status = b.decision === 'reject' ? 'rejected' : it.kind === 'cover' ? 'approved' : 'done';
     await q('UPDATE ops_items SET status = $2, decided_by = $3, decided_at = now(), result = $4 WHERE id = $1', [it.id, status, user.id, result]);
@@ -653,7 +684,7 @@ export const actions = {
     const now = new Date();
     const system = `You are Ops AI, the operations manager assistant inside Orb Security, a UK manned-security company. You help ${user.name} (${user.role === 'company' ? 'company manager' : 'security manager'}) run rotas, cover, attendance and hours.
 Today is ${londonParts(now).weekday} ${londonDate(now)}, time ${fmtTime(now)} Europe/London. Weeks run Monday to Sunday.
-Rules: use the tools to look things up — never guess figures. You can NEVER change anything yourself: to make a change, call propose_change, which puts a card in the Ops AI inbox for the manager to approve, and say so.
+Rules: use the tools to look things up — never guess figures. For licences, right to work or "who can work" questions use compliance_status; compliance fixes are approved on the compliance cards in the Ops AI inbox. You can NEVER change anything yourself: to make a change, call propose_change, which puts a card in the Ops AI inbox for the manager to approve, and say so.
 Answer in short, plain British business English. Use the officers' and venues' names, dates like "Sat 24 Oct" and 24-hour times. No markdown tables; short lists are fine.`;
     const messages = b.messages.slice(-20).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 4000) })).filter((m) => m.content);
     if (!messages.length || messages[messages.length - 1].role !== 'user') fail(400, 'Send a question');
@@ -729,7 +760,7 @@ Answer in short, plain British business English. Use the officers' and venues' n
 
   'ops.settings.save': def(CO, async (b, { user }) => {
     const f = pick(b, OPS_SETTINGS);
-    if (f.ops_reconcile_dow != null && !(f.ops_reconcile_dow >= 1 && f.ops_reconcile_dow <= 7)) fail(400, 'Day must be 1–7');
+    for (const k of ['ops_reconcile_dow', 'ops_compliance_dow']) if (f[k] != null && !(f[k] >= 1 && f[k] <= 7)) fail(400, 'Day must be 1–7');
     for (const k of ['ops_escalate_minutes', 'ops_offer_wait_minutes']) if (f[k] != null && !(f[k] >= 1 && f[k] <= 240)) fail(400, 'Minutes must be 1–240');
     if (f.ops_ai_cap_credits != null && !(Number(f.ops_ai_cap_credits) >= 0)) fail(400, 'Cap must be 0 or more');
     const keys = Object.keys(f);

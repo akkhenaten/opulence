@@ -3,7 +3,7 @@ import { fail, required, need } from '../lib/http.mjs';
 import { uploadUrl, downloadUrl } from '../lib/storage.mjs';
 import { assertVenue, assertOfficerAccess } from '../lib/scope.mjs';
 import { audit } from '../lib/audit.mjs';
-import { ALL, CO, def } from './_def.mjs';
+import { ALL, CO, MGR, def } from './_def.mjs';
 import { tickOnboarding } from './hr.mjs';
 
 const ONBOARD_FOR_KIND = { sia: 'sia', rtw: 'rtw', id: 'id', poa: 'poa' };
@@ -29,9 +29,11 @@ export const actions = {
   'docs.list': def(ALL, async (b, { user }) => {
     required(b, 'owner_type');
     await assertOwner(user, b.owner_type, b.owner_id);
-    return q(
+    const rows = await q(
       `SELECT d.*, u.name AS verified_by_name FROM documents d LEFT JOIN users u ON u.id = d.verified_by
         WHERE owner_type = $1 AND owner_id IS NOT DISTINCT FROM $2 ORDER BY created_at DESC`, [b.owner_type, b.owner_id || null]);
+    // The AI read is a manager's compliance aid
+    return MGR.includes(user.role) ? rows : rows.map(({ ai_read, ai_read_key, ai_read_at, ...d }) => d);
   }),
 
   'docs.create': def(ALL, async (b, { user }) => {

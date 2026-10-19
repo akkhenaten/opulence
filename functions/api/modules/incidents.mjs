@@ -1,13 +1,14 @@
 import { one, q, tx } from '../lib/db.mjs';
 import { fail, required, need } from '../lib/http.mjs';
 import { venueScope, assertVenue } from '../lib/scope.mjs';
-import { downloadUrl, getObjectBytes } from '../lib/storage.mjs';
+import { downloadUrl, getObjectBytes, headObject } from '../lib/storage.mjs';
 import { notify, managersFor, venueContacts, officerUser } from '../lib/notify.mjs';
 import { fmtDateTime } from '../lib/time.mjs';
 import { Doc } from '../lib/pdf.mjs';
 import { audit } from '../lib/audit.mjs';
 import { getSettings } from './settings.mjs';
 import { ALL, MGR, def } from './_def.mjs';
+import { summarySig } from './incidentAi.mjs';
 
 export const TYPES = ['ejection', 'refused_entry', 'assault', 'theft', 'drugs', 'weapon', 'medical', 'damage', 'fire', 'disorder', 'lost_child', 'vulnerable_person', 'other'];
 const SEVERITIES = ['low', 'medium', 'high', 'critical'];
@@ -16,7 +17,7 @@ const FIELDS = ['type', 'severity', 'occurred_at', 'location', 'description', 'p
 
 const BASE_SQL = `
   SELECT i.*, v.name AS venue_name, o.first_name || ' ' || o.last_name AS officer_name, ur.name AS reported_by_name, uv.name AS reviewed_by_name,
-         (SELECT count(*) FROM incident_attachments x WHERE x.incident_id = i.id)::int AS attachment_count
+         (SELECT count(*) FROM incident_attachments x WHERE x.incident_id = i.id AND x.removed_at IS NULL)::int AS attachment_count
     FROM incidents i JOIN venues v ON v.id = i.venue_id LEFT JOIN officers o ON o.id = i.officer_id
     LEFT JOIN users ur ON ur.id = i.reported_by LEFT JOIN users uv ON uv.id = i.reviewed_by`;
 
@@ -35,7 +36,10 @@ async function canSee(user, inc) {
   await assertVenue(user, inc.venue_id);
 }
 
-const pickFields = (b) => Object.fromEntries(FIELDS.filter((k) => b[k] !== undefined).map((k) => [k, b[k]]));
+const pickFields = (b) => ({
+  ...Object.fromEntries(FIELDS.filter((k) => b[k] !== undefined).map((k) => [k, b[k]])),
+  ...(b.ai_assisted ? { ai_assisted: true } : {}),
+});
 
 async function saveWitnesses(t, incidentId, witnesses) {
   if (!Array.isArray(witnesses)) return;
@@ -45,21 +49,41 @@ async function saveWitnesses(t, incidentId, witnesses) {
   }
 }
 
-async function saveAttachments(t, incidentId, attachments, userId) {
-  for (const a of attachments || []) {
-    if (!a?.key?.startsWith('docs/')) fail(400, 'Invalid attachment');
-    await t.q('INSERT INTO incident_attachments (incident_id, s3_key, mime, name, uploaded_by) VALUES ($1,$2,$3,$4,$5)', [incidentId, a.key, a.mime || null, a.name || '', userId]);
+export const MAX_ATTACHMENTS = 20;
+export const MAX_BYTES = 15 * 1024 * 1024;
+const DOC_MIMES = new Set(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain']);
+export const allowedMime = (m) => /^image\/(jpeg|png|webp|gif|heic|heif)$/.test(m || '') || DOC_MIMES.has(m);
+// Fresh uploads land under the uploader's own incident folder (see files.uploadUrl)
+export const ownUpload = (user, key) => String(key || '').startsWith(`docs/incidents/${user.id.slice(0, 8)}/`);
+
+async function saveAttachments(t, incidentId, attachments, user) {
+  const list = attachments || [];
+  if (!list.length) return;
+  const { n } = await t.one('SELECT count(*)::int AS n FROM incident_attachments WHERE incident_id = $1 AND removed_at IS NULL', [incidentId]);
+  if (n + list.length > MAX_ATTACHMENTS) fail(400, `A report can hold up to ${MAX_ATTACHMENTS} photos and files`);
+  for (const a of list) {
+    if (!ownUpload(user, a?.key)) fail(400, 'Invalid attachment');
+    const head = await headObject(a.key);
+    if (!head) fail(400, `${a.name || 'A file'} did not finish uploading — try again`);
+    const mime = a.mime || head.mime;
+    if (!allowedMime(mime)) fail(400, `${a.name || 'This file'} is not a supported type (photos, PDF, Word or text)`);
+    if (head.size > MAX_BYTES) fail(400, `${a.name || 'This file'} is over 15 MB`);
+    await t.q('INSERT INTO incident_attachments (incident_id, s3_key, mime, name, uploaded_by, size_bytes) VALUES ($1,$2,$3,$4,$5,$6)',
+      [incidentId, a.key, mime, a.name || '', user.id, head.size]);
   }
 }
 
-async function loadFull(id) {
+export async function loadFull(id) {
   const inc = need(await one(`${BASE_SQL} WHERE i.id = $1`, [id]));
   const [witnesses, attachments, versions] = await Promise.all([
     q('SELECT * FROM incident_witnesses WHERE incident_id = $1 ORDER BY name', [id]),
-    q('SELECT * FROM incident_attachments WHERE incident_id = $1 ORDER BY created_at', [id]),
+    q('SELECT x.*, u.name AS uploaded_by_name, ur.name AS removed_by_name FROM incident_attachments x LEFT JOIN users u ON u.id = x.uploaded_by LEFT JOIN users ur ON ur.id = x.removed_by WHERE incident_id = $1 ORDER BY x.created_at', [id]),
     q('SELECT v.id, v.version, v.created_at, u.name AS edited_by_name FROM incident_versions v LEFT JOIN users u ON u.id = v.edited_by WHERE incident_id = $1 ORDER BY version', [id]),
   ]);
-  return { ...inc, witnesses, attachments, versions };
+  return {
+    ...inc, witnesses, versions, attachments: attachments.filter((a) => !a.removed_at),
+    removed: attachments.filter((a) => a.removed_at).map(({ id: aid, name, removed_at, removed_by_name, uploaded_by_name }) => ({ id: aid, name, removed_at, removed_by_name, uploaded_by_name })),
+  };
 }
 
 export const actions = {
@@ -81,8 +105,13 @@ export const actions = {
   'incidents.get': def(ALL, async (b, { user }) => {
     const inc = await loadFull(b.id);
     await canSee(user, inc);
-    for (const a of inc.attachments) a.url = await downloadUrl(a.s3_key, a.name);
+    for (const a of inc.attachments) {
+      a.url = await downloadUrl(a.s3_key, a.name);
+      a.can_remove = user.role === 'company' || (a.uploaded_by === user.id && inc.status !== 'closed');
+    }
     if (user.role === 'venue') inc.witnesses = inc.witnesses.map(({ contact, ...w }) => w);
+    if (MGR.includes(user.role)) inc.ai_summary_stale = !!inc.ai_summary && inc.ai_summary_sig !== summarySig(inc);
+    else { delete inc.ai_summary; delete inc.ai_summary_sig; }
     return inc;
   }),
 
@@ -120,7 +149,7 @@ export const actions = {
       const vals = [venueId, shiftId, officerId, user.id, ...Object.values(f)];
       const row = await t.one(`INSERT INTO incidents (${cols.join(',')}) VALUES (${cols.map((_, i) => `$${i + 1}`).join(',')}) RETURNING *`, vals);
       await saveWitnesses(t, row.id, b.witnesses);
-      await saveAttachments(t, row.id, b.attachments, user.id);
+      await saveAttachments(t, row.id, b.attachments, user);
       await t.q('INSERT INTO incident_versions (incident_id, version, data, edited_by) VALUES ($1,1,$2,$3)', [row.id, JSON.stringify({ ...f, witnesses: b.witnesses || [] }), user.id]);
       return row;
     });
@@ -151,7 +180,7 @@ export const actions = {
         `UPDATE incidents SET ${[...sets, `version = version + 1`, `updated_at = now()`, `status = $${keys.length + 2}`].join(', ')} WHERE id = $1 RETURNING *`,
         [b.id, ...Object.values(f), status]);
       await saveWitnesses(t, row.id, b.witnesses);
-      await saveAttachments(t, row.id, b.attachments, user.id);
+      await saveAttachments(t, row.id, b.attachments, user);
       const witnesses = b.witnesses || cur.witnesses.map(({ name, contact, statement }) => ({ name, contact, statement }));
       const snapshot = Object.fromEntries(FIELDS.map((k) => [k, row[k]]));
       await t.q('INSERT INTO incident_versions (incident_id, version, data, edited_by) VALUES ($1,$2,$3,$4)', [row.id, row.version, JSON.stringify({ ...snapshot, witnesses }), user.id]);
@@ -169,8 +198,22 @@ export const actions = {
     const inc = need(await one('SELECT * FROM incidents WHERE id = $1', [b.id]));
     await canSee(user, inc);
     if (inc.status === 'closed' && user.role === 'officer') fail(400, 'This report is closed');
-    await tx((t) => saveAttachments(t, inc.id, b.attachments, user.id));
+    await tx((t) => saveAttachments(t, inc.id, b.attachments, user));
     await audit(user, 'incident.attach', 'incident', inc.id, { count: b.attachments.length });
+    return { ok: true };
+  }),
+
+  // Soft delete so the report history shows what was removed and by whom
+  'incidents.removeAttachment': def(['officer', 'company', 'security'], async (b, { user }) => {
+    required(b, 'id');
+    const a = need(await one('SELECT x.*, i.status, i.venue_id, i.officer_id FROM incident_attachments x JOIN incidents i ON i.id = x.incident_id WHERE x.id = $1 AND x.removed_at IS NULL', [b.id]));
+    await canSee(user, a);
+    if (user.role !== 'company') {
+      if (a.uploaded_by !== user.id) fail(403, 'Only the person who added this file or a company manager can remove it');
+      if (a.status === 'closed') fail(400, 'This report is closed');
+    }
+    await q('UPDATE incident_attachments SET removed_at = now(), removed_by = $2 WHERE id = $1', [a.id, user.id]);
+    await audit(user, 'incident.attachment_remove', 'incident', a.incident_id, { name: a.name });
     return { ok: true };
   }),
 
@@ -235,6 +278,12 @@ export const actions = {
           }
         } catch { /* skip unreadable image */ }
       }
+    }
+    const others = inc.attachments.filter((a) => !images.includes(a));
+    if (others.length) {
+      d.section('Other attachments');
+      d.text(others.map((a) => `• ${a.name || 'file'}${a.uploaded_by_name ? ` (added by ${a.uploaded_by_name})` : ''}`).join('\n'), { size: 10 });
+      d.space(4);
     }
     if (inc.review_comment) block('Review', `${inc.reviewed_by_name || ''}: ${inc.review_comment}`);
     d.footer(`${s.company_name} · ${inc.ref} · version ${inc.version} · generated ${fmtDateTime(new Date())}`);
