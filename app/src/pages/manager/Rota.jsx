@@ -289,7 +289,7 @@ function OfficerGrid({ rows, week, onOpen }) {
   return (
     <GridFrame week={week}>
       <div className={cx('grid bg-red-soft/40', COLS)}>
-        <div className={cx(STICKY, 'bg-[#FDF3F3] px-3 py-3')}><div className="text-[14px] font-semibold text-red">Unfilled</div><div className="num text-[12px] text-muted">{unfilled.reduce((n, s) => n + s.headcount - s.filled, 0)} places</div></div>
+        <div className={cx(STICKY, 'bg-[#FDF3F3] px-3 py-3')}><div className="text-[14px] font-semibold text-red">Unfilled</div><div className="num text-[12px] text-muted">{((n) => `${n} place${n === 1 ? '' : 's'}`)(unfilled.reduce((n, s) => n + s.headcount - s.filled, 0))}</div></div>
         {days.map((d) => (
           <div key={d} className="min-w-0 space-y-1.5 border-l border-line p-1.5">
             {unfilled.filter((s) => dayOf(s.starts_at) === d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} compact />)}
