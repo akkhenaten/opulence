@@ -70,7 +70,7 @@ export function scoreCandidate({ reliability: rel, venueShifts = 0, officerPostc
 
 function reasonLine({ rel, venueShifts, officerPostcode, venuePostcode, warnings }) {
   const bits = [];
-  bits.push(rel?.rate != null ? `${Math.round(rel.rate * 100)}% on time (${rel.total} shifts)` : 'No recent record');
+  bits.push(rel?.rate != null ? `${Math.round(rel.rate * 100)}% on time (${rel.total} shift${rel.total === 1 ? '' : 's'})` : 'No recent record');
   if (venueShifts) bits.push(`${venueShifts} shift${venueShifts > 1 ? 's' : ''} here before`);
   if (outward(officerPostcode) && outward(officerPostcode) === outward(venuePostcode)) bits.push(`lives nearby (${outward(officerPostcode)})`);
   else if (area(officerPostcode) && area(officerPostcode) === area(venuePostcode)) bits.push(`same area (${outward(officerPostcode)})`);
@@ -83,7 +83,7 @@ export async function rankCover(shift, { exclude = [] } = {}) {
   const pool = await q(
     `SELECT o.id, o.first_name, o.last_name, o.postcode FROM officers o
       WHERE o.status = 'active' AND NOT (o.id = ANY($2::uuid[]))
-        AND NOT EXISTS (SELECT 1 FROM shift_assignments a WHERE a.shift_id = $1 AND a.officer_id = o.id AND a.status IN ('assigned','accepted','requested'))
+        AND NOT EXISTS (SELECT 1 FROM shift_assignments a WHERE a.shift_id = $1 AND a.officer_id = o.id) -- already on it, or dropped out of it
         AND NOT EXISTS (SELECT 1 FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id WHERE a.officer_id = o.id AND a.status IN ${ACTIVE}
                           AND s.status <> 'cancelled' AND s.id <> $1 AND s.starts_at < $4 AND s.ends_at > $3)`,
     [shift.id, exclude, shift.starts_at, shift.ends_at]);
