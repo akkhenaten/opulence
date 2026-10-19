@@ -5,6 +5,8 @@ import { fail } from './http.mjs';
 // In Lambda a missing secret must never fall back to a guessable value
 const SECRET = () => {
   if (process.env.APP_SECRET) return process.env.APP_SECRET;
+  // Platform key is injected into every function and survives redeploys; derive a dedicated signing key from it
+  if (process.env.OPENKBS_API_KEY) return crypto.createHmac('sha256', process.env.OPENKBS_API_KEY).update('orb-session-v1').digest('hex');
   if (process.env.AWS_LAMBDA_FUNCTION_NAME) throw new Error('APP_SECRET is not configured');
   return 'dev-secret-local-only';
 };
