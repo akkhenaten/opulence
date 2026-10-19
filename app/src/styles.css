@@ -32,10 +32,13 @@ body {
   -webkit-tap-highlight-color: transparent;
   font-feature-settings: "ss01", "cv11";
 }
-h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: -0.02em; }
+/* In the base layer so Tailwind utilities (text-*, font-*, tracking-*) still win */
+@layer base {
+  h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: -0.02em; }
+  input, select, textarea, button { font: inherit; color: inherit; }
+}
 .num { font-variant-numeric: tabular-nums; }
 :focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; border-radius: 10px; }
-input, select, textarea, button { font: inherit; color: inherit; }
 .safe-b { padding-bottom: env(safe-area-inset-bottom); }
 .safe-t { padding-top: env(safe-area-inset-top); }
 .no-scrollbar::-webkit-scrollbar { display: none; }

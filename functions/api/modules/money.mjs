@@ -40,6 +40,12 @@ const TS_SQL = `
 const periodWhere = `t.status = 'signed' AND (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $1 AND $2`;
 
 const lineDesc = (t) => `${t.role_name} · ${t.venue_name} · ${fmtDate(t.actual_start)} ${fmtTime(t.actual_start)}–${fmtTime(t.actual_end)}`;
+// Explains a blended hourly rate: "£24.00/h base, incl. night +10%"
+const upliftNote = (fr, vr) => {
+  const ups = [['night', vr.night_uplift], ['weekend', vr.weekend_uplift], ['bank holiday', vr.bh_uplift, 'bh']]
+    .filter(([k, pct, key]) => fr[key || k] > 0 && Number(pct) > 0).map(([k, pct]) => `${k} +${Number(pct)}%`);
+  return ups.length ? ` · £${Number(vr.rate).toFixed(2)}/h base, incl. ${ups.join(', ')}` : '';
+};
 
 function requirePay(user) {
   if (!canSeePay(user)) fail(403, 'You do not have access to pay information');
@@ -264,7 +270,7 @@ export const actions = {
           const pay = await payFor(ts, s, bh);
           await t.q(
             'INSERT INTO invoice_lines (invoice_id, timesheet_id, description, work_date, hours, rate, amount, pay_cost) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-            [inv.id, ts.id, `${lineDesc(ts)} · ${ts.first_name} ${ts.last_name[0]}.`, date, billable, billable ? money(amount / billable) : 0, amount, pay.amount]);
+            [inv.id, ts.id, `${lineDesc(ts)} · ${ts.first_name} ${ts.last_name[0]}.${vr ? upliftNote(fr, vr) : ''}`, date, billable, billable ? money(amount / billable) : 0, amount, pay.amount]);
           await t.q('UPDATE timesheets SET invoice_id = $2 WHERE id = $1', [ts.id, inv.id]);
         }
         await recalcInvoice(t, inv.id);

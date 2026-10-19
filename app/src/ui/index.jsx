@@ -126,7 +126,7 @@ export function Stat({ value, label, hint, tone }) {
   const color = { red: 'text-red', amber: 'text-amber', green: 'text-green', blue: 'text-blue' }[tone] || '';
   return (
     <div>
-      <div className={cx('display num text-[34px] font-bold leading-none', color)}>{value}</div>
+      <div className={cx('display num font-bold leading-none', String(value).length > 7 ? 'text-[26px]' : 'text-[34px]', color)}>{value}</div>
       {label && <div className="mt-1.5 text-[14px] font-semibold">{label}</div>}
       {hint && <div className="mt-0.5 text-[13px] opacity-60">{hint}</div>}
     </div>
