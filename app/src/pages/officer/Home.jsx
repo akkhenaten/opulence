@@ -153,9 +153,9 @@ function Hero({ s, isCurrent, state, onAccept, busy }) {
       <div className="mt-4 flex items-end justify-between gap-3">
         <div>
           <div className="text-[13px] opacity-75">{dayLabel(s.starts_at)}</div>
-          <div className="display num text-[30px] font-bold leading-none">{range(s.starts_at, s.ends_at)}</div>
+          <div className="display num whitespace-nowrap text-[28px] font-bold leading-none">{range(s.starts_at, s.ends_at)}</div>
         </div>
-        {s.role_name && <span className="rounded-full bg-white/15 px-3 py-1 text-[13px] font-semibold">{s.role_name}</span>}
+        {s.role_name && <span className="min-w-0 truncate rounded-full bg-white/15 px-3 py-1 text-[13px] font-semibold">{s.role_name}</span>}
       </div>
       {s.assignment_status === 'assigned' && !live && (
         <div className="mt-5 rounded-2xl bg-white/12 p-3">
