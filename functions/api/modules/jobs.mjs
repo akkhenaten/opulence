@@ -1,14 +1,15 @@
-// Scheduled work, run every 10 minutes by the platform timer (event.source === 'schedule').
+// Scheduled work, run every 5 minutes by the platform timer (event.source === 'schedule').
 import { q } from '../lib/db.mjs';
 import { notify, managersFor, officerUser, companyManagers } from '../lib/notify.mjs';
 import { fmtDate, fmtTime, londonDate, addDays } from '../lib/time.mjs';
 import { buildTimesheet } from './clock.mjs';
 import { getSettings } from './settings.mjs';
+import { runOpsJobs } from './ops.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in
 async function lateAlerts(s) {
   const rows = await q(
-    `UPDATE shift_assignments a SET late_alerted = true
+    `UPDATE shift_assignments a SET late_alerted = true, chased_at = now()
        FROM shifts s, officers o, venues v
       WHERE s.id = a.shift_id AND o.id = a.officer_id AND v.id = s.venue_id
         AND a.status IN ('assigned','accepted') AND s.status = 'published' AND NOT a.late_alerted
@@ -21,8 +22,8 @@ async function lateAlerts(s) {
       link: '/company/live', dedupe: `late:${r.id}`, email: true,
     });
     await notify(await officerUser(r.officer_id), {
-      kind: 'late', severity: 'warning', title: 'You have not clocked in', body: `${r.venue_name} started at ${fmtTime(r.starts_at)}. Clock in now or contact your supervisor.`,
-      link: '/officer/clock', dedupe: `late:${r.id}`,
+      kind: 'late', severity: 'warning', title: 'You have not clocked in', body: `${r.venue_name} started at ${fmtTime(r.starts_at)}. Clock in now, or tap to tell us if you're on your way or can't make it.`,
+      link: '/officer', dedupe: `late:${r.id}`,
     });
   }
   return rows.length;
@@ -114,6 +115,7 @@ export async function runJobs() {
       result[name] = `error: ${e.message}`;
     }
   }
+  result.ops = await runOpsJobs(s);
   console.log('[jobs]', JSON.stringify(result));
   return result;
 }

@@ -67,8 +67,14 @@ function NotificationBell() {
   );
 }
 
+// Count badge for a nav item (Ops AI inbox)
+const Badge = ({ n, className }) => (n > 0 ? <span className={cx('rounded-full bg-blue px-1.5 text-[11px] font-bold leading-[18px] text-white', className)}>{n > 99 ? '99+' : n}</span> : null);
+
 export default function Shell() {
   const { user, company, signOut } = useAuth();
+  const isMgr = ['company', 'security'].includes(user.role);
+  const opsCount = useApi('ops.count', {}, { poll: 30000, skip: !isMgr });
+  const badges = { ops: opsCount.data?.n || 0 };
   const loc = useLocation();
   const [more, setMore] = useState(false);
   const groups = NAV[user.role];
@@ -91,7 +97,7 @@ export default function Shell() {
                 {g.items.map((it) => (
                   <NavLink key={it.to} to={it.to} end={it.end}
                     className={({ isActive }) => cx('flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] font-semibold transition', isActive ? 'bg-blue-soft text-blue' : 'text-ink/75 hover:bg-bg hover:text-ink')}>
-                    <it.icon size={18} strokeWidth={2} />{it.label}
+                    <it.icon size={18} strokeWidth={2} /><span className="flex-1">{it.label}</span><Badge n={badges[it.badge]} />
                   </NavLink>
                 ))}
               </div>
@@ -133,7 +139,7 @@ export default function Shell() {
           ))}
           {extra.length > 0 && (
             <button type="button" onClick={() => setMore(true)} className="flex flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-[10.5px] font-semibold text-faint">
-              <MoreHorizontal size={23} />More
+              <span className="relative"><MoreHorizontal size={23} /><Badge n={extra.reduce((a, it) => a + (badges[it.badge] || 0), 0)} className="absolute -right-3 -top-1" /></span>More
             </button>
           )}
         </div>
@@ -142,7 +148,7 @@ export default function Shell() {
         <div className="grid grid-cols-3 gap-2">
           {extra.map((it) => (
             <NavLink key={it.to} to={it.to} className="flex flex-col items-center gap-2 rounded-2xl bg-bg px-2 py-4 text-center text-[13px] font-semibold">
-              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-surface text-blue shadow-tile"><it.icon size={21} /></span>{it.label}
+              <span className="relative grid h-11 w-11 place-items-center rounded-2xl bg-surface text-blue shadow-tile"><it.icon size={21} /><Badge n={badges[it.badge]} className="absolute -right-2 -top-1.5" /></span>{it.label}
             </NavLink>
           ))}
         </div>

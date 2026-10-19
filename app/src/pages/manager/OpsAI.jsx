@@ -1,0 +1,392 @@
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { ArrowUp, Check, ClipboardList, MessageSquareText, Pencil, Sparkles, Star, X } from 'lucide-react';
+import {
+  Button, Empty, Input, Load, Page, Pill, Segmented, Select, Sheet, Textarea, Tile, Toggle, cx, dateTime, dayLabel, hours, range, relative, useAction, useApi, useConfirm,
+} from '../../ui/index.jsx';
+import { api } from '../../api.js';
+import { useBase } from './_parts.jsx';
+
+const KIND = {
+  cover: { label: 'Cover', tone: 'blue' },
+  venue_request: { label: 'Venue request', tone: 'amber' },
+  reconcile: { label: 'Hours check', tone: 'red' },
+  feedback: { label: 'Feedback', tone: 'grey' },
+};
+const ITEM_STATUS = { approved: 'Offers sent', done: 'Done', rejected: 'Rejected', expired: 'Expired', pending: 'Waiting' };
+
+export default function OpsAI() {
+  const { user } = useBase();
+  const [sp, setSp] = useSearchParams();
+  const tab = sp.get('tab') || 'inbox';
+  const count = useApi('ops.count', {}, { poll: 30000 });
+  const tabs = [
+    { value: 'inbox', label: 'Inbox', count: count.data?.n }, { value: 'activity', label: 'Activity' }, { value: 'chat', label: 'Ask Ops AI' },
+    ...(user.role === 'company' ? [{ value: 'settings', label: 'Settings' }] : []),
+  ];
+  return (
+    <Page title="Ops AI" subtitle="Your operations assistant. It prepares the work — you approve it.">
+      <div className="no-scrollbar -mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <Segmented value={tab} onChange={(v) => setSp(v === 'inbox' ? {} : { tab: v }, { replace: true })} options={tabs} />
+      </div>
+      {tab === 'inbox' && <Inbox onChange={count.reload} />}
+      {tab === 'activity' && <Activity />}
+      {tab === 'chat' && <Chat onItems={() => { count.reload(); }} />}
+      {tab === 'settings' && user.role === 'company' && <OpsSettings />}
+    </Page>
+  );
+}
+
+/* ---------- Inbox ---------- */
+
+function Inbox({ onChange }) {
+  const [view, setView] = useState('pending');
+  const q = useApi('ops.inbox', { status: view }, { poll: 30000 });
+  const reload = () => { q.reload(); onChange(); };
+  return (
+    <>
+      <div className="mb-4"><Segmented value={view} onChange={setView} options={[{ value: 'pending', label: 'To approve' }, { value: 'decided', label: 'Decided' }]} /></div>
+      <Load q={q}>{(items) => (items.length ? (
+        <div className="grid gap-3 lg:grid-cols-2">{items.map((it) => <ItemCard key={it.id} it={it} onDone={reload} />)}</div>
+      ) : (
+        <Empty icon={Sparkles} title={view === 'pending' ? 'All clear' : 'Nothing decided yet'}
+          body={view === 'pending' ? 'Ops AI checks every 5 minutes for no-shows, gaps on the rota, venue requests, feedback and hours that don\'t match.' : undefined} />
+      ))}</Load>
+    </>
+  );
+}
+
+function ItemCard({ it, onDone }) {
+  const [run, busy] = useAction();
+  const confirm = useConfirm();
+  const [edit, setEdit] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const k = KIND[it.kind];
+  const pending = it.status === 'pending';
+  const p = it.payload || {};
+  const approveLabel = { cover: 'Send offers', venue_request: 'Approve & publish', reconcile: p.info_only ? 'Mark reviewed' : 'Approve fix', feedback: 'Mark reviewed' }[it.kind];
+
+  const decide = (decision, extra = {}) => run(async () => {
+    await api('ops.decide', { id: it.id, decision, ...extra });
+    setEdit(false); setRejecting(false);
+    onDone();
+  }, decision === 'approve' ? 'Approved' : 'Rejected');
+
+  const approve = async () => {
+    if (it.kind === 'feedback') {
+      const add = await confirm({ title: 'Add to HR notes?', body: 'Keep a record of this feedback on the officer\'s HR notes.', confirm: 'Add to HR notes' });
+      return decide('approve', { edits: { hr_note: add } });
+    }
+    return decide('approve');
+  };
+
+  return (
+    <Tile className="flex flex-col">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <Pill tone={k.tone}>{k.label}</Pill>
+        {it.venue_name && <span className="truncate text-[13px] font-semibold text-muted">{it.venue_name}</span>}
+        <span className="ml-auto text-[12px] text-faint">{relative(it.created_at)}</span>
+      </div>
+      <div className="text-[17px] font-bold leading-snug">{it.title}</div>
+      <p className="mt-1 text-[14px] leading-relaxed text-muted">{it.reason}</p>
+
+      <div className="mt-3 flex-1">
+        {it.kind === 'cover' && <CoverBody it={it} />}
+        {it.kind === 'venue_request' && <RequestBody it={it} />}
+        {it.kind === 'reconcile' && <ReconcileBody p={p} />}
+        {it.kind === 'feedback' && <div className="flex items-center gap-1 text-amber">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={18} fill={n <= p.rating ? 'currentColor' : 'none'} />)}<span className="ml-2 text-[13px] text-muted">{p.shift}</span></div>}
+      </div>
+
+      {pending ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button icon={Check} busy={busy} onClick={approve} disabled={it.kind === 'cover' && !(p.officer_ids || []).length}>{approveLabel}</Button>
+          {['cover', 'venue_request'].includes(it.kind) && <Button variant="secondary" icon={Pencil} onClick={() => setEdit(true)}>Edit</Button>}
+          <Button variant="ghost" icon={X} onClick={() => setRejecting(true)}>Reject</Button>
+        </div>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-muted">
+          <Pill status={it.status === 'approved' ? 'published' : it.status === 'done' ? 'ok' : it.status}>{ITEM_STATUS[it.status]}</Pill>
+          {it.decided_by_name && <span>by {it.decided_by_name}, {relative(it.decided_at)}</span>}
+        </div>
+      )}
+
+      {edit && it.kind === 'cover' && <CoverEdit it={it} busy={busy} onClose={() => setEdit(false)} onSave={(ids) => decide('approve', { edits: { officer_ids: ids } })} />}
+      {edit && it.kind === 'venue_request' && <RequestEdit it={it} busy={busy} onClose={() => setEdit(false)} onSave={(shifts) => decide('approve', { edits: { shifts } })} />}
+      <RejectSheet open={rejecting} busy={busy} venue={it.kind === 'venue_request' && p.request_id} onClose={() => setRejecting(false)} onReject={(reason) => decide('reject', { reason })} />
+    </Tile>
+  );
+}
+
+function CoverBody({ it }) {
+  const p = it.payload;
+  const picks = (p.officer_ids || []).map((id) => p.candidates.find((c) => c.officer_id === id)).filter(Boolean);
+  return (
+    <div className="space-y-2">
+      {it.shift && <div className="text-[13px] font-semibold">{dayLabel(it.shift.starts_at)} · {range(it.shift.starts_at, it.shift.ends_at)} · {it.shift.filled}/{it.shift.headcount} filled</div>}
+      {it.offers.length > 0 && it.status !== 'pending' ? (
+        <div className="flex flex-wrap gap-1.5">{it.offers.map((o) => <Pill key={o.name} status={o.status === 'offered' ? 'pending' : o.status === 'filled_by_other' ? 'closed' : o.status}>{o.name} · {o.status === 'filled_by_other' ? 'filled' : o.status}</Pill>)}</div>
+      ) : picks.length ? (
+        <ul className="space-y-1.5">
+          {picks.map((c) => (
+            <li key={c.officer_id} className="rounded-xl bg-bg px-3 py-2">
+              <div className="text-[14px] font-semibold">{c.name}</div>
+              <div className="text-[12.5px] text-muted">{c.reason}</div>
+            </li>
+          ))}
+        </ul>
+      ) : <div className="rounded-xl bg-amber-soft px-3 py-2 text-[13px] text-amber">No one eligible is free.</div>}
+    </div>
+  );
+}
+
+function CoverEdit({ it, busy, onClose, onSave }) {
+  const [ids, setIds] = useState(it.payload.officer_ids || []);
+  const toggle = (id) => setIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  return (
+    <Sheet open onClose={onClose} title="Who gets the offer?" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!ids.length} onClick={() => onSave(ids)}>Send to {ids.length}</Button></>}>
+      <p className="mb-3 text-[14px] text-muted">Everyone ticked gets the offer at once. The first to accept gets the shift.</p>
+      <div className="space-y-2">
+        {it.payload.candidates.map((c) => (
+          <button key={c.officer_id} type="button" onClick={() => toggle(c.officer_id)}
+            className={cx('flex w-full items-start gap-3 rounded-2xl border px-3 py-2.5 text-left transition', ids.includes(c.officer_id) ? 'border-blue bg-blue-soft' : 'border-line bg-surface')}>
+            <span className={cx('mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border', ids.includes(c.officer_id) ? 'border-blue bg-blue text-white' : 'border-line')}>{ids.includes(c.officer_id) && <Check size={14} />}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-semibold">{c.name}</span>
+              <span className="block text-[13px] text-muted">{c.reason}</span>
+            </span>
+            {c.reliability != null && <span className="num shrink-0 text-[13px] font-bold">{Math.round(c.reliability * 100)}%</span>}
+          </button>
+        ))}
+        {!it.payload.candidates.length && <Empty title="No eligible officers" body="Everyone is booked, on leave or not compliant for this shift." />}
+      </div>
+    </Sheet>
+  );
+}
+
+const shiftLine = (s) => `${s.headcount || 1} × ${s.role} · ${dayLabel(s.date)} ${s.start}–${s.end}`;
+function RequestBody({ it }) {
+  const p = it.payload;
+  return (
+    <div className="space-y-2">
+      {(it.request?.text || p.text) && <blockquote className="rounded-xl bg-bg px-3 py-2 text-[14px] italic">“{it.request?.text || p.text}”</blockquote>}
+      <div className="text-[13px] font-semibold uppercase tracking-wide text-muted">{p.intent === 'new' ? 'New shifts' : p.intent === 'change' ? 'Change' : 'Cancel'}</div>
+      <ul className="space-y-1">{(p.shifts || []).map((s, i) => <li key={i} className="text-[14px] font-semibold">{p.intent === 'cancel' ? `Shift ${s.shift_id?.slice(0, 8)}` : shiftLine(s)}</li>)}</ul>
+    </div>
+  );
+}
+
+function RequestEdit({ it, busy, onClose, onSave }) {
+  const roles = useApi('roles.list', {});
+  const [rows, setRows] = useState(it.payload.shifts || []);
+  const set = (i, k, v) => setRows((r) => r.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
+  const cancel = it.payload.intent === 'cancel';
+  return (
+    <Sheet open onClose={onClose} title="Check the shifts" size="lg" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={() => onSave(rows)}>Approve & publish</Button></>}>
+      {cancel ? <p className="text-[14px] text-muted">These shifts will be cancelled and the officers told.</p> : (
+        <div className="space-y-3">
+          {rows.map((s, i) => (
+            <div key={i} className="grid grid-cols-2 gap-2 rounded-2xl bg-bg p-3 sm:grid-cols-5">
+              <Input label="Date" type="date" value={s.date || ''} onChange={(e) => set(i, 'date', e.target.value)} className="col-span-2 sm:col-span-1" />
+              <Input label="Start" type="time" value={s.start || ''} onChange={(e) => set(i, 'start', e.target.value)} />
+              <Input label="Finish" type="time" value={s.end || ''} onChange={(e) => set(i, 'end', e.target.value)} />
+              <Select label="Role" value={s.role || ''} onChange={(e) => set(i, 'role', e.target.value)} options={(roles.data || []).map((r) => ({ value: r.code, label: r.name }))} />
+              <Input label="Officers" type="number" min="1" max="20" value={s.headcount || 1} onChange={(e) => set(i, 'headcount', Number(e.target.value))} />
+            </div>
+          ))}
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
+function ReconcileBody({ p }) {
+  const { base } = useBase();
+  const f = p.figures || {};
+  const bad = new Set((p.issues || []).map((i) => i.field));
+  const cells = [
+    { k: 'rota', label: 'Rota', v: f.rota_h }, { k: 'clock', label: 'Clocked', v: f.clock_h }, { k: 'ts', label: 'Timesheet', v: f.ts_h },
+    { k: 'stmt', label: 'Pay', v: f.stmt_h }, { k: 'inv', label: 'Invoice', v: f.inv_h },
+  ];
+  const fix = p.fix || {};
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-5 gap-1 text-center">
+        {cells.map((c) => (
+          <div key={c.k} className={cx('rounded-xl px-1 py-2', bad.has(c.k) ? 'bg-red-soft text-red' : 'bg-bg')}>
+            <div className="text-[11px] font-semibold uppercase tracking-wide opacity-70">{c.label}</div>
+            <div className="num text-[15px] font-bold">{c.v == null ? '—' : hours(c.v)}</div>
+          </div>
+        ))}
+      </div>
+      {!p.info_only && Object.keys(fix).length > 0 && (
+        <div className="text-[13px] text-muted">Fix: {[fix.timesheet_hours != null && `timesheet → ${hours(fix.timesheet_hours)}`, fix.statement_hours != null && `pay → ${hours(fix.statement_hours)}`, fix.invoice_hours != null && `invoice → ${hours(fix.invoice_hours)}`].filter(Boolean).join(' · ')}</div>
+      )}
+      {p.info_only && (
+        <div className="flex flex-wrap gap-2 text-[13px]">
+          {p.inv_id && base === '/company' && <Button size="sm" variant="soft" to={`/company/invoices/${p.inv_id}`}>Open invoice</Button>}
+          {p.stmt_id && <Button size="sm" variant="soft" to={`${base}/pay/${p.stmt_id}`}>Open statement</Button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RejectSheet({ open, busy, venue, onClose, onReject }) {
+  const [reason, setReason] = useState('');
+  return (
+    <Sheet open={open} onClose={onClose} title="Reject" size="sm" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant="danger" busy={busy} onClick={() => onReject(reason)}>Reject</Button></>}>
+      <Textarea label={venue ? 'Reason (sent to the venue)' : 'Reason (optional)'} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
+    </Sheet>
+  );
+}
+
+/* ---------- Activity ---------- */
+
+function Activity() {
+  const q = useApi('ops.activity', {}, { poll: 60000 });
+  return (
+    <Load q={q}>{(rows) => (rows.length ? (
+      <Tile pad={false} className="overflow-hidden">
+        <ul className="divide-y divide-line">
+          {rows.map((r) => (
+            <li key={r.id} className="flex gap-3 px-4 py-3">
+              <span className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue-soft text-blue"><ClipboardList size={14} /></span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[14px] leading-snug">{r.text}</div>
+                <div className="mt-0.5 text-[12px] text-faint">{dateTime(r.created_at)}{Number(r.credits) > 0 && ` · ${Math.round(Number(r.credits)).toLocaleString('en-GB')} credits`}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Tile>
+    ) : <Empty icon={ClipboardList} title="No activity yet" body="Everything Ops AI does is logged here." />)}</Load>
+  );
+}
+
+/* ---------- Chat ---------- */
+
+const PROMPTS = ['Unfilled shifts next week', 'Who can cover Saturday night?', 'Lates and no-shows this month', 'Hours worked by each officer last week'];
+
+function Chat({ onItems }) {
+  const [msgs, setMsgs] = useState(() => JSON.parse(sessionStorage.getItem('orb.opschat') || '[]'));
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [, setSp] = useSearchParams();
+  const end = useRef(null);
+  useEffect(() => { sessionStorage.setItem('orb.opschat', JSON.stringify(msgs.slice(-30))); end.current?.scrollIntoView({ block: 'end' }); }, [msgs, busy]);
+
+  const send = async (t = text) => {
+    const content = t.trim();
+    if (!content || busy) return;
+    const next = [...msgs, { role: 'user', content }];
+    setMsgs(next); setText(''); setBusy(true);
+    try {
+      const r = await api('ops.chat', { messages: next.map(({ role, content: c }) => ({ role, content: c })) });
+      setMsgs([...next, { role: 'assistant', content: r.reply, items: r.items }]);
+      if (r.items?.length) onItems();
+    } catch (e) {
+      setMsgs([...next, { role: 'assistant', content: e.message, error: true }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Tile pad={false} className="flex min-h-[60vh] flex-col overflow-hidden">
+      <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+        {!msgs.length && (
+          <div className="py-6 text-center">
+            <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-soft text-blue"><MessageSquareText size={22} /></div>
+            <div className="text-[16px] font-semibold">Ask about rotas, cover, lates or hours</div>
+            <p className="mx-auto mt-1 max-w-sm text-[14px] text-muted">Ops AI looks it up for you. It never changes anything itself — anything it suggests lands in your Inbox to approve.</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {PROMPTS.map((p) => <button key={p} type="button" onClick={() => send(p)} className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-[13px] font-semibold transition hover:border-blue hover:text-blue">{p}</button>)}
+            </div>
+          </div>
+        )}
+        {msgs.map((m, i) => (
+          <div key={i} className={cx('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
+            <div className={cx('max-w-[88%] whitespace-pre-wrap rounded-[20px] px-4 py-2.5 text-[15px] leading-relaxed', m.role === 'user' ? 'bg-blue text-white' : m.error ? 'bg-red-soft text-red' : 'bg-bg')}>
+              {m.content}
+              {m.items?.length > 0 && <div className="mt-2"><Button size="sm" variant="soft" icon={Sparkles} onClick={() => setSp({}, { replace: true })}>Open in Inbox ({m.items.length})</Button></div>}
+            </div>
+          </div>
+        ))}
+        {busy && <div className="flex"><div className="rounded-[20px] bg-bg px-4 py-3"><span className="inline-flex gap-1"><Dot3 /></span></div></div>}
+        <div ref={end} />
+      </div>
+      <form className="flex items-end gap-2 border-t border-line p-3" onSubmit={(e) => { e.preventDefault(); send(); }}>
+        <textarea rows={1} value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask Ops AI…"
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+          className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-2.5 text-[15px] outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
+        <button type="submit" aria-label="Send" disabled={busy || !text.trim()} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue text-white transition disabled:opacity-40"><ArrowUp size={20} /></button>
+      </form>
+      {msgs.length > 0 && <button type="button" onClick={() => setMsgs([])} className="pb-3 text-center text-[12px] font-semibold text-faint hover:text-ink">Clear conversation</button>}
+    </Tile>
+  );
+}
+const Dot3 = () => [0, 1, 2].map((i) => <span key={i} className="h-2 w-2 animate-bounce rounded-full bg-faint" style={{ animationDelay: `${i * 0.15}s` }} />);
+
+/* ---------- Settings ---------- */
+
+const JOBS = [
+  { k: 'chase', label: 'Chase officers who haven\'t clocked in', hint: 'Asks them to reply, then escalates to you' },
+  { k: 'cover', label: 'Find cover', hint: 'Shortlists free officers for gaps and no-shows' },
+  { k: 'feedback', label: 'Ask venues for feedback', hint: 'After each shift, with one reminder' },
+  { k: 'venue_requests', label: 'Venue request chat', hint: 'Venues ask for staff in plain words' },
+  { k: 'reconcile', label: 'Check hours against pay and invoices', hint: 'Weekly, and after each pay run or invoice run' },
+  { k: 'chat', label: 'Ask Ops AI chat', hint: 'For managers' },
+];
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function OpsSettings() {
+  const q = useApi('ops.settings.get', {});
+  const [run, busy] = useAction();
+  const [runNow, running] = useAction();
+  const [v, setV] = useState(null);
+  useEffect(() => { if (q.data) setV(q.data); }, [q.data]);
+  if (!v) return <Load q={q}>{() => null}</Load>;
+  const set = (k, val) => setV((s) => ({ ...s, [k]: val }));
+  const used = Number(v.ops_ai_used || 0);
+  const cap = Number(v.ops_ai_cap_credits || 0);
+  const pct = cap ? Math.min(100, (used / cap) * 100) : 100;
+  const save = () => run(async () => {
+    const r = await api('ops.settings.save', {
+      ops_jobs: v.ops_jobs, ops_escalate_minutes: Number(v.ops_escalate_minutes), ops_offer_wait_minutes: Number(v.ops_offer_wait_minutes),
+      ops_reconcile_dow: Number(v.ops_reconcile_dow), ops_ai_cap_credits: Number(v.ops_ai_cap_credits),
+    });
+    q.setData(r);
+  }, 'Saved');
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Tile title="What Ops AI does">
+        <div className="divide-y divide-line">
+          {JOBS.map((j) => <div key={j.k} className="py-2"><Toggle label={j.label} hint={j.hint} checked={v.ops_jobs?.[j.k] !== false} onChange={(c) => set('ops_jobs', { ...v.ops_jobs, [j.k]: c })} /></div>)}
+        </div>
+      </Tile>
+      <div className="space-y-4">
+        <Tile title="Timings">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input label="Escalate after no reply (min)" type="number" min="1" max="240" value={v.ops_escalate_minutes} onChange={(e) => set('ops_escalate_minutes', e.target.value)} hint="After the grace period" />
+            <Input label="Wait for cover replies (min)" type="number" min="1" max="240" value={v.ops_offer_wait_minutes} onChange={(e) => set('ops_offer_wait_minutes', e.target.value)} hint="Then offers the next officers" />
+            <Select label="Weekly hours check" value={v.ops_reconcile_dow} onChange={(e) => set('ops_reconcile_dow', e.target.value)} options={DAYS.map((d, i) => ({ value: i + 1, label: d }))} className="sm:col-span-2" />
+          </div>
+        </Tile>
+        <Tile title="AI usage this month">
+          <div className="mb-2 flex items-baseline justify-between gap-2">
+            <span className="num text-[22px] font-bold">{Math.round(used).toLocaleString('en-GB')}</span>
+            <span className="text-[13px] text-muted">of {cap.toLocaleString('en-GB')} credits</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-bg"><div className={cx('h-full rounded-full', pct >= 90 ? 'bg-red' : 'bg-blue')} style={{ width: `${pct}%` }} /></div>
+          <Input className="mt-3" label="Monthly cap (credits)" type="number" min="0" step="10000" value={v.ops_ai_cap_credits} onChange={(e) => set('ops_ai_cap_credits', e.target.value)}
+            hint="AI features pause at the cap. Reminders, records and escalations keep running." />
+        </Tile>
+        <div className="flex flex-wrap gap-2">
+          <Button busy={busy} onClick={save}>Save settings</Button>
+          <Button variant="secondary" busy={running} onClick={() => runNow(() => api('ops.runNow', { reconcile: true }), 'Checks run — see the Inbox')}>Run checks now</Button>
+        </div>
+      </div>
+    </div>
+  );
+}

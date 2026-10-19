@@ -51,13 +51,13 @@ function requirePay(user) {
   if (!canSeePay(user)) fail(403, 'You do not have access to pay information');
 }
 
-async function recalcStatement(t, id) {
+export async function recalcStatement(t, id) {
   await t.q(
     `UPDATE statements SET total = COALESCE((SELECT sum(amount) FROM statement_lines WHERE statement_id = $1), 0),
        hours = COALESCE((SELECT sum(hours) FROM statement_lines WHERE statement_id = $1 AND kind = 'hours'), 0) WHERE id = $1`, [id]);
 }
 
-async function recalcInvoice(t, id) {
+export async function recalcInvoice(t, id) {
   await t.q(
     `UPDATE invoices SET net = COALESCE((SELECT sum(amount) FROM invoice_lines WHERE invoice_id = $1), 0),
        vat = round(COALESCE((SELECT sum(amount) FROM invoice_lines WHERE invoice_id = $1), 0) * vat_rate / 100, 2),
@@ -76,6 +76,17 @@ function suggestPeriod(kind, today = londonDate(new Date())) {
   }
   const lastMonday = addDays(today, -dow - 7);
   return { start: kind === 'fortnightly' ? addDays(lastMonday, -7) : lastMonday, end: addDays(lastMonday, 6) };
+}
+
+// Ops AI checks the new figures; never blocks generation
+async function reconcileAfter(start, end) {
+  try {
+    const { runReconcile } = await import('./ops.mjs');
+    const { getSettings } = await import('./settings.mjs');
+    if (((await getSettings()).ops_jobs || {}).reconcile !== false) await runReconcile(start, end);
+  } catch (e) {
+    console.error('[ops] reconcile after generate failed:', e);
+  }
 }
 
 export const actions = {
@@ -122,6 +133,7 @@ export const actions = {
       created++;
     }
     await audit(user, 'pay.generate', 'statement', null, { start: b.start, end: b.end, created });
+    await reconcileAfter(b.start, b.end);
     return { created, timesheets: rows.length, missing_rates: [...new Set(missingRates)] };
   }),
 
@@ -278,6 +290,7 @@ export const actions = {
       created++;
     }
     await audit(user, 'invoice.generate', 'invoice', null, { start: b.start, end: b.end, created });
+    await reconcileAfter(b.start, b.end);
     return { created, timesheets: rows.length, missing_rates: [...new Set(missing)] };
   }),
 

@@ -8,7 +8,7 @@ import {
 } from '../../ui/index.jsx';
 import { ComplianceBadge, CopyLink, ExpiryPill, LoginPill, OFFICER_STATUSES, SIA_TYPES, Chips, canPay, useBase, useRoles } from './_parts.jsx';
 import {
-  AvailabilityTab, ComplianceTab, ContractsTab, DocumentsTab, HrTab, OffboardingTab, OnboardingTab, OverviewTab, RatesTab, ShiftsTab, TimeOffTab,
+  AttendanceTab, AvailabilityTab, ComplianceTab, ContractsTab, DocumentsTab, HrTab, OffboardingTab, OnboardingTab, OverviewTab, RatesTab, ShiftsTab, TimeOffTab,
 } from './_profileTabs.jsx';
 
 export default function StaffProfile() {
@@ -36,7 +36,7 @@ function Profile({ o, reload, user, base }) {
 
   const tabs = useMemo(() => [
     ['overview', 'Overview'], ['compliance', 'Compliance'], ['documents', 'Documents'],
-    canPay(user) && ['rates', 'Rates'], ['shifts', 'Shifts'], ['availability', 'Availability'], ['timeoff', 'Time off'], ['hr', 'HR notes'],
+    canPay(user) && ['rates', 'Rates'], ['shifts', 'Shifts'], ['attendance', 'Attendance'], ['availability', 'Availability'], ['timeoff', 'Time off'], ['hr', 'HR notes'],
     isCo && ['onboarding', 'Onboarding'], isCo && ['contracts', 'Contracts'], isCo && ['offboarding', 'Offboarding'],
   ].filter(Boolean).filter(([k]) => !hidden.includes(k)).map(([value, label]) => ({ value, label })), [user, isCo, hidden]);
   const current = tabs.some((t) => t.value === tab) ? tab : 'overview';
@@ -116,6 +116,7 @@ function Profile({ o, reload, user, base }) {
       {current === 'documents' && <DocumentsTab {...props} onForbidden={() => forbid('documents')} />}
       {current === 'rates' && <RatesTab {...props} />}
       {current === 'shifts' && <ShiftsTab {...props} onForbidden={() => forbid('shifts')} />}
+      {current === 'attendance' && <AttendanceTab {...props} onForbidden={() => forbid('attendance')} />}
       {current === 'availability' && <AvailabilityTab {...props} />}
       {current === 'timeoff' && <TimeOffTab {...props} onForbidden={() => forbid('timeoff')} />}
       {current === 'hr' && <HrTab {...props} onForbidden={() => forbid('hr')} />}

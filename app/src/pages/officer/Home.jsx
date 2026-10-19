@@ -7,24 +7,26 @@ import { useAuth } from '../../auth.jsx';
 import {
   Bento, Button, cx, date, dateShort, dayLabel, daysUntil, Load, money, Page, range, Stat, Tile, useAction, useApi,
 } from '../../ui/index.jsx';
+import { ChaseBanner, OffersList, useOps } from './_ops.jsx';
 import { ASSIGN_LABEL, assignTone, expiryText, greeting, NotLinked, ShiftCard, until } from './_parts.jsx';
 
 export default function Home() {
   const { user } = useAuth();
   const dash = useApi('dashboard.get', {}, { poll: 60000 });
   const clock = useApi('clock.status', {}, { poll: 60000, skip: !user.officer_id });
+  const ops = useOps(!user.officer_id);
   const first = (user.name || '').split(' ')[0];
 
   return (
     <Page title={`${greeting()}${first ? `, ${first}` : ''}`} subtitle={dayLabel(new Date())}>
       <Load q={dash}>
-        {(d) => (d.linked === false ? <NotLinked /> : <Body d={d} clock={clock} reload={() => { dash.reload(); clock.reload(); }} />)}
+        {(d) => (d.linked === false ? <NotLinked /> : <Body d={d} clock={clock} ops={ops} reload={() => { dash.reload(); clock.reload(); ops.reload(); }} />)}
       </Load>
     </Page>
   );
 }
 
-function Body({ d, clock, reload }) {
+function Body({ d, clock, ops, reload }) {
   const nav = useNavigate();
   const [run, busy] = useAction();
   const cur = clock.data?.current;
@@ -38,6 +40,8 @@ function Body({ d, clock, reload }) {
 
   return (
     <div className="space-y-3">
+      <ChaseBanner ops={ops} />
+      <OffersList ops={ops} compact />
       {d.issues?.length > 0 && (
         <Tile className="border-red/20 !bg-red-soft">
           <div className="flex gap-3 text-red">

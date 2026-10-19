@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
-  Award, BadgeCheck, CalendarOff, Check, ClipboardList, Clock, Eye, FileSignature, FileText, MessageSquare, Plus, ShieldOff, Trash2, Upload, X,
+  Award, BadgeCheck, CalendarOff, Check, ClipboardList, Clock, Eye, FileSignature, FileText, MessageSquare, Plus, ShieldOff, Star, Trash2, Upload, X,
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
   Bento, Button, Empty, ErrorBox, IconButton, Input, KV, List, Load, Pill, Row, Section, Segmented, Select, Sheet, Spinner, Stat, Table, Textarea, Tile, Toggle,
-  addDays, date, dateShort, dateTime, dayLabel, hours, isoDate, money, range, relative, titleCase, useAction, useApi, useConfirm, useForm,
+  addDays, cx, date, dateShort, dateTime, dayLabel, hours, isoDate, money, range, relative, titleCase, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { DOC_KINDS, ExpiryPill, Progress, RTW_TYPES, SIA_TYPES, TIMEOFF_KINDS, WEEKDAYS, docKindLabel, openUrl } from './_parts.jsx';
 
@@ -798,5 +798,87 @@ export function OffboardingTab({ o, reload }) {
         <div className="flex justify-end"><Button variant="danger" busy={busy} onClick={save}>Offboard officer</Button></div>
       </div>
     </Tile>
+  );
+}
+
+/* ---------------- Attendance (Ops AI) ---------------- */
+
+const ATT_KIND = { late: ['Late', 'amber'], no_show: ['No show', 'red'], left_early: ['Left early', 'amber'], cant_make_it: ["Couldn't make it", 'grey'] };
+const sumCounts = (c) => Object.values(c || {}).reduce((a, n) => a + n, 0);
+
+export function AttendanceTab({ o, onForbidden }) {
+  const q = useTabApi('attendance.list', { officer_id: o.id }, onForbidden);
+  const [edit, setEdit] = useState(null);
+  return (
+    <TabLoad q={q}>
+      {(d) => (
+        <>
+          <Bento>
+            <Tile title="Reliability"><Stat value={d.reliability == null ? '—' : `${Math.round(d.reliability * 100)}%`} label="On time, last 90 days" hint={`${d.shifts90} shift${d.shifts90 === 1 ? '' : 's'}`} tone={d.reliability != null && d.reliability < 0.85 ? 'amber' : undefined} /></Tile>
+            <Tile title="Last 30 days"><Stat value={sumCounts(d.counts30)} label={sumCounts(d.counts30) === 1 ? 'Issue' : 'Issues'} hint={`${d.counts30.late} late · ${d.counts30.no_show} no show`} tone={d.counts30.no_show ? 'red' : undefined} /></Tile>
+            <Tile title="Last 90 days"><Stat value={sumCounts(d.counts90)} label={sumCounts(d.counts90) === 1 ? 'Issue' : 'Issues'} hint={`${d.counts90.late} late · ${d.counts90.no_show} no show`} /></Tile>
+            <Tile title="Venue rating"><Stat value={d.avg_rating == null ? '—' : `${d.avg_rating}/5`} label="Average" hint={`${d.ratings.length} rating${d.ratings.length === 1 ? '' : 's'}`} tone={d.avg_rating != null && d.avg_rating < 3 ? 'red' : undefined} /></Tile>
+          </Bento>
+
+          <Section title="Lates and absences">
+            {d.events.length ? (
+              <List>{d.events.map((e) => {
+                const [label, tone] = ATT_KIND[e.kind] || [titleCase(e.kind), 'grey'];
+                return (
+                  <div key={e.id} className="flex items-start gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2 text-[15px] font-semibold">
+                        <span className={cx(e.excused && 'text-muted line-through')}>{e.venue_name}</span>
+                        <Pill tone={tone}>{label}{e.kind === 'late' && e.minutes ? ` ${e.minutes} min` : ''}</Pill>
+                        {e.excused && <Pill tone="green">Excused</Pill>}
+                        {e.notified && !e.excused && <Pill tone="blue">Told us</Pill>}
+                      </div>
+                      <div className="text-[13px] text-muted">{dayLabel(e.starts_at)} · {range(e.starts_at, e.ends_at)}</div>
+                      {e.reason && <div className="mt-1 text-[13px]">“{e.reason}”</div>}
+                      {e.note && <div className="mt-1 rounded-xl bg-bg px-3 py-1.5 text-[13px] text-muted">{e.note}</div>}
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => setEdit(e)}>Review</Button>
+                  </div>
+                );
+              })}</List>
+            ) : <Empty icon={Clock} title="No lates or absences" body="Ops AI records lates, no-shows and early finishes here automatically." />}
+          </Section>
+
+          <Section title="Venue ratings">
+            {d.ratings.length ? (
+              <List>{d.ratings.map((r, i) => (
+                <div key={i} className="px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[15px] font-semibold">{r.venue_name}</span>
+                    <span className="flex items-center gap-0.5" aria-label={`${r.rating} out of 5`}>
+                      {[1, 2, 3, 4, 5].map((n) => <Star key={n} size={16} className={n <= r.rating ? 'fill-amber text-amber' : 'text-line'} />)}
+                    </span>
+                  </div>
+                  <div className="text-[13px] text-muted">{dayLabel(r.starts_at)}</div>
+                  {r.note && <div className="mt-1 text-[14px]">“{r.note}”</div>}
+                </div>
+              ))}</List>
+            ) : <Empty icon={Star} title="No ratings yet" body="Venues are asked to rate officers after each shift." />}
+          </Section>
+
+          {edit && <AttendanceSheet e={edit} onClose={() => setEdit(null)} onDone={q.reload} />}
+        </>
+      )}
+    </TabLoad>
+  );
+}
+
+function AttendanceSheet({ e, onClose, onDone }) {
+  const [run, busy] = useAction();
+  const [excused, setExcused] = useState(!!e.excused);
+  const [note, setNote] = useState(e.note || '');
+  const save = () => run(() => api('attendance.update', { id: e.id, excused, note }), 'Saved').then(() => { onDone(); onClose(); }).catch(() => {});
+  return (
+    <Sheet open onClose={onClose} title={`${(ATT_KIND[e.kind] || [titleCase(e.kind)])[0]} · ${e.venue_name}`} size="sm" footer={<Button busy={busy} onClick={save}>Save</Button>}>
+      <div className="space-y-3">
+        <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={excused} onChange={setExcused} label="Excused" hint="Excused events don't count against reliability" /></div>
+        <Textarea label="Note" rows={3} value={note} onChange={(x) => setNote(x.target.value)} />
+      </div>
+    </Sheet>
   );
 }

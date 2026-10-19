@@ -1,6 +1,6 @@
 import {
   BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, FileText, Home, LayoutGrid, Megaphone,
-  Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText,
+  Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText, Sparkles, MessageSquarePlus,
 } from 'lucide-react';
 
 // Sidebar groups per role. `tab` marks the items shown in the mobile tab bar (max 5).
@@ -8,6 +8,7 @@ export const NAV = {
   company: [
     { items: [
       { to: '/company', label: 'Dashboard', icon: LayoutGrid, end: true, tab: true },
+      { to: '/company/ops', label: 'Ops AI', icon: Sparkles, badge: 'ops' },
       { to: '/company/live', label: 'Live', icon: Radio, tab: true },
       { to: '/company/rota', label: 'Rota', icon: CalendarDays, tab: true },
       { to: '/company/cover', label: 'Cover requests', icon: Megaphone },
@@ -35,6 +36,7 @@ export const NAV = {
   security: [
     { items: [
       { to: '/security', label: 'Dashboard', icon: LayoutGrid, end: true, tab: true },
+      { to: '/security/ops', label: 'Ops AI', icon: Sparkles, badge: 'ops' },
       { to: '/security/live', label: 'Live', icon: Radio, tab: true },
       { to: '/security/rota', label: 'Rota', icon: CalendarDays, tab: true },
       { to: '/security/exceptions', label: 'Exceptions', icon: TriangleAlert },
@@ -48,7 +50,8 @@ export const NAV = {
     { items: [
       { to: '/venue', label: 'Overview', icon: LayoutGrid, end: true, tab: true },
       { to: '/venue/live', label: 'On site', icon: Radio, tab: true },
-      { to: '/venue/cover', label: 'Request cover', icon: Megaphone, tab: true },
+      { to: '/venue/requests', label: 'Requests', icon: MessageSquarePlus, tab: true },
+      { to: '/venue/cover', label: 'Cover requests', icon: Megaphone },
       { to: '/venue/timesheets', label: 'Timesheets', icon: ClipboardCheck },
       { to: '/venue/incidents', label: 'Incidents', icon: ShieldAlert, tab: true },
       { to: '/venue/invoices', label: 'Invoices', icon: ReceiptText },

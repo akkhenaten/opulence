@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Building2, CalendarDays, ClipboardCheck, MapPin, Megaphone, Plus, Radio, ReceiptText, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
+import { FeedbackTile } from '../venue/_feedback.jsx';
 import {
   Bento, Button, Dot, List, Load, Page, Pill, Row, Section, Stat, Tile, cx, dayLabel, money, range, relative, titleCase, useApi,
 } from '../../ui/index.jsx';
@@ -39,6 +40,7 @@ function Body({ d, name }) {
   return (
     <Page title={`${greeting()}${name ? `, ${name}` : ''}`} subtitle={multi ? `${d.venues.length} venues` : d.venues[0].name}
       actions={<Button icon={Plus} to="/venue/cover">Request cover</Button>}>
+      <FeedbackTile multi={multi} />
       <Bento>
         <Tile tone="blue" to="/venue/live" title="On site now" icon={Radio} className="col-span-2 lg:row-span-2">
           <div className="flex items-end gap-3">

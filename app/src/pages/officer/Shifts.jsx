@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { OffersList, useOps } from './_ops.jsx';
 import { CalendarDays, CalendarOff, Check, Hand, Info, Megaphone, X } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -11,16 +12,18 @@ import { ASSIGN_LABEL, assignTone, NotLinked, ShiftCard } from './_parts.jsx';
 export default function Shifts() {
   const { user } = useAuth();
   const [sp, setSp] = useSearchParams();
-  const tab = sp.get('tab') === 'open' ? 'open' : 'mine';
-  const setTab = (t) => setSp(t === 'open' ? { tab: 'open' } : {}, { replace: true });
+  const tab = ['open', 'offers'].includes(sp.get('tab')) ? sp.get('tab') : 'mine';
+  const setTab = (t) => setSp(t === 'mine' ? {} : { tab: t }, { replace: true });
   const open = useApi('shifts.open', {}, { skip: !user.officer_id });
+  const ops = useOps(!user.officer_id);
+  const offered = (ops.data?.offers || []).filter((o) => o.status === 'offered').length;
 
   return (
     <Page title="Shifts" actions={<Button size="sm" variant="secondary" icon={CalendarOff} to="/officer/time-off">Availability</Button>}>
       {!user.officer_id ? <NotLinked /> : (
         <>
-          <Tabs value={tab} onChange={setTab} tabs={[{ value: 'mine', label: 'My shifts' }, { value: 'open', label: 'Open shifts', count: open.data?.length }]} />
-          {tab === 'mine' ? <Mine /> : <Open q={open} />}
+          <Tabs value={tab} onChange={setTab} tabs={[{ value: 'mine', label: 'My shifts' }, { value: 'offers', label: 'Offers', count: offered }, { value: 'open', label: 'Open shifts', count: open.data?.length }]} />
+          {tab === 'mine' ? <Mine /> : tab === 'offers' ? <OffersList ops={ops} /> : <Open q={open} />}
         </>
       )}
     </Page>

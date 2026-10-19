@@ -49,15 +49,15 @@ export async function checkOfficerForShift(officerId, shift, { ignoreAssignment 
   return { blocking, warnings, officer: { id: o.id, name: `${o.first_name} ${o.last_name}` } };
 }
 
-async function getShift(id) {
+export async function getShift(id) {
   return need(await one('SELECT s.*, v.name AS venue_name FROM shifts s JOIN venues v ON v.id = s.venue_id WHERE s.id = $1', [id]), 'Shift not found');
 }
 
-async function filledCount(shiftId) {
+export async function filledCount(shiftId) {
   return Number((await one("SELECT count(*) AS n FROM shift_assignments WHERE shift_id = $1 AND status IN ('assigned','accepted')", [shiftId])).n);
 }
 
-async function shiftsWithAssignments(where, params, user) {
+export async function shiftsWithAssignments(where, params, user) {
   const venueView = user.role === 'venue';
   const rows = await q(
     `SELECT s.*, v.name AS venue_name, r.name AS role_name,

@@ -14,6 +14,8 @@ const Live = P(() => import('./pages/shared/Live.jsx'));
 const Rota = P(() => import('./pages/manager/Rota.jsx'));
 const CoverManage = P(() => import('./pages/manager/Cover.jsx'));
 const Exceptions = P(() => import('./pages/manager/Exceptions.jsx'));
+const OpsAI = P(() => import('./pages/manager/OpsAI.jsx'));
+const VenueRequests = P(() => import('./pages/venue/Requests.jsx'));
 const Timesheets = P(() => import('./pages/shared/Timesheets.jsx'));
 const Incidents = P(() => import('./pages/shared/Incidents.jsx'));
 const IncidentDetail = P(() => import('./pages/shared/IncidentDetail.jsx'));
@@ -67,6 +69,7 @@ function PublicOnly({ children }) {
 // Screens shared by company and security managers, mounted under each prefix
 const managerRoutes = (
   <>
+    <Route path="ops" element={<OpsAI />} />
     <Route path="live" element={<Live />} />
     <Route path="rota" element={<Rota />} />
     <Route path="cover" element={<CoverManage />} />
@@ -121,6 +124,7 @@ function App() {
             <Route index element={<VenueDashboard />} />
             <Route path="live" element={<Live />} />
             <Route path="cover" element={<VenueCover />} />
+            <Route path="requests" element={<VenueRequests />} />
             <Route path="timesheets" element={<Timesheets />} />
             <Route path="incidents" element={<Incidents />} />
             <Route path="incidents/:id" element={<IncidentDetail />} />
