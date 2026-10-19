@@ -417,11 +417,12 @@ async function decideVenueRequest(it, b, user) {
   const done = [];
   if (intent === 'new') {
     const created = [];
+    const roleNames = Object.fromEntries((await q('SELECT code, name FROM roles')).map((r) => [r.code, r.name]));
     for (const s of list) {
       const r = toRange(s.date, s.start, s.end);
       const sh = await rota['shifts.save'].fn({ venue_id: it.venue_id, role: s.role, ...r, headcount: Number(s.headcount) || 1, notes: s.notes || '', status: 'published' }, { user });
       created.push(sh);
-      done.push(`${s.headcount || 1} × ${s.role} ${fmtDate(r.starts_at)} ${s.start}–${s.end}`);
+      done.push(`${s.headcount || 1} × ${roleNames[s.role] || s.role} ${fmtDate(r.starts_at)} ${s.start}–${s.end}`);
     }
     if (jobOn(await getSettings(), 'cover')) for (const sh of created) await proposeCover({ id: sh.id }, 'new');
   } else if (intent === 'change') {
@@ -843,7 +844,7 @@ If the date, times or number of officers are missing or ambiguous, use intent "u
     const req = await insert('venue_requests', { venue_id: venueId, user_id: user.id, text: fullText, parsed });
     const lines = v.shifts.map((x) => {
       if (parsed.intent === 'cancel') { const u = upcoming.find((y) => y.id === x.shift_id); return `cancel ${fmtDate(u.starts_at)} ${fmtTime(u.starts_at)}`; }
-      return `${x.headcount} × ${x.role} ${fmtDate(x.date)} ${x.start}–${x.end}`;
+      return `${x.headcount} × ${roles.find((r) => r.code === x.role)?.name || x.role} ${fmtDate(x.date)} ${x.start}–${x.end}`;
     });
     const it = await createItem({
       kind: 'venue_request', venue_id: venueId, title: `${venue.name}: ${parsed.intent === 'new' ? 'new shifts' : parsed.intent === 'change' ? 'change a shift' : 'cancel a shift'}`,
