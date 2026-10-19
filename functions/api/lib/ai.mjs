@@ -83,8 +83,19 @@ const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif
 export const canRead = (mime) => IMAGE_TYPES.has(mime) || mime === 'application/pdf';
 
 // Image or PDF content block for vision; null for files the model cannot read
+// The stored mime can be wrong (renamed files, phone exports), and the API rejects a mismatch, so trust the bytes
+function sniffImage(b) {
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return 'image/gif';
+  if (b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';
+  return null;
+}
+
 export function fileBlock(bytes, mime) {
-  if (IMAGE_TYPES.has(mime)) return { type: 'image', source: { type: 'base64', media_type: mime, data: Buffer.from(bytes).toString('base64') } };
+  const buf = Buffer.from(bytes);
+  const sniffed = String(mime || '').startsWith('image/') ? sniffImage(buf) : null;
+  if (sniffed || IMAGE_TYPES.has(mime)) return { type: 'image', source: { type: 'base64', media_type: sniffed || mime, data: buf.toString('base64') } };
   if (mime === 'application/pdf') return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: Buffer.from(bytes).toString('base64') } };
   return null;
 }

@@ -246,7 +246,6 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged }) 
   const [reason, setReason] = useState('');
   const [run, busy] = useAction();
   const toggle = (id, on) => setPicked((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n; });
-  const done = new Set(it.result?.done || []);
   const doDismiss = () => run(() => api('ops.dismissIssue', { id: it.id, key: dismiss.key, reason: reason.trim() }), 'Dismissed')
     .then(() => { setDismiss(null); setReason(''); onChanged(); }).catch(() => {});
   return (
@@ -272,11 +271,12 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged }) 
               ))}
             </div>
           )}
-          {!pending && done.size > 0 && i.actions.some((a) => done.has(a.id)) && (
-            <p className="mt-1 pl-4 text-[12px] text-green">Done: {i.actions.filter((a) => done.has(a.id)).map((a) => a.label).join(' · ')}</p>
-          )}
         </div>
       ))}
+      {!pending && it.result?.done?.length > 0 && (
+        <ul className="space-y-0.5 text-[13px] text-green">{it.result.done.map((d) => <li key={d} className="flex gap-1.5"><Check size={14} className="mt-0.5 shrink-0" />{d}</li>)}</ul>
+      )}
+      {!pending && it.result?.auto_closed && <p className="text-[13px] text-green">Cleared by itself: the details were updated.</p>}
       <Sheet open={!!dismiss} onClose={() => setDismiss(null)} title="Dismiss this issue?" size="sm"
         footer={<><Button variant="secondary" onClick={() => setDismiss(null)}>Cancel</Button><Button busy={busy} onClick={doDismiss}>Dismiss</Button></>}>
         <p className="mb-3 text-[14px] text-muted">{dismiss?.title}. It won't be raised again unless the details behind it change.</p>

@@ -23,6 +23,7 @@ const days = (from, to) => Math.round((new Date(to) - new Date(from)) / 86400000
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const shiftLine = (sh) => `${sh.venue_name} ${fmtDate(sh.starts_at)} ${fmtTime(sh.starts_at)} (${sh.role_name})`;
 const digits = (s) => String(s || '').replace(/\D/g, '');
+const siaFmt = (x) => digits(x).replace(/(\d{4})(?=\d)/g, '$1 ');
 const words = (s) => String(s || '').toLowerCase().normalize('NFKD').replace(/[^a-z ]/g, ' ').split(/\s+/).filter(Boolean);
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const docLabel = (k) => ({ sia: 'SIA licence', rtw: 'right to work' })[k] || DOC_LABEL[k] || k;
@@ -143,7 +144,7 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
 
   // Missing licence or right to work
   if ((siaRoles.length || siaShifts.length) && (!o.sia_number || !o.sia_expiry)) {
-    add({ key: 'missing:sia', severity: siaShifts.length ? near(siaShifts) : 'soon', sig: sig(o.sia_number, o.sia_expiry), title: 'No SIA licence on the profile', detail: siaShifts.length ? `Rostered on ${plural(siaShifts.length, 'licensed shift')}.` : '', shift: siaShifts[0], actions: [remind(o, 'sia', 'their SIA licence'), ...(siaShifts.length ? [unassign(siaShifts)] : [])] });
+    add({ key: 'missing:sia', severity: siaShifts.length ? near(siaShifts) : 'soon', sig: sig(o.sia_number, o.sia_expiry), title: o.sia_type ? 'SIA licence number or expiry missing on the profile' : 'No SIA licence on the profile', detail: siaShifts.length ? `Rostered on ${plural(siaShifts.length, 'licensed shift')}.` : '', shift: siaShifts[0], actions: [remind(o, 'sia', 'their SIA licence'), ...(siaShifts.length ? [unassign(siaShifts)] : [])] });
   }
   if (!o.rtw_verified) {
     add({ key: 'unverified:rtw', severity: shifts.length ? near(shifts) : 'soon', sig: sig(o.rtw_type), title: 'Right to work not verified', detail: shifts.length ? `Rostered on ${plural(shifts.length, 'shift')}.` : 'Check and verify on the profile.', shift: shifts[0], actions: [remind(o, 'rtw', 'right to work proof')] });
@@ -152,7 +153,7 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
   // Licence type against the roles on the profile and the shifts rostered
   const siaDoc = latest('sia');
   const licences = new Set([o.sia_type, siaDoc?.verified_at && siaDoc?.ai_read?.licence_type].filter((t) => t && SIA_TYPES.includes(t)));
-  if (o.sia_number) {
+  if (o.sia_number || o.sia_type) {
     for (const code of new Set([...(o.roles || []), ...shifts.map((s) => s.role)])) {
       const accepted = roles[code]?.accepted_licences || [];
       if (!needsSia(code) || !accepted.length || accepted.some((t) => licences.has(t))) continue;
@@ -188,7 +189,7 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
       add({ key: `doc_mismatch:${d.id}:name`, severity: 'soon', sig: sig(d.s3_key, o.first_name, o.last_name), title: `Name on "${d.title}" doesn't match the profile`, detail: `Scan reads "${r.name}"; profile is ${o.first_name} ${o.last_name}.`, actions: [recheck(d)] });
     }
     if (kind === 'sia' && digits(r.number) && digits(o.sia_number) && digits(r.number) !== digits(o.sia_number)) {
-      add({ key: `doc_mismatch:${d.id}:number`, severity: 'soon', sig: sig(d.s3_key, o.sia_number), title: 'SIA number on the card differs from the profile', detail: `Card reads ${r.number}; profile has ${o.sia_number}.`, actions: [correct('sia_number', o.sia_number, digits(r.number), `Update profile SIA number to ${digits(r.number)}`), recheck(d)] });
+      add({ key: `doc_mismatch:${d.id}:number`, severity: 'soon', sig: sig(d.s3_key, o.sia_number), title: 'SIA number on the card differs from the profile', detail: `Card reads ${r.number}; profile has ${o.sia_number}.`, actions: [correct('sia_number', o.sia_number, siaFmt(r.number), `Update profile SIA number to ${siaFmt(r.number)}`), recheck(d)] });
     }
     const profileExpiry = kind === 'sia' ? o.sia_expiry : kind === 'rtw' ? o.rtw_expiry : d.expiry;
     if (r.expiry && profileExpiry && r.expiry !== profileExpiry) {
@@ -246,7 +247,7 @@ async function advise(o, issues) {
   try {
     const r = await extract({
       model: HAIKU, max_tokens: 300,
-      system: 'You advise a UK security company manager on staff compliance (SIA licensing, right to work). Write 1–3 short plain sentences: what matters most and what to do first. No greeting, no markdown. Never say an officer is definitely non-compliant when a document only needs checking.',
+      system: 'You advise a UK security company manager on staff compliance (SIA licensing, right to work). Write 1–3 short plain sentences: what matters most and what to do first. No greeting, no markdown. Never say an officer is definitely non-compliant when a document only needs checking. Refer to the officer by first name or "they" — never he, she, his or her. Only SIA licensing and right to work are legal requirements; other documents are company rules, so do not call them legal or regulatory. Do not invent deadlines, dates or facts that are not in the list.',
       messages: [{ role: 'user', content: `Officer: ${o.first_name} ${o.last_name}\nIssues:\n${issues.map((i) => `- [${i.severity}] ${i.title}. ${i.detail || ''}`).join('\n')}` }],
       tool: { name: 'advice', description: 'Advice for the manager', input_schema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } },
     });
@@ -325,7 +326,7 @@ export async function decideCompliance(it, b, user) {
     if (!['sia_number', 'sia_expiry', 'rtw_expiry'].includes(a.params.field)) fail(400, 'Unknown field');
     await q(`UPDATE officers SET ${a.params.field} = $2 WHERE id = $1`, [o.id, a.params.to]);
     await audit(user, 'officer.update', 'officer', o.id, { [a.params.field]: { from: a.params.from, to: a.params.to }, via: 'compliance' });
-    done.push(`Updated ${a.params.field.replace('_', ' ')} to ${a.params.to}`);
+    done.push(`Updated ${{ sia_number: 'SIA number', sia_expiry: 'SIA expiry', rtw_expiry: 'right to work expiry' }[a.params.field]} to ${a.params.field.endsWith('expiry') ? fmtDate(a.params.to) : a.params.to}`);
   }
   for (const a of picked.filter((x) => x.kind === 'recheck')) {
     const d = await one("UPDATE documents SET verified_at = NULL, verified_by = NULL WHERE id = $1 AND owner_id = $2 RETURNING title", [a.params.doc_id, o.id]);
