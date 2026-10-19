@@ -264,7 +264,7 @@ const JOBS = {
     const rows = await q(
       `SELECT a.*, o.first_name, o.last_name FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN officers o ON o.id = a.officer_id
         WHERE a.chased_at IS NOT NULL AND a.escalated_at IS NULL AND a.status IN ${ACTIVE} AND s.status = 'published' AND s.ends_at > now() AND ${NO_CLOCK_IN}
-          AND ((a.reply IS NULL AND s.starts_at + make_interval(mins => $1 + $2) < now())
+          AND ((a.reply IS NULL AND s.starts_at + make_interval(mins => $1::int + $2::int) < now())
             OR a.reply = 'cant_make_it'
             OR (a.reply = 'on_my_way' AND a.replied_at + make_interval(mins => COALESCE(a.reply_eta_min, 15) + 5) < now()))`,
       [s.grace_minutes, s.ops_escalate_minutes]);
