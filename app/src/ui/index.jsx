@@ -190,15 +190,15 @@ export function Toggle({ checked, onChange, label, hint }) {
 }
 
 // iOS segmented control
-export function Segmented({ value, onChange, options, className }) {
+export function Segmented({ value, onChange, options, className, full }) {
   return (
-    <div className={cx('inline-flex rounded-xl bg-[#E8EAEE] p-[3px] no-scrollbar overflow-x-auto max-w-full', className)} role="tablist">
+    <div className={cx(full ? 'flex w-full' : 'inline-flex', 'rounded-xl bg-[#E8EAEE] p-[3px] no-scrollbar overflow-x-auto max-w-full', className)} role="tablist">
       {options.map((o) => {
         const v = typeof o === 'string' ? o : o.value;
         const l = typeof o === 'string' ? titleCase(o) : o.label;
         return (
           <button key={v} type="button" role="tab" aria-selected={value === v} onClick={() => onChange(v)}
-            className={cx('whitespace-nowrap rounded-[9px] px-3.5 py-1.5 text-[13px] font-semibold transition', value === v ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink')}>
+            className={cx(full && 'flex-1', 'whitespace-nowrap rounded-[9px] px-3.5 py-1.5 text-[13px] font-semibold transition', value === v ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink')}>
             {l}{o.count != null && o.count > 0 && <span className="ml-1.5 rounded-full bg-blue px-1.5 text-[11px] text-white">{o.count}</span>}
           </button>
         );
