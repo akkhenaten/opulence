@@ -1,63 +1,61 @@
-/**
- * API Function
- *
- * Endpoint: https://yourdomain.com/api
- *
- * Environment variables:
- * - DATABASE_URL (Postgres connection string)
- * - STORAGE_BUCKET (S3 bucket name)
- * - OPENKBS_PROJECT_ID (your project short ID)
- */
+import { CORS, json, HttpError } from './lib/http.mjs';
+import { migrate } from './lib/db.mjs';
+import { userFromEvent } from './lib/auth.mjs';
+import { runJobs } from './modules/jobs.mjs';
+import * as auth from './modules/auth.mjs';
+import * as users from './modules/users.mjs';
+import * as settings from './modules/settings.mjs';
+import * as venues from './modules/venues.mjs';
+import * as documents from './modules/documents.mjs';
+import * as officers from './modules/officers.mjs';
+import * as hr from './modules/hr.mjs';
+import * as rota from './modules/rota.mjs';
+import * as clock from './modules/clock.mjs';
+import * as timesheets from './modules/timesheets.mjs';
+import * as money from './modules/money.mjs';
+import * as incidents from './modules/incidents.mjs';
+import * as dashboard from './modules/dashboard.mjs';
+import * as notifications from './modules/notifications.mjs';
 
-export const handler = async (event) => {
-    const headers = {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type'
-    };
+const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, timesheets, money, incidents, dashboard, notifications].map((m) => m.actions));
 
-    if (event.requestContext?.http?.method === 'OPTIONS') {
-        return { statusCode: 200, headers, body: '' };
+export async function handler(event) {
+  if (event.source === 'schedule') {
+    await migrate();
+    return runJobs();
+  }
+  const method = event.requestContext?.http?.method || event.httpMethod || 'POST';
+  if (method === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
+
+  let body;
+  try {
+    body = event.body ? JSON.parse(event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString() : event.body) : {};
+  } catch {
+    return json({ error: 'Invalid JSON' }, 400);
+  }
+  if (body.action === 'health') return json({ ok: true, time: new Date().toISOString() });
+
+  const entry = ACTIONS[body.action];
+  if (!entry) return json({ error: 'Unknown action' }, 404);
+
+  try {
+    await migrate();
+    const h = event.headers || {};
+    const ip = (h['x-forwarded-for'] || '').split(',')[0].trim() || event.requestContext?.http?.sourceIp || '';
+    let user = null;
+    if (!entry.public) {
+      user = await userFromEvent(event);
+      if (!user) return json({ error: 'Please sign in again' }, 401);
+      if (!entry.roles.includes(user.role)) return json({ error: 'You do not have access to this' }, 403);
     }
-
-    try {
-        const body = JSON.parse(event.body || '{}');
-        const { action } = body;
-
-        switch (action) {
-            case 'hello':
-                return {
-                    statusCode: 200,
-                    headers,
-                    body: JSON.stringify({
-                        message: 'Hello from OpenKBS!',
-                        timestamp: new Date().toISOString()
-                    })
-                };
-
-            case 'status':
-                return {
-                    statusCode: 200,
-                    headers,
-                    body: JSON.stringify({
-                        postgres: !!process.env.DATABASE_URL,
-                        storage: !!process.env.STORAGE_BUCKET,
-                        projectId: process.env.OPENKBS_PROJECT_ID
-                    })
-                };
-
-            default:
-                return {
-                    statusCode: 400,
-                    headers,
-                    body: JSON.stringify({ error: 'Unknown action', available: ['hello', 'status'] })
-                };
-        }
-    } catch (error) {
-        return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ error: error.message })
-        };
-    }
-};
+    const result = await entry.fn(body, { user, ip, event });
+    return json(result ?? { ok: true });
+  } catch (e) {
+    if (e instanceof HttpError) return json({ error: e.message, ...(e.extra || {}) }, e.status);
+    if (e.code === '23505') return json({ error: 'That already exists' }, 409);
+    if (e.code === '23503') return json({ error: 'It is still in use or refers to something missing' }, 409);
+    if (e.code === '22P02') return json({ error: 'Invalid value' }, 400);
+    console.error('[api]', body.action, e);
+    return json({ error: 'Something went wrong' }, 500);
+  }
+}

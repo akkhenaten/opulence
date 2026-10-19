@@ -19,3 +19,5 @@ openkbs.local.json
 .agents/*
 !.agents/skills/
 !.agents/skills-off/
+
+scripts/.demo-credentials.json

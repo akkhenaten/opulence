@@ -1,0 +1,257 @@
+import { one, q, tx } from '../lib/db.mjs';
+import { fail, required, need } from '../lib/http.mjs';
+import { venueScope, assertVenue } from '../lib/scope.mjs';
+import { downloadUrl, getObjectBytes } from '../lib/storage.mjs';
+import { notify, managersFor, venueContacts, officerUser } from '../lib/notify.mjs';
+import { fmtDateTime } from '../lib/time.mjs';
+import { Doc } from '../lib/pdf.mjs';
+import { audit } from '../lib/audit.mjs';
+import { getSettings } from './settings.mjs';
+import { ALL, MGR, def } from './_def.mjs';
+
+export const TYPES = ['ejection', 'refused_entry', 'assault', 'theft', 'drugs', 'weapon', 'medical', 'damage', 'fire', 'disorder', 'lost_child', 'vulnerable_person', 'other'];
+const SEVERITIES = ['low', 'medium', 'high', 'critical'];
+const FIELDS = ['type', 'severity', 'occurred_at', 'location', 'description', 'people_involved', 'injuries', 'actions_taken',
+  'force_used', 'force_justification', 'police_called', 'police_ref', 'ambulance_called', 'ambulance_ref'];
+
+const BASE_SQL = `
+  SELECT i.*, v.name AS venue_name, o.first_name || ' ' || o.last_name AS officer_name, ur.name AS reported_by_name, uv.name AS reviewed_by_name,
+         (SELECT count(*) FROM incident_attachments x WHERE x.incident_id = i.id)::int AS attachment_count
+    FROM incidents i JOIN venues v ON v.id = i.venue_id LEFT JOIN officers o ON o.id = i.officer_id
+    LEFT JOIN users ur ON ur.id = i.reported_by LEFT JOIN users uv ON uv.id = i.reviewed_by`;
+
+function validate(b) {
+  if (b.type && !TYPES.includes(b.type)) fail(400, 'Unknown incident type');
+  if (b.severity && !SEVERITIES.includes(b.severity)) fail(400, 'Unknown severity');
+  if (b.force_used && !String(b.force_justification || '').trim()) fail(400, 'Explain why force was necessary');
+  if (b.occurred_at && new Date(b.occurred_at) > new Date(Date.now() + 5 * 60000)) fail(400, 'Incident time cannot be in the future');
+}
+
+async function canSee(user, inc) {
+  if (user.role === 'officer') {
+    if (inc.officer_id !== user.officer_id) fail(403, 'Forbidden');
+    return;
+  }
+  await assertVenue(user, inc.venue_id);
+}
+
+const pickFields = (b) => Object.fromEntries(FIELDS.filter((k) => b[k] !== undefined).map((k) => [k, b[k]]));
+
+async function saveWitnesses(t, incidentId, witnesses) {
+  if (!Array.isArray(witnesses)) return;
+  await t.q('DELETE FROM incident_witnesses WHERE incident_id = $1', [incidentId]);
+  for (const w of witnesses.filter((x) => x?.name?.trim())) {
+    await t.q('INSERT INTO incident_witnesses (incident_id, name, contact, statement) VALUES ($1,$2,$3,$4)', [incidentId, w.name.trim(), w.contact || '', w.statement || '']);
+  }
+}
+
+async function saveAttachments(t, incidentId, attachments, userId) {
+  for (const a of attachments || []) {
+    if (!a?.key?.startsWith('docs/')) fail(400, 'Invalid attachment');
+    await t.q('INSERT INTO incident_attachments (incident_id, s3_key, mime, name, uploaded_by) VALUES ($1,$2,$3,$4,$5)', [incidentId, a.key, a.mime || null, a.name || '', userId]);
+  }
+}
+
+async function loadFull(id) {
+  const inc = need(await one(`${BASE_SQL} WHERE i.id = $1`, [id]));
+  const [witnesses, attachments, versions] = await Promise.all([
+    q('SELECT * FROM incident_witnesses WHERE incident_id = $1 ORDER BY name', [id]),
+    q('SELECT * FROM incident_attachments WHERE incident_id = $1 ORDER BY created_at', [id]),
+    q('SELECT v.id, v.version, v.created_at, u.name AS edited_by_name FROM incident_versions v LEFT JOIN users u ON u.id = v.edited_by WHERE incident_id = $1 ORDER BY version', [id]),
+  ]);
+  return { ...inc, witnesses, attachments, versions };
+}
+
+export const actions = {
+  'incidents.types': def(ALL, async () => ({ types: TYPES, severities: SEVERITIES })),
+
+  'incidents.list': def(ALL, async (b, { user }) => {
+    const scope = await venueScope(user);
+    return q(
+      `${BASE_SQL}
+        WHERE ($1::uuid[] IS NULL OR i.venue_id = ANY($1)) AND ($2::uuid IS NULL OR i.officer_id = $2)
+          AND ($3::text IS NULL OR i.status = $3) AND ($4::text IS NULL OR i.severity = $4) AND ($5::text IS NULL OR i.type = $5)
+          AND ($6::uuid IS NULL OR i.venue_id = $6) AND ($7::timestamptz IS NULL OR i.occurred_at >= $7) AND ($8::timestamptz IS NULL OR i.occurred_at < $8)
+          AND ($9::text IS NULL OR i.ref ILIKE $9 OR i.description ILIKE $9 OR i.location ILIKE $9 OR i.police_ref ILIKE $9)
+        ORDER BY i.occurred_at DESC LIMIT $10`,
+      [user.role === 'officer' ? null : scope, user.role === 'officer' ? user.officer_id : b.officer_id || null, b.status || null, b.severity || null, b.type || null,
+        b.venue_id || null, b.from || null, b.to || null, b.search ? `%${b.search}%` : null, Math.min(Number(b.limit) || 200, 500)]);
+  }),
+
+  'incidents.get': def(ALL, async (b, { user }) => {
+    const inc = await loadFull(b.id);
+    await canSee(user, inc);
+    for (const a of inc.attachments) a.url = await downloadUrl(a.s3_key, a.name);
+    return inc;
+  }),
+
+  'incidents.version': def(MGR, async (b, { user }) => {
+    const v = need(await one('SELECT v.*, i.venue_id FROM incident_versions v JOIN incidents i ON i.id = v.incident_id WHERE v.id = $1', [b.id]));
+    await assertVenue(user, v.venue_id);
+    return v;
+  }),
+
+  // Officers report from their shift; managers can file on behalf of an officer.
+  'incidents.create': def(['officer', 'company', 'security'], async (b, { user }) => {
+    required(b, 'type', 'severity', 'occurred_at', 'description');
+    validate(b);
+    let venueId = b.venue_id;
+    let officerId = user.role === 'officer' ? user.officer_id : b.officer_id || null;
+    let shiftId = b.shift_id || null;
+    if (user.role === 'officer') {
+      if (!officerId) fail(403, 'Officer profile not linked');
+      // Officer must be (or have been) rostered at the venue around the incident time
+      const a = await one(
+        `SELECT s.id, s.venue_id FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
+          WHERE a.officer_id = $1 AND a.status IN ('assigned','accepted') AND ($2::uuid IS NULL OR s.id = $2) AND ($3::uuid IS NULL OR s.venue_id = $3)
+            AND $4::timestamptz BETWEEN s.starts_at - interval '2 hours' AND s.ends_at + interval '2 hours'
+          ORDER BY abs(extract(epoch FROM (s.starts_at - $4::timestamptz))) LIMIT 1`, [officerId, shiftId, venueId || null, b.occurred_at]);
+      if (!a) fail(400, 'You can only report incidents for a shift you worked');
+      venueId = a.venue_id;
+      shiftId = a.id;
+    } else {
+      required(b, 'venue_id');
+      await assertVenue(user, venueId);
+    }
+    const inc = await tx(async (t) => {
+      const f = pickFields(b);
+      const cols = ['venue_id', 'shift_id', 'officer_id', 'reported_by', ...Object.keys(f)];
+      const vals = [venueId, shiftId, officerId, user.id, ...Object.values(f)];
+      const row = await t.one(`INSERT INTO incidents (${cols.join(',')}) VALUES (${cols.map((_, i) => `$${i + 1}`).join(',')}) RETURNING *`, vals);
+      await saveWitnesses(t, row.id, b.witnesses);
+      await saveAttachments(t, row.id, b.attachments, user.id);
+      await t.q('INSERT INTO incident_versions (incident_id, version, data, edited_by) VALUES ($1,1,$2,$3)', [row.id, JSON.stringify({ ...f, witnesses: b.witnesses || [] }), user.id]);
+      return row;
+    });
+    const v = await one('SELECT name FROM venues WHERE id = $1', [venueId]);
+    const urgent = ['high', 'critical'].includes(inc.severity);
+    const msg = { kind: 'incident', severity: urgent ? 'critical' : 'info', title: `${urgent ? `${inc.severity.toUpperCase()} incident` : 'New incident'} · ${v.name}`,
+      body: `${inc.ref}: ${inc.type.replace(/_/g, ' ')} at ${fmtDateTime(inc.occurred_at)}${inc.location ? ` — ${inc.location}` : ''}`, email: urgent };
+    await notify((await managersFor(venueId)).filter((id) => id !== user.id), { ...msg, link: `/company/incidents/${inc.id}` });
+    if (urgent) await notify(await venueContacts(venueId), { ...msg, link: `/venue/incidents/${inc.id}` });
+    await audit(user, 'incident.create', 'incident', inc.id, { ref: inc.ref, severity: inc.severity });
+    return inc;
+  }),
+
+  // Edits keep the original: each save stores a full snapshot in incident_versions.
+  'incidents.update': def(['officer', 'company', 'security'], async (b, { user }) => {
+    required(b, 'id');
+    validate(b);
+    const cur = await loadFull(b.id);
+    await canSee(user, cur);
+    if (user.role === 'officer' && cur.status !== 'changes_requested' && cur.reported_by !== user.id) fail(403, 'This report can no longer be edited');
+    if (user.role === 'officer' && cur.status === 'closed') fail(400, 'This report is closed');
+    const f = pickFields(b);
+    const inc = await tx(async (t) => {
+      const keys = Object.keys(f);
+      const sets = keys.map((k, i) => `${k} = $${i + 2}`);
+      const status = user.role === 'officer' && cur.status === 'changes_requested' ? 'submitted' : cur.status;
+      const row = await t.one(
+        `UPDATE incidents SET ${[...sets, `version = version + 1`, `updated_at = now()`, `status = $${keys.length + 2}`].join(', ')} WHERE id = $1 RETURNING *`,
+        [b.id, ...Object.values(f), status]);
+      await saveWitnesses(t, row.id, b.witnesses);
+      await saveAttachments(t, row.id, b.attachments, user.id);
+      const witnesses = b.witnesses || cur.witnesses.map(({ name, contact, statement }) => ({ name, contact, statement }));
+      const snapshot = Object.fromEntries(FIELDS.map((k) => [k, row[k]]));
+      await t.q('INSERT INTO incident_versions (incident_id, version, data, edited_by) VALUES ($1,$2,$3,$4)', [row.id, row.version, JSON.stringify({ ...snapshot, witnesses }), user.id]);
+      return row;
+    });
+    if (user.role === 'officer' && cur.status === 'changes_requested') {
+      await notify(await managersFor(inc.venue_id), { kind: 'incident', title: `Incident ${inc.ref} resubmitted`, body: 'The officer has updated the report.', link: `/company/incidents/${inc.id}` });
+    }
+    await audit(user, 'incident.update', 'incident', inc.id, { version: inc.version, fields: Object.keys(f) });
+    return inc;
+  }),
+
+  'incidents.addAttachments': def(['officer', 'company', 'security'], async (b, { user }) => {
+    required(b, 'id', 'attachments');
+    const inc = need(await one('SELECT * FROM incidents WHERE id = $1', [b.id]));
+    await canSee(user, inc);
+    if (inc.status === 'closed' && user.role === 'officer') fail(400, 'This report is closed');
+    await tx((t) => saveAttachments(t, inc.id, b.attachments, user.id));
+    await audit(user, 'incident.attach', 'incident', inc.id, { count: b.attachments.length });
+    return { ok: true };
+  }),
+
+  // Manager review: close, or send back to the officer for more detail
+  'incidents.review': def(MGR, async (b, { user }) => {
+    required(b, 'id', 'decision');
+    if (!['close', 'changes_requested', 'reopen'].includes(b.decision)) fail(400, 'Invalid decision');
+    if (b.decision === 'changes_requested' && !b.comment) fail(400, 'Say what needs changing');
+    const cur = need(await one('SELECT * FROM incidents WHERE id = $1', [b.id]));
+    await assertVenue(user, cur.venue_id);
+    const status = { close: 'closed', changes_requested: 'changes_requested', reopen: 'submitted' }[b.decision];
+    const inc = await one('UPDATE incidents SET status = $2, review_comment = $3, reviewed_by = $4, reviewed_at = now(), updated_at = now() WHERE id = $1 RETURNING *',
+      [b.id, status, b.comment || '', user.id]);
+    if (inc.officer_id && b.decision === 'changes_requested') {
+      await notify(await officerUser(inc.officer_id), { kind: 'incident', severity: 'warning', title: `More detail needed on ${inc.ref}`, body: b.comment, link: `/officer/incidents/${inc.id}`, email: true });
+    }
+    await audit(user, `incident.${b.decision}`, 'incident', inc.id, { comment: b.comment });
+    return inc;
+  }),
+
+  'incidents.pdf': def(ALL, async (b, { user }) => {
+    const inc = await loadFull(b.id);
+    await canSee(user, inc);
+    const s = await getSettings();
+    const d = await Doc.create(`Incident ${inc.ref}`);
+    d.header(s, 'Incident report', `${inc.ref} · v${inc.version}`);
+    const yn = (v, ref) => (v ? `Yes${ref ? ` (ref ${ref})` : ''}` : 'No');
+    d.meta(
+      [['Venue', inc.venue_name], ['Type', inc.type.replace(/_/g, ' ')], ['Severity', inc.severity.toUpperCase()], ['Location', inc.location || '-']],
+      [['Occurred', fmtDateTime(inc.occurred_at)], ['Officer', inc.officer_name || '-'], ['Reported by', inc.reported_by_name || '-'], ['Status', inc.status.replace(/_/g, ' ')]],
+    );
+    const block = (title, body) => { if (body) { d.section(title); d.text(body, { size: 10 }); d.space(4); } };
+    block('What happened', inc.description);
+    block('People involved', inc.people_involved);
+    block('Injuries', inc.injuries);
+    block('Actions taken', inc.actions_taken);
+    d.section('Emergency services & force');
+    d.table([{ label: 'Item', width: 0.4 }, { label: 'Detail', width: 0.6 }], [
+      ['Police called', yn(inc.police_called, inc.police_ref)],
+      ['Ambulance called', yn(inc.ambulance_called, inc.ambulance_ref)],
+      ['Force used', inc.force_used ? 'Yes' : 'No'],
+    ]);
+    if (inc.force_used) block('Justification for force', inc.force_justification);
+    if (inc.witnesses.length) {
+      d.section('Witnesses');
+      d.table([{ label: 'Name', width: 0.25 }, { label: 'Contact', width: 0.25 }, { label: 'Statement', width: 0.5 }],
+        inc.witnesses.map((w) => [w.name, user.role === 'venue' ? '-' : w.contact, w.statement]));
+    }
+    const images = inc.attachments.filter((a) => a.mime === 'image/png' || a.mime === 'image/jpeg').slice(0, 6);
+    if (images.length) {
+      d.section('Photos');
+      for (const a of images) {
+        try {
+          const bytes = await getObjectBytes(a.s3_key);
+          if (a.mime === 'image/png') await d.image(bytes, { width: 240 });
+          else {
+            const img = await d.pdf.embedJpg(bytes);
+            const h = (img.height / img.width) * 240;
+            d.ensure(h + 6);
+            d.page.drawImage(img, { x: d.x, y: d.y - h, width: 240, height: h });
+            d.y -= h + 6;
+          }
+        } catch { /* skip unreadable image */ }
+      }
+    }
+    if (inc.review_comment) block('Review', `${inc.reviewed_by_name || ''}: ${inc.review_comment}`);
+    d.footer(`${s.company_name} · ${inc.ref} · version ${inc.version} · generated ${fmtDateTime(new Date())}`);
+    return { filename: `${inc.ref}.pdf`, pdf: await d.base64() };
+  }),
+
+  'reports.incidents': def(['company', 'security', 'venue'], async (b, { user }) => {
+    required(b, 'from', 'to');
+    const scope = await venueScope(user);
+    const p = [scope, b.from, b.to, b.venue_id || null];
+    const where = `($1::uuid[] IS NULL OR i.venue_id = ANY($1)) AND i.occurred_at >= $2 AND i.occurred_at < $3::date + 1 AND ($4::uuid IS NULL OR i.venue_id = $4)`;
+    const [byType, bySeverity, byWeek, byVenue, byHour] = await Promise.all([
+      q(`SELECT type, count(*)::int AS n FROM incidents i WHERE ${where} GROUP BY 1 ORDER BY 2 DESC`, p),
+      q(`SELECT severity, count(*)::int AS n FROM incidents i WHERE ${where} GROUP BY 1`, p),
+      q(`SELECT to_char(date_trunc('week', i.occurred_at AT TIME ZONE 'Europe/London'), 'YYYY-MM-DD') AS week, count(*)::int AS n FROM incidents i WHERE ${where} GROUP BY 1 ORDER BY 1`, p),
+      q(`SELECT v.name AS venue_name, count(*)::int AS n FROM incidents i JOIN venues v ON v.id = i.venue_id WHERE ${where} GROUP BY 1 ORDER BY 2 DESC`, p),
+      q(`SELECT extract(hour FROM i.occurred_at AT TIME ZONE 'Europe/London')::int AS hour, count(*)::int AS n FROM incidents i WHERE ${where} GROUP BY 1 ORDER BY 1`, p),
+    ]);
+    return { byType, bySeverity, byWeek, byVenue, byHour };
+  }),
+};
