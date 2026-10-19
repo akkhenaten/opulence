@@ -163,14 +163,14 @@ function CoverEdit({ it, busy, onClose, onSave }) {
   );
 }
 
-const shiftLine = (s) => `${s.headcount || 1} × ${s.role} · ${dayLabel(s.date)} ${s.start}–${s.end}`;
+const shiftLine = (s) => `${s.headcount || 1} × ${s.role_name || s.role} · ${dayLabel(s.date)} ${s.start}–${s.end}`;
 function RequestBody({ it }) {
   const p = it.payload;
   return (
     <div className="space-y-2">
       {(it.request?.text || p.text) && <blockquote className="rounded-xl bg-bg px-3 py-2 text-[14px] italic">“{it.request?.text || p.text}”</blockquote>}
       <div className="text-[13px] font-semibold uppercase tracking-wide text-muted">{p.intent === 'new' ? 'New shifts' : p.intent === 'change' ? 'Change' : 'Cancel'}</div>
-      <ul className="space-y-1">{(p.shifts || []).map((s, i) => <li key={i} className="text-[14px] font-semibold">{p.intent === 'cancel' ? `Shift ${s.shift_id?.slice(0, 8)}` : shiftLine(s)}</li>)}</ul>
+      <ul className="space-y-1">{(p.shifts || []).map((s, i) => <li key={i} className="text-[14px] font-semibold">{p.intent === 'cancel' ? s.label || 'Cancel shift' : shiftLine(s)}</li>)}</ul>
     </div>
   );
 }

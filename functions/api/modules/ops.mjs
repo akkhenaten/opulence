@@ -848,7 +848,8 @@ If the date, times or number of officers are missing or ambiguous, use intent "u
     });
     const it = await createItem({
       kind: 'venue_request', venue_id: venueId, title: `${venue.name}: ${parsed.intent === 'new' ? 'new shifts' : parsed.intent === 'change' ? 'change a shift' : 'cancel a shift'}`,
-      reason: `${parsed.summary || lines.join(', ')}. Asked by ${user.name}.`, payload: { request_id: req.id, intent: parsed.intent, shifts: v.shifts, text: fullText },
+      reason: `${lines.join(', ')}. Asked by ${user.name}.`,
+      payload: { request_id: req.id, intent: parsed.intent, shifts: v.shifts.map((x, i) => ({ ...x, role_name: roles.find((r) => r.code === x.role)?.name, label: lines[i] })), text: fullText },
       dedupe: `vreq:${req.id}`,
     });
     await q('UPDATE venue_requests SET item_id = $2 WHERE id = $1', [req.id, it.id]);
