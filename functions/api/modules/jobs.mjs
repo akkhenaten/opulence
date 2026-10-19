@@ -13,7 +13,7 @@ async function lateAlerts(s) {
        FROM shifts s, officers o, venues v
       WHERE s.id = a.shift_id AND o.id = a.officer_id AND v.id = s.venue_id
         AND a.status IN ('assigned','accepted') AND s.status = 'published' AND NOT a.late_alerted
-        AND s.starts_at + make_interval(mins => $1) < now() AND s.ends_at > now()
+        AND GREATEST(s.starts_at, a.created_at) + make_interval(mins => $1) < now() AND s.ends_at > now()
         AND NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')
       RETURNING a.id, a.officer_id, s.venue_id, s.starts_at, v.name AS venue_name, o.first_name || ' ' || o.last_name AS officer_name`, [s.grace_minutes]);
   for (const r of rows) {

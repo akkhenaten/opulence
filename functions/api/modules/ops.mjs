@@ -264,7 +264,7 @@ const JOBS = {
     const rows = await q(
       `SELECT a.*, o.first_name, o.last_name FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN officers o ON o.id = a.officer_id
         WHERE a.chased_at IS NOT NULL AND a.escalated_at IS NULL AND a.status IN ${ACTIVE} AND s.status = 'published' AND s.ends_at > now() AND ${NO_CLOCK_IN}
-          AND ((a.reply IS NULL AND s.starts_at + make_interval(mins => $1::int + $2::int) < now())
+          AND ((a.reply IS NULL AND GREATEST(s.starts_at + make_interval(mins => $1::int), a.chased_at) + make_interval(mins => $2::int) < now())
             OR a.reply = 'cant_make_it'
             OR (a.reply = 'on_my_way' AND a.replied_at + make_interval(mins => COALESCE(a.reply_eta_min, 15) + 5) < now()))`,
       [s.grace_minutes, s.ops_escalate_minutes]);
@@ -665,7 +665,8 @@ Answer in short, plain British business English. Use the officers' and venues' n
       const uses = (r.content || []).filter((c) => c.type === 'tool_use');
       if (r.stop_reason !== 'tool_use' || !uses.length) {
         const reply = (r.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('\n').trim();
-        await logActivity('chat', `${user.name} asked: ${messages[messages.length - 1].content.slice(0, 140)}`, { credits });
+        const asked = String(b.messages.filter((m) => m.role === 'user').pop()?.content || '').slice(0, 140);
+        await logActivity('chat', `${user.name} asked: ${asked}`, { credits });
         return { reply: reply || 'Done.', items: created, credits };
       }
       messages.push({ role: 'assistant', content: r.content });
