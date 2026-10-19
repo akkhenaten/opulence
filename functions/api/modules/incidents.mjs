@@ -82,6 +82,7 @@ export const actions = {
     const inc = await loadFull(b.id);
     await canSee(user, inc);
     for (const a of inc.attachments) a.url = await downloadUrl(a.s3_key, a.name);
+    if (user.role === 'venue') inc.witnesses = inc.witnesses.map(({ contact, ...w }) => w);
     return inc;
   }),
 

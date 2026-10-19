@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #F2F4F7;
+  --color-surface: #FFFFFF;
+  --color-ink: #0B1220;
+  --color-muted: #6B7280;
+  --color-faint: #9CA3AF;
+  --color-line: #E5E7EB;
+  --color-blue: #0A6CFF;
+  --color-blue-ink: #0656D1;
+  --color-blue-soft: #E8F0FF;
+  --color-green: #16A34A;
+  --color-green-soft: #E7F6EC;
+  --color-amber: #D97706;
+  --color-amber-soft: #FDF3E1;
+  --color-red: #DC2626;
+  --color-red-soft: #FDECEC;
+  --font-display: "Inter Tight", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --radius-tile: 22px;
+  --shadow-tile: 0 1px 2px rgba(11, 18, 32, 0.04), 0 8px 24px -12px rgba(11, 18, 32, 0.10);
+  --shadow-sheet: 0 -8px 40px -8px rgba(11, 18, 32, 0.25);
+}
+
+html, body, #root { min-height: 100%; }
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  font-feature-settings: "ss01", "cv11";
+}
+h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: -0.02em; }
+.num { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; border-radius: 10px; }
+input, select, textarea, button { font: inherit; color: inherit; }
+.safe-b { padding-bottom: env(safe-area-inset-bottom); }
+.safe-t { padding-top: env(safe-area-inset-top); }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+@keyframes tile-in { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
+.bento > * { animation: tile-in 0.42s cubic-bezier(.2,.8,.2,1) both; }
+.bento > *:nth-child(2) { animation-delay: 40ms; }
+.bento > *:nth-child(3) { animation-delay: 80ms; }
+.bento > *:nth-child(4) { animation-delay: 120ms; }
+.bento > *:nth-child(5) { animation-delay: 160ms; }
+.bento > *:nth-child(6) { animation-delay: 200ms; }
+.bento > *:nth-child(n+7) { animation-delay: 240ms; }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulse-dot { 0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,.45); } 50% { box-shadow: 0 0 0 6px rgba(22,163,74,0); } }
+.live-dot { animation: pulse-dot 2s infinite; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+.leaflet-container { font-family: var(--font-sans); border-radius: 16px; }

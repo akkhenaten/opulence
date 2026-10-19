@@ -71,6 +71,7 @@ export const actions = {
   'timeoff.cancel': def(['company', 'security', 'officer'], async (b, { user }) => {
     const t = need(await one('SELECT * FROM time_off WHERE id = $1', [b.id]));
     if (user.role === 'officer' && t.officer_id !== user.officer_id) fail(403, 'Forbidden');
+    if (user.role === 'officer' && t.status !== 'pending') fail(400, 'Already decided — contact the office to change it');
     await q("UPDATE time_off SET status = 'cancelled' WHERE id = $1", [b.id]);
     return { ok: true };
   }),

@@ -1,0 +1,133 @@
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Search, ShieldCheck, Users } from 'lucide-react';
+import { api } from '../../api.js';
+import { useAuth } from '../../auth.jsx';
+import {
+  Avatar, Bento, Page, Button, Empty, List, Load, Row, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useForm,
+} from '../../ui/index.jsx';
+import {
+  ComplianceBadge, CopyLink, OFFICER_STATUSES, OfficerCoreFields, cleanOfficer, complianceState, emptyOfficer, useBase, useRoles,
+} from './_parts.jsx';
+
+export default function Staff() {
+  const { user } = useAuth();
+  const base = useBase();
+  const isCo = user.role === 'company';
+  const q = useApi('officers.list');
+  const { roles, name: roleName } = useRoles();
+  const [status, setStatus] = useState('active');
+  const [role, setRole] = useState('');
+  const [comp, setComp] = useState('all');
+  const [search, setSearch] = useState('');
+  const [adding, setAdding] = useState(false);
+
+  const all = q.data || [];
+  const counts = useMemo(() => Object.fromEntries(OFFICER_STATUSES.map((s) => [s, all.filter((o) => o.status === s).length])), [all]);
+  const rows = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    return all.filter((o) => o.status === status
+      && (!role || (o.roles || []).includes(role))
+      && (comp === 'all' || complianceState(o.compliance).tone === comp)
+      && (!s || `${o.name} ${o.email} ${o.phone} ${o.sia_number}`.toLowerCase().includes(s)));
+  }, [all, status, role, comp, search]);
+
+  const active = all.filter((o) => o.status === 'active');
+  const states = active.map((o) => complianceState(o.compliance).tone);
+  const half = Math.ceil(rows.length / 2);
+
+  return (
+    <Page2 isCo={isCo} onAdd={() => setAdding(true)}>
+      <Load q={q}>
+        {() => (
+          <>
+            <Bento className="mb-5">
+              <Tile><Stat value={active.length} label="Active" hint="Can be rostered" /></Tile>
+              <Tile><Stat value={states.filter((t) => t === 'red').length} tone={states.includes('red') ? 'red' : undefined} label="Not compliant" hint="Active, missing checks" /></Tile>
+              <Tile><Stat value={states.filter((t) => t === 'amber').length} tone={states.includes('amber') ? 'amber' : undefined} label="Expiring" hint="Within 30 days" /></Tile>
+              <Tile><Stat value={counts.onboarding + counts.applicant} label="In the pipeline" hint="Applicants and onboarding" /></Tile>
+            </Bento>
+
+            <div className="mb-4 space-y-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                <label className="relative flex-1">
+                  <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
+                  <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, phone or SIA number"
+                    className="h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-3 text-[15px] outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
+                </label>
+                <div className="grid grid-cols-2 gap-3 md:flex">
+                  <Select className="md:w-48" value={role} onChange={(e) => setRole(e.target.value)} placeholder="All roles" options={roles.map((r) => ({ value: r.code, label: r.name }))} />
+                  <Select className="md:w-44" value={comp} onChange={(e) => setComp(e.target.value)}
+                    options={[{ value: 'all', label: 'Any compliance' }, { value: 'green', label: 'Compliant' }, { value: 'amber', label: 'Expiring soon' }, { value: 'red', label: 'Not compliant' }]} />
+                </div>
+              </div>
+              <Segmented value={status} onChange={setStatus} options={OFFICER_STATUSES.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1), count: s === 'active' ? null : counts[s] }))} />
+            </div>
+
+            {!rows.length ? (
+              <Empty icon={Users} title={all.length ? 'No officers match' : 'No officers yet'}
+                body={all.length ? 'Try a different filter or search.' : isCo ? 'Add your first officer to start building the rota.' : 'Officers will appear here once the company adds them.'}
+                action={isCo && !all.length && <Button icon={Plus} onClick={() => setAdding(true)}>Add officer</Button>} />
+            ) : (
+              <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
+                {[rows.slice(0, half), rows.slice(half)].filter((c) => c.length).map((col, i) => (
+                  <List key={i}>
+                    {col.map((o) => (
+                      <Row key={o.id} to={`${base}/staff/${o.id}`}
+                        left={<Avatar name={o.name} src={o.photo_url} size={44} />}
+                        title={o.name}
+                        subtitle={[(o.roles || []).map(roleName).join(', ') || 'No roles', o.sia_number && `SIA ${o.sia_number}`].filter(Boolean).join(' · ')}
+                        right={<ComplianceBadge c={o.compliance} />} />
+                    ))}
+                  </List>
+                ))}
+              </div>
+            )}
+            <p className="mt-3 px-1 text-[13px] text-faint num">{rows.length} of {counts[status] || 0} {status} officers</p>
+          </>
+        )}
+      </Load>
+      {isCo && <AddOfficerSheet open={adding} onClose={() => setAdding(false)} roles={roles} onDone={q.reload} />}
+    </Page2>
+  );
+}
+
+function Page2({ isCo, onAdd, children }) {
+  return (
+    <Page title={isCo ? 'Staff' : 'Officers'} subtitle={isCo ? 'Officers, licences and compliance' : 'Officers you can roster'}
+      actions={isCo && <Button icon={Plus} onClick={onAdd}>Add officer</Button>}>
+      {children}
+    </Page>
+  );
+}
+
+export function AddOfficerSheet({ open, onClose, roles, onDone, status = 'active', title = 'Add officer', statusOptions }) {
+  const nav = useNavigate();
+  const base = useBase();
+  const form = useForm(emptyOfficer(status));
+  const [run, busy] = useAction();
+  const [result, setResult] = useState(null);
+  const close = () => { onClose(); setTimeout(() => { setResult(null); form.setV(emptyOfficer(status)); }, 300); };
+  const save = async () => {
+    const r = await run(() => api('officers.save', cleanOfficer(form.v)), `${form.v.first_name} added`);
+    onDone?.();
+    if (r.invite_link) setResult(r);
+    else { close(); nav(`${base}/staff/${r.id}`); }
+  };
+  return (
+    <Sheet open={open} onClose={close} title={result ? 'Officer added' : title}
+      footer={result
+        ? <><Button variant="secondary" onClick={close}>Done</Button><Button onClick={() => { close(); nav(`${base}/staff/${result.id}`); }}>Open profile</Button></>
+        : <><Button variant="secondary" onClick={close}>Cancel</Button><Button busy={busy} disabled={!form.v.first_name || !form.v.last_name} onClick={save}>Save</Button></>}>
+      {result ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-2xl bg-green-soft p-4 text-green"><ShieldCheck size={20} /><span className="text-[15px] font-semibold">Invite created. They can set a password with this link.</span></div>
+          <CopyLink link={result.invite_link} />
+        </div>
+      ) : (
+        <OfficerCoreFields form={form} roles={roles} statusOptions={statusOptions} />
+      )}
+      {!result && <p className="mt-4 text-[12px] text-faint">You can add right to work, bank details and documents from the profile.</p>}
+    </Sheet>
+  );
+}

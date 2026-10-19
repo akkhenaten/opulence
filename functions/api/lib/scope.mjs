@@ -27,7 +27,10 @@ export async function assertOfficerAccess(user, officerId) {
   if (user.role === 'company') return;
   if (user.role === 'officer' && user.officer_id === officerId) return;
   if (user.role === 'security') {
-    const ok = await one('SELECT 1 FROM officers WHERE id = $1', [officerId]);
+    const venues = await venueScope(user);
+    const ok = await one(
+      `SELECT 1 FROM officers o WHERE o.id = $1 AND (o.status = 'active' OR EXISTS (
+         SELECT 1 FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id WHERE a.officer_id = o.id AND s.venue_id = ANY($2::uuid[])))`, [officerId, venues]);
     if (ok) return;
   }
   fail(403, 'No access to this officer');

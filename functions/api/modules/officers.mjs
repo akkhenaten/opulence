@@ -1,7 +1,7 @@
 import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, pick, need } from '../lib/http.mjs';
 import { canSeePay } from '../lib/auth.mjs';
-import { assertOfficerAccess } from '../lib/scope.mjs';
+import { assertOfficerAccess, venueScope } from '../lib/scope.mjs';
 import { downloadUrl } from '../lib/storage.mjs';
 import { londonDate } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
@@ -44,7 +44,8 @@ export const actions = {
       `SELECT o.*, u.status AS login_status, u.last_login FROM officers o LEFT JOIN users u ON u.id = o.user_id
         WHERE ($1::text IS NULL OR o.status = $1) AND ($2::text IS NULL OR $2 = ANY(o.roles))
           AND ($3::text IS NULL OR (o.first_name || ' ' || o.last_name || ' ' || o.email || ' ' || o.sia_number) ILIKE '%' || $3 || '%')
-        ORDER BY o.status = 'active' DESC, o.first_name, o.last_name`, [b.status || null, b.role || null, b.q || null]);
+          AND ($4::uuid[] IS NULL OR o.status = 'active' OR EXISTS (SELECT 1 FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id WHERE a.officer_id = o.id AND s.venue_id = ANY($4)))
+        ORDER BY o.status = 'active' DESC, o.first_name, o.last_name`, [b.status || null, b.role || null, b.q || null, user.role === 'security' ? await venueScope(user) : null]);
     return Promise.all(rows.map(async (o) => ({ ...shapeOfficer(o, user), photo_url: await downloadUrl(o.photo_key) })));
   }),
 

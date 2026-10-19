@@ -112,7 +112,7 @@ export const actions = {
     return c;
   }),
 
-  'cover.cancel': def(['company', 'venue'], async (b, { user }) => {
+  'cover.cancel': def(['company', 'security', 'venue'], async (b, { user }) => {
     const c = need(await one('SELECT * FROM cover_requests WHERE id = $1', [b.id]));
     await assertVenue(user, c.venue_id);
     if (c.status !== 'pending' && user.role === 'venue') fail(400, 'Already accepted — contact the company to change it');

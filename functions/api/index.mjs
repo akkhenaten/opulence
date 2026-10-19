@@ -47,6 +47,10 @@ export async function handler(event) {
       user = await userFromEvent(event);
       if (!user) return json({ error: 'Please sign in again' }, 401);
       if (!entry.roles.includes(user.role)) return json({ error: 'You do not have access to this' }, 403);
+      // An officer login not linked to a profile would turn "own records" filters into "all records"
+      if (user.role === 'officer' && !user.officer_id && !/^(auth|notifications|dashboard)\./.test(body.action)) {
+        return json({ error: 'Your login is not linked to an officer profile yet. Contact the office.' }, 403);
+      }
     }
     const result = await entry.fn(body, { user, ip, event });
     return json(result ?? { ok: true });

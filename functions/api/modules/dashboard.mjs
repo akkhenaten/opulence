@@ -49,7 +49,7 @@ async function managerDash(ctx) {
     count(`SELECT count(*)::int AS n FROM shifts s WHERE s.status = 'published' AND s.starts_at > now() AND s.starts_at < now() + interval '7 days' AND ${scoped('s.venue_id')}
              AND s.headcount > (SELECT count(*) FROM shift_assignments a WHERE a.shift_id = s.id AND a.status IN ('assigned','accepted'))`, p),
     count(`SELECT count(*)::int AS n FROM clock_events ce JOIN shift_assignments a ON a.id = ce.assignment_id JOIN shifts s ON s.id = a.shift_id
-            WHERE ce.status = 'exception' AND ${scoped('s.venue_id')}`, p),
+            WHERE ce.status = 'exception' AND ce.ts > now() - interval '14 days' AND ${scoped('s.venue_id')}`, p),
     count(`SELECT count(*)::int AS n FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id WHERE t.status = 'pending' AND ${scoped('s.venue_id')}`, p),
     count(`SELECT count(*)::int AS n FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id WHERE t.status = 'disputed' AND ${scoped('s.venue_id')}`, p),
     count(`SELECT count(*)::int AS n FROM incidents WHERE status <> 'closed' AND ${scoped('venue_id')}`, p),

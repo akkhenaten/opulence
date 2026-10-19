@@ -1,96 +1,104 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenKBS Project</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .container {
-            background: white;
-            padding: 3rem;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            text-align: center;
-            max-width: 500px;
-        }
-        h1 { color: #333; margin-bottom: 1rem; }
-        p { color: #666; margin-bottom: 2rem; line-height: 1.6; }
-        .btn {
-            display: inline-block;
-            padding: 12px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Orb Security — rota, clocking, pay and incidents for manned guarding</title>
+  <meta name="description" content="Orb Security runs your manned-guarding operation: rotas and cover requests, GPS + QR clocking, timesheets, remittance statements, VAT invoices, incident reports and full HR.">
+  <meta name="theme-color" content="#F2F4F7">
+  <link rel="icon" href="/app/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/app/manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700&family=Manrope:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#F2F4F7; --surface:#fff; --ink:#0B1220; --muted:#6B7280; --line:#E5E7EB; --blue:#0A6CFF; --soft:#E8F0FF; }
+    * { box-sizing: border-box; margin: 0; }
+    body { background: var(--bg); color: var(--ink); font-family: Manrope, system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+    h1, h2, .d { font-family: "Inter Tight", system-ui, sans-serif; letter-spacing: -0.03em; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
+    .logo { display: flex; align-items: center; gap: 10px; font: 700 19px "Inter Tight", sans-serif; }
+    .logo span { color: var(--muted); font-weight: 600; }
+    .btn { display: inline-flex; align-items: center; height: 44px; padding: 0 20px; border-radius: 14px; background: var(--blue); color: #fff; font-weight: 600; text-decoration: none; box-shadow: 0 6px 18px -8px rgba(10,108,255,.8); }
+    .btn.alt { background: var(--surface); color: var(--ink); box-shadow: none; border: 1px solid var(--line); }
+    .hero { padding: 56px 0 36px; max-width: 760px; }
+    .hero h1 { font-size: clamp(40px, 7vw, 68px); line-height: 1.02; }
+    .hero h1 em { font-style: normal; color: var(--blue); }
+    .hero p { margin-top: 18px; font-size: 18px; line-height: 1.55; color: var(--muted); max-width: 600px; }
+    .cta { display: flex; gap: 10px; margin-top: 28px; flex-wrap: wrap; }
+    .bento { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 24px 0 72px; }
+    .t { background: var(--surface); border-radius: 22px; padding: 24px; border: 1px solid rgba(0,0,0,.04); box-shadow: 0 1px 2px rgba(11,18,32,.04), 0 8px 24px -12px rgba(11,18,32,.1); }
+    .t h2 { font-size: 21px; margin-bottom: 6px; }
+    .t p { color: var(--muted); line-height: 1.5; font-size: 15px; }
+    .k { font: 600 12px Manrope, sans-serif; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 14px; }
+    .s2 { grid-column: span 2; } .r2 { grid-row: span 2; }
+    .blue { background: var(--blue); color: #fff; } .blue p, .blue .k { color: rgba(255,255,255,.75); }
+    .big { font: 700 56px/1 "Inter Tight", sans-serif; letter-spacing: -0.04em; margin: 4px 0 8px; }
+    .rows { margin-top: 16px; display: grid; gap: 8px; }
+    .row { display: flex; align-items: center; gap: 10px; background: var(--bg); border-radius: 14px; padding: 10px 12px; font-size: 14px; font-weight: 600; }
+    .row i { width: 9px; height: 9px; border-radius: 50%; background: #16A34A; flex: none; }
+    .row i.a { background: #D97706; } .row small { margin-left: auto; color: var(--muted); font-weight: 500; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+    .chip { background: var(--soft); color: var(--blue); font-size: 13px; font-weight: 600; padding: 5px 10px; border-radius: 999px; }
+    footer { padding: 28px 0 40px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+    @media (max-width: 860px) { .bento { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 560px) { .bento { grid-template-columns: 1fr; } .s2 { grid-column: auto; } .r2 { grid-row: auto; } }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>OpenKBS Project</h1>
-        <p>Your project is ready. Start building — ask the chat for anything and watch it appear here.</p>
-        <a href="#" class="btn" onclick="testAPI()">Test API</a>
-        <pre id="result" style="margin-top: 2rem; text-align: left; background: #f5f5f5; padding: 1rem; border-radius: 8px; display: none;"></pre>
-    </div>
-    <script>
-        // The preview URL (p-*.…) serves static files only — the API lives on
-        // the production URL. Right after project creation the production
-        // environment needs a minute or two, so instead of surfacing a JSON
-        // parse error we explain and retry.
-        const IS_PREVIEW = /^p-[a-z0-9]+\./.test(location.hostname) || location.port === '6100';
-        let retryTimer = null;
+  <div class="wrap">
+    <header>
+      <div class="logo">
+        <svg width="32" height="32" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="120" fill="#0A6CFF"/><circle cx="256" cy="256" r="132" fill="none" stroke="#fff" stroke-width="44"/><circle cx="256" cy="256" r="40" fill="#fff"/></svg>
+        Orb <span>Security</span>
+      </div>
+      <a class="btn alt" href="/app/login">Sign in</a>
+    </header>
 
-        async function testAPI() {
-            const result = document.getElementById('result');
-            result.style.display = 'block';
-            clearTimeout(retryTimer);
+    <section class="hero">
+      <h1>Every door, every shift, <em>accounted for.</em></h1>
+      <p>Orb Security runs your manned-guarding operation in one place, from the venue's cover request to the officer's remittance and the client's VAT invoice.</p>
+      <div class="cta"><a class="btn" href="/app/login">Open Orb Security</a></div>
+    </section>
 
-            if (IS_PREVIEW) {
-                result.textContent = '⏳ This is the preview URL — it serves your site\'s static files only.\n' +
-                    'The API runs on your production URL, which is set up automatically\n' +
-                    'right after project creation (usually ready within 1–2 minutes).';
-                return;
-            }
-
-            result.textContent = 'Loading...';
-            try {
-                const response = await fetch('/api', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'hello', data: { test: true } })
-                });
-                const text = await response.text();
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch {
-                    // Got HTML back — the /api route isn't wired yet (production
-                    // environment still being set up). Retry until it is.
-                    result.textContent = '⏳ Setting up production environment… retrying automatically.';
-                    retryTimer = setTimeout(testAPI, 10000);
-                    return;
-                }
-                result.textContent = JSON.stringify(data, null, 2);
-            } catch (e) {
-                result.textContent = '⏳ API not reachable yet (' + e.message + ') — retrying automatically.';
-                retryTimer = setTimeout(testAPI, 10000);
-            }
-        }
-    </script>
+    <section class="bento">
+      <div class="t blue s2 r2">
+        <div class="k">Live on site</div>
+        <div class="big">GPS + QR</div>
+        <p>Officers clock in only at the venue: their phone location must be inside the geofence and they scan the venue's QR poster. Anything else goes to a supervisor as an exception.</p>
+        <div class="rows">
+          <div class="row" style="background:rgba(255,255,255,.14);color:#fff"><i></i>On shift · Door Supervisor<small style="color:rgba(255,255,255,.7)">21:00–03:00</small></div>
+          <div class="row" style="background:rgba(255,255,255,.14);color:#fff"><i class="a"></i>Late · not clocked in<small style="color:rgba(255,255,255,.7)">alert sent</small></div>
+        </div>
+      </div>
+      <div class="t s2">
+        <div class="k">Rota</div>
+        <h2>Venues request, you fill</h2>
+        <p>Cover requests become shifts. Assign directly or post open shifts, with SIA, right-to-work and clash checks built in.</p>
+      </div>
+      <div class="t">
+        <div class="k">Pay</div>
+        <h2>Remittances</h2>
+        <p>Night, weekend and bank-holiday rates worked out for self-employed officers, plus a bank CSV.</p>
+      </div>
+      <div class="t">
+        <div class="k">Billing</div>
+        <h2>VAT invoices</h2>
+        <p>Raised automatically from signed timesheets, with credit notes and margin per venue.</p>
+      </div>
+      <div class="t s2">
+        <div class="k">Incidents</div>
+        <h2>Structured, versioned reports</h2>
+        <p>Ejections, medical, use of force: witnesses, photos, police and ambulance references. Every edit is kept, and urgent incidents alert the venue straight away.</p>
+      </div>
+      <div class="t s2">
+        <div class="k">HR</div>
+        <h2>The full staff file</h2>
+        <div class="chips"><span class="chip">SIA licences</span><span class="chip">Right to work</span><span class="chip">Documents & expiry</span><span class="chip">Onboarding</span><span class="chip">E-signed contracts</span><span class="chip">Time off</span><span class="chip">Notes & warnings</span><span class="chip">Venue bans</span></div>
+      </div>
+    </section>
+  </div>
+  <footer><div class="wrap">Orb Security · Company, security manager and venue portals, plus the officer app.</div></footer>
 </body>
 </html>
