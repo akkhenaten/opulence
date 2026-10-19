@@ -805,6 +805,7 @@ export function OffboardingTab({ o, reload }) {
 
 const ATT_KIND = { late: ['Late', 'amber'], no_show: ['No show', 'red'], left_early: ['Left early', 'amber'], cant_make_it: ["Couldn't make it", 'grey'] };
 const sumCounts = (c) => Object.values(c || {}).reduce((a, n) => a + n, 0);
+const countsHint = (c) => Object.entries(c || {}).filter(([, n]) => n).map(([k, n]) => `${n} ${(ATT_KIND[k]?.[0] || k).toLowerCase()}`).join(' · ') || 'Clean record';
 
 export function AttendanceTab({ o, onForbidden }) {
   const q = useTabApi('attendance.list', { officer_id: o.id }, onForbidden);
@@ -815,8 +816,8 @@ export function AttendanceTab({ o, onForbidden }) {
         <>
           <Bento>
             <Tile title="Reliability"><Stat value={d.reliability == null ? '—' : `${Math.round(d.reliability * 100)}%`} label="On time, last 90 days" hint={`${d.shifts90} shift${d.shifts90 === 1 ? '' : 's'}`} tone={d.reliability != null && d.reliability < 0.85 ? 'amber' : undefined} /></Tile>
-            <Tile title="Last 30 days"><Stat value={sumCounts(d.counts30)} label={sumCounts(d.counts30) === 1 ? 'Issue' : 'Issues'} hint={`${d.counts30.late} late · ${d.counts30.no_show} no show`} tone={d.counts30.no_show ? 'red' : undefined} /></Tile>
-            <Tile title="Last 90 days"><Stat value={sumCounts(d.counts90)} label={sumCounts(d.counts90) === 1 ? 'Issue' : 'Issues'} hint={`${d.counts90.late} late · ${d.counts90.no_show} no show`} /></Tile>
+            <Tile title="Last 30 days"><Stat value={sumCounts(d.counts30)} label={sumCounts(d.counts30) === 1 ? 'Issue' : 'Issues'} hint={countsHint(d.counts30)} tone={d.counts30.no_show ? 'red' : undefined} /></Tile>
+            <Tile title="Last 90 days"><Stat value={sumCounts(d.counts90)} label={sumCounts(d.counts90) === 1 ? 'Issue' : 'Issues'} hint={countsHint(d.counts90)} /></Tile>
             <Tile title="Venue rating"><Stat value={d.avg_rating == null ? '—' : `${d.avg_rating}/5`} label="Average" hint={`${d.ratings.length} rating${d.ratings.length === 1 ? '' : 's'}`} tone={d.avg_rating != null && d.avg_rating < 3 ? 'red' : undefined} /></Tile>
           </Bento>
 
