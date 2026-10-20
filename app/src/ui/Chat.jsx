@@ -1,0 +1,72 @@
+import { useEffect, useRef, useState } from 'react';
+import { ArrowUp, MessageSquareText } from 'lucide-react';
+import { cx } from './index.jsx';
+import { api } from '../api.js';
+
+const Dot3 = () => [0, 1, 2].map((i) => <span key={i} className="h-2 w-2 animate-bounce rounded-full bg-faint" style={{ animationDelay: `${i * 0.15}s` }} />);
+
+/**
+ * Chat with an AI action that takes {messages, ...extra} and returns {reply, ...}.
+ * renderReply(message) can add extras under an assistant reply; onReply(result) runs after each answer.
+ */
+export default function Chat({ action, extra = {}, storageKey, prompts = [], empty, placeholder = 'Ask a question…', renderReply, onReply, className }) {
+  const [msgs, setMsgs] = useState(() => (storageKey ? JSON.parse(sessionStorage.getItem(storageKey) || '[]') : []));
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const end = useRef(null);
+  useEffect(() => {
+    if (storageKey) sessionStorage.setItem(storageKey, JSON.stringify(msgs.slice(-30)));
+    end.current?.scrollIntoView({ block: 'end' });
+  }, [msgs, busy, storageKey]);
+
+  const send = async (t = text) => {
+    const content = t.trim();
+    if (!content || busy) return;
+    const next = [...msgs, { role: 'user', content }];
+    setMsgs(next); setText(''); setBusy(true);
+    try {
+      const r = await api(action, { ...extra, messages: next.map(({ role, content: c }) => ({ role, content: c })) });
+      setMsgs([...next, { role: 'assistant', content: r.reply, items: r.items }]);
+      onReply?.(r);
+    } catch (e) {
+      setMsgs([...next, { role: 'assistant', content: e.message, error: true }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={cx('flex min-h-[60vh] flex-col', className)}>
+      <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+        {!msgs.length && (
+          <div className="py-6 text-center">
+            <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-soft text-blue"><MessageSquareText size={22} /></div>
+            {empty}
+            {prompts.length > 0 && (
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {prompts.map((p) => <button key={p} type="button" onClick={() => send(p)} className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-[13px] font-semibold transition hover:border-blue hover:text-blue">{p}</button>)}
+              </div>
+            )}
+          </div>
+        )}
+        {msgs.map((m, i) => (
+          <div key={i} className={cx('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
+            <div className={cx('max-w-[88%] whitespace-pre-wrap rounded-[20px] px-4 py-2.5 text-[15px] leading-relaxed', m.role === 'user' ? 'bg-blue text-white' : m.error ? 'bg-red-soft text-red' : 'bg-bg')}>
+              {m.content}
+              {m.role === 'assistant' && !m.error && renderReply?.(m)}
+            </div>
+          </div>
+        ))}
+        {busy && <div className="flex"><div className="rounded-[20px] bg-bg px-4 py-3"><span className="inline-flex gap-1"><Dot3 /></span></div></div>}
+        <div ref={end} />
+      </div>
+      <form className="flex items-end gap-2 border-t border-line p-3" onSubmit={(e) => { e.preventDefault(); send(); }}>
+        <textarea rows={1} value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+          className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-2.5 text-[15px] outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
+        <button type="submit" aria-label="Send" disabled={busy || !text.trim()} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue text-white transition disabled:opacity-40"><ArrowUp size={20} /></button>
+      </form>
+      {msgs.length > 0 && <button type="button" onClick={() => setMsgs([])} className="pb-3 text-center text-[12px] font-semibold text-faint hover:text-ink">Clear conversation</button>}
+    </div>
+  );
+}

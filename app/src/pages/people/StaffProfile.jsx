@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Ban, Mail, Pencil, Phone, Send, UserCheck } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -8,7 +8,7 @@ import {
 } from '../../ui/index.jsx';
 import { ComplianceBadge, CopyLink, ExpiryPill, LoginPill, OFFICER_STATUSES, SIA_TYPES, Chips, canPay, useBase, useRoles } from './_parts.jsx';
 import {
-  AttendanceTab, AvailabilityTab, ComplianceTab, ContractsTab, DocumentsTab, HrTab, OffboardingTab, OnboardingTab, OverviewTab, RatesTab, ShiftsTab, TimeOffTab,
+  AttendanceTab, AvailabilityTab, ComplianceTab, ContractsTab, DocumentsTab, HrTab, OffboardingTab, OnboardingTab, OverviewTab, RatesTab, ShiftsTab, TimeOffTab, TrainingTab,
 } from './_profileTabs.jsx';
 
 export default function StaffProfile() {
@@ -32,11 +32,12 @@ function Profile({ o, reload, user, base }) {
   const [statusOpen, setStatusOpen] = useState(false);
   const [link, setLink] = useState(null);
   const [hidden, setHidden] = useState([]);
-  const [tab, setTab] = useState('overview');
+  const [sp] = useSearchParams();
+  const [tab, setTab] = useState(sp.get('tab') || 'overview');
 
   const tabs = useMemo(() => [
     ['overview', 'Overview'], ['compliance', 'Compliance'], ['documents', 'Documents'],
-    canPay(user) && ['rates', 'Rates'], ['shifts', 'Shifts'], ['attendance', 'Attendance'], ['availability', 'Availability'], ['timeoff', 'Time off'], ['hr', 'HR notes'],
+    canPay(user) && ['rates', 'Rates'], ['shifts', 'Shifts'], ['attendance', 'Attendance'], ['availability', 'Availability'], ['timeoff', 'Time off'], ['training', 'Training'], ['hr', 'HR notes'],
     isCo && ['onboarding', 'Onboarding'], isCo && ['contracts', 'Contracts'], isCo && ['offboarding', 'Offboarding'],
   ].filter(Boolean).filter(([k]) => !hidden.includes(k)).map(([value, label]) => ({ value, label })), [user, isCo, hidden]);
   const current = tabs.some((t) => t.value === tab) ? tab : 'overview';
@@ -119,6 +120,7 @@ function Profile({ o, reload, user, base }) {
       {current === 'attendance' && <AttendanceTab {...props} onForbidden={() => forbid('attendance')} />}
       {current === 'availability' && <AvailabilityTab {...props} />}
       {current === 'timeoff' && <TimeOffTab {...props} onForbidden={() => forbid('timeoff')} />}
+      {current === 'training' && <TrainingTab {...props} onForbidden={() => forbid('training')} />}
       {current === 'hr' && <HrTab {...props} onForbidden={() => forbid('hr')} />}
       {current === 'onboarding' && <OnboardingTab {...props} onForbidden={() => forbid('onboarding')} />}
       {current === 'contracts' && <ContractsTab {...props} onForbidden={() => forbid('contracts')} />}

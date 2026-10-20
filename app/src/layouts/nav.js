@@ -1,6 +1,7 @@
 import {
-  BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, FileText, Home, LayoutGrid, Megaphone,
+  BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
   Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText, Sparkles, MessageSquarePlus,
+  GraduationCap, BookOpenCheck, Newspaper,
 } from 'lucide-react';
 
 // Sidebar groups per role. `tab` marks the items shown in the mobile tab bar (max 5).
@@ -19,6 +20,11 @@ export const NAV = {
       { to: '/company/staff', label: 'Staff', icon: Users },
       { to: '/company/recruitment', label: 'Recruitment', icon: UserPlus },
       { to: '/company/hr/time-off', label: 'Time off', icon: CalendarOff },
+    ] },
+    { title: 'Team', items: [
+      { to: '/company/team/academy', label: 'Academy', icon: GraduationCap, module: 'academy' },
+      { to: '/company/team/toolbox', label: 'Toolbox', icon: BookOpenCheck, module: 'toolbox' },
+      { to: '/company/everyday', label: 'Everyday', icon: Newspaper, module: 'everyday', badge: 'everyday' },
     ] },
     { title: 'Clients', items: [
       { to: '/company/venues', label: 'Venues & clients', icon: Building2 },
@@ -45,6 +51,11 @@ export const NAV = {
       { to: '/security/incidents', label: 'Incidents', icon: ShieldAlert, tab: true },
       { to: '/security/staff', label: 'Officers', icon: Users },
     ] },
+    { title: 'Team', items: [
+      { to: '/security/team/academy', label: 'Academy', icon: GraduationCap, module: 'academy' },
+      { to: '/security/team/toolbox', label: 'Toolbox', icon: BookOpenCheck, module: 'toolbox' },
+      { to: '/security/everyday', label: 'Everyday', icon: Newspaper, module: 'everyday', badge: 'everyday' },
+    ] },
   ],
   venue: [
     { items: [
@@ -62,7 +73,7 @@ export const NAV = {
       { to: '/officer', label: 'Home', icon: Home, end: true, tab: true },
       { to: '/officer/shifts', label: 'Shifts', icon: CalendarDays, tab: true },
       { to: '/officer/clock', label: 'Clock', icon: ScanLine, tab: true, primary: true },
-      { to: '/officer/pay', label: 'Pay', icon: FileText, tab: true },
+      { to: '/officer/learn', label: 'Learn', icon: GraduationCap, tab: true, moduleAny: ['academy', 'toolbox'] },
       { to: '/officer/me', label: 'Me', icon: CircleUserRound, tab: true },
     ] },
   ],

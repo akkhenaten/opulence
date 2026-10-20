@@ -896,3 +896,51 @@ function AttendanceSheet({ e, onClose, onDone }) {
     </Sheet>
   );
 }
+
+/* ---------------- Training ---------------- */
+
+export function TrainingTab({ o, user, onForbidden }) {
+  const q = useTabApi('academy.officer', { officer_id: o.id }, onForbidden);
+  const [run] = useAction();
+  const confirm = useConfirm();
+  const base = `/${user.role}`;
+  const unassign = async (c) => {
+    if (!(await confirm({ title: `Remove ${c.title} from ${o.first_name}'s training?`, confirm: 'Remove' }))) return;
+    await run(() => api('academy.unassign', { course_id: c.id, officer_id: o.id }), 'Removed');
+    q.reload();
+  };
+  return (
+    <TabLoad q={q}>
+      {({ courses, certificates }) => (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Tile title="Courses" pad={false}>
+            {courses.length ? (
+              <List>
+                {courses.map((c) => (
+                  <Row key={c.id} to={`${base}/team/academy/${c.id}`} title={c.title}
+                    subtitle={[c.due_date && `Due ${date(c.due_date)}`, c.last_attempt && `Last quiz ${c.last_attempt.score}%`, c.sections && `${c.done_sections}/${c.sections} sections read`].filter(Boolean).join(' · ')}
+                    right={<span className="flex items-center gap-2">
+                      <Pill tone={TRAINING_TONE[c.state]}>{titleCase(c.state)}</Pill>
+                      {c.assignment_id && <IconButton icon={X} label="Remove assignment" onClick={(e) => { e.preventDefault(); e.stopPropagation(); unassign(c); }} />}
+                    </span>} />
+                ))}
+              </List>
+            ) : <Empty title="No training yet" body="Assign courses from Team › Academy." />}
+          </Tile>
+          <Tile title="Certificates" pad={false}>
+            {certificates.length ? (
+              <List>
+                {certificates.map((c) => (
+                  <Row key={c.id} to={`${base}/team/certificates/${c.id}`} left={<Award size={20} className="text-blue" />} title={c.title}
+                    subtitle={`${c.ref} · ${c.score}% · ${date(c.issued_at)}`}
+                    right={c.expires_at ? <ExpiryPill date={c.expires_at} /> : <Pill tone="green">No expiry</Pill>} />
+                ))}
+              </List>
+            ) : <Empty title="No certificates yet" />}
+          </Tile>
+        </div>
+      )}
+    </TabLoad>
+  );
+}
+const TRAINING_TONE = { passed: 'green', overdue: 'red', renew: 'amber', expired: 'red', in_progress: 'blue', assigned: 'blue', not_started: 'grey' };

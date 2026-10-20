@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, MoreHorizontal } from 'lucide-react';
+import { Bell, LogOut, MoreHorizontal, Newspaper } from 'lucide-react';
 import { api } from '../api.js';
 import { portalLink, useAuth } from '../auth.jsx';
 import { Avatar, Button, cx, relative, Sheet, useApi } from '../ui/index.jsx';
@@ -67,6 +67,17 @@ function NotificationBell() {
   );
 }
 
+// Everyday shortcut with a count of posts since the person last looked
+function EverydayButton({ to, unread }) {
+  return (
+    <NavLink to={to} aria-label={`Everyday${unread ? `, ${unread} new posts` : ''}`}
+      className={({ isActive }) => cx('relative grid h-10 w-10 place-items-center rounded-full shadow-tile transition active:scale-95', isActive ? 'bg-blue text-white' : 'bg-surface text-ink')}>
+      <Newspaper size={19} />
+      {unread > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-blue px-1 text-center text-[11px] font-bold leading-[18px] text-white ring-2 ring-bg">{unread > 99 ? '99+' : unread}</span>}
+    </NavLink>
+  );
+}
+
 // Count badge for a nav item (Ops AI inbox)
 const Badge = ({ n, className }) => (n > 0 ? <span className={cx('rounded-full bg-blue px-1.5 text-[11px] font-bold leading-[18px] text-white', className)}>{n > 99 ? '99+' : n}</span> : null);
 
@@ -74,10 +85,27 @@ export default function Shell() {
   const { user, company, signOut } = useAuth();
   const isMgr = ['company', 'security'].includes(user.role);
   const opsCount = useApi('ops.count', {}, { poll: 30000, skip: !isMgr });
-  const badges = { ops: opsCount.data?.n || 0 };
+  const settings = useApi('settings.get', {});
+  const modules = settings.data?.modules || {};
+  const on = (m) => modules[m] !== false;
+  const feedOn = user.role !== 'venue' && settings.data && on('everyday');
+  const feed = useApi('everyday.unread', {}, { poll: 60000, skip: !feedOn });
+  const badges = { ops: opsCount.data?.n || 0, everyday: feed.data?.unread || 0 };
   const loc = useLocation();
   const [more, setMore] = useState(false);
-  const groups = NAV[user.role];
+  // Settings saves fire this so switched-off modules disappear straight away
+  const reloadSettings = useRef(settings.reload);
+  reloadSettings.current = settings.reload;
+  useEffect(() => {
+    const r = () => reloadSettings.current();
+    window.addEventListener('orb:settings', r);
+    return () => window.removeEventListener('orb:settings', r);
+  }, []);
+  // Opening the feed clears the badge
+  useEffect(() => { if (feedOn && /\/everyday$/.test(loc.pathname)) setTimeout(feed.reload, 1500); }, [loc.pathname, feedOn]);
+  const groups = NAV[user.role]
+    .map((g) => ({ ...g, items: g.items.filter((it) => (!it.module || on(it.module)) && (!it.moduleAny || it.moduleAny.some(on))) }))
+    .filter((g) => g.items.length);
   const all = groups.flatMap((g) => g.items);
   const tabs = all.filter((i) => i.tab);
   const extra = all.filter((i) => !i.tab);
@@ -118,6 +146,7 @@ export default function Shell() {
             <div className={cx(!isOfficer && 'lg:invisible')}><Logo compact={false} /></div>
             <div className="flex items-center gap-2">
               {company && !isOfficer && <span className="hidden text-[13px] font-semibold text-muted sm:block lg:hidden">{company}</span>}
+              {feedOn && <EverydayButton to={`${user.role === 'officer' ? '/officer' : `/${user.role}`}/everyday`} unread={badges.everyday} />}
               <NotificationBell />
               {isOfficer && <span className="hidden sm:block"><Button variant="secondary" size="sm" icon={LogOut} onClick={signOut}>Sign out</Button></span>}
             </div>

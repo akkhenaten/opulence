@@ -1,5 +1,8 @@
 import { one, q } from '../lib/db.mjs';
 import { ALL, def } from './_def.mjs';
+import { OPTIONAL_KINDS } from '../lib/notify.mjs';
+import { vapidKeys } from '../lib/webpush.mjs';
+import { fail } from '../lib/http.mjs';
 
 export const actions = {
   'notifications.list': def(ALL, async (b, { user }) => {
@@ -20,6 +23,32 @@ export const actions = {
 
   'notifications.markRead': def(ALL, async (b, { user }) => {
     await q('UPDATE notifications SET read_at = now() WHERE user_id = $1 AND read_at IS NULL AND ($2::bigint[] IS NULL OR id = ANY($2))', [user.id, b.ids || null]);
+    return { ok: true };
+  }),
+
+  'notifications.prefs.get': def(ALL, async (_b, { user }) => {
+    const r = await one('SELECT notify_prefs, (SELECT count(*)::int FROM push_subscriptions WHERE user_id = $1) AS devices FROM users WHERE id = $1', [user.id]);
+    return { prefs: Object.fromEntries(OPTIONAL_KINDS.map((k) => [k, r.notify_prefs?.[k] !== false])), devices: r.devices };
+  }),
+
+  'notifications.prefs.save': def(ALL, async (b, { user }) => {
+    const prefs = Object.fromEntries(OPTIONAL_KINDS.filter((k) => k in (b.prefs || {})).map((k) => [k, !!b.prefs[k]]));
+    await q('UPDATE users SET notify_prefs = notify_prefs || $2::jsonb WHERE id = $1', [user.id, JSON.stringify(prefs)]);
+    return { ok: true };
+  }),
+
+  'push.publicKey': def(ALL, async () => ({ key: (await vapidKeys()).publicKey })),
+
+  'push.subscribe': def(ALL, async (b, { user }) => {
+    const s = b.subscription || {};
+    if (!/^https:\/\//.test(s.endpoint || '') || !s.keys?.p256dh || !s.keys?.auth) fail(400, 'Invalid push subscription');
+    await q(`INSERT INTO push_subscriptions (user_id, endpoint, keys) VALUES ($1, $2, $3)
+      ON CONFLICT (endpoint) DO UPDATE SET user_id = EXCLUDED.user_id, keys = EXCLUDED.keys`, [user.id, s.endpoint, { p256dh: s.keys.p256dh, auth: s.keys.auth }]);
+    return { ok: true };
+  }),
+
+  'push.unsubscribe': def(ALL, async (b, { user }) => {
+    await q('DELETE FROM push_subscriptions WHERE user_id = $1 AND ($2::text IS NULL OR endpoint = $2)', [user.id, b.endpoint || null]);
     return { ok: true };
   }),
 };

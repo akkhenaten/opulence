@@ -1,8 +1,8 @@
 import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
 import './styles.css';
-import { AuthProvider, HOME, useAuth } from './auth.jsx';
+import { AuthProvider, HOME, portalLink, useAuth } from './auth.jsx';
 import Shell from './layouts/Shell.jsx';
 import { ConfirmProvider, Spinner, ToastProvider } from './ui/index.jsx';
 import { AcceptInvite, Forgot, Login, Reset } from './pages/auth/AuthPages.jsx';
@@ -46,6 +46,20 @@ const OfficerTimeOff = P(() => import('./pages/officer/TimeOff.jsx'));
 const OfficerProfile = P(() => import('./pages/officer/Profile.jsx'));
 const OfficerContract = P(() => import('./pages/officer/Contract.jsx'));
 const IncidentForm = P(() => import('./pages/officer/IncidentForm.jsx'));
+// Learn (officers; managers reuse Course and Certificate as previews)
+const Learn = P(() => import('./pages/learn/Learn.jsx'));
+const LearnToolbox = P(() => import('./pages/learn/Toolbox.jsx'));
+const LearnCard = P(() => import('./pages/learn/Card.jsx'));
+const Revise = P(() => import('./pages/learn/Revise.jsx'));
+const Course = P(() => import('./pages/learn/Course.jsx'));
+const Quiz = P(() => import('./pages/learn/Quiz.jsx'));
+const Certificate = P(() => import('./pages/learn/Certificate.jsx'));
+// Team (managers)
+const Academy = P(() => import('./pages/team/Academy.jsx'));
+const CourseEditor = P(() => import('./pages/team/CourseEditor.jsx'));
+const Everyday = P(() => import('./pages/everyday/Feed.jsx'));
+const ToolboxAdmin = P(() => import('./pages/team/ToolboxAdmin.jsx'));
+const CardEditor = P(() => import('./pages/team/CardEditor.jsx'));
 
 function Guard({ role }) {
   const { user, ready } = useAuth();
@@ -59,6 +73,14 @@ function Root() {
   const { user, ready } = useAuth();
   if (!ready) return <Spinner className="min-h-screen" />;
   return <Navigate to={user ? HOME[user.role] : '/login'} replace />;
+}
+// Tapping a phone notification lands here: send the person to the link inside their own portal
+function Open() {
+  const { user, ready } = useAuth();
+  const [sp] = useSearchParams();
+  if (!ready) return <Spinner className="min-h-screen" />;
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={portalLink(sp.get('to') || '', user.role).replace(/^\/app/, '') || HOME[user.role]} replace />;
 }
 function PublicOnly({ children }) {
   const { user, ready } = useAuth();
@@ -79,6 +101,13 @@ const managerRoutes = (
     <Route path="incidents/:id" element={<IncidentDetail />} />
     <Route path="staff" element={<Staff />} />
     <Route path="staff/:id" element={<StaffProfile />} />
+    <Route path="team/academy" element={<Academy />} />
+    <Route path="team/academy/:id" element={<CourseEditor />} />
+    <Route path="team/academy/:id/preview" element={<Course />} />
+    <Route path="team/toolbox" element={<ToolboxAdmin />} />
+    <Route path="team/toolbox/:id" element={<CardEditor />} />
+    <Route path="team/certificates/:id" element={<Certificate />} />
+    <Route path="everyday" element={<Everyday />} />
   </>
 );
 
@@ -87,6 +116,7 @@ function App() {
     <Suspense fallback={<Spinner className="min-h-[60vh]" />}>
       <Routes>
         <Route path="/" element={<Root />} />
+        <Route path="/open" element={<Open />} />
         <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
         <Route path="/forgot" element={<Forgot />} />
         <Route path="/reset/:token" element={<Reset />} />
@@ -139,6 +169,7 @@ function App() {
             <Route path="shifts" element={<OfficerShifts />} />
             <Route path="clock" element={<OfficerClock />} />
             <Route path="pay" element={<OfficerPay />} />
+            <Route path="everyday" element={<Everyday />} />
             <Route path="pay/:id" element={<OfficerPay />} />
             <Route path="me" element={<OfficerMe />} />
             <Route path="documents" element={<OfficerDocuments />} />
@@ -149,6 +180,13 @@ function App() {
             <Route path="incidents/new" element={<IncidentForm />} />
             <Route path="incidents/:id" element={<IncidentDetail />} />
             <Route path="incidents/:id/edit" element={<IncidentForm />} />
+            <Route path="learn" element={<Learn />} />
+            <Route path="learn/toolbox" element={<LearnToolbox />} />
+            <Route path="learn/toolbox/:id" element={<LearnCard />} />
+            <Route path="learn/revise" element={<Revise />} />
+            <Route path="learn/academy/:id" element={<Course />} />
+            <Route path="learn/academy/:id/quiz" element={<Quiz />} />
+            <Route path="learn/certificates/:id" element={<Certificate />} />
           </Route>
         </Route>
         <Route path="*" element={<Root />} />

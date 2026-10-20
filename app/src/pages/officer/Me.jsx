@@ -1,12 +1,15 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  BadgeCheck, CalendarOff, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
+  Award, BadgeCheck, Bell, CalendarOff, GraduationCap, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
   Avatar, Button, cx, date, dateShort, Input, List, Load, Page, Pill, Row, Section, Sheet, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
+import { StatePill, useModules } from '../learn/_parts.jsx';
+import { NotificationsSheet } from './_notify.jsx';
 import { expiryText, expiryTone, NotLinked } from './_parts.jsx';
 
 const ICON_TONE = { blue: 'bg-blue text-white', green: 'bg-green text-white', amber: 'bg-amber text-white', red: 'bg-red text-white', grey: 'bg-faint text-white', ink: 'bg-ink text-white' };
@@ -16,17 +19,21 @@ export default function Me() {
   const { user, company, signOut } = useAuth();
   const confirm = useConfirm();
   const [pw, setPw] = useState(false);
+  const [notes, setNotes] = useState(false);
+  const modules = useModules();
   const linked = !!user.officer_id;
   const me = useApi('officers.get', {}, { skip: !linked });
   const contracts = useApi('contracts.list', {}, { skip: !linked });
   const tasks = useApi('onboarding.tasks', {}, { skip: !linked });
   const fix = useApi('incidents.list', { status: 'changes_requested' }, { skip: !linked });
+  const learn = useApi('academy.my', {}, { skip: !linked || !modules?.academy });
 
   const out = async () => { if (await confirm({ title: 'Sign out?', body: 'You will need your email and password to sign in again.', confirm: 'Sign out', danger: true })) signOut(); };
 
   const account = (
     <Section title="Account">
       <List>
+        <Row left={<Ico icon={Bell} tone="amber" />} title="Notifications" subtitle="What to hear about, phone notifications" onClick={() => setNotes(true)} chevron />
         <Row left={<Ico icon={KeyRound} tone="grey" />} title="Change password" onClick={() => setPw(true)} chevron />
         <Row left={<Ico icon={LogOut} tone="red" />} title={<span className="text-red">Sign out</span>} subtitle={user.email} onClick={out} />
       </List>
@@ -40,6 +47,7 @@ export default function Me() {
         <div className="mt-3"><NotLinked /></div>
         {account}
         <PasswordSheet open={pw} onClose={() => setPw(false)} />
+        <NotificationsSheet open={notes} onClose={() => setNotes(false)} />
       </Page>
     );
   }
@@ -100,6 +108,21 @@ export default function Me() {
                 </List>
               </Section>
 
+              {modules?.academy && learn.data && (learn.data.courses.length > 0 || learn.data.certificates.length > 0) && (
+                <Section title="Training" action={<Link to="/officer/learn" className="text-[14px] font-semibold text-blue">Open Learn</Link>}>
+                  <List>
+                    {learn.data.courses.filter((x) => x.state !== 'passed').map((x) => (
+                      <Row key={x.id} to={`/officer/learn/academy/${x.id}`} left={<Ico icon={GraduationCap} tone={x.state === 'overdue' || x.state === 'expired' ? 'red' : 'blue'} />}
+                        title={x.title} subtitle={x.due_date ? `Due ${date(x.due_date)}` : 'No due date'} right={<StatePill state={x.state} />} />
+                    ))}
+                    {learn.data.certificates.map((c) => (
+                      <Row key={c.id} to={`/officer/learn/certificates/${c.id}`} left={<Ico icon={Award} tone={c.expires_at && new Date(c.expires_at) < new Date() ? 'grey' : 'green'} />}
+                        title={c.title} subtitle={`${c.ref} · ${c.score}% · ${c.expires_at ? `${new Date(c.expires_at) < new Date() ? 'expired' : 'valid until'} ${date(c.expires_at)}` : `passed ${date(c.issued_at)}`}`} />
+                    ))}
+                  </List>
+                </Section>
+              )}
+
               {openTasks.length > 0 && (
                 <Section title="Getting set up">
                   <List>
@@ -130,6 +153,7 @@ export default function Me() {
         }}
       </Load>
       <PasswordSheet open={pw} onClose={() => setPw(false)} />
+      <NotificationsSheet open={notes} onClose={() => setNotes(false)} />
     </Page>
   );
 }

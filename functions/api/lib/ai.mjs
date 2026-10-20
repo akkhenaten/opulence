@@ -30,11 +30,11 @@ async function priceFor(model) {
 }
 
 /** Throws 429 when the month's AI budget is used up. Resets the counter on a new month. */
-export async function checkCap() {
+export async function checkCap(module = 'ops') {
   const m = monthKey();
   const s = await one(
     `UPDATE settings SET ops_ai_used = CASE WHEN ops_ai_month = $1 THEN ops_ai_used ELSE 0 END, ops_ai_month = $1 WHERE id = 1
-     RETURNING ops_ai_used, ops_ai_cap_credits`, [m]);
+     RETURNING ops_ai_used, ops_ai_cap_credits, ai_module_caps`, [m]);
   if (Number(s.ops_ai_used) >= Number(s.ops_ai_cap_credits)) {
     await notify(await companyManagers(), {
       kind: 'ops', severity: 'warning', title: 'Ops AI paused: monthly credit cap reached',
@@ -42,10 +42,23 @@ export async function checkCap() {
     });
     throw new HttpError(429, 'Ops AI paused: monthly credit cap reached');
   }
+  const cap = (s.ai_module_caps || {})[module];
+  if (cap != null && cap !== '') {
+    const u = await one('SELECT credits FROM ai_usage WHERE month = $1 AND module = $2', [m, module]);
+    if (Number(u?.credits || 0) >= Number(cap)) {
+      await notify(await companyManagers(), {
+        kind: 'ops', severity: 'warning', title: `AI for ${MODULE_NAMES[module] || module} paused: its monthly cap is reached`,
+        body: 'Raise the cap in Ops AI → Settings. Everything else keeps working.', link: '/company/ops?tab=settings', dedupe: `aicap:${module}:${m}`,
+      });
+      throw new HttpError(429, `AI for ${MODULE_NAMES[module] || module} is paused this month (credit cap reached)`);
+    }
+  }
 }
 
-export async function claude({ model = SONNET, system, messages, tools, tool_choice, max_tokens = 1024 }) {
-  await checkCap();
+const MODULE_NAMES = { ops: 'Ops AI', academy: 'Academy', toolbox: 'Toolbox', everyday: 'Everyday' };
+
+export async function claude({ model = SONNET, system, messages, tools, tool_choice, max_tokens = 1024, module = 'ops' }) {
+  await checkCap(module);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 45000);
   let res;
@@ -68,13 +81,15 @@ export async function claude({ model = SONNET, system, messages, tools, tool_cho
   }
   const credits = creditsFor(data.usage, await priceFor(model));
   await q('UPDATE settings SET ops_ai_used = ops_ai_used + $1 WHERE id = 1', [credits]);
+  await q(`INSERT INTO ai_usage (month, module, credits) VALUES ($1, $2, $3)
+    ON CONFLICT (month, module) DO UPDATE SET credits = ai_usage.credits + EXCLUDED.credits`, [monthKey(), module, credits]);
   data.credits = credits;
   return data;
 }
 
 // Force a single tool call and return its input (structured output)
-export async function extract({ model = HAIKU, system, messages, tool, max_tokens = 1024 }) {
-  const r = await claude({ model, system, messages, tools: [tool], tool_choice: { type: 'tool', name: tool.name }, max_tokens });
+export async function extract({ model = HAIKU, system, messages, tool, max_tokens = 1024, module = 'ops' }) {
+  const r = await claude({ model, system, messages, tools: [tool], tool_choice: { type: 'tool', name: tool.name }, max_tokens, module });
   const block = (r.content || []).find((c) => c.type === 'tool_use');
   return { input: block?.input || null, credits: r.credits };
 }

@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, CalendarDays, Clock3, Coffee, FileText, Hourglass, LogIn, LogOut, MapPin, Megaphone, PencilLine, ShieldAlert, ShieldCheck,
+  AlertTriangle, CalendarDays, ChevronRight, GraduationCap, Newspaper, Clock3, Coffee, FileText, Hourglass, LogIn, LogOut, MapPin, Megaphone, PencilLine, ShieldAlert, ShieldCheck,
 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Bento, Button, cx, date, dateShort, dayLabel, daysUntil, Load, money, Page, range, Stat, Tile, useAction, useApi,
+  Avatar, Bento, Button, cx, date, dateShort, dayLabel, daysUntil, Load, money, Page, range, Stat, Tile, useAction, useApi,
 } from '../../ui/index.jsx';
+import { useModules } from '../learn/_parts.jsx';
 import { ChaseBanner, OffersList, useOps } from './_ops.jsx';
 import { ASSIGN_LABEL, assignTone, expiryText, greeting, NotLinked, ShiftCard, until } from './_parts.jsx';
 
@@ -96,6 +97,8 @@ function Body({ d, clock, ops, reload }) {
 
       <Button size="lg" variant="secondary" icon={ShieldAlert} className="w-full" onClick={() => nav('/officer/incidents/new')}>Report incident</Button>
 
+      <Extras />
+
       {later.length > 0 && (
         <div className="pt-3">
           <div className="mb-2 flex items-center justify-between px-1">
@@ -182,5 +185,48 @@ function Hero({ s, isCurrent, state, onAccept, busy }) {
         <Button size="lg" className="mt-5 w-full !bg-white/15 !text-white !shadow-none" icon={LogIn} to="/officer/clock">Clock-in opens 30 min before</Button>
       ) : null}
     </Tile>
+  );
+}
+
+// Training due and the latest Everyday posts — each only when its module is switched on
+function Extras() {
+  const m = useModules();
+  const learn = useApi('academy.my', {}, { skip: !m?.academy });
+  const feed = useApi('everyday.latest', {}, { skip: !m?.everyday });
+  const due = (learn.data?.courses || []).filter((c) => c.assignment_id && c.state !== 'passed');
+  const overdue = due.filter((c) => c.state === 'overdue' || c.state === 'expired');
+  const posts = feed.data || [];
+  if (!m) return null;
+  return (
+    <>
+      {m.academy && due.length > 0 && (
+        <Tile to={due.length === 1 ? `/officer/learn/academy/${due[0].id}` : '/officer/learn'} className={cx(overdue.length && 'border-red/20 !bg-red-soft')}>
+          <div className="flex items-center gap-3">
+            <span className={cx('grid h-11 w-11 shrink-0 place-items-center rounded-2xl', overdue.length ? 'bg-red text-white' : 'bg-blue-soft text-blue')}><GraduationCap size={22} /></span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[16px] font-bold">{overdue.length ? `${overdue.length} training course${overdue.length === 1 ? '' : 's'} overdue` : `${due.length} training course${due.length === 1 ? '' : 's'} to do`}</div>
+              <div className="truncate text-[13px] text-muted">{due.map((c) => c.title).join(' · ')}{due[0]?.due_date && !overdue.length ? ` — due ${date(due[0].due_date)}` : ''}</div>
+            </div>
+            <ChevronRight size={20} className="shrink-0 text-faint" />
+          </div>
+        </Tile>
+      )}
+      {m.everyday && posts.length > 0 && (
+        <Tile title="Latest from Everyday" icon={Newspaper} to="/officer/everyday">
+          <div className="divide-y divide-line">
+            {posts.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 py-2.5">
+                <Avatar name={p.author.name} src={p.author.photo_url} size={34} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[14px]"><b>{p.author.name.split(' ')[0]}</b> {p.body || 'shared a photo'}</div>
+                  <div className="text-[12px] text-faint">{relative(p.created_at)}{p.comment_count ? ` · ${p.comment_count} comment${p.comment_count === 1 ? '' : 's'}` : ''}</div>
+                </div>
+                {p.photos[0] && <img src={p.photos[0].url} alt="" className="h-11 w-11 shrink-0 rounded-xl object-cover" />}
+              </div>
+            ))}
+          </div>
+        </Tile>
+      )}
+    </>
   );
 }

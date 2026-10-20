@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, Check, ClipboardList, MessageSquareText, Pencil, Sparkles, Star, X } from 'lucide-react';
+import { Check, ClipboardList, Pencil, Sparkles, Star, X } from 'lucide-react';
 import {
   Button, Empty, Input, Load, Page, Pill, Segmented, Select, Sheet, Textarea, Tile, Toggle, cx, dateTime, dayLabel, hours, range, relative, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
+import Chat from '../../ui/Chat.jsx';
 
 const KIND = {
   cover: { label: 'Cover', tone: 'blue' },
@@ -33,7 +34,7 @@ export default function OpsAI() {
       </div>
       {tab === 'inbox' && <Inbox onChange={count.reload} />}
       {tab === 'activity' && <Activity />}
-      {tab === 'chat' && <Chat onItems={() => { count.reload(); }} />}
+      {tab === 'chat' && <OpsChat onItems={() => { count.reload(); }} />}
       {tab === 'settings' && user.role === 'company' && <OpsSettings />}
     </Page>
   );
@@ -322,65 +323,20 @@ function Activity() {
 
 const PROMPTS = ['Unfilled shifts next week', 'Who can cover Saturday night?', 'Lates and no-shows this month', 'Hours worked by each officer last week'];
 
-function Chat({ onItems }) {
-  const [msgs, setMsgs] = useState(() => JSON.parse(sessionStorage.getItem('orb.opschat') || '[]'));
-  const [text, setText] = useState('');
-  const [busy, setBusy] = useState(false);
+function OpsChat({ onItems }) {
   const [, setSp] = useSearchParams();
-  const end = useRef(null);
-  useEffect(() => { sessionStorage.setItem('orb.opschat', JSON.stringify(msgs.slice(-30))); end.current?.scrollIntoView({ block: 'end' }); }, [msgs, busy]);
-
-  const send = async (t = text) => {
-    const content = t.trim();
-    if (!content || busy) return;
-    const next = [...msgs, { role: 'user', content }];
-    setMsgs(next); setText(''); setBusy(true);
-    try {
-      const r = await api('ops.chat', { messages: next.map(({ role, content: c }) => ({ role, content: c })) });
-      setMsgs([...next, { role: 'assistant', content: r.reply, items: r.items }]);
-      if (r.items?.length) onItems();
-    } catch (e) {
-      setMsgs([...next, { role: 'assistant', content: e.message, error: true }]);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
-    <Tile pad={false} className="flex min-h-[60vh] flex-col overflow-hidden">
-      <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
-        {!msgs.length && (
-          <div className="py-6 text-center">
-            <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-soft text-blue"><MessageSquareText size={22} /></div>
-            <div className="text-[16px] font-semibold">Ask about rotas, cover, lates or hours</div>
-            <p className="mx-auto mt-1 max-w-sm text-[14px] text-muted">Ops AI looks it up for you. It never changes anything itself — anything it suggests lands in your Inbox to approve.</p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              {PROMPTS.map((p) => <button key={p} type="button" onClick={() => send(p)} className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-[13px] font-semibold transition hover:border-blue hover:text-blue">{p}</button>)}
-            </div>
-          </div>
-        )}
-        {msgs.map((m, i) => (
-          <div key={i} className={cx('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
-            <div className={cx('max-w-[88%] whitespace-pre-wrap rounded-[20px] px-4 py-2.5 text-[15px] leading-relaxed', m.role === 'user' ? 'bg-blue text-white' : m.error ? 'bg-red-soft text-red' : 'bg-bg')}>
-              {m.content}
-              {m.items?.length > 0 && <div className="mt-2"><Button size="sm" variant="soft" icon={Sparkles} onClick={() => setSp({}, { replace: true })}>Open in Inbox ({m.items.length})</Button></div>}
-            </div>
-          </div>
-        ))}
-        {busy && <div className="flex"><div className="rounded-[20px] bg-bg px-4 py-3"><span className="inline-flex gap-1"><Dot3 /></span></div></div>}
-        <div ref={end} />
-      </div>
-      <form className="flex items-end gap-2 border-t border-line p-3" onSubmit={(e) => { e.preventDefault(); send(); }}>
-        <textarea rows={1} value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask Ops AI…"
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-          className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-2.5 text-[15px] outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
-        <button type="submit" aria-label="Send" disabled={busy || !text.trim()} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue text-white transition disabled:opacity-40"><ArrowUp size={20} /></button>
-      </form>
-      {msgs.length > 0 && <button type="button" onClick={() => setMsgs([])} className="pb-3 text-center text-[12px] font-semibold text-faint hover:text-ink">Clear conversation</button>}
+    <Tile pad={false} className="overflow-hidden">
+      <Chat action="ops.chat" storageKey="orb.opschat" prompts={PROMPTS} placeholder="Ask Ops AI…"
+        onReply={(r) => { if (r.items?.length) onItems(); }}
+        empty={<>
+          <div className="text-[16px] font-semibold">Ask about rotas, cover, lates or hours</div>
+          <p className="mx-auto mt-1 max-w-sm text-[14px] text-muted">Ops AI looks it up for you. It never changes anything itself — anything it suggests lands in your Inbox to approve.</p>
+        </>}
+        renderReply={(m) => m.items?.length > 0 && <div className="mt-2"><Button size="sm" variant="soft" icon={Sparkles} onClick={() => setSp({}, { replace: true })}>Open in Inbox ({m.items.length})</Button></div>} />
     </Tile>
   );
 }
-const Dot3 = () => [0, 1, 2].map((i) => <span key={i} className="h-2 w-2 animate-bounce rounded-full bg-faint" style={{ animationDelay: `${i * 0.15}s` }} />);
 
 /* ---------- Settings ---------- */
 
@@ -441,6 +397,7 @@ function OpsSettings() {
           <Input className="mt-3" label="Monthly cap (credits)" type="number" min="0" step="10000" value={v.ops_ai_cap_credits} onChange={(e) => set('ops_ai_cap_credits', e.target.value)}
             hint="AI features pause at the cap. Reminders, records and escalations keep running." />
         </Tile>
+        <ModuleUsage />
         <div className="flex flex-wrap gap-2">
           <Button busy={busy} onClick={save}>Save settings</Button>
           <Button variant="secondary" busy={running} onClick={() => runNow(() => api('ops.runNow', { reconcile: true }), 'Checks run — see the Inbox')}>Run checks now</Button>
@@ -448,5 +405,44 @@ function OpsSettings() {
         </div>
       </div>
     </div>
+  );
+}
+
+const AI_MODULES = [
+  { k: 'ops', label: 'Ops AI and incidents' }, { k: 'academy', label: 'Academy' }, { k: 'toolbox', label: 'Toolbox' }, { k: 'everyday', label: 'Everyday post checks' },
+];
+
+// Credits used this month by each AI feature, with an optional cap per feature inside the overall cap
+function ModuleUsage() {
+  const { user } = useBase();
+  const q = useApi('ai.usage', {}, { skip: user.role !== 'company' });
+  const [caps, setCaps] = useState(null);
+  const [run, busy] = useAction();
+  useEffect(() => { if (q.data) setCaps(Object.fromEntries(AI_MODULES.map((m) => [m.k, q.data.caps?.[m.k] ?? '']))); }, [q.data]);
+  if (user.role !== 'company' || !q.data || !caps) return null;
+  const dirty = AI_MODULES.some((m) => String(q.data.caps?.[m.k] ?? '') !== String(caps[m.k]));
+  const save = () => run(() => api('settings.update', { ai_module_caps: caps }), 'Caps saved').then(q.reload).catch(() => {});
+  return (
+    <Tile title="Credits by feature">
+      <div className="divide-y divide-line">
+        {AI_MODULES.map((m) => {
+          const used = Math.round(q.data.used?.[m.k] || 0);
+          return (
+            <div key={m.k} className="flex items-center gap-3 py-2">
+              <div className="min-w-0 flex-1">
+                <div className="text-[15px] font-medium">{m.label}</div>
+                <div className="num text-[13px] text-muted">{used.toLocaleString('en-GB')} credits this month</div>
+              </div>
+              <input type="number" min="0" step="1000" placeholder="No cap" aria-label={`${m.label} cap`} value={caps[m.k]} onChange={(e) => setCaps((c) => ({ ...c, [m.k]: e.target.value }))}
+                className="num h-10 w-28 rounded-xl border border-line bg-surface px-3 text-right text-[15px] outline-none focus:border-blue" />
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className="text-[12px] text-faint">Leave blank for no extra cap. A feature pauses when it reaches its cap.</p>
+        <Button size="sm" variant="secondary" busy={busy} disabled={!dirty} onClick={save}>Save caps</Button>
+      </div>
+    </Tile>
   );
 }

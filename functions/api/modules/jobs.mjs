@@ -5,6 +5,7 @@ import { fmtDate, fmtTime, londonDate, addDays } from '../lib/time.mjs';
 import { buildTimesheet } from './clock.mjs';
 import { getSettings } from './settings.mjs';
 import { runOpsJobs } from './ops.mjs';
+import { learnJobs } from './academy.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in
 async function lateAlerts(s) {
@@ -116,6 +117,8 @@ export async function runJobs() {
     }
   }
   result.ops = await runOpsJobs(s);
+  // Training reminders and renewals, at most once an hour
+  if (new Date().getUTCMinutes() < 5) result.learn = await learnJobs().catch((e) => `error: ${e.message}`);
   console.log('[jobs]', JSON.stringify(result));
   return result;
 }

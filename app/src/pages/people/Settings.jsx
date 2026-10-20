@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Building2, CalendarDays, Clock, FileSignature, KeyRound, Landmark, Percent, Plus, ReceiptText, Trash2, UserPlus } from 'lucide-react';
+import { Building2, CalendarDays, Clock, FileSignature, KeyRound, Landmark, LayoutGrid, Percent, Plus, ReceiptText, Trash2, UserPlus } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -36,7 +36,31 @@ const hourOpts = Array.from({ length: 24 }, (_, h) => ({ value: String(h), label
 
 function CompanyTab() {
   const q = useApi('settings.get');
-  return <Load q={q}>{(s) => <CompanyForm s={s} onSaved={(d) => q.setData(d)} />}</Load>;
+  return <Load q={q}>{(s) => <><ModulesTile s={s} onSaved={(d) => q.setData(d)} /><CompanyForm s={s} onSaved={(d) => q.setData(d)} /></>}</Load>;
+}
+
+const MODULES = [
+  { key: 'academy', label: 'Academy', hint: 'Training courses with quizzes and certificates' },
+  { key: 'toolbox', label: 'Toolbox', hint: 'Quick guide cards officers can open on shift' },
+  { key: 'everyday', label: 'Everyday', hint: 'Team feed with posts, photos and comments' },
+];
+
+// Switching a module off hides it from every menu straight away; nothing is deleted
+function ModulesTile({ s, onSaved }) {
+  const [run] = useAction();
+  const confirm = useConfirm();
+  const flip = (k) => async (on) => {
+    if (!on && !(await confirm({ title: `Switch off ${MODULES.find((m) => m.key === k).label}?`, body: 'It disappears for everyone. Nothing is deleted — switch it back on at any time.', confirm: 'Switch off', danger: true }))) return;
+    const d = await run(() => api('settings.update', { modules: { [k]: on } }), on ? 'Switched on' : 'Switched off').catch(() => null);
+    if (d) { onSaved(d); window.dispatchEvent(new Event('orb:settings')); }
+  };
+  return (
+    <Tile title="Modules" icon={LayoutGrid} className="mb-4">
+      <div className="space-y-2">
+        {MODULES.map((m) => <Toggle key={m.key} checked={s.modules?.[m.key] !== false} onChange={flip(m.key)} label={m.label} hint={m.hint} />)}
+      </div>
+    </Tile>
+  );
 }
 
 function CompanyForm({ s, onSaved }) {

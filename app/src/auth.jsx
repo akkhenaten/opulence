@@ -45,6 +45,7 @@ export function AuthProvider({ children }) {
 // Notification links are written for company managers; map them into the viewer's portal
 export function portalLink(link, role) {
   if (!link) return HOME[role];
+  if (link.startsWith('/everyday')) return `${HOME[role] === '/' ? '' : HOME[role]}${link}`;
   if (role === 'security') return link.replace(/^\/company/, '/security');
   return link;
 }

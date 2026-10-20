@@ -19,8 +19,11 @@ import * as notifications from './modules/notifications.mjs';
 import * as ops from './modules/ops.mjs';
 import * as incidentAi from './modules/incidentAi.mjs';
 import * as compliance from './modules/compliance.mjs';
+import * as toolbox from './modules/toolbox.mjs';
+import * as academy from './modules/academy.mjs';
+import * as everyday from './modules/everyday.mjs';
 
-const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance].map((m) => m.actions));
+const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, toolbox, academy, everyday].map((m) => m.actions));
 
 export async function handler(event) {
   if (event.source === 'schedule') {

@@ -1,4 +1,8 @@
 import { q } from './db.mjs';
+import { pushToUsers } from './webpush.mjs';
+
+// Kinds a person can switch off in their notification settings; operational alerts always go
+export const OPTIONAL_KINDS = ['mention', 'comment', 'reaction', 'announcement', 'training'];
 
 const APP_URL = () => process.env.APP_URL || '';
 
@@ -38,7 +42,10 @@ function emailHtml(title, body, link) {
  * users: array of user ids. dedupe: optional key to avoid repeats.
  */
 export async function notify(userIds, { kind, title, body = '', link = '', severity = 'info', dedupe = null, email = false }) {
-  const ids = [...new Set((userIds || []).filter(Boolean))];
+  let ids = [...new Set((userIds || []).filter(Boolean))];
+  if (OPTIONAL_KINDS.includes(kind) && ids.length) {
+    ids = (await q("SELECT id FROM users WHERE id = ANY($1::uuid[]) AND (notify_prefs->>$2) IS DISTINCT FROM 'false'", [ids, kind])).map((r) => r.id);
+  }
   if (!ids.length) return;
   const rows = await q(
     `INSERT INTO notifications (user_id, kind, title, body, link, severity, dedupe_key)
@@ -46,6 +53,13 @@ export async function notify(userIds, { kind, title, body = '', link = '', sever
      ON CONFLICT DO NOTHING RETURNING user_id`,
     [ids, kind, title, body, link, severity, dedupe],
   );
+  if (rows.length) {
+    try {
+      await pushToUsers(rows.map((r) => r.user_id), { title, body, link });
+    } catch (e) {
+      console.warn('[push] not sent:', e.message);
+    }
+  }
   if (email && rows.length) {
     const users = await q("SELECT email FROM users WHERE id = ANY($1::uuid[]) AND status = 'active'", [rows.map((r) => r.user_id)]);
     await Promise.allSettled(users.map((u) => sendEmail(u.email, `Orb Security — ${title}`, emailHtml(title, body, link))));
