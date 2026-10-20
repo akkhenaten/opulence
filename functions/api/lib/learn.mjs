@@ -26,4 +26,5 @@ Rules:
 - First aid is awareness level: always say to call 999 for emergencies, follow the trained first aider and the 999 call handler, and that this does not replace a certified first aid course. Never give drug doses or anything beyond standard lay first aid.
 - Be practical and plain: short sentences, British English, second person ("you"). Explain what the officer may and may not do and why.
 - Never describe people by ethnicity or other protected characteristics. Use "they" for people.
-- Scotland and Northern Ireland differ on some law: say so briefly where it matters.`;
+- Scotland and Northern Ireland differ on some law: say so briefly where it matters.
+- When rating options: "best" is what UK law and SIA guidance expect; "ok" is safe and lawful but not ideal; "poor" must say the legal or safety risk.`;

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Archive, ArrowDown, ArrowUp, Eye, Plus, Save, Send, Sparkles, Trash2, Undo2, UserPlus } from 'lucide-react';
+import { Archive, ArrowDown, ArrowUp, Eye, Images, Plus, Save, Send, Sparkles, Trash2, Undo2, UserPlus } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
   Button, cx, date, ErrorBox, IconButton, Input, Page, Pill, Select, Sheet, Spinner, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { Lesson, TOPICS } from '../learn/_parts.jsx';
+import { Blocks, BlocksEditor, HeroImage } from '../learn/_blocks.jsx';
 import { AssignSheet, TOPIC_OPTIONS } from './_parts.jsx';
 
 let tmpN = 0;
@@ -27,7 +28,7 @@ function toBody(st) {
   return {
     id: c.id, title: c.title, topic: c.topic, summary: c.summary, pass_mark: c.pass_mark, quiz_size: c.quiz_size, cooldown_hours: c.cooldown_hours,
     mandatory: c.mandatory, renew_months: c.renew_months === '' ? null : Number(c.renew_months), sources: c.sources.split('\n').map((s) => s.trim()).filter(Boolean),
-    sections: st.sections.map((s) => ({ id: s.id, tmp: s.id ? undefined : s.key, title: s.title, body: s.body, quick_check: s.quick_check?.prompt ? s.quick_check : null })),
+    sections: st.sections.map((s) => ({ id: s.id, tmp: s.id ? undefined : s.key, title: s.title, body: s.body, quick_check: s.quick_check?.prompt ? s.quick_check : null, blocks: s.blocks || [] })),
     questions: st.questions.filter((x) => x.prompt.trim() || x.id).map((x) => {
       // Blank answers are dropped, so re-point the correct answer at its new position
       const kept = x.options.map((o, i) => [o.trim(), i]).filter(([o]) => o);
@@ -49,6 +50,7 @@ export default function CourseEditor() {
   const [drafting, setDrafting] = useState(null);
   const [assign, setAssign] = useState(false);
   const [editQ, setEditQ] = useState(null);
+  const [allProg, setAllProg] = useState(null);
   const confirm = useConfirm();
 
   useEffect(() => { if (q.data) { setSt(toState(q.data)); setDirty(false); } }, [q.data]);
@@ -67,7 +69,7 @@ export default function CourseEditor() {
   const setC = (k, v) => edit((s) => { s.course[k] = v; return s; });
   const setS = (i, k, v) => edit((s) => { s.sections[i][k] = v; return s; });
   const move = (i, d) => edit((s) => { const [x] = s.sections.splice(i, 1); s.sections.splice(i + d, 0, x); return s; });
-  const addSection = () => edit((s) => { s.sections.push({ key: tmp(), title: `Section ${s.sections.length + 1}`, body: '', quick_check: null }); return s; });
+  const addSection = () => edit((s) => { s.sections.push({ key: tmp(), title: `Section ${s.sections.length + 1}`, body: '', quick_check: null, blocks: [] }); return s; });
   const removeSection = async (i) => {
     const sec = st.sections[i];
     const n = st.questions.filter((x) => x.section_id === (sec.id || sec.key)).length;
@@ -111,6 +113,47 @@ export default function CourseEditor() {
     setDrafting(null);
   };
 
+  // Saves first when needed, so the AI works on what the manager sees; returns the section's real id
+  const savedId = async (i) => {
+    if (st.sections[i].id && !dirty) return st.sections[i].id;
+    await api('academy.save', toBody(st));
+    setDirty(false);
+    return (await api('academy.edit', { id: c.id })).sections[i]?.id;
+  };
+  const visuals = async (i, what, prompt) => {
+    const sec = st.sections[i];
+    if (what === 'enrich' && sec.blocks?.some((b) => b.type !== 'image') && !(await confirm({ title: `Redo the visuals for “${sec.title}”?`, body: 'This replaces the key facts, step flow, do/don\'t and options. The picture stays.', confirm: 'Redo' }))) return;
+    setDrafting(`${sec.key}:${what}`);
+    try {
+      await run(async () => {
+        const sid = await savedId(i);
+        await api(what === 'draw' ? 'academy.drawImage' : 'academy.enrichSection', { section_id: sid, prompt });
+        await q.reload();
+      }, what === 'draw' ? 'Picture ready — check it looks right' : 'Visuals added — read them through');
+    } catch { /* toast shown */ }
+    setDrafting(null);
+  };
+  // Whole course: visuals, then a picture, for every section still missing them
+  const visualsForAll = async () => {
+    const todo = st.sections.map((s, i) => [s, i]).filter(([s]) => s.body.trim() && (!s.blocks?.some((b) => b.type === 'image' && b.key) || s.blocks.length < 3));
+    if (!todo.length) return;
+    if (!(await confirm({ title: 'Add visuals to every section?', body: `AI adds key facts, a step flow, do/don't panels, a "What would you do?" activity and a picture to ${todo.length} section${todo.length === 1 ? '' : 's'}. This uses AI credits.`, confirm: 'Start' }))) return;
+    try {
+      if (dirty) { await api('academy.save', toBody(st)); setDirty(false); }
+      const fresh = await api('academy.edit', { id: c.id });
+      for (const [n, [, i]] of todo.entries()) {
+        const sec = fresh.sections[i];
+        setAllProg({ n, total: todo.length, title: sec.title });
+        if ((sec.blocks || []).length < 3) await api('academy.enrichSection', { section_id: sec.id });
+        if (!(sec.blocks || []).some((b) => b.type === 'image' && b.key)) await api('academy.drawImage', { section_id: sec.id });
+      }
+    } catch (e) {
+      window.alert(e.message || 'Something went wrong — run it again to finish the rest');
+    }
+    setAllProg(null);
+    q.reload();
+  };
+
   const qFor = (sec) => st.questions.filter((x) => x.section_id === (sec.id || sec.key));
   const unlinked = st.questions.filter((x) => !st.sections.some((s) => x.section_id === (s.id || s.key)));
   const activeQs = st.questions.filter((x) => x.active && x.prompt.trim()).length;
@@ -129,11 +172,18 @@ export default function CourseEditor() {
       actions={(
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" icon={Eye} to={`${base}/team/academy/${c.id}/preview`}>Preview</Button>
+          {co && c.status !== 'archived' && <Button variant="soft" icon={Images} busy={!!allProg} disabled={busy} onClick={visualsForAll}>Add visuals to all</Button>}
           {c.status === 'published' && <Button variant="secondary" icon={UserPlus} onClick={() => setAssign(true)}>Assign</Button>}
           {co && <Button variant="secondary" icon={Save} busy={busy && !drafting} disabled={!dirty} onClick={() => save().catch(() => {})}>Save</Button>}
           {co && c.status !== 'archived' && (c.status !== 'published' || dirty) && <Button icon={Send} disabled={busy || !ready} onClick={publish}>Publish</Button>}
         </div>
       )}>
+      {allProg && (
+        <div className="mb-4 rounded-2xl bg-blue-soft px-4 py-3 text-[14px] text-blue">
+          <div className="font-semibold">Adding visuals {allProg.n + 1} of {allProg.total}: {allProg.title}</div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-blue transition-all" style={{ width: `${(allProg.n / allProg.total) * 100}%` }} /></div>
+        </div>
+      )}
       {co && !ready && c.status !== 'archived' && (
         <div className="mb-4 rounded-2xl bg-amber-soft px-4 py-3 text-[14px] text-amber">
           To publish, every section needs its lesson text and the course needs at least 5 quiz questions ({activeQs} so far).
@@ -156,10 +206,21 @@ export default function CourseEditor() {
                   <Input label="Title" value={s.title} onChange={(e) => setS(i, 'title', e.target.value)} />
                   <Textarea label="Lesson" rows={12} value={s.body} onChange={(e) => setS(i, 'body', e.target.value)}
                     hint="### for a heading, - for a bullet, **bold**. Keep it short — officers read this on a phone." />
+                  <details className="rounded-2xl bg-bg px-4 py-3">
+                    <summary className="cursor-pointer text-[14px] font-semibold">Visuals & activities <span className="font-normal text-muted">· {s.blocks?.length ? `${s.blocks.length} added` : 'none yet'}</span></summary>
+                    <div className="mt-3">
+                      <BlocksEditor blocks={s.blocks} hasBody={!!s.body.trim()} busy={busy || !!allProg} drawing={drafting === `${s.key}:draw`}
+                        onChange={(v) => setS(i, 'blocks', v)} onEnrich={() => visuals(i, 'enrich')} onDraw={(prompt) => visuals(i, 'draw', prompt)} />
+                    </div>
+                  </details>
                   <QuickCheckEditor value={s.quick_check} onChange={(v) => setS(i, 'quick_check', v)} />
                 </div>
               ) : (
-                <div><div className="mb-2 text-[17px] font-bold">{s.title}</div>{s.body ? <Lesson text={s.body} /> : <p className="text-muted">No lesson text yet.</p>}</div>
+                <div>
+                  <HeroImage blocks={s.blocks} />
+                  <div className="mb-2 text-[17px] font-bold">{s.title}</div>{s.body ? <Lesson text={s.body} /> : <p className="text-muted">No lesson text yet.</p>}
+                  <Blocks blocks={s.blocks} />
+                </div>
               )}
               <QuestionList qs={qFor(s)} co={co} onEdit={setEditQ} onAdd={() => setEditQ(blankQ(s.id || s.key))} />
             </Tile>

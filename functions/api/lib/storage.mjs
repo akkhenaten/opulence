@@ -23,6 +23,11 @@ export async function downloadUrl(key, filename) {
   return getSignedUrl(client(), cmd, { expiresIn: 600 });
 }
 
+export async function putObject(key, bytes, contentType) {
+  await client().send(new PutObjectCommand({ Bucket: process.env.STORAGE_BUCKET, Key: key, Body: bytes, ContentType: contentType }));
+  return key;
+}
+
 export async function getObjectBytes(key) {
   const res = await client().send(new GetObjectCommand({ Bucket: process.env.STORAGE_BUCKET, Key: key }));
   return Buffer.from(await res.Body.transformToByteArray());

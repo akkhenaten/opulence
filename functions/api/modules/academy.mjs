@@ -4,7 +4,9 @@ import { one, q, tx } from '../lib/db.mjs';
 import { fail, need, required } from '../lib/http.mjs';
 import { audit } from '../lib/audit.mjs';
 import { isManager, requireOfficer } from '../lib/auth.mjs';
-import { claude, extract, SONNET } from '../lib/ai.mjs';
+import { claude, drawImage, extract, SONNET } from '../lib/ai.mjs';
+import { downloadUrl, putObject } from '../lib/storage.mjs';
+import crypto from 'node:crypto';
 import { notify, officerUser, companyManagers } from '../lib/notify.mjs';
 import { requireModule, moduleOn } from '../lib/modules.mjs';
 import { CONTENT_RULES, reviewDate, venueTeam } from '../lib/learn.mjs';
@@ -56,6 +58,87 @@ const QUESTION = {
   required: ['kind', 'prompt', 'options', 'answer', 'explain'],
 };
 
+// Visuals and activities for a section, as one-per-line text (list fields break in tool calls)
+const BLOCK_FIELDS = {
+  key_facts: { type: 'string', description: '2-4 key numbers or short facts from the lesson, one per line, as "value :: label", e.g. "999 :: Call first in any emergency". Value at most 12 characters.' },
+  steps_title: { type: 'string', description: 'Title of the step flow, e.g. "If someone collapses"' },
+  steps: { type: 'string', description: '3-7 steps in order, one per line, each under 15 words' },
+  dos: { type: 'string', description: '2-5 things to do, one per line, each under 15 words' },
+  donts: { type: 'string', description: "2-5 things not to do, one per line, each under 15 words" },
+  options_situation: { type: 'string', description: 'A realistic situation an officer meets on shift, 1-3 sentences, ending with "What would you do?"' },
+  options: { type: 'string', description: '3-4 possible responses, one per line, as "best|ok|poor :: response :: why (one sentence)". Exactly one best and at least one poor.' },
+  image_prompt: { type: 'string', description: 'A picture idea for the section: one scene described in 1-2 sentences (place, people, what is happening). No text in the picture.' },
+  image_caption: { type: 'string', description: 'Caption under the picture, under 12 words' },
+};
+const BLOCKS_REQUIRED = ['key_facts', 'steps_title', 'steps', 'dos', 'donts', 'options_situation', 'options', 'image_prompt', 'image_caption'];
+const BLOCKS_TOOL = {
+  name: 'save_visuals', description: 'Save the visuals and activities for one lesson section',
+  input_schema: { type: 'object', properties: BLOCK_FIELDS, required: BLOCKS_REQUIRED },
+};
+
+const str = (x, n) => String(x ?? '').trim().slice(0, n);
+const RATINGS = ['best', 'ok', 'poor'];
+const BLOCK_ORDER = ['image', 'key_facts', 'steps', 'dos_donts', 'options'];
+
+// Blocks from the AI's text fields; an existing picture is kept (its prompt and caption updated)
+function toBlocks(x, old = []) {
+  const pair = (l) => l.split('::').map((p) => p.trim());
+  const prev = old.find((b) => b.type === 'image');
+  return cleanBlocks([
+    { ...(prev || { source: 'ai' }), type: 'image', prompt: x.image_prompt, caption: x.image_caption || prev?.caption },
+    { type: 'key_facts', facts: lines(x.key_facts).map((l) => { const [value, ...label] = pair(l); return { value, label: label.join(' ') }; }) },
+    { type: 'steps', title: x.steps_title, steps: lines(x.steps) },
+    { type: 'dos_donts', do: lines(x.dos), dont: lines(x.donts) },
+    { type: 'options', situation: x.options_situation, choices: lines(x.options).map((l) => { const [rating, text, ...why] = pair(l); return { rating: String(rating).toLowerCase(), text, why: why.join(' ') }; }) },
+  ]);
+}
+
+// Validate blocks from the editor or the AI: known types, one of each, sizes capped; a block that is too thin is dropped
+export function cleanBlocks(raw) {
+  const out = {};
+  for (const b of Array.isArray(raw) ? raw : []) {
+    if (!b || out[b.type]) continue;
+    const list = (a, n) => (Array.isArray(a) ? a : []).map((t) => str(t, 160)).filter(Boolean).slice(0, n);
+    if (b.type === 'image') {
+      const key = b.key ? str(b.key, 300) : null;
+      if (key && !/^docs\/learn\//.test(key)) fail(400, 'That picture is not a lesson upload');
+      if (key || str(b.prompt, 1)) out.image = { type: 'image', key, prompt: str(b.prompt, 600), caption: str(b.caption, 140), source: b.source === 'upload' ? 'upload' : 'ai' };
+    } else if (b.type === 'key_facts') {
+      const facts = (Array.isArray(b.facts) ? b.facts : []).map((f) => ({ value: str(f?.value, 16), label: str(f?.label, 80) })).filter((f) => f.value && f.label).slice(0, 4);
+      if (facts.length >= 1) out.key_facts = { type: 'key_facts', facts };
+    } else if (b.type === 'steps') {
+      const steps = list(b.steps, 8);
+      if (steps.length >= 2) out.steps = { type: 'steps', title: str(b.title, 80), steps };
+    } else if (b.type === 'dos_donts') {
+      const d = { type: 'dos_donts', do: list(b.do, 6), dont: list(b.dont, 6) };
+      if (d.do.length || d.dont.length) out.dos_donts = d;
+    } else if (b.type === 'options') {
+      const choices = (Array.isArray(b.choices) ? b.choices : []).map((c) => ({ text: str(c?.text, 240), rating: RATINGS.includes(c?.rating) ? c.rating : 'ok', why: str(c?.why, 300) })).filter((c) => c.text).slice(0, 5);
+      const situation = str(b.situation, 600);
+      if (situation && choices.length >= 2 && choices.some((c) => c.rating === 'best') && choices.some((c) => c.rating === 'poor')) out.options = { type: 'options', situation, choices };
+    }
+  }
+  return BLOCK_ORDER.filter((t) => out[t]).map((t) => out[t]);
+}
+
+// Signed picture links for the client; officers get the options in a random order
+async function viewBlocks(blocks, { mix = false } = {}) {
+  return Promise.all((blocks || []).map(async (b) => {
+    if (b.type === 'image') return { ...b, url: b.key ? await downloadUrl(b.key) : null };
+    if (b.type === 'options' && mix) return { ...b, choices: shuffle(b.choices, 0).options };
+    return b;
+  }));
+}
+
+// Blocks as plain text, for the tutor
+const blocksText = (blocks) => (blocks || []).map((b) => {
+  if (b.type === 'key_facts') return `Key facts: ${b.facts.map((f) => `${f.value} = ${f.label}`).join('; ')}`;
+  if (b.type === 'steps') return `${b.title || 'Steps'}: ${b.steps.map((t, i) => `${i + 1}) ${t}`).join(' ')}`;
+  if (b.type === 'dos_donts') return `Do: ${b.do.join('; ')}\nDon't: ${b.dont.join('; ')}`;
+  if (b.type === 'options') return `Activity: ${b.situation}\n${b.choices.map((c) => `- ${c.text} — ${c.rating === 'ok' ? 'acceptable' : c.rating}: ${c.why}`).join('\n')}`;
+  return '';
+}).filter(Boolean).join('\n');
+
 const SECTION_TOOL = {
   name: 'save_section', description: 'Save one lesson section with its quick check and quiz questions',
   input_schema: {
@@ -64,8 +147,9 @@ const SECTION_TOOL = {
       body: { type: 'string', description: 'The lesson, 300-450 words. Format: paragraphs separated by blank lines, "### " for sub-headings, "- " for bullet points, **bold** for key terms. No other markdown.' },
       quick_check: QUESTION,
       questions: { type: 'array', items: QUESTION, description: '3 or 4 quiz questions on this section, at least one scenario' },
+      ...BLOCK_FIELDS,
     },
-    required: ['body', 'quick_check', 'questions'],
+    required: ['body', 'quick_check', 'questions', ...BLOCKS_REQUIRED],
   },
 };
 
@@ -134,7 +218,7 @@ function courseState(c, today = londonDate(new Date())) {
 // Text of a published course, for the tutor
 async function courseText(c) {
   const secs = await sectionsOf(c.id);
-  return `# ${c.title}\n${c.summary}\n\n${secs.map((s) => `## ${s.title}\n${s.body}`).join('\n\n')}`;
+  return `# ${c.title}\n${c.summary}\n\n${secs.map((s) => `## ${s.title}\n${s.body}\n${blocksText(s.blocks)}`).join('\n\n')}`;
 }
 
 async function saveCourse(b, user) {
@@ -166,9 +250,10 @@ async function saveCourse(b, user) {
       for (const [i, s] of b.sections.entries()) {
         const title = String(s.title || '').trim() || `Section ${i + 1}`;
         const check = s.quick_check ? cleanQ(s.quick_check) : null;
+        const blocks = JSON.stringify(cleanBlocks(s.blocks));
         const row = s.id
-          ? await db.one('UPDATE course_sections SET position = $3, title = $4, body = $5, quick_check = $6 WHERE id = $1 AND course_id = $2 RETURNING id', [s.id, course.id, i, title, String(s.body || ''), check])
-          : await db.one('INSERT INTO course_sections (course_id, position, title, body, quick_check) VALUES ($1,$2,$3,$4,$5) RETURNING id', [course.id, i, title, String(s.body || ''), check]);
+          ? await db.one('UPDATE course_sections SET position = $3, title = $4, body = $5, quick_check = $6, blocks = $7 WHERE id = $1 AND course_id = $2 RETURNING id', [s.id, course.id, i, title, String(s.body || ''), check, blocks])
+          : await db.one('INSERT INTO course_sections (course_id, position, title, body, quick_check, blocks) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id', [course.id, i, title, String(s.body || ''), check, blocks]);
         if (!row) fail(400, 'Section not found');
         if (s.tmp) idMap[s.tmp] = row.id;
         keep.push(row.id);
@@ -220,7 +305,10 @@ export const actions = {
     await requireModule('academy');
     required(b, 'id');
     const course = await getCourse(b.id, user);
-    const sections = (await sectionsOf(course.id)).map((s) => ({ ...s, quick_check: s.quick_check ? { prompt: s.quick_check.prompt, options: s.quick_check.options } : null }));
+    const sections = await Promise.all((await sectionsOf(course.id)).map(async (s) => ({
+      ...s, blocks: await viewBlocks(s.blocks, { mix: true }),
+      quick_check: s.quick_check ? { prompt: s.quick_check.prompt, options: s.quick_check.options } : null,
+    })));
     const progress = user.officer_id ? await one('SELECT done_sections FROM course_progress WHERE officer_id = $1 AND course_id = $2', [user.officer_id, course.id]) : null;
     const extra = user.officer_id ? (await myCourses(user.officer_id)).find((c) => c.id === course.id) : null;
     const questions = (await one('SELECT count(*)::int AS n FROM course_questions WHERE course_id = $1 AND active', [course.id])).n;
@@ -345,6 +433,7 @@ ${await courseText(course)}`,
     required(b, 'id');
     const course = need(await one('SELECT * FROM courses WHERE id = $1', [b.id]), 'Course not found');
     const [sections, questions] = await Promise.all([sectionsOf(course.id), q('SELECT * FROM course_questions WHERE course_id = $1 ORDER BY section_id, id', [course.id])]);
+    for (const s of sections) s.blocks = await viewBlocks(s.blocks);
     return { course, sections, questions };
   }),
 
@@ -409,7 +498,7 @@ ${await courseText(course)}`,
     const course = await one('SELECT * FROM courses WHERE id = $1', [s.course_id]);
     const all = await sectionsOf(course.id);
     const { input } = await extract({
-      model: SONNET, module: 'academy', max_tokens: 2600, tool: SECTION_TOOL,
+      model: SONNET, module: 'academy', max_tokens: 3600, tool: SECTION_TOOL,
       system: `${CONTENT_RULES}\nYou are writing one section of a short course. Keep to this section's scope; other sections cover the rest.`,
       messages: [{ role: 'user', content: `Course: ${course.title}\n${course.summary}\nSections: ${all.map((x, i) => `${i + 1}. ${x.title}`).join('; ')}\n\nWrite section: ${s.title}${b.aims ? `\nIt must cover: ${String(b.aims).slice(0, 600)}` : ''}${b.notes ? `\nManager's notes: ${String(b.notes).slice(0, 1500)}` : ''}` }],
     });
@@ -417,7 +506,7 @@ ${await courseText(course)}`,
     const check = cleanQ(input.quick_check);
     const qs = (input.questions || []).map(cleanQ).filter(Boolean).slice(0, 5);
     await tx(async (db) => {
-      await db.q('UPDATE course_sections SET body = $2, quick_check = $3 WHERE id = $1', [s.id, String(input.body).trim(), check]);
+      await db.q('UPDATE course_sections SET body = $2, quick_check = $3, blocks = $4 WHERE id = $1', [s.id, String(input.body).trim(), check, JSON.stringify(toBlocks(input, s.blocks))]);
       await db.q('DELETE FROM course_questions WHERE section_id = $1', [s.id]);
       for (const x of qs) {
         await db.q('INSERT INTO course_questions (course_id, section_id, kind, prompt, options, answer, explain) VALUES ($1,$2,$3,$4,$5,$6,$7)',
@@ -427,6 +516,43 @@ ${await courseText(course)}`,
     });
     await audit(user, 'academy.draftSection', 'course', course.id, { section: s.title, via: 'ai' });
     return { section: await one('SELECT * FROM course_sections WHERE id = $1', [s.id]), questions: qs.length };
+  }),
+
+  // Visuals and activities for a section that already has its lesson; the lesson, check and quiz stay as they are
+  'academy.enrichSection': def(CO, async (b, { user }) => {
+    await requireModule('academy');
+    required(b, 'section_id');
+    const s = need(await one('SELECT * FROM course_sections WHERE id = $1', [b.section_id]), 'Section not found');
+    if (!s.body.trim()) fail(400, 'Write the lesson first');
+    const course = await one('SELECT * FROM courses WHERE id = $1', [s.course_id]);
+    const { input, credits } = await extract({
+      model: SONNET, module: 'academy', max_tokens: 1500, tool: BLOCKS_TOOL,
+      system: `${CONTENT_RULES}\nYou are adding visuals and a short activity to one lesson section. Use only what the lesson says; do not add new facts, numbers or law.`,
+      messages: [{ role: 'user', content: `Course: ${course.title}\nSection: ${s.title}\n\nLesson:\n${s.body}` }],
+    });
+    const blocks = input ? toBlocks(input, s.blocks) : [];
+    if (blocks.length < 3) fail(502, 'The AI could not add visuals to this section — try again');
+    await q('UPDATE course_sections SET blocks = $2 WHERE id = $1', [s.id, JSON.stringify(blocks)]);
+    await q("UPDATE courses SET updated_at = now(), version = version + CASE WHEN status = 'published' THEN 1 ELSE 0 END WHERE id = $1", [course.id]);
+    await audit(user, 'academy.enrichSection', 'course', course.id, { section: s.title, via: 'ai' });
+    return { blocks: await viewBlocks(blocks), credits };
+  }),
+
+  // One AI picture for a section (one call each, so it stays inside the time limit)
+  'academy.drawImage': def(CO, async (b, { user }) => {
+    await requireModule('academy');
+    required(b, 'section_id');
+    const s = need(await one('SELECT * FROM course_sections WHERE id = $1', [b.section_id]), 'Section not found');
+    const course = await one('SELECT title FROM courses WHERE id = $1', [s.course_id]);
+    const prev = (s.blocks || []).find((x) => x.type === 'image');
+    const idea = str(b.prompt, 600) || prev?.prompt || `A security officer at a UK venue, illustrating "${s.title}"`;
+    const { bytes, mime, credits } = await drawImage({ module: 'academy', prompt: `Illustration for a security officer training course "${course.title}", lesson "${s.title}". Scene: ${idea}` });
+    const key = await putObject(`docs/learn/ai/${s.course_id.slice(0, 8)}/${crypto.randomUUID()}.${mime.includes('jpeg') ? 'jpg' : 'png'}`, bytes, mime);
+    const blocks = cleanBlocks([{ type: 'image', key, prompt: idea, caption: prev?.caption || '', source: 'ai' }, ...(s.blocks || []).filter((x) => x.type !== 'image')]);
+    await q('UPDATE course_sections SET blocks = $2 WHERE id = $1', [s.id, JSON.stringify(blocks)]);
+    await q('UPDATE courses SET updated_at = now() WHERE id = $1', [s.course_id]);
+    await audit(user, 'academy.drawImage', 'course', s.course_id, { section: s.title, via: 'ai' });
+    return { blocks: await viewBlocks(blocks), credits };
   }),
 
   'academy.assign': def(MGR, async (b, { user }) => {

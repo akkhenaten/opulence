@@ -26,6 +26,7 @@ async function priceFor(model) {
       prices = {};
     }
   }
+  if (model === IMAGE_MODEL) return prices[model] || {};
   return prices[model] || { inputPrice: model === HAIKU ? 150 : 450, outputPrice: model === HAIKU ? 750 : 2250 };
 }
 
@@ -80,11 +81,51 @@ export async function claude({ model = SONNET, system, messages, tools, tool_cho
     throw new HttpError(502, 'Ops AI is unavailable right now — try again shortly');
   }
   const credits = creditsFor(data.usage, await priceFor(model));
+  await logUsage(module, credits);
+  data.credits = credits;
+  return data;
+}
+
+async function logUsage(module, credits) {
   await q('UPDATE settings SET ops_ai_used = ops_ai_used + $1 WHERE id = 1', [credits]);
   await q(`INSERT INTO ai_usage (month, module, credits) VALUES ($1, $2, $3)
     ON CONFLICT (month, module) DO UPDATE SET credits = ai_usage.credits + EXCLUDED.credits`, [monthKey(), module, credits]);
-  data.credits = credits;
-  return data;
+}
+
+export const IMAGE_MODEL = 'gemini-3-pro-image';
+// Charged per picture when the proxy reports no token usage (measured against the project balance)
+export const IMAGE_CREDITS = 1000;
+// AI pictures cannot be trusted with text or faces, so every prompt asks for neither
+const IMAGE_STYLE = 'Style: clean flat editorial illustration, calm colours, set in the UK. Absolutely no text, letters, numbers, signs or logos. No identifiable faces (people seen from a distance, side or behind, simple features). No blood, wounds or gore. People of mixed ages and backgrounds.';
+
+/** One 16:9 picture from Gemini via the proxy: returns { bytes, mime, credits } */
+export async function drawImage({ prompt, module = 'academy' }) {
+  await checkCap(module);
+  const busy = () => new HttpError(502, 'The picture could not be drawn — try again');
+  let res;
+  try {
+    res = await fetch(`https://proxy.openkbs.com/v1/google/models/${IMAGE_MODEL}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENKBS_API_KEY}` },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: `${String(prompt).slice(0, 1500)}\n\n${IMAGE_STYLE}` }] }],
+        generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '16:9' } },
+      }),
+      signal: AbortSignal.timeout(50000),
+    });
+  } catch {
+    throw busy();
+  }
+  const data = await res.json().catch(() => ({}));
+  const part = (data.candidates?.[0]?.content?.parts || []).find((p) => p.inlineData?.data);
+  if (!res.ok || !part) {
+    console.error('[image]', res.status, JSON.stringify(data).slice(0, 500));
+    throw busy();
+  }
+  const u = data.usageMetadata || {};
+  const credits = creditsFor({ input_tokens: u.promptTokenCount, output_tokens: u.candidatesTokenCount }, await priceFor(IMAGE_MODEL)) || IMAGE_CREDITS;
+  await logUsage(module, credits);
+  return { bytes: Buffer.from(part.inlineData.data, 'base64'), mime: part.inlineData.mimeType || 'image/png', credits };
 }
 
 // Force a single tool call and return its input (structured output)

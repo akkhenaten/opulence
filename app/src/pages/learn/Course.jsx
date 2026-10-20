@@ -7,6 +7,7 @@ import { Button, cx, date, dateTime, Load, Page, Pill, Sheet, Tile, useApi } fro
 import Chat from '../../ui/Chat.jsx';
 import { Progress } from '../officer/_parts.jsx';
 import { Lesson, Options, TOPICS } from './_parts.jsx';
+import { Blocks, HeroImage } from './_blocks.jsx';
 
 export default function Course() {
   const { id } = useParams();
@@ -66,8 +67,10 @@ function Body({ d, officer, reload }) {
           <Progress value={idx + 1} max={total} className="flex-1" />
         </div>
         <Tile>
+          <HeroImage key={`i${sec.id}`} blocks={sec.blocks} />
           <h2 className="mb-3 text-[22px] font-bold leading-tight">{sec.title}</h2>
           <Lesson text={sec.body} />
+          <Blocks key={sec.id} blocks={sec.blocks} />
         </Tile>
         {sec.quick_check && <QuickCheck key={sec.id} sec={sec} />}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
