@@ -3,7 +3,7 @@ import { BellRing, Smartphone } from 'lucide-react';
 import { api } from '../../api.js';
 import { Button, Load, Sheet, Toggle, useAction, useApi, useToast } from '../../ui/index.jsx';
 
-const KINDS = [
+export const NOTIFY_KINDS = [
   { key: 'mention', label: 'Someone mentions me', hint: 'In an Everyday post or comment' },
   { key: 'comment', label: 'Comments on my posts' },
   { key: 'reaction', label: 'Reactions to my posts', hint: 'One summary a day' },
@@ -78,7 +78,7 @@ export function NotificationsSheet({ open, onClose }) {
         {() => prefs && (
           <div className="space-y-4">
             <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Tell me about</div>
-            {KINDS.map((k) => <Toggle key={k.key} checked={prefs[k.key] !== false} onChange={flip(k.key)} label={k.label} hint={k.hint} />)}
+            {NOTIFY_KINDS.map((k) => <Toggle key={k.key} checked={prefs[k.key] !== false} onChange={flip(k.key)} label={k.label} hint={k.hint} />)}
             <p className="text-footnote text-muted">Shifts, cover, pay and safety alerts always come through.</p>
           </div>
         )}

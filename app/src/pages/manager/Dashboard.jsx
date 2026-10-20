@@ -1,11 +1,22 @@
-import { Link } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, Banknote, CalendarClock, CalendarDays, CalendarOff, ClipboardCheck, Clock, Hand, Megaphone, Radio, ShieldAlert, ShieldCheck, TriangleAlert, Users,
 } from 'lucide-react';
 import {
-  Bento, Dot, Load, Page, Pill, Stat, Tile, cx, dateShort, daysUntil, hours, money0, range, relative, dayLabel, isoDate, titleCase, useApi,
+  Bento, Dot, Load, Page, Pill, Stat, Tabs, Tile, cx, dateShort, daysUntil, hours, money0, range, relative, dayLabel, isoDate, titleCase, useApi,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
+import { FeedBody } from '../everyday/Feed.jsx';
+
+// Everyday lives on the Dashboard now; old links (and notification links) land on that tab
+export function EverydayRedirect() {
+  const { search } = useLocation();
+  const { base } = useBase();
+  const p = new URLSearchParams(search);
+  if (p.get('tab') === 'moderation') p.set('view', 'moderation');
+  p.set('tab', 'everyday');
+  return <Navigate to={`${base}?${p}`} replace />;
+}
 
 const STATE_TONE = { late: 'amber', no_show: 'red', left_early: 'amber' };
 
@@ -30,14 +41,23 @@ function CountTile({ to, icon: Icon, label, value, tone, hint }) {
 
 export default function Dashboard() {
   const { user, base } = useBase();
+  const [sp, setSp] = useSearchParams();
+  const settings = useApi('settings.get');
+  const feedOn = settings.data && settings.data.modules?.everyday !== false;
+  const tab = feedOn && sp.get('tab') === 'everyday' ? 'everyday' : 'overview';
   const q = useApi('dashboard.get', {}, { poll: 30000 });
+  const unread = useApi('everyday.unread', {}, { poll: 60000, skip: !feedOn });
   const first = (user?.name || '').split(' ')[0];
   const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: 'numeric', hourCycle: 'h23' }).format(new Date()));
   const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   return (
     <Page title={`${greet}${first ? `, ${first}` : ''}`} subtitle={dayLabel(isoDate())} wide>
-      <Load q={q}>{(d) => <Body d={d} base={base} isCompany={user.role === 'company'} />}</Load>
+      {feedOn && (
+        <Tabs value={tab} onChange={(t) => setSp(t === 'overview' ? {} : { tab: t }, { replace: true })}
+          tabs={[{ value: 'overview', label: 'Overview' }, { value: 'everyday', label: 'Everyday', count: unread.data?.unread || undefined }]} />
+      )}
+      {tab === 'everyday' ? <FeedBody /> : <Load q={q}>{(d) => <Body d={d} base={base} isCompany={user.role === 'company'} />}</Load>}
     </Page>
   );
 }

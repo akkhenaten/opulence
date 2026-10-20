@@ -688,7 +688,6 @@ export function ContractsTab({ o, onForbidden }) {
     await run(() => api('contracts.void', { id: c.id }), 'Contract voided');
     q.reload();
   };
-  const tone = { sent: 'amber', signed: 'green', void: 'grey' };
   return (
     <TabLoad q={q}>
       {(rows) => (
@@ -697,18 +696,7 @@ export function ContractsTab({ o, onForbidden }) {
           {rows.length ? (
             <List>
               {rows.map((c) => (
-                <div key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><FileSignature size={18} /></div>
-                  <Pressable press className="min-w-0 flex-1 text-left" onClick={() => setViewing(c.id)}>
-                    <div className="truncate text-body font-semibold">{c.title}</div>
-                    <div className="truncate text-footnote text-muted">{c.status === 'signed' ? `Signed by ${c.signed_name} · ${dateTime(c.signed_at)}` : `Sent ${date(c.created_at)}`}</div>
-                  </Pressable>
-                  <div className="flex items-center gap-1.5">
-                    <Pill tone={tone[c.status]}>{c.status === 'sent' ? 'Awaiting signature' : titleCase(c.status)}</Pill>
-                    <Button size="sm" variant="secondary" onClick={() => run(() => downloadAction('contracts.pdf', { id: c.id }))}>PDF</Button>
-                    {c.status === 'sent' && <IconButton icon={X} label="Void" onClick={() => voidIt(c)} />}
-                  </div>
-                </div>
+                <ContractRow key={c.id} c={c} onView={() => setViewing(c.id)} onVoid={() => voidIt(c)} />
               ))}
             </List>
           ) : <Empty icon={FileSignature} title="No contracts" body="Send a contractor agreement for e-signature." />}
@@ -720,8 +708,36 @@ export function ContractsTab({ o, onForbidden }) {
   );
 }
 
-function SendContractSheet({ o, onClose, onDone }) {
+const CONTRACT_TONE = { sent: 'amber', signed: 'green', void: 'grey' };
+
+/** One issued contract; `who` adds the officer line in the company-wide register */
+export function ContractRow({ c, who, onView, onVoid }) {
+  const [run] = useAction();
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><FileSignature size={18} /></div>
+      <div className="min-w-0 flex-1 basis-48">
+        <Pressable press className="block w-full min-w-0 text-left" onClick={onView}>
+          <div className="truncate text-body font-semibold">{c.title}</div>
+        </Pressable>
+        {who}
+        <div className="truncate text-footnote text-muted">{c.status === 'signed' ? `Signed by ${c.signed_name} · ${dateTime(c.signed_at)}` : `Sent ${date(c.created_at)}`}</div>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <Pill tone={CONTRACT_TONE[c.status]}>{c.status === 'sent' ? 'Awaiting signature' : titleCase(c.status)}</Pill>
+        <Button size="sm" variant="secondary" onClick={() => run(() => downloadAction('contracts.pdf', { id: c.id }))}>PDF</Button>
+        {c.status === 'sent' && <IconButton icon={X} label="Void" onClick={onVoid} />}
+      </div>
+    </div>
+  );
+}
+
+/** Send a contract to one officer; without `o` the manager picks the officer first */
+export function SendContractSheet({ o: given, onClose, onDone }) {
   const tpl = useApi('contracts.templates');
+  const officers = useApi('officers.list', { status: 'active' }, { skip: !!given });
+  const [officerId, setOfficerId] = useState('');
+  const o = given || (officers.data || []).find((x) => x.id === officerId);
   const [id, setId] = useState('');
   const [run, busy] = useAction();
   const active = (tpl.data || []).filter((t) => t.active);
@@ -733,20 +749,22 @@ function SendContractSheet({ o, onClose, onDone }) {
   };
   return (
     <Sheet open onClose={onClose} title="Send contract" size="sm"
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!chosen} onClick={send}>Send for signature</Button></>}>
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!chosen || !o} onClick={send}>Send for signature</Button></>}>
       <Load q={tpl}>
         {() => active.length ? (
           <div className="space-y-3">
+            {!given && <Select label="Officer" placeholder="Choose an officer" value={officerId} onChange={(e) => setOfficerId(e.target.value)}
+              options={(officers.data || []).map((x) => ({ value: x.id, label: `${x.first_name} ${x.last_name}` }))} />}
             <Select label="Template" value={chosen} onChange={(e) => setId(e.target.value)} options={active.map((t) => ({ value: t.id, label: t.title }))} />
-            <p className="text-footnote text-muted">{o.first_name} will be notified{o.user_id ? '' : ' once they have an app login'} and can sign on their phone.</p>
+            {o && <p className="text-footnote text-muted">{o.first_name} will be notified{o.user_id ? '' : ' once they have an app login'} and can sign on their phone.</p>}
           </div>
-        ) : <Empty title="No active templates" body="Add one in Settings → Contracts." />}
+        ) : <Empty title="No active templates" body="Add one in Settings → Templates." />}
       </Load>
     </Sheet>
   );
 }
 
-function ContractView({ id, onClose }) {
+export function ContractView({ id, onClose }) {
   const q = useApi('contracts.get', { id });
   return (
     <Sheet open onClose={onClose} title={q.data?.title || 'Contract'} size="lg">

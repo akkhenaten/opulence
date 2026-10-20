@@ -44,7 +44,7 @@ function emailHtml(title, body, link) {
 export async function notify(userIds, { kind, title, body = '', link = '', severity = 'info', dedupe = null, email = false }) {
   let ids = [...new Set((userIds || []).filter(Boolean))];
   if (OPTIONAL_KINDS.includes(kind) && ids.length) {
-    ids = (await q("SELECT id FROM users WHERE id = ANY($1::uuid[]) AND (notify_prefs->>$2) IS DISTINCT FROM 'false'", [ids, kind])).map((r) => r.id);
+    ids = (await q("SELECT id FROM users WHERE id = ANY($1::uuid[]) AND COALESCE(notify_prefs->>$2, (SELECT notify_defaults->>$2 FROM settings WHERE id = 1)) IS DISTINCT FROM 'false'", [ids, kind])).map((r) => r.id);
   }
   if (!ids.length) return;
   const rows = await q(

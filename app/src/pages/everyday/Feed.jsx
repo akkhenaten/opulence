@@ -3,31 +3,45 @@ import { useSearchParams } from 'react-router-dom';
 import { Newspaper } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, Empty, ErrorBox, Load, Page, Sheet, Spinner, Tabs, useApi, usePullRefresh, useToast } from '../../ui/index.jsx';
+import { Button, Empty, ErrorBox, Load, Page, Segmented, Sheet, Spinner, useApi, usePullRefresh, useToast } from '../../ui/index.jsx';
 import Composer from './Composer.jsx';
 import Moderation from './Moderation.jsx';
 import PostCard from './PostCard.jsx';
 import { isMgr, PersonSheet } from './_parts.jsx';
 
 export default function Feed() {
-  const { user } = useAuth();
-  const [sp, setSp] = useSearchParams();
-  const mgr = isMgr(user);
-  const tab = mgr && sp.get('tab') === 'moderation' ? 'moderation' : 'feed';
-  const reports = useApi('everyday.reports', {}, { skip: !mgr });
-  const open = reports.data?.reports?.length || 0;
   return (
     <Page title="Everyday" subtitle="News, photos and shout-outs from the team">
-      {mgr && (
-        <Tabs value={tab} onChange={(v) => setSp(v === 'feed' ? {} : { tab: v }, { replace: true })}
-          tabs={[{ value: 'feed', label: 'Feed' }, { value: 'moderation', label: open ? `Moderation (${open})` : 'Moderation' }]} />
-      )}
-      {tab === 'feed' ? <Stream sp={sp} setSp={setSp} /> : <Moderation onChanged={reports.reload} />}
+      <FeedBody />
     </Page>
   );
 }
 
-function Stream({ sp, setSp }) {
+/** The feed itself; managers see it as a Dashboard tab, so other URL params (like ?tab=everyday) are kept */
+export function FeedBody() {
+  const { user } = useAuth();
+  const [sp, setSp] = useSearchParams();
+  const patch = (changes) => setSp((cur) => {
+    const n = new URLSearchParams(cur);
+    for (const [k, v] of Object.entries(changes)) { if (v == null) n.delete(k); else n.set(k, v); }
+    return n;
+  }, { replace: true });
+  const mgr = isMgr(user);
+  const view = mgr && sp.get('view') === 'moderation' ? 'moderation' : 'feed';
+  const reports = useApi('everyday.reports', {}, { skip: !mgr });
+  const open = reports.data?.reports?.length || 0;
+  return (
+    <>
+      {mgr && (
+        <Segmented className="mb-4" value={view} onChange={(v) => patch({ view: v === 'feed' ? null : v })}
+          options={[{ value: 'feed', label: 'Feed' }, { value: 'moderation', label: open ? `Moderation (${open})` : 'Moderation' }]} />
+      )}
+      {view === 'feed' ? <Stream sp={sp} patch={patch} /> : <Moderation onChanged={reports.reload} />}
+    </>
+  );
+}
+
+function Stream({ sp, patch }) {
   const toast = useToast();
   const q = useApi('everyday.feed', {});
   const [older, setOlder] = useState([]);
@@ -68,7 +82,7 @@ function Stream({ sp, setSp }) {
           );
         }}
       </Load>
-      <OnePost id={postId} comment={sp.get('comment')} onClose={() => setSp({}, { replace: true })} onPerson={setPerson} onChanged={reload} />
+      <OnePost id={postId} comment={sp.get('comment')} onClose={() => patch({ post: null, comment: null })} onPerson={setPerson} onChanged={reload} />
       <PersonSheet userId={person} onClose={() => setPerson(null)} />
     </div>
   );

@@ -18,7 +18,7 @@ export const isMgr = (u) => u.role === 'company' || u.role === 'security';
 
 export function useFeedBase() {
   const { user } = useAuth();
-  return user.role === 'officer' ? '/officer/everyday' : `/${user.role}/everyday`;
+  return user.role === 'officer' ? '/officer/everyday' : `/${user.role}?tab=everyday`;
 }
 
 // Text with @Name mentions picked out; tapping one opens their card

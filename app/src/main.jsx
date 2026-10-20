@@ -26,6 +26,9 @@ const TimeOff = P(() => import('./pages/people/TimeOff.jsx'));
 const Settings = P(() => import('./pages/people/Settings.jsx'));
 const Audit = P(() => import('./pages/people/Audit.jsx'));
 const Venues = P(() => import('./pages/money/Venues.jsx'));
+const Clients = P(() => import('./pages/money/Venues.jsx').then((m) => ({ default: m.Clients })));
+const StaffContracts = P(() => import('./pages/people/StaffContracts.jsx'));
+const EverydayRedirect = P(() => import('./pages/manager/Dashboard.jsx').then((m) => ({ default: m.EverydayRedirect })));
 const VenueDetail = P(() => import('./pages/money/VenueDetail.jsx'));
 const Pay = P(() => import('./pages/money/Pay.jsx'));
 const StatementDetail = P(() => import('./pages/money/StatementDetail.jsx'));
@@ -107,7 +110,7 @@ const managerRoutes = (
     <Route path="team/toolbox" element={<ToolboxAdmin />} />
     <Route path="team/toolbox/:id" element={<CardEditor />} />
     <Route path="team/certificates/:id" element={<Certificate />} />
-    <Route path="everyday" element={<Everyday />} />
+    <Route path="everyday" element={<EverydayRedirect />} />
   </>
 );
 
@@ -128,6 +131,8 @@ function App() {
             {managerRoutes}
             <Route path="recruitment" element={<Recruitment />} />
             <Route path="hr/time-off" element={<TimeOff />} />
+            <Route path="people/contracts" element={<StaffContracts />} />
+            <Route path="clients" element={<Clients />} />
             <Route path="venues" element={<Venues />} />
             <Route path="venues/:id" element={<VenueDetail />} />
             <Route path="pay" element={<Pay />} />

@@ -36,7 +36,8 @@ export const actions = {
     `SELECT u.id, u.email, u.name, u.phone, u.role, u.status, u.can_see_pay, u.last_login, u.created_at,
             COALESCE(array_agg(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS venues,
             COALESCE(array_agg(DISTINCT v.id) FILTER (WHERE v.id IS NOT NULL), '{}') AS venue_ids,
-            CASE WHEN u.status = 'invited' THEN '/app/invite/' || u.invite_token END AS invite_link
+            CASE WHEN u.status = 'invited' THEN '/app/invite/' || u.invite_token END AS invite_link,
+            (SELECT o.id FROM officers o WHERE o.user_id = u.id LIMIT 1) AS officer_id
        FROM users u
        LEFT JOIN venue_contacts vc ON vc.user_id = u.id AND u.role = 'venue'
        LEFT JOIN security_venues sv ON sv.user_id = u.id AND u.role = 'security'

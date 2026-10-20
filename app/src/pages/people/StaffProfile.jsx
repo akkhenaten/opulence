@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Ban, Mail, Pencil, Phone, Send, UserCheck } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -78,7 +78,9 @@ function Profile({ o, reload, user, base }) {
             <div className="flex flex-wrap items-center gap-2">
               <Pill status={o.status} />
               <ComplianceBadge c={o.compliance} />
-              <LoginPill o={o} />
+              {user.role === 'company' && o.user_id
+                ? <Link to={`/company/settings?tab=users&user=${o.user_id}`} aria-label="Sign-in access in Settings" className="pressable"><LoginPill o={o} /></Link>
+                : <LoginPill o={o} />}
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {(o.roles || []).length ? o.roles.map((r) => <span key={r} className="rounded-lg bg-bg px-2 py-0.5 text-footnote font-semibold">{roleName(r)}</span>)

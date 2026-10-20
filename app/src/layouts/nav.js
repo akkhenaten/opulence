@@ -1,16 +1,19 @@
 import {
   BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
   Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText, Sparkles, MessageSquarePlus,
-  GraduationCap, BookOpenCheck, Newspaper,
+  GraduationCap, BookOpenCheck, Briefcase, FileSignature,
 } from 'lucide-react';
 
-// Sidebar groups per role. `tab` marks the items shown in the mobile tab bar (max 5).
+// Sidebar sections per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
+// `perm` hides an item unless the user has that permission.
 export const NAV = {
   company: [
-    { items: [
-      { to: '/company', label: 'Dashboard', icon: LayoutGrid, end: true, tab: true },
+    { title: 'Overview', items: [
+      { to: '/company', label: 'Dashboard', icon: LayoutGrid, end: true, tab: true, badge: 'everyday' },
       { to: '/company/ops', label: 'Ops AI', icon: Sparkles, badge: 'ops' },
-      { to: '/company/live', label: 'Live', icon: Radio, tab: true },
+    ] },
+    { title: 'Operations', items: [
+      { to: '/company/live', label: 'Live operations', short: 'Live', icon: Radio, tab: true },
       { to: '/company/rota', label: 'Rota', icon: CalendarDays, tab: true },
       { to: '/company/cover', label: 'Cover requests', icon: Megaphone },
       { to: '/company/timesheets', label: 'Timesheets', icon: ClipboardCheck },
@@ -19,42 +22,51 @@ export const NAV = {
     { title: 'People', items: [
       { to: '/company/staff', label: 'Staff', icon: Users },
       { to: '/company/recruitment', label: 'Recruitment', icon: UserPlus },
+      { to: '/company/people/contracts', label: 'Staff contracts', icon: FileSignature },
       { to: '/company/hr/time-off', label: 'Time off', icon: CalendarOff },
-    ] },
-    { title: 'Team', items: [
       { to: '/company/team/academy', label: 'Academy', icon: GraduationCap, module: 'academy' },
+    ] },
+    { title: 'Resources', items: [
       { to: '/company/team/toolbox', label: 'Toolbox', icon: BookOpenCheck, module: 'toolbox' },
-      { to: '/company/everyday', label: 'Everyday', icon: Newspaper, module: 'everyday', badge: 'everyday' },
     ] },
-    { title: 'Clients', items: [
-      { to: '/company/venues', label: 'Venues & clients', icon: Building2 },
+    { title: 'Clients & sites', items: [
+      { to: '/company/clients', label: 'Clients', icon: Briefcase },
+      { to: '/company/venues', label: 'Venues', icon: Building2 },
     ] },
-    { title: 'Money', items: [
+    { title: 'Finance', items: [
       { to: '/company/pay', label: 'Pay runs', icon: Banknote },
       { to: '/company/invoices', label: 'Invoices', icon: ReceiptText },
+    ] },
+    { title: 'Reporting', items: [
       { to: '/company/reports', label: 'Reports', icon: BarChart3 },
     ] },
-    { title: 'Admin', items: [
-      { to: '/company/settings', label: 'Settings & users', icon: Settings },
+    { title: 'Administration', items: [
+      { to: '/company/settings', label: 'Settings', icon: Settings },
       { to: '/company/audit', label: 'Audit log', icon: ScrollText },
     ] },
   ],
   security: [
-    { items: [
-      { to: '/security', label: 'Dashboard', icon: LayoutGrid, end: true, tab: true },
+    { title: 'Overview', items: [
+      { to: '/security', label: 'Dashboard', icon: LayoutGrid, end: true, tab: true, badge: 'everyday' },
       { to: '/security/ops', label: 'Ops AI', icon: Sparkles, badge: 'ops' },
-      { to: '/security/live', label: 'Live', icon: Radio, tab: true },
+    ] },
+    { title: 'Operations', items: [
+      { to: '/security/live', label: 'Live operations', short: 'Live', icon: Radio, tab: true },
       { to: '/security/rota', label: 'Rota', icon: CalendarDays, tab: true },
       { to: '/security/exceptions', label: 'Exceptions', icon: TriangleAlert },
       { to: '/security/cover', label: 'Cover requests', icon: Megaphone },
       { to: '/security/timesheets', label: 'Timesheets', icon: ClipboardCheck },
       { to: '/security/incidents', label: 'Incidents', icon: ShieldAlert, tab: true },
-      { to: '/security/staff', label: 'Officers', icon: Users },
     ] },
-    { title: 'Team', items: [
+    { title: 'People', items: [
+      { to: '/security/staff', label: 'Officers', icon: Users },
       { to: '/security/team/academy', label: 'Academy', icon: GraduationCap, module: 'academy' },
+    ] },
+    { title: 'Resources', items: [
       { to: '/security/team/toolbox', label: 'Toolbox', icon: BookOpenCheck, module: 'toolbox' },
-      { to: '/security/everyday', label: 'Everyday', icon: Newspaper, module: 'everyday', badge: 'everyday' },
+    ] },
+    { title: 'Finance', items: [
+      { to: '/security/pay', label: 'Pay runs', icon: Banknote, perm: 'can_see_pay' },
     ] },
   ],
   venue: [

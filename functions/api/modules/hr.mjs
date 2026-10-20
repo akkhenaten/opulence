@@ -158,8 +158,17 @@ export const actions = {
     return c;
   }),
 
-  'contracts.list': def(['company', 'officer'], async (b, { user }) => q(
-    'SELECT id, title, status, signed_name, signed_at, created_at FROM contracts WHERE officer_id = $1 ORDER BY created_at DESC', [ownOrManager(user, b.officer_id)])),
+  'contracts.list': def(['company', 'officer'], async (b, { user }) => {
+    // Company-wide register when a manager asks without an officer
+    if (user.role === 'company' && !b.officer_id) {
+      return q(
+        `SELECT c.id, c.title, c.status, c.signed_name, c.signed_at, c.created_at, c.officer_id, o.first_name || ' ' || o.last_name AS officer_name
+           FROM contracts c JOIN officers o ON o.id = c.officer_id
+          WHERE ($1::text IS NULL OR c.status = $1) AND ($2::text IS NULL OR (o.first_name || ' ' || o.last_name || ' ' || c.title) ILIKE '%' || $2 || '%')
+          ORDER BY c.created_at DESC LIMIT 500`, [b.status || null, b.q?.trim() || null]);
+    }
+    return q('SELECT id, title, status, signed_name, signed_at, created_at FROM contracts WHERE officer_id = $1 ORDER BY created_at DESC', [ownOrManager(user, b.officer_id)]);
+  }),
 
   'contracts.get': def(['company', 'officer'], async (b, { user }) => {
     const c = need(await one('SELECT * FROM contracts WHERE id = $1', [b.id]));

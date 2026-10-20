@@ -1,30 +1,34 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2, CalendarDays, MapPin, Plus, Search, ShieldAlert, Users } from 'lucide-react';
 import { api } from '../../api.js';
 import {
-  Avatar, Button, cx, Empty, Input, List, Load, Page, Pill, Pressable, Row, SearchInput, Select, Sheet, Tabs, Textarea, useAction, useApi, useForm,
+  Avatar, Button, cx, Empty, Input, List, Load, Page, Pill, Pressable, Row, SearchInput, Select, Sheet, Textarea, useAction, useApi, useForm,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 
 export default function Venues() {
-  const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') || 'venues';
+  const [params] = useSearchParams();
   const venues = useApi('venues.list', { include_inactive: true });
   const clients = useApi('clients.list');
   const [addVenue, setAddVenue] = useState(false);
-  const [client, setClient] = useState(null); // {} = new, row = edit
-
+  // Clients used to be a tab here
+  if (params.get('tab') === 'clients') return <Navigate to="../clients" replace />;
   return (
-    <Page title="Venues & clients" subtitle="Sites you guard and the clients you bill"
-      actions={<Button icon={Plus} onClick={() => (tab === 'clients' ? setClient({}) : setAddVenue(true))}>{tab === 'clients' ? 'Add client' : 'Add venue'}</Button>}>
-        <Tabs value={tab} onChange={(t) => setParams(t === 'venues' ? {} : { tab: t }, { replace: true })}
-          tabs={[{ value: 'venues', label: 'Venues', count: venues.data?.length }, { value: 'clients', label: 'Clients', count: clients.data?.length }]} />
-        {tab === 'venues'
-          ? <Load q={venues}>{(rows) => <VenueGrid rows={rows} onAdd={() => setAddVenue(true)} />}</Load>
-          : <Load q={clients}>{(rows) => <ClientList rows={rows} onEdit={setClient} />}</Load>}
+    <Page title="Venues" subtitle="Sites you guard" actions={<Button icon={Plus} onClick={() => setAddVenue(true)}>Add venue</Button>}>
+      <Load q={venues}>{(rows) => <VenueGrid rows={rows} onAdd={() => setAddVenue(true)} />}</Load>
       <AddVenueSheet open={addVenue} onClose={() => setAddVenue(false)} clients={clients.data || []} />
-      <ClientSheet client={client} onClose={() => setClient(null)} onSaved={() => { clients.reload(); venues.reload(); }} />
+    </Page>
+  );
+}
+
+export function Clients() {
+  const clients = useApi('clients.list');
+  const [client, setClient] = useState(null); // {} = new, row = edit
+  return (
+    <Page title="Clients" subtitle="Who you bill, and their venues" actions={<Button icon={Plus} onClick={() => setClient({})}>Add client</Button>}>
+      <Load q={clients}>{(rows) => <ClientList rows={rows} onEdit={setClient} />}</Load>
+      <ClientSheet client={client} onClose={() => setClient(null)} onSaved={clients.reload} />
     </Page>
   );
 }
@@ -56,7 +60,7 @@ function VenueGrid({ rows, onAdd }) {
         )}
       </div>
       {!list.length ? <Empty icon={Search} title="No matching venues" /> : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-3 sm:gap-4">
           {list.map((v) => (
             <Link key={v.id} to={`${base}/venues/${v.id}`}
               className="group block min-w-0 rounded-tile border border-black/[0.04] bg-surface p-5 shadow-tile transition hover:-translate-y-0.5 active:scale-[0.99]">
@@ -65,10 +69,12 @@ function VenueGrid({ rows, onAdd }) {
                   ? <img src={v.photo_url} alt="" className="h-12 w-12 shrink-0 rounded-2xl object-cover" />
                   : <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-blue-soft text-blue"><Building2 size={24} /></div>}
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-headline font-bold">{v.name}</div>
-                  <div className="truncate text-footnote text-muted">{v.client_name || 'No client'}</div>
+                  <div className="line-clamp-2 break-words text-headline font-bold leading-snug">{v.name}</div>
+                  <div className="mt-0.5 flex min-w-0 items-center gap-2">
+                    <span className="truncate text-footnote text-muted">{v.client_name || 'No client'}</span>
+                    {!v.active && <Pill status="closed" className="shrink-0">Inactive</Pill>}
+                  </div>
                 </div>
-                <Pill status={v.active ? 'active' : 'closed'}>{v.active ? 'Active' : 'Inactive'}</Pill>
               </div>
               <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-footnote text-muted">
                 <span className="inline-flex items-center gap-1"><MapPin size={14} />{v.postcode || 'No postcode'}</span>
@@ -77,10 +83,10 @@ function VenueGrid({ rows, onAdd }) {
                   {v.lat == null ? 'No geofence' : `${v.radius_m}m geofence`}
                 </span>
               </div>
-              <div className="mt-3 flex gap-2 border-t border-line pt-3 text-footnote">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-bg px-2.5 py-1 font-semibold"><CalendarDays size={14} className="text-blue" /><span className="num">{v.upcoming_shifts}</span> upcoming</span>
-                <span className={cx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold', Number(v.open_incidents) ? 'bg-red-soft text-red' : 'bg-bg')}>
-                  <ShieldAlert size={14} /><span className="num">{v.open_incidents}</span> open incidents
+              <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3 text-footnote">
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-bg px-2.5 py-1 font-semibold"><CalendarDays size={14} className="text-blue" /><span className="num">{v.upcoming_shifts}</span> upcoming</span>
+                <span className={cx('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 font-semibold', Number(v.open_incidents) ? 'bg-red-soft text-red' : 'bg-bg')}>
+                  <ShieldAlert size={14} /><span className="num">{v.open_incidents}</span> open
                 </span>
               </div>
             </Link>

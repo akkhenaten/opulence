@@ -27,8 +27,11 @@ export const actions = {
   }),
 
   'notifications.prefs.get': def(ALL, async (_b, { user }) => {
-    const r = await one('SELECT notify_prefs, (SELECT count(*)::int FROM push_subscriptions WHERE user_id = $1) AS devices FROM users WHERE id = $1', [user.id]);
-    return { prefs: Object.fromEntries(OPTIONAL_KINDS.map((k) => [k, r.notify_prefs?.[k] !== false])), devices: r.devices };
+    const r = await one(`SELECT notify_prefs, (SELECT notify_defaults FROM settings WHERE id = 1) AS defaults,
+                                (SELECT count(*)::int FROM push_subscriptions WHERE user_id = $1) AS devices FROM users WHERE id = $1`, [user.id]);
+    // A person's own choice wins, then the company default, then on
+    const defaults = Object.fromEntries(OPTIONAL_KINDS.map((k) => [k, r.defaults?.[k] !== false]));
+    return { prefs: Object.fromEntries(OPTIONAL_KINDS.map((k) => [k, r.notify_prefs?.[k] ?? defaults[k]])), defaults, devices: r.devices };
   }),
 
   'notifications.prefs.save': def(ALL, async (b, { user }) => {

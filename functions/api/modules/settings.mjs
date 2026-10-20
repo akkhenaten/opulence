@@ -5,6 +5,7 @@ import { audit } from '../lib/audit.mjs';
 import { ALL, CO, def } from './_def.mjs';
 import { MODULES } from '../lib/modules.mjs';
 import { monthKey } from '../lib/ai.mjs';
+import { OPTIONAL_KINDS } from '../lib/notify.mjs';
 
 const FIELDS = ['company_name', 'company_address', 'company_email', 'company_phone', 'vat_number', 'vat_rate', 'company_number', 'bank_name',
   'bank_sort_code', 'bank_account', 'invoice_prefix', 'invoice_cycle', 'payment_terms_days', 'pay_period', 'grace_minutes', 'auto_signoff_days',
@@ -24,6 +25,10 @@ export const actions = {
     if (b.modules) {
       if (typeof b.modules !== 'object' || Object.keys(b.modules).some((k) => !MODULES.includes(k))) fail(400, 'Unknown module');
       f.modules = { ...(await getSettings()).modules, ...Object.fromEntries(Object.entries(b.modules).map(([k, v]) => [k, !!v])) };
+    }
+    if (b.notify_defaults) {
+      if (typeof b.notify_defaults !== 'object' || Object.keys(b.notify_defaults).some((k) => !OPTIONAL_KINDS.includes(k))) fail(400, 'Unknown alert type');
+      f.notify_defaults = { ...(await getSettings()).notify_defaults, ...Object.fromEntries(Object.entries(b.notify_defaults).map(([k, v]) => [k, !!v])) };
     }
     if (b.ai_module_caps) {
       const caps = {};

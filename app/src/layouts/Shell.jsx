@@ -1,10 +1,11 @@
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { Bell, BellOff, LogOut, MoreHorizontal, Newspaper } from 'lucide-react';
+import { Bell, BellOff, ChevronRight, LogOut, MoreHorizontal, Newspaper } from 'lucide-react';
 import { api } from '../api.js';
 import { portalLink, useAuth } from '../auth.jsx';
 import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, usePageHeader, useScrollMemory } from '../ui/index.jsx';
 import { NAV, ROLE_LABEL } from './nav.js';
+import { AccountSheet } from './AccountSheet.jsx';
 
 // faded: the wordmark fades out (header shows the page title instead)
 export function Logo({ compact, faded }) {
@@ -67,8 +68,8 @@ function NotificationBell() {
 
 // Everyday shortcut with a count of posts since the person last looked
 function EverydayButton({ to, unread }) {
-  const { pathname } = useLocation();
-  return <IconButton icon={Newspaper} tone="solid" to={to} active={pathname === to} badge={unread} label={`Everyday${unread ? `, ${unread} new posts` : ''}`} />;
+  const { pathname, search } = useLocation();
+  return <IconButton icon={Newspaper} tone="solid" to={to} active={pathname + search === to} badge={unread} label={`Everyday${unread ? `, ${unread} new posts` : ''}`} />;
 }
 
 // Compact page title in the top bar, shown once the large title has scrolled away
@@ -96,6 +97,7 @@ export default function Shell() {
   const badges = { ops: opsCount.data?.n || 0, everyday: feed.data?.unread || 0 };
   const loc = useLocation();
   const [more, setMore] = useState(false);
+  const [account, setAccount] = useState(false);
   // Settings saves fire this so switched-off modules disappear straight away
   const reloadSettings = useRef(settings.reload);
   reloadSettings.current = settings.reload;
@@ -105,15 +107,16 @@ export default function Shell() {
     return () => window.removeEventListener('orb:settings', r);
   }, []);
   // Opening the feed clears the badge
-  useEffect(() => { if (feedOn && /\/everyday$/.test(loc.pathname)) setTimeout(feed.reload, 1500); }, [loc.pathname, feedOn]);
+  const onFeed = /\/everyday$/.test(loc.pathname) || /[?&]tab=everyday/.test(loc.search);
+  useEffect(() => { if (feedOn && onFeed) setTimeout(feed.reload, 1500); }, [onFeed, feedOn]);
   const groups = NAV[user.role]
-    .map((g) => ({ ...g, items: g.items.filter((it) => (!it.module || on(it.module)) && (!it.moduleAny || it.moduleAny.some(on))) }))
+    .map((g) => ({ ...g, items: g.items.filter((it) => (!it.module || on(it.module)) && (!it.moduleAny || it.moduleAny.some(on)) && (!it.perm || user[it.perm])) }))
     .filter((g) => g.items.length);
   const all = groups.flatMap((g) => g.items);
   const tabs = all.filter((i) => i.tab);
   const extra = all.filter((i) => !i.tab);
   const isOfficer = user.role === 'officer';
-  useEffect(() => { setMore(false); }, [loc.pathname]);
+  useEffect(() => { setMore(false); setAccount(false); }, [loc.pathname]);
   useScrollMemory();
   const header = usePageHeader();
   // Desktop header is see-through at the top; it gets its frosted background once the page scrolls under it
@@ -153,24 +156,24 @@ export default function Shell() {
       {!isOfficer && (
         <aside className="sticky top-0 hidden h-dvh w-[260px] shrink-0 flex-col border-r border-line/70 bg-surface/70 px-3 py-5 backdrop-blur-xl lg:flex">
           <div className="px-3 pb-6"><Logo /></div>
-          <nav className="flex-1 space-y-5 overflow-y-auto no-scrollbar">
+          <nav className="flex-1 space-y-4 overflow-y-auto no-scrollbar">
             {groups.map((g, i) => (
               <div key={i}>
-                {g.title && <div className="mb-1 px-3 text-caption2 font-semibold uppercase tracking-wider text-faint">{g.title}</div>}
+                {g.title && <div className="mb-0.5 px-3 text-caption2 font-semibold uppercase tracking-wider text-faint">{g.title}</div>}
                 {g.items.map((it) => (
                   <NavLink key={it.to} to={it.to} end={it.end} onClick={tabTap(it)}
-                    className={({ isActive: on }) => cx('pressable flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-subhead font-semibold', on ? 'bg-blue-soft text-blue' : 'text-ink/75 hover:bg-bg hover:text-ink')}>
+                    className={({ isActive: on }) => cx('pressable flex min-h-9 items-center gap-3 rounded-xl px-3 py-1.5 text-subhead font-semibold', on ? 'bg-blue-soft text-blue' : 'text-ink/75 hover:bg-bg hover:text-ink')}>
                     <it.icon size={18} /><span className="flex-1">{it.label}</span><Badge n={badges[it.badge]} />
                   </NavLink>
                 ))}
               </div>
             ))}
           </nav>
-          <div className="mt-4 flex items-center gap-3 rounded-2xl bg-bg p-3">
+          <Pressable press onClick={() => setAccount(true)} aria-label="My account" className="mt-4 flex items-center gap-3 rounded-2xl bg-bg p-3 hover:bg-line/40">
             <Avatar name={user.name} size={36} />
             <div className="min-w-0 flex-1"><div className="truncate text-subhead font-semibold">{user.name}</div><div className="truncate text-caption text-muted">{ROLE_LABEL[user.role]}</div></div>
-            <IconButton icon={LogOut} label="Sign out" size="sm" onClick={signOut} />
-          </div>
+            <ChevronRight size={18} className="text-faint" />
+          </Pressable>
         </aside>
       )}
 
@@ -182,7 +185,7 @@ export default function Shell() {
             <div className={cx(!isOfficer && 'lg:invisible')}><Logo faded={header.collapsed && !!header.title} /></div>
             <div className="flex items-center gap-2">
               {company && !isOfficer && <span className="hidden text-footnote font-semibold text-muted sm:block lg:hidden">{company}</span>}
-              {feedOn && <EverydayButton to={`${user.role === 'officer' ? '/officer' : `/${user.role}`}/everyday`} unread={badges.everyday} />}
+              {feedOn && <EverydayButton to={isOfficer ? '/officer/everyday' : `/${user.role}?tab=everyday`} unread={badges.everyday} />}
               <NotificationBell />
               {isOfficer && <span className="hidden sm:block"><Button variant="secondary" size="sm" icon={LogOut} onClick={signOut}>Sign out</Button></span>}
             </div>
@@ -204,7 +207,7 @@ export default function Shell() {
               {it.primary
                 ? <span className={cx('-mt-5 grid h-14 w-14 place-items-center rounded-full bg-blue text-white shadow-[0_8px_20px_-6px_rgba(10,108,255,.8)] ring-4 ring-bg', isActive(it) && 'anim-pop')}><it.icon size={24} /></span>
                 : <span className={cx(isActive(it) && 'anim-pop')}><it.icon size={24} /></span>}
-              <span className={cx(it.primary && 'mt-0.5')}>{it.label}</span>
+              <span className={cx(it.primary && 'mt-0.5')}>{it.short || it.label}</span>
             </NavLink>
           ))}
           {extra.length > 0 && (
@@ -222,12 +225,13 @@ export default function Shell() {
             </NavLink>
           ))}
         </div>
-        <div className="mt-4 flex items-center gap-3 rounded-2xl bg-bg p-3">
+        <Pressable press onClick={() => { setMore(false); setAccount(true); }} className="mt-4 flex items-center gap-3 rounded-2xl bg-bg p-3">
           <Avatar name={user.name} size={36} />
-          <div className="min-w-0 flex-1"><div className="truncate font-semibold">{user.name}</div><div className="text-footnote text-muted">{ROLE_LABEL[user.role]}</div></div>
-          <Button variant="secondary" size="sm" icon={LogOut} onClick={signOut}>Sign out</Button>
-        </div>
+          <div className="min-w-0 flex-1"><div className="truncate font-semibold">{user.name}</div><div className="text-footnote text-muted">My account · {ROLE_LABEL[user.role]}</div></div>
+          <ChevronRight size={18} className="text-faint" />
+        </Pressable>
       </Sheet>
+      {!isOfficer && <AccountSheet open={account} onClose={() => setAccount(false)} />}
     </div>
   );
 }
