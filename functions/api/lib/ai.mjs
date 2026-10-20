@@ -91,7 +91,22 @@ export async function claude({ model = SONNET, system, messages, tools, tool_cho
 export async function extract({ model = HAIKU, system, messages, tool, max_tokens = 1024, module = 'ops' }) {
   const r = await claude({ model, system, messages, tools: [tool], tool_choice: { type: 'tool', name: tool.name }, max_tokens, module });
   const block = (r.content || []).find((c) => c.type === 'tool_use');
-  return { input: block?.input || null, credits: r.credits };
+  return { input: block?.input ? fixShapes(block.input, tool.input_schema) : null, credits: r.credits };
+}
+
+// Models sometimes send a list or object as a JSON string (or a plain list as lines of text); put it back in the schema's shape
+function fixShapes(v, schema) {
+  if (!schema) return v;
+  if ((schema.type === 'array' || schema.type === 'object') && typeof v === 'string') {
+    try { v = JSON.parse(v); } catch {
+      if (schema.type === 'array' && schema.items?.type === 'string') v = v.split('\n').map((x) => x.replace(/^\s*(\d+[.)]|[-•*])\s*/, '').trim()).filter(Boolean);
+    }
+  }
+  if (schema.type === 'array' && Array.isArray(v)) return v.map((x) => fixShapes(x, schema.items));
+  if (schema.type === 'object' && v && typeof v === 'object' && schema.properties) {
+    for (const [k, sub] of Object.entries(schema.properties)) if (k in v) v[k] = fixShapes(v[k], sub);
+  }
+  return v;
 }
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);

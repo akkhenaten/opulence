@@ -119,7 +119,7 @@ export const actions = {
       system: `${CONTENT_RULES}\nYou are writing one Toolbox card: a quick-reference guide an officer reads on their phone in the moment. Steps must be concrete actions in the right order.`,
       messages: [{ role: 'user', content: `Category: ${category.replace('_', ' ')}\nTopic: ${String(b.topic).slice(0, 300)}${venue ? `\nVenue-specific procedure for ${venue.name}` : ''}${b.notes ? `\nManager's notes: ${String(b.notes).slice(0, 2000)}` : ''}` }],
     });
-    if (!input?.title) fail(502, 'The AI could not draft this card — try again');
+    if (!input?.title || !strList(input.steps).length) fail(502, 'The AI could not draft this card — try again');
     const f = cardFields({ ...input, category, venue_id: b.venue_id || null });
     const keys = Object.keys(f);
     const card = await one(`INSERT INTO toolbox_cards (${keys.join(', ')}, updated_by) VALUES (${keys.map((_, i) => `$${i + 1}`).join(', ')}, $${keys.length + 1}) RETURNING *`,
