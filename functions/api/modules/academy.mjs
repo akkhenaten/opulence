@@ -73,8 +73,16 @@ const cleanQ = (x) => {
   const options = (Array.isArray(x?.options) ? x.options : []).map((o) => String(o).trim()).filter(Boolean).slice(0, 6);
   const answer = Number(x?.answer);
   if (!String(x?.prompt || '').trim() || options.length < 2 || !(answer >= 0 && answer < options.length)) return null;
-  return { kind: x.kind === 'scenario' ? 'scenario' : 'mcq', prompt: String(x.prompt).trim(), options, answer, explain: String(x.explain || '').trim() };
+  return { kind: x.kind === 'scenario' ? 'scenario' : 'mcq', prompt: String(x.prompt).trim(), ...shuffle(options, answer), explain: String(x.explain || '').trim() };
 };
+
+// The AI tends to put the right answer in the same slot, so mix the options (unless one refers to the others, e.g. "All of the above")
+export function shuffle(options, answer) {
+  if (options.some((o) => /\b(above|below|both|neither)\b/i.test(o))) return { options, answer };
+  const order = options.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  return { options: order.map((i) => options[i]), answer: order.indexOf(answer) };
+}
 
 // A list sent as text, one item per line (numbering and bullets removed); arrays pass through
 const lines = (x) => (Array.isArray(x) ? x.map(String) : String(x || '').split('\n'))
