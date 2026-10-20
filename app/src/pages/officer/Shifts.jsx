@@ -5,7 +5,7 @@ import { CalendarDays, CalendarOff, Check, Hand, Info, Megaphone, X } from 'luci
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  addDays, Button, Empty, isoDate, Load, Page, Section, Sheet, Tabs, Textarea, time, useAction, useApi, useConfirm,
+  addDays, Button, Empty, isoDate, Load, Page, Section, Sheet, Tabs, Textarea, time, useAction, useApi, useConfirm, usePullRefresh,
 } from '../../ui/index.jsx';
 import { ASSIGN_LABEL, assignTone, NotLinked, ShiftCard } from './_parts.jsx';
 
@@ -17,9 +17,11 @@ export default function Shifts() {
   const open = useApi('shifts.open', {}, { skip: !user.officer_id });
   const ops = useOps(!user.officer_id);
   const offered = (ops.data?.offers || []).filter((o) => o.status === 'offered').length;
+  const pull = usePullRefresh(() => Promise.all([open.reload(), ops.reload()]), tab !== 'mine' && !!user.officer_id);
 
   return (
     <Page title="Shifts" actions={<Button size="sm" variant="secondary" icon={CalendarOff} to="/officer/time-off">Availability</Button>}>
+      {pull}
       {!user.officer_id ? <NotLinked /> : (
         <>
           <Tabs value={tab} onChange={setTab} tabs={[{ value: 'mine', label: 'My shifts' }, { value: 'offers', label: 'Offers', count: offered }, { value: 'open', label: 'Open shifts', count: open.data?.length }]} />
@@ -33,6 +35,7 @@ export default function Shifts() {
 function Mine() {
   const [from] = useState(() => new Date(`${addDays(isoDate(), -42)}T00:00:00Z`).toISOString());
   const q = useApi('shifts.mine', { from });
+  const pull = usePullRefresh(q.reload);
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const [declining, setDeclining] = useState(null);
@@ -46,7 +49,9 @@ function Mine() {
   };
 
   return (
-    <Load q={q}>
+    <>
+      {pull}
+      <Load q={q} skeleton="rows">
       {(rows) => {
         const now = Date.now();
         const upcoming = rows.filter((s) => new Date(s.ends_at) > now);
@@ -111,6 +116,7 @@ function Mine() {
         );
       }}
     </Load>
+    </>
   );
 }
 
@@ -122,7 +128,7 @@ function Open({ q }) {
     run(() => api('shifts.request', { shift_id: s.id }), 'Requested. The office will confirm.').then(q.reload).catch(() => {}).finally(() => setPending(null));
   };
   return (
-    <Load q={q}>
+    <Load q={q} skeleton="rows">
       {(rows) => (!rows.length ? (
         <Empty icon={Megaphone} title="No open shifts right now" body="Open shifts that need cover appear here. You'll get a notification when the office posts one." />
       ) : (

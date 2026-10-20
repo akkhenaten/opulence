@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Avatar, Button, cx, Input, Load, Select, Sheet, relative, useAction, useApi } from '../../ui/index.jsx';
+import { Avatar, Button, cx, Input, Load, Pressable, relative, Select, Sheet, useAction, useApi } from '../../ui/index.jsx';
 
 export const REACTIONS = [
   { kind: 'like', emoji: '👍', label: 'Like' },
@@ -32,7 +32,7 @@ export function Body({ text, mentions = [], onPerson, className }) {
     <div className={cx('whitespace-pre-wrap break-words', className)}>
       {parts.map((p, i) => {
         const m = i % 2 ? names.find((x) => x.name === p) : null;
-        return m ? <button key={i} type="button" className="font-semibold text-blue" onClick={() => onPerson?.(m.id)}>@{p}</button> : <Fragment key={i}>{p}</Fragment>;
+        return m ? <Pressable press key={i} className="inline font-semibold text-blue" onClick={() => onPerson?.(m.id)}>@{p}</Pressable> : <Fragment key={i}>{p}</Fragment>;
       })}
     </div>
   );
@@ -86,11 +86,11 @@ export function MentionBox({ value, onChange, mentions, placeholder, rows = 3, a
       {list.length > 0 && (
         <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-2xl border border-line bg-surface shadow-lg">
           {list.map((p) => (
-            <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(p)} className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-bg">
+            <Pressable press key={p.id} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(p)} className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-bg">
               <Avatar name={p.name} src={p.photo_url} size={30} />
               <span className="min-w-0 flex-1 truncate text-body font-medium">{p.name}</span>
               <span className="text-caption text-muted">{ROLE_LABEL[p.role]}</span>
-            </button>
+            </Pressable>
           ))}
         </div>
       )}
@@ -107,11 +107,11 @@ export function PhotoGrid({ photos, onOpen }) {
   return (
     <div className={cx('grid gap-0.5 overflow-hidden', n === 1 ? 'grid-cols-1' : 'grid-cols-2')}>
       {shown.map((p, i) => (
-        <button key={p.key} type="button" onClick={() => onOpen(i)}
+        <Pressable press key={p.key} onClick={() => onOpen(i)}
           className={cx('relative block bg-bg', n === 1 ? 'max-h-[520px]' : 'aspect-square', n === 3 && i === 0 && 'row-span-2 aspect-auto')}>
           <img src={p.url} alt="" loading="lazy" className={cx('h-full w-full', n === 1 ? 'max-h-[520px] object-contain' : 'object-cover')} />
           {i === 3 && n > 4 && <span className="absolute inset-0 grid place-items-center bg-black/50 text-title2 font-bold text-white">+{n - 4}</span>}
-        </button>
+        </Pressable>
       ))}
     </div>
   );

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, Sparkles } from 'lucide-react';
 import { api } from '../../api.js';
-import { Button, Sheet, Textarea, useAction } from '../../ui/index.jsx';
+import { Button, Pressable, Sheet, Textarea, useAction } from '../../ui/index.jsx';
 import { category } from './_parts.jsx';
 
 const EXAMPLES = ['Someone has collapsed and isn\'t breathing', 'A customer won\'t leave and is getting aggressive', 'I think someone\'s drink has been spiked', 'I found a bag left on its own'];
@@ -25,7 +25,7 @@ export default function Suggest({ open, onClose }) {
       <Textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="Say what's happening, in your own words" />
       {!res && (
         <div className="mt-3 flex flex-wrap gap-2">
-          {EXAMPLES.map((e) => <button key={e} type="button" onClick={() => ask(e)} className="rounded-full border border-line px-3 py-1.5 text-footnote font-semibold hover:border-blue hover:text-blue">{e}</button>)}
+          {EXAMPLES.map((e) => <Pressable press key={e} onClick={() => ask(e)} className="rounded-full border border-line px-3 py-2 text-footnote font-semibold hover:border-blue hover:text-blue">{e}</Pressable>)}
         </div>
       )}
       {res && (

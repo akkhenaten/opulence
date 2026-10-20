@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { EyeOff, Flag, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Send, Trash2, VolumeX } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Avatar, Button, cx, Input, Load, Sheet, relative, Toggle, useAction, useApi, useConfirm, useToast } from '../../ui/index.jsx';
+import { Avatar, Button, cx, Input, Load, Pressable, relative, Sheet, Toggle, useAction, useApi, useConfirm, useToast } from '../../ui/index.jsx';
 import Composer from './Composer.jsx';
 import { Body, isMgr, Lightbox, MentionBox, MuteSheet, PhotoGrid, reaction, REACTIONS, ROLE_LABEL } from './_parts.jsx';
 
@@ -32,17 +32,17 @@ export function ReactButton({ item, onReact, small }) {
       {open && (
         <div className="absolute bottom-full left-0 z-20 mb-1 flex gap-0.5 rounded-full border border-line bg-surface p-1 shadow-lg">
           {REACTIONS.map((r) => (
-            <button key={r.kind} type="button" title={r.label} aria-label={r.label} onClick={() => { setOpen(false); onReact(item.mine === r.kind ? null : r.kind); }}
-              className={cx('grid h-10 w-10 place-items-center rounded-full text-title2 transition hover:-translate-y-1 hover:scale-125', item.mine === r.kind && 'bg-blue-soft')}>{r.emoji}</button>
+            <Pressable press key={r.kind} title={r.label} aria-label={r.label} onClick={() => { setOpen(false); onReact(item.mine === r.kind ? null : r.kind); }}
+              className={cx('grid h-10 w-10 place-items-center rounded-full text-title2 transition hover:-translate-y-1 hover:scale-125', item.mine === r.kind && 'bg-blue-soft')}>{r.emoji}</Pressable>
           ))}
         </div>
       )}
-      <button type="button" onPointerDown={start} onPointerUp={end} onPointerLeave={end} onContextMenu={(e) => e.preventDefault()}
+      <Pressable press onPointerDown={start} onPointerUp={end} onPointerLeave={end} onContextMenu={(e) => e.preventDefault()}
         onClick={() => { if (long.current) return; onReact(item.mine ? null : 'like'); }}
-        className={cx('flex select-none items-center gap-1.5 rounded-xl font-semibold transition active:scale-95', small ? 'text-caption' : 'px-3 py-2 text-subhead hover:bg-bg', cur ? 'text-blue' : 'text-muted')}>
+        className={cx('flex select-none items-center gap-1.5 rounded-xl font-semibold transition active:scale-95', small ? '-my-2 py-2 text-caption' : 'px-3 py-2 text-subhead hover:bg-bg', cur ? 'text-blue' : 'text-muted')}>
         {cur ? <span className={small ? 'text-footnote' : 'text-headline'}>{cur.emoji}</span> : !small && <span className="text-headline grayscale">👍</span>}
         {cur ? cur.label : 'Like'}
-      </button>
+      </Pressable>
     </div>
   );
 }
@@ -61,17 +61,17 @@ function WhoReacted({ target, onClose, onPerson }) {
               <>
                 <div className="mb-3 flex flex-wrap gap-1.5">
                   {['all', ...kinds].map((k) => (
-                    <button key={k} type="button" onClick={() => setTab(k)} className={cx('rounded-full px-3 py-1 text-footnote font-semibold', tab === k ? 'bg-blue text-white' : 'bg-bg')}>
+                    <Pressable press key={k} onClick={() => setTab(k)} className={cx('rounded-full px-3 py-1 text-footnote font-semibold', tab === k ? 'bg-blue text-white' : 'bg-bg')}>
                       {k === 'all' ? `All ${rows.length}` : `${reaction(k)?.emoji} ${rows.filter((r) => r.kind === k).length}`}
-                    </button>
+                    </Pressable>
                   ))}
                 </div>
                 <div className="space-y-1">
                   {shown.map((r) => (
-                    <button key={r.person.id} type="button" onClick={() => onPerson(r.person.id)} className="flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-bg">
+                    <Pressable press key={r.person.id} onClick={() => onPerson(r.person.id)} className="flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-bg">
                       <span className="relative"><Avatar name={r.person.name} src={r.person.photo_url} size={36} /><span className="absolute -bottom-1 -right-1 text-subhead">{reaction(r.kind)?.emoji}</span></span>
                       <span className="min-w-0 flex-1"><span className="block truncate text-body font-medium">{r.person.name}</span><span className="block text-caption text-muted">{ROLE_LABEL[r.person.role]}</span></span>
-                    </button>
+                    </Pressable>
                   ))}
                 </div>
               </>
@@ -96,14 +96,14 @@ function Menu({ items }) {
   if (!list.length) return null;
   return (
     <div className="relative" ref={ref}>
-      <button type="button" aria-label="More" onClick={() => setOpen(!open)} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-bg"><MoreHorizontal size={20} /></button>
+      <Pressable press aria-label="More" onClick={() => setOpen(!open)} className="grid h-10 w-10 place-items-center rounded-full text-muted hover:bg-bg"><MoreHorizontal size={20} /></Pressable>
       {open && (
         <div className="absolute right-0 top-full z-30 mt-1 w-56 overflow-hidden rounded-2xl border border-line bg-surface py-1 shadow-lg">
           {list.map((it) => (
-            <button key={it.label} type="button" onClick={() => { setOpen(false); it.onClick(); }}
+            <Pressable press key={it.label} onClick={() => { setOpen(false); it.onClick(); }}
               className={cx('flex w-full items-center gap-3 px-4 py-2.5 text-left text-subhead font-medium hover:bg-bg', it.danger && 'text-red')}>
               <it.icon size={18} /> {it.label}
-            </button>
+            </Pressable>
           ))}
         </div>
       )}
@@ -121,7 +121,7 @@ function ReportSheet({ target, onClose }) {
       <p className="mb-3 text-subhead text-muted">Only managers see reports. The person isn't told who reported it.</p>
       <div className="mb-3 flex flex-wrap gap-1.5">
         {['Unkind or bullying', 'Shows a customer or incident', 'Personal details', 'Confidential', 'Spam'].map((r) => (
-          <button key={r} type="button" onClick={() => setReason(r)} className={cx('rounded-full px-3 py-1.5 text-footnote font-medium', reason === r ? 'bg-blue text-white' : 'bg-bg')}>{r}</button>
+          <Pressable press key={r} onClick={() => setReason(r)} className={cx('rounded-full px-3 py-1.5 text-footnote font-medium', reason === r ? 'bg-blue text-white' : 'bg-bg')}>{r}</Pressable>
         ))}
       </div>
       <Input label="Anything else?" value={reason} onChange={(e) => setReason(e.target.value)} />
@@ -181,10 +181,10 @@ function Comment({ c, post, onReply, onChanged, onPerson, highlight, reply }) {
   const n = total(item.reactions);
   return (
     <div ref={el} className={cx('flex gap-2', reply && 'ml-10')}>
-      <button type="button" onClick={() => onPerson(c.author.id)} className="shrink-0"><Avatar name={c.author.name} src={c.author.photo_url} size={reply ? 26 : 32} /></button>
+      <Pressable press onClick={() => onPerson(c.author.id)} className="shrink-0"><Avatar name={c.author.name} src={c.author.photo_url} size={reply ? 26 : 32} /></Pressable>
       <div className="min-w-0 flex-1">
         <div className={cx('relative inline-block max-w-full rounded-2xl px-3 py-2', highlight ? 'bg-blue-soft' : 'bg-bg', c.hidden_at && 'opacity-60')}>
-          <button type="button" onClick={() => onPerson(c.author.id)} className="block text-footnote font-semibold">{c.author.name}</button>
+          <Pressable press onClick={() => onPerson(c.author.id)} className="block text-footnote font-semibold">{c.author.name}</Pressable>
           {editing ? (
             <div className="min-w-[220px]">
               <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} className="w-full resize-none bg-transparent text-body outline-none" />
@@ -193,19 +193,19 @@ function Comment({ c, post, onReply, onChanged, onPerson, highlight, reply }) {
           ) : <Body text={c.body} mentions={c.mentions} onPerson={onPerson} className="text-body" />}
           {c.hidden_at && <div className="text-caption2 font-semibold text-red">Hidden from staff</div>}
           {n > 0 && (
-            <button type="button" onClick={() => setWho({ target_type: 'comment', target_id: c.id })}
-              className="absolute -bottom-2.5 right-1 flex items-center gap-0.5 rounded-full bg-surface px-1.5 py-0.5 text-caption shadow">{topEmoji(item.reactions)}{n > 1 && <span className="text-muted">{n}</span>}</button>
+            <Pressable press onClick={() => setWho({ target_type: 'comment', target_id: c.id })}
+              className="absolute -bottom-2.5 right-1 flex items-center gap-0.5 rounded-full bg-surface px-1.5 py-0.5 text-caption shadow">{topEmoji(item.reactions)}{n > 1 && <span className="text-muted">{n}</span>}</Pressable>
           )}
         </div>
         <div className="mt-1 flex items-center gap-3 px-2 text-caption text-muted">
           <span>{relative(c.created_at)}{c.edited_at ? ' · edited' : ''}</span>
           <ReactButton item={item} onReact={react} small />
-          <button type="button" className="font-semibold" onClick={() => onReply(c)}>Reply</button>
-          {mine && !editing && <button type="button" className="font-semibold" onClick={() => setEditing(true)}>Edit</button>}
-          {mine && <button type="button" className="font-semibold" onClick={del}>Delete</button>}
-          {!mine && <button type="button" className="font-semibold" onClick={() => setReport({ target_type: 'comment', target_id: c.id })}>Report</button>}
-          {isMgr(user) && !mine && !c.hidden_at && <button type="button" className="font-semibold text-red" onClick={() => setHide({ target_type: 'comment', id: c.id })}>Hide</button>}
-          {isMgr(user) && c.hidden_at && <button type="button" className="font-semibold" onClick={() => api('everyday.unhide', { target_type: 'comment', id: c.id }).then(onChanged)}>Unhide</button>}
+          <Pressable press className="-my-2 py-2 font-semibold" onClick={() => onReply(c)}>Reply</Pressable>
+          {mine && !editing && <Pressable press className="-my-2 py-2 font-semibold" onClick={() => setEditing(true)}>Edit</Pressable>}
+          {mine && <Pressable press className="-my-2 py-2 font-semibold" onClick={del}>Delete</Pressable>}
+          {!mine && <Pressable press className="-my-2 py-2 font-semibold" onClick={() => setReport({ target_type: 'comment', target_id: c.id })}>Report</Pressable>}
+          {isMgr(user) && !mine && !c.hidden_at && <Pressable press className="-my-2 py-2 font-semibold text-red" onClick={() => setHide({ target_type: 'comment', id: c.id })}>Hide</Pressable>}
+          {isMgr(user) && c.hidden_at && <Pressable press className="-my-2 py-2 font-semibold" onClick={() => api('everyday.unhide', { target_type: 'comment', id: c.id }).then(onChanged)}>Unhide</Pressable>}
         </div>
       </div>
       <ReportSheet target={report} onClose={() => setReport(null)} />
@@ -244,8 +244,8 @@ function CommentBox({ post, parent, onSent, onCancel, autoFocus }) {
           <MentionBox value={text} mentions={mentions} rows={1} autoFocus={autoFocus} onSubmit={send}
             onChange={(t, ids) => { setText(t); setMentions(ids); }} placeholder={parent ? `Reply to ${parent.author.name}` : 'Write a comment'} className="py-1.5 text-body" />
         </div>
-        {onCancel && <button type="button" className="px-2 py-2 text-caption font-semibold text-muted" onClick={onCancel}>Cancel</button>}
-        <button type="button" aria-label="Send" disabled={!text.trim() || busy} onClick={send} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-blue disabled:opacity-30"><Send size={18} /></button>
+        {onCancel && <Pressable press className="px-2 py-2 text-caption font-semibold text-muted" onClick={onCancel}>Cancel</Pressable>}
+        <Pressable press aria-label="Send" disabled={!text.trim() || busy} onClick={send} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-blue disabled:opacity-30"><Send size={18} /></Pressable>
       </div>
     </div>
   );
@@ -302,9 +302,9 @@ export default function PostCard({ post: initial, onChanged, onPerson, full, hig
       {post.pinned_at && <div className="flex items-center gap-1.5 bg-blue-soft px-4 py-1.5 text-caption font-semibold text-blue"><Pin size={14} /> Pinned announcement</div>}
       {post.hidden_at && <div className="flex items-center gap-1.5 bg-red-soft px-4 py-1.5 text-caption font-semibold text-red"><EyeOff size={14} /> Hidden from staff{post.hidden_reason ? ` — ${post.hidden_reason}` : ''}</div>}
       <header className="flex items-center gap-3 px-4 pt-3">
-        <button type="button" onClick={() => onPerson(post.author.id)}><Avatar name={post.author.name} src={post.author.photo_url} size={42} /></button>
+        <Pressable press onClick={() => onPerson(post.author.id)}><Avatar name={post.author.name} src={post.author.photo_url} size={42} /></Pressable>
         <div className="min-w-0 flex-1">
-          <button type="button" onClick={() => onPerson(post.author.id)} className="block truncate text-body font-semibold">{post.author.name}</button>
+          <Pressable press onClick={() => onPerson(post.author.id)} className="block truncate text-body font-semibold">{post.author.name}</Pressable>
           <div className="text-caption text-muted">{ROLE_LABEL[post.author.role]} · {relative(post.created_at)}{post.edited_at ? ' · edited' : ''}</div>
         </div>
         <Menu items={[
@@ -320,19 +320,19 @@ export default function PostCard({ post: initial, onChanged, onPerson, full, hig
       {post.photos.length > 0 && <div className="mt-3"><PhotoGrid photos={post.photos} onOpen={setPhoto} /></div>}
       {(n > 0 || post.comment_count > 0) && (
         <div className="flex items-center justify-between px-4 pt-2.5 text-footnote text-muted">
-          {n > 0 ? <button type="button" onClick={() => setWho({ target_type: 'post', target_id: post.id })} className="flex items-center gap-1"><span>{topEmoji(post.reactions)}</span>{n}</button> : <span />}
-          {post.comment_count > 0 && <button type="button" onClick={() => (all ? setBox(true) : reload())}>{post.comment_count} comment{post.comment_count === 1 ? '' : 's'}</button>}
+          {n > 0 ? <Pressable press onClick={() => setWho({ target_type: 'post', target_id: post.id })} className="-my-2 flex items-center gap-1 py-2"><span>{topEmoji(post.reactions)}</span>{n}</Pressable> : <span />}
+          {post.comment_count > 0 && <Pressable press className="-my-2 py-2" onClick={() => (all ? setBox(true) : reload())}>{post.comment_count} comment{post.comment_count === 1 ? '' : 's'}</Pressable>}
         </div>
       )}
       <div className="mx-4 mt-2 flex border-t border-line py-1">
         <div className="flex flex-1 justify-center"><ReactButton item={post} onReact={react} /></div>
-        <button type="button" onClick={() => { setBox(true); setReplyTo(null); }} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-subhead font-semibold text-muted hover:bg-bg">
+        <Pressable press onClick={() => { setBox(true); setReplyTo(null); }} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-subhead font-semibold text-muted hover:bg-bg">
           <MessageCircle size={18} /> Comment
-        </button>
+        </Pressable>
       </div>
       {(comments.length > 0 || box) && (
         <div className="space-y-3 border-t border-line px-4 pb-4 pt-3">
-          {!all && more > 0 && <button type="button" className="text-subhead font-semibold text-muted" onClick={reload}>View all {post.comment_count} comments</button>}
+          {!all && more > 0 && <Pressable press className="-my-2 py-2 text-subhead font-semibold text-muted" onClick={reload}>View all {post.comment_count} comments</Pressable>}
           {top.map((c) => (
             <div key={c.id} className="space-y-3">
               <Comment c={c} post={post} onReply={(x) => { setReplyTo(x); setBox(true); }} onChanged={reload} onPerson={onPerson} highlight={highlightComment === c.id} />

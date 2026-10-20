@@ -6,14 +6,14 @@ const touch = typeof window !== 'undefined' && ('ontouchstart' in window || navi
 const PULL = 70;
 
 // Pull down at the top of the page to reload. Returns an indicator element to render.
-export function usePullRefresh(onRefresh) {
+export function usePullRefresh(onRefresh, enabled = true) {
   const [pull, setPull] = useState(0);
   const [busy, setBusy] = useState(false);
   const ref = useRef({ y: null, pull: 0 });
   const cb = useRef(onRefresh);
   cb.current = onRefresh;
   useEffect(() => {
-    if (!touch) return undefined;
+    if (!touch || !enabled) return undefined;
     const s = ref.current;
     const start = (e) => { s.y = window.scrollY <= 0 && !document.body.style.overflow ? e.touches[0].clientY : null; };
     const move = (e) => {
@@ -36,7 +36,7 @@ export function usePullRefresh(onRefresh) {
     window.addEventListener('touchmove', move, { passive: true });
     window.addEventListener('touchend', end);
     return () => { window.removeEventListener('touchstart', start); window.removeEventListener('touchmove', move); window.removeEventListener('touchend', end); };
-  }, []);
+  }, [enabled]);
   if (!pull && !busy) return null;
   return createPortal(
     createElement('div', {

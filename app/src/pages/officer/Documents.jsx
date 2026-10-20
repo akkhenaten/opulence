@@ -2,9 +2,7 @@ import { useRef, useState } from 'react';
 import { BadgeCheck, Camera, Clock3, ExternalLink, FileText, Paperclip, Plus, ShieldCheck, Trash2, Upload } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import {
-  Button, cx, date, daysUntil, Empty, Input, Load, Page, Pill, Select, Sheet, useAction, useApi, useConfirm,
-} from '../../ui/index.jsx';
+import { Button, cx, date, daysUntil, Empty, Input, Load, Page, Pill, Pressable, Select, Sheet, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { compressImage, DOC_KINDS, docKindLabel, expiryText, expiryTone, NotLinked } from './_parts.jsx';
 
 const NEEDS_EXPIRY = new Set(['sia', 'first_aid', 'id']);
@@ -19,7 +17,7 @@ export default function Documents() {
 
   return (
     <Page title="Documents" back={{ to: '/officer/me', label: 'Me' }} actions={<Button icon={Plus} onClick={() => setAdding('sia')}>Add</Button>}>
-      <Load q={q}>
+      <Load q={q} skeleton="rows">
         {(rows) => {
           const sorted = [...rows].sort((a, b) => rank(a) - rank(b));
           const warn = rows.filter((d) => d.expiry && daysUntil(d.expiry) <= 30);
@@ -56,10 +54,10 @@ const rank = (d) => {
 
 function QuickAdd({ icon: I, label, onClick }) {
   return (
-    <button type="button" onClick={onClick} className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-3.5 text-left shadow-tile transition active:scale-[0.98]">
+    <Pressable card onClick={onClick} className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-3.5 shadow-tile">
       <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-soft text-blue"><I size={20} /></span>
       <span className="min-w-0"><span className="block text-body font-semibold leading-tight">{label}</span><span className="text-caption text-muted">Upload</span></span>
-    </button>
+    </Pressable>
   );
 }
 

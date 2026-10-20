@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Award, BookOpen, Check, ChevronLeft, ChevronRight, CircleHelp, ClipboardCheck, MessageCircleQuestion } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, cx, date, dateTime, Load, Page, Pill, Sheet, Tile, useApi } from '../../ui/index.jsx';
+import { Button, cx, date, dateTime, Load, Page, Pill, Pressable, Sheet, Tile, useApi } from '../../ui/index.jsx';
 import Chat from '../../ui/Chat.jsx';
 import { Progress } from '../officer/_parts.jsx';
 import { Lesson, Options, TOPICS } from './_parts.jsx';
@@ -104,11 +104,11 @@ function Body({ d, officer, reload }) {
         <ol className="divide-y divide-line">
           {d.sections.map((x, i) => (
             <li key={x.id}>
-              <button type="button" onClick={() => go(i)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-bg">
+              <Pressable onClick={() => go(i)} className="flex items-center gap-3 px-4 py-3.5">
                 <span className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full text-footnote font-bold', done.has(x.id) ? 'bg-green text-white' : 'bg-bg text-muted')}>{done.has(x.id) ? <Check size={16} /> : i + 1}</span>
                 <span className="min-w-0 flex-1 text-body font-semibold">{x.title}</span>
                 <ChevronRight size={18} className="text-faint" />
-              </button>
+              </Pressable>
             </li>
           ))}
         </ol>

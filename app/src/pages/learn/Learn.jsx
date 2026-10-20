@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, BookOpenCheck, ChevronRight, GraduationCap, Layers, Search, Sparkles, Star, WifiOff } from 'lucide-react';
+import { Award, BookOpenCheck, ChevronRight, GraduationCap, Layers, Sparkles, Star, WifiOff } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
-import { cx, date, dateShort, Empty, List, Load, Page, Row, Section, Spinner, Tile, useApi } from '../../ui/index.jsx';
+import { cx, date, dateShort, Empty, List, Load, Page, Pressable, Row, SearchInput, Section, Spinner, Tile, useApi, usePullRefresh } from '../../ui/index.jsx';
 import { NotLinked, Progress } from '../officer/_parts.jsx';
 import { CATEGORIES, StatePill, TOPICS, useModules, useToolbox } from './_parts.jsx';
 import Suggest from './Suggest.jsx';
@@ -32,18 +32,17 @@ function ToolboxPart() {
   return (
     <>
       <form onSubmit={(e) => { e.preventDefault(); nav(`/officer/learn/toolbox${text.trim() ? `?q=${encodeURIComponent(text.trim())}` : ''}`); }}
-        className="flex items-center gap-2 rounded-2xl border border-line bg-surface px-4 shadow-tile focus-within:border-blue">
-        <Search size={18} className="text-faint" />
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search the Toolbox — CPR, ejection, spiking…" className="h-12 min-w-0 flex-1 bg-transparent text-callout outline-none" />
+        role="search">
+        <SearchInput value={text} onChange={(e) => setText(e.target.value)} placeholder="Search the Toolbox — CPR, ejection, spiking…" />
       </form>
       {tb.offline && <div className="mt-2 flex items-center gap-2 px-1 text-footnote font-semibold text-amber"><WifiOff size={14} /> Offline — showing your saved copy</div>}
 
-      <button type="button" onClick={() => setAsk(true)}
-        className="mt-3 flex w-full items-center gap-3 rounded-tile bg-blue p-4 text-left text-white shadow-tile transition active:scale-[0.99]">
+      <Pressable card onClick={() => setAsk(true)}
+        className="mt-3 flex items-center gap-3 rounded-tile bg-blue p-4 text-white shadow-tile">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/15"><Sparkles size={24} /></span>
         <span className="min-w-0 flex-1"><span className="block text-headline font-bold">What should I do?</span><span className="block text-footnote opacity-80">Describe the situation — Orb finds the right guide</span></span>
         <ChevronRight size={20} className="opacity-70" />
-      </button>
+      </Pressable>
 
       <div className="mt-3 grid grid-cols-2 gap-3">
         {CATEGORIES.filter((c) => c.value !== 'venue' || count('venue')).map((c) => (
@@ -74,8 +73,11 @@ function ToolboxPart() {
 
 function AcademyPart() {
   const q = useApi('academy.my', {});
+  const pull = usePullRefresh(q.reload);
   return (
-    <Load q={q}>
+    <>
+    {pull}
+    <Load q={q} skeleton="rows">
       {({ courses, certificates }) => {
         const mine = courses.filter((c) => c.assignment_id || ['in_progress', 'passed', 'renew', 'expired'].includes(c.state));
         const todo = mine.filter((c) => c.state !== 'passed');
@@ -109,6 +111,7 @@ function AcademyPart() {
         );
       }}
     </Load>
+    </>
   );
 }
 

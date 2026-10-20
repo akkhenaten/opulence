@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { HeartPulse, MessageSquareWarning, Scale, Building2, GraduationCap } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { cx, Pill } from '../../ui/index.jsx';
+import { cx, Pill, Pressable } from '../../ui/index.jsx';
 
 export const TOPICS = { law: 'UK law', operations: 'Operations', first_aid: 'First aid' };
 export const CATEGORIES = [
@@ -68,13 +68,13 @@ export function Options({ options, picked, result, onPick, disabled }) {
         const right = answered && i === result.answer;
         const wrong = answered && i === picked && !result.correct;
         return (
-          <button key={i} type="button" disabled={disabled || answered} onClick={() => onPick(i)}
-            className={cx('flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left text-body transition',
+          <Pressable press key={i} disabled={disabled || answered} onClick={() => onPick(i)} aria-pressed={picked === i}
+            className={cx('flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-body transition-colors',
               right ? 'border-green bg-green-soft' : wrong ? 'border-red bg-red-soft' : picked === i ? 'border-blue bg-blue-soft' : 'border-line bg-surface hover:border-blue/50',
               answered && !right && !wrong && 'opacity-60')}>
             <span className={cx('grid h-6 w-6 shrink-0 place-items-center rounded-full text-caption font-bold', right ? 'bg-green text-white' : wrong ? 'bg-red text-white' : 'bg-bg text-muted')}>{String.fromCharCode(65 + i)}</span>
             <span className="min-w-0 flex-1">{o}</span>
-          </button>
+          </Pressable>
         );
       })}
     </div>

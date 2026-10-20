@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Check, Layers, RotateCcw } from 'lucide-react';
-import { Button, cx, Empty, Page, Segmented, Spinner } from '../../ui/index.jsx';
+import { Button, cx, Empty, Page, Pressable, Segmented, Spinner } from '../../ui/index.jsx';
 import { Progress } from '../officer/_parts.jsx';
 import { CATEGORIES, category, useToolbox } from './_parts.jsx';
 
@@ -45,8 +45,8 @@ export default function Revise() {
       ) : (
         <>
           <Progress value={i} max={deck.length} className="mb-3" />
-          <button type="button" onClick={() => setFlip(!flip)}
-            className={cx('block min-h-[320px] w-full rounded-tile p-6 text-left shadow-tile transition active:scale-[0.99]', flip ? 'bg-surface' : 'bg-blue text-white')}>
+          <Pressable card onClick={() => setFlip(!flip)}
+            className={cx('min-h-[320px] rounded-tile p-6 shadow-tile', flip ? 'bg-surface' : 'bg-blue text-white')}>
             {!flip ? (
               <div className="flex min-h-[270px] flex-col justify-between">
                 <div className="text-caption font-semibold uppercase tracking-wide opacity-80">{category(c.category).label}</div>
@@ -61,7 +61,7 @@ export default function Revise() {
                 </ol>
               </div>
             )}
-          </button>
+          </Pressable>
           <div className="mt-4 grid grid-cols-2 gap-3">
             <Button variant="secondary" size="lg" icon={RotateCcw} onClick={() => mark(false)}>Again</Button>
             <Button size="lg" icon={Check} onClick={() => mark(true)}>Got it</Button>

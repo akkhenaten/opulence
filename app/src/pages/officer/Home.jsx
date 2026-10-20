@@ -5,7 +5,7 @@ import {
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Bento, Button, cx, date, dateShort, dayLabel, daysUntil, Load, money, Page, range, relative, Stat, Tile, useAction, useApi,
+  Avatar, Bento, Button, cx, date, dateShort, dayLabel, daysUntil, Load, money, Page, range, relative, Stat, Tile, useAction, useApi, usePullRefresh,
 } from '../../ui/index.jsx';
 import { useModules } from '../learn/_parts.jsx';
 import { ChaseBanner, OffersList, useOps } from './_ops.jsx';
@@ -17,11 +17,14 @@ export default function Home() {
   const clock = useApi('clock.status', {}, { poll: 60000, skip: !user.officer_id });
   const ops = useOps(!user.officer_id);
   const first = (user.name || '').split(' ')[0];
+  const reloadAll = () => Promise.all([dash.reload(), clock.reload(), ops.reload()]);
+  const pull = usePullRefresh(reloadAll);
 
   return (
     <Page title={`${greeting()}${first ? `, ${first}` : ''}`} subtitle={dayLabel(new Date())}>
-      <Load q={dash}>
-        {(d) => (d.linked === false ? <NotLinked /> : <Body d={d} clock={clock} ops={ops} reload={() => { dash.reload(); clock.reload(); ops.reload(); }} />)}
+      {pull}
+      <Load q={dash} skeleton="tiles">
+        {(d) => (d.linked === false ? <NotLinked /> : <Body d={d} clock={clock} ops={ops} reload={reloadAll} />)}
       </Load>
     </Page>
   );

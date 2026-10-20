@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Newspaper } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, Empty, ErrorBox, Load, Page, Sheet, Spinner, Tabs, useApi, useToast } from '../../ui/index.jsx';
+import { Button, Empty, ErrorBox, Load, Page, Sheet, Spinner, Tabs, useApi, usePullRefresh, useToast } from '../../ui/index.jsx';
 import Composer from './Composer.jsx';
 import Moderation from './Moderation.jsx';
 import PostCard from './PostCard.jsx';
@@ -48,10 +48,12 @@ function Stream({ sp, setSp }) {
     } catch (e) { toast(e.message, 'error'); } finally { setLoadingMore(false); }
   };
   const reload = () => q.reload();
+  const pull = usePullRefresh(reload);
 
   return (
     <div className="mx-auto max-w-[620px] space-y-4">
-      <Load q={q}>
+      {pull}
+      <Load q={q} skeleton="rows">
         {(d) => {
           const posts = [...d.posts, ...older];
           return (

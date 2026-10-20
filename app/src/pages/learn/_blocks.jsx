@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import { Check, ImagePlus, Lightbulb, Plus, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import { upload } from '../../api.js';
-import { Button, cx, IconButton, Input, Lightbox, Select, Textarea } from '../../ui/index.jsx';
+import { Button, cx, IconButton, Input, Lightbox, Pressable, Select, Textarea } from '../../ui/index.jsx';
 import { compressImage } from '../officer/_parts.jsx';
 
 export const RATING = {
@@ -20,9 +20,9 @@ export function HeroImage({ blocks }) {
   if (!img?.url) return null;
   return (
     <figure className="-mx-1 mb-4">
-      <button type="button" onClick={() => setOpen(0)} className="block aspect-video w-full overflow-hidden rounded-2xl bg-fill">
+      <Pressable card onClick={() => setOpen(0)} className="aspect-video overflow-hidden rounded-2xl bg-fill" aria-label="Open picture">
         <img src={img.url} alt={img.caption || ''} loading="lazy" className="h-full w-full object-cover" />
-      </button>
+      </Pressable>
       {img.caption && <figcaption className="mt-1.5 px-1 text-footnote text-muted">{img.caption}</figcaption>}
       <Lightbox photos={[img]} index={open} onClose={() => setOpen(null)} />
     </figure>
@@ -104,19 +104,19 @@ function OptionsCard({ b }) {
         {b.choices.map((c, i) => {
           const r = RATING[c.rating] || RATING.ok;
           return (
-            <button key={i} type="button" disabled={shown} onClick={() => setPicked(i)}
-              className={cx('block w-full rounded-xl border bg-surface px-3.5 py-3 text-left transition',
+            <Pressable press key={i} disabled={shown} onClick={() => setPicked(i)}
+              className={cx('w-full rounded-xl border bg-surface px-3.5 py-3 transition-colors',
                 !shown && 'border-line hover:border-blue', shown && 'border-transparent', shown && picked === i && `ring-2 ${r.ring}`)}>
               <div className="flex items-start gap-2">
                 <span className="min-w-0 flex-1 text-body leading-snug">{c.text}</span>
                 {shown && <span className={cx('shrink-0 rounded-full px-2 py-0.5 text-caption font-semibold', r.cls)}>{r.label}</span>}
               </div>
               {shown && c.why && <p className="mt-1.5 text-subhead leading-snug text-muted">{c.why}</p>}
-            </button>
+            </Pressable>
           );
         })}
       </div>
-      {shown && <p className="mt-3 text-footnote text-muted">{picked != null && b.choices[picked].rating === 'best' ? 'Well done — that is best practice.' : 'Compare your choice with the best practice above.'} <button type="button" className="font-semibold text-blue" onClick={() => setPicked(null)}>Try again</button></p>}
+      {shown && <p className="mt-3 text-footnote text-muted">{picked != null && b.choices[picked].rating === 'best' ? 'Well done — that is best practice.' : 'Compare your choice with the best practice above.'} <Button variant="link" size="sm" onClick={() => setPicked(null)}>Try again</Button></p>}
     </div>
   );
 }

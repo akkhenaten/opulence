@@ -5,7 +5,7 @@ import {
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Button, cx, dayLabel, Empty, Load, Page, range, Spinner, Textarea, time, titleCase, useApi, useConfirm, useToast,
+  Button, cx, dayLabel, Empty, Load, Page, Pressable, range, Spinner, Textarea, time, titleCase, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
 import { distanceM, NotLinked, until } from './_parts.jsx';
 
@@ -177,11 +177,11 @@ function ClockScreen({ data, reload }) {
           <div className="mb-2 px-1 text-footnote font-semibold uppercase tracking-wide text-muted">Your shifts around now</div>
           <div className="space-y-2">
             {list.map((x) => (
-              <button key={x.assignment_id} type="button" onClick={() => setSelId(x.assignment_id)}
-                className={cx('flex w-full items-center justify-between gap-3 rounded-2xl border bg-surface px-4 py-3 text-left shadow-tile', x.assignment_id === a.assignment_id ? 'border-blue ring-2 ring-blue/15' : 'border-transparent')}>
+              <Pressable card key={x.assignment_id} onClick={() => setSelId(x.assignment_id)} aria-pressed={x.assignment_id === a.assignment_id}
+                className={cx('flex w-full items-center justify-between gap-3 rounded-2xl border bg-surface px-4 py-3 shadow-tile', x.assignment_id === a.assignment_id ? 'border-blue ring-2 ring-blue/15' : 'border-transparent')}>
                 <span className="min-w-0"><span className="block truncate font-semibold">{x.venue_name}</span><span className="num text-footnote text-muted">{dayLabel(x.starts_at)} · {range(x.starts_at, x.ends_at)}</span></span>
                 <span className="shrink-0 text-footnote font-semibold text-muted">{STATE_LABEL[x.state]}</span>
-              </button>
+              </Pressable>
             ))}
           </div>
         </div>

@@ -74,7 +74,7 @@ export function NotificationsSheet({ open, onClose }) {
           </div>
         )}
       </div>
-      <Load q={q}>
+      <Load q={q} skeleton="rows">
         {() => prefs && (
           <div className="space-y-4">
             <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Tell me about</div>

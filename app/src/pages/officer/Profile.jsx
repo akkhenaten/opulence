@@ -2,9 +2,7 @@ import { useRef, useState } from 'react';
 import { Award, Camera, MessageSquareText, Plus, Save, Trash2 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import {
-  Avatar, Button, date, Input, KV, List, Load, Page, Pill, Row, Section, Tile, titleCase, useAction, useApi,
-} from '../../ui/index.jsx';
+import { Avatar, Button, date, Input, KV, List, Load, Page, Pill, Pressable, Row, Section, Tile, titleCase, useAction, useApi } from '../../ui/index.jsx';
 import { compressImage, NotLinked } from './_parts.jsx';
 
 const FIELDS = ['phone', 'address', 'postcode', 'dob', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account'];
@@ -63,10 +61,10 @@ function Editor({ o, reload, notes }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-4 rounded-tile bg-surface p-4 shadow-tile">
-        <button type="button" onClick={() => file.current?.click()} className="relative shrink-0" aria-label="Change photo">
+        <Pressable press onClick={() => file.current?.click()} className="relative shrink-0 rounded-full" aria-label="Change photo">
           <Avatar name={o.name} src={photo} size={72} />
           <span className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-blue text-white ring-4 ring-surface">{photoBusy ? <span className="h-3 w-3 animate-pulse rounded-full bg-white" /> : <Camera size={16} />}</span>
-        </button>
+        </Pressable>
         <input ref={file} type="file" accept="image/*" capture="user" className="hidden" onChange={changePhoto} />
         <div className="min-w-0">
           <div className="display truncate text-title3 font-bold">{o.name}</div>

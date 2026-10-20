@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { EyeOff, ShieldCheck, Sparkles } from 'lucide-react';
 import { api } from '../../api.js';
-import { Button, Empty, Load, relative, Section, Sheet, Spinner, Tile, useAction, useApi } from '../../ui/index.jsx';
+import { Button, Empty, Load, Pressable, relative, Section, Sheet, Spinner, Tile, useAction, useApi } from '../../ui/index.jsx';
 import PostCard from './PostCard.jsx';
 import { PersonSheet } from './_parts.jsx';
 
@@ -24,7 +24,7 @@ export default function Moderation({ onChanged }) {
 
   return (
     <div className="mx-auto max-w-[760px]">
-      <Load q={q}>
+      <Load q={q} skeleton="rows">
         {({ reports, hidden, mutes }) => (
           <div className="space-y-6">
             <Section title={`Reports to check (${reports.length})`}>
@@ -76,7 +76,7 @@ export default function Moderation({ onChanged }) {
                     <Tile key={m.user_id}>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <button type="button" className="font-semibold hover:text-blue" onClick={() => setPerson(m.user_id)}>{m.name}</button>
+                          <Pressable press className="inline font-semibold hover:text-blue" onClick={() => setPerson(m.user_id)}>{m.name}</Pressable>
                           <div className="text-footnote text-muted">Until {new Date(m.until).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}{m.by_name ? ` · by ${m.by_name}` : ''}{m.reason ? ` — ${m.reason}` : ''}</div>
                         </div>
                         <Button size="sm" variant="secondary" disabled={busy} onClick={() => unmute(m)}>Let them post</Button>

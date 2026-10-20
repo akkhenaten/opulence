@@ -7,7 +7,7 @@ import {
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Button, cx, dateTime, dayLabel, fromLocalInput, Input, KV, Load, Page, range, Sheet, Spinner, Textarea, toLocalInput, Toggle, useAction, useApi, useConfirm, useToast,
+  Button, cx, dateTime, dayLabel, fromLocalInput, Input, KV, Load, Page, Pressable, range, Sheet, Spinner, Textarea, Toggle, toLocalInput, useAction, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
 import { INCIDENT_TYPES, NotLinked, Progress, SEVERITIES, typeLabel } from './_parts.jsx';
 import { DOC_ACCEPT, FileTile, MAX_FILES, useUploads } from '../shared/evidence.jsx';
@@ -147,10 +147,10 @@ function Wizard({ existing }) {
         {step === 5 && <StepReview v={v} at={at} shift={shift} existing={existing} witnesses={witnesses} files={uploads.done.length} saved={saved.length} aiAssisted={aiAssisted} problems={problems} goTo={go} />}
       </div>
 
-      <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom))] z-10 mt-5 flex gap-2 rounded-tile bg-bg/90 py-2 backdrop-blur">
+      <div className="sticky bottom-[calc(var(--tabbar-h)+12px)] z-10 mt-5 flex gap-2 rounded-tile bg-bg/90 py-2 backdrop-blur">
         {step > 0 && <Button size="lg" variant="secondary" icon={ChevronLeft} onClick={() => go(step - 1)} disabled={busy}>Back</Button>}
         {step < STEPS.length - 1
-          ? <Button size="lg" className="flex-1" disabled={!canNext} onClick={() => go(step + 1)}>Next <ChevronRight size={18} /></Button>
+          ? <Button size="lg" className="flex-1" disabled={!canNext} iconRight={ChevronRight} onClick={() => go(step + 1)}>Next</Button>
           : <Button size="lg" className="flex-1" busy={busy} disabled={!canNext} onClick={submit}>{edit ? 'Resubmit report' : 'Submit report'}</Button>}
       </div>
     </Page>
@@ -176,11 +176,11 @@ function StepWhat({ v, setV, set }) {
             const I = TYPE_ICON[t.value];
             const on = v.type === t.value;
             return (
-              <button key={t.value} type="button" onClick={() => setV((s) => ({ ...s, type: t.value }))}
-                className={cx('flex min-h-[84px] flex-col items-center justify-center gap-1.5 rounded-2xl border-2 px-1 py-2 text-center text-footnote font-semibold leading-tight transition active:scale-95',
+              <Pressable press key={t.value} onClick={() => setV((s) => ({ ...s, type: t.value }))} aria-pressed={on}
+                className={cx('flex min-h-[84px] flex-col items-center justify-center gap-1.5 rounded-2xl border-2 px-1 py-2 text-center text-footnote font-semibold leading-tight transition-colors',
                   on ? 'border-blue bg-blue-soft text-blue' : 'border-transparent bg-bg text-ink')}>
                 <I size={24} />{t.label}
-              </button>
+              </Pressable>
             );
           })}
         </div>
@@ -188,11 +188,11 @@ function StepWhat({ v, setV, set }) {
       <Card title="How serious?">
         <div className="grid grid-cols-2 gap-2">
           {SEVERITIES.map((s) => (
-            <button key={s.value} type="button" onClick={() => setV((x) => ({ ...x, severity: s.value }))}
-              className={cx('rounded-2xl border-2 px-3 py-3 text-left transition active:scale-[0.98]', v.severity === s.value ? SEV_STYLE[s.value] : 'border-transparent bg-bg', v.severity === s.value && 'ring-2 ring-blue/30')}>
+            <Pressable press key={s.value} onClick={() => setV((x) => ({ ...x, severity: s.value }))} aria-pressed={v.severity === s.value}
+              className={cx('rounded-2xl border-2 px-3 py-3 transition-colors', v.severity === s.value ? SEV_STYLE[s.value] : 'border-transparent bg-bg', v.severity === s.value && 'ring-2 ring-blue/30')}>
               <div className="text-callout font-bold">{s.label}</div>
               <div className={cx('text-caption', v.severity === s.value ? 'opacity-85' : 'text-muted')}>{s.hint}</div>
-            </button>
+            </Pressable>
           ))}
         </div>
         {(v.severity === 'high' || v.severity === 'critical') && <p className="mt-2 text-footnote font-semibold text-red">Managers and the venue are alerted straight away.</p>}
@@ -223,11 +223,11 @@ function StepWhen({ v, set, edit, existing, shifts, loading, shiftId, setShiftId
         ) : (
           <div className="space-y-2">
             {shifts.slice(0, 6).map((s) => (
-              <button key={s.id} type="button" onClick={() => setShiftId(s.id)}
-                className={cx('flex w-full items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 text-left transition', s.id === shiftId ? 'border-blue bg-blue-soft' : 'border-transparent bg-bg')}>
+              <Pressable press key={s.id} onClick={() => setShiftId(s.id)} aria-pressed={s.id === shiftId}
+                className={cx('flex w-full items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 transition-colors', s.id === shiftId ? 'border-blue bg-blue-soft' : 'border-transparent bg-bg')}>
                 <span className="min-w-0"><span className="block truncate text-body font-semibold">{s.venue_name}</span><span className="num text-footnote text-muted">{dayLabel(s.starts_at)} · {range(s.starts_at, s.ends_at)}</span></span>
                 <span className={cx('grid h-6 w-6 shrink-0 place-items-center rounded-full border-2', s.id === shiftId ? 'border-blue bg-blue' : 'border-line')}>{s.id === shiftId && <span className="h-2 w-2 rounded-full bg-white" />}</span>
-              </button>
+              </Pressable>
             ))}
           </div>
         )}
@@ -428,7 +428,7 @@ function DraftSheet({ onClose, notes, keys, v, setV, shiftId, at, incidentId, on
 function StepReview({ v, at, shift, existing, witnesses, files, saved, aiAssisted, problems, goTo }) {
   const yn = (b, ref) => (b ? `Yes${ref ? ` (ref ${ref})` : ''}` : 'No');
   const sev = SEVERITIES.find((s) => s.value === v.severity);
-  const Edit = ({ n }) => <button type="button" onClick={() => goTo(n)} className="text-subhead font-semibold text-blue">Edit</button>;
+  const Edit = ({ n }) => <Button variant="link" onClick={() => goTo(n)}>Edit</Button>;
   return (
     <div className="space-y-3">
       {problems.length > 0 && (

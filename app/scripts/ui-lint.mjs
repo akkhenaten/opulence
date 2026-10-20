@@ -8,6 +8,8 @@ const ROOT = path.resolve(import.meta.dirname, '../src');
 const only = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const SHOW_FILES = process.argv.includes('--files');
 const ICON_OK = new Set([14, 16, 18, 20, 24]);
+// The printable certificate keeps its own fixed print sizes
+const SKIP = [/learn[\\/]Certificate\.jsx$/];
 
 const RULES = [
   ['text-[px]', /\btext-\[(\d+(?:\.\d+)?)px\]/g, (m) => Number(m[1]) < 36],
@@ -19,7 +21,7 @@ const RULES = [
 ];
 
 const files = [];
-(function walk(d) { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name); if (f.isDirectory()) walk(p); else if (/\.jsx?$/.test(f.name)) files.push(p); } })(only ? path.resolve(ROOT, only) : ROOT);
+(function walk(d) { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name); if (f.isDirectory()) walk(p); else if (/\.jsx?$/.test(f.name) && !SKIP.some((r) => r.test(p))) files.push(p); } })(only ? path.resolve(ROOT, only) : ROOT);
 
 const totals = Object.fromEntries(RULES.map(([k]) => [k, 0]));
 const perFile = {};

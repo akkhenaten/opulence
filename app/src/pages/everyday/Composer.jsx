@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { AlertTriangle, ImagePlus, X } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Avatar, Button, Sheet, Spinner, useToast } from '../../ui/index.jsx';
+import { Avatar, Button, Pressable, Sheet, Spinner, useToast } from '../../ui/index.jsx';
 import { compressImage } from '../officer/_parts.jsx';
 import { MentionBox, RulesSheet } from './_parts.jsx';
 
@@ -82,18 +82,18 @@ export default function Composer({ rulesAccepted, onPosted, post, onCancel, auto
           {photos.map((p) => (
             <div key={p.key} className="relative aspect-square overflow-hidden rounded-xl bg-bg">
               <img src={p.url} alt="" className="h-full w-full object-cover" />
-              <button type="button" aria-label="Remove photo" onClick={() => setPhotos((x) => x.filter((y) => y.key !== p.key))}
-                className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white"><X size={16} /></button>
+              <Pressable press aria-label="Remove photo" onClick={() => setPhotos((x) => x.filter((y) => y.key !== p.key))}
+                className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white"><X size={16} /></Pressable>
             </div>
           ))}
           {Array.from({ length: uploading }, (_, i) => <div key={`u${i}`} className="grid aspect-square place-items-center rounded-xl bg-bg"><Spinner /></div>)}
         </div>
       )}
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
-        <button type="button" disabled={photos.length + uploading >= MAX} onClick={() => file.current?.click()}
-          className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-subhead font-semibold text-green hover:bg-bg disabled:opacity-40">
+        <Pressable press disabled={photos.length + uploading >= MAX} onClick={() => file.current?.click()}
+          className="flex items-center gap-2 rounded-xl px-2 py-2.5 text-subhead font-semibold text-green hover:bg-bg disabled:opacity-40">
           <ImagePlus size={20} /> Photo
-        </button>
+        </Pressable>
         <input ref={file} type="file" accept="image/*" multiple hidden onChange={(e) => { add(e.target.files); e.target.value = ''; }} />
         <div className="flex gap-2">
           {onCancel && <Button variant="secondary" onClick={onCancel}>Cancel</Button>}

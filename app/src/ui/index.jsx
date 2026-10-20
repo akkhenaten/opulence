@@ -190,6 +190,7 @@ const BTN_V = {
   danger: 'bg-red-soft text-red hover:bg-red-press',
   dark: 'bg-ink text-white hover:bg-black',
   link: 'text-blue hover:underline underline-offset-2',
+  'link-red': 'text-red hover:underline underline-offset-2',
 };
 // sm is for dense toolbars and tables; its hit area is still 44px tall
 const BTN_S = {
@@ -199,18 +200,18 @@ const BTN_S = {
 };
 export function Button({ variant = 'primary', size = 'md', icon: Icon, iconRight: IconRight, iconOnly, busy, className, children, to, ...p }) {
   const [s, sq, is] = BTN_S[size];
-  const link = variant === 'link';
+  const link = variant.startsWith('link');
   const cls = cx('pressable relative inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap font-semibold disabled:pointer-events-none disabled:opacity-50',
     BTN_V[variant],
     link ? cx('-mx-1 rounded-md px-1', { sm: 'text-footnote', md: 'text-subhead', lg: 'text-callout' }[size], 'min-h-9 before:absolute before:inset-x-0 before:-inset-y-1') : s,
     iconOnly && !link && cx(sq, 'px-0'), className);
-  const spin = <Loader2 size={is} className="animate-spin" />;
+  const spin = <Loader2 size={is} className="shrink-0 animate-spin" />;
   const hideLabel = busy && !Icon; // keep the label's width so the button doesn't jump
   const inner = (
     <>
-      {hideLabel ? <span className="absolute inset-0 grid place-items-center">{spin}</span> : busy ? spin : Icon && <Icon size={is} />}
+      {hideLabel ? <span className="absolute inset-0 grid place-items-center">{spin}</span> : busy ? spin : Icon && <Icon size={is} className="shrink-0" />}
       {children != null && (hideLabel ? <span className="invisible">{children}</span> : children)}
-      {IconRight && <IconRight size={is} className={cx(hideLabel && 'invisible')} />}
+      {IconRight && <IconRight size={is} className={cx('shrink-0', hideLabel && 'invisible')} />}
     </>
   );
   if (to) return <Link to={to} className={cls} {...p}>{inner}</Link>;
@@ -238,8 +239,10 @@ export function IconButton({ icon: Icon, label, tone = 'ghost', size = 'md', bad
 }
 
 // Anything tappable that isn't a button: cards (card) or list rows (default highlight)
-export function Pressable({ to, href, onClick, card, className, children, ...p }) {
-  const cls = cx('block w-full text-left', card ? 'pressable-card' : 'transition-colors hover:bg-bg active:bg-fill', className);
+// card: press scale for tiles; press: press scale only (for chips/options that set their own colours); default: row highlight
+export function Pressable({ to, href, onClick, card, press, className, children, ...p }) {
+  const display = /(^|\s)(flex|grid|inline|inline-flex|inline-grid|inline-block|hidden)(\s|$)/.test(className || '');
+  const cls = cx(!display && 'block', 'text-left', !press && 'w-full', card ? 'pressable-card' : press ? 'pressable' : 'transition-colors hover:bg-bg active:bg-fill', className);
   if (to) return <Link to={to} onClick={onClick} className={cls} {...p}>{children}</Link>;
   if (href) return <a href={href} onClick={onClick} className={cls} {...p}>{children}</a>;
   return <button type="button" onClick={onClick} className={cls} {...p}>{children}</button>;

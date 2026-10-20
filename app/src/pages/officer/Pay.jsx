@@ -31,7 +31,7 @@ function Statements() {
   const q = useApi('pay.list');
   return (
     <Page title="Pay" subtitle="Your remittance statements">
-      <Load q={q}>
+      <Load q={q} skeleton="rows">
         {(rows) => {
           if (!rows.length) {
             return (
@@ -94,7 +94,7 @@ function Statement({ id }) {
   return (
     <Page title="Statement" back={{ to: '/officer/pay', label: 'Pay' }}
       actions={q.data && <Button variant="secondary" icon={Download} busy={busy} onClick={pdf}>PDF</Button>}>
-      <Load q={q}>
+      <Load q={q} skeleton="rows">
         {(st) => {
           const lines = st.lines || [];
           const groups = ['hours', 'bonus', 'expense', 'deduction'].map((k) => ({ k, items: lines.filter((l) => l.kind === k) })).filter((g) => g.items.length);

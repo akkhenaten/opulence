@@ -38,7 +38,7 @@ function Requests() {
   return (
     <>
       <Button size="lg" icon={Plus} className="w-full" onClick={() => setOpen(true)}>Request time off</Button>
-      <Load q={q}>
+      <Load q={q} skeleton="rows">
         {(rows) => {
           const today = isoDate();
           const upcoming = rows.filter((t) => t.end_date >= today && t.status !== 'cancelled');
@@ -50,7 +50,7 @@ function Requests() {
               right={(
                 <div className="flex flex-col items-end gap-1">
                   <Pill status={t.status}>{STATUS_LABEL[t.status]}</Pill>
-                  {t.status === 'pending' && <button type="button" onClick={() => cancel(t)} className="text-footnote font-semibold text-red">Cancel</button>}
+                  {t.status === 'pending' && <Button variant="link-red" size="sm" onClick={() => cancel(t)}>Cancel</Button>}
                 </div>
               )} />
           );
@@ -129,16 +129,13 @@ function AvailabilityEditor({ initial, reload }) {
             <Toggle label={DAYS[r.weekday]} hint={!r.available ? 'Not available' : r.anyTime ? 'Any time' : `${r.from_time}–${r.to_time}`} checked={r.available} onChange={(available) => upd(i, { available })} />
             {r.available && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <div className="inline-flex rounded-xl bg-bg p-[3px] text-footnote font-semibold">
-                  {[[true, 'Any time'], [false, 'Set hours']].map(([val, l]) => (
-                    <button key={l} type="button" onClick={() => upd(i, { anyTime: val })} className={cx('rounded-lg px-3 py-1.5', r.anyTime === val ? 'bg-white text-ink shadow-sm' : 'text-muted')}>{l}</button>
-                  ))}
-                </div>
+                <Segmented value={r.anyTime ? 'any' : 'set'} onChange={(x) => upd(i, { anyTime: x === 'any' })}
+                  options={[{ value: 'any', label: 'Any time' }, { value: 'set', label: 'Set hours' }]} />
                 {!r.anyTime && (
                   <div className="flex items-center gap-2">
-                    <input type="time" value={r.from_time} onChange={(e) => upd(i, { from_time: e.target.value })} className="h-10 rounded-xl border border-line bg-surface px-2 text-body" aria-label={`${DAYS[r.weekday]} from`} />
+                    <Input type="time" className="w-32" value={r.from_time} onChange={(e) => upd(i, { from_time: e.target.value })} aria-label={`${DAYS[r.weekday]} from`} />
                     <span className="text-muted">to</span>
-                    <input type="time" value={r.to_time} onChange={(e) => upd(i, { to_time: e.target.value })} className="h-10 rounded-xl border border-line bg-surface px-2 text-body" aria-label={`${DAYS[r.weekday]} to`} />
+                    <Input type="time" className="w-32" value={r.to_time} onChange={(e) => upd(i, { to_time: e.target.value })} aria-label={`${DAYS[r.weekday]} to`} />
                   </div>
                 )}
               </div>
