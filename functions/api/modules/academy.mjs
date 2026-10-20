@@ -37,8 +37,8 @@ const OUTLINE_TOOL = {
     properties: {
       title: { type: 'string' },
       summary: { type: 'string', description: 'Two sentences: what the officer will be able to do afterwards' },
-      sections: { type: 'array', description: '4-7 sections in teaching order', items: { type: 'object', properties: { title: { type: 'string' }, aims: { type: 'string', description: 'What this section must cover, one or two sentences' } }, required: ['title', 'aims'] } },
-      sources: { type: 'array', items: { type: 'string' }, description: 'Named sources relied on' },
+      sections: { type: 'string', description: '4-7 sections in teaching order, one per line, as "Section title :: what it must cover in one or two sentences"' },
+      sources: { type: 'string', description: 'Named sources relied on, one per line' },
     },
     required: ['title', 'summary', 'sections', 'sources'],
   },
@@ -75,6 +75,10 @@ const cleanQ = (x) => {
   if (!String(x?.prompt || '').trim() || options.length < 2 || !(answer >= 0 && answer < options.length)) return null;
   return { kind: x.kind === 'scenario' ? 'scenario' : 'mcq', prompt: String(x.prompt).trim(), options, answer, explain: String(x.explain || '').trim() };
 };
+
+// A list sent as text, one item per line (numbering and bullets removed); arrays pass through
+const lines = (x) => (Array.isArray(x) ? x.map(String) : String(x || '').split('\n'))
+  .map((l) => l.replace(/^\s*(\d+[.)]|[-•*])\s*/, '').trim()).filter(Boolean).slice(0, 20);
 
 const plusMonths = (date, n) => {
   const d = new Date(`${date}T12:00:00Z`);
@@ -376,15 +380,16 @@ ${await courseText(course)}`,
       system: `${CONTENT_RULES}\nYou are planning a short online course (15-25 minutes) for officers to take on their phone.`,
       messages: [{ role: 'user', content: `Course: ${String(b.title).slice(0, 200)}\nArea: ${topic.replace('_', ' ')}${b.notes ? `\nMust cover: ${String(b.notes).slice(0, 2000)}` : ''}` }],
     });
-    if (!input?.sections?.length) fail(502, 'The AI could not outline this course — try again');
+    const outline = lines(input?.sections).map((l) => { const [title, ...aims] = l.split('::'); return { title: title.trim(), aims: aims.join('::').trim() }; }).filter((x) => x.title);
+    if (!input?.title || outline.length < 2) fail(502, 'The AI could not outline this course — try again');
     const course = await saveCourse({
-      title: input.title || b.title, topic, summary: input.summary, sources: input.sources,
+      title: input.title || b.title, topic, summary: input.summary, sources: lines(input.sources),
       mandatory: topic === 'law' || topic === 'first_aid', renew_months: topic === 'first_aid' ? 12 : null,
-      sections: input.sections.slice(0, 8).map((s) => ({ title: s.title, body: '' })),
+      sections: outline.slice(0, 8).map((s) => ({ title: s.title, body: '' })),
     }, user);
     const sections = await sectionsOf(course.id);
     await audit(user, 'academy.draft', 'course', course.id, { title: course.title, via: 'ai' });
-    return { course, sections: sections.map((s, i) => ({ ...s, aims: input.sections[i]?.aims || '' })) };
+    return { course, sections: sections.map((s, i) => ({ ...s, aims: outline[i]?.aims || '' })) };
   }),
 
   // Step 2, one call per section: lesson text, quick check and 3-4 quiz questions
