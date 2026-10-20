@@ -9,7 +9,7 @@ export const CATEGORIES = [
   { value: 'first_aid', label: 'First aid', icon: HeartPulse, tone: 'bg-red-soft text-red' },
   { value: 'situations', label: 'Situations', icon: MessageSquareWarning, tone: 'bg-amber-soft text-amber' },
   { value: 'law', label: 'Law at a glance', icon: Scale, tone: 'bg-blue-soft text-blue' },
-  { value: 'venue', label: 'Venue procedures', icon: Building2, tone: 'bg-[#EEF0F3] text-ink' },
+  { value: 'venue', label: 'Venue procedures', icon: Building2, tone: 'bg-fill text-ink' },
 ];
 export const category = (v) => CATEGORIES.find((c) => c.value === v) || { label: v, icon: GraduationCap, tone: 'bg-bg text-ink' };
 
@@ -51,8 +51,8 @@ export function Lesson({ text, className }) {
   }
   if (list) blocks.push({ list });
   return (
-    <div className={cx('space-y-3 text-[16px] leading-relaxed', className)}>
-      {blocks.map((b, i) => (b.h ? <h3 key={i} className="pt-2 text-[17px] font-bold">{inline(b.h)}</h3>
+    <div className={cx('space-y-3 text-callout leading-relaxed', className)}>
+      {blocks.map((b, i) => (b.h ? <h3 key={i} className="pt-2 text-headline font-bold">{inline(b.h)}</h3>
         : b.list ? <ul key={i} className="list-disc space-y-1 pl-5">{b.list.map((x, j) => <li key={j}>{inline(x)}</li>)}</ul>
           : <p key={i}>{inline(b.p)}</p>))}
     </div>
@@ -69,10 +69,10 @@ export function Options({ options, picked, result, onPick, disabled }) {
         const wrong = answered && i === picked && !result.correct;
         return (
           <button key={i} type="button" disabled={disabled || answered} onClick={() => onPick(i)}
-            className={cx('flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left text-[15px] transition',
+            className={cx('flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left text-body transition',
               right ? 'border-green bg-green-soft' : wrong ? 'border-red bg-red-soft' : picked === i ? 'border-blue bg-blue-soft' : 'border-line bg-surface hover:border-blue/50',
               answered && !right && !wrong && 'opacity-60')}>
-            <span className={cx('grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold', right ? 'bg-green text-white' : wrong ? 'bg-red text-white' : 'bg-bg text-muted')}>{String.fromCharCode(65 + i)}</span>
+            <span className={cx('grid h-6 w-6 shrink-0 place-items-center rounded-full text-caption font-bold', right ? 'bg-green text-white' : wrong ? 'bg-red text-white' : 'bg-bg text-muted')}>{String.fromCharCode(65 + i)}</span>
             <span className="min-w-0 flex-1">{o}</span>
           </button>
         );

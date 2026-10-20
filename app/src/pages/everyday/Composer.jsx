@@ -83,7 +83,7 @@ export default function Composer({ rulesAccepted, onPosted, post, onCancel, auto
             <div key={p.key} className="relative aspect-square overflow-hidden rounded-xl bg-bg">
               <img src={p.url} alt="" className="h-full w-full object-cover" />
               <button type="button" aria-label="Remove photo" onClick={() => setPhotos((x) => x.filter((y) => y.key !== p.key))}
-                className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white"><X size={15} /></button>
+                className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white"><X size={16} /></button>
             </div>
           ))}
           {Array.from({ length: uploading }, (_, i) => <div key={`u${i}`} className="grid aspect-square place-items-center rounded-xl bg-bg"><Spinner /></div>)}
@@ -91,7 +91,7 @@ export default function Composer({ rulesAccepted, onPosted, post, onCancel, auto
       )}
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
         <button type="button" disabled={photos.length + uploading >= MAX} onClick={() => file.current?.click()}
-          className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-[14px] font-semibold text-green hover:bg-bg disabled:opacity-40">
+          className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-subhead font-semibold text-green hover:bg-bg disabled:opacity-40">
           <ImagePlus size={20} /> Photo
         </button>
         <input ref={file} type="file" accept="image/*" multiple hidden onChange={(e) => { add(e.target.files); e.target.value = ''; }} />
@@ -104,8 +104,8 @@ export default function Composer({ rulesAccepted, onPosted, post, onCancel, auto
       <Sheet open={!!warn} onClose={() => setWarn(null)} title="Check before posting" size="sm"
         footer={<><Button variant="secondary" onClick={() => setWarn(null)}>Edit post</Button><Button variant={warn?.serious ? 'danger' : 'primary'} busy={busy} onClick={send}>Post anyway</Button></>}>
         <div className="space-y-2">
-          {warn?.warnings.map((w, i) => <div key={i} className="flex gap-2 rounded-2xl bg-amber-soft px-3 py-2.5 text-[14px]"><AlertTriangle size={17} className="mt-0.5 shrink-0 text-amber" />{w}</div>)}
-          {warn?.serious && <p className="text-[13px] text-muted">If you post this, a manager will be asked to review it.</p>}
+          {warn?.warnings.map((w, i) => <div key={i} className="flex gap-2 rounded-2xl bg-amber-soft px-3 py-2.5 text-subhead"><AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber" />{w}</div>)}
+          {warn?.serious && <p className="text-footnote text-muted">If you post this, a manager will be asked to review it.</p>}
         </div>
       </Sheet>
       <RulesSheet open={rules} onClose={() => setRules(false)} onAccept={() => { setAccepted(true); setRules(false); submit(true); }} />

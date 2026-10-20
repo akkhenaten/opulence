@@ -34,10 +34,10 @@ export default function VenueDetail() {
                   ? <img src={v.photo_url} alt="" className="h-14 w-14 shrink-0 rounded-2xl object-cover" />
                   : <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white text-blue"><Building2 size={26} /></div>}
                 <div className="min-w-0">
-                  <div className="text-[13px] font-semibold uppercase tracking-wide text-muted">Venue</div>
-                  <div className="truncate text-[20px] font-bold">{v.name}</div>
-                  <div className="mt-1 flex items-start gap-1.5 text-[14px] text-muted"><MapPin size={15} className="mt-0.5 shrink-0" /><span>{[v.address, v.postcode].filter(Boolean).join(', ') || 'No address'}</span></div>
-                  {v.phone && <a href={`tel:${v.phone}`} className="mt-1 flex items-center gap-1.5 text-[14px] font-semibold text-blue"><Phone size={14} />{v.phone}</a>}
+                  <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Venue</div>
+                  <div className="truncate text-title3 font-bold">{v.name}</div>
+                  <div className="mt-1 flex items-start gap-1.5 text-subhead text-muted"><MapPin size={16} className="mt-0.5 shrink-0" /><span>{[v.address, v.postcode].filter(Boolean).join(', ') || 'No address'}</span></div>
+                  {v.phone && <a href={`tel:${v.phone}`} className="mt-1 flex items-center gap-1.5 text-subhead font-semibold text-blue"><Phone size={14} />{v.phone}</a>}
                 </div>
               </div>
             </Tile>
@@ -160,20 +160,20 @@ function LocationTab({ v, onSaved }) {
       </Tile>
       <div className="space-y-4">
         <Tile title="Geofence" icon={Crosshair}>
-          <p className="text-[14px] text-muted">Tap the map or drag the pin to the entrance officers clock in at. They must be inside the circle to clock in without an exception.</p>
+          <p className="text-subhead text-muted">Tap the map or drag the pin to the entrance officers clock in at. They must be inside the circle to clock in without an exception.</p>
           <div className="mt-4">
             <div className="mb-1.5 flex items-baseline justify-between">
-              <span className="text-[13px] font-semibold text-muted">Radius</span>
-              <span className="num text-[22px] font-bold">{radius}m</span>
+              <span className="text-footnote font-semibold text-muted">Radius</span>
+              <span className="num text-title2 font-bold">{radius}m</span>
             </div>
             <input type="range" min={25} max={500} step={5} value={radius} onChange={(e) => setRadius(Number(e.target.value))} className="w-full accent-[#0A6CFF]" aria-label="Geofence radius in metres" />
-            <div className="flex justify-between text-[11px] text-faint num"><span>25m</span><span>500m</span></div>
+            <div className="flex justify-between text-caption2 text-faint num"><span>25m</span><span>500m</span></div>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <Button variant="soft" size="sm" icon={LocateFixed} busy={locating} onClick={myLocation}>Use my location</Button>
             <Button variant="soft" size="sm" icon={Search} busy={finding} onClick={fromPostcode}>Find postcode</Button>
           </div>
-          <div className="mt-4 rounded-xl bg-bg px-3 py-2.5 text-[13px]">
+          <div className="mt-4 rounded-xl bg-bg px-3 py-2.5 text-footnote">
             {pos ? <span className="num text-muted">{pos.lat.toFixed(6)}, {pos.lng.toFixed(6)}</span> : <span className="text-amber font-semibold">No location set</span>}
           </div>
           <div className="mt-4 flex gap-2">
@@ -260,7 +260,7 @@ function QrTab({ v }) {
           {(d) => (
             <>
               <Stat value={`v${d.version}`} label="Current code version" hint="Officers scan this poster on arrival" />
-              <div className="mt-4 break-all rounded-xl bg-bg px-3 py-2 font-mono text-[11px] text-muted">{d.payload}</div>
+              <div className="mt-4 break-all rounded-xl bg-bg px-3 py-2 font-mono text-caption2 text-muted">{d.payload}</div>
             </>
           )}
         </Load>
@@ -269,7 +269,7 @@ function QrTab({ v }) {
           <Button className="w-full" variant="soft" icon={Eye} busy={pvBusy} onClick={showPreview}>Preview poster</Button>
           <Button className="w-full" variant="danger" icon={RefreshCw} busy={busy} onClick={regenerate}>Regenerate code</Button>
         </div>
-        <p className="mt-3 text-[12px] text-faint">Regenerate if a poster is lost, copied or taken off site.</p>
+        <p className="mt-3 text-caption text-faint">Regenerate if a poster is lost, copied or taken off site.</p>
       </Tile>
       <Tile pad={false} className="min-h-[360px] overflow-hidden">
         {preview
@@ -277,8 +277,8 @@ function QrTab({ v }) {
           : <div className="grid h-full min-h-[360px] place-items-center p-6 text-center">
               <div>
                 <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-blue-soft text-blue"><QrCode size={26} /></div>
-                <div className="text-[16px] font-semibold">Poster preview</div>
-                <p className="mt-1 text-[14px] text-muted">Print the A4 poster and fix it at the officer entrance.</p>
+                <div className="text-callout font-semibold">Poster preview</div>
+                <p className="mt-1 text-subhead text-muted">Print the A4 poster and fix it at the officer entrance.</p>
               </div>
             </div>}
       </Tile>
@@ -331,7 +331,7 @@ function RatesTab({ venueId }) {
             ]} />
         )}
       </Load>
-      <p className="mt-2 px-1 text-[12px] text-faint">Uplifts are applied to the part of a shift that falls at night, at the weekend or on a bank holiday. Short shifts are billed at the minimum hours.</p>
+      <p className="mt-2 px-1 text-caption text-faint">Uplifts are applied to the part of a shift that falls at night, at the weekend or on a bank holiday. Short shifts are billed at the minimum hours.</p>
       {open && <RateSheet venueId={venueId} roles={roles.data || []} onClose={() => setOpen(false)} onSaved={rates.reload} />}
     </Section>
   );
@@ -364,7 +364,7 @@ function RateSheet({ venueId, roles, onClose, onSaved }) {
           <Input label="Bank hol. %" type="number" inputMode="decimal" {...f.bind('bh_uplift')} />
         </div>
         <Input label="Minimum billable hours" type="number" inputMode="decimal" step="0.25" {...f.bind('min_hours')} />
-        <p className="text-[13px] text-muted">A new rate replaces the previous one for this role from its effective date. Older rates stay for history.</p>
+        <p className="text-footnote text-muted">A new rate replaces the previous one for this role from its effective date. Older rates stay for history.</p>
       </div>
     </Sheet>
   );
@@ -444,8 +444,8 @@ function DocumentsTab({ venueId }) {
                   <div key={d.id} className="flex items-center gap-3 px-4 py-3">
                     <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><FileText size={18} /></div>
                     <button type="button" onClick={() => d.s3_key && openDoc(d)} className="min-w-0 flex-1 text-left">
-                      <div className="truncate text-[15px] font-semibold">{d.title}</div>
-                      <div className="truncate text-[13px] text-muted">{kindLabel(d.kind)} · added {date(d.created_at)}</div>
+                      <div className="truncate text-body font-semibold">{d.title}</div>
+                      <div className="truncate text-footnote text-muted">{kindLabel(d.kind)} · added {date(d.created_at)}</div>
                     </button>
                     {d.expiry && <Pill tone={left < 0 ? 'red' : left <= 30 ? 'amber' : 'grey'}>{left < 0 ? 'Expired' : `Expires ${date(d.expiry)}`}</Pill>}
                     <IconButton icon={Trash2} label="Delete document" onClick={() => del(d)} className="text-red hover:bg-red-soft" />
@@ -477,9 +477,9 @@ function DocSheet({ venueId, onClose, onSaved }) {
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!file} onClick={save}>Upload</Button></>}>
       <div className="space-y-4">
         <label className={cx('flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed px-4 py-8 text-center transition', file ? 'border-blue bg-blue-soft' : 'border-line hover:border-faint')}>
-          <Upload size={22} className="text-blue" />
-          <span className="mt-2 text-[15px] font-semibold">{file ? file.name : 'Choose a file'}</span>
-          <span className="text-[12px] text-muted">PDF, image or Word document</span>
+          <Upload size={24} className="text-blue" />
+          <span className="mt-2 text-body font-semibold">{file ? file.name : 'Choose a file'}</span>
+          <span className="text-caption text-muted">PDF, image or Word document</span>
           <input type="file" className="hidden" accept=".pdf,.doc,.docx,image/*" onChange={(e) => { const x = e.target.files?.[0]; setFile(x || null); if (x && !f.v.title) f.set('title', x.name.replace(/\.[^.]+$/, '')); }} />
         </label>
         <Select label="Type" options={DOC_KINDS} {...f.bind('kind')} />

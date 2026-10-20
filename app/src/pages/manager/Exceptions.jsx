@@ -9,8 +9,8 @@ const KIND = { in: 'Clock-in', out: 'Clock-out', break_start: 'Break start', bre
 
 function Flag({ ok, icon: Icon, children }) {
   return (
-    <span className={cx('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-semibold', ok ? 'bg-green-soft text-green' : 'bg-red-soft text-red')}>
-      <Icon size={12} />{children}
+    <span className={cx('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-caption font-semibold', ok ? 'bg-green-soft text-green' : 'bg-red-soft text-red')}>
+      <Icon size={14} />{children}
     </span>
   );
 }
@@ -42,10 +42,10 @@ export default function Exceptions() {
                   <Avatar name={e.officer_name} size={42} />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2">
-                      <span className="truncate text-[16px] font-semibold">{e.officer_name}</span>
-                      <span className="text-[13px] text-muted">{KIND[e.kind] || e.kind} at <span className="num font-semibold text-ink">{time(e.ts)}</span></span>
+                      <span className="truncate text-callout font-semibold">{e.officer_name}</span>
+                      <span className="text-footnote text-muted">{KIND[e.kind] || e.kind} at <span className="num font-semibold text-ink">{time(e.ts)}</span></span>
                     </div>
-                    <div className="truncate text-[13px] text-muted">{e.venue_name} · {dayLabel(e.starts_at)} <span className="num">{range(e.starts_at, e.ends_at)}</span></div>
+                    <div className="truncate text-footnote text-muted">{e.venue_name} · {dayLabel(e.starts_at)} <span className="num">{range(e.starts_at, e.ends_at)}</span></div>
                   </div>
                   {e.status !== 'exception' && <Pill status={e.status} />}
                 </div>
@@ -56,19 +56,19 @@ export default function Exceptions() {
                     </Flag>
                   )}
                   {e.kind === 'in' && <Flag ok={e.qr_ok} icon={QrCode}>{e.qr_ok ? 'QR ok' : 'QR failed'}</Flag>}
-                  {e.accuracy != null && <span className="num inline-flex items-center rounded-full bg-[#EEF0F3] px-2.5 py-0.5 text-[12px] font-semibold text-muted">GPS ±{Math.round(e.accuracy)}m</span>}
+                  {e.accuracy != null && <span className="num inline-flex items-center rounded-full bg-fill px-2.5 py-0.5 text-caption font-semibold text-muted">GPS ±{Math.round(e.accuracy)}m</span>}
                 </div>
-                {e.exception_reason && <p className="mt-3 rounded-2xl bg-bg/70 px-3.5 py-2.5 text-[14px]">"{e.exception_reason}"</p>}
+                {e.exception_reason && <p className="mt-3 rounded-2xl bg-bg/70 px-3.5 py-2.5 text-subhead">"{e.exception_reason}"</p>}
                 {e.status === 'exception' ? (
                   <div className="mt-3 flex items-center justify-between gap-2">
-                    <span className="text-[12px] text-faint">{relative(e.ts)}</span>
+                    <span className="text-caption text-faint">{relative(e.ts)}</span>
                     <div className="flex gap-2">
                       <Button size="sm" variant="secondary" icon={X} disabled={busyId === e.id} onClick={() => decide(e, false)}>Reject</Button>
                       <Button size="sm" icon={Check} busy={busyId === e.id} onClick={() => decide(e, true)}>Approve</Button>
                     </div>
                   </div>
                 ) : (
-                  <p className="mt-3 text-[12px] text-muted">{e.status === 'approved' ? 'Approved' : 'Rejected'}{e.decided_by_name ? ` by ${e.decided_by_name}` : ''}{e.decided_at ? `, ${relative(e.decided_at)}` : ''}</p>
+                  <p className="mt-3 text-caption text-muted">{e.status === 'approved' ? 'Approved' : 'Rejected'}{e.decided_by_name ? ` by ${e.decided_by_name}` : ''}{e.decided_at ? `, ${relative(e.decided_at)}` : ''}</p>
                 )}
               </div>
             ))}

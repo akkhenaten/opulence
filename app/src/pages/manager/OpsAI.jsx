@@ -92,18 +92,18 @@ function ItemCard({ it, onDone }) {
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Pill tone={k.tone}>{k.label}</Pill>
         {it.kind === 'compliance' && SEVERITY[p.severity] && <Pill tone={SEVERITY[p.severity].tone}>{SEVERITY[p.severity].label}</Pill>}
-        {it.venue_name && <span className="truncate text-[13px] font-semibold text-muted">{it.venue_name}</span>}
-        <span className="ml-auto text-[12px] text-faint">{relative(it.created_at)}</span>
+        {it.venue_name && <span className="truncate text-footnote font-semibold text-muted">{it.venue_name}</span>}
+        <span className="ml-auto text-caption text-faint">{relative(it.created_at)}</span>
       </div>
-      <div className="text-[17px] font-bold leading-snug">{it.title}</div>
-      <p className="mt-1 text-[14px] leading-relaxed text-muted">{it.reason}</p>
+      <div className="text-headline font-bold leading-snug">{it.title}</div>
+      <p className="mt-1 text-subhead leading-relaxed text-muted">{it.reason}</p>
 
       <div className="mt-3 flex-1">
         {it.kind === 'cover' && <CoverBody it={it} />}
         {it.kind === 'venue_request' && <RequestBody it={it} />}
         {it.kind === 'reconcile' && <ReconcileBody p={p} />}
         {it.kind === 'compliance' && <ComplianceBody it={it} pending={pending} picked={picked} setPicked={setPicked} allowed={allowed} onChanged={onDone} />}
-        {it.kind === 'feedback' && <div className="flex items-center gap-1 text-amber">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={18} fill={n <= p.rating ? 'currentColor' : 'none'} />)}<span className="ml-2 text-[13px] text-muted">{p.shift}</span></div>}
+        {it.kind === 'feedback' && <div className="flex items-center gap-1 text-amber">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={18} fill={n <= p.rating ? 'currentColor' : 'none'} />)}<span className="ml-2 text-footnote text-muted">{p.shift}</span></div>}
       </div>
 
       {pending ? (
@@ -113,7 +113,7 @@ function ItemCard({ it, onDone }) {
           <Button variant="ghost" icon={X} onClick={() => setRejecting(true)}>Reject</Button>
         </div>
       ) : (
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-muted">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-footnote text-muted">
           <Pill status={it.status === 'approved' ? 'published' : it.status === 'done' ? 'ok' : it.status}>{ITEM_STATUS[it.status]}</Pill>
           {it.decided_by_name && <span>by {it.decided_by_name}, {relative(it.decided_at)}</span>}
         </div>
@@ -131,19 +131,19 @@ function CoverBody({ it }) {
   const picks = (p.officer_ids || []).map((id) => p.candidates.find((c) => c.officer_id === id)).filter(Boolean);
   return (
     <div className="space-y-2">
-      {it.shift && <div className="text-[13px] font-semibold">{dayLabel(it.shift.starts_at)} · {range(it.shift.starts_at, it.shift.ends_at)} · {it.shift.filled}/{it.shift.headcount} filled</div>}
+      {it.shift && <div className="text-footnote font-semibold">{dayLabel(it.shift.starts_at)} · {range(it.shift.starts_at, it.shift.ends_at)} · {it.shift.filled}/{it.shift.headcount} filled</div>}
       {it.offers.length > 0 && it.status !== 'pending' ? (
         <div className="flex flex-wrap gap-1.5">{it.offers.map((o) => <Pill key={o.name} status={o.status === 'offered' ? 'pending' : o.status === 'filled_by_other' ? 'closed' : o.status}>{o.name} · {o.status === 'filled_by_other' ? 'filled' : o.status}</Pill>)}</div>
       ) : picks.length ? (
         <ul className="space-y-1.5">
           {picks.map((c) => (
             <li key={c.officer_id} className="rounded-xl bg-bg px-3 py-2">
-              <div className="text-[14px] font-semibold">{c.name}</div>
-              <div className="text-[12.5px] text-muted">{c.reason}</div>
+              <div className="text-subhead font-semibold">{c.name}</div>
+              <div className="text-caption text-muted">{c.reason}</div>
             </li>
           ))}
         </ul>
-      ) : <div className="rounded-xl bg-amber-soft px-3 py-2 text-[13px] text-amber">No one eligible is free.</div>}
+      ) : <div className="rounded-xl bg-amber-soft px-3 py-2 text-footnote text-amber">No one eligible is free.</div>}
     </div>
   );
 }
@@ -153,17 +153,17 @@ function CoverEdit({ it, busy, onClose, onSave }) {
   const toggle = (id) => setIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   return (
     <Sheet open onClose={onClose} title="Who gets the offer?" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!ids.length} onClick={() => onSave(ids)}>Send to {ids.length}</Button></>}>
-      <p className="mb-3 text-[14px] text-muted">Everyone ticked gets the offer at once. The first to accept gets the shift.</p>
+      <p className="mb-3 text-subhead text-muted">Everyone ticked gets the offer at once. The first to accept gets the shift.</p>
       <div className="space-y-2">
         {it.payload.candidates.map((c) => (
           <button key={c.officer_id} type="button" onClick={() => toggle(c.officer_id)}
             className={cx('flex w-full items-start gap-3 rounded-2xl border px-3 py-2.5 text-left transition', ids.includes(c.officer_id) ? 'border-blue bg-blue-soft' : 'border-line bg-surface')}>
             <span className={cx('mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border', ids.includes(c.officer_id) ? 'border-blue bg-blue text-white' : 'border-line')}>{ids.includes(c.officer_id) && <Check size={14} />}</span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-semibold">{c.name}</span>
-              <span className="block text-[13px] text-muted">{c.reason}</span>
+              <span className="block text-body font-semibold">{c.name}</span>
+              <span className="block text-footnote text-muted">{c.reason}</span>
             </span>
-            {c.reliability != null && <span className="num shrink-0 text-[13px] font-bold">{Math.round(c.reliability * 100)}%</span>}
+            {c.reliability != null && <span className="num shrink-0 text-footnote font-bold">{Math.round(c.reliability * 100)}%</span>}
           </button>
         ))}
         {!it.payload.candidates.length && <Empty title="No eligible officers" body="Everyone is booked, on leave or not compliant for this shift." />}
@@ -177,9 +177,9 @@ function RequestBody({ it }) {
   const p = it.payload;
   return (
     <div className="space-y-2">
-      {(it.request?.text || p.text) && <blockquote className="rounded-xl bg-bg px-3 py-2 text-[14px] italic">“{it.request?.text || p.text}”</blockquote>}
-      <div className="text-[13px] font-semibold uppercase tracking-wide text-muted">{p.intent === 'new' ? 'New shifts' : p.intent === 'change' ? 'Change' : 'Cancel'}</div>
-      <ul className="space-y-1">{(p.shifts || []).map((s, i) => <li key={i} className="text-[14px] font-semibold">{p.intent === 'cancel' ? s.label || 'Cancel shift' : shiftLine(s)}</li>)}</ul>
+      {(it.request?.text || p.text) && <blockquote className="rounded-xl bg-bg px-3 py-2 text-subhead italic">“{it.request?.text || p.text}”</blockquote>}
+      <div className="text-footnote font-semibold uppercase tracking-wide text-muted">{p.intent === 'new' ? 'New shifts' : p.intent === 'change' ? 'Change' : 'Cancel'}</div>
+      <ul className="space-y-1">{(p.shifts || []).map((s, i) => <li key={i} className="text-subhead font-semibold">{p.intent === 'cancel' ? s.label || 'Cancel shift' : shiftLine(s)}</li>)}</ul>
     </div>
   );
 }
@@ -191,7 +191,7 @@ function RequestEdit({ it, busy, onClose, onSave }) {
   const cancel = it.payload.intent === 'cancel';
   return (
     <Sheet open onClose={onClose} title="Check the shifts" size="lg" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={() => onSave(rows)}>Approve & publish</Button></>}>
-      {cancel ? <p className="text-[14px] text-muted">These shifts will be cancelled and the officers told.</p> : (
+      {cancel ? <p className="text-subhead text-muted">These shifts will be cancelled and the officers told.</p> : (
         <div className="space-y-3">
           {rows.map((s, i) => (
             <div key={i} className="grid grid-cols-2 gap-2 rounded-2xl bg-bg p-3 sm:grid-cols-5">
@@ -222,16 +222,16 @@ function ReconcileBody({ p }) {
       <div className="grid grid-cols-5 gap-1 text-center">
         {cells.map((c) => (
           <div key={c.k} className={cx('rounded-xl px-1 py-2', bad.has(c.k) ? 'bg-red-soft text-red' : 'bg-bg')}>
-            <div className="text-[11px] font-semibold uppercase tracking-wide opacity-70">{c.label}</div>
-            <div className="num text-[15px] font-bold">{c.v == null ? '—' : hours(c.v)}</div>
+            <div className="text-caption2 font-semibold uppercase tracking-wide opacity-70">{c.label}</div>
+            <div className="num text-body font-bold">{c.v == null ? '—' : hours(c.v)}</div>
           </div>
         ))}
       </div>
       {!p.info_only && Object.keys(fix).length > 0 && (
-        <div className="text-[13px] text-muted">Fix: {[fix.timesheet_hours != null && `timesheet → ${hours(fix.timesheet_hours)}`, fix.statement_hours != null && `pay → ${hours(fix.statement_hours)}`, fix.invoice_hours != null && `invoice → ${hours(fix.invoice_hours)}`].filter(Boolean).join(' · ')}</div>
+        <div className="text-footnote text-muted">Fix: {[fix.timesheet_hours != null && `timesheet → ${hours(fix.timesheet_hours)}`, fix.statement_hours != null && `pay → ${hours(fix.statement_hours)}`, fix.invoice_hours != null && `invoice → ${hours(fix.invoice_hours)}`].filter(Boolean).join(' · ')}</div>
       )}
       {p.info_only && (
-        <div className="flex flex-wrap gap-2 text-[13px]">
+        <div className="flex flex-wrap gap-2 text-footnote">
           {p.inv_id && base === '/company' && <Button size="sm" variant="soft" to={`/company/invoices/${p.inv_id}`}>Open invoice</Button>}
           {p.stmt_id && <Button size="sm" variant="soft" to={`${base}/pay/${p.stmt_id}`}>Open statement</Button>}
         </div>
@@ -257,15 +257,15 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged }) 
           <div className="flex items-start gap-2">
             <span className={cx('mt-1.5 h-2 w-2 shrink-0 rounded-full', i.severity === 'urgent' ? 'bg-red' : i.severity === 'soon' ? 'bg-amber' : 'bg-faint')} />
             <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-semibold">{i.title}</div>
-              {i.detail && <p className="text-[13px] text-muted">{i.detail}</p>}
+              <div className="text-subhead font-semibold">{i.title}</div>
+              {i.detail && <p className="text-footnote text-muted">{i.detail}</p>}
             </div>
-            {pending && <button type="button" onClick={() => setDismiss(i)} className="shrink-0 rounded-lg px-2 py-0.5 text-[12px] font-semibold text-muted hover:bg-bg">Dismiss</button>}
+            {pending && <button type="button" onClick={() => setDismiss(i)} className="shrink-0 rounded-lg px-2 py-0.5 text-caption font-semibold text-muted hover:bg-bg">Dismiss</button>}
           </div>
           {pending && i.actions.filter(allowed).length > 0 && (
             <div className="mt-2 space-y-1 pl-4">
               {i.actions.filter(allowed).map((a) => (
-                <label key={a.id} className="flex cursor-pointer items-start gap-2 text-[13px]">
+                <label key={a.id} className="flex cursor-pointer items-start gap-2 text-footnote">
                   <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-blue)]" checked={picked.has(a.id)} onChange={(e) => toggle(a.id, e.target.checked)} />
                   <span>{a.label}</span>
                 </label>
@@ -275,12 +275,12 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged }) 
         </div>
       ))}
       {!pending && it.result?.done?.length > 0 && (
-        <ul className="space-y-0.5 text-[13px] text-green">{it.result.done.map((d) => <li key={d} className="flex gap-1.5"><Check size={14} className="mt-0.5 shrink-0" />{d}</li>)}</ul>
+        <ul className="space-y-0.5 text-footnote text-green">{it.result.done.map((d) => <li key={d} className="flex gap-1.5"><Check size={14} className="mt-0.5 shrink-0" />{d}</li>)}</ul>
       )}
-      {!pending && it.result?.auto_closed && <p className="text-[13px] text-green">Cleared by itself: the details were updated.</p>}
+      {!pending && it.result?.auto_closed && <p className="text-footnote text-green">Cleared by itself: the details were updated.</p>}
       <Sheet open={!!dismiss} onClose={() => setDismiss(null)} title="Dismiss this issue?" size="sm"
         footer={<><Button variant="secondary" onClick={() => setDismiss(null)}>Cancel</Button><Button busy={busy} onClick={doDismiss}>Dismiss</Button></>}>
-        <p className="mb-3 text-[14px] text-muted">{dismiss?.title}. It won't be raised again unless the details behind it change.</p>
+        <p className="mb-3 text-subhead text-muted">{dismiss?.title}. It won't be raised again unless the details behind it change.</p>
         <Textarea label="Reason (kept on record)" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Renewal confirmed by phone, card in the post." />
       </Sheet>
     </div>
@@ -308,8 +308,8 @@ function Activity() {
             <li key={r.id} className="flex gap-3 px-4 py-3">
               <span className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue-soft text-blue"><ClipboardList size={14} /></span>
               <div className="min-w-0 flex-1">
-                <div className="text-[14px] leading-snug">{r.text}</div>
-                <div className="mt-0.5 text-[12px] text-faint">{dateTime(r.created_at)}{Number(r.credits) > 0 && ` · ${Math.round(Number(r.credits)).toLocaleString('en-GB')} credits`}</div>
+                <div className="text-subhead leading-snug">{r.text}</div>
+                <div className="mt-0.5 text-caption text-faint">{dateTime(r.created_at)}{Number(r.credits) > 0 && ` · ${Math.round(Number(r.credits)).toLocaleString('en-GB')} credits`}</div>
               </div>
             </li>
           ))}
@@ -330,8 +330,8 @@ function OpsChat({ onItems }) {
       <Chat action="ops.chat" storageKey="orb.opschat" prompts={PROMPTS} placeholder="Ask Ops AI…"
         onReply={(r) => { if (r.items?.length) onItems(); }}
         empty={<>
-          <div className="text-[16px] font-semibold">Ask about rotas, cover, lates or hours</div>
-          <p className="mx-auto mt-1 max-w-sm text-[14px] text-muted">Ops AI looks it up for you. It never changes anything itself — anything it suggests lands in your Inbox to approve.</p>
+          <div className="text-callout font-semibold">Ask about rotas, cover, lates or hours</div>
+          <p className="mx-auto mt-1 max-w-sm text-subhead text-muted">Ops AI looks it up for you. It never changes anything itself — anything it suggests lands in your Inbox to approve.</p>
         </>}
         renderReply={(m) => m.items?.length > 0 && <div className="mt-2"><Button size="sm" variant="soft" icon={Sparkles} onClick={() => setSp({}, { replace: true })}>Open in Inbox ({m.items.length})</Button></div>} />
     </Tile>
@@ -390,8 +390,8 @@ function OpsSettings() {
         </Tile>
         <Tile title="AI usage this month">
           <div className="mb-2 flex items-baseline justify-between gap-2">
-            <span className="num text-[22px] font-bold">{Math.round(used).toLocaleString('en-GB')}</span>
-            <span className="text-[13px] text-muted">of {cap.toLocaleString('en-GB')} credits</span>
+            <span className="num text-title2 font-bold">{Math.round(used).toLocaleString('en-GB')}</span>
+            <span className="text-footnote text-muted">of {cap.toLocaleString('en-GB')} credits</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-bg"><div className={cx('h-full rounded-full', pct >= 90 ? 'bg-red' : 'bg-blue')} style={{ width: `${pct}%` }} /></div>
           <Input className="mt-3" label="Monthly cap (credits)" type="number" min="0" step="10000" value={v.ops_ai_cap_credits} onChange={(e) => set('ops_ai_cap_credits', e.target.value)}
@@ -430,17 +430,17 @@ function ModuleUsage() {
           return (
             <div key={m.k} className="flex items-center gap-3 py-2">
               <div className="min-w-0 flex-1">
-                <div className="text-[15px] font-medium">{m.label}</div>
-                <div className="num text-[13px] text-muted">{used.toLocaleString('en-GB')} credits this month</div>
+                <div className="text-body font-medium">{m.label}</div>
+                <div className="num text-footnote text-muted">{used.toLocaleString('en-GB')} credits this month</div>
               </div>
               <input type="number" min="0" step="1000" placeholder="No cap" aria-label={`${m.label} cap`} value={caps[m.k]} onChange={(e) => setCaps((c) => ({ ...c, [m.k]: e.target.value }))}
-                className="num h-10 w-28 rounded-xl border border-line bg-surface px-3 text-right text-[15px] outline-none focus:border-blue" />
+                className="num h-10 w-28 rounded-xl border border-line bg-surface px-3 text-right text-body outline-none focus:border-blue" />
             </div>
           );
         })}
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
-        <p className="text-[12px] text-faint">Leave blank for no extra cap. A feature pauses when it reaches its cap.</p>
+        <p className="text-caption text-faint">Leave blank for no extra cap. A feature pauses when it reaches its cap.</p>
         <Button size="sm" variant="secondary" busy={busy} disabled={!dirty} onClick={save}>Save caps</Button>
       </div>
     </Tile>

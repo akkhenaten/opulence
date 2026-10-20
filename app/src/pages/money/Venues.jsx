@@ -46,15 +46,15 @@ function VenueGrid({ rows, onAdd }) {
     <>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <label className="relative min-w-0 flex-1 basis-60">
-          <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
+          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search venues, clients, postcodes"
-            className="h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-3.5 text-[15px] outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
+            className="h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-3.5 text-body outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
         </label>
         {inactive > 0 && (
           <div className="flex gap-1">
             {[['active', 'Active'], ['inactive', `Inactive (${inactive})`], ['all', 'All']].map(([v, l]) => (
               <button key={v} type="button" onClick={() => setShow(v)}
-                className={cx('rounded-full px-3 py-1.5 text-[13px] font-semibold transition', show === v ? 'bg-ink text-white' : 'bg-surface text-muted hover:text-ink')}>{l}</button>
+                className={cx('rounded-full px-3 py-1.5 text-footnote font-semibold transition', show === v ? 'bg-ink text-white' : 'bg-surface text-muted hover:text-ink')}>{l}</button>
             ))}
           </div>
         )}
@@ -67,24 +67,24 @@ function VenueGrid({ rows, onAdd }) {
               <div className="flex items-start gap-3">
                 {v.photo_url
                   ? <img src={v.photo_url} alt="" className="h-12 w-12 shrink-0 rounded-2xl object-cover" />
-                  : <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-blue-soft text-blue"><Building2 size={22} /></div>}
+                  : <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-blue-soft text-blue"><Building2 size={24} /></div>}
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[17px] font-bold">{v.name}</div>
-                  <div className="truncate text-[13px] text-muted">{v.client_name || 'No client'}</div>
+                  <div className="truncate text-headline font-bold">{v.name}</div>
+                  <div className="truncate text-footnote text-muted">{v.client_name || 'No client'}</div>
                 </div>
                 <Pill status={v.active ? 'active' : 'closed'}>{v.active ? 'Active' : 'Inactive'}</Pill>
               </div>
-              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-muted">
+              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-footnote text-muted">
                 <span className="inline-flex items-center gap-1"><MapPin size={14} />{v.postcode || 'No postcode'}</span>
                 <span className={cx('inline-flex items-center gap-1', v.lat == null && 'text-amber')}>
                   <span className={cx('h-2 w-2 rounded-full', v.lat == null ? 'bg-amber' : 'bg-green')} />
                   {v.lat == null ? 'No geofence' : `${v.radius_m}m geofence`}
                 </span>
               </div>
-              <div className="mt-3 flex gap-2 border-t border-line pt-3 text-[13px]">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-bg px-2.5 py-1 font-semibold"><CalendarDays size={13} className="text-blue" /><span className="num">{v.upcoming_shifts}</span> upcoming</span>
+              <div className="mt-3 flex gap-2 border-t border-line pt-3 text-footnote">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-bg px-2.5 py-1 font-semibold"><CalendarDays size={14} className="text-blue" /><span className="num">{v.upcoming_shifts}</span> upcoming</span>
                 <span className={cx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold', Number(v.open_incidents) ? 'bg-red-soft text-red' : 'bg-bg')}>
-                  <ShieldAlert size={13} /><span className="num">{v.open_incidents}</span> open incidents
+                  <ShieldAlert size={14} /><span className="num">{v.open_incidents}</span> open incidents
                 </span>
               </div>
             </Link>
@@ -131,7 +131,7 @@ function AddVenueSheet({ open, onClose, clients }) {
           <Input label="Postcode" autoCapitalize="characters" {...f.bind('postcode')} />
           <Input label="Phone" type="tel" {...f.bind('phone')} />
         </div>
-        <p className="text-[13px] text-muted">You can set the map location and geofence on the next screen.</p>
+        <p className="text-footnote text-muted">You can set the map location and geofence on the next screen.</p>
       </div>
     </Sheet>
   );

@@ -21,6 +21,48 @@
   --radius-tile: 22px;
   --shadow-tile: 0 1px 2px rgba(11, 18, 32, 0.04), 0 8px 24px -12px rgba(11, 18, 32, 0.10);
   --shadow-sheet: 0 -8px 40px -8px rgba(11, 18, 32, 0.25);
+  --radius-control: 14px;
+  --radius-sheet: 28px;
+  /* Extra greys and press states, so pages never need raw hex */
+  --color-fill: #EEF0F3;
+  --color-fill-strong: #E8EAEE;
+  --color-blue-press: #DBE7FF;
+  --color-red-press: #FBDCDC;
+  --color-toggle-off: #E3E5E8;
+  --color-amber-bright: #FBBF24;
+  --color-red-bright: #F87171;
+  --color-indigo: #4F46E5;
+  --color-indigo-soft: #EEF2FF;
+  --color-sky: #2563EB;
+  --color-sky-soft: #E6F0FA;
+  /* Type scale (iOS names) */
+  --text-caption2: 11px; --text-caption2--line-height: 1.3;
+  --text-caption: 12px; --text-caption--line-height: 1.35;
+  --text-footnote: 13px; --text-footnote--line-height: 1.4;
+  --text-subhead: 14px; --text-subhead--line-height: 1.45;
+  --text-body: 15px; --text-body--line-height: 1.5;
+  --text-callout: 16px; --text-callout--line-height: 1.5;
+  --text-headline: 17px; --text-headline--line-height: 1.4;
+  --text-title3: 20px; --text-title3--line-height: 1.3;
+  --text-title2: 24px; --text-title2--line-height: 1.2;
+  --text-title1: 30px; --text-title1--line-height: 1.15;
+  --text-large: 34px; --text-large--line-height: 1.1;
+  /* Motion */
+  --ease-ios: cubic-bezier(.32, .72, 0, 1);
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+}
+
+:root {
+  --dur-1: 160ms;
+  --dur-2: 240ms;
+  --dur-3: 360ms;
+  --header-h: 56px;
+  --tabbar-h: 0px;
+}
+html.has-tabbar { --tabbar-h: calc(58px + env(safe-area-inset-bottom)); }
+html {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
 }
 
 html, body, #root { min-height: 100%; }
@@ -41,6 +83,21 @@ body {
 :focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; border-radius: 10px; }
 .safe-b { padding-bottom: env(safe-area-inset-bottom); }
 .safe-t { padding-top: env(safe-area-inset-top); }
+/* side insets added to the element's own padding, set with [--px:…] */
+.safe-x { padding-left: calc(var(--px, 0px) + env(safe-area-inset-left)); padding-right: calc(var(--px, 0px) + env(safe-area-inset-right)); }
+.overscroll-contain { overscroll-behavior: contain; }
+
+/* One press feel for every tappable thing */
+.pressable { transition: transform var(--dur-1) var(--ease-ios), background-color var(--dur-1), opacity var(--dur-1); }
+.pressable:active { transform: scale(.97); }
+.pressable-card { transition: transform var(--dur-2) var(--ease-ios), box-shadow var(--dur-2), background-color var(--dur-1); }
+.pressable-card:active { transform: scale(.985); }
+@media (hover: hover) { .pressable-card:hover { box-shadow: 0 1px 2px rgba(11,18,32,.05), 0 14px 30px -14px rgba(11,18,32,.18); } }
+/* Floating bars dock above the tab bar, or near the bottom edge when there is none */
+.action-bar { bottom: calc(var(--tabbar-h) + 12px); }
+html:not(.has-tabbar) .action-bar { bottom: calc(env(safe-area-inset-bottom) + 24px); }
+@media (min-width: 1024px) { html.has-sidebar .action-bar { left: 260px; } }
+.sticky-below-header { top: calc(var(--header-h) + env(safe-area-inset-top)); }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 
@@ -53,10 +110,49 @@ body {
 .bento > *:nth-child(6) { animation-delay: 200ms; }
 .bento > *:nth-child(n+7) { animation-delay: 240ms; }
 @keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sheet-down { from { transform: none; } to { transform: translateY(100%); } }
+@keyframes modal-in { from { opacity: 0; transform: scale(.96) translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes modal-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(.97) translateY(4px); } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes pop { 0% { transform: scale(.86); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-12px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-10px) scale(.97); } }
+@keyframes bar-in { from { opacity: 0; transform: translateY(16px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes page-in-right { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: none; } }
+@keyframes page-in-left { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
+@keyframes page-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+.page-in-right { animation: page-in-right var(--dur-2) var(--ease-ios) both; }
+.page-in-left { animation: page-in-left var(--dur-2) var(--ease-ios) both; }
+.page-fade { animation: page-fade var(--dur-2) var(--ease-out) both; }
+.anim-pop { animation: pop var(--dur-3) var(--ease-ios); }
+.anim-fade-in { animation: fade var(--dur-2) var(--ease-out) both; }
+.anim-fade-out { animation: fade-out var(--dur-2) var(--ease-out) both; }
+.anim-sheet-in { animation: sheet-up var(--dur-3) var(--ease-ios) both; }
+.anim-sheet-out { animation: sheet-down var(--dur-2) var(--ease-ios) both; }
+@media (min-width: 640px) {
+  .anim-sheet-in { animation: modal-in var(--dur-2) var(--ease-ios) both; }
+  .anim-sheet-out { animation: modal-out var(--dur-1) var(--ease-out) both; }
+}
+.anim-toast-in { animation: toast-in var(--dur-2) var(--ease-ios) both; }
+.anim-toast-out { animation: toast-out var(--dur-1) var(--ease-out) both; }
+.anim-bar-in { animation: bar-in var(--dur-2) var(--ease-ios) both; }
+.skeleton {
+  background: linear-gradient(90deg, var(--color-fill) 0%, var(--color-fill) 35%, #F7F8FA 50%, var(--color-fill) 65%, var(--color-fill) 100%);
+  background-size: 300% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
 @keyframes pulse-dot { 0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,.45); } 50% { box-shadow: 0 0 0 6px rgba(22,163,74,0); } }
 .live-dot { animation: pulse-dot 2s infinite; }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+/* Reduced motion: keep fades, drop movement; spinners still turn so loading stays visible */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 1ms !important; scroll-behavior: auto !important; }
+  .bento > *, .page-in-right, .page-in-left, .page-fade, .anim-pop, .anim-sheet-in, .anim-toast-in, .anim-bar-in, .anim-fade-in { animation: fade var(--dur-1) both !important; }
+  .anim-sheet-out, .anim-toast-out, .anim-fade-out { animation: fade-out var(--dur-1) both !important; }
+  .live-dot, .skeleton { animation: none !important; }
+  .pressable:active, .pressable-card:active { transform: none; }
+}
 
 .leaflet-container { font-family: var(--font-sans); border-radius: 16px; }
 

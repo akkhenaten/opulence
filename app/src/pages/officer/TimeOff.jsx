@@ -50,7 +50,7 @@ function Requests() {
               right={(
                 <div className="flex flex-col items-end gap-1">
                   <Pill status={t.status}>{STATUS_LABEL[t.status]}</Pill>
-                  {t.status === 'pending' && <button type="button" onClick={() => cancel(t)} className="text-[13px] font-semibold text-red">Cancel</button>}
+                  {t.status === 'pending' && <button type="button" onClick={() => cancel(t)} className="text-footnote font-semibold text-red">Cancel</button>}
                 </div>
               )} />
           );
@@ -90,9 +90,9 @@ function RequestSheet({ open, onClose, onDone }) {
           <Input label="From" type="date" value={v.start_date} onChange={set('start_date')} />
           <Input label="To" type="date" min={v.start_date} value={v.end_date} onChange={set('end_date')} />
         </div>
-        {!bad && <div className="text-[13px] font-semibold text-muted">{days(v.start_date, v.end_date)} day{days(v.start_date, v.end_date) === 1 ? '' : 's'}</div>}
+        {!bad && <div className="text-footnote font-semibold text-muted">{days(v.start_date, v.end_date)} day{days(v.start_date, v.end_date) === 1 ? '' : 's'}</div>}
         <Textarea label="Note (optional)" rows={2} value={v.reason} onChange={set('reason')} placeholder={v.kind === 'holiday' ? 'e.g. Family holiday' : ''} />
-        <p className="text-[13px] text-muted">
+        <p className="text-footnote text-muted">
           {v.kind === 'unavailable' ? 'Unavailable days are confirmed straight away. The office will not book you on these dates.' : 'The office will approve or decline your request. You will get a notification.'}
         </p>
       </div>
@@ -122,23 +122,23 @@ function AvailabilityEditor({ initial, reload }) {
 
   return (
     <>
-      <p className="mb-3 px-1 text-[14px] text-muted">Tell the office which days you can usually work. For one-off dates, use Time off.</p>
+      <p className="mb-3 px-1 text-subhead text-muted">Tell the office which days you can usually work. For one-off dates, use Time off.</p>
       <List>
         {rows.map((r, i) => (
           <div key={r.weekday} className="px-4 py-3">
             <Toggle label={DAYS[r.weekday]} hint={!r.available ? 'Not available' : r.anyTime ? 'Any time' : `${r.from_time}–${r.to_time}`} checked={r.available} onChange={(available) => upd(i, { available })} />
             {r.available && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <div className="inline-flex rounded-xl bg-bg p-[3px] text-[13px] font-semibold">
+                <div className="inline-flex rounded-xl bg-bg p-[3px] text-footnote font-semibold">
                   {[[true, 'Any time'], [false, 'Set hours']].map(([val, l]) => (
-                    <button key={l} type="button" onClick={() => upd(i, { anyTime: val })} className={cx('rounded-[9px] px-3 py-1.5', r.anyTime === val ? 'bg-white text-ink shadow-sm' : 'text-muted')}>{l}</button>
+                    <button key={l} type="button" onClick={() => upd(i, { anyTime: val })} className={cx('rounded-lg px-3 py-1.5', r.anyTime === val ? 'bg-white text-ink shadow-sm' : 'text-muted')}>{l}</button>
                   ))}
                 </div>
                 {!r.anyTime && (
                   <div className="flex items-center gap-2">
-                    <input type="time" value={r.from_time} onChange={(e) => upd(i, { from_time: e.target.value })} className="h-10 rounded-xl border border-line bg-surface px-2 text-[15px]" aria-label={`${DAYS[r.weekday]} from`} />
+                    <input type="time" value={r.from_time} onChange={(e) => upd(i, { from_time: e.target.value })} className="h-10 rounded-xl border border-line bg-surface px-2 text-body" aria-label={`${DAYS[r.weekday]} from`} />
                     <span className="text-muted">to</span>
-                    <input type="time" value={r.to_time} onChange={(e) => upd(i, { to_time: e.target.value })} className="h-10 rounded-xl border border-line bg-surface px-2 text-[15px]" aria-label={`${DAYS[r.weekday]} to`} />
+                    <input type="time" value={r.to_time} onChange={(e) => upd(i, { to_time: e.target.value })} className="h-10 rounded-xl border border-line bg-surface px-2 text-body" aria-label={`${DAYS[r.weekday]} to`} />
                   </div>
                 )}
               </div>

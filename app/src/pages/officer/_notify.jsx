@@ -57,19 +57,19 @@ export function NotificationsSheet({ open, onClose }) {
   return (
     <Sheet open={open} onClose={onClose} title="Notifications" size="sm">
       <div className="mb-5 rounded-2xl bg-bg p-4">
-        <div className="mb-1 flex items-center gap-2 text-[15px] font-semibold"><Smartphone size={18} /> Phone notifications</div>
+        <div className="mb-1 flex items-center gap-2 text-body font-semibold"><Smartphone size={18} /> Phone notifications</div>
         {needsHomeScreen ? (
-          <p className="text-[14px] text-muted">On iPhone, first add Orb to your home screen: tap Share, then “Add to Home Screen”. Open Orb from the new icon and turn this on.</p>
+          <p className="text-subhead text-muted">On iPhone, first add Orb to your home screen: tap Share, then “Add to Home Screen”. Open Orb from the new icon and turn this on.</p>
         ) : !supported() ? (
-          <p className="text-[14px] text-muted">This browser can't show phone notifications. You'll still see everything under the bell.</p>
+          <p className="text-subhead text-muted">This browser can't show phone notifications. You'll still see everything under the bell.</p>
         ) : sub ? (
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[14px] text-muted">On for this device.</p>
+            <p className="text-subhead text-muted">On for this device.</p>
             <Button size="sm" variant="secondary" busy={busy} onClick={turnOff}>Turn off</Button>
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-[14px] text-muted">Get notices on this device even when Orb is closed.</p>
+            <p className="text-subhead text-muted">Get notices on this device even when Orb is closed.</p>
             <Button size="sm" icon={BellRing} busy={busy} onClick={turnOn}>Turn on phone notifications</Button>
           </div>
         )}
@@ -77,9 +77,9 @@ export function NotificationsSheet({ open, onClose }) {
       <Load q={q}>
         {() => prefs && (
           <div className="space-y-4">
-            <div className="text-[13px] font-semibold uppercase tracking-wide text-muted">Tell me about</div>
+            <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Tell me about</div>
             {KINDS.map((k) => <Toggle key={k.key} checked={prefs[k.key] !== false} onChange={flip(k.key)} label={k.label} hint={k.hint} />)}
-            <p className="text-[13px] text-muted">Shifts, cover, pay and safety alerts always come through.</p>
+            <p className="text-footnote text-muted">Shifts, cover, pay and safety alerts always come through.</p>
           </div>
         )}
       </Load>

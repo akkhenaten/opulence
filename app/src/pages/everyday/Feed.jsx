@@ -61,7 +61,7 @@ function Stream({ sp, setSp }) {
               {posts.map((p) => <PostCard key={p.id} post={p} onChanged={reload} onPerson={setPerson} />)}
               {!posts.length && !d.pinned.length && <Empty icon={Newspaper} title="Nothing posted yet" body="Be the first — say hello, share a win from your shift or welcome someone new." />}
               {next && <div className="flex justify-center pb-4"><Button variant="secondary" busy={loadingMore} onClick={more}>Show older posts</Button></div>}
-              {posts.length > 0 && !next && <p className="pb-6 text-center text-[13px] text-faint">You're all caught up</p>}
+              {posts.length > 0 && !next && <p className="pb-6 text-center text-footnote text-faint">You're all caught up</p>}
             </>
           );
         }}

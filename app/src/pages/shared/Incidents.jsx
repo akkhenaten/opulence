@@ -38,10 +38,10 @@ export default function Incidents() {
         </div>
         <div className={cx('grid gap-2', officer ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-4')}>
           <label className="relative col-span-2 lg:col-span-1">
-            <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
+            <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
             <input type="search" value={text} onChange={(e) => { setText(e.target.value); const n = new URLSearchParams(sp); if (e.target.value) n.set('q', e.target.value); else n.delete('q'); setSp(n, { replace: true }); }}
               placeholder="Search ref, description, police ref" aria-label="Search incidents"
-              className="h-11 w-full rounded-xl border border-line bg-surface pl-9 pr-3 text-[15px] outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
+              className="h-11 w-full rounded-xl border border-line bg-surface pl-9 pr-3 text-body outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
           </label>
           <Select aria-label="Severity" value={f.severity} onChange={(e) => setF('severity', e.target.value)} options={[{ value: '', label: 'Any severity' }, ...SEVERITIES.map(({ value, label }) => ({ value, label }))]} />
           <Select aria-label="Type" value={f.type} onChange={(e) => setF('type', e.target.value)} options={[{ value: '', label: 'Any type' }, ...INCIDENT_TYPES]} />
@@ -66,22 +66,22 @@ export default function Incidents() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="text-[12px] font-semibold text-muted">{r.ref} · {dateTime(r.occurred_at)}</div>
-                      <div className="truncate text-[17px] font-bold">{typeLabel(r.type)}</div>
+                      <div className="text-caption font-semibold text-muted">{r.ref} · {dateTime(r.occurred_at)}</div>
+                      <div className="truncate text-headline font-bold">{typeLabel(r.type)}</div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
                       <Pill status={r.status}>{INCIDENT_STATUS[r.status]}</Pill>
                       <Pill status={r.severity} />
                     </div>
                   </div>
-                  <p className="mt-1 line-clamp-2 text-[14px] text-muted">{r.description}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
-                    <span className="inline-flex items-center gap-1"><MapPin size={13} />{r.venue_name}{r.location ? ` · ${r.location}` : ''}</span>
+                  <p className="mt-1 line-clamp-2 text-subhead text-muted">{r.description}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-footnote text-muted">
+                    <span className="inline-flex items-center gap-1"><MapPin size={14} />{r.venue_name}{r.location ? ` · ${r.location}` : ''}</span>
                     {!officer && r.officer_name && <span>{r.officer_name}</span>}
-                    {r.attachment_count > 0 && <span className="inline-flex items-center gap-1"><Camera size={13} />{r.attachment_count}</span>}
+                    {r.attachment_count > 0 && <span className="inline-flex items-center gap-1"><Camera size={14} />{r.attachment_count}</span>}
                   </div>
                   {r.status === 'changes_requested' && r.review_comment && (
-                    <div className="mt-2 rounded-xl bg-amber-soft px-3 py-2 text-[13px] font-medium text-amber line-clamp-2">{r.review_comment}</div>
+                    <div className="mt-2 rounded-xl bg-amber-soft px-3 py-2 text-footnote font-medium text-amber line-clamp-2">{r.review_comment}</div>
                   )}
                 </div>
               </Link>

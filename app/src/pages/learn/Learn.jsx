@@ -34,14 +34,14 @@ function ToolboxPart() {
       <form onSubmit={(e) => { e.preventDefault(); nav(`/officer/learn/toolbox${text.trim() ? `?q=${encodeURIComponent(text.trim())}` : ''}`); }}
         className="flex items-center gap-2 rounded-2xl border border-line bg-surface px-4 shadow-tile focus-within:border-blue">
         <Search size={18} className="text-faint" />
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search the Toolbox — CPR, ejection, spiking…" className="h-12 min-w-0 flex-1 bg-transparent text-[16px] outline-none" />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search the Toolbox — CPR, ejection, spiking…" className="h-12 min-w-0 flex-1 bg-transparent text-callout outline-none" />
       </form>
-      {tb.offline && <div className="mt-2 flex items-center gap-2 px-1 text-[13px] font-semibold text-amber"><WifiOff size={14} /> Offline — showing your saved copy</div>}
+      {tb.offline && <div className="mt-2 flex items-center gap-2 px-1 text-footnote font-semibold text-amber"><WifiOff size={14} /> Offline — showing your saved copy</div>}
 
       <button type="button" onClick={() => setAsk(true)}
         className="mt-3 flex w-full items-center gap-3 rounded-tile bg-blue p-4 text-left text-white shadow-tile transition active:scale-[0.99]">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/15"><Sparkles size={22} /></span>
-        <span className="min-w-0 flex-1"><span className="block text-[17px] font-bold">What should I do?</span><span className="block text-[13px] opacity-80">Describe the situation — Orb finds the right guide</span></span>
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/15"><Sparkles size={24} /></span>
+        <span className="min-w-0 flex-1"><span className="block text-headline font-bold">What should I do?</span><span className="block text-footnote opacity-80">Describe the situation — Orb finds the right guide</span></span>
         <ChevronRight size={20} className="opacity-70" />
       </button>
 
@@ -49,14 +49,14 @@ function ToolboxPart() {
         {CATEGORIES.filter((c) => c.value !== 'venue' || count('venue')).map((c) => (
           <Tile key={c.value} to={`/officer/learn/toolbox?cat=${c.value}`} className="!p-4">
             <span className={cx('mb-2 grid h-10 w-10 place-items-center rounded-xl', c.tone)}><c.icon size={20} /></span>
-            <div className="text-[15px] font-semibold leading-tight">{c.label}</div>
-            <div className="text-[13px] text-muted">{tb.cards ? `${count(c.value)} guide${count(c.value) === 1 ? '' : 's'}` : '…'}</div>
+            <div className="text-body font-semibold leading-tight">{c.label}</div>
+            <div className="text-footnote text-muted">{tb.cards ? `${count(c.value)} guide${count(c.value) === 1 ? '' : 's'}` : '…'}</div>
           </Tile>
         ))}
         <Tile to="/officer/learn/revise" className="!p-4">
-          <span className="mb-2 grid h-10 w-10 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]"><Layers size={20} /></span>
-          <div className="text-[15px] font-semibold leading-tight">Revise</div>
-          <div className="text-[13px] text-muted">Flip-card practice</div>
+          <span className="mb-2 grid h-10 w-10 place-items-center rounded-xl bg-indigo-soft text-indigo"><Layers size={20} /></span>
+          <div className="text-body font-semibold leading-tight">Revise</div>
+          <div className="text-footnote text-muted">Flip-card practice</div>
         </Tile>
       </div>
 
@@ -83,7 +83,7 @@ function AcademyPart() {
         const other = courses.filter((c) => !mine.includes(c));
         return (
           <>
-            <Section title="Your training" action={<span className="text-[13px] text-muted">{done.length} of {mine.length} complete</span>}>
+            <Section title="Your training" action={<span className="text-footnote text-muted">{done.length} of {mine.length} complete</span>}>
               {mine.length ? (
                 <List>
                   {[...todo, ...done].map((c) => <CourseRow key={c.id} c={c} />)}
@@ -117,7 +117,7 @@ function CourseRow({ c }) {
   const due = c.due_date && c.state !== 'passed' ? `Due ${dateShort(c.due_date)}` : null;
   return (
     <Row to={`/officer/learn/academy/${c.id}`}
-      left={<span className={cx('grid h-10 w-10 place-items-center rounded-xl', c.state === 'passed' ? 'bg-green-soft text-green' : 'bg-blue-soft text-blue')}>{c.state === 'passed' ? <Award size={19} /> : <BookOpenCheck size={19} />}</span>}
+      left={<span className={cx('grid h-10 w-10 place-items-center rounded-xl', c.state === 'passed' ? 'bg-green-soft text-green' : 'bg-blue-soft text-blue')}>{c.state === 'passed' ? <Award size={20} /> : <BookOpenCheck size={20} />}</span>}
       title={c.title}
       subtitle={(
         <span className="flex items-center gap-2">

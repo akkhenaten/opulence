@@ -66,7 +66,7 @@ export default function Rota() {
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1 rounded-xl bg-surface p-1 shadow-tile">
               <IconButton icon={ChevronLeft} label="Previous week" onClick={() => setWeek(addDays(week, -7))} />
-              <span className="num min-w-[132px] text-center text-[14px] font-semibold">{weekLabel}</span>
+              <span className="num min-w-[132px] text-center text-subhead font-semibold">{weekLabel}</span>
               <IconButton icon={ChevronRight} label="Next week" onClick={() => setWeek(addDays(week, 7))} />
             </div>
             {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(mondayOf(isoDate()))}>Today</Button>}
@@ -124,7 +124,7 @@ function DayTag({ days, today }) {
   const first = days[0];
   const last = days[days.length - 1];
   return (
-    <div className={cx('w-[56px] shrink-0 pt-0.5 text-[12px] font-semibold uppercase leading-tight tracking-wide', days.includes(today) ? 'text-blue' : 'text-muted')}>
+    <div className={cx('w-[56px] shrink-0 pt-0.5 text-caption font-semibold uppercase leading-tight tracking-wide', days.includes(today) ? 'text-blue' : 'text-muted')}>
       <div>{days.length > 1 ? `${wdOf(first)}–${wdOf(last)}` : wdOf(first)}</div>
       {days.length === 1 && <div className="font-medium normal-case opacity-80">{dateOf(first)}</div>}
     </div>
@@ -159,10 +159,10 @@ function ShiftCard({ s, onOpen, showVenue = true, compact }) {
       className={cx('relative block w-full overflow-hidden rounded-2xl border bg-surface text-left shadow-tile transition hover:-translate-y-0.5 active:scale-[0.99]',
         compact ? 'py-2 pl-2.5 pr-2' : 'p-3 pl-3.5', s.status === 'draft' ? 'border-dashed border-faint/60' : 'border-black/[0.04]')}>
       {short && s.status === 'published' && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-red" />}
-      <div className={cx('num whitespace-nowrap font-bold', compact ? 'text-[13px]' : 'text-[15px]')}>{range(s.starts_at, s.ends_at)}</div>
-      {showVenue && <div className="mt-0.5 truncate text-[14px] font-semibold">{s.venue_name}</div>}
+      <div className={cx('num whitespace-nowrap font-bold', compact ? 'text-footnote' : 'text-body')}>{range(s.starts_at, s.ends_at)}</div>
+      {showVenue && <div className="mt-0.5 truncate text-subhead font-semibold">{s.venue_name}</div>}
       <div className="mt-1 flex items-center justify-between gap-1.5">
-        <span className={cx('min-w-0 truncate text-muted', compact ? 'text-[12px]' : 'text-[13px]')}>{s.role_name}</span>
+        <span className={cx('min-w-0 truncate text-muted', compact ? 'text-caption' : 'text-footnote')}>{s.role_name}</span>
         <Pill tone={short ? (s.status === 'draft' ? 'grey' : 'red') : 'green'} className="num shrink-0">{s.filled}/{s.headcount}</Pill>
       </div>
       {(s.status === 'draft' || s.open || requested > 0) && (
@@ -172,7 +172,7 @@ function ShiftCard({ s, onOpen, showVenue = true, compact }) {
           {requested > 0 && <Pill tone="amber">{requested} request{requested > 1 ? 's' : ''}</Pill>}
         </div>
       )}
-      {!compact && names.length > 0 && <div className="mt-2 truncate text-[12px] text-muted">{names.join(', ')}</div>}
+      {!compact && names.length > 0 && <div className="mt-2 truncate text-caption text-muted">{names.join(', ')}</div>}
     </button>
   );
 }
@@ -180,7 +180,7 @@ function ShiftCard({ s, onOpen, showVenue = true, compact }) {
 function OfficerChip({ s, oid, onOpen }) {
   const a = s.assignments.find((x) => x.officer_id === oid);
   return (
-    <button type="button" onClick={() => onOpen(s)} className={cx('block w-full rounded-xl p-2 text-left text-[12px] transition hover:-translate-y-0.5', a.status === 'requested' ? 'bg-amber-soft' : s.status === 'draft' ? 'bg-bg' : 'bg-blue-soft')}>
+    <button type="button" onClick={() => onOpen(s)} className={cx('block w-full rounded-xl p-2 text-left text-caption transition hover:-translate-y-0.5', a.status === 'requested' ? 'bg-amber-soft' : s.status === 'draft' ? 'bg-bg' : 'bg-blue-soft')}>
       <div className="num whitespace-nowrap font-bold">{range(s.starts_at, s.ends_at)}</div>
       <div className="truncate text-muted">{s.venue_name}</div>
       {a.status !== 'accepted' && <div className="font-semibold">{titleCase(a.status)}</div>}
@@ -213,14 +213,14 @@ function DayList({ rows, week, onOpen, onAdd }) {
           return (
             <section key={d} className="mb-1">
               <div ref={d === today ? todayRef : undefined}
-                className="sticky top-14 z-10 -mx-4 flex scroll-mt-14 items-center justify-between bg-bg/90 px-4 py-2 backdrop-blur">
-                <span className={cx('text-[13px] font-semibold uppercase tracking-wide', g.days.includes(today) ? 'text-blue' : 'text-muted')}>
+                className="sticky-below-header sticky z-10 -mx-4 flex scroll-mt-14 items-center justify-between bg-bg/90 px-4 py-2 backdrop-blur">
+                <span className={cx('text-footnote font-semibold uppercase tracking-wide', g.days.includes(today) ? 'text-blue' : 'text-muted')}>
                   {foldLabel(g)}{d === today ? ' · Today' : ''}
                 </span>
-                <button type="button" onClick={() => onAdd(d)} className="text-[13px] font-semibold text-blue" aria-label={`Add shift ${dayLabel(d)}`}>+ Add</button>
+                <button type="button" onClick={() => onAdd(d)} className="text-footnote font-semibold text-blue" aria-label={`Add shift ${dayLabel(d)}`}>+ Add</button>
               </div>
               {g.empty
-                ? <div className="mb-2 rounded-2xl border border-dashed border-line px-4 py-3 text-[13px] text-faint">No shifts</div>
+                ? <div className="mb-2 rounded-2xl border border-dashed border-line px-4 py-3 text-footnote text-faint">No shifts</div>
                 : <div className="mb-2 space-y-2">{byDay[d].map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} />)}</div>}
             </section>
           );
@@ -230,14 +230,14 @@ function DayList({ rows, week, onOpen, onAdd }) {
       {/* Tablet/desktop: week board, one column per day */}
       <div className="hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         {days.map((d) => (
-          <div key={d} className={cx('min-w-0 rounded-tile p-2', d === today ? 'bg-blue-soft/60' : 'bg-[#E9ECF1]/60')}>
+          <div key={d} className={cx('min-w-0 rounded-tile p-2', d === today ? 'bg-blue-soft/60' : 'bg-fill/60')}>
             <div className="mb-2 flex items-center justify-between pl-1.5">
-              <span className={cx('whitespace-nowrap text-[12px] font-semibold uppercase tracking-wide', d === today ? 'text-blue' : 'text-muted')}>{dayLabel(d)}</span>
+              <span className={cx('whitespace-nowrap text-caption font-semibold uppercase tracking-wide', d === today ? 'text-blue' : 'text-muted')}>{dayLabel(d)}</span>
               <button type="button" onClick={() => onAdd(d)} aria-label={`Add shift ${dayLabel(d)}`} className="grid h-7 w-7 place-items-center rounded-full text-blue transition hover:bg-white"><Plus size={16} /></button>
             </div>
             {byDay[d]?.length
               ? <div className="space-y-2">{byDay[d].map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} />)}</div>
-              : <div className="rounded-2xl border border-dashed border-black/10 px-3 py-3 text-[13px] text-faint">No shifts</div>}
+              : <div className="rounded-2xl border border-dashed border-black/10 px-3 py-3 text-footnote text-faint">No shifts</div>}
           </div>
         ))}
       </div>
@@ -252,7 +252,7 @@ function GridFrame({ week, children }) {
   return (
     <div className="hidden overflow-x-auto rounded-tile border border-black/[0.04] bg-surface shadow-tile md:block">
       <div className="min-w-[860px]">
-        <div className={cx('grid border-b border-line text-[12px] font-semibold uppercase tracking-wide text-faint', COLS)}>
+        <div className={cx('grid border-b border-line text-caption font-semibold uppercase tracking-wide text-faint', COLS)}>
           <div className={cx(STICKY, 'px-3 py-2.5')} />
           {DAYS(week).map((d) => (
             <div key={d} className={cx('whitespace-nowrap border-l border-line px-2 py-2.5', d === today && 'text-blue')}>{dayLabel(d)}</div>
@@ -269,11 +269,11 @@ function VenueGrid({ rows, week, venues, onOpen, onAdd }) {
     <GridFrame week={week}>
       {orderVenues(rows, venues).map((v) => (
         <div key={v.id} className={cx('grid', COLS)}>
-          <div className={cx(STICKY, 'px-3 py-3 text-[14px] font-semibold')}>{v.name}</div>
+          <div className={cx(STICKY, 'px-3 py-3 text-subhead font-semibold')}>{v.name}</div>
           {DAYS(week).map((d) => (
             <div key={d} className="group min-w-0 space-y-1.5 border-l border-line p-1.5">
               {rows.filter((s) => s.venue_id === v.id && dayOf(s.starts_at) === d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} compact />)}
-              <button type="button" onClick={() => onAdd(d, v.id)} className="w-full rounded-xl py-1 text-[13px] font-semibold text-faint opacity-40 transition hover:bg-blue-soft hover:text-blue hover:opacity-100 group-hover:opacity-100 focus:opacity-100" aria-label="Add shift">+</button>
+              <button type="button" onClick={() => onAdd(d, v.id)} className="w-full rounded-xl py-1 text-footnote font-semibold text-faint opacity-40 transition hover:bg-blue-soft hover:text-blue hover:opacity-100 group-hover:opacity-100 focus:opacity-100" aria-label="Add shift">+</button>
             </div>
           ))}
         </div>
@@ -289,7 +289,7 @@ function OfficerGrid({ rows, week, onOpen }) {
   return (
     <GridFrame week={week}>
       <div className={cx('grid bg-red-soft/40', COLS)}>
-        <div className={cx(STICKY, 'bg-[#FDF3F3] px-3 py-3')}><div className="text-[14px] font-semibold text-red">Unfilled</div><div className="num text-[12px] text-muted">{((n) => `${n} place${n === 1 ? '' : 's'}`)(unfilled.reduce((n, s) => n + s.headcount - s.filled, 0))}</div></div>
+        <div className={cx(STICKY, 'bg-red-soft/70 px-3 py-3')}><div className="text-subhead font-semibold text-red">Unfilled</div><div className="num text-caption text-muted">{((n) => `${n} place${n === 1 ? '' : 's'}`)(unfilled.reduce((n, s) => n + s.headcount - s.filled, 0))}</div></div>
         {days.map((d) => (
           <div key={d} className="min-w-0 space-y-1.5 border-l border-line p-1.5">
             {unfilled.filter((s) => dayOf(s.starts_at) === d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} compact />)}
@@ -298,7 +298,7 @@ function OfficerGrid({ rows, week, onOpen }) {
       </div>
       {officers.map((o) => (
         <div key={o.id} className={cx('grid', COLS)}>
-          <div className={cx(STICKY, 'flex items-center gap-2 px-3 py-3')}><Avatar name={o.name} size={30} /><div className="min-w-0"><div className="truncate text-[14px] font-semibold">{o.name}</div><div className="num text-[12px] text-muted">{o.hours}h</div></div></div>
+          <div className={cx(STICKY, 'flex items-center gap-2 px-3 py-3')}><Avatar name={o.name} size={30} /><div className="min-w-0"><div className="truncate text-subhead font-semibold">{o.name}</div><div className="num text-caption text-muted">{o.hours}h</div></div></div>
           {days.map((d) => (
             <div key={d} className="min-w-0 space-y-1.5 border-l border-line p-1.5">
               {o.mine.filter((s) => dayOf(s.starts_at) === d).map((s) => <OfficerChip key={s.id} s={s} oid={o.id} onOpen={onOpen} />)}
@@ -324,7 +324,7 @@ function VenueAgenda({ rows, week, venues, onOpen, onAdd }) {
         return (
           <section key={v.id} className="overflow-hidden rounded-tile border border-black/[0.04] bg-surface shadow-tile">
             <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4">
-              <div className="min-w-0"><div className="truncate text-[17px] font-semibold">{v.name}</div><div className="text-[13px] text-muted">{count ? `${count} shift${count > 1 ? 's' : ''} this week` : 'No shifts this week'}</div></div>
+              <div className="min-w-0"><div className="truncate text-headline font-semibold">{v.name}</div><div className="text-footnote text-muted">{count ? `${count} shift${count > 1 ? 's' : ''} this week` : 'No shifts this week'}</div></div>
               <IconButton icon={Plus} label={`Add shift at ${v.name}`} onClick={() => onAdd(addDay, v.id)} />
             </div>
             <div className="divide-y divide-line">
@@ -333,7 +333,7 @@ function VenueAgenda({ rows, week, venues, onOpen, onAdd }) {
                   <DayTag days={g.days} today={today} />
                   <div className="min-w-0 flex-1">
                     {g.empty
-                      ? <button type="button" onClick={() => onAdd(g.days[0], v.id)} className="py-0.5 text-[13px] text-faint">No shifts · <span className="font-semibold text-blue">Add</span></button>
+                      ? <button type="button" onClick={() => onAdd(g.days[0], v.id)} className="py-0.5 text-footnote text-faint">No shifts · <span className="font-semibold text-blue">Add</span></button>
                       : <div className="space-y-2">{at(g.days[0]).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} />)}</div>}
                   </div>
                 </div>
@@ -355,7 +355,7 @@ function OfficerAgenda({ rows, onOpen }) {
     <div className="space-y-3 md:hidden">
       {unfilled.length > 0 && (
         <section className="rounded-tile bg-red-soft/70 p-4">
-          <div className="mb-3 flex items-baseline justify-between"><span className="text-[17px] font-semibold text-red">Unfilled</span><span className="num text-[13px] text-muted">{places} place{places === 1 ? '' : 's'}</span></div>
+          <div className="mb-3 flex items-baseline justify-between"><span className="text-headline font-semibold text-red">Unfilled</span><span className="num text-footnote text-muted">{places} place{places === 1 ? '' : 's'}</span></div>
           <div className="space-y-2">
             {unfilled.map((s) => (
               <div key={s.id} className="flex gap-3"><DayTag days={[dayOf(s.starts_at)]} today={today} /><div className="min-w-0 flex-1"><ShiftCard s={s} onOpen={onOpen} /></div></div>
@@ -367,7 +367,7 @@ function OfficerAgenda({ rows, onOpen }) {
         <section key={o.id} className="rounded-tile border border-black/[0.04] bg-surface p-4 shadow-tile">
           <div className="mb-3 flex items-center gap-3">
             <Avatar name={o.name} size={36} />
-            <div className="min-w-0"><div className="truncate text-[16px] font-semibold">{o.name}</div><div className="num text-[13px] text-muted">{o.hours}h this week · {o.mine.length} shift{o.mine.length === 1 ? '' : 's'}</div></div>
+            <div className="min-w-0"><div className="truncate text-callout font-semibold">{o.name}</div><div className="num text-footnote text-muted">{o.hours}h this week · {o.mine.length} shift{o.mine.length === 1 ? '' : 's'}</div></div>
           </div>
           <div className="space-y-2">
             {o.mine.map((s) => (
@@ -396,8 +396,8 @@ function Requests({ q, roleName, onChanged, onOpen }) {
           <div key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <Avatar name={r.officer_name} size={40} />
             <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpen(r.shift_id)}>
-              <div className="truncate text-[15px] font-semibold">{r.officer_name}</div>
-              <div className="truncate text-[13px] text-muted">{r.venue_name} · {dayLabel(r.starts_at)} <span className="num">{range(r.starts_at, r.ends_at)}</span> · {roleName(r.role)}</div>
+              <div className="truncate text-body font-semibold">{r.officer_name}</div>
+              <div className="truncate text-footnote text-muted">{r.venue_name} · {dayLabel(r.starts_at)} <span className="num">{range(r.starts_at, r.ends_at)}</span> · {roleName(r.role)}</div>
             </button>
             <div className="flex gap-2">
               <Button size="sm" variant="secondary" icon={X} disabled={busyId === r.id} onClick={() => decide(r, false)}>Decline</Button>
@@ -462,8 +462,8 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
 
           {cancelling && (
             <div className="space-y-3 rounded-2xl bg-red-soft/60 p-4">
-              <div className="text-[15px] font-semibold text-red">Cancel this shift?</div>
-              <p className="text-[13px] text-muted">Everyone assigned or requesting is told it is cancelled.</p>
+              <div className="text-body font-semibold text-red">Cancel this shift?</div>
+              <p className="text-footnote text-muted">Everyone assigned or requesting is told it is cancelled.</p>
               <Textarea rows={2} placeholder="Reason (optional)" value={reason} onChange={(e) => setReason(e.target.value)} />
               <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setCancelling(false)}>Keep shift</Button><Button variant="danger" onClick={cancel} busy={busy}>Cancel shift</Button></div>
             </div>
@@ -471,17 +471,17 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <div className="text-[12px] font-semibold uppercase tracking-wide text-faint">Officers</div>
+              <div className="text-caption font-semibold uppercase tracking-wide text-faint">Officers</div>
               {s.status !== 'cancelled' && s.filled < s.headcount && <Button size="sm" variant="soft" icon={UserPlus} onClick={() => setAssigning(true)}>Assign</Button>}
             </div>
-            {!s.assignments.length ? <p className="text-[14px] text-muted">Nobody assigned yet.</p> : (
+            {!s.assignments.length ? <p className="text-subhead text-muted">Nobody assigned yet.</p> : (
               <List inset>
                 {s.assignments.map((a) => (
                   <div key={a.id} className="flex items-center gap-3 px-4 py-3">
                     <Avatar name={a.name} size={36} />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[15px] font-semibold">{a.name}</div>
-                      <div className="truncate text-[12px] text-muted">
+                      <div className="truncate text-body font-semibold">{a.name}</div>
+                      <div className="truncate text-caption text-muted">
                         {a.clocked_in ? <>In <span className="num">{time(a.clocked_in)}</span>{a.clocked_out && <> · out <span className="num">{time(a.clocked_out)}</span></>}</> : a.sia_number ? `SIA ${a.sia_number}` : ''}
                       </div>
                     </div>
@@ -523,7 +523,7 @@ function AssignSheet({ shift, onClose, onDone }) {
   };
   return (
     <Sheet open onClose={onClose} title="Assign officer" size="md">
-      <p className="mb-3 text-[14px] text-muted">{shift.venue_name} · {dayLabel(shift.starts_at)} <span className="num">{range(shift.starts_at, shift.ends_at)}</span></p>
+      <p className="mb-3 text-subhead text-muted">{shift.venue_name} · {dayLabel(shift.starts_at)} <span className="num">{range(shift.starts_at, shift.ends_at)}</span></p>
       <Input placeholder="Search officers" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-3" />
       <Load q={q}>{(list) => {
         const shown = list.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
@@ -537,12 +537,12 @@ function AssignSheet({ shift, onClose, onDone }) {
                   className={cx('flex w-full items-center gap-3 px-4 py-3 text-left transition', blocked ? 'opacity-60' : 'hover:bg-surface active:bg-surface')}>
                   <Avatar name={c.name} size={36} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[15px] font-semibold">{c.name}</div>
-                    {blocked ? <div className="text-[12px] text-red">{c.blocking.join(' · ')}</div>
-                      : c.warnings.length ? <div className="text-[12px] text-amber">{c.warnings.join(' · ')}</div>
-                        : <div className="text-[12px] text-green">Available</div>}
+                    <div className="truncate text-body font-semibold">{c.name}</div>
+                    {blocked ? <div className="text-caption text-red">{c.blocking.join(' · ')}</div>
+                      : c.warnings.length ? <div className="text-caption text-amber">{c.warnings.join(' · ')}</div>
+                        : <div className="text-caption text-green">Available</div>}
                   </div>
-                  {busyId === c.id ? <span className="text-[13px] text-muted">Assigning…</span> : !blocked && <Plus size={18} className="text-blue" />}
+                  {busyId === c.id ? <span className="text-footnote text-muted">Assigning…</span> : !blocked && <Plus size={18} className="text-blue" />}
                 </button>
               );
             })}
@@ -618,18 +618,18 @@ function ShiftForm({ init, venues, roles, onClose, onSaved }) {
                     const on = days.has(i);
                     return (
                       <button key={w} type="button" onClick={() => setDays((x) => { const n = new Set(x); if (on) n.delete(i); else n.add(i); return n; })}
-                        className={cx('h-9 min-w-[46px] rounded-full px-3 text-[13px] font-semibold transition', on ? 'bg-blue text-white' : 'bg-surface text-muted border border-line')}>{w}</button>
+                        className={cx('h-9 min-w-[46px] rounded-full px-3 text-footnote font-semibold transition', on ? 'bg-blue text-white' : 'bg-surface text-muted border border-line')}>{w}</button>
                     );
                   })}
                 </div>
                 <Select label="For" value={String(weeks)} onChange={(e) => setWeeks(Number(e.target.value))}
                   options={[1, 2, 3, 4, 6, 8].map((n) => ({ value: String(n), label: n === 1 ? 'This week only' : `${n} weeks` }))} />
-                <p className="text-[13px] text-muted">{dates.length} shift{dates.length > 1 ? 's' : ''}: {dates.slice(0, 6).map(dateShort).join(', ')}{dates.length > 6 ? '…' : ''}</p>
+                <p className="text-footnote text-muted">{dates.length} shift{dates.length > 1 ? 's' : ''}: {dates.slice(0, 6).map(dateShort).join(', ')}{dates.length > 6 ? '…' : ''}</p>
               </div>
             )}
           </div>
         )}
-        {s && s.status === 'published' && <p className="text-[13px] text-muted">Assigned officers are told if the time or venue changes.</p>}
+        {s && s.status === 'published' && <p className="text-footnote text-muted">Assigned officers are told if the time or venue changes.</p>}
       </div>
     </Sheet>
   );

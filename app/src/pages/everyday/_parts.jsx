@@ -82,14 +82,14 @@ export function MentionBox({ value, onChange, mentions, placeholder, rows = 3, a
           else if (onSubmit && e.key === 'Enter' && !e.shiftKey && window.matchMedia('(hover: hover)').matches) { e.preventDefault(); onSubmit(); }
         }}
         onBlur={() => setTimeout(() => setQuery(null), 150)}
-        className={cx('w-full resize-none bg-transparent text-[16px] leading-relaxed outline-none placeholder:text-faint', className)} />
+        className={cx('w-full resize-none bg-transparent text-callout leading-relaxed outline-none placeholder:text-faint', className)} />
       {list.length > 0 && (
         <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-2xl border border-line bg-surface shadow-lg">
           {list.map((p) => (
             <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(p)} className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-bg">
               <Avatar name={p.name} src={p.photo_url} size={30} />
-              <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{p.name}</span>
-              <span className="text-[12px] text-muted">{ROLE_LABEL[p.role]}</span>
+              <span className="min-w-0 flex-1 truncate text-body font-medium">{p.name}</span>
+              <span className="text-caption text-muted">{ROLE_LABEL[p.role]}</span>
             </button>
           ))}
         </div>
@@ -98,30 +98,7 @@ export function MentionBox({ value, onChange, mentions, placeholder, rows = 3, a
   );
 }
 
-export function Lightbox({ photos, index, onClose }) {
-  const [i, setI] = useState(index);
-  useEffect(() => setI(index), [index]);
-  useEffect(() => {
-    if (index == null) return undefined;
-    const k = (e) => { if (e.key === 'Escape') onClose(); if (e.key === 'ArrowRight') setI((x) => Math.min(x + 1, photos.length - 1)); if (e.key === 'ArrowLeft') setI((x) => Math.max(x - 1, 0)); };
-    document.addEventListener('keydown', k);
-    return () => document.removeEventListener('keydown', k);
-  }, [index, photos.length, onClose]);
-  if (index == null || !photos[i]) return null;
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90" onClick={onClose}>
-      <img src={photos[i].url} alt="" className="max-h-[92vh] max-w-[96vw] object-contain" onClick={(e) => e.stopPropagation()} />
-      <button type="button" aria-label="Close" className="absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white" onClick={onClose}><X size={22} /></button>
-      {photos.length > 1 && (
-        <>
-          <div className="absolute bottom-5 left-0 right-0 text-center text-[13px] text-white/80">{i + 1} / {photos.length}</div>
-          {i > 0 && <button type="button" aria-label="Previous" className="absolute left-3 grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white" onClick={(e) => { e.stopPropagation(); setI(i - 1); }}><ChevronLeft size={24} /></button>}
-          {i < photos.length - 1 && <button type="button" aria-label="Next" className="absolute right-3 grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white" onClick={(e) => { e.stopPropagation(); setI(i + 1); }}><ChevronRight size={24} /></button>}
-        </>
-      )}
-    </div>
-  );
-}
+export { Lightbox } from '../../ui/index.jsx';
 
 export function PhotoGrid({ photos, onOpen }) {
   if (!photos?.length) return null;
@@ -133,7 +110,7 @@ export function PhotoGrid({ photos, onOpen }) {
         <button key={p.key} type="button" onClick={() => onOpen(i)}
           className={cx('relative block bg-bg', n === 1 ? 'max-h-[520px]' : 'aspect-square', n === 3 && i === 0 && 'row-span-2 aspect-auto')}>
           <img src={p.url} alt="" loading="lazy" className={cx('h-full w-full', n === 1 ? 'max-h-[520px] object-contain' : 'object-cover')} />
-          {i === 3 && n > 4 && <span className="absolute inset-0 grid place-items-center bg-black/50 text-[26px] font-bold text-white">+{n - 4}</span>}
+          {i === 3 && n > 4 && <span className="absolute inset-0 grid place-items-center bg-black/50 text-title2 font-bold text-white">+{n - 4}</span>}
         </button>
       ))}
     </div>
@@ -155,13 +132,13 @@ export function PersonSheet({ userId, onClose }) {
               <div className="flex items-center gap-4">
                 <Avatar name={d.person.name} src={d.person.photo_url} size={72} />
                 <div className="min-w-0">
-                  <div className="text-[20px] font-bold leading-tight">{d.person.name}</div>
-                  <div className="text-[14px] text-muted">{ROLE_LABEL[d.person.role]} · with the team since {d.since}</div>
-                  <div className="text-[13px] text-faint">{d.post_count} post{d.post_count === 1 ? '' : 's'}</div>
+                  <div className="text-title3 font-bold leading-tight">{d.person.name}</div>
+                  <div className="text-subhead text-muted">{ROLE_LABEL[d.person.role]} · with the team since {d.since}</div>
+                  <div className="text-footnote text-faint">{d.post_count} post{d.post_count === 1 ? '' : 's'}</div>
                 </div>
               </div>
               {isMgr(user) && d.person.id !== user.id && (
-                <div className="mt-4 rounded-2xl bg-bg px-4 py-3 text-[14px]">
+                <div className="mt-4 rounded-2xl bg-bg px-4 py-3 text-subhead">
                   {d.muted ? (
                     <div className="flex items-center justify-between gap-3">
                       <span>Can't post until {new Date(d.muted.until).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}{d.muted.reason ? ` — ${d.muted.reason}` : ''}</span>
@@ -172,13 +149,13 @@ export function PersonSheet({ userId, onClose }) {
               )}
               {d.posts.length > 0 && (
                 <div className="mt-5 space-y-2">
-                  <div className="text-[13px] font-semibold uppercase tracking-wide text-muted">Recent posts</div>
+                  <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Recent posts</div>
                   {d.posts.map((p) => (
                     <div key={p.id} className="flex gap-3 rounded-2xl bg-bg p-3">
                       {p.photos[0] && <img src={p.photos[0].url} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />}
                       <div className="min-w-0">
-                        <div className="line-clamp-2 text-[14px]">{p.body || 'Photo'}</div>
-                        <div className="text-[12px] text-faint">{relative(p.created_at)}</div>
+                        <div className="line-clamp-2 text-subhead">{p.body || 'Photo'}</div>
+                        <div className="text-caption text-faint">{relative(p.created_at)}</div>
                       </div>
                     </div>
                   ))}
@@ -203,7 +180,7 @@ export function MuteSheet({ open, person, onClose, onDone }) {
     <Sheet open={open} onClose={onClose} title={`Pause ${person?.name || ''}'s posting`} size="sm"
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant="danger" busy={busy} onClick={go}>Pause posting</Button></>}>
       <div className="space-y-3">
-        <p className="text-[14px] text-muted">They can still read Everyday, but can't post or comment. They are told why.</p>
+        <p className="text-subhead text-muted">They can still read Everyday, but can't post or comment. They are told why.</p>
         <Select label="For" value={days} onChange={(e) => setDays(e.target.value)} options={[{ value: '1', label: '1 day' }, { value: '7', label: '7 days' }, { value: '30', label: '30 days' }, { value: '90', label: '90 days' }]} />
         <Input label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Posted customer photos after a warning" />
       </div>
@@ -224,9 +201,9 @@ export function RulesSheet({ open, onClose, onAccept }) {
   return (
     <Sheet open={open} onClose={onClose} title="Everyday community rules"
       footer={onAccept && <Button busy={busy} onClick={() => run(() => api('everyday.acceptRules')).then(onAccept).catch(() => {})}>I agree</Button>}>
-      <p className="mb-3 text-[15px]">Everyday is for the team to share wins, news and life on shift. Before you post:</p>
+      <p className="mb-3 text-body">Everyday is for the team to share wins, news and life on shift. Before you post:</p>
       <ol className="space-y-2.5">
-        {RULES.map((r, i) => <li key={i} className="flex gap-3 text-[15px]"><span className="num grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-soft text-[12px] font-bold text-blue">{i + 1}</span>{r}</li>)}
+        {RULES.map((r, i) => <li key={i} className="flex gap-3 text-body"><span className="num grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-soft text-caption font-bold text-blue">{i + 1}</span>{r}</li>)}
       </ol>
     </Sheet>
   );

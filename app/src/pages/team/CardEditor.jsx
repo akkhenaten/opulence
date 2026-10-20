@@ -67,7 +67,7 @@ export default function CardEditor() {
 
   return (
     <Page title={f.title || 'New card'} back={back} wide
-      subtitle={<span className="flex flex-wrap items-center gap-2">{f.status === 'published' ? <Pill tone="green">Published</Pill> : <Pill tone="blue">Draft</Pill>}{f.review_by && <span className="text-[13px]">Review by {date(f.review_by)}</span>}{dirty && <Pill tone="amber">Unsaved changes</Pill>}</span>}
+      subtitle={<span className="flex flex-wrap items-center gap-2">{f.status === 'published' ? <Pill tone="green">Published</Pill> : <Pill tone="blue">Draft</Pill>}{f.review_by && <span className="text-footnote">Review by {date(f.review_by)}</span>}{dirty && <Pill tone="amber">Unsaved changes</Pill>}</span>}
       actions={co && (
         <>
           <Button variant="secondary" icon={Save} busy={busy} disabled={!dirty || !f.title.trim()} onClick={save}>Save</Button>
@@ -103,7 +103,7 @@ export default function CardEditor() {
           )}
         </Tile>
         <div className="min-w-0">
-          <div className="mb-2 px-1 text-[13px] font-semibold uppercase tracking-wide text-muted">What officers see</div>
+          <div className="mb-2 px-1 text-footnote font-semibold uppercase tracking-wide text-muted">What officers see</div>
           <div className="lg:sticky lg:top-4">
             <CardView c={{ ...card, venue_name: f.category === 'venue' ? venueName : null, course_title: courseTitle, updated_at: f.updated_at }} />
           </div>

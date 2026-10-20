@@ -81,35 +81,17 @@ export function CopyLink({ link, label = 'Invite link', hint = 'Email may not be
   };
   return (
     <div className="rounded-2xl bg-blue-soft p-4">
-      <div className="mb-1 flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-blue"><Link2 size={14} />{label}</div>
-      <div className="break-all rounded-xl bg-white px-3 py-2 font-mono text-[12px] text-ink select-all">{full}</div>
+      <div className="mb-1 flex items-center gap-1.5 text-footnote font-semibold uppercase tracking-wide text-blue"><Link2 size={14} />{label}</div>
+      <div className="break-all rounded-xl bg-white px-3 py-2 font-mono text-caption text-ink select-all">{full}</div>
       <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="text-[12px] text-muted">{hint}</span>
+        <span className="text-caption text-muted">{hint}</span>
         <Button size="sm" icon={done ? Check : Copy} onClick={copy}>{done ? 'Copied' : 'Copy'}</Button>
       </div>
     </div>
   );
 }
 
-// Multi-select chips
-export function Chips({ options, value = [], onChange, label }) {
-  const toggle = (v) => onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v]);
-  return (
-    <div>
-      {label && <div className="mb-1.5 text-[13px] font-semibold text-muted">{label}</div>}
-      <div className="flex flex-wrap gap-2">
-        {options.map((o) => (
-          <button key={o.value} type="button" onClick={() => toggle(o.value)}
-            className={cx('rounded-full border px-3 py-1.5 text-[13px] font-semibold transition active:scale-95',
-              value.includes(o.value) ? 'border-blue bg-blue text-white' : 'border-line bg-surface text-ink hover:bg-bg')}>
-            {o.label}
-          </button>
-        ))}
-        {!options.length && <span className="text-[13px] text-faint">None available</span>}
-      </div>
-    </div>
-  );
-}
+export { Chips } from '../../ui/index.jsx';
 
 // Core officer fields used by "Add officer" and "Add applicant"
 export function OfficerCoreFields({ form, roles, statusOptions = ['active', 'onboarding', 'applicant'], showInvite = true }) {
@@ -160,15 +142,7 @@ export function LoginPill({ o }) {
   return <Pill tone="blue">App active</Pill>;
 }
 
-export function Progress({ done = 0, total = 0, className }) {
-  const pct = total ? Math.round((done / total) * 100) : 0;
-  return (
-    <div className={cx('flex items-center gap-2', className)}>
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#E8EAEE]"><div className={cx('h-full rounded-full', pct === 100 ? 'bg-green' : 'bg-blue')} style={{ width: `${pct}%` }} /></div>
-      <span className="num text-[12px] font-semibold text-muted">{done}/{total}</span>
-    </div>
-  );
-}
+export { Progress } from '../../ui/index.jsx';
 
 // Open a presigned URL from an action without the popup being blocked
 export async function openUrl(fn) {

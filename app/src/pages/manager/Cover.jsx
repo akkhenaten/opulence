@@ -41,7 +41,7 @@ export default function Cover() {
               <Row key={c.id} onClick={() => setOpen(c)} chevron
                 title={<>{c.venue_name} <span className="font-normal text-muted">· {c.headcount} × {c.role_name}</span></>}
                 subtitle={<>{dayLabel(c.starts_at)} <span className="num">{range(c.starts_at, c.ends_at)}</span>{c.requested_by_name ? ` · ${c.requested_by_name}` : ''}</>}
-                right={<div className="flex flex-col items-end gap-1"><Pill status={statusOf(c)} />{c.status === 'accepted' && <span className="num text-[12px] text-muted">{c.filled}/{c.headcount} staffed</span>}</div>} />
+                right={<div className="flex flex-col items-end gap-1"><Pill status={statusOf(c)} />{c.status === 'accepted' && <span className="num text-caption text-muted">{c.filled}/{c.headcount} staffed</span>}</div>} />
             ))}
           </List>
         );
@@ -73,7 +73,7 @@ function Detail({ c, base, canCancel, onClose, onDone }) {
   return (
     <Sheet open onClose={onClose} title={c.venue_name} footer={footer}>
       <div className="space-y-5">
-        <div className="flex items-center gap-2"><Pill status={statusOf(c)} />{c.status === 'accepted' && <span className="num text-[13px] text-muted">{c.filled}/{c.headcount} staffed</span>}</div>
+        <div className="flex items-center gap-2"><Pill status={statusOf(c)} />{c.status === 'accepted' && <span className="num text-footnote text-muted">{c.filled}/{c.headcount} staffed</span>}</div>
         <KV items={[
           ['Needed', `${c.headcount} × ${c.role_name}`],
           ['When', <>{dayLabel(c.starts_at)}, <span className="num">{range(c.starts_at, c.ends_at)}</span></>],
@@ -84,7 +84,7 @@ function Detail({ c, base, canCancel, onClose, onDone }) {
         ]} />
         {mode === 'accept' && (
           <div className="rounded-2xl bg-bg/70 p-4">
-            <p className="mb-2 text-[14px] text-muted">Creates a published shift for {dateTime(c.starts_at)} with {c.headcount} place{c.headcount > 1 ? 's' : ''}. The venue is told it is accepted.</p>
+            <p className="mb-2 text-subhead text-muted">Creates a published shift for {dateTime(c.starts_at)} with {c.headcount} place{c.headcount > 1 ? 's' : ''}. The venue is told it is accepted.</p>
             <Toggle label="Offer as open shift" hint="Officers can ask to work it from the app" checked={asOpen} onChange={setAsOpen} />
           </div>
         )}

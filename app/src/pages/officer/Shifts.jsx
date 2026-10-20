@@ -55,8 +55,8 @@ function Mine() {
         return (
           <>
             {toRespond.length > 0 && (
-              <div className="mb-3 flex items-center gap-2 rounded-2xl bg-amber-soft px-4 py-3 text-[14px] font-semibold text-amber">
-                <Info size={17} />{toRespond.length} shift{toRespond.length > 1 ? 's' : ''} waiting for your answer
+              <div className="mb-3 flex items-center gap-2 rounded-2xl bg-amber-soft px-4 py-3 text-subhead font-semibold text-amber">
+                <Info size={18} />{toRespond.length} shift{toRespond.length > 1 ? 's' : ''} waiting for your answer
               </div>
             )}
             {!upcoming.length ? (
@@ -67,7 +67,7 @@ function Mine() {
                   const clocked = (s.clock || []).some((e) => e.status !== 'rejected');
                   return (
                     <ShiftCard key={s.assignment_id} s={s} status={ASSIGN_LABEL[s.assignment_status]} statusTone={assignTone[s.assignment_status]}>
-                      {s.notes && <p className="mt-2 text-[13px] text-muted">{s.notes}</p>}
+                      {s.notes && <p className="mt-2 text-footnote text-muted">{s.notes}</p>}
                       {s.assignment_status === 'assigned' && (
                         <div className="mt-3 grid grid-cols-2 gap-2">
                           <Button variant="secondary" size="lg" icon={X} onClick={() => setDeclining(s)}>Decline</Button>
@@ -76,7 +76,7 @@ function Mine() {
                       )}
                       {s.assignment_status === 'requested' && (
                         <div className="mt-3 flex items-center justify-between gap-2">
-                          <span className="text-[13px] text-muted">Waiting for the office to approve</span>
+                          <span className="text-footnote text-muted">Waiting for the office to approve</span>
                           <Button variant="ghost" size="sm" onClick={() => withdraw(s)}>Withdraw</Button>
                         </div>
                       )}
@@ -96,7 +96,7 @@ function Mine() {
                     const ins = (s.clock || []).filter((e) => e.kind === 'in' && e.status !== 'rejected');
                     const outs = (s.clock || []).filter((e) => e.kind === 'out' && e.status !== 'rejected');
                     const worked = ins.length ? `Worked ${time(ins[0].ts)}${outs.length ? `–${time(outs.at(-1).ts)}` : ''}` : 'No clock-in recorded';
-                    return <ShiftCard key={s.assignment_id} s={s} status={ins.length ? 'Worked' : 'Not clocked'} statusTone={ins.length ? 'grey' : 'amber'}><p className="mt-2 text-[13px] text-muted">{worked}</p></ShiftCard>;
+                    return <ShiftCard key={s.assignment_id} s={s} status={ins.length ? 'Worked' : 'Not clocked'} statusTone={ins.length ? 'grey' : 'amber'}><p className="mt-2 text-footnote text-muted">{worked}</p></ShiftCard>;
                   })}
                 </div>
               </Section>
@@ -104,7 +104,7 @@ function Mine() {
 
             <Sheet open={!!declining} onClose={() => setDeclining(null)} title={declining?.assignment_status === 'accepted' ? "Can't work this shift" : 'Decline shift'} size="sm"
               footer={<><Button variant="secondary" onClick={() => setDeclining(null)}>Keep it</Button><Button variant="danger" busy={busy} onClick={() => respond(declining, false, { reason })}>Decline shift</Button></>}>
-              {declining && <p className="mb-3 text-[15px] text-muted">{declining.venue_name}, {time(declining.starts_at)}–{time(declining.ends_at)}. The office will be told so they can find cover.</p>}
+              {declining && <p className="mb-3 text-body text-muted">{declining.venue_name}, {time(declining.starts_at)}–{time(declining.ends_at)}. The office will be told so they can find cover.</p>}
               <Textarea label="Reason (optional)" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Unwell, family emergency" />
             </Sheet>
           </>
@@ -131,9 +131,9 @@ function Open({ q }) {
             const left = s.headcount - Number(s.filled || 0);
             return (
               <ShiftCard key={s.id} s={s} status={s.my_status === 'requested' ? 'Requested' : `${left} place${left === 1 ? '' : 's'}`} statusTone={s.my_status === 'requested' ? 'blue' : 'grey'}>
-                {s.notes && <p className="mt-2 text-[13px] text-muted">{s.notes}</p>}
+                {s.notes && <p className="mt-2 text-footnote text-muted">{s.notes}</p>}
                 {s.my_status === 'requested' ? (
-                  <p className="mt-3 text-[13px] font-semibold text-blue">Waiting for the office to approve. You can withdraw it from My shifts.</p>
+                  <p className="mt-3 text-footnote font-semibold text-blue">Waiting for the office to approve. You can withdraw it from My shifts.</p>
                 ) : (
                   <Button size="lg" icon={Hand} className="mt-3 w-full" busy={busy && pending === s.id} disabled={busy} onClick={() => request(s)}>Request shift</Button>
                 )}

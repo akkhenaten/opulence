@@ -65,13 +65,13 @@ function Editor({ o, reload, notes }) {
       <div className="flex items-center gap-4 rounded-tile bg-surface p-4 shadow-tile">
         <button type="button" onClick={() => file.current?.click()} className="relative shrink-0" aria-label="Change photo">
           <Avatar name={o.name} src={photo} size={72} />
-          <span className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-blue text-white ring-4 ring-surface">{photoBusy ? <span className="h-3 w-3 animate-pulse rounded-full bg-white" /> : <Camera size={15} />}</span>
+          <span className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-blue text-white ring-4 ring-surface">{photoBusy ? <span className="h-3 w-3 animate-pulse rounded-full bg-white" /> : <Camera size={16} />}</span>
         </button>
         <input ref={file} type="file" accept="image/*" capture="user" className="hidden" onChange={changePhoto} />
         <div className="min-w-0">
-          <div className="display truncate text-[21px] font-bold">{o.name}</div>
-          <div className="truncate text-[14px] text-muted">{o.email}</div>
-          <div className="mt-0.5 text-[12px] text-faint">Your name and email are changed by the office.</div>
+          <div className="display truncate text-title3 font-bold">{o.name}</div>
+          <div className="truncate text-subhead text-muted">{o.email}</div>
+          <div className="mt-0.5 text-caption text-faint">Your name and email are changed by the office.</div>
         </div>
       </div>
 
@@ -105,7 +105,7 @@ function Editor({ o, reload, notes }) {
               <Input label="Sort code" inputMode="numeric" placeholder="12-34-56" value={v.bank_sort_code} onChange={set('bank_sort_code')} hint={sortBad ? '6 digits' : undefined} />
               <Input label="Account number" inputMode="numeric" placeholder="8 digits" value={v.bank_account} onChange={set('bank_account')} hint={acctBad ? '8 digits' : undefined} />
             </div>
-            <p className="text-[12px] text-muted">Your pay is sent to this account. Double-check it before saving.</p>
+            <p className="text-caption text-muted">Your pay is sent to this account. Double-check it before saving.</p>
           </div>
         </Tile>
       </Section>
@@ -141,7 +141,7 @@ function Editor({ o, reload, notes }) {
             ['Roles', (o.roles || []).map(titleCase).join(', ')],
             ['Start date', o.start_date && date(o.start_date)],
           ]} />
-          <p className="mt-3 text-[12px] text-muted">These are updated by the office when they verify your documents.</p>
+          <p className="mt-3 text-caption text-muted">These are updated by the office when they verify your documents.</p>
         </Tile>
       </Section>
 
@@ -160,13 +160,13 @@ function Editor({ o, reload, notes }) {
               <div key={n.id} className="px-4 py-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2 font-semibold">
-                    {n.kind === 'commendation' ? <Award size={17} className="shrink-0 text-green" /> : <MessageSquareText size={17} className="shrink-0 text-muted" />}
+                    {n.kind === 'commendation' ? <Award size={18} className="shrink-0 text-green" /> : <MessageSquareText size={18} className="shrink-0 text-muted" />}
                     <span className="truncate">{n.title}</span>
                   </div>
                   <Pill tone={n.kind === 'commendation' ? 'green' : n.kind === 'warning' ? 'red' : 'grey'}>{titleCase(n.kind)}{n.level ? ` (${n.level})` : ''}</Pill>
                 </div>
-                {n.body && <p className="mt-1 whitespace-pre-line text-[14px] text-muted">{n.body}</p>}
-                <div className="mt-1 text-[12px] text-faint">{date(n.created_at)}{n.author_name ? ` · ${n.author_name}` : ''}</div>
+                {n.body && <p className="mt-1 whitespace-pre-line text-subhead text-muted">{n.body}</p>}
+                <div className="mt-1 text-caption text-faint">{date(n.created_at)}{n.author_name ? ` · ${n.author_name}` : ''}</div>
               </div>
             ))}
           </List>

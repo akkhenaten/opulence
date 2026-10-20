@@ -168,7 +168,7 @@ export default function CourseEditor() {
   const status = c.status === 'published' ? <Pill tone="green">Published · v{c.version}</Pill> : c.status === 'archived' ? <Pill tone="grey">Archived</Pill> : <Pill tone="blue">Draft</Pill>;
   return (
     <Page title={c.title || 'Untitled course'} back={{ to: `${base}/team/academy`, label: 'Academy' }} wide
-      subtitle={<span className="flex flex-wrap items-center gap-2">{status}{c.review_by && <span className="text-[13px]">Review by {date(c.review_by)}</span>}{dirty && <Pill tone="amber">Unsaved changes</Pill>}</span>}
+      subtitle={<span className="flex flex-wrap items-center gap-2">{status}{c.review_by && <span className="text-footnote">Review by {date(c.review_by)}</span>}{dirty && <Pill tone="amber">Unsaved changes</Pill>}</span>}
       actions={(
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" icon={Eye} to={`${base}/team/academy/${c.id}/preview`}>Preview</Button>
@@ -179,13 +179,13 @@ export default function CourseEditor() {
         </div>
       )}>
       {allProg && (
-        <div className="mb-4 rounded-2xl bg-blue-soft px-4 py-3 text-[14px] text-blue">
+        <div className="mb-4 rounded-2xl bg-blue-soft px-4 py-3 text-subhead text-blue">
           <div className="font-semibold">Adding visuals {allProg.n + 1} of {allProg.total}: {allProg.title}</div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-blue transition-all" style={{ width: `${(allProg.n / allProg.total) * 100}%` }} /></div>
         </div>
       )}
       {co && !ready && c.status !== 'archived' && (
-        <div className="mb-4 rounded-2xl bg-amber-soft px-4 py-3 text-[14px] text-amber">
+        <div className="mb-4 rounded-2xl bg-amber-soft px-4 py-3 text-subhead text-amber">
           To publish, every section needs its lesson text and the course needs at least 5 quiz questions ({activeQs} so far).
         </div>
       )}
@@ -207,7 +207,7 @@ export default function CourseEditor() {
                   <Textarea label="Lesson" rows={12} value={s.body} onChange={(e) => setS(i, 'body', e.target.value)}
                     hint="### for a heading, - for a bullet, **bold**. Keep it short — officers read this on a phone." />
                   <details className="rounded-2xl bg-bg px-4 py-3">
-                    <summary className="cursor-pointer text-[14px] font-semibold">Visuals & activities <span className="font-normal text-muted">· {s.blocks?.length ? `${s.blocks.length} added` : 'none yet'}</span></summary>
+                    <summary className="cursor-pointer text-subhead font-semibold">Visuals & activities <span className="font-normal text-muted">· {s.blocks?.length ? `${s.blocks.length} added` : 'none yet'}</span></summary>
                     <div className="mt-3">
                       <BlocksEditor blocks={s.blocks} hasBody={!!s.body.trim()} busy={busy || !!allProg} drawing={drafting === `${s.key}:draw`}
                         onChange={(v) => setS(i, 'blocks', v)} onEnrich={() => visuals(i, 'enrich')} onDraw={(prompt) => visuals(i, 'draw', prompt)} />
@@ -218,7 +218,7 @@ export default function CourseEditor() {
               ) : (
                 <div>
                   <HeroImage blocks={s.blocks} />
-                  <div className="mb-2 text-[17px] font-bold">{s.title}</div>{s.body ? <Lesson text={s.body} /> : <p className="text-muted">No lesson text yet.</p>}
+                  <div className="mb-2 text-headline font-bold">{s.title}</div>{s.body ? <Lesson text={s.body} /> : <p className="text-muted">No lesson text yet.</p>}
                   <Blocks blocks={s.blocks} />
                 </div>
               )}
@@ -242,12 +242,12 @@ export default function CourseEditor() {
                 <Input label="Renew every (months)" type="number" min={1} max={60} value={c.renew_months} placeholder="Never" onChange={(e) => setC('renew_months', e.target.value)} />
               </div>
               {co ? <Toggle checked={c.mandatory} onChange={(v) => setC('mandatory', v)} label="Required training" hint="Overdue required courses show on the compliance check." />
-                : <p className="text-[14px]">{c.mandatory ? 'Required training' : 'Optional training'} · {TOPICS[c.topic]}</p>}
+                : <p className="text-subhead">{c.mandatory ? 'Required training' : 'Optional training'} · {TOPICS[c.topic]}</p>}
               <Textarea label="Sources (one per line)" rows={4} value={c.sources} onChange={(e) => setC('sources', e.target.value)} />
             </fieldset>
           </Tile>
           <Tile title="Quiz">
-            <p className="text-[14px] text-muted">{activeQs} active questions. Each attempt picks {Math.min(Number(c.quiz_size) || 0, activeQs)} at random; officers need {c.pass_mark}% to pass.</p>
+            <p className="text-subhead text-muted">{activeQs} active questions. Each attempt picks {Math.min(Number(c.quiz_size) || 0, activeQs)} at random; officers need {c.pass_mark}% to pass.</p>
           </Tile>
           {co && c.status !== 'draft' && (
             <div className="flex flex-wrap gap-2">
@@ -277,7 +277,7 @@ function QuickCheckEditor({ value, onChange }) {
   const set = (k, x) => onChange({ ...v, [k]: x });
   return (
     <details className="rounded-2xl bg-bg px-4 py-3" open={!!value?.prompt}>
-      <summary className="cursor-pointer text-[14px] font-semibold">Quick check {value?.prompt ? '' : '(none)'}</summary>
+      <summary className="cursor-pointer text-subhead font-semibold">Quick check {value?.prompt ? '' : '(none)'}</summary>
       <div className="mt-3 space-y-3">
         <Input label="Question" value={v.prompt} onChange={(e) => set('prompt', e.target.value)} />
         <OptionsEditor options={v.options} answer={v.answer} onChange={(options, answer) => onChange({ ...v, options, answer })} />
@@ -291,12 +291,12 @@ function QuickCheckEditor({ value, onChange }) {
 function OptionsEditor({ options, answer, onChange }) {
   return (
     <div>
-      <div className="mb-1.5 text-[13px] font-semibold text-muted">Answers — tick the right one</div>
+      <div className="mb-1.5 text-footnote font-semibold text-muted">Answers — tick the right one</div>
       <div className="space-y-2">
         {options.map((o, i) => (
           <div key={i} className="flex items-center gap-2">
             <input type="radio" className="h-4 w-4" checked={answer === i} onChange={() => onChange(options, i)} aria-label={`Answer ${i + 1} is correct`} />
-            <input className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 text-[15px] outline-none focus:border-blue" value={o}
+            <input className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 text-body outline-none focus:border-blue" value={o}
               onChange={(e) => onChange(options.map((x, j) => (j === i ? e.target.value : x)), answer)} placeholder={`Answer ${i + 1}`} />
             {options.length > 2 && <IconButton icon={Trash2} label="Remove answer" onClick={() => onChange(options.filter((_, j) => j !== i), answer === i ? 0 : answer > i ? answer - 1 : answer)} />}
           </div>
@@ -311,21 +311,21 @@ function QuestionList({ qs, co, onEdit, onAdd }) {
   return (
     <div className="mt-4 border-t border-line pt-3">
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-[13px] font-semibold uppercase tracking-wide text-muted">Quiz questions ({qs.length})</div>
+        <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Quiz questions ({qs.length})</div>
         {co && onAdd && <Button size="sm" variant="ghost" icon={Plus} onClick={onAdd}>Add</Button>}
       </div>
       {qs.length ? (
         <ul className="space-y-1.5">
           {qs.map((x) => (
             <li key={x.key}>
-              <button type="button" onClick={() => onEdit(x)} className={cx('w-full rounded-xl bg-bg px-3 py-2 text-left text-[14px] hover:bg-blue-soft', !x.active && 'opacity-50')}>
+              <button type="button" onClick={() => onEdit(x)} className={cx('w-full rounded-xl bg-bg px-3 py-2 text-left text-subhead hover:bg-blue-soft', !x.active && 'opacity-50')}>
                 <span className="font-medium">{x.prompt || 'Untitled question'}</span>
-                <span className="block text-[12px] text-muted">✓ {x.options[x.answer]}{x.kind === 'scenario' ? ' · Scenario' : ''}{!x.active ? ' · Turned off' : ''}</span>
+                <span className="block text-caption text-muted">✓ {x.options[x.answer]}{x.kind === 'scenario' ? ' · Scenario' : ''}{!x.active ? ' · Turned off' : ''}</span>
               </button>
             </li>
           ))}
         </ul>
-      ) : <p className="text-[13px] text-faint">None yet.</p>}
+      ) : <p className="text-footnote text-faint">None yet.</p>}
     </div>
   );
 }
@@ -355,7 +355,7 @@ function QuestionSheet({ q: initial, sections, onClose, onSave, onRemove }) {
           options={sections.map((s, i) => ({ value: s.id || s.key, label: `${i + 1}. ${s.title}` }))} />
         <Toggle checked={x.active} onChange={(v) => set('active', v)} label="Use in the quiz" />
       </fieldset>
-      {!co && <p className="mt-3 text-[13px] text-muted">Only company managers can edit courses.</p>}
+      {!co && <p className="mt-3 text-footnote text-muted">Only company managers can edit courses.</p>}
     </Sheet>
   );
 }

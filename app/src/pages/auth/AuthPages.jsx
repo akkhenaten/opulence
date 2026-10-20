@@ -8,14 +8,14 @@ import { ROLE_LABEL } from '../../layouts/nav.js';
 
 function AuthCard({ title, subtitle, children, footer }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
+    <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
       <div className="mb-8"><Logo /></div>
-      <div className="w-full max-w-[400px] rounded-[28px] border border-black/[0.04] bg-surface p-7 shadow-tile">
-        <h1 className="text-[26px] font-bold">{title}</h1>
-        {subtitle && <p className="mt-1 text-[15px] text-muted">{subtitle}</p>}
+      <div className="w-full max-w-[400px] rounded-sheet border border-black/[0.04] bg-surface p-7 shadow-tile">
+        <h1 className="text-title2 font-bold">{title}</h1>
+        {subtitle && <p className="mt-1 text-body text-muted">{subtitle}</p>}
         <div className="mt-6">{children}</div>
       </div>
-      {footer && <div className="mt-5 text-[14px] text-muted">{footer}</div>}
+      {footer && <div className="mt-5 text-subhead text-muted">{footer}</div>}
     </div>
   );
 }
@@ -30,7 +30,7 @@ function useSubmit() {
   };
   return { err, busy, submit };
 }
-const Err = ({ msg }) => (msg ? <div className="rounded-xl bg-red-soft px-3.5 py-2.5 text-[14px] font-medium text-red">{msg}</div> : null);
+const Err = ({ msg }) => (msg ? <div className="rounded-xl bg-red-soft px-3.5 py-2.5 text-subhead font-medium text-red">{msg}</div> : null);
 
 export function Login() {
   const { signIn } = useAuth();
@@ -79,7 +79,7 @@ export function AcceptInvite() {
   const f = useForm({ password: '', confirm: '' });
   const { err, busy, submit } = useSubmit();
   useEffect(() => { api('auth.inviteInfo', { token }).then(setInfo).catch(() => setInfo(null)); }, [token]);
-  if (info === undefined) return <Spinner className="min-h-screen" />;
+  if (info === undefined) return <Spinner className="min-h-dvh" />;
   if (!info) return <AuthCard title="Invite not valid" subtitle="This link has expired or was already used. Ask your manager to send a new one." footer={<Link to="/login" className="font-semibold text-blue">Go to sign in</Link>} />;
   return (
     <AuthCard title={`Welcome, ${info.name.split(' ')[0]}`} subtitle={`You've been invited as ${ROLE_LABEL[info.role]?.toLowerCase()}. Choose a password to finish.`}>

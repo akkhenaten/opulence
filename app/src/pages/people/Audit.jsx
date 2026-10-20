@@ -33,7 +33,7 @@ export default function Audit() {
     <Page title="Audit log" subtitle="Who changed what, and when">
       <div className="mb-2 grid gap-3 sm:grid-cols-[1fr_220px_auto] sm:items-end">
         <div className="relative">
-          <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-faint" />
+          <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-faint" />
           <Input aria-label="Search" placeholder="Search action, person or detail" value={search} onChange={(e) => setSearch(e.target.value)} className="[&_input]:pl-10" />
         </div>
         <Select aria-label="Record type" value={entity} onChange={(e) => setEntity(e.target.value)} placeholder="All records" options={ENTITIES.map((e) => ({ value: e, label: titleCase(e.replace(/_/g, ' ')) }))} />
@@ -60,22 +60,22 @@ function Entry({ r }) {
         <Avatar name={r.user_name || 'System'} size={36} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-[15px] font-semibold">{r.user_name || 'System'}</span>
+            <span className="text-body font-semibold">{r.user_name || 'System'}</span>
             <Pill tone={actionTone(r.action)}>{actionLabel(r.action)}</Pill>
           </div>
-          <div className="mt-0.5 truncate text-[13px] text-muted">
+          <div className="mt-0.5 truncate text-footnote text-muted">
             {titleCase((r.entity || '').replace(/_/g, ' '))}
             {r.entity_id && (to ? <Link to={to} className="ml-1 font-medium text-blue">{short(r.entity_id)}</Link> : <span className="ml-1">{short(r.entity_id)}</span>)}
           </div>
         </div>
         <div className="shrink-0 text-right">
-          <div className="text-[12px] text-muted" title={dateTime(r.created_at)}>{relative(r.created_at)}</div>
-          <div className="num text-[12px] text-faint">{time(r.created_at)}</div>
+          <div className="text-caption text-muted" title={dateTime(r.created_at)}>{relative(r.created_at)}</div>
+          <div className="num text-caption text-faint">{time(r.created_at)}</div>
         </div>
       </div>
       {detail && (
         <>
-          <button type="button" onClick={() => setOpen((x) => !x)} className="ml-12 mt-1 inline-flex items-center gap-1 text-[12px] font-semibold text-blue">
+          <button type="button" onClick={() => setOpen((x) => !x)} className="ml-12 mt-1 inline-flex items-center gap-1 text-caption font-semibold text-blue">
             {open ? 'Hide detail' : 'Show detail'}<ChevronDown size={14} className={cx('transition', open && 'rotate-180')} />
           </button>
           {open && <DetailView detail={detail} />}
@@ -87,7 +87,7 @@ function Entry({ r }) {
 
 function DetailView({ detail }) {
   return (
-    <dl className="ml-12 mt-2 grid gap-x-4 gap-y-1 rounded-xl bg-bg p-3 text-[12px] sm:grid-cols-[auto_1fr]">
+    <dl className="ml-12 mt-2 grid gap-x-4 gap-y-1 rounded-xl bg-bg p-3 text-caption sm:grid-cols-[auto_1fr]">
       {Object.entries(detail).map(([k, v]) => (
         <div key={k} className="contents">
           <dt className="font-semibold text-muted">{titleCase(k.replace(/_/g, ' '))}</dt>

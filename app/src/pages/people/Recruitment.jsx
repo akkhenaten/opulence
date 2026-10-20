@@ -56,18 +56,18 @@ export default function Recruitment() {
             </Bento>
             <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-3 lg:overflow-visible">
               {STAGES.map((s) => (
-                <section key={s.key} className="w-[85vw] max-w-sm shrink-0 snap-start rounded-tile bg-[#E8EAEE]/60 p-3 sm:w-80 lg:w-auto lg:max-w-none">
+                <section key={s.key} className="w-[85vw] max-w-sm shrink-0 snap-start rounded-tile bg-fill-strong/60 p-3 sm:w-80 lg:w-auto lg:max-w-none">
                   <div className="mb-3 flex items-baseline justify-between px-1">
                     <div>
-                      <h2 className="text-[16px] font-bold">{s.label} <span className="num ml-1 text-muted">{cols[s.key].length}</span></h2>
-                      <p className="text-[12px] text-muted">{s.hint}</p>
+                      <h2 className="text-callout font-bold">{s.label} <span className="num ml-1 text-muted">{cols[s.key].length}</span></h2>
+                      <p className="text-caption text-muted">{s.hint}</p>
                     </div>
                   </div>
                   <div className="space-y-2">
                     {cols[s.key].map((p) => (s.key === 'active'
                       ? <ActiveCard key={p.id} o={p} roleName={roleName} />
                       : <Card key={p.id} p={p} roleName={roleName} onMove={move} />))}
-                    {!cols[s.key].length && <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-[13px] text-faint">Nobody here</p>}
+                    {!cols[s.key].length && <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-footnote text-faint">Nobody here</p>}
                   </div>
                 </section>
               ))}
@@ -89,10 +89,10 @@ function Card({ p, roleName, onMove }) {
       <Link to={`/company/staff/${p.id}`} className="flex items-center gap-3">
         <Avatar name={p.name} size={38} />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[15px] font-semibold">{p.name}</div>
-          <div className="truncate text-[12px] text-muted">{(p.roles || []).map(roleName).join(', ') || p.email || p.phone || 'No details'}</div>
+          <div className="truncate text-body font-semibold">{p.name}</div>
+          <div className="truncate text-caption text-muted">{(p.roles || []).map(roleName).join(', ') || p.email || p.phone || 'No details'}</div>
         </div>
-        <span className="text-[11px] text-faint">{relative(p.created_at)}</span>
+        <span className="text-caption2 text-faint">{relative(p.created_at)}</span>
       </Link>
       <Progress className="mt-3" done={Number(p.done)} total={Number(p.total)} />
       <div className="mt-2 flex items-center justify-between gap-2">
@@ -106,8 +106,8 @@ function Card({ p, roleName, onMove }) {
           {prev && <IconButton icon={ChevronLeft} label={`Move back to ${prev}`} onClick={() => onMove(p, prev)} />}
           {next && (
             <button type="button" onClick={() => onMove(p, next)}
-              className={cx('inline-flex h-8 items-center gap-0.5 rounded-[10px] px-2.5 text-[13px] font-semibold transition active:scale-95', complete || next === 'onboarding' ? 'bg-blue text-white' : 'bg-blue-soft text-blue')}>
-              {next === 'active' ? 'Activate' : 'Start onboarding'}<ChevronRight size={15} />
+              className={cx('inline-flex h-8 items-center gap-0.5 rounded-xl px-2.5 text-footnote font-semibold transition active:scale-95', complete || next === 'onboarding' ? 'bg-blue text-white' : 'bg-blue-soft text-blue')}>
+              {next === 'active' ? 'Activate' : 'Start onboarding'}<ChevronRight size={16} />
             </button>
           )}
         </div>
@@ -121,8 +121,8 @@ function ActiveCard({ o, roleName }) {
     <Link to={`/company/staff/${o.id}`} className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-tile transition hover:-translate-y-0.5">
       <Avatar name={o.name} src={o.photo_url} size={38} />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[15px] font-semibold">{o.name}</div>
-        <div className="truncate text-[12px] text-muted">{(o.roles || []).map(roleName).join(', ') || 'No roles'}{o.start_date ? ` · since ${date(o.start_date)}` : ''}</div>
+        <div className="truncate text-body font-semibold">{o.name}</div>
+        <div className="truncate text-caption text-muted">{(o.roles || []).map(roleName).join(', ') || 'No roles'}{o.start_date ? ` · since ${date(o.start_date)}` : ''}</div>
       </div>
       <ComplianceBadge c={o.compliance} />
     </Link>

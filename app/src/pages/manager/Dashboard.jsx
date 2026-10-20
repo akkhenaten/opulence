@@ -15,14 +15,14 @@ function CountTile({ to, icon: Icon, label, value, tone, hint }) {
     <Link to={to} className={cx('group flex min-h-[118px] flex-col justify-between rounded-tile border border-black/[0.04] bg-surface p-4 shadow-tile transition hover:-translate-y-0.5 active:scale-[0.99] sm:p-5')}>
       <div className="flex items-center justify-between">
         <span className={cx('grid h-9 w-9 place-items-center rounded-xl', hot ? (tone === 'red' ? 'bg-red-soft text-red' : tone === 'amber' ? 'bg-amber-soft text-amber' : 'bg-blue-soft text-blue') : 'bg-bg text-faint')}>
-          <Icon size={18} strokeWidth={2.2} />
+          <Icon size={18} />
         </span>
         {hot && <Dot tone={tone || 'blue'} />}
       </div>
       <div>
-        <div className={cx('display num text-[30px] font-bold leading-none', !hot && 'text-faint')}>{value ?? 0}</div>
-        <div className="mt-1 text-[13px] font-semibold leading-tight">{label}</div>
-        {hint && <div className="text-[12px] text-muted">{hint}</div>}
+        <div className={cx('display num text-title1 font-bold leading-none', !hot && 'text-faint')}>{value ?? 0}</div>
+        <div className="mt-1 text-footnote font-semibold leading-tight">{label}</div>
+        {hint && <div className="text-caption text-muted">{hint}</div>}
       </div>
     </Link>
   );
@@ -50,21 +50,21 @@ function Body({ d, base, isCompany }) {
     <div className="space-y-4">
       <Bento>
         {/* Live now */}
-        <Tile tone="ink" title="Live now" icon={Radio} className="col-span-2 lg:row-span-2" action={<Link to={`${base}/live`} className="text-[13px] font-semibold text-white/80 hover:text-white">Open board ›</Link>}>
+        <Tile tone="ink" title="Live now" icon={Radio} className="col-span-2 lg:row-span-2" action={<Link to={`${base}/live`} className="text-footnote font-semibold text-white/80 hover:text-white">Open board ›</Link>}>
           <div className="grid grid-cols-3 gap-3">
-            <div><div className="flex items-center gap-2"><Dot tone="green" live={live.on_site > 0} /><span className="text-[12px] font-semibold uppercase tracking-wide opacity-70">On site</span></div><div className="display num mt-1 text-[44px] font-bold leading-none">{live.on_site ?? 0}</div></div>
-            <div><div className="text-[12px] font-semibold uppercase tracking-wide opacity-70">Late</div><div className={cx('display num mt-1 text-[44px] font-bold leading-none', live.late ? 'text-[#FBBF24]' : 'opacity-40')}>{live.late ?? 0}</div></div>
-            <div><div className="text-[12px] font-semibold uppercase tracking-wide opacity-70">No-show</div><div className={cx('display num mt-1 text-[44px] font-bold leading-none', live.no_show ? 'text-[#F87171]' : 'opacity-40')}>{live.no_show ?? 0}</div></div>
+            <div><div className="flex items-center gap-2"><Dot tone="green" live={live.on_site > 0} /><span className="text-caption font-semibold uppercase tracking-wide opacity-70">On site</span></div><div className="display num mt-1 text-[44px] font-bold leading-none">{live.on_site ?? 0}</div></div>
+            <div><div className="text-caption font-semibold uppercase tracking-wide opacity-70">Late</div><div className={cx('display num mt-1 text-[44px] font-bold leading-none', live.late ? 'text-amber-bright' : 'opacity-40')}>{live.late ?? 0}</div></div>
+            <div><div className="text-caption font-semibold uppercase tracking-wide opacity-70">No-show</div><div className={cx('display num mt-1 text-[44px] font-bold leading-none', live.no_show ? 'text-red-bright' : 'opacity-40')}>{live.no_show ?? 0}</div></div>
           </div>
-          {live.upcoming > 0 && <p className="mt-3 text-[13px] opacity-70">{live.upcoming} due on in the next 12 hours</p>}
+          {live.upcoming > 0 && <p className="mt-3 text-footnote opacity-70">{live.upcoming} due on in the next 12 hours</p>}
           <div className="mt-4 space-y-1.5">
-            {(live.alerts || []).length === 0 && <p className="rounded-2xl bg-white/[0.06] px-4 py-3 text-[14px] opacity-80">No alerts right now.</p>}
+            {(live.alerts || []).length === 0 && <p className="rounded-2xl bg-white/[0.06] px-4 py-3 text-subhead opacity-80">No alerts right now.</p>}
             {(live.alerts || []).map((a) => (
               <Link key={a.assignment_id} to={`${base}/live`} className="flex items-center gap-3 rounded-2xl bg-white/[0.07] px-3.5 py-2.5 transition hover:bg-white/[0.12]">
-                <AlertTriangle size={16} className={a.state === 'no_show' ? 'text-[#F87171]' : 'text-[#FBBF24]'} />
+                <AlertTriangle size={16} className={a.state === 'no_show' ? 'text-red-bright' : 'text-amber-bright'} />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[14px] font-semibold">{a.officer_name}</div>
-                  <div className="truncate text-[12px] opacity-70">{a.venue_name} · <span className="num">{range(a.starts_at, a.ends_at)}</span></div>
+                  <div className="truncate text-subhead font-semibold">{a.officer_name}</div>
+                  <div className="truncate text-caption opacity-70">{a.venue_name} · <span className="num">{range(a.starts_at, a.ends_at)}</span></div>
                 </div>
                 <span className="flex shrink-0 gap-1">
                   {STATE_TONE[a.state] && <Pill status={a.state} />}
@@ -90,20 +90,20 @@ function Body({ d, base, isCompany }) {
 
       <Bento>
         {/* Upcoming shifts */}
-        <Tile title="Upcoming shifts" icon={CalendarDays} pad={false} className="col-span-2" action={<Link to={`${base}/rota`} className="text-[13px] font-semibold text-blue">Rota ›</Link>}>
-          {(d.shifts || []).length === 0 ? <p className="px-5 pb-5 text-[14px] text-muted">No published shifts in the next 36 hours.</p> : (
+        <Tile title="Upcoming shifts" icon={CalendarDays} pad={false} className="col-span-2" action={<Link to={`${base}/rota`} className="text-footnote font-semibold text-blue">Rota ›</Link>}>
+          {(d.shifts || []).length === 0 ? <p className="px-5 pb-5 text-subhead text-muted">No published shifts in the next 36 hours.</p> : (
             <div className="divide-y divide-line">
               {d.shifts.slice(0, 8).map((s) => {
                 const short = s.filled < s.headcount;
                 return (
                   <Link key={s.id} to={`${base}/rota?shift=${s.id}`} className="flex items-center gap-3 px-5 py-3 transition hover:bg-bg">
                     <div className="w-[64px] shrink-0">
-                      <div className="text-[12px] font-semibold uppercase text-muted">{dayLabel(s.starts_at).split(' ')[0]}</div>
-                      <div className="num text-[14px] font-bold">{range(s.starts_at, s.ends_at).split('–')[0]}</div>
+                      <div className="text-caption font-semibold uppercase text-muted">{dayLabel(s.starts_at).split(' ')[0]}</div>
+                      <div className="num text-subhead font-bold">{range(s.starts_at, s.ends_at).split('–')[0]}</div>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[15px] font-semibold">{s.venue_name}</div>
-                      <div className="truncate text-[13px] text-muted"><span className="num">{range(s.starts_at, s.ends_at)}</span> · {s.role_name}{s.team?.length ? ` · ${s.team.join(', ')}` : ''}</div>
+                      <div className="truncate text-body font-semibold">{s.venue_name}</div>
+                      <div className="truncate text-footnote text-muted"><span className="num">{range(s.starts_at, s.ends_at)}</span> · {s.role_name}{s.team?.length ? ` · ${s.team.join(', ')}` : ''}</div>
                     </div>
                     <Pill tone={short ? 'red' : 'green'} className="num">{s.filled}/{s.headcount}</Pill>
                   </Link>
@@ -114,14 +114,14 @@ function Body({ d, base, isCompany }) {
         </Tile>
 
         {/* Recent incidents */}
-        <Tile title="Recent incidents" icon={ShieldAlert} pad={false} className="col-span-2" action={<Link to={`${base}/incidents`} className="text-[13px] font-semibold text-blue">All ›</Link>}>
-          {(d.incidents || []).length === 0 ? <p className="px-5 pb-5 text-[14px] text-muted">No incidents reported.</p> : (
+        <Tile title="Recent incidents" icon={ShieldAlert} pad={false} className="col-span-2" action={<Link to={`${base}/incidents`} className="text-footnote font-semibold text-blue">All ›</Link>}>
+          {(d.incidents || []).length === 0 ? <p className="px-5 pb-5 text-subhead text-muted">No incidents reported.</p> : (
             <div className="divide-y divide-line">
               {d.incidents.map((i) => (
                 <Link key={i.id} to={`${base}/incidents/${i.id}`} className="flex items-center gap-3 px-5 py-3 transition hover:bg-bg">
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[15px] font-semibold">{titleCase(i.type)} <span className="font-normal text-muted">· {i.ref}</span></div>
-                    <div className="truncate text-[13px] text-muted">{i.venue_name} · {relative(i.occurred_at)}</div>
+                    <div className="truncate text-body font-semibold">{titleCase(i.type)} <span className="font-normal text-muted">· {i.ref}</span></div>
+                    <div className="truncate text-footnote text-muted">{i.venue_name} · {relative(i.occurred_at)}</div>
                   </div>
                   <div className="flex shrink-0 gap-1"><Pill status={i.severity} /><Pill status={i.status} /></div>
                 </Link>
@@ -136,33 +136,33 @@ function Body({ d, base, isCompany }) {
           <Tile title="Staff" icon={Users} to="/company/recruitment">
             <div className="grid grid-cols-3 gap-2">
               {[['applicant', 'Applicants'], ['onboarding', 'Onboarding'], ['active', 'Active']].map(([k, l]) => (
-                <div key={k}><div className="display num text-[26px] font-bold leading-none">{pipe[k] || 0}</div><div className="mt-1 text-[12px] font-semibold text-muted">{l}</div></div>
+                <div key={k}><div className="display num text-title2 font-bold leading-none">{pipe[k] || 0}</div><div className="mt-1 text-caption font-semibold text-muted">{l}</div></div>
               ))}
             </div>
           </Tile>
         )}
 
         {isCompany && (
-          <Tile title="Compliance" icon={ShieldCheck} className="col-span-2" action={<Link to="/company/staff" className="text-[13px] font-semibold text-blue">Staff ›</Link>}>
+          <Tile title="Compliance" icon={ShieldCheck} className="col-span-2" action={<Link to="/company/staff" className="text-footnote font-semibold text-blue">Staff ›</Link>}>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <div className="mb-2 flex items-baseline gap-2"><span className={cx('display num text-[26px] font-bold', d.nonCompliantCount ? 'text-red' : 'text-green')}>{d.nonCompliantCount || 0}</span><span className="text-[13px] font-semibold">can't work</span></div>
-                {(d.nonCompliant || []).length === 0 ? <p className="text-[13px] text-muted">All active officers are compliant.</p> : (
+                <div className="mb-2 flex items-baseline gap-2"><span className={cx('display num text-title2 font-bold', d.nonCompliantCount ? 'text-red' : 'text-green')}>{d.nonCompliantCount || 0}</span><span className="text-footnote font-semibold">can't work</span></div>
+                {(d.nonCompliant || []).length === 0 ? <p className="text-footnote text-muted">All active officers are compliant.</p> : (
                   <ul className="space-y-1.5">
                     {d.nonCompliant.map((o) => (
-                      <li key={o.id}><Link to={`/company/staff/${o.id}`} className="block rounded-xl px-2 py-1 hover:bg-bg"><div className="text-[14px] font-semibold">{o.name}</div><div className="text-[12px] text-red">{o.issues.join(', ')}</div></Link></li>
+                      <li key={o.id}><Link to={`/company/staff/${o.id}`} className="block rounded-xl px-2 py-1 hover:bg-bg"><div className="text-subhead font-semibold">{o.name}</div><div className="text-caption text-red">{o.issues.join(', ')}</div></Link></li>
                     ))}
                   </ul>
                 )}
               </div>
               <div>
-                <div className="mb-2 text-[13px] font-semibold">Expiring in 60 days</div>
-                {(d.expiring || []).length === 0 ? <p className="text-[13px] text-muted">Nothing expiring soon.</p> : (
+                <div className="mb-2 text-footnote font-semibold">Expiring in 60 days</div>
+                {(d.expiring || []).length === 0 ? <p className="text-footnote text-muted">Nothing expiring soon.</p> : (
                   <ul className="space-y-1.5">
                     {d.expiring.map((o) => (
                       <li key={o.id}><Link to={`/company/staff/${o.id}`} className="block rounded-xl px-2 py-1 hover:bg-bg">
-                        <div className="text-[14px] font-semibold">{o.name}</div>
-                        <div className="text-[12px] text-amber">
+                        <div className="text-subhead font-semibold">{o.name}</div>
+                        <div className="text-caption text-amber">
                           {[o.sia_expiry && daysUntil(o.sia_expiry) <= 60 && `SIA ${dateShort(o.sia_expiry)}`, o.rtw_expiry && daysUntil(o.rtw_expiry) <= 60 && `RTW ${dateShort(o.rtw_expiry)}`].filter(Boolean).join(' · ')}
                         </div>
                       </Link></li>

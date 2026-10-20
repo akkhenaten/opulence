@@ -122,19 +122,19 @@ export default function InvoiceDetail() {
 
             <div className="mt-4 flex justify-end">
               <div className="w-full rounded-tile bg-surface p-5 shadow-tile sm:max-w-sm">
-                <div className="space-y-2 text-[15px]">
+                <div className="space-y-2 text-body">
                   <div className="flex justify-between"><span className="text-muted">Net</span><span className="num">{money(inv.net)}</span></div>
                   <div className="flex justify-between"><span className="text-muted">VAT at {Number(inv.vat_rate)}%</span><span className="num">{money(inv.vat)}</span></div>
-                  <div className="flex justify-between border-t border-line pt-2 text-[18px] font-bold"><span>Total</span><span className="num">{money(inv.gross)}</span></div>
+                  <div className="flex justify-between border-t border-line pt-2 text-headline font-bold"><span>Total</span><span className="num">{money(inv.gross)}</span></div>
                   {isCo && !credit && (
-                    <div className="flex justify-between pt-1 text-[13px]"><span className="text-muted">Margin (net less pay cost)</span><span className={cx('num font-semibold', margin < 0 ? 'text-red' : 'text-green')}>{money(margin)} · {pct(margin, inv.net)}</span></div>
+                    <div className="flex justify-between pt-1 text-footnote"><span className="text-muted">Margin (net less pay cost)</span><span className={cx('num font-semibold', margin < 0 ? 'text-red' : 'text-green')}>{money(margin)} · {pct(margin, inv.net)}</span></div>
                   )}
                 </div>
               </div>
             </div>
 
             {editable ? <NotesEditor inv={inv} onSaved={q.reload} /> : inv.notes ? (
-              <Section title={credit ? 'Reason' : 'Notes'}><Tile><p className="whitespace-pre-wrap text-[15px]">{inv.notes}</p></Tile></Section>
+              <Section title={credit ? 'Reason' : 'Notes'}><Tile><p className="whitespace-pre-wrap text-body">{inv.notes}</p></Tile></Section>
             ) : null}
 
             {(editable || canCredit) && (
@@ -203,7 +203,7 @@ function LineSheet({ invoiceId, line, onClose, onSaved }) {
           <Input label="Rate (£)" type="number" inputMode="decimal" step="0.01" value={f.v.rate} onChange={(e) => setCalc('rate', e.target.value)} />
           <Input label="Amount (£)" type="number" inputMode="decimal" step="0.01" {...f.bind('amount')} />
         </div>
-        <p className="text-[13px] text-muted">{calc != null ? `Hours × rate = ${money(calc)}. You can override the amount.` : 'Leave hours and rate empty for a fixed charge. Use a negative amount for a discount.'}</p>
+        <p className="text-footnote text-muted">{calc != null ? `Hours × rate = ${money(calc)}. You can override the amount.` : 'Leave hours and rate empty for a fixed charge. Use a negative amount for a discount.'}</p>
       </div>
     </Sheet>
   );
@@ -217,7 +217,7 @@ function PaidSheet({ inv, onClose, onSaved }) {
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button>
         <Button busy={busy} disabled={!day} onClick={() => run(() => api('invoices.markPaid', { id: inv.id, paid_at: `${day}T12:00:00Z` }), 'Marked as paid').then(() => { onSaved(); onClose(); }).catch(() => {})}>Mark paid</Button></>}>
       <div className="space-y-4">
-        <p className="text-[15px]"><span className="font-semibold">{inv.number}</span> · <span className="num">{money(inv.gross)}</span></p>
+        <p className="text-body"><span className="font-semibold">{inv.number}</span> · <span className="num">{money(inv.gross)}</span></p>
         <Input label="Payment received on" type="date" max={isoDate()} value={day} onChange={(e) => setDay(e.target.value)} />
       </div>
     </Sheet>
@@ -242,12 +242,12 @@ function CreditSheet({ inv, onClose, onDone }) {
         <Segmented value={mode} onChange={setMode} options={[{ value: 'full', label: 'Full amount' }, { value: 'partial', label: 'Part amount' }]} />
         {mode === 'partial' && <Input label={`Net amount to credit (max ${money(net)})`} type="number" inputMode="decimal" step="0.01" min="0" max={net} value={amount} onChange={(e) => setAmount(e.target.value)} />}
         <Textarea label="Reason" rows={3} placeholder="Shown on the credit note" value={reason} onChange={(e) => setReason(e.target.value)} />
-        <div className="rounded-2xl bg-bg p-4 text-[14px]">
+        <div className="rounded-2xl bg-bg p-4 text-subhead">
           <div className="flex justify-between"><span className="text-muted">Net credit</span><span className="num">{money(-amt)}</span></div>
           <div className="flex justify-between"><span className="text-muted">VAT at {Number(inv.vat_rate)}%</span><span className="num">{money(-vat)}</span></div>
           <div className="mt-1 flex justify-between border-t border-line pt-1 font-bold"><span>Total credit</span><span className="num">{money(-(amt + vat))}</span></div>
         </div>
-        <p className="text-[13px] text-muted">
+        <p className="text-footnote text-muted">
           {mode === 'full' && inv.status !== 'paid' ? `${inv.number} will be marked void. ` : ''}The credit note is issued straight away and emailed to the venue's managers.
         </p>
       </div>

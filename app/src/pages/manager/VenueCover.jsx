@@ -96,7 +96,7 @@ function Detail({ c, onClose, onDone }) {
           ['Notes', c.notes],
           c.status === 'declined' && ['Reason', c.decline_reason || 'Please contact us to discuss.'],
         ]} />
-        {c.status === 'accepted' && <p className="text-[14px] text-muted">We are staffing this. Confirmed officers show under On site on the day. To change it, contact the office.</p>}
+        {c.status === 'accepted' && <p className="text-subhead text-muted">We are staffing this. Confirmed officers show under On site on the day. To change it, contact the office.</p>}
       </div>
     </Sheet>
   );

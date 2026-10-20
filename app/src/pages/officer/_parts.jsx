@@ -98,13 +98,13 @@ export function ShiftCard({ s, to, status, statusTone, children, className }) {
     <>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-[13px] font-semibold text-muted"><CalendarDays size={14} />{dayLabel(s.starts_at)}</div>
-          <div className="display mt-1 truncate text-[19px] font-bold leading-tight">{s.venue_name}</div>
+          <div className="flex items-center gap-1.5 text-footnote font-semibold text-muted"><CalendarDays size={14} />{dayLabel(s.starts_at)}</div>
+          <div className="display mt-1 truncate text-title3 font-bold leading-tight">{s.venue_name}</div>
         </div>
         {status && <Pill tone={statusTone}>{status}</Pill>}
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] text-muted">
-        <span className="num inline-flex items-center gap-1.5 font-semibold text-ink"><Clock3 size={15} />{range(s.starts_at, s.ends_at)}</span>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-subhead text-muted">
+        <span className="num inline-flex items-center gap-1.5 font-semibold text-ink"><Clock3 size={16} />{range(s.starts_at, s.ends_at)}</span>
         {s.role_name && <span>{s.role_name}</span>}
         {s.postcode && <span className="inline-flex items-center gap-1"><MapPin size={14} />{s.postcode}</span>}
       </div>
@@ -115,14 +115,7 @@ export function ShiftCard({ s, to, status, statusTone, children, className }) {
   return to ? <Link to={to} className={cls}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
-// Simple "N of M" progress bar
-export function Progress({ value, max, className }) {
-  return (
-    <div className={cx('h-1.5 w-full overflow-hidden rounded-full bg-line', className)}>
-      <div className="h-full rounded-full bg-blue transition-all duration-300" style={{ width: `${Math.min(100, (value / max) * 100)}%` }} />
-    </div>
-  );
-}
+export { Progress } from '../../ui/index.jsx';
 
 // Incident vocab (matches backend TYPES / SEVERITIES in incidents.mjs)
 export const INCIDENT_TYPES = [

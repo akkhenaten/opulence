@@ -76,7 +76,7 @@ export default function StatementDetail() {
               <Tile>
                 <div className="mb-4 flex items-center gap-3">
                   <Avatar name={st.officer_name} size={44} />
-                  <div className="min-w-0"><div className="truncate text-[16px] font-bold">{st.officer_name}</div><div className="truncate text-[13px] text-muted">{st.email}</div></div>
+                  <div className="min-w-0"><div className="truncate text-callout font-bold">{st.officer_name}</div><div className="truncate text-footnote text-muted">{st.email}</div></div>
                 </div>
                 <KV items={[
                   ['UTR', st.utr || 'Not provided'],
@@ -87,36 +87,36 @@ export default function StatementDetail() {
               </Tile>
             </Section>
 
-            <Section title="Shifts worked" action={<span className="num text-[13px] font-semibold">{money(shiftTotal)}</span>}>
+            <Section title="Shifts worked" action={<span className="num text-footnote font-semibold">{money(shiftTotal)}</span>}>
               {!shiftLines.length ? <Empty title="No shifts on this statement" /> : (
                 <List>
                   {shiftLines.map((l) => (
                     <div key={l.id} className="flex items-start gap-3 px-4 py-3">
                       <div className="min-w-0 flex-1">
-                        <div className="text-[15px] font-semibold">{l.description}</div>
-                        <div className="mt-0.5 text-[13px] text-muted num">
+                        <div className="text-body font-semibold">{l.description}</div>
+                        <div className="mt-0.5 text-footnote text-muted num">
                           {l.work_date && `${dayLabel(l.work_date)} · `}{hours(l.hours)} × {money(l.rate)}/h
                         </div>
                       </div>
-                      <div className="num shrink-0 text-[15px] font-bold">{money(l.amount)}</div>
+                      <div className="num shrink-0 text-body font-bold">{money(l.amount)}</div>
                       {editable && <IconButton icon={Trash2} label="Remove line" onClick={() => removeLine(l)} className="-mr-2 h-8 w-8 text-red hover:bg-red-soft" />}
                     </div>
                   ))}
                 </List>
               )}
-              <p className="mt-2 px-1 text-[12px] text-faint">Rate shown is the average hourly rate for the shift, including any night, weekend or bank holiday uplift.</p>
+              <p className="mt-2 px-1 text-caption text-faint">Rate shown is the average hourly rate for the shift, including any night, weekend or bank holiday uplift.</p>
             </Section>
 
             <Section title="Bonuses, expenses and deductions" action={editable && <Button size="sm" variant="soft" icon={Plus} onClick={() => setAdding(true)}>Add line</Button>}>
               {!extras.length ? (
-                <div className="rounded-tile border border-dashed border-line bg-surface/60 px-4 py-6 text-center text-[14px] text-muted">No adjustments</div>
+                <div className="rounded-tile border border-dashed border-line bg-surface/60 px-4 py-6 text-center text-subhead text-muted">No adjustments</div>
               ) : (
                 <List>
                   {extras.map((l) => (
                     <div key={l.id} className="flex items-center gap-3 px-4 py-3">
                       <Pill tone={l.kind === 'deduction' ? 'red' : l.kind === 'bonus' ? 'green' : 'blue'}>{KIND[l.kind]}</Pill>
-                      <div className="min-w-0 flex-1 truncate text-[15px]">{l.description}</div>
-                      <div className={cx('num shrink-0 text-[15px] font-bold', Number(l.amount) < 0 && 'text-red')}>{money(l.amount)}</div>
+                      <div className="min-w-0 flex-1 truncate text-body">{l.description}</div>
+                      <div className={cx('num shrink-0 text-body font-bold', Number(l.amount) < 0 && 'text-red')}>{money(l.amount)}</div>
                       {editable && <IconButton icon={Trash2} label="Remove line" onClick={() => removeLine(l)} className="-mr-2 h-8 w-8 text-red hover:bg-red-soft" />}
                     </div>
                   ))}
@@ -125,12 +125,12 @@ export default function StatementDetail() {
             </Section>
 
             <Tile className="mt-6">
-              <div className="space-y-2 text-[15px]">
+              <div className="space-y-2 text-body">
                 <div className="flex justify-between"><span className="text-muted">Shifts</span><span className="num">{money(shiftTotal)}</span></div>
                 <div className="flex justify-between"><span className="text-muted">Adjustments</span><span className="num">{money(extrasTotal)}</span></div>
-                <div className="flex justify-between border-t border-line pt-2 text-[18px] font-bold"><span>Total payable</span><span className="num">{money(st.total)}</span></div>
+                <div className="flex justify-between border-t border-line pt-2 text-headline font-bold"><span>Total payable</span><span className="num">{money(st.total)}</span></div>
               </div>
-              <p className="mt-3 text-[12px] text-faint">Self-employed contractor. No tax or National Insurance deducted.</p>
+              <p className="mt-3 text-caption text-faint">Self-employed contractor. No tax or National Insurance deducted.</p>
             </Tile>
 
             {editable && (

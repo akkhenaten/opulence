@@ -51,9 +51,9 @@ export default function Staff() {
             <div className="mb-4 space-y-3">
               <div className="flex flex-col gap-3 md:flex-row md:items-center">
                 <label className="relative flex-1">
-                  <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
+                  <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
                   <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, phone or SIA number"
-                    className="h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-3 text-[15px] outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
+                    className="h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-3 text-body outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
                 </label>
                 <div className="grid grid-cols-2 gap-3 md:flex">
                   <Select className="md:w-48" value={role} onChange={(e) => setRole(e.target.value)} placeholder="All roles" options={roles.map((r) => ({ value: r.code, label: r.name }))} />
@@ -83,7 +83,7 @@ export default function Staff() {
                 ))}
               </div>
             )}
-            <p className="mt-3 px-1 text-[13px] text-faint num">{rows.length} of {counts[status] || 0} {status} officers</p>
+            <p className="mt-3 px-1 text-footnote text-faint num">{rows.length} of {counts[status] || 0} {status} officers</p>
           </>
         )}
       </Load>
@@ -121,13 +121,13 @@ export function AddOfficerSheet({ open, onClose, roles, onDone, status = 'active
         : <><Button variant="secondary" onClick={close}>Cancel</Button><Button busy={busy} disabled={!form.v.first_name || !form.v.last_name} onClick={save}>Save</Button></>}>
       {result ? (
         <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-2xl bg-green-soft p-4 text-green"><ShieldCheck size={20} /><span className="text-[15px] font-semibold">Invite created. They can set a password with this link.</span></div>
+          <div className="flex items-center gap-3 rounded-2xl bg-green-soft p-4 text-green"><ShieldCheck size={20} /><span className="text-body font-semibold">Invite created. They can set a password with this link.</span></div>
           <CopyLink link={result.invite_link} />
         </div>
       ) : (
         <OfficerCoreFields form={form} roles={roles} statusOptions={statusOptions} />
       )}
-      {!result && <p className="mt-4 text-[12px] text-faint">You can add right to work, bank details and documents from the profile.</p>}
+      {!result && <p className="mt-4 text-caption text-faint">You can add right to work, bank details and documents from the profile.</p>}
     </Sheet>
   );
 }

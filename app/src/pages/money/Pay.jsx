@@ -87,36 +87,36 @@ function RunTile({ onDone }) {
           <Button icon={Play} busy={genBusy} disabled={!r.start || !r.end || (preview && !Number(preview.unpaid.n))} onClick={generate}>Create drafts</Button>
         </div>
       </div>
-      {sug.data && <p className="mt-2 text-[12px] text-faint">Pay period: {sug.data.pay_period}. Only signed timesheets not already on a statement are included.</p>}
+      {sug.data && <p className="mt-2 text-caption text-faint">Pay period: {sug.data.pay_period}. Only signed timesheets not already on a statement are included.</p>}
 
       {preview && (
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl bg-blue-soft p-4">
-            <div className="num text-[26px] font-bold leading-none">{preview.unpaid.n}</div>
-            <div className="mt-1 text-[13px] font-semibold">Signed timesheets to pay</div>
-            <div className="text-[12px] text-muted num">{hours(preview.unpaid.hours)}</div>
+            <div className="num text-title2 font-bold leading-none">{preview.unpaid.n}</div>
+            <div className="mt-1 text-footnote font-semibold">Signed timesheets to pay</div>
+            <div className="text-caption text-muted num">{hours(preview.unpaid.hours)}</div>
           </div>
           <div className={cx('rounded-2xl p-4', preview.unsigned ? 'bg-amber-soft' : 'bg-bg')}>
-            <div className={cx('num text-[26px] font-bold leading-none', preview.unsigned && 'text-amber')}>{preview.unsigned}</div>
-            <div className="mt-1 text-[13px] font-semibold">Not yet signed</div>
-            <div className="text-[12px] text-muted">These are left out of this run</div>
+            <div className={cx('num text-title2 font-bold leading-none', preview.unsigned && 'text-amber')}>{preview.unsigned}</div>
+            <div className="mt-1 text-footnote font-semibold">Not yet signed</div>
+            <div className="text-caption text-muted">These are left out of this run</div>
           </div>
           <div className="rounded-2xl bg-bg p-4">
-            <div className="num text-[26px] font-bold leading-none">{preview.uninvoiced.n}</div>
-            <div className="mt-1 text-[13px] font-semibold">Not yet invoiced</div>
-            <Link to="/company/invoices" className="text-[12px] font-semibold text-blue">Go to invoices</Link>
+            <div className="num text-title2 font-bold leading-none">{preview.uninvoiced.n}</div>
+            <div className="mt-1 text-footnote font-semibold">Not yet invoiced</div>
+            <Link to="/company/invoices" className="text-caption font-semibold text-blue">Go to invoices</Link>
           </div>
         </div>
       )}
 
       {result && (
-        <div className="mt-4 rounded-2xl bg-green-soft p-4 text-[14px]">
+        <div className="mt-4 rounded-2xl bg-green-soft p-4 text-subhead">
           <div className="font-semibold text-green">{result.created} draft statement{result.created === 1 ? '' : 's'} from {result.timesheets} timesheet{result.timesheets === 1 ? '' : 's'}</div>
           {result.missing_rates?.length > 0 && (
             <div className="mt-3 rounded-xl bg-white p-3">
-              <div className="flex items-center gap-1.5 font-semibold text-amber"><AlertTriangle size={15} />No pay rate set — paid at £0.00</div>
-              <ul className="mt-1.5 space-y-0.5 text-[13px] text-muted">{result.missing_rates.map((m) => <li key={m}>{m}</li>)}</ul>
-              <p className="mt-2 text-[12px] text-faint">Add the officer's rate on their profile, delete the draft and run again — or add a bonus line.</p>
+              <div className="flex items-center gap-1.5 font-semibold text-amber"><AlertTriangle size={16} />No pay rate set — paid at £0.00</div>
+              <ul className="mt-1.5 space-y-0.5 text-footnote text-muted">{result.missing_rates.map((m) => <li key={m}>{m}</li>)}</ul>
+              <p className="mt-2 text-caption text-faint">Add the officer's rate on their profile, delete the draft and run again — or add a bonus line.</p>
             </div>
           )}
         </div>
@@ -178,11 +178,11 @@ function Statements({ rows, isCo, status, setStatus, reload }) {
       </div>
 
       {isCo && selected.length > 0 && (
-        <div className="sticky top-2 z-10 mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-ink px-4 py-2.5 text-white shadow-tile">
-          <span className="mr-auto text-[14px] font-semibold"><span className="num">{selected.length}</span> selected · <span className="num">{total(selected)}</span></span>
+        <div className="sticky-below-header sticky z-10 mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-ink px-4 py-2.5 text-white shadow-tile">
+          <span className="mr-auto text-subhead font-semibold"><span className="num">{selected.length}</span> selected · <span className="num">{total(selected)}</span></span>
           {drafts.length > 0 && <Button size="sm" icon={Send} busy={busy} onClick={issue}>Issue {drafts.length}</Button>}
           {issued.length > 0 && <Button size="sm" variant="soft" icon={CheckIcon} busy={busy} onClick={markPaid}>Mark {issued.length} paid</Button>}
-          <button type="button" className="px-2 text-[13px] font-semibold opacity-70 hover:opacity-100" onClick={() => setSel(new Set())}>Clear</button>
+          <button type="button" className="px-2 text-footnote font-semibold opacity-70 hover:opacity-100" onClick={() => setSel(new Set())}>Clear</button>
         </div>
       )}
 
@@ -191,7 +191,7 @@ function Statements({ rows, isCo, status, setStatus, reload }) {
       ) : (
         <List>
           {isCo && (
-            <div className="flex items-center gap-3 bg-bg/60 px-4 py-2 text-[12px] font-semibold uppercase tracking-wide text-faint">
+            <div className="flex items-center gap-3 bg-bg/60 px-4 py-2 text-caption font-semibold uppercase tracking-wide text-faint">
               <Check checked={allOn} onChange={() => setSel(allOn ? new Set() : new Set(shown.map((r) => r.id)))} label="Select all" />
               <span className="flex-1">{shown.length} statement{shown.length === 1 ? '' : 's'}</span>
               <span className="num normal-case tracking-normal text-ink">{total(shown)}</span>
@@ -203,13 +203,13 @@ function Statements({ rows, isCo, status, setStatus, reload }) {
               <Link to={`${base}/pay/${s.id}`} className="flex min-w-0 flex-1 items-center gap-3">
                 <Avatar name={s.officer_name} size={38} className="hidden sm:grid" />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[15px] font-semibold">{s.officer_name}</div>
-                  <div className="truncate text-[13px] text-muted">{periodLabel(s)}{s.number ? ` · ${s.number}` : ''}</div>
-                  {!s.has_bank && s.status !== 'paid' && <div className="mt-0.5 inline-flex items-center gap-1 text-[12px] font-semibold text-amber"><AlertTriangle size={12} />No bank details</div>}
+                  <div className="truncate text-body font-semibold">{s.officer_name}</div>
+                  <div className="truncate text-footnote text-muted">{periodLabel(s)}{s.number ? ` · ${s.number}` : ''}</div>
+                  {!s.has_bank && s.status !== 'paid' && <div className="mt-0.5 inline-flex items-center gap-1 text-caption font-semibold text-amber"><AlertTriangle size={14} />No bank details</div>}
                 </div>
                 <div className="shrink-0 text-right">
-                  <div className="num text-[15px] font-bold">{money(s.total)}</div>
-                  <div className="num text-[12px] text-muted">{hours(s.hours)}</div>
+                  <div className="num text-body font-bold">{money(s.total)}</div>
+                  <div className="num text-caption text-muted">{hours(s.hours)}</div>
                 </div>
                 <Pill status={s.status} className={status === 'all' ? '' : 'hidden sm:inline-flex'} />
               </Link>
@@ -217,7 +217,7 @@ function Statements({ rows, isCo, status, setStatus, reload }) {
           ))}
         </List>
       )}
-      <p className="mt-3 px-1 text-[12px] text-faint">Officers are self-employed contractors. Statements show gross amounts — no tax or National Insurance is deducted.</p>
+      <p className="mt-3 px-1 text-caption text-faint">Officers are self-employed contractors. Statements show gross amounts — no tax or National Insurance is deducted.</p>
     </Section>
   );
 }

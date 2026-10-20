@@ -18,13 +18,13 @@ export default function Contract() {
           <div className="space-y-3">
             <div className="rounded-tile bg-surface p-5 shadow-tile">
               <div className="flex items-start justify-between gap-3">
-                <h2 className="display text-[22px] font-bold leading-tight">{c.title}</h2>
+                <h2 className="display text-title2 font-bold leading-tight">{c.title}</h2>
                 <Pill status={c.status === 'sent' ? 'pending' : c.status}>{c.status === 'sent' ? 'To sign' : c.status === 'void' ? 'Void' : 'Signed'}</Pill>
               </div>
-              <div className="mt-4 max-h-[55vh] overflow-y-auto whitespace-pre-line rounded-2xl bg-bg p-4 text-[14px] leading-relaxed">{c.body}</div>
+              <div className="mt-4 max-h-[55dvh] overflow-y-auto whitespace-pre-line rounded-2xl bg-bg p-4 text-subhead leading-relaxed">{c.body}</div>
             </div>
             {c.status === 'signed' && <Signed c={c} />}
-            {c.status === 'void' && <div className="rounded-2xl bg-bg px-4 py-3 text-[14px] text-muted">This contract has been withdrawn by the office and no longer needs signing.</div>}
+            {c.status === 'void' && <div className="rounded-2xl bg-bg px-4 py-3 text-subhead text-muted">This contract has been withdrawn by the office and no longer needs signing.</div>}
             {c.status === 'sent' && <SignForm id={id} onSigned={q.reload} />}
           </div>
         )}
@@ -38,7 +38,7 @@ function Signed({ c }) {
     <div className="rounded-tile bg-surface p-5 shadow-tile">
       <div className="flex items-center gap-2 font-semibold text-green"><CheckCircle2 size={20} />Signed</div>
       {c.signature && <img src={c.signature} alt="Your signature" className="mt-3 h-28 w-full rounded-2xl bg-bg object-contain p-2" />}
-      <div className="mt-2 text-[14px] text-muted">{c.signed_name} · {dateTime(c.signed_at)}</div>
+      <div className="mt-2 text-subhead text-muted">{c.signed_name} · {dateTime(c.signed_at)}</div>
     </div>
   );
 }
@@ -63,10 +63,10 @@ function SignForm({ id, onSigned }) {
 
   return (
     <div className="rounded-tile bg-surface p-5 shadow-tile">
-      <div className="mb-3 flex items-center gap-2 text-[17px] font-bold"><FileSignature size={20} className="text-blue" />Sign this contract</div>
+      <div className="mb-3 flex items-center gap-2 text-headline font-bold"><FileSignature size={20} className="text-blue" />Sign this contract</div>
       <Input label="Full name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
       <div className="mt-4 flex items-center justify-between">
-        <span className="text-[13px] font-semibold text-muted">Signature</span>
+        <span className="text-footnote font-semibold text-muted">Signature</span>
         <Button variant="ghost" size="sm" icon={Eraser} disabled={!hasInk} onClick={() => pad.current?.clear()}>Clear</Button>
       </div>
       <SignaturePad handle={pad} onInk={setHasInk} />
@@ -170,7 +170,7 @@ function SignaturePad({ handle: outer, onInk }) {
       <canvas ref={canvas} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onPointerLeave={up}
         className="block h-44 w-full cursor-crosshair touch-none rounded-2xl border-2 border-dashed border-line bg-bg" aria-label="Signature pad" />
       <div className="pointer-events-none absolute inset-x-6 bottom-9 border-b border-faint/60" />
-      <div className="pointer-events-none absolute bottom-3 left-6 text-[12px] text-faint">Sign above the line</div>
+      <div className="pointer-events-none absolute bottom-3 left-6 text-caption text-faint">Sign above the line</div>
     </div>
   );
 }

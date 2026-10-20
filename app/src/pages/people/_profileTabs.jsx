@@ -42,7 +42,7 @@ export function OverviewTab({ o, reload, isCo }) {
           ['Last app sign-in', o.last_login ? relative(o.last_login) : null],
           ['Added', date(o.created_at)],
         ]} />
-        {o.notes && <div className="mt-4 rounded-2xl bg-bg p-3 text-[14px] whitespace-pre-wrap"><span className="mb-1 block text-[12px] font-semibold uppercase tracking-wide text-faint">Notes</span>{o.notes}</div>}
+        {o.notes && <div className="mt-4 rounded-2xl bg-bg p-3 text-subhead whitespace-pre-wrap"><span className="mb-1 block text-caption font-semibold uppercase tracking-wide text-faint">Notes</span>{o.notes}</div>}
       </Tile>
       <Tile title="Emergency contacts" pad={false} action={isCo && <Button size="sm" variant="ghost" onClick={() => setEditContacts(true)}>Edit</Button>}>
         {o.emergency_contacts?.length ? (
@@ -51,7 +51,7 @@ export function OverviewTab({ o, reload, isCo }) {
               <Row key={c.id} title={c.name} subtitle={c.relationship || 'Contact'} right={c.phone && <a href={`tel:${c.phone}`} className="font-semibold text-blue num">{c.phone}</a>} />
             ))}
           </div>
-        ) : <p className="px-5 pb-5 text-[14px] text-faint">None on file</p>}
+        ) : <p className="px-5 pb-5 text-subhead text-faint">None on file</p>}
       </Tile>
       {hasTax && (
         <Tile title="Tax">
@@ -132,14 +132,14 @@ export function ComplianceTab({ o, reload, isCo }) {
       </Bento>
       {c.issues?.length > 0 && (
         <Tile title="Issues" className="bg-red-soft">
-          <ul className="space-y-1 text-[14px] font-semibold text-red">{c.issues.map((i) => <li key={i}>{i}</li>)}</ul>
+          <ul className="space-y-1 text-subhead font-semibold text-red">{c.issues.map((i) => <li key={i}>{i}</li>)}</ul>
         </Tile>
       )}
       <Section title="Venue bans" action={isCo && <Button size="sm" variant="ghost" icon={Plus} onClick={() => setBan(true)}>Add ban</Button>}>
         {o.bans?.length ? (
           <List>
             {o.bans.map((b) => (
-              <Row key={b.venue_id} left={<div className="grid h-9 w-9 place-items-center rounded-full bg-red-soft text-red"><ShieldOff size={17} /></div>}
+              <Row key={b.venue_id} left={<div className="grid h-9 w-9 place-items-center rounded-full bg-red-soft text-red"><ShieldOff size={18} /></div>}
                 title={b.venue_name} subtitle={[b.reason || 'No reason given', `since ${date(b.created_at)}`].join(' · ')}
                 right={isCo && <Button size="sm" variant="secondary" onClick={() => unban(b)}>Lift</Button>} />
             ))}
@@ -206,10 +206,10 @@ function BanSheet({ o, onClose, onDone }) {
 
 // What the compliance check read off the scan; managers compare it with the record
 function AiRead({ r }) {
-  if (r.readable === false) return <div className="mt-0.5 text-[12px] font-semibold text-amber">AI couldn't read this scan clearly</div>;
+  if (r.readable === false) return <div className="mt-0.5 text-caption font-semibold text-amber">AI couldn't read this scan clearly</div>;
   const bits = [r.number && `No. ${r.number}`, r.expiry && `exp. ${date(r.expiry)}`, r.licence_type, r.name].filter(Boolean);
   return (
-    <div className="mt-0.5 text-[12px] text-muted">
+    <div className="mt-0.5 text-caption text-muted">
       {bits.length > 0 && <div className="truncate"><span className="font-semibold text-blue">AI read:</span> {bits.join(' · ')}</div>}
       {r.concerns?.length > 0 && <div className="whitespace-normal text-amber">{r.concerns.join('; ')}</div>}
     </div>
@@ -238,7 +238,7 @@ export function DocumentsTab({ o, isCo, onForbidden }) {
       {(docs) => (
         <>
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-[14px] text-muted num">{docs.length} document{docs.length === 1 ? '' : 's'}</p>
+            <p className="text-subhead text-muted num">{docs.length} document{docs.length === 1 ? '' : 's'}</p>
             {isCo && <Button icon={Upload} onClick={() => setAdding(true)}>Upload</Button>}
           </div>
           {docs.length ? (
@@ -247,8 +247,8 @@ export function DocumentsTab({ o, isCo, onForbidden }) {
                 <div key={d.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                   <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><FileText size={18} /></div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[15px] font-semibold">{d.title}</div>
-                    <div className="truncate text-[13px] text-muted">
+                    <div className="truncate text-body font-semibold">{d.title}</div>
+                    <div className="truncate text-footnote text-muted">
                       {[docKindLabel(d.kind), d.number && `No. ${d.number}`, d.expiry && `Expires ${date(d.expiry)}`, `Added ${dateShort(d.created_at)}`].filter(Boolean).join(' · ')}
                     </div>
                     {d.ai_read && d.ai_read_key === d.s3_key && <AiRead r={d.ai_read} />}
@@ -294,9 +294,9 @@ function DocSheet({ o, onClose, onDone }) {
           <Input label="Expiry" type="date" {...bind('expiry')} />
         </div>
         <label className="block">
-          <span className="mb-1.5 block text-[13px] font-semibold text-muted">File</span>
+          <span className="mb-1.5 block text-footnote font-semibold text-muted">File</span>
           <input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="block w-full text-[14px] file:mr-3 file:rounded-xl file:border-0 file:bg-blue-soft file:px-3 file:py-2 file:font-semibold file:text-blue" />
+            className="block w-full text-subhead file:mr-3 file:rounded-xl file:border-0 file:bg-blue-soft file:px-3 file:py-2 file:font-semibold file:text-blue" />
         </label>
       </div>
     </Sheet>
@@ -324,7 +324,7 @@ export function RatesTab({ o, reload, isCo, roles }) {
   return (
     <>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-[14px] text-muted">Officer rates override the standard rate for a role. A venue rate wins over an all-venue rate.</p>
+        <p className="text-subhead text-muted">Officer rates override the standard rate for a role. A venue rate wins over an all-venue rate.</p>
         {isCo && <Button icon={Plus} onClick={() => setAdding(true)}>Add rate</Button>}
       </div>
       <Table columns={cols} rows={o.rates || []} empty="No officer-specific rates" />
@@ -419,8 +419,8 @@ function Worked({ o, from, onForbidden }) {
 
 const DateBadge = ({ d }) => (
   <div className="grid h-11 w-11 place-items-center rounded-xl bg-blue-soft text-center leading-none text-blue">
-    <div><div className="text-[10px] font-bold uppercase">{new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'Europe/London' }).format(new Date(d))}</div>
-      <div className="num text-[16px] font-bold">{new Intl.DateTimeFormat('en-GB', { day: 'numeric', timeZone: 'Europe/London' }).format(new Date(d))}</div></div>
+    <div><div className="text-caption2 font-bold uppercase">{new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'Europe/London' }).format(new Date(d))}</div>
+      <div className="num text-callout font-bold">{new Intl.DateTimeFormat('en-GB', { day: 'numeric', timeZone: 'Europe/London' }).format(new Date(d))}</div></div>
   </div>
 );
 
@@ -442,11 +442,11 @@ export function AvailabilityTab({ o, reload }) {
   };
   return (
     <>
-      <p className="mb-3 text-[14px] text-muted">Usual weekly pattern. Leave times blank for any time of day.</p>
+      <p className="mb-3 text-subhead text-muted">Usual weekly pattern. Leave times blank for any time of day.</p>
       <List>
         {days.map((d, i) => (
           <div key={i} className="flex flex-wrap items-center gap-3 px-4 py-3">
-            <div className="w-28 text-[15px] font-semibold">{WEEKDAYS[i]}</div>
+            <div className="w-28 text-body font-semibold">{WEEKDAYS[i]}</div>
             <div className="w-20"><Toggle checked={d.available} onChange={(x) => upd(i, 'available', x)} /></div>
             {d.available ? (
               <div className="flex flex-1 items-center gap-2">
@@ -454,7 +454,7 @@ export function AvailabilityTab({ o, reload }) {
                 <span className="text-faint">to</span>
                 <input type="time" value={d.to_time} onChange={(e) => upd(i, 'to_time', e.target.value)} className="h-10 w-28 rounded-xl border border-line px-2 num" aria-label="To" />
               </div>
-            ) : <span className="text-[14px] text-faint">Not available</span>}
+            ) : <span className="text-subhead text-faint">Not available</span>}
           </div>
         ))}
       </List>
@@ -501,11 +501,11 @@ export function TimeOffRow({ t, onDone, showName }) {
   return (
     <div className="flex flex-wrap items-center gap-3 px-4 py-3">
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2 text-[15px] font-semibold">
+        <div className="flex flex-wrap items-center gap-2 text-body font-semibold">
           {showName ? t.officer_name : titleCase(t.kind)}
           {showName && <Pill tone={t.kind === 'sick' ? 'red' : t.kind === 'holiday' ? 'blue' : 'grey'}>{titleCase(t.kind)}</Pill>}
         </div>
-        <div className="text-[13px] text-muted">
+        <div className="text-footnote text-muted">
           <span className="num">{t.start_date === t.end_date ? dayLabel(t.start_date) : `${dayLabel(t.start_date)} – ${dayLabel(t.end_date)}`} · {n} day{n === 1 ? '' : 's'}</span>
           {t.reason && ` · ${t.reason}`}
           {t.decided_by_name && t.status !== 'pending' && ` · ${titleCase(t.status)} by ${t.decided_by_name}`}
@@ -548,7 +548,7 @@ export function TimeOffSheet({ officerId, officers, onClose, onDone }) {
           <Input label="To" type="date" min={v.start_date} {...bind('end_date')} />
         </div>
         <Textarea label="Reason" rows={2} {...bind('reason')} />
-        <p className="text-[12px] text-faint">Time off entered by a manager is approved straight away.</p>
+        <p className="text-caption text-faint">Time off entered by a manager is approved straight away.</p>
       </div>
     </Sheet>
   );
@@ -595,9 +595,9 @@ export function HrTab({ o, isCo, onForbidden }) {
                           {n.level && <Pill tone="grey">{n.kind === 'review' ? `Rating ${n.level}/5` : titleCase(n.level)}</Pill>}
                           {n.visible_to_officer && <Pill tone="blue">Shared with officer</Pill>}
                         </div>
-                        <div className="mt-1.5 text-[15px] font-semibold">{n.title}</div>
-                        {n.body && <p className="mt-0.5 whitespace-pre-wrap text-[14px] text-muted">{n.body}</p>}
-                        <div className="mt-1 text-[12px] text-faint">{n.author_name || 'System'} · {dateTime(n.created_at)}</div>
+                        <div className="mt-1.5 text-body font-semibold">{n.title}</div>
+                        {n.body && <p className="mt-0.5 whitespace-pre-wrap text-subhead text-muted">{n.body}</p>}
+                        <div className="mt-1 text-caption text-faint">{n.author_name || 'System'} · {dateTime(n.created_at)}</div>
                       </div>
                       {isCo && <IconButton icon={Trash2} label="Delete" className="text-red" onClick={() => del(n)} />}
                     </div>
@@ -632,7 +632,7 @@ function HrSheet({ o, isCo, onClose, onDone }) {
         <Input label="Title" {...bind('title')} />
         <Textarea label="Details" rows={4} {...bind('body')} />
         <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.visible_to_officer} onChange={(x) => set('visible_to_officer', x)} label="Share with officer" hint="They will see it on their profile and get a notification" /></div>
-        {!isCo && <p className="text-[12px] text-faint">Warnings and reviews can only be recorded by the company.</p>}
+        {!isCo && <p className="text-caption text-faint">Warnings and reviews can only be recorded by the company.</p>}
       </div>
     </Sheet>
   );
@@ -657,15 +657,15 @@ export function OnboardingTab({ o, reload, onForbidden }) {
             <Tile title="Progress" icon={ClipboardList}>
               <Stat value={`${tasks.length ? Math.round((done / tasks.length) * 100) : 0}%`} label={`${done} of ${tasks.length} steps done`} />
               <Progress className="mt-4" done={done} total={tasks.length} />
-              <div className="mt-4 text-[13px] text-muted">Status: <Pill status={o.status} /></div>
-              <p className="mt-3 text-[12px] text-faint">Steps tick automatically when documents are uploaded and contracts signed.</p>
+              <div className="mt-4 text-footnote text-muted">Status: <Pill status={o.status} /></div>
+              <p className="mt-3 text-caption text-faint">Steps tick automatically when documents are uploaded and contracts signed.</p>
             </Tile>
             <List className="lg:col-span-2">
               {tasks.map((t) => (
                 <button key={t.code} type="button" onClick={() => toggle(t)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-bg">
                   <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${t.done ? 'border-green bg-green text-white' : 'border-line'}`}>{t.done && <Check size={14} strokeWidth={3} />}</span>
-                  <span className={`flex-1 text-[15px] ${t.done ? 'text-muted line-through' : 'font-semibold'}`}>{t.title}</span>
-                  {t.done_at && <span className="text-[12px] text-faint">{dateShort(t.done_at)}</span>}
+                  <span className={`flex-1 text-body ${t.done ? 'text-muted line-through' : 'font-semibold'}`}>{t.title}</span>
+                  {t.done_at && <span className="text-caption text-faint">{dateShort(t.done_at)}</span>}
                 </button>
               ))}
             </List>
@@ -701,8 +701,8 @@ export function ContractsTab({ o, onForbidden }) {
                 <div key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                   <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><FileSignature size={18} /></div>
                   <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setViewing(c.id)}>
-                    <div className="truncate text-[15px] font-semibold">{c.title}</div>
-                    <div className="truncate text-[13px] text-muted">{c.status === 'signed' ? `Signed by ${c.signed_name} · ${dateTime(c.signed_at)}` : `Sent ${date(c.created_at)}`}</div>
+                    <div className="truncate text-body font-semibold">{c.title}</div>
+                    <div className="truncate text-footnote text-muted">{c.status === 'signed' ? `Signed by ${c.signed_name} · ${dateTime(c.signed_at)}` : `Sent ${date(c.created_at)}`}</div>
                   </button>
                   <div className="flex items-center gap-1.5">
                     <Pill tone={tone[c.status]}>{c.status === 'sent' ? 'Awaiting signature' : titleCase(c.status)}</Pill>
@@ -739,7 +739,7 @@ function SendContractSheet({ o, onClose, onDone }) {
         {() => active.length ? (
           <div className="space-y-3">
             <Select label="Template" value={chosen} onChange={(e) => setId(e.target.value)} options={active.map((t) => ({ value: t.id, label: t.title }))} />
-            <p className="text-[13px] text-muted">{o.first_name} will be notified{o.user_id ? '' : ' once they have an app login'} and can sign on their phone.</p>
+            <p className="text-footnote text-muted">{o.first_name} will be notified{o.user_id ? '' : ' once they have an app login'} and can sign on their phone.</p>
           </div>
         ) : <Empty title="No active templates" body="Add one in Settings → Contracts." />}
       </Load>
@@ -754,7 +754,7 @@ function ContractView({ id, onClose }) {
       <Load q={q}>
         {(c) => (
           <div>
-            <div className="whitespace-pre-wrap rounded-2xl bg-bg p-4 text-[14px] leading-relaxed">{c.body}</div>
+            <div className="whitespace-pre-wrap rounded-2xl bg-bg p-4 text-subhead leading-relaxed">{c.body}</div>
             {c.status === 'signed' && (
               <div className="mt-4 rounded-2xl border border-line p-4">
                 {c.signature && <img src={c.signature} alt="Signature" className="mb-2 h-20 object-contain" />}
@@ -841,15 +841,15 @@ export function AttendanceTab({ o, onForbidden }) {
                 return (
                   <div key={e.id} className="flex items-start gap-3 px-4 py-3">
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2 text-[15px] font-semibold">
+                      <div className="flex flex-wrap items-center gap-2 text-body font-semibold">
                         <span className={cx(e.excused && 'text-muted line-through')}>{e.venue_name}</span>
                         <Pill tone={tone}>{label}{e.kind === 'late' && e.minutes ? ` ${e.minutes} min` : ''}</Pill>
                         {e.excused && <Pill tone="green">Excused</Pill>}
                         {e.notified && !e.excused && <Pill tone="blue">Told us</Pill>}
                       </div>
-                      <div className="text-[13px] text-muted">{dayLabel(e.starts_at)} · {range(e.starts_at, e.ends_at)}</div>
-                      {e.reason && <div className="mt-1 text-[13px]">“{e.reason}”</div>}
-                      {e.note && <div className="mt-1 rounded-xl bg-bg px-3 py-1.5 text-[13px] text-muted">{e.note}</div>}
+                      <div className="text-footnote text-muted">{dayLabel(e.starts_at)} · {range(e.starts_at, e.ends_at)}</div>
+                      {e.reason && <div className="mt-1 text-footnote">“{e.reason}”</div>}
+                      {e.note && <div className="mt-1 rounded-xl bg-bg px-3 py-1.5 text-footnote text-muted">{e.note}</div>}
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => setEdit(e)}>Review</Button>
                   </div>
@@ -863,13 +863,13 @@ export function AttendanceTab({ o, onForbidden }) {
               <List>{d.ratings.map((r, i) => (
                 <div key={i} className="px-4 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[15px] font-semibold">{r.venue_name}</span>
+                    <span className="text-body font-semibold">{r.venue_name}</span>
                     <span className="flex items-center gap-0.5" aria-label={`${r.rating} out of 5`}>
                       {[1, 2, 3, 4, 5].map((n) => <Star key={n} size={16} className={n <= r.rating ? 'fill-amber text-amber' : 'text-line'} />)}
                     </span>
                   </div>
-                  <div className="text-[13px] text-muted">{dayLabel(r.starts_at)}</div>
-                  {r.note && <div className="mt-1 text-[14px]">“{r.note}”</div>}
+                  <div className="text-footnote text-muted">{dayLabel(r.starts_at)}</div>
+                  {r.note && <div className="mt-1 text-subhead">“{r.note}”</div>}
                 </div>
               ))}</List>
             ) : <Empty icon={Star} title="No ratings yet" body="Venues are asked to rate officers after each shift." />}

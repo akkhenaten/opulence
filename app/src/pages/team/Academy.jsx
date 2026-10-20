@@ -40,16 +40,16 @@ function Courses({ co }) {
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <label className="flex items-center gap-2 text-[14px] text-muted"><input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} /> Show archived</label>
+        <label className="flex items-center gap-2 text-subhead text-muted"><input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} /> Show archived</label>
         {co && <Button icon={Plus} onClick={() => setAdd(true)}>New course</Button>}
       </div>
       <Load q={q}>
         {(rows) => rows.length ? (
           <Table rows={rows} onRow={open} columns={[
-            { key: 'title', label: 'Course', render: (c) => <div className="min-w-0"><div className="font-semibold">{c.title}</div><div className="text-[12px] text-muted">{TOPICS[c.topic]}{c.mandatory ? ' · Required' : ''}{c.renew_months ? ` · Renew every ${c.renew_months} months` : ''}</div></div> },
+            { key: 'title', label: 'Course', render: (c) => <div className="min-w-0"><div className="font-semibold">{c.title}</div><div className="text-caption text-muted">{TOPICS[c.topic]}{c.mandatory ? ' · Required' : ''}{c.renew_months ? ` · Renew every ${c.renew_months} months` : ''}</div></div> },
             { key: 'status', label: 'Status', render: courseStatus },
-            { key: 'content', label: 'Content', render: (c) => <span className={cx('text-[13px]', (c.empty_sections || c.questions < 5) && 'text-amber')}>{c.sections} sections · {c.questions} questions{c.empty_sections ? ` · ${c.empty_sections} empty` : ''}</span> },
-            { key: 'people', label: 'Officers', render: (c) => <span className="num text-[13px]">{c.passed} passed / {c.assigned} assigned</span> },
+            { key: 'content', label: 'Content', render: (c) => <span className={cx('text-footnote', (c.empty_sections || c.questions < 5) && 'text-amber')}>{c.sections} sections · {c.questions} questions{c.empty_sections ? ` · ${c.empty_sections} empty` : ''}</span> },
+            { key: 'people', label: 'Officers', render: (c) => <span className="num text-footnote">{c.passed} passed / {c.assigned} assigned</span> },
             { key: 'go', label: '', align: 'right', render: (c) => c.status === 'published' ? <Button size="sm" variant="soft" icon={UserPlus} onClick={(e) => { e.stopPropagation(); setAssign(c.id); }}>Assign</Button> : null },
           ]} />
         ) : (
@@ -92,14 +92,14 @@ function Results() {
         <Button icon={UserPlus} onClick={() => setAssign(true)}>Assign training</Button>
       </div>
       <div className="overflow-x-auto rounded-tile border border-black/[0.04] bg-surface shadow-tile">
-        <table className="w-full min-w-[640px] text-[13px]">
+        <table className="w-full min-w-[640px] text-footnote">
           <thead>
             <tr className="border-b border-line text-left">
-              <th className="sticky left-0 z-10 bg-surface px-4 py-3 text-[12px] font-semibold uppercase tracking-wide text-faint">Officer</th>
+              <th className="sticky left-0 z-10 bg-surface px-4 py-3 text-caption font-semibold uppercase tracking-wide text-faint">Officer</th>
               {totals.map(({ c, passed, overdue }) => (
                 <th key={c.id} className="min-w-[130px] px-3 py-3 align-bottom font-semibold">
                   <button type="button" className="text-left hover:text-blue" onClick={() => nav(`/${user.role}/team/academy/${c.id}`)}>{c.title}</button>
-                  <div className="text-[11px] font-normal text-muted">{passed} passed{overdue ? ` · ${overdue} overdue` : ''}{c.mandatory ? ' · Required' : ''}</div>
+                  <div className="text-caption2 font-normal text-muted">{passed} passed{overdue ? ` · ${overdue} overdue` : ''}{c.mandatory ? ' · Required' : ''}</div>
                 </th>
               ))}
             </tr>
@@ -118,7 +118,7 @@ function Results() {
                   const body = (
                     <>
                       <StatePill state={x.state} />
-                      <div className="mt-0.5 text-[11px] text-muted">
+                      <div className="mt-0.5 text-caption2 text-muted">
                         {x.score != null ? `${x.score}%` : ''}{x.tries > 1 ? ` · ${x.tries} tries` : ''}
                         {x.due_date && x.state !== 'passed' ? ` · due ${date(x.due_date)}` : ''}
                         {x.expires_at && x.state === 'passed' ? ` · to ${date(x.expires_at)}` : ''}
@@ -139,9 +139,9 @@ function Results() {
       <Tile title="Questions most often answered wrong">
         {missed.length ? (
           <List>
-            {missed.map((m) => <Row key={m.id} title={m.prompt} subtitle={m.course_title} right={<span className="num text-[13px] font-semibold text-red">{Math.round((m.wrong / m.answered) * 100)}% wrong</span>} />)}
+            {missed.map((m) => <Row key={m.id} title={m.prompt} subtitle={m.course_title} right={<span className="num text-footnote font-semibold text-red">{Math.round((m.wrong / m.answered) * 100)}% wrong</span>} />)}
           </List>
-        ) : <p className="text-[14px] text-muted">Nothing yet — this fills in as officers take quizzes. It shows where a lesson may need to be clearer.</p>}
+        ) : <p className="text-subhead text-muted">Nothing yet — this fills in as officers take quizzes. It shows where a lesson may need to be clearer.</p>}
       </Tile>
       <AssignSheet open={assign} courses={courses} onClose={() => setAssign(false)} onDone={q.reload} />
     </div>
@@ -174,8 +174,8 @@ function Starter({ onDone }) {
   return (
     <div className="max-w-3xl space-y-4">
       <Tile tone="soft">
-        <p className="text-[15px] leading-relaxed">Tick the courses you want and the AI drafts each one: lessons, quick checks and quiz questions, naming its sources. They are saved as <b>drafts</b> — read and correct each one before you publish it. First aid courses are awareness only and point officers to certified training.</p>
-        <p className="mt-2 text-[13px] text-muted">Each course takes about a minute and uses AI credits from your monthly allowance.</p>
+        <p className="text-body leading-relaxed">Tick the courses you want and the AI drafts each one: lessons, quick checks and quiz questions, naming its sources. They are saved as <b>drafts</b> — read and correct each one before you publish it. First aid courses are awareness only and point officers to certified training.</p>
+        <p className="mt-2 text-footnote text-muted">Each course takes about a minute and uses AI credits from your monthly allowance.</p>
       </Tile>
       <Load q={q}>
         {() => (
@@ -184,8 +184,8 @@ function Starter({ onDone }) {
               <label key={t.title} className="flex cursor-pointer items-start gap-3 px-4 py-3">
                 <input type="checkbox" className="mt-1 h-4 w-4" disabled={busy} checked={sel.includes(t.title)} onChange={() => toggle(t.title)} />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-semibold">{t.title}</span>
-                  <span className="block text-[13px] text-muted">{TOPICS[t.topic]}{t.notes ? ` · ${t.notes}` : ''}</span>
+                  <span className="block text-body font-semibold">{t.title}</span>
+                  <span className="block text-footnote text-muted">{TOPICS[t.topic]}{t.notes ? ` · ${t.notes}` : ''}</span>
                 </span>
                 {t.exists && <Pill tone="grey">Already added</Pill>}
               </label>
@@ -195,7 +195,7 @@ function Starter({ onDone }) {
       </Load>
       <DraftProgress p={p} />
       {log.length > 0 && (
-        <div className="space-y-1 text-[14px]">
+        <div className="space-y-1 text-subhead">
           {log.map((l) => <div key={l.title} className={l.ok ? 'text-green' : 'text-red'}>{l.ok ? '✓' : '✕'} {l.title}{l.error ? ` — ${l.error}` : ''}</div>)}
         </div>
       )}

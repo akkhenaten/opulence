@@ -48,9 +48,9 @@ function Body({ d, clock, ops, reload }) {
           <div className="flex gap-3 text-red">
             <ShieldAlert size={24} className="mt-0.5 shrink-0" />
             <div>
-              <div className="text-[17px] font-bold">You can't work shifts right now</div>
-              <ul className="mt-1 space-y-0.5 text-[14px] font-medium">{d.issues.map((i) => <li key={i}>{i}</li>)}</ul>
-              <p className="mt-2 text-[13px] text-red/80">Upload the missing documents or contact the office.</p>
+              <div className="text-headline font-bold">You can't work shifts right now</div>
+              <ul className="mt-1 space-y-0.5 text-subhead font-medium">{d.issues.map((i) => <li key={i}>{i}</li>)}</ul>
+              <p className="mt-2 text-footnote text-red/80">Upload the missing documents or contact the office.</p>
               <Button size="sm" variant="secondary" className="mt-3" to="/officer/documents">My documents</Button>
             </div>
           </div>
@@ -59,8 +59,8 @@ function Body({ d, clock, ops, reload }) {
       {!d.issues?.length && siaDays != null && siaDays <= 60 && (
         <Tile className="border-amber/20 !bg-amber-soft" to="/officer/documents">
           <div className="flex items-center gap-3 text-amber">
-            <AlertTriangle size={22} className="shrink-0" />
-            <div><div className="font-bold">SIA licence: {expiryText(siaDays).toLowerCase()}</div><div className="text-[13px]">Renew it and upload the new licence.</div></div>
+            <AlertTriangle size={24} className="shrink-0" />
+            <div><div className="font-bold">SIA licence: {expiryText(siaDays).toLowerCase()}</div><div className="text-footnote">Renew it and upload the new licence.</div></div>
           </div>
         </Tile>
       )}
@@ -78,7 +78,7 @@ function Body({ d, clock, ops, reload }) {
           {d.lastStatement ? (
             <Stat value={money(d.lastStatement.total)} label={`${dateShort(d.lastStatement.period_start)} – ${dateShort(d.lastStatement.period_end)}`}
               hint={d.lastStatement.status === 'paid' ? 'Paid' : 'Issued, awaiting payment'} />
-          ) : <div className="text-[15px] text-muted">No statements yet</div>}
+          ) : <div className="text-body text-muted">No statements yet</div>}
         </Tile>
         {d.incidentsToFix > 0 ? (
           <Tile title="Incident reports" icon={PencilLine} to="/officer/incidents" className="col-span-2 border-amber/20 !bg-amber-soft sm:col-span-1">
@@ -86,7 +86,7 @@ function Body({ d, clock, ops, reload }) {
           </Tile>
         ) : (
           <Tile title="Documents" icon={ShieldCheck} to="/officer/documents" className="col-span-2 sm:col-span-1">
-            {docs.length ? <Stat value={docs.length} label="Expiring soon" tone="amber" /> : <div className="text-[15px] text-muted">All in date</div>}
+            {docs.length ? <Stat value={docs.length} label="Expiring soon" tone="amber" /> : <div className="text-body text-muted">All in date</div>}
           </Tile>
         )}
       </Bento>
@@ -102,7 +102,7 @@ function Body({ d, clock, ops, reload }) {
       {later.length > 0 && (
         <div className="pt-3">
           <div className="mb-2 flex items-center justify-between px-1">
-            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted">Coming up</h2>
+            <h2 className="text-footnote font-semibold uppercase tracking-wide text-muted">Coming up</h2>
             <Button size="sm" variant="ghost" to="/officer/shifts">All shifts</Button>
           </div>
           <div className="space-y-2.5">
@@ -120,7 +120,7 @@ function DocList({ docs }) {
       {docs.slice(0, 4).map((x, i) => {
         const n = daysUntil(x.expiry);
         return (
-          <div key={i} className="flex items-center justify-between gap-3 py-2 text-[14px]">
+          <div key={i} className="flex items-center justify-between gap-3 py-2 text-subhead">
             <span className="truncate font-semibold">{x.title}</span>
             <span className={cx('shrink-0 font-semibold', n < 0 ? 'text-red' : 'text-amber')}>{n < 0 ? 'Expired' : date(x.expiry)}</span>
           </div>
@@ -134,9 +134,9 @@ function Hero({ s, isCurrent, state, onAccept, busy }) {
   if (!s) {
     return (
       <Tile tone="ink" className="!p-6">
-        <div className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wide opacity-70"><CalendarDays size={15} />Next shift</div>
-        <div className="display mt-3 text-[24px] font-bold">Nothing booked</div>
-        <p className="mt-1 text-[14px] opacity-70">Pick up an open shift or check back later.</p>
+        <div className="flex items-center gap-2 text-footnote font-semibold uppercase tracking-wide opacity-70"><CalendarDays size={16} />Next shift</div>
+        <div className="display mt-3 text-title2 font-bold">Nothing booked</div>
+        <p className="mt-1 text-subhead opacity-70">Pick up an open shift or check back later.</p>
         <Button size="lg" className="mt-5 w-full" to="/officer/shifts?tab=open" icon={Megaphone}>See open shifts</Button>
       </Tile>
     );
@@ -148,25 +148,25 @@ function Hero({ s, isCurrent, state, onAccept, busy }) {
   return (
     <Tile tone="blue" className="!p-6">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wide opacity-80">
-          {live ? <span className="h-2.5 w-2.5 rounded-full bg-white live-dot" /> : <Clock3 size={15} />}{live ? label : isCurrent || started ? 'Your shift' : 'Next shift'}
+        <div className="flex items-center gap-2 text-footnote font-semibold uppercase tracking-wide opacity-80">
+          {live ? <span className="h-2.5 w-2.5 rounded-full bg-white live-dot" /> : <Clock3 size={16} />}{live ? label : isCurrent || started ? 'Your shift' : 'Next shift'}
         </div>
-        {!live && <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-[12px] font-semibold">{label}</span>}
+        {!live && <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-caption font-semibold">{label}</span>}
       </div>
-      <div className="display mt-3 text-[26px] font-bold leading-tight">{s.venue_name}</div>
+      <div className="display mt-3 text-title2 font-bold leading-tight">{s.venue_name}</div>
       {(s.address || s.postcode) && (
-        <div className="mt-1 flex items-start gap-1.5 text-[14px] opacity-85"><MapPin size={15} className="mt-0.5 shrink-0" />{[s.address, s.postcode].filter(Boolean).join(', ')}</div>
+        <div className="mt-1 flex items-start gap-1.5 text-subhead opacity-85"><MapPin size={16} className="mt-0.5 shrink-0" />{[s.address, s.postcode].filter(Boolean).join(', ')}</div>
       )}
       <div className="mt-4 flex items-end justify-between gap-3">
         <div>
-          <div className="text-[13px] opacity-75">{dayLabel(s.starts_at)}</div>
-          <div className="display num whitespace-nowrap text-[28px] font-bold leading-none">{range(s.starts_at, s.ends_at)}</div>
+          <div className="text-footnote opacity-75">{dayLabel(s.starts_at)}</div>
+          <div className="display num whitespace-nowrap text-title1 font-bold leading-none">{range(s.starts_at, s.ends_at)}</div>
         </div>
-        {s.role_name && <span className="min-w-0 truncate rounded-full bg-white/15 px-3 py-1 text-[13px] font-semibold">{s.role_name}</span>}
+        {s.role_name && <span className="min-w-0 truncate rounded-full bg-white/15 px-3 py-1 text-footnote font-semibold">{s.role_name}</span>}
       </div>
       {s.assignment_status === 'assigned' && !live && (
         <div className="mt-5 rounded-2xl bg-white/12 p-3">
-          <div className="text-[14px] font-semibold">Can you work this shift?</div>
+          <div className="text-subhead font-semibold">Can you work this shift?</div>
           <div className="mt-2 flex gap-2">
             <Button className="flex-1 !bg-white !text-blue" busy={busy} onClick={() => onAccept(s)}>Confirm</Button>
             <Button className="flex-1 !bg-white/15 !text-white !shadow-none" to="/officer/shifts">Options</Button>
@@ -202,10 +202,10 @@ function Extras() {
       {m.academy && due.length > 0 && (
         <Tile to={due.length === 1 ? `/officer/learn/academy/${due[0].id}` : '/officer/learn'} className={cx(overdue.length && 'border-red/20 !bg-red-soft')}>
           <div className="flex items-center gap-3">
-            <span className={cx('grid h-11 w-11 shrink-0 place-items-center rounded-2xl', overdue.length ? 'bg-red text-white' : 'bg-blue-soft text-blue')}><GraduationCap size={22} /></span>
+            <span className={cx('grid h-11 w-11 shrink-0 place-items-center rounded-2xl', overdue.length ? 'bg-red text-white' : 'bg-blue-soft text-blue')}><GraduationCap size={24} /></span>
             <div className="min-w-0 flex-1">
-              <div className="text-[16px] font-bold">{overdue.length ? `${overdue.length} training course${overdue.length === 1 ? '' : 's'} overdue` : `${due.length} training course${due.length === 1 ? '' : 's'} to do`}</div>
-              <div className="truncate text-[13px] text-muted">{due.map((c) => c.title).join(' · ')}{due[0]?.due_date && !overdue.length ? ` — due ${date(due[0].due_date)}` : ''}</div>
+              <div className="text-callout font-bold">{overdue.length ? `${overdue.length} training course${overdue.length === 1 ? '' : 's'} overdue` : `${due.length} training course${due.length === 1 ? '' : 's'} to do`}</div>
+              <div className="truncate text-footnote text-muted">{due.map((c) => c.title).join(' · ')}{due[0]?.due_date && !overdue.length ? ` — due ${date(due[0].due_date)}` : ''}</div>
             </div>
             <ChevronRight size={20} className="shrink-0 text-faint" />
           </div>
@@ -218,8 +218,8 @@ function Extras() {
               <div key={p.id} className="flex items-center gap-3 py-2.5">
                 <Avatar name={p.author.name} src={p.author.photo_url} size={34} />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[14px]"><b>{p.author.name.split(' ')[0]}</b> {p.body || 'shared a photo'}</div>
-                  <div className="text-[12px] text-faint">{relative(p.created_at)}{p.comment_count ? ` · ${p.comment_count} comment${p.comment_count === 1 ? '' : 's'}` : ''}</div>
+                  <div className="truncate text-subhead"><b>{p.author.name.split(' ')[0]}</b> {p.body || 'shared a photo'}</div>
+                  <div className="text-caption text-faint">{relative(p.created_at)}{p.comment_count ? ` · ${p.comment_count} comment${p.comment_count === 1 ? '' : 's'}` : ''}</div>
                 </div>
                 {p.photos[0] && <img src={p.photos[0].url} alt="" className="h-11 w-11 shrink-0 rounded-xl object-cover" />}
               </div>

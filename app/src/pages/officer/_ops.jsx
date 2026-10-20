@@ -19,7 +19,7 @@ export function ChaseBanner({ ops }) {
   if (a.reply === 'on_my_way') {
     return (
       <Tile className="border-amber/20 !bg-amber-soft">
-        <div className="flex items-center gap-3 text-amber"><AlarmClock size={22} className="shrink-0" /><div><div className="font-bold">Thanks — we know you're on your way</div><div className="text-[13px]">{a.venue_name} · started {time(a.starts_at)}. Clock in as soon as you arrive.</div></div></div>
+        <div className="flex items-center gap-3 text-amber"><AlarmClock size={24} className="shrink-0" /><div><div className="font-bold">Thanks — we know you're on your way</div><div className="text-footnote">{a.venue_name} · started {time(a.starts_at)}. Clock in as soon as you arrive.</div></div></div>
         <Button size="sm" className="mt-3" to="/officer/clock">Clock in</Button>
       </Tile>
     );
@@ -30,8 +30,8 @@ export function ChaseBanner({ ops }) {
       <div className="flex gap-3 text-red">
         <AlarmClock size={24} className="mt-0.5 shrink-0" />
         <div className="min-w-0">
-          <div className="text-[17px] font-bold">You haven't clocked in</div>
-          <div className="text-[14px] font-medium">{a.venue_name} started at {time(a.starts_at)}. Let us know what's happening.</div>
+          <div className="text-headline font-bold">You haven't clocked in</div>
+          <div className="text-subhead font-medium">{a.venue_name} started at {time(a.starts_at)}. Let us know what's happening.</div>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button size="sm" to="/officer/clock">Clock in</Button>
             <Button size="sm" variant="secondary" onClick={() => setSheet('omw')}>On my way</Button>
@@ -46,7 +46,7 @@ export function ChaseBanner({ ops }) {
       <Sheet open={sheet === 'cant'} onClose={() => setSheet(null)} title="Can't make it" size="sm"
         footer={<Button variant="danger" busy={busy} disabled={!reason.trim()} onClick={() => reply({ reply: 'cant_make_it', reason }, 'Thanks — we\'ll find cover')}>Send</Button>}>
         <Textarea label="What's happened?" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
-        <p className="mt-2 text-[13px] text-muted">Your manager is told straight away so they can find cover.</p>
+        <p className="mt-2 text-footnote text-muted">Your manager is told straight away so they can find cover.</p>
       </Sheet>
     </Tile>
   );
@@ -60,9 +60,9 @@ function OfferCard({ o, onDone }) {
     <Tile className="!p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[13px] font-semibold uppercase tracking-wide text-blue">Cover offer</div>
-          <div className="text-[17px] font-bold">{o.venue_name}</div>
-          <div className="text-[14px] text-muted">{dayLabel(o.starts_at)} · {range(o.starts_at, o.ends_at)} · {o.role_name}</div>
+          <div className="text-footnote font-semibold uppercase tracking-wide text-blue">Cover offer</div>
+          <div className="text-headline font-bold">{o.venue_name}</div>
+          <div className="text-subhead text-muted">{dayLabel(o.starts_at)} · {range(o.starts_at, o.ends_at)} · {o.role_name}</div>
         </div>
         {!open && <Pill status={o.status === 'filled_by_other' ? 'closed' : o.status}>{o.status === 'filled_by_other' ? 'Filled' : o.status === 'accepted' ? 'Yours' : o.status === 'declined' ? 'Declined' : 'Expired'}</Pill>}
       </div>

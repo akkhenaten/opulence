@@ -33,7 +33,7 @@ export function DraftProgress({ p }) {
   if (!p) return null;
   return (
     <div className="rounded-2xl bg-blue-soft px-4 py-3">
-      <div className="mb-2 flex justify-between gap-2 text-[14px] font-semibold text-blue"><span className="min-w-0 truncate">{p.label}</span><span className="num shrink-0">{Math.round((p.step / p.of) * 100)}%</span></div>
+      <div className="mb-2 flex justify-between gap-2 text-subhead font-semibold text-blue"><span className="min-w-0 truncate">{p.label}</span><span className="num shrink-0">{Math.round((p.step / p.of) * 100)}%</span></div>
       <Progress value={p.step} max={p.of} />
     </div>
   );
@@ -69,16 +69,16 @@ export function AssignSheet({ open, onClose, courses, courseId, onDone }) {
       <div className="space-y-4">
         {!courseId && <Select label="Course" value={v.course_id} onChange={(e) => set('course_id', e.target.value)} placeholder="Choose a published course" options={(courses || []).map((c) => ({ value: c.id, label: c.title }))} />}
         <div>
-          <div className="mb-1.5 text-[13px] font-semibold text-muted">Who</div>
+          <div className="mb-1.5 text-footnote font-semibold text-muted">Who</div>
           <div className="flex flex-wrap gap-2">
             {TARGETS.map((t) => (
               <button key={t.value} type="button" onClick={() => setV((s) => ({ ...s, target: t.value, ids: [] }))}
-                className={`rounded-full border px-3 py-1.5 text-[13px] font-semibold ${v.target === t.value ? 'border-blue bg-blue text-white' : 'border-line bg-surface'}`}>{t.label}</button>
+                className={`rounded-full border px-3 py-1.5 text-footnote font-semibold ${v.target === t.value ? 'border-blue bg-blue text-white' : 'border-line bg-surface'}`}>{t.label}</button>
             ))}
           </div>
         </div>
         {v.target !== 'all' && <Chips options={options} value={v.ids} onChange={(ids) => set('ids', ids)} />}
-        {v.target === 'venue' && <p className="text-[12px] text-faint">Officers who worked there in the last 90 days or are booked in the next 30.</p>}
+        {v.target === 'venue' && <p className="text-caption text-faint">Officers who worked there in the last 90 days or are booked in the next 30.</p>}
         <Input label="Due date (optional)" type="date" value={v.due_date} onChange={(e) => set('due_date', e.target.value)} hint="Officers get a reminder 3 days before. Overdue required courses show on the compliance check." />
       </div>
     </Sheet>
@@ -100,7 +100,7 @@ export function NewCourseSheet({ open, onClose, onCreated }) {
         <Input label="Title" value={v.title} onChange={set('title')} placeholder="e.g. Dealing with intoxicated customers" />
         <Select label="Area" value={v.topic} onChange={set('topic')} options={TOPIC_OPTIONS} />
         <Textarea label="What it must cover (optional)" rows={3} value={v.notes} onChange={set('notes')} placeholder="Your venue rules, local procedures, things officers get wrong…" />
-        <p className="text-[13px] text-muted">The AI writes each section with a quick check and quiz questions, naming its sources. Nothing reaches officers until you publish it.</p>
+        <p className="text-footnote text-muted">The AI writes each section with a quick check and quiz questions, naming its sources. Nothing reaches officers until you publish it.</p>
         <DraftProgress p={p} />
       </div>
     </Sheet>

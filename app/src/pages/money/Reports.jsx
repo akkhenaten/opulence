@@ -130,7 +130,7 @@ function IncidentsSection({ q }) {
                   {SEV.map((s) => (
                     <div key={s} className="flex items-center justify-between rounded-xl bg-bg px-3 py-2">
                       <Pill status={s} />
-                      <span className="num text-[16px] font-bold">{sev[s] || 0}</span>
+                      <span className="num text-callout font-bold">{sev[s] || 0}</span>
                     </div>
                   ))}
                 </div>

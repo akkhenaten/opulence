@@ -36,37 +36,37 @@ export default function Chat({ action, extra = {}, storageKey, prompts = [], emp
   };
 
   return (
-    <div className={cx('flex min-h-[60vh] flex-col', className)}>
+    <div className={cx('flex min-h-[60dvh] flex-col', className)}>
       <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
         {!msgs.length && (
           <div className="py-6 text-center">
-            <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-soft text-blue"><MessageSquareText size={22} /></div>
+            <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-soft text-blue"><MessageSquareText size={24} /></div>
             {empty}
             {prompts.length > 0 && (
               <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {prompts.map((p) => <button key={p} type="button" onClick={() => send(p)} className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-[13px] font-semibold transition hover:border-blue hover:text-blue">{p}</button>)}
+                {prompts.map((p) => <button key={p} type="button" onClick={() => send(p)} className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-footnote font-semibold transition hover:border-blue hover:text-blue">{p}</button>)}
               </div>
             )}
           </div>
         )}
         {msgs.map((m, i) => (
           <div key={i} className={cx('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
-            <div className={cx('max-w-[88%] whitespace-pre-wrap rounded-[20px] px-4 py-2.5 text-[15px] leading-relaxed', m.role === 'user' ? 'bg-blue text-white' : m.error ? 'bg-red-soft text-red' : 'bg-bg')}>
+            <div className={cx('max-w-[88%] whitespace-pre-wrap rounded-tile px-4 py-2.5 text-body leading-relaxed', m.role === 'user' ? 'bg-blue text-white' : m.error ? 'bg-red-soft text-red' : 'bg-bg')}>
               {m.content}
               {m.role === 'assistant' && !m.error && renderReply?.(m)}
             </div>
           </div>
         ))}
-        {busy && <div className="flex"><div className="rounded-[20px] bg-bg px-4 py-3"><span className="inline-flex gap-1"><Dot3 /></span></div></div>}
+        {busy && <div className="flex"><div className="rounded-tile bg-bg px-4 py-3"><span className="inline-flex gap-1"><Dot3 /></span></div></div>}
         <div ref={end} />
       </div>
       <form className="flex items-end gap-2 border-t border-line p-3" onSubmit={(e) => { e.preventDefault(); send(); }}>
         <textarea rows={1} value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-          className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-2.5 text-[15px] outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
+          className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-2.5 text-body outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
         <button type="submit" aria-label="Send" disabled={busy || !text.trim()} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue text-white transition disabled:opacity-40"><ArrowUp size={20} /></button>
       </form>
-      {msgs.length > 0 && <button type="button" onClick={() => setMsgs([])} className="pb-3 text-center text-[12px] font-semibold text-faint hover:text-ink">Clear conversation</button>}
+      {msgs.length > 0 && <button type="button" onClick={() => setMsgs([])} className="pb-3 text-center text-caption font-semibold text-faint hover:text-ink">Clear conversation</button>}
     </div>
   );
 }

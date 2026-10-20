@@ -81,7 +81,7 @@ function CompanyBody({ rows, status, setStatus, onGenerate }) {
         <label className="relative min-w-0 flex-1 basis-48">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Number, venue or client"
-            className="h-10 w-full rounded-xl border border-line bg-surface pl-9 pr-3 text-[14px] outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
+            className="h-10 w-full rounded-xl border border-line bg-surface pl-9 pr-3 text-subhead outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
         </label>
       </div>
 
@@ -104,21 +104,21 @@ function InvoiceList({ rows, company }) {
           : null;
         return (
           <Link key={i.id} to={`${base}/invoices/${i.id}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-bg active:bg-bg">
-            <div className={cx('grid h-10 w-10 shrink-0 place-items-center rounded-xl', i.kind === 'credit' ? 'bg-[#EEF0F3] text-muted' : 'bg-blue-soft text-blue')}>
+            <div className={cx('grid h-10 w-10 shrink-0 place-items-center rounded-xl', i.kind === 'credit' ? 'bg-fill text-muted' : 'bg-blue-soft text-blue')}>
               <ReceiptText size={18} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[15px] font-semibold">
-                {i.number || 'Draft'}{i.kind === 'credit' && <span className="ml-1.5 text-[12px] font-semibold text-muted">Credit note</span>}
+              <div className="truncate text-body font-semibold">
+                {i.number || 'Draft'}{i.kind === 'credit' && <span className="ml-1.5 text-caption font-semibold text-muted">Credit note</span>}
               </div>
-              <div className="truncate text-[13px] text-muted">
+              <div className="truncate text-footnote text-muted">
                 {company ? [i.venue_name, i.client_name].filter(Boolean).join(' · ') : i.venue_name}
                 {i.period_start && ` · ${dateShort(i.period_start)} – ${dateShort(i.period_end)}`}
               </div>
-              {due && <div className={cx('text-[12px] font-semibold', left < 0 ? 'text-red' : 'text-muted')}>{due}</div>}
+              {due && <div className={cx('text-caption font-semibold', left < 0 ? 'text-red' : 'text-muted')}>{due}</div>}
             </div>
             <div className="shrink-0 text-right">
-              <div className={cx('num text-[15px] font-bold', Number(i.gross) < 0 && 'text-muted')}>{money(i.gross)}</div>
+              <div className={cx('num text-body font-bold', Number(i.gross) < 0 && 'text-muted')}>{money(i.gross)}</div>
               <Pill status={i.status} />
             </div>
           </Link>
@@ -153,14 +153,14 @@ function GenerateSheet({ onClose, onDone }) {
       {result ? (
         <div className="space-y-3">
           <div className="rounded-2xl bg-green-soft p-4">
-            <div className="text-[16px] font-bold text-green">{result.created} draft invoice{result.created === 1 ? '' : 's'}</div>
-            <div className="text-[14px] text-muted">from {result.timesheets} signed timesheet{result.timesheets === 1 ? '' : 's'}</div>
+            <div className="text-callout font-bold text-green">{result.created} draft invoice{result.created === 1 ? '' : 's'}</div>
+            <div className="text-subhead text-muted">from {result.timesheets} signed timesheet{result.timesheets === 1 ? '' : 's'}</div>
           </div>
           {result.missing_rates?.length > 0 && (
             <div className="rounded-2xl bg-amber-soft p-4">
               <div className="flex items-center gap-1.5 font-semibold text-amber"><AlertTriangle size={16} />No charge rate — billed at £0.00</div>
-              <ul className="mt-1.5 space-y-0.5 text-[14px]">{result.missing_rates.map((m) => <li key={m}>{m}</li>)}</ul>
-              <p className="mt-2 text-[12px] text-muted">Add the rate on the venue, delete the draft and generate again, or edit the lines.</p>
+              <ul className="mt-1.5 space-y-0.5 text-subhead">{result.missing_rates.map((m) => <li key={m}>{m}</li>)}</ul>
+              <p className="mt-2 text-caption text-muted">Add the rate on the venue, delete the draft and generate again, or edit the lines.</p>
             </div>
           )}
         </div>
@@ -175,18 +175,18 @@ function GenerateSheet({ onClose, onDone }) {
           {preview.data && (
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-blue-soft p-4">
-                <div className="num text-[24px] font-bold leading-none">{preview.data.uninvoiced.n}</div>
-                <div className="mt-1 text-[13px] font-semibold">Signed, not invoiced</div>
-                <div className="num text-[12px] text-muted">{Number(preview.data.uninvoiced.hours).toLocaleString('en-GB')}h, all venues</div>
+                <div className="num text-title2 font-bold leading-none">{preview.data.uninvoiced.n}</div>
+                <div className="mt-1 text-footnote font-semibold">Signed, not invoiced</div>
+                <div className="num text-caption text-muted">{Number(preview.data.uninvoiced.hours).toLocaleString('en-GB')}h, all venues</div>
               </div>
               <div className={cx('rounded-2xl p-4', preview.data.unsigned ? 'bg-amber-soft' : 'bg-bg')}>
-                <div className={cx('num text-[24px] font-bold leading-none', preview.data.unsigned && 'text-amber')}>{preview.data.unsigned}</div>
-                <div className="mt-1 text-[13px] font-semibold">Not yet signed</div>
-                <div className="text-[12px] text-muted">Left out until signed</div>
+                <div className={cx('num text-title2 font-bold leading-none', preview.data.unsigned && 'text-amber')}>{preview.data.unsigned}</div>
+                <div className="mt-1 text-footnote font-semibold">Not yet signed</div>
+                <div className="text-caption text-muted">Left out until signed</div>
               </div>
             </div>
           )}
-          <p className="text-[13px] text-muted">One draft invoice per venue. {sug.data && `Default invoice cycle: ${sug.data.invoice_cycle}.`} Nothing is sent until you issue each invoice.</p>
+          <p className="text-footnote text-muted">One draft invoice per venue. {sug.data && `Default invoice cycle: ${sug.data.invoice_cycle}.`} Nothing is sent until you issue each invoice.</p>
         </div>
       )}
     </Sheet>
@@ -206,7 +206,7 @@ function ExportSheet({ onClose }) {
           <Input label="Issued from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
           <Input label="Issued to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
-        <p className="text-[13px] text-muted">Issued invoices and credit notes, ready for your accounting software. Drafts are not included.</p>
+        <p className="text-footnote text-muted">Issued invoices and credit notes, ready for your accounting software. Drafts are not included.</p>
       </div>
     </Sheet>
   );

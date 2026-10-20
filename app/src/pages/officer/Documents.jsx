@@ -26,7 +26,7 @@ export default function Documents() {
           return (
             <div className="space-y-3">
               {warn.length > 0 && (
-                <div className="rounded-2xl bg-amber-soft px-4 py-3 text-[14px] font-semibold text-amber">
+                <div className="rounded-2xl bg-amber-soft px-4 py-3 text-subhead font-semibold text-amber">
                   {warn.length === 1 ? `${warn[0].title}: ${expiryText(daysUntil(warn[0].expiry)).toLowerCase()}.` : `${warn.length} documents have expired or expire within 30 days.`} Upload a new copy to stay compliant.
                 </div>
               )}
@@ -39,7 +39,7 @@ export default function Documents() {
               ) : (
                 <div className="space-y-2">{sorted.map((d) => <DocCard key={d.id} d={d} reload={q.reload} />)}</div>
               )}
-              <p className="px-1 text-[13px] text-muted">The office checks each document. Once verified, only the office can remove it.</p>
+              <p className="px-1 text-footnote text-muted">The office checks each document. Once verified, only the office can remove it.</p>
             </div>
           );
         }}
@@ -58,7 +58,7 @@ function QuickAdd({ icon: I, label, onClick }) {
   return (
     <button type="button" onClick={onClick} className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-3.5 text-left shadow-tile transition active:scale-[0.98]">
       <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-soft text-blue"><I size={20} /></span>
-      <span className="min-w-0"><span className="block text-[15px] font-semibold leading-tight">{label}</span><span className="text-[12px] text-muted">Upload</span></span>
+      <span className="min-w-0"><span className="block text-body font-semibold leading-tight">{label}</span><span className="text-caption text-muted">Upload</span></span>
     </button>
   );
 }
@@ -81,13 +81,13 @@ function DocCard({ d, reload }) {
     <div className="rounded-tile bg-surface p-4 shadow-tile">
       <div className="flex items-start gap-3">
         <span className={cx('grid h-11 w-11 shrink-0 place-items-center rounded-2xl', d.verified_at ? 'bg-green-soft text-green' : 'bg-bg text-muted')}>
-          {d.verified_at ? <BadgeCheck size={22} /> : <FileText size={22} />}
+          {d.verified_at ? <BadgeCheck size={24} /> : <FileText size={24} />}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[16px] font-semibold">{d.title}</div>
-          <div className="truncate text-[13px] text-muted">{docKindLabel(d.kind)}{d.number ? ` · ${d.number}` : ''}</div>
+          <div className="truncate text-callout font-semibold">{d.title}</div>
+          <div className="truncate text-footnote text-muted">{docKindLabel(d.kind)}{d.number ? ` · ${d.number}` : ''}</div>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {d.verified_at ? <Pill tone="green">Verified</Pill> : <Pill tone="grey"><Clock3 size={12} />Awaiting check</Pill>}
+            {d.verified_at ? <Pill tone="green">Verified</Pill> : <Pill tone="grey"><Clock3 size={14} />Awaiting check</Pill>}
             {d.expiry && <Pill tone={tone}>{days < 0 || days <= 60 ? expiryText(days) : `Expires ${date(d.expiry)}`}</Pill>}
           </div>
         </div>
@@ -147,7 +147,7 @@ function AddSheet({ kind, onClose, ownerId, onDone }) {
         {file ? (
           <div className="flex items-center gap-3 rounded-2xl bg-bg p-3">
             {preview ? <img src={preview} alt="" className="h-16 w-16 rounded-xl object-cover" /> : <span className="grid h-16 w-16 place-items-center rounded-xl bg-surface text-muted"><FileText size={26} /></span>}
-            <div className="min-w-0 flex-1"><div className="truncate text-[14px] font-semibold">{file.name}</div><div className="text-[12px] text-muted">{Math.round(file.size / 1024)} KB</div></div>
+            <div className="min-w-0 flex-1"><div className="truncate text-subhead font-semibold">{file.name}</div><div className="text-caption text-muted">{Math.round(file.size / 1024)} KB</div></div>
             <Button variant="ghost" size="sm" onClick={() => { setFile(null); setPreview(null); }}>Change</Button>
           </div>
         ) : (

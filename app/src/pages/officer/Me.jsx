@@ -13,7 +13,7 @@ import { NotificationsSheet } from './_notify.jsx';
 import { expiryText, expiryTone, NotLinked } from './_parts.jsx';
 
 const ICON_TONE = { blue: 'bg-blue text-white', green: 'bg-green text-white', amber: 'bg-amber text-white', red: 'bg-red text-white', grey: 'bg-faint text-white', ink: 'bg-ink text-white' };
-const Ico = ({ icon: I, tone = 'blue' }) => <span className={cx('grid h-8 w-8 place-items-center rounded-[9px]', ICON_TONE[tone])}><I size={17} /></span>;
+const Ico = ({ icon: I, tone = 'blue' }) => <span className={cx('grid h-8 w-8 place-items-center rounded-lg', ICON_TONE[tone])}><I size={18} /></span>;
 
 export default function Me() {
   const { user, company, signOut } = useAuth();
@@ -72,17 +72,17 @@ export default function Me() {
                   {c.ok ? <ShieldCheck size={28} /> : <ShieldAlert size={28} />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">SIA licence{o.sia_type ? ` · ${o.sia_type}` : ''}</div>
-                  <div className="num truncate text-[19px] font-bold tracking-wide">{o.sia_number || 'Not recorded'}</div>
+                  <div className="text-caption font-semibold uppercase tracking-wide text-muted">SIA licence{o.sia_type ? ` · ${o.sia_type}` : ''}</div>
+                  <div className="num truncate text-title3 font-bold tracking-wide">{o.sia_number || 'Not recorded'}</div>
                   {o.sia_expiry ? (
-                    <div className={cx('text-[13px] font-semibold', siaTone === 'red' ? 'text-red' : siaTone === 'amber' ? 'text-amber' : 'text-muted')}>
+                    <div className={cx('text-footnote font-semibold', siaTone === 'red' ? 'text-red' : siaTone === 'amber' ? 'text-amber' : 'text-muted')}>
                       {c.sia_days < 0 ? expiryText(c.sia_days) : `Valid until ${date(o.sia_expiry)}`}{c.sia_days >= 0 && c.sia_days <= 60 ? ` (${c.sia_days} days)` : ''}
                     </div>
-                  ) : <div className="text-[13px] text-muted">No expiry date on file</div>}
+                  ) : <div className="text-footnote text-muted">No expiry date on file</div>}
                 </div>
               </div>
               {!c.ok && c.issues?.length > 0 && (
-                <ul className="mt-2 space-y-0.5 px-1 text-[13px] font-medium text-red">{c.issues.map((i) => <li key={i}>{i}</li>)}</ul>
+                <ul className="mt-2 space-y-0.5 px-1 text-footnote font-medium text-red">{c.issues.map((i) => <li key={i}>{i}</li>)}</ul>
               )}
 
               {(toSign.length > 0 || toFix.length > 0) && (
@@ -109,7 +109,7 @@ export default function Me() {
               </Section>
 
               {modules?.academy && learn.data && (learn.data.courses.length > 0 || learn.data.certificates.length > 0) && (
-                <Section title="Training" action={<Link to="/officer/learn" className="text-[14px] font-semibold text-blue">Open Learn</Link>}>
+                <Section title="Training" action={<Link to="/officer/learn" className="text-subhead font-semibold text-blue">Open Learn</Link>}>
                   <List>
                     {learn.data.courses.filter((x) => x.state !== 'passed').map((x) => (
                       <Row key={x.id} to={`/officer/learn/academy/${x.id}`} left={<Ico icon={GraduationCap} tone={x.state === 'overdue' || x.state === 'expired' ? 'red' : 'blue'} />}
@@ -127,11 +127,11 @@ export default function Me() {
                 <Section title="Getting set up">
                   <List>
                     {(tasks.data || []).map((t) => (
-                      <Row key={t.code} left={t.done ? <CircleCheck size={22} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
+                      <Row key={t.code} left={t.done ? <CircleCheck size={24} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
                         title={<span className={cx(t.done && 'text-muted line-through')}>{t.title}</span>} />
                     ))}
                   </List>
-                  <p className="mt-2 px-1 text-[13px] text-muted"><ListChecks size={14} className="mr-1 inline" />The office ticks these off as you complete them.</p>
+                  <p className="mt-2 px-1 text-footnote text-muted"><ListChecks size={14} className="mr-1 inline" />The office ticks these off as you complete them.</p>
                 </Section>
               )}
 
@@ -163,8 +163,8 @@ function ProfileCard({ name, src, sub, status }) {
     <div className="flex items-center gap-4 rounded-tile bg-surface p-4 shadow-tile">
       <Avatar name={name} src={src} size={64} />
       <div className="min-w-0 flex-1">
-        <div className="display truncate text-[22px] font-bold">{name}</div>
-        <div className="truncate text-[14px] text-muted">{sub}</div>
+        <div className="display truncate text-title2 font-bold">{name}</div>
+        <div className="truncate text-subhead text-muted">{sub}</div>
         {status && <Pill status={status} className="mt-1" />}
       </div>
     </div>

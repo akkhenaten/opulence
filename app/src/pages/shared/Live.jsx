@@ -64,7 +64,7 @@ function Board({ rows, filter, setFilter, onOpen, base }) {
         {groups.map(([id, g]) => {
           const on = g.rows.filter((r) => ON.includes(r.state)).length;
           return (
-            <Section key={id} title={g.name} action={<span className="num text-[13px] font-semibold text-muted">{on} on site</span>}>
+            <Section key={id} title={g.name} action={<span className="num text-footnote font-semibold text-muted">{on} on site</span>}>
               <List>
                 {g.rows.map((r) => (
                   <Row key={r.assignment_id}
@@ -75,7 +75,7 @@ function Board({ rows, filter, setFilter, onOpen, base }) {
                     right={
                       <div className="flex flex-col items-end gap-1">
                         <Pill status={r.state} />
-                        {r.has_exception && <Pill tone="red"><TriangleAlert size={11} />Exception</Pill>}
+                        {r.has_exception && <Pill tone="red"><TriangleAlert size={14} />Exception</Pill>}
                       </div>
                     } />
                 ))}
@@ -85,7 +85,7 @@ function Board({ rows, filter, setFilter, onOpen, base }) {
         })}
       </div>
       {base !== '/venue' && rows.some((r) => r.has_exception) && (
-        <p className="mt-4 text-center text-[13px] text-muted">Review flagged clock-ins in <Link to={`${base}/exceptions`} className="font-semibold text-blue">Exceptions</Link>.</p>
+        <p className="mt-4 text-center text-footnote text-muted">Review flagged clock-ins in <Link to={`${base}/exceptions`} className="font-semibold text-blue">Exceptions</Link>.</p>
       )}
     </>
   );
@@ -108,11 +108,11 @@ function Detail({ row, onClose, onDone, base }) {
             ['SIA', row.sia_number], ['Phone', row.phone], ['Clocked in', row.clocked_in && <span className="num">{time(row.clocked_in)}</span>],
           ]} />
           <div>
-            <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-faint">Clock events</div>
-            {!events.length ? <p className="text-[14px] text-muted">No clock events yet.</p> : (
+            <div className="mb-2 text-caption font-semibold uppercase tracking-wide text-faint">Clock events</div>
+            {!events.length ? <p className="text-subhead text-muted">No clock events yet.</p> : (
               <List inset>
                 {events.map((e, i) => (
-                  <Row key={i} left={<span className={cx('grid h-8 w-8 place-items-center rounded-full', e.geo_ok ? 'bg-green-soft text-green' : 'bg-amber-soft text-amber')}>{e.kind === 'in' || e.kind === 'out' ? <MapPin size={15} /> : <QrCode size={15} />}</span>}
+                  <Row key={i} left={<span className={cx('grid h-8 w-8 place-items-center rounded-full', e.geo_ok ? 'bg-green-soft text-green' : 'bg-amber-soft text-amber')}>{e.kind === 'in' || e.kind === 'out' ? <MapPin size={16} /> : <QrCode size={16} />}</span>}
                     title={KIND[e.kind] || titleCase(e.kind)}
                     subtitle={e.distance_m != null ? `${Math.round(e.distance_m)}m from venue` : (e.kind === 'in' || e.kind === 'out' ? 'No location' : '')}
                     right={<div className="flex flex-col items-end gap-1"><span className="num font-semibold">{time(e.ts)}</span>{e.status !== 'ok' && <Pill status={e.status} />}</div>} />
@@ -136,7 +136,7 @@ function ManualForm({ row, onCancel, onDone }) {
   }), 'Times saved').then(onDone).catch(() => {});
   return (
     <div className="space-y-3">
-      <p className="text-[14px] text-muted">Replaces the officer's clock events with these times and rebuilds the timesheet. This is recorded in the audit log.</p>
+      <p className="text-subhead text-muted">Replaces the officer's clock events with these times and rebuilds the timesheet. This is recorded in the audit log.</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Input label="Start" type="datetime-local" {...f.bind('start')} />
         <Input label="End" type="datetime-local" {...f.bind('end')} />

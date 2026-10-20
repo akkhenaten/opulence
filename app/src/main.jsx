@@ -64,27 +64,27 @@ const CardEditor = P(() => import('./pages/team/CardEditor.jsx'));
 function Guard({ role }) {
   const { user, ready } = useAuth();
   const loc = useLocation();
-  if (!ready) return <Spinner className="min-h-screen" />;
+  if (!ready) return <Spinner className="min-h-dvh" />;
   if (!user) return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
   if (!role.includes(user.role)) return <Navigate to={HOME[user.role]} replace />;
   return <Outlet />;
 }
 function Root() {
   const { user, ready } = useAuth();
-  if (!ready) return <Spinner className="min-h-screen" />;
+  if (!ready) return <Spinner className="min-h-dvh" />;
   return <Navigate to={user ? HOME[user.role] : '/login'} replace />;
 }
 // Tapping a phone notification lands here: send the person to the link inside their own portal
 function Open() {
   const { user, ready } = useAuth();
   const [sp] = useSearchParams();
-  if (!ready) return <Spinner className="min-h-screen" />;
+  if (!ready) return <Spinner className="min-h-dvh" />;
   if (!user) return <Navigate to="/login" replace />;
   return <Navigate to={portalLink(sp.get('to') || '', user.role).replace(/^\/app/, '') || HOME[user.role]} replace />;
 }
 function PublicOnly({ children }) {
   const { user, ready } = useAuth();
-  if (!ready) return <Spinner className="min-h-screen" />;
+  if (!ready) return <Spinner className="min-h-dvh" />;
   return user ? <Navigate to={HOME[user.role]} replace /> : children;
 }
 
@@ -113,7 +113,7 @@ const managerRoutes = (
 
 function App() {
   return (
-    <Suspense fallback={<Spinner className="min-h-[60vh]" />}>
+    <Suspense fallback={<Spinner className="min-h-[60dvh]" />}>
       <Routes>
         <Route path="/" element={<Root />} />
         <Route path="/open" element={<Open />} />
@@ -197,7 +197,7 @@ function App() {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter basename="/app">
+    <BrowserRouter basename="/app" future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <ToastProvider>
           <ConfirmProvider>

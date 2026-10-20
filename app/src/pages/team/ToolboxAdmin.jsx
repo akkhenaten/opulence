@@ -34,8 +34,8 @@ export default function ToolboxAdmin() {
       actions={co && <><Button variant="secondary" icon={Plus} to={`${base}/new`}>Blank card</Button><Button icon={Sparkles} onClick={() => setAdd(true)}>Draft with AI</Button></>}>
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3.5 focus-within:border-blue sm:max-w-sm">
-          <Search size={17} className="text-faint" />
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search cards" className="min-w-0 flex-1 bg-transparent text-[15px] outline-none" />
+          <Search size={18} className="text-faint" />
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search cards" className="min-w-0 flex-1 bg-transparent text-body outline-none" />
         </div>
         <Segmented value={cat} onChange={setCat} options={[{ value: 'all', label: 'All' }, { value: 'draft', label: 'Drafts' }, ...CATEGORIES]} />
       </div>
@@ -48,10 +48,10 @@ export default function ToolboxAdmin() {
           }
           return (
             <Table rows={rows} onRow={(c) => nav(`${base}/${c.id}`)} empty="No cards match" columns={[
-              { key: 'title', label: 'Card', render: (c) => { const k = category(c.category); return <div className="flex min-w-0 items-center gap-3"><span className={cx('grid h-9 w-9 shrink-0 place-items-center rounded-xl', k.tone)}><k.icon size={17} /></span><div className="min-w-0"><div className="font-semibold">{c.title}</div><div className="max-w-[640px] truncate text-[12px] text-muted">{c.summary}</div></div></div>; } },
-              { key: 'category', label: 'Category', render: (c) => <span className="text-[13px]">{category(c.category).label}{c.venue_name ? ` · ${c.venue_name}` : ''}</span> },
+              { key: 'title', label: 'Card', render: (c) => { const k = category(c.category); return <div className="flex min-w-0 items-center gap-3"><span className={cx('grid h-9 w-9 shrink-0 place-items-center rounded-xl', k.tone)}><k.icon size={18} /></span><div className="min-w-0"><div className="font-semibold">{c.title}</div><div className="max-w-[640px] truncate text-caption text-muted">{c.summary}</div></div></div>; } },
+              { key: 'category', label: 'Category', render: (c) => <span className="text-footnote">{category(c.category).label}{c.venue_name ? ` · ${c.venue_name}` : ''}</span> },
               { key: 'status', label: 'Status', render: status },
-              { key: 'updated', label: 'Updated', render: (c) => <span className="text-[13px] text-muted">{date(c.updated_at)}</span> },
+              { key: 'updated', label: 'Updated', render: (c) => <span className="text-footnote text-muted">{date(c.updated_at)}</span> },
             ]} />
           );
         }}
@@ -76,11 +76,11 @@ function DraftSheet({ open, onClose, onCreated }) {
         <Input label="What is it about?" value={v.topic} onChange={set('topic')} placeholder="e.g. Choking adult" />
         {IDEAS[v.category]?.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {IDEAS[v.category].map((t) => <button key={t} type="button" onClick={() => setV((s) => ({ ...s, topic: t }))} className="rounded-full bg-bg px-3 py-1 text-[12px] font-medium hover:bg-blue-soft">{t}</button>)}
+            {IDEAS[v.category].map((t) => <button key={t} type="button" onClick={() => setV((s) => ({ ...s, topic: t }))} className="rounded-full bg-bg px-3 py-1 text-caption font-medium hover:bg-blue-soft">{t}</button>)}
           </div>
         )}
         <Textarea label={v.category === 'venue' ? 'The venue\'s procedure (the AI tidies it into steps)' : 'Notes (optional)'} rows={4} value={v.notes} onChange={set('notes')} />
-        <p className="text-[13px] text-muted">Drafts take about 20 seconds. Officers see nothing until you publish it.</p>
+        <p className="text-footnote text-muted">Drafts take about 20 seconds. Officers see nothing until you publish it.</p>
       </div>
     </Sheet>
   );

@@ -22,9 +22,9 @@ export default function Toolbox() {
       actions={<Button variant="soft" icon={Sparkles} onClick={() => setAsk(true)}>What should I do?</Button>}>
       <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface px-4 shadow-tile focus-within:border-blue">
         <Search size={18} className="text-faint" />
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search guides" className="h-12 min-w-0 flex-1 bg-transparent text-[16px] outline-none" />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search guides" className="h-12 min-w-0 flex-1 bg-transparent text-callout outline-none" />
       </div>
-      {tb.offline && <div className="mt-2 flex items-center gap-2 px-1 text-[13px] font-semibold text-amber"><WifiOff size={14} /> Offline — showing your saved copy</div>}
+      {tb.offline && <div className="mt-2 flex items-center gap-2 px-1 text-footnote font-semibold text-amber"><WifiOff size={14} /> Offline — showing your saved copy</div>}
       <div className="no-scrollbar -mx-4 my-3 overflow-x-auto px-4 sm:mx-0 sm:px-0"><Segmented value={cat} onChange={setCat} options={opts} /></div>
       {tb.loading && !tb.cards ? <Spinner /> : tb.error && !tb.cards ? <ErrorBox error={tb.error} retry={tb.reload} /> : shown.length ? (
         <List>
@@ -32,7 +32,7 @@ export default function Toolbox() {
             const k = category(c.category);
             return (
               <Row key={c.id} to={`/officer/learn/toolbox/${c.id}`}
-                left={<span className={cx('grid h-10 w-10 place-items-center rounded-xl', k.tone)}><k.icon size={19} /></span>}
+                left={<span className={cx('grid h-10 w-10 place-items-center rounded-xl', k.tone)}><k.icon size={20} /></span>}
                 title={c.title} subtitle={c.venue_name ? `${c.venue_name} · ${c.summary}` : c.summary}
                 right={c.favourite ? <Star size={16} className="fill-amber text-amber" /> : null} />
             );

@@ -6,7 +6,7 @@ import {
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Button, cx, dateTime, KV, List, Load, Page, Pill, Row, Section, Sheet, Spinner, Textarea, Tile, useAction, useApi, useConfirm, useToast,
+  Button, cx, dateTime, KV, Lightbox, List, Load, Page, Pill, Row, Section, Sheet, Spinner, Textarea, Tile, useAction, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
 import { INCIDENT_STATUS, typeLabel } from '../officer/_parts.jsx';
 import { DOC_ACCEPT, fileSize, MAX_FILES, useUploads } from './evidence.jsx';
@@ -60,7 +60,7 @@ function Detail({ inc, reload, base }) {
             <Pill status={inc.severity}>{inc.severity === 'critical' ? 'Critical' : `${inc.severity[0].toUpperCase()}${inc.severity.slice(1)} severity`}</Pill>
             <Pill status={inc.status}>{INCIDENT_STATUS[inc.status]}</Pill>
             {inc.version > 1 && <Pill tone="grey">Version {inc.version}</Pill>}
-            {isMgr && inc.ai_assisted && <Pill tone="blue"><Sparkles size={12} />AI-assisted</Pill>}
+            {isMgr && inc.ai_assisted && <Pill tone="blue"><Sparkles size={14} />AI-assisted</Pill>}
           </div>
           <KV items={[
             ['Occurred', dateTime(inc.occurred_at)],
@@ -72,7 +72,7 @@ function Detail({ inc, reload, base }) {
           ]} />
         </Tile>
 
-        <Section title="What happened" className="!mt-4"><Tile><p className="whitespace-pre-line text-[15px] leading-relaxed">{inc.description}</p></Tile></Section>
+        <Section title="What happened" className="!mt-4"><Tile><p className="whitespace-pre-line text-body leading-relaxed">{inc.description}</p></Tile></Section>
 
         {(inc.people_involved || inc.injuries) && (
           <Section title="People" className="!mt-4">
@@ -99,9 +99,9 @@ function Detail({ inc, reload, base }) {
                 <div key={w.id} className="px-4 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold">{w.name}</span>
-                    {user.role !== 'venue' && w.contact && <span className="truncate text-[13px] text-muted">{w.contact}</span>}
+                    {user.role !== 'venue' && w.contact && <span className="truncate text-footnote text-muted">{w.contact}</span>}
                   </div>
-                  {w.statement && <p className="mt-1 whitespace-pre-line text-[14px] text-muted">{w.statement}</p>}
+                  {w.statement && <p className="mt-1 whitespace-pre-line text-subhead text-muted">{w.statement}</p>}
                 </div>
               ))}
             </List>
@@ -125,12 +125,12 @@ function Detail({ inc, reload, base }) {
                   onClick={isMgr ? () => setVersion(v) : undefined} chevron={isMgr} />
               ))}
             </List>
-            <p className="mt-2 px-1 text-[12px] text-muted">Every edit is kept. The original report cannot be changed.</p>
+            <p className="mt-2 px-1 text-caption text-muted">Every edit is kept. The original report cannot be changed.</p>
           </Section>
         )}
       </aside>
 
-      {lightbox != null && <Lightbox images={images} index={lightbox} setIndex={setLightbox} />}
+      <Lightbox photos={images} index={lightbox} onClose={() => setLightbox(null)} download />
       <VersionSheet v={version} onClose={() => setVersion(null)} hideContacts={user.role === 'venue'} />
     </div>
   );
@@ -140,11 +140,11 @@ function StatusBanner({ inc, isOfficer }) {
   if (inc.status === 'changes_requested') {
     return (
       <div className="flex gap-3 rounded-tile bg-amber-soft p-4 text-amber">
-        <AlertTriangle size={22} className="mt-0.5 shrink-0" />
+        <AlertTriangle size={24} className="mt-0.5 shrink-0" />
         <div className="min-w-0">
-          <div className="text-[16px] font-bold">{isOfficer ? 'More detail needed' : 'Changes requested'}</div>
-          {inc.review_comment && <p className="mt-0.5 whitespace-pre-line text-[14px] font-medium">{inc.review_comment}</p>}
-          <div className="mt-1 text-[12px] opacity-80">{[inc.reviewed_by_name, inc.reviewed_at && dateTime(inc.reviewed_at)].filter(Boolean).join(' · ')}</div>
+          <div className="text-callout font-bold">{isOfficer ? 'More detail needed' : 'Changes requested'}</div>
+          {inc.review_comment && <p className="mt-0.5 whitespace-pre-line text-subhead font-medium">{inc.review_comment}</p>}
+          <div className="mt-1 text-caption opacity-80">{[inc.reviewed_by_name, inc.reviewed_at && dateTime(inc.reviewed_at)].filter(Boolean).join(' · ')}</div>
         </div>
       </div>
     );
@@ -152,11 +152,11 @@ function StatusBanner({ inc, isOfficer }) {
   if (inc.status === 'closed') {
     return (
       <div className="flex gap-3 rounded-tile bg-surface p-4 shadow-tile">
-        <CheckCircle2 size={22} className="mt-0.5 shrink-0 text-green" />
+        <CheckCircle2 size={24} className="mt-0.5 shrink-0 text-green" />
         <div className="min-w-0">
-          <div className="text-[16px] font-bold">Closed</div>
-          {inc.review_comment && <p className="mt-0.5 whitespace-pre-line text-[14px] text-muted">{inc.review_comment}</p>}
-          <div className="mt-1 text-[12px] text-faint">{[inc.reviewed_by_name, inc.reviewed_at && dateTime(inc.reviewed_at)].filter(Boolean).join(' · ')}</div>
+          <div className="text-callout font-bold">Closed</div>
+          {inc.review_comment && <p className="mt-0.5 whitespace-pre-line text-subhead text-muted">{inc.review_comment}</p>}
+          <div className="mt-1 text-caption text-faint">{[inc.reviewed_by_name, inc.reviewed_at && dateTime(inc.reviewed_at)].filter(Boolean).join(' · ')}</div>
         </div>
       </div>
     );
@@ -186,7 +186,7 @@ function ReviewPanel({ inc, reload, prefill, clearPrefill }) {
         <Button variant="secondary" icon={RotateCcw} className="w-full" busy={busy} onClick={reopen}>Reopen</Button>
       ) : (
         <div className="grid gap-2">
-          <p className="text-[13px] text-muted">{inc.status === 'changes_requested' ? 'Waiting for the officer to update the report.' : 'Check the report, then close it or ask the officer for more detail.'}</p>
+          <p className="text-footnote text-muted">{inc.status === 'changes_requested' ? 'Waiting for the officer to update the report.' : 'Check the report, then close it or ask the officer for more detail.'}</p>
           <Button icon={CheckCircle2} className="w-full" onClick={() => setMode('close')}>Close incident</Button>
           <Button variant="secondary" icon={MessageSquareReply} className="w-full" onClick={() => setMode('changes_requested')}>Request changes</Button>
         </div>
@@ -195,7 +195,7 @@ function ReviewPanel({ inc, reload, prefill, clearPrefill }) {
         footer={<><Button variant="secondary" onClick={() => setMode(null)}>Cancel</Button><Button busy={busy} disabled={mode === 'changes_requested' && !comment.trim()} onClick={() => decide(mode, comment.trim())}>{mode === 'close' ? 'Close incident' : 'Send to officer'}</Button></>}>
         <Textarea label={mode === 'close' ? 'Closing note (optional)' : 'What needs changing?'} rows={4} value={comment} onChange={(e) => setComment(e.target.value)}
           placeholder={mode === 'close' ? 'e.g. Reviewed with the venue manager. No further action.' : 'e.g. Please add the police CAD number and describe the hold used.'} />
-        {mode === 'changes_requested' && <p className="mt-2 text-[13px] text-muted">{inc.officer_name || 'The officer'} will get a notification and email.</p>}
+        {mode === 'changes_requested' && <p className="mt-2 text-footnote text-muted">{inc.officer_name || 'The officer'} will get a notification and email.</p>}
       </Sheet>
     </Tile>
   );
@@ -237,7 +237,7 @@ function Attachments({ inc, images, files, canAdd, reload, openImage }) {
               </button>
               {a.can_remove && (
                 <button type="button" aria-label={`Remove ${a.name || 'photo'}`} disabled={busy} onClick={() => remove(a)}
-                  className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full bg-ink/70 text-white"><Trash2 size={15} /></button>
+                  className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full bg-ink/70 text-white"><Trash2 size={16} /></button>
               )}
             </div>
           ))}
@@ -256,15 +256,15 @@ function Attachments({ inc, images, files, canAdd, reload, openImage }) {
           ))}
         </List>
       )}
-      {images.length > 0 && <p className="mt-2 px-1 text-[12px] text-muted">{images.length} photo{images.length > 1 ? 's' : ''} · added by {[...new Set(images.map((a) => a.uploaded_by_name).filter(Boolean))].join(', ') || 'the officer'}</p>}
-      {!inc.attachments.length && !pending && <p className="rounded-2xl bg-bg px-4 py-3 text-[14px] text-muted">No photos or files yet.</p>}
+      {images.length > 0 && <p className="mt-2 px-1 text-caption text-muted">{images.length} photo{images.length > 1 ? 's' : ''} · added by {[...new Set(images.map((a) => a.uploaded_by_name).filter(Boolean))].join(', ') || 'the officer'}</p>}
+      {!inc.attachments.length && !pending && <p className="rounded-2xl bg-bg px-4 py-3 text-subhead text-muted">No photos or files yet.</p>}
       {pending && (
         <div className="mt-3 rounded-2xl border border-line p-3">
-          <ul className="space-y-1 text-[14px]">
+          <ul className="space-y-1 text-subhead">
             {uploads.items.map((x) => (
               <li key={x.uid} className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate">{x.name}</span>
-                <span className={cx('shrink-0 text-[12px]', x.status === 'error' ? 'text-red' : 'text-muted')}>{x.status === 'uploading' ? 'Uploading…' : x.status === 'error' ? 'Failed' : fileSize(x.size)}</span>
+                <span className={cx('shrink-0 text-caption', x.status === 'error' ? 'text-red' : 'text-muted')}>{x.status === 'uploading' ? 'Uploading…' : x.status === 'error' ? 'Failed' : fileSize(x.size)}</span>
                 <button type="button" aria-label={`Remove ${x.name}`} onClick={() => uploads.remove(x.uid)} className="text-muted"><X size={16} /></button>
               </li>
             ))}
@@ -275,7 +275,7 @@ function Attachments({ inc, images, files, canAdd, reload, openImage }) {
         </div>
       )}
       {inc.removed?.length > 0 && (
-        <p className="mt-2 px-1 text-[12px] text-muted">
+        <p className="mt-2 px-1 text-caption text-muted">
           Removed: {inc.removed.map((r) => `${r.name || 'file'} (${[r.removed_by_name, dateTime(r.removed_at)].filter(Boolean).join(', ')})`).join('; ')}
         </p>
       )}
@@ -296,38 +296,38 @@ function EvidenceReview({ inc, onRequest }) {
   return (
     <Tile title={<span className="inline-flex items-center gap-1.5"><Sparkles size={16} className="text-blue" />Evidence review</span>}
       action={d && !d.error && <Button size="sm" variant="ghost" icon={RefreshCw} busy={state.loading} onClick={() => load(true)}>Refresh</Button>}>
-      {state.error && <p className="mb-2 rounded-xl bg-amber-soft px-3 py-2 text-[13px] text-amber">{state.error}</p>}
+      {state.error && <p className="mb-2 rounded-xl bg-amber-soft px-3 py-2 text-footnote text-amber">{state.error}</p>}
       {(!d || d.error) ? (
         <div className="grid gap-2">
-          <p className="text-[13px] text-muted">{d?.error ? 'The last review could not finish.' : 'AI reads the photos and files and checks them against the written report.'}</p>
+          <p className="text-footnote text-muted">{d?.error ? 'The last review could not finish.' : 'AI reads the photos and files and checks them against the written report.'}</p>
           <Button variant="secondary" icon={Sparkles} busy={state.loading} onClick={() => load(!!d)}>Review evidence</Button>
         </div>
       ) : (
-        <div className="space-y-3 text-[14px]">
-          {state.stale && <p className="rounded-xl bg-bg px-3 py-2 text-[12px] text-muted">The report or its files changed since this review. It refreshes by itself shortly, or tap Refresh.</p>}
+        <div className="space-y-3 text-subhead">
+          {state.stale && <p className="rounded-xl bg-bg px-3 py-2 text-caption text-muted">The report or its files changed since this review. It refreshes by itself shortly, or tap Refresh.</p>}
           {d.summary && <p className="leading-relaxed">{d.summary}</p>}
           {d.mismatches?.length > 0 && (
             <div>
-              <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-red">Doesn't match the report</div>
+              <div className="mb-1 text-caption font-semibold uppercase tracking-wide text-red">Doesn't match the report</div>
               <ul className="space-y-1.5">{d.mismatches.map((m) => <Finding key={m} text={m} onRequest={onRequest} />)}</ul>
             </div>
           )}
           {d.missing?.length > 0 && (
             <div>
-              <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-amber">Missing from the report</div>
+              <div className="mb-1 text-caption font-semibold uppercase tracking-wide text-amber">Missing from the report</div>
               <ul className="space-y-1.5">{d.missing.map((m) => <Finding key={m} text={m} onRequest={onRequest} />)}</ul>
             </div>
           )}
           {d.captions?.length > 0 && (
             <details className="rounded-xl bg-bg px-3 py-2">
-              <summary className="cursor-pointer text-[13px] font-semibold">What each file shows ({d.captions.length})</summary>
-              <ul className="mt-2 space-y-1.5 text-[13px]">
+              <summary className="cursor-pointer text-footnote font-semibold">What each file shows ({d.captions.length})</summary>
+              <ul className="mt-2 space-y-1.5 text-footnote">
                 {d.captions.map((c) => <li key={c.attachment_id || c.text}><span className="font-semibold">{byId[c.attachment_id] ? `${byId[c.attachment_id].n}. ${byId[c.attachment_id].name || 'File'}` : 'File'}:</span> {c.text}</li>)}
               </ul>
             </details>
           )}
-          {d.skipped?.length > 0 && <p className="text-[12px] text-muted">Not read: {d.skipped.join(', ')}</p>}
-          <p className="text-[12px] text-faint">AI can be wrong. Check the photos yourself before acting.</p>
+          {d.skipped?.length > 0 && <p className="text-caption text-muted">Not read: {d.skipped.join(', ')}</p>}
+          <p className="text-caption text-faint">AI can be wrong. Check the photos yourself before acting.</p>
         </div>
       )}
     </Tile>
@@ -338,43 +338,8 @@ function Finding({ text, onRequest }) {
   return (
     <li className="flex items-start gap-2">
       <span className="min-w-0 flex-1">{text}</span>
-      <button type="button" onClick={() => onRequest(text)} className="shrink-0 rounded-lg px-2 py-0.5 text-[12px] font-semibold text-blue hover:bg-blue-soft">Ask officer</button>
+      <button type="button" onClick={() => onRequest(text)} className="shrink-0 rounded-lg px-2 py-0.5 text-caption font-semibold text-blue hover:bg-blue-soft">Ask officer</button>
     </li>
-  );
-}
-
-function Lightbox({ images, index, setIndex }) {
-  const n = images.length;
-  const prev = () => setIndex((index - 1 + n) % n);
-  const next = () => setIndex((index + 1) % n);
-  const [touch, setTouch] = useState(null);
-  useEffect(() => {
-    const k = (e) => { if (e.key === 'Escape') setIndex(null); if (e.key === 'ArrowLeft') prev(); if (e.key === 'ArrowRight') next(); };
-    document.addEventListener('keydown', k);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', k); document.body.style.overflow = ''; };
-  });
-  const a = images[index];
-  return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-black/95 text-white" style={{ animation: 'fade .15s' }} role="dialog" aria-modal="true"
-      onTouchStart={(e) => setTouch(e.touches[0].clientX)} onTouchEnd={(e) => { if (touch == null) return; const dx = e.changedTouches[0].clientX - touch; if (dx > 50) prev(); if (dx < -50) next(); setTouch(null); }}>
-      <div className="flex items-center justify-between px-4 py-3 safe-t">
-        <span className="text-[14px] font-semibold opacity-80">{index + 1} of {n}</span>
-        <div className="flex gap-2">
-          <a href={a.url} target="_blank" rel="noopener noreferrer" className="grid h-10 w-10 place-items-center rounded-full bg-white/10" aria-label="Open original"><Download size={18} /></a>
-          <button type="button" onClick={() => setIndex(null)} className="grid h-10 w-10 place-items-center rounded-full bg-white/10" aria-label="Close"><X size={20} /></button>
-        </div>
-      </div>
-      <div className="relative flex flex-1 items-center justify-center px-2 pb-6" onClick={(e) => e.target === e.currentTarget && setIndex(null)}>
-        <img src={a.url} alt={a.name || ''} className="max-h-full max-w-full rounded-lg object-contain" />
-        {n > 1 && (
-          <>
-            <button type="button" onClick={prev} className="absolute left-3 top-1/2 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 sm:grid" aria-label="Previous"><ChevronLeft /></button>
-            <button type="button" onClick={next} className="absolute right-3 top-1/2 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 sm:grid" aria-label="Next"><ChevronRight /></button>
-          </>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -390,18 +355,18 @@ function VersionSheet({ v, onClose, hideContacts }) {
   };
   return (
     <Sheet open={!!v} onClose={onClose} title={v ? `Version ${v.version}` : ''} size="lg">
-      {v && <p className="-mt-1 mb-4 text-[14px] text-muted">{[dateTime(v.created_at), v.edited_by_name].filter(Boolean).join(' · ')}</p>}
+      {v && <p className="-mt-1 mb-4 text-subhead text-muted">{[dateTime(v.created_at), v.edited_by_name].filter(Boolean).join(' · ')}</p>}
       {q.loading && !q.data ? <Spinner /> : q.error ? <p className="text-red">{q.error.message}</p> : data ? (
         <>
           <KV items={Object.keys(LABELS).filter((k) => k in data).map((k) => [LABELS[k], fmt(k, data[k])])} />
           {data.witnesses?.length > 0 && (
             <div className="mt-5">
-              <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-faint">Witnesses</div>
+              <div className="mb-2 text-caption font-semibold uppercase tracking-wide text-faint">Witnesses</div>
               <List inset>
                 {data.witnesses.map((w, i) => (
                   <div key={i} className={cx('px-4 py-3')}>
-                    <div className="font-semibold">{w.name}{!hideContacts && w.contact ? <span className="ml-2 text-[13px] font-normal text-muted">{w.contact}</span> : null}</div>
-                    {w.statement && <p className="mt-0.5 text-[14px] text-muted">{w.statement}</p>}
+                    <div className="font-semibold">{w.name}{!hideContacts && w.contact ? <span className="ml-2 text-footnote font-normal text-muted">{w.contact}</span> : null}</div>
+                    {w.statement && <p className="mt-0.5 text-subhead text-muted">{w.statement}</p>}
                   </div>
                 ))}
               </List>

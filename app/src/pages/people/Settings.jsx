@@ -126,7 +126,7 @@ function CompanyForm({ s, onSaved }) {
             <Input label="Weekend (%)" type="number" step="0.01" min="0" {...b('pay_weekend_uplift')} />
             <Input label="Bank holiday (%)" type="number" step="0.01" min="0" {...b('pay_bh_uplift')} />
           </div>
-          <p className="mt-3 text-[12px] text-faint">Added on top of the officer's base rate for hours in each band. Client uplifts are set per venue rate.</p>
+          <p className="mt-3 text-caption text-faint">Added on top of the officer's base rate for hours in each band. Client uplifts are set per venue rate.</p>
         </Tile>
       </div>
       <div className="sticky bottom-20 z-10 mt-4 flex justify-end lg:bottom-4">
@@ -162,7 +162,7 @@ function UsersTab() {
                 {rows.map((u) => (
                   <Row key={u.id} onClick={() => setEditing(u)} chevron
                     left={<Avatar name={u.name} size={40} />}
-                    title={<span>{u.name}{u.id === me.id && <span className="ml-1.5 text-[12px] font-semibold text-faint">You</span>}</span>}
+                    title={<span>{u.name}{u.id === me.id && <span className="ml-1.5 text-caption font-semibold text-faint">You</span>}</span>}
                     subtitle={[u.email, u.venues?.length ? u.venues.join(', ') : null, u.last_login ? `Seen ${relative(u.last_login)}` : null].filter(Boolean).join(' · ')}
                     right={<div className="flex flex-col items-end gap-1"><Pill tone="grey">{ROLE_LABEL[u.role]}</Pill>{u.status !== 'active' && <Pill status={u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : 'Disabled'}</Pill>}</div>} />
                 ))}
@@ -193,7 +193,7 @@ function InviteSheet({ venues, onClose, onDone }) {
       {link ? <CopyLink link={link} /> : (
         <div className="space-y-4">
           <Segmented value={v.role} onChange={(r) => set('role', r)} options={USER_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))} />
-          <p className="text-[13px] text-muted">{ROLE_HINT[v.role]}</p>
+          <p className="text-footnote text-muted">{ROLE_HINT[v.role]}</p>
           <Input label="Full name" {...bind('name')} />
           <div className="grid gap-3 sm:grid-cols-2">
             <Input label="Email" type="email" {...bind('email')} />
@@ -201,7 +201,7 @@ function InviteSheet({ venues, onClose, onDone }) {
           </div>
           {v.role !== 'company' && <Chips label={v.role === 'venue' ? 'Venues they manage' : 'Venues they look after'} options={venues.map((x) => ({ value: x.id, label: x.name }))} value={v.venue_ids} onChange={(x) => set('venue_ids', x)} />}
           {v.role === 'security' && <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.can_see_pay} onChange={(x) => set('can_see_pay', x)} label="Can see pay" hint="Officer rates and pay statements" /></div>}
-          <p className="text-[12px] text-faint">Officers are invited from Staff.</p>
+          <p className="text-caption text-faint">Officers are invited from Staff.</p>
         </div>
       )}
     </Sheet>
@@ -235,7 +235,7 @@ function UserSheet({ u, me, venues, onClose, onDone }) {
     <Sheet open onClose={onClose} title={u.name}
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={save}>Save</Button></>}>
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2"><Pill tone="grey">{ROLE_LABEL[u.role]}</Pill><Pill status={u.status === 'active' ? 'active' : u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : u.status === 'active' ? 'Active' : 'Disabled'}</Pill><span className="text-[13px] text-muted">{u.email}</span></div>
+        <div className="flex flex-wrap items-center gap-2"><Pill tone="grey">{ROLE_LABEL[u.role]}</Pill><Pill status={u.status === 'active' ? 'active' : u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : u.status === 'active' ? 'Active' : 'Disabled'}</Pill><span className="text-footnote text-muted">{u.email}</span></div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Input label="Name" {...bind('name')} />
           <Input label="Phone" type="tel" {...bind('phone')} />
@@ -269,7 +269,7 @@ function RoleSheet({ role, onClose, onSaved }) {
         {v.requires_sia && (
           <div>
             <Chips label="Licences that cover this role" options={SIA_TYPES} value={v.accepted_licences} onChange={(x) => setV((s) => ({ ...s, accepted_licences: x }))} />
-            <p className="mt-1.5 text-[12px] text-muted">{v.accepted_licences.length ? 'Officers with another licence type are flagged when rostered on this role.' : 'None picked: any SIA licence is accepted.'}</p>
+            <p className="mt-1.5 text-caption text-muted">{v.accepted_licences.length ? 'Officers with another licence type are flagged when rostered on this role.' : 'None picked: any SIA licence is accepted.'}</p>
           </div>
         )}
         <Chips label="Other documents officers need" options={ROLE_DOCS} value={v.required_docs} onChange={(x) => setV((s) => ({ ...s, required_docs: x }))} />
@@ -313,12 +313,12 @@ function CalendarTab() {
               </List>
             )}
           </Load>
-          {user.role === 'company' && <p className="mt-2 px-1 text-[12px] text-muted">Tap a role to set which licences cover it and which documents officers need. The compliance check uses these.</p>}
+          {user.role === 'company' && <p className="mt-2 px-1 text-caption text-muted">Tap a role to set which licences cover it and which documents officers need. The compliance check uses these.</p>}
         </Section>
         {editing && <RoleSheet role={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); roles.reload(); }} />}
       </div>
       <div className="lg:col-span-3">
-        <Section title="Bank holidays" className="mt-0" action={<button type="button" className="text-[13px] font-semibold text-blue" onClick={() => setShowPast((x) => !x)}>{showPast ? 'Hide past' : 'Show past'}</button>}>
+        <Section title="Bank holidays" className="mt-0" action={<button type="button" className="text-footnote font-semibold text-blue" onClick={() => setShowPast((x) => !x)}>{showPast ? 'Hide past' : 'Show past'}</button>}>
           <Tile className="mb-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <Input label="Date" type="date" className="sm:w-44" {...bind('day')} />
@@ -355,7 +355,7 @@ function ContractsTab() {
       {(rows) => (
         <>
           <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-[14px] text-muted">Templates for e-signature. Placeholders: {'{{company}}'}, {'{{officer}}'}, {'{{utr}}'}.</p>
+            <p className="text-subhead text-muted">Templates for e-signature. Placeholders: {'{{company}}'}, {'{{officer}}'}, {'{{utr}}'}.</p>
             <Button icon={Plus} onClick={() => setEditing({})}>New template</Button>
           </div>
           {rows.length ? (
@@ -409,7 +409,7 @@ function AccountTab() {
       <Tile title="Signed in as">
         <div className="flex items-center gap-3">
           <Avatar name={user.name} size={52} />
-          <div className="min-w-0"><div className="truncate text-[17px] font-bold">{user.name}</div><div className="truncate text-[14px] text-muted">{user.email}</div><Pill tone="blue" className="mt-1">{ROLE_LABEL[user.role]}</Pill></div>
+          <div className="min-w-0"><div className="truncate text-headline font-bold">{user.name}</div><div className="truncate text-subhead text-muted">{user.email}</div><Pill tone="blue" className="mt-1">{ROLE_LABEL[user.role]}</Pill></div>
         </div>
       </Tile>
       <Tile title="Change password" icon={KeyRound}>

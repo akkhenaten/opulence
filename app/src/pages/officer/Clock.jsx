@@ -117,14 +117,14 @@ function ClockScreen({ data, reload }) {
   return (
     <div className="space-y-3">
       <section className={cx('rounded-tile p-6 shadow-tile', state === 'on_shift' ? 'bg-green text-white' : state === 'on_break' ? 'bg-amber text-white' : state === 'finished' ? 'bg-surface' : 'bg-ink text-white')}>
-        <div className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wide opacity-80">
+        <div className="flex items-center gap-2 text-footnote font-semibold uppercase tracking-wide opacity-80">
           {state === 'on_shift' && <span className="h-2.5 w-2.5 rounded-full bg-white live-dot" />}
           {STATE_LABEL[state]}
         </div>
-        <div className="display mt-2 text-[34px] font-bold leading-none">
+        <div className="display mt-2 text-large font-bold leading-none">
           {state === 'on_shift' ? `Since ${time(firstIn)}` : state === 'on_break' ? `Break since ${time(since)}` : state === 'finished' ? `Out at ${time(since)}` : tooEarly ? `Opens ${time(opensAt)}` : 'Ready'}
         </div>
-        <div className="mt-2 text-[15px] opacity-80">
+        <div className="mt-2 text-body opacity-80">
           {state === 'not_started' ? `Shift ${new Date(a.starts_at) > now ? 'starts' : 'started'} ${until(a.starts_at)}` : state === 'finished' ? 'Thanks. Your timesheet is with the office.' : `Shift ends at ${time(a.ends_at)}`}
         </div>
       </section>
@@ -132,38 +132,38 @@ function ClockScreen({ data, reload }) {
       <VenueStrip a={a} />
 
       {a.instructions && (
-        <div className="flex gap-2.5 rounded-2xl bg-blue-soft px-4 py-3 text-[14px] text-ink"><Info size={18} className="mt-0.5 shrink-0 text-blue" /><p className="whitespace-pre-line">{a.instructions}</p></div>
+        <div className="flex gap-2.5 rounded-2xl bg-blue-soft px-4 py-3 text-subhead text-ink"><Info size={18} className="mt-0.5 shrink-0 text-blue" /><p className="whitespace-pre-line">{a.instructions}</p></div>
       )}
 
       <div className="space-y-2.5 pt-1">
         {state === 'not_started' && (
           <>
-            <Button size="lg" icon={LogIn} className="h-16 w-full text-[18px]" disabled={tooEarly} onClick={startIn}>Clock in</Button>
-            <p className="text-center text-[13px] text-muted">{tooEarly ? `You can clock in from ${time(opensAt)}.` : "We'll check your location, then you scan the venue's QR code."}</p>
+            <Button size="lg" icon={LogIn} className="h-16 w-full text-headline" disabled={tooEarly} onClick={startIn}>Clock in</Button>
+            <p className="text-center text-footnote text-muted">{tooEarly ? `You can clock in from ${time(opensAt)}.` : "We'll check your location, then you scan the venue's QR code."}</p>
           </>
         )}
         {state === 'on_shift' && (
           <>
-            <Button size="lg" variant="dark" icon={LogOut} className="h-16 w-full text-[18px]" onClick={startOut}>Clock out</Button>
+            <Button size="lg" variant="dark" icon={LogOut} className="h-16 w-full text-headline" onClick={startOut}>Clock out</Button>
             <Button size="lg" variant="secondary" icon={Coffee} className="w-full" busy={busy} onClick={() => punch('break_start')}>Start break</Button>
           </>
         )}
         {state === 'on_break' && (
-          <Button size="lg" icon={Coffee} className="h-16 w-full text-[18px]" busy={busy} onClick={() => punch('break_end')}>End break</Button>
+          <Button size="lg" icon={Coffee} className="h-16 w-full text-headline" busy={busy} onClick={() => punch('break_end')}>End break</Button>
         )}
         {state === 'finished' && <Button size="lg" variant="secondary" className="w-full" to="/officer">Back to home</Button>}
       </div>
 
       {valid.length > 0 && (
         <div className="mt-2 rounded-tile bg-surface p-4 shadow-tile">
-          <div className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-muted">Today's punches</div>
+          <div className="mb-2 text-footnote font-semibold uppercase tracking-wide text-muted">Today's punches</div>
           <div className="divide-y divide-line">
             {valid.map((e) => (
-              <div key={e.id} className="flex items-center justify-between py-2 text-[15px]">
+              <div key={e.id} className="flex items-center justify-between py-2 text-body">
                 <span className="font-semibold">{KIND_LABEL[e.kind]}</span>
                 <span className="flex items-center gap-2">
-                  {e.status === 'exception' && <span className="text-[12px] font-semibold text-amber">Awaiting approval</span>}
-                  {e.status === 'approved' && <span className="text-[12px] font-semibold text-green">Approved</span>}
+                  {e.status === 'exception' && <span className="text-caption font-semibold text-amber">Awaiting approval</span>}
+                  {e.status === 'approved' && <span className="text-caption font-semibold text-green">Approved</span>}
                   <span className="num font-semibold">{time(e.ts)}</span>
                 </span>
               </div>
@@ -174,13 +174,13 @@ function ClockScreen({ data, reload }) {
 
       {list.length > 1 && (
         <div className="pt-2">
-          <div className="mb-2 px-1 text-[13px] font-semibold uppercase tracking-wide text-muted">Your shifts around now</div>
+          <div className="mb-2 px-1 text-footnote font-semibold uppercase tracking-wide text-muted">Your shifts around now</div>
           <div className="space-y-2">
             {list.map((x) => (
               <button key={x.assignment_id} type="button" onClick={() => setSelId(x.assignment_id)}
                 className={cx('flex w-full items-center justify-between gap-3 rounded-2xl border bg-surface px-4 py-3 text-left shadow-tile', x.assignment_id === a.assignment_id ? 'border-blue ring-2 ring-blue/15' : 'border-transparent')}>
-                <span className="min-w-0"><span className="block truncate font-semibold">{x.venue_name}</span><span className="num text-[13px] text-muted">{dayLabel(x.starts_at)} · {range(x.starts_at, x.ends_at)}</span></span>
-                <span className="shrink-0 text-[13px] font-semibold text-muted">{STATE_LABEL[x.state]}</span>
+                <span className="min-w-0"><span className="block truncate font-semibold">{x.venue_name}</span><span className="num text-footnote text-muted">{dayLabel(x.starts_at)} · {range(x.starts_at, x.ends_at)}</span></span>
+                <span className="shrink-0 text-footnote font-semibold text-muted">{STATE_LABEL[x.state]}</span>
               </button>
             ))}
           </div>
@@ -193,14 +193,14 @@ function ClockScreen({ data, reload }) {
 function VenueStrip({ a }) {
   return (
     <div className="flex items-center gap-3 rounded-tile bg-surface p-4 shadow-tile">
-      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-blue-soft text-blue"><MapPin size={21} /></div>
+      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-blue-soft text-blue"><MapPin size={20} /></div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[17px] font-bold">{a.venue_name}</div>
-        <div className="truncate text-[13px] text-muted">{[a.address, a.postcode].filter(Boolean).join(', ')}</div>
+        <div className="truncate text-headline font-bold">{a.venue_name}</div>
+        <div className="truncate text-footnote text-muted">{[a.address, a.postcode].filter(Boolean).join(', ')}</div>
       </div>
       <div className="shrink-0 text-right">
-        <div className="num text-[15px] font-bold">{range(a.starts_at, a.ends_at)}</div>
-        <div className="text-[12px] text-muted">{a.role_name}</div>
+        <div className="num text-body font-bold">{range(a.starts_at, a.ends_at)}</div>
+        <div className="text-caption text-muted">{a.role_name}</div>
       </div>
     </div>
   );
@@ -209,9 +209,9 @@ function VenueStrip({ a }) {
 function StepHead({ n, of, title, body }) {
   return (
     <div className="mb-4">
-      {n && <div className="text-[12px] font-semibold uppercase tracking-wide text-blue">Step {n} of {of}</div>}
-      <h2 className="display mt-0.5 text-[24px] font-bold">{title}</h2>
-      {body && <p className="mt-1 text-[14px] text-muted">{body}</p>}
+      {n && <div className="text-caption font-semibold uppercase tracking-wide text-blue">Step {n} of {of}</div>}
+      <h2 className="display mt-0.5 text-title2 font-bold">{title}</h2>
+      {body && <p className="mt-1 text-subhead text-muted">{body}</p>}
     </div>
   );
 }
@@ -243,17 +243,17 @@ function LocateStep({ a, kind, busy, onNext, onCancel }) {
         <div className={cx('grid h-24 w-24 place-items-center rounded-full', st.error ? 'bg-red-soft text-red' : inside === false ? 'bg-amber-soft text-amber' : st.pos ? 'bg-green-soft text-green' : 'bg-blue-soft text-blue')}>
           {st.loading ? <Crosshair size={40} className="animate-pulse" /> : st.error ? <AlertTriangle size={40} /> : <LocateFixed size={40} />}
         </div>
-        {st.loading && <div className="mt-4 text-[17px] font-semibold">Finding you…</div>}
-        {st.error && <div className="mt-4 max-w-xs text-[15px] font-semibold text-red">{st.error}</div>}
+        {st.loading && <div className="mt-4 text-headline font-semibold">Finding you…</div>}
+        {st.error && <div className="mt-4 max-w-xs text-body font-semibold text-red">{st.error}</div>}
         {st.pos && (
           <>
-            <div className="mt-4 text-[17px] font-bold">
+            <div className="mt-4 text-headline font-bold">
               {inside === true ? "You're at the venue" : inside === false ? `About ${dist >= 1000 ? `${(dist / 1000).toFixed(1)} km` : `${dist} m`} from the venue` : 'Location found'}
             </div>
-            <div className="mt-1 text-[14px] text-muted">
+            <div className="mt-1 text-subhead text-muted">
               Accuracy ±{st.pos.accuracy} m{a.radius_m ? ` · limit ${a.radius_m} m` : ''}
             </div>
-            {st.pos.accuracy > 100 && <div className="mt-2 max-w-xs text-[13px] text-amber">Signal is weak. Step outside or near a window and try again.</div>}
+            {st.pos.accuracy > 100 && <div className="mt-2 max-w-xs text-footnote text-amber">Signal is weak. Step outside or near a window and try again.</div>}
           </>
         )}
       </div>
@@ -278,7 +278,7 @@ function LocateStep({ a, kind, busy, onNext, onCancel }) {
         )}
         <Button variant="ghost" onClick={onCancel}>Cancel</Button>
       </div>
-      {kind === 'out' && (st.error || inside === false) && <p className="mt-2 text-center text-[12px] text-muted">A clock-out away from the venue is flagged for your supervisor to check.</p>}
+      {kind === 'out' && (st.error || inside === false) && <p className="mt-2 text-center text-caption text-muted">A clock-out away from the venue is flagged for your supervisor to check.</p>}
     </section>
   );
 }
@@ -321,7 +321,7 @@ function QrScanner({ onResult, onFail }) {
   }, [id]);
 
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[340px] overflow-hidden rounded-[32px] bg-ink">
+    <div className="relative mx-auto aspect-square w-full max-w-[340px] overflow-hidden rounded-sheet bg-ink">
       <div id={id} className="absolute inset-0 [&_video]:!h-full [&_video]:!w-full [&_video]:object-cover" />
       {!ready && <div className="absolute inset-0 grid place-items-center text-white/70"><Spinner className="py-0" /></div>}
       <div className="pointer-events-none absolute inset-[14%]">
@@ -351,7 +351,7 @@ function ScanStep({ busy, onResult, onCantScan, onCancel }) {
       ) : err ? (
         <div className="flex flex-col items-center py-8 text-center">
           <div className="grid h-20 w-20 place-items-center rounded-full bg-red-soft text-red"><CameraOff size={34} /></div>
-          <div className="mt-4 max-w-xs text-[15px] font-semibold">{err}</div>
+          <div className="mt-4 max-w-xs text-body font-semibold">{err}</div>
           <Button size="lg" variant="secondary" icon={RotateCcw} className="mt-4" onClick={() => { setErr(null); setKey((k) => k + 1); }}>Try again</Button>
         </div>
       ) : (
@@ -370,13 +370,13 @@ function ExceptionStep({ problems, busy, onSubmit, onRetry, onCancel }) {
   return (
     <section className="rounded-tile bg-surface p-5 shadow-tile">
       <div className="flex items-start gap-3 rounded-2xl bg-amber-soft p-4 text-amber">
-        <AlertTriangle size={22} className="mt-0.5 shrink-0" />
+        <AlertTriangle size={24} className="mt-0.5 shrink-0" />
         <div>
-          <div className="text-[16px] font-bold">We couldn't confirm you're on site</div>
-          <ul className="mt-1 space-y-0.5 text-[14px] font-medium">{(problems || []).map((p) => <li key={p}>{p}</li>)}</ul>
+          <div className="text-callout font-bold">We couldn't confirm you're on site</div>
+          <ul className="mt-1 space-y-0.5 text-subhead font-medium">{(problems || []).map((p) => <li key={p}>{p}</li>)}</ul>
         </div>
       </div>
-      <p className="mt-4 text-[14px] text-muted">You can still clock in. It will be sent to your supervisor to approve, so explain what happened.</p>
+      <p className="mt-4 text-subhead text-muted">You can still clock in. It will be sent to your supervisor to approve, so explain what happened.</p>
       <Textarea className="mt-3" label="Reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. QR poster is missing from the door; I'm at the staff entrance" />
       <div className="mt-4 grid gap-2">
         <Button size="lg" busy={busy} disabled={reason.trim().length < 5} onClick={() => onSubmit(reason.trim())}>Submit as exception</Button>
@@ -399,13 +399,13 @@ function DoneStep({ kind, result, a, onDone }) {
   return (
     <section className="flex flex-col items-center rounded-tile bg-surface px-5 py-10 text-center shadow-tile" style={{ animation: 'fade .3s' }}>
       <div className={cx('grid h-28 w-28 place-items-center rounded-full', flagged ? 'bg-amber-soft text-amber' : 'bg-green-soft text-green')}>
-        {flagged ? <AlertTriangle size={56} /> : <CheckCircle2 size={60} strokeWidth={2.2} />}
+        {flagged ? <AlertTriangle size={56} /> : <CheckCircle2 size={60} />}
       </div>
-      <div className="mt-5 text-[15px] font-semibold text-muted">{KIND_LABEL[kind]}{flagged ? ' (exception)' : ''}</div>
+      <div className="mt-5 text-body font-semibold text-muted">{KIND_LABEL[kind]}{flagged ? ' (exception)' : ''}</div>
       <div className="display num mt-1 text-[56px] font-bold leading-none">{time(ev?.ts || new Date())}</div>
-      <div className="mt-2 text-[15px] font-semibold">{a.venue_name}</div>
-      <p className="mt-3 max-w-xs text-[14px] text-muted">{msg}</p>
-      {result?.problems?.length > 0 && <p className="mt-2 max-w-xs text-[13px] text-amber">{result.problems.map(titleCase).join(' · ')}</p>}
+      <div className="mt-2 text-body font-semibold">{a.venue_name}</div>
+      <p className="mt-3 max-w-xs text-subhead text-muted">{msg}</p>
+      {result?.problems?.length > 0 && <p className="mt-2 max-w-xs text-footnote text-amber">{result.problems.map(titleCase).join(' · ')}</p>}
       <Button size="lg" className="mt-6 w-full max-w-xs" onClick={onDone}>Done</Button>
     </section>
   );

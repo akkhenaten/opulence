@@ -38,8 +38,8 @@ export default function Revise() {
       {!deck.length ? <Empty icon={Layers} title="No guides to revise yet" /> : !c ? (
         <div className="rounded-tile bg-surface p-8 text-center shadow-tile">
           <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full bg-green text-white"><Check size={28} /></div>
-          <div className="text-[18px] font-bold">Round done</div>
-          <p className="mt-1 text-[15px] text-muted">You know {learnt} of {deck.length}.</p>
+          <div className="text-headline font-bold">Round done</div>
+          <p className="mt-1 text-body text-muted">You know {learnt} of {deck.length}.</p>
           <Button className="mt-4" icon={RotateCcw} onClick={restart}>Go again</Button>
         </div>
       ) : (
@@ -49,15 +49,15 @@ export default function Revise() {
             className={cx('block min-h-[320px] w-full rounded-tile p-6 text-left shadow-tile transition active:scale-[0.99]', flip ? 'bg-surface' : 'bg-blue text-white')}>
             {!flip ? (
               <div className="flex min-h-[270px] flex-col justify-between">
-                <div className="text-[12px] font-semibold uppercase tracking-wide opacity-80">{category(c.category).label}</div>
-                <div className="display text-[26px] font-bold leading-tight">{c.title}</div>
-                <div className="text-[14px] opacity-80">What would you do? Tap to check.</div>
+                <div className="text-caption font-semibold uppercase tracking-wide opacity-80">{category(c.category).label}</div>
+                <div className="display text-title2 font-bold leading-tight">{c.title}</div>
+                <div className="text-subhead opacity-80">What would you do? Tap to check.</div>
               </div>
             ) : (
               <div>
-                <div className="text-[16px] font-bold">{c.summary}</div>
+                <div className="text-callout font-bold">{c.summary}</div>
                 <ol className="mt-3 space-y-2">
-                  {(c.steps || []).map((s, n) => <li key={n} className="flex gap-2 text-[15px]"><span className="num w-5 shrink-0 font-bold text-blue">{n + 1}.</span>{s}</li>)}
+                  {(c.steps || []).map((s, n) => <li key={n} className="flex gap-2 text-body"><span className="num w-5 shrink-0 font-bold text-blue">{n + 1}.</span>{s}</li>)}
                 </ol>
               </div>
             )}

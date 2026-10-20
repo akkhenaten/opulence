@@ -81,30 +81,30 @@ function Profile({ o, reload, user, base }) {
               <LoginPill o={o} />
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {(o.roles || []).length ? o.roles.map((r) => <span key={r} className="rounded-lg bg-bg px-2 py-0.5 text-[13px] font-semibold">{roleName(r)}</span>)
-                : <span className="text-[13px] text-faint">No roles set</span>}
+              {(o.roles || []).length ? o.roles.map((r) => <span key={r} className="rounded-lg bg-bg px-2 py-0.5 text-footnote font-semibold">{roleName(r)}</span>)
+                : <span className="text-footnote text-faint">No roles set</span>}
             </div>
-            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[14px]">
-              {o.phone && <a href={`tel:${o.phone}`} className="inline-flex items-center gap-1.5 font-semibold text-blue"><Phone size={15} />{o.phone}</a>}
-              {o.email && <a href={`mailto:${o.email}`} className="inline-flex min-w-0 items-center gap-1.5 truncate font-semibold text-blue"><Mail size={15} />{o.email}</a>}
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-subhead">
+              {o.phone && <a href={`tel:${o.phone}`} className="inline-flex items-center gap-1.5 font-semibold text-blue"><Phone size={16} />{o.phone}</a>}
+              {o.email && <a href={`mailto:${o.email}`} className="inline-flex min-w-0 items-center gap-1.5 truncate font-semibold text-blue"><Mail size={16} />{o.email}</a>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:w-64">
             <div className="rounded-2xl bg-bg p-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-faint">SIA</div>
+              <div className="text-caption2 font-semibold uppercase tracking-wide text-faint">SIA</div>
               <div className="mt-1"><ExpiryPill date={o.sia_expiry} missing="None" /></div>
-              {o.sia_expiry && <div className="mt-1 text-[12px] text-muted num">{date(o.sia_expiry)}</div>}
+              {o.sia_expiry && <div className="mt-1 text-caption text-muted num">{date(o.sia_expiry)}</div>}
             </div>
             <div className="rounded-2xl bg-bg p-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-faint">Right to work</div>
+              <div className="text-caption2 font-semibold uppercase tracking-wide text-faint">Right to work</div>
               <div className="mt-1">{o.rtw_verified ? <ExpiryPill date={o.rtw_expiry} missing="Verified" /> : <Pill tone="red">Not verified</Pill>}</div>
-              <div className="mt-1 text-[12px] text-muted num">{o.rtw_verified ? (o.rtw_expiry ? date(o.rtw_expiry) : 'No expiry') : ''}</div>
+              <div className="mt-1 text-caption text-muted num">{o.rtw_verified ? (o.rtw_expiry ? date(o.rtw_expiry) : 'No expiry') : ''}</div>
             </div>
           </div>
         </div>
         {o.compliance?.issues?.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-1.5 border-t border-line pt-3">
-            {o.compliance.issues.map((i) => <span key={i} className="rounded-lg bg-red-soft px-2 py-0.5 text-[12px] font-semibold text-red">{i}</span>)}
+            {o.compliance.issues.map((i) => <span key={i} className="rounded-lg bg-red-soft px-2 py-0.5 text-caption font-semibold text-red">{i}</span>)}
           </div>
         )}
         {link && <div className="mt-4"><CopyLink link={link} /></div>}
@@ -164,8 +164,8 @@ function EditSheet({ open, onClose, o, roles, onDone }) {
           </div>
           <Textarea label="Address" rows={2} {...bind('address')} />
           <label className="block">
-            <span className="mb-1.5 block text-[13px] font-semibold text-muted">Photo</span>
-            <input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] || null)} className="block w-full text-[14px] file:mr-3 file:rounded-xl file:border-0 file:bg-blue-soft file:px-3 file:py-2 file:font-semibold file:text-blue" />
+            <span className="mb-1.5 block text-footnote font-semibold text-muted">Photo</span>
+            <input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] || null)} className="block w-full text-subhead file:mr-3 file:rounded-xl file:border-0 file:bg-blue-soft file:px-3 file:py-2 file:font-semibold file:text-blue" />
           </label>
         </Group>
         <Group title="Work">
@@ -195,7 +195,7 @@ function EditSheet({ open, onClose, o, roles, onDone }) {
 
 export const Group = ({ title, children }) => (
   <div className="space-y-3">
-    <div className="text-[13px] font-semibold uppercase tracking-wide text-faint">{title}</div>
+    <div className="text-footnote font-semibold uppercase tracking-wide text-faint">{title}</div>
     {children}
   </div>
 );
@@ -222,7 +222,7 @@ function StatusSheet({ open, onClose, o, onDone }) {
       <div className="space-y-4">
         <Select label="Status" value={status} onChange={(e) => setStatus(e.target.value)} options={OFFICER_STATUSES.filter((s) => s !== 'left')} />
         {status === 'active' && <Toggle checked={force} onChange={setForce} label="Override compliance checks" hint="Only if you have seen the documents in person" />}
-        <p className="text-[13px] text-muted">To record a leaver, use the Offboarding tab.</p>
+        <p className="text-footnote text-muted">To record a leaver, use the Offboarding tab.</p>
       </div>
     </Sheet>
   );
