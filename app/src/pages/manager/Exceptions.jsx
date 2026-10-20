@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, MapPin, QrCode, ShieldCheck, X } from 'lucide-react';
 import {
-  Avatar, Button, Empty, Load, Page, Pill, Segmented, cx, dayLabel, range, relative, time, useAction, useApi, useConfirm,
+  Avatar, Button, cx, dayLabel, Empty, Load, Page, Pill, range, relative, Tabs, time, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 
@@ -30,7 +30,7 @@ export default function Exceptions() {
 
   return (
     <Page title="Exceptions" subtitle="Clock events that failed the location or QR check">
-      <div className="mb-4"><Segmented value={tab} onChange={setTab} options={[{ value: 'open', label: 'To review', count: tab === 'open' ? q.data?.length : undefined }, { value: 'decided', label: 'History' }]} /></div>
+      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'open', label: 'To review', count: tab === 'open' ? q.data?.length : undefined }, { value: 'decided', label: 'History' }]} />
       <Load q={q}>{(rows) => {
         const list = tab === 'decided' ? rows.filter((r) => r.status !== 'exception') : rows;
         if (!list.length) return <Empty icon={ShieldCheck} title={tab === 'open' ? 'All clear' : 'No decisions yet'} body={tab === 'open' ? 'No clock exceptions waiting for review.' : undefined} />;

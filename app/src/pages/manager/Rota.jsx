@@ -4,8 +4,7 @@ import {
   CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Hand, Plus, Send, Trash2, UserMinus, UserPlus, X,
 } from 'lucide-react';
 import {
-  Avatar, Button, Empty, ErrorBox, IconButton, Input, KV, List, Load, Page, Pill, Row, Segmented, Select, Sheet, Spinner, Textarea, Toggle,
-  addDays, cx, dateShort, dayLabel, isoDate, mondayOf, range, time, titleCase, useAction, useApi, useConfirm, useForm,
+  addDays, Avatar, Button, cx, dateShort, dayLabel, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { WEEKDAYS, durationH, londonIso, londonParts, shiftTimes, useBase } from './_parts.jsx';
@@ -57,9 +56,7 @@ export default function Rota() {
         {drafts.length > 0 && <Button variant="soft" icon={Send} onClick={publish} busy={busy}>Publish {drafts.length}</Button>}
         <Button icon={Plus} onClick={() => setForm({})}>New shift</Button>
       </>}>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Segmented value={tab} onChange={setTab} options={[{ value: 'rota', label: 'Rota' }, { value: 'requests', label: 'Requests', count: reqs.data?.length }]} />
-      </div>
+      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'rota', label: 'Rota' }, { value: 'requests', label: 'Requests', count: reqs.data?.length }]} />
 
       {tab === 'requests' ? <Requests q={reqs} roleName={roleName} onChanged={reload} onOpen={setOpenId} /> : (
         <>
@@ -155,7 +152,7 @@ function ShiftCard({ s, onOpen, showVenue = true, compact }) {
   const requested = s.assignments.filter((a) => a.status === 'requested').length;
   const names = s.assignments.filter((a) => ACTIVE.includes(a.status)).map((a) => a.name);
   return (
-    <button type="button" onClick={() => onOpen(s)}
+    <Pressable press onClick={() => onOpen(s)}
       className={cx('relative block w-full overflow-hidden rounded-2xl border bg-surface text-left shadow-tile transition hover:-translate-y-0.5 active:scale-[0.99]',
         compact ? 'py-2 pl-2.5 pr-2' : 'p-3 pl-3.5', s.status === 'draft' ? 'border-dashed border-faint/60' : 'border-black/[0.04]')}>
       {short && s.status === 'published' && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-red" />}
@@ -173,18 +170,18 @@ function ShiftCard({ s, onOpen, showVenue = true, compact }) {
         </div>
       )}
       {!compact && names.length > 0 && <div className="mt-2 truncate text-caption text-muted">{names.join(', ')}</div>}
-    </button>
+    </Pressable>
   );
 }
 
 function OfficerChip({ s, oid, onOpen }) {
   const a = s.assignments.find((x) => x.officer_id === oid);
   return (
-    <button type="button" onClick={() => onOpen(s)} className={cx('block w-full rounded-xl p-2 text-left text-caption transition hover:-translate-y-0.5', a.status === 'requested' ? 'bg-amber-soft' : s.status === 'draft' ? 'bg-bg' : 'bg-blue-soft')}>
+    <Pressable press onClick={() => onOpen(s)} className={cx('block w-full rounded-xl p-2 text-left text-caption transition hover:-translate-y-0.5', a.status === 'requested' ? 'bg-amber-soft' : s.status === 'draft' ? 'bg-bg' : 'bg-blue-soft')}>
       <div className="num whitespace-nowrap font-bold">{range(s.starts_at, s.ends_at)}</div>
       <div className="truncate text-muted">{s.venue_name}</div>
       {a.status !== 'accepted' && <div className="font-semibold">{titleCase(a.status)}</div>}
-    </button>
+    </Pressable>
   );
 }
 
@@ -217,7 +214,7 @@ function DayList({ rows, week, onOpen, onAdd }) {
                 <span className={cx('text-footnote font-semibold uppercase tracking-wide', g.days.includes(today) ? 'text-blue' : 'text-muted')}>
                   {foldLabel(g)}{d === today ? ' · Today' : ''}
                 </span>
-                <button type="button" onClick={() => onAdd(d)} className="text-footnote font-semibold text-blue" aria-label={`Add shift ${dayLabel(d)}`}>+ Add</button>
+                <Pressable press onClick={() => onAdd(d)} className="-my-2 px-1 py-2 text-footnote font-semibold text-blue" aria-label={`Add shift ${dayLabel(d)}`}>+ Add</Pressable>
               </div>
               {g.empty
                 ? <div className="mb-2 rounded-2xl border border-dashed border-line px-4 py-3 text-footnote text-faint">No shifts</div>
@@ -233,7 +230,7 @@ function DayList({ rows, week, onOpen, onAdd }) {
           <div key={d} className={cx('min-w-0 rounded-tile p-2', d === today ? 'bg-blue-soft/60' : 'bg-fill/60')}>
             <div className="mb-2 flex items-center justify-between pl-1.5">
               <span className={cx('whitespace-nowrap text-caption font-semibold uppercase tracking-wide', d === today ? 'text-blue' : 'text-muted')}>{dayLabel(d)}</span>
-              <button type="button" onClick={() => onAdd(d)} aria-label={`Add shift ${dayLabel(d)}`} className="grid h-7 w-7 place-items-center rounded-full text-blue transition hover:bg-white"><Plus size={16} /></button>
+              <Pressable press onClick={() => onAdd(d)} aria-label={`Add shift ${dayLabel(d)}`} className="-m-1.5 grid h-10 w-10 place-items-center rounded-full text-blue transition hover:bg-white"><Plus size={16} /></Pressable>
             </div>
             {byDay[d]?.length
               ? <div className="space-y-2">{byDay[d].map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} />)}</div>
@@ -273,7 +270,7 @@ function VenueGrid({ rows, week, venues, onOpen, onAdd }) {
           {DAYS(week).map((d) => (
             <div key={d} className="group min-w-0 space-y-1.5 border-l border-line p-1.5">
               {rows.filter((s) => s.venue_id === v.id && dayOf(s.starts_at) === d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} compact />)}
-              <button type="button" onClick={() => onAdd(d, v.id)} className="w-full rounded-xl py-1 text-footnote font-semibold text-faint opacity-40 transition hover:bg-blue-soft hover:text-blue hover:opacity-100 group-hover:opacity-100 focus:opacity-100" aria-label="Add shift">+</button>
+              <Pressable press onClick={() => onAdd(d, v.id)} className="w-full rounded-xl py-1 text-footnote font-semibold text-faint opacity-40 transition hover:bg-blue-soft hover:text-blue hover:opacity-100 group-hover:opacity-100 focus:opacity-100" aria-label="Add shift">+</Pressable>
             </div>
           ))}
         </div>
@@ -333,7 +330,7 @@ function VenueAgenda({ rows, week, venues, onOpen, onAdd }) {
                   <DayTag days={g.days} today={today} />
                   <div className="min-w-0 flex-1">
                     {g.empty
-                      ? <button type="button" onClick={() => onAdd(g.days[0], v.id)} className="py-0.5 text-footnote text-faint">No shifts · <span className="font-semibold text-blue">Add</span></button>
+                      ? <Pressable press onClick={() => onAdd(g.days[0], v.id)} className="py-2 text-footnote text-faint">No shifts · <span className="font-semibold text-blue">Add</span></Pressable>
                       : <div className="space-y-2">{at(g.days[0]).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} />)}</div>}
                   </div>
                 </div>
@@ -395,10 +392,10 @@ function Requests({ q, roleName, onChanged, onOpen }) {
         {rows.map((r) => (
           <div key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <Avatar name={r.officer_name} size={40} />
-            <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpen(r.shift_id)}>
+            <Pressable press className="min-w-0 flex-1 text-left" onClick={() => onOpen(r.shift_id)}>
               <div className="truncate text-body font-semibold">{r.officer_name}</div>
               <div className="truncate text-footnote text-muted">{r.venue_name} · {dayLabel(r.starts_at)} <span className="num">{range(r.starts_at, r.ends_at)}</span> · {roleName(r.role)}</div>
-            </button>
+            </Pressable>
             <div className="flex gap-2">
               <Button size="sm" variant="secondary" icon={X} disabled={busyId === r.id} onClick={() => decide(r, false)}>Decline</Button>
               <Button size="sm" icon={Check} busy={busyId === r.id} onClick={() => decide(r, true)}>Approve</Button>
@@ -533,7 +530,7 @@ function AssignSheet({ shift, onClose, onDone }) {
             {shown.map((c) => {
               const blocked = c.blocking.length > 0;
               return (
-                <button key={c.id} type="button" disabled={blocked || busyId != null} onClick={() => assign(c)}
+                <Pressable press key={c.id} disabled={blocked || busyId != null} onClick={() => assign(c)}
                   className={cx('flex w-full items-center gap-3 px-4 py-3 text-left transition', blocked ? 'opacity-60' : 'hover:bg-surface active:bg-surface')}>
                   <Avatar name={c.name} size={36} />
                   <div className="min-w-0 flex-1">
@@ -543,7 +540,7 @@ function AssignSheet({ shift, onClose, onDone }) {
                         : <div className="text-caption text-green">Available</div>}
                   </div>
                   {busyId === c.id ? <span className="text-footnote text-muted">Assigning…</span> : !blocked && <Plus size={18} className="text-blue" />}
-                </button>
+                </Pressable>
               );
             })}
           </List>
@@ -617,8 +614,8 @@ function ShiftForm({ init, venues, roles, onClose, onSaved }) {
                   {WEEKDAYS.map((w, i) => {
                     const on = days.has(i);
                     return (
-                      <button key={w} type="button" onClick={() => setDays((x) => { const n = new Set(x); if (on) n.delete(i); else n.add(i); return n; })}
-                        className={cx('h-9 min-w-[46px] rounded-full px-3 text-footnote font-semibold transition', on ? 'bg-blue text-white' : 'bg-surface text-muted border border-line')}>{w}</button>
+                      <Pressable press key={w} onClick={() => setDays((x) => { const n = new Set(x); if (on) n.delete(i); else n.add(i); return n; })}
+                        className={cx('h-9 min-w-[46px] rounded-full px-3 text-footnote font-semibold transition', on ? 'bg-blue text-white' : 'bg-surface text-muted border border-line')}>{w}</Pressable>
                     );
                   })}
                 </div>

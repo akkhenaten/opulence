@@ -116,6 +116,14 @@ export default function Shell() {
   useEffect(() => { setMore(false); }, [loc.pathname]);
   useScrollMemory();
   const header = usePageHeader();
+  // Desktop header is see-through at the top; it gets its frosted background once the page scrolls under it
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 4);
+    on();
+    window.addEventListener('scroll', on, { passive: true });
+    return () => window.removeEventListener('scroll', on);
+  }, []);
   const navType = useNavigationType();
   // Pages slide in going forward, back the other way, and cross-fade when switching sections
   const isSection = all.some((i) => i.to === loc.pathname);
@@ -168,7 +176,7 @@ export default function Shell() {
 
       <div className="min-w-0 flex-1">
         {/* Top bar */}
-        <header className={cx('sticky top-0 z-30 border-b border-line/50 bg-bg/80 backdrop-blur-xl safe-t', !isOfficer && 'lg:border-0 lg:bg-transparent lg:backdrop-blur-none')}>
+        <header className={cx('sticky top-0 z-30 border-b border-line/50 bg-bg/80 backdrop-blur-xl safe-t', !isOfficer && !scrolled && 'lg:border-transparent lg:bg-transparent lg:backdrop-blur-none', 'transition-[background-color,border-color] duration-200')}>
           <div className={cx('relative mx-auto flex h-14 items-center justify-between [--px:1rem] sm:[--px:1.5rem] safe-x', isOfficer ? 'max-w-2xl' : header.wide ? 'max-w-[1400px]' : 'max-w-6xl')}>
             <HeaderTitle />
             <div className={cx(!isOfficer && 'lg:invisible')}><Logo faded={header.collapsed && !!header.title} /></div>
@@ -200,9 +208,9 @@ export default function Shell() {
             </NavLink>
           ))}
           {extra.length > 0 && (
-            <button type="button" onClick={() => setMore(true)} className={cx('pressable flex min-h-[54px] flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-caption2 font-semibold', extra.some(isActive) ? 'text-blue' : 'text-faint')}>
+            <Pressable press onClick={() => setMore(true)} className={cx('pressable flex min-h-[54px] flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-caption2 font-semibold', extra.some(isActive) ? 'text-blue' : 'text-faint')}>
               <span className="relative"><MoreHorizontal size={24} /><Badge n={extra.reduce((a, it) => a + (badges[it.badge] || 0), 0)} className="absolute -right-3 -top-1" /></span>More
-            </button>
+            </Pressable>
           )}
         </div>
       </nav>

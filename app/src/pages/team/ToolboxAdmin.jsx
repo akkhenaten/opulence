@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpenCheck, Plus, Search, Sparkles } from 'lucide-react';
+import { BookOpenCheck, Plus, Sparkles } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, cx, date, Empty, Input, Load, Page, Pill, Segmented, Select, Sheet, Table, Textarea, useAction, useApi } from '../../ui/index.jsx';
+import { Button, cx, date, Empty, Input, Load, Page, Pill, Pressable, SearchInput, Segmented, Select, Sheet, Table, Textarea, useAction, useApi } from '../../ui/index.jsx';
 import { CATEGORIES, category, searchCards } from '../learn/_parts.jsx';
 
 // Ideas for the first cards, so a new company is not starting from a blank page
@@ -33,10 +33,7 @@ export default function ToolboxAdmin() {
     <Page title="Toolbox" subtitle="Quick guides officers can open on shift, even offline" wide
       actions={co && <><Button variant="secondary" icon={Plus} to={`${base}/new`}>Blank card</Button><Button icon={Sparkles} onClick={() => setAdd(true)}>Draft with AI</Button></>}>
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-surface px-3.5 focus-within:border-blue sm:max-w-sm">
-          <Search size={18} className="text-faint" />
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search cards" className="min-w-0 flex-1 bg-transparent text-body outline-none" />
-        </div>
+        <SearchInput className="min-w-0 flex-1 sm:max-w-sm" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search cards" />
         <Segmented value={cat} onChange={setCat} options={[{ value: 'all', label: 'All' }, { value: 'draft', label: 'Drafts' }, ...CATEGORIES]} />
       </div>
       <Load q={q}>
@@ -76,7 +73,7 @@ function DraftSheet({ open, onClose, onCreated }) {
         <Input label="What is it about?" value={v.topic} onChange={set('topic')} placeholder="e.g. Choking adult" />
         {IDEAS[v.category]?.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {IDEAS[v.category].map((t) => <button key={t} type="button" onClick={() => setV((s) => ({ ...s, topic: t }))} className="rounded-full bg-bg px-3 py-1 text-caption font-medium hover:bg-blue-soft">{t}</button>)}
+            {IDEAS[v.category].map((t) => <Pressable press key={t} onClick={() => setV((s) => ({ ...s, topic: t }))} className="rounded-full bg-bg px-3 py-1 text-caption font-medium hover:bg-blue-soft">{t}</Pressable>)}
           </div>
         )}
         <Textarea label={v.category === 'venue' ? 'The venue\'s procedure (the AI tidies it into steps)' : 'Notes (optional)'} rows={4} value={v.notes} onChange={set('notes')} />

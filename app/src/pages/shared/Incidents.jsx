@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Camera, MapPin, Plus, Search, ShieldAlert } from 'lucide-react';
+import { Camera, MapPin, Plus, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
-import { Button, cx, dateTime, Empty, Load, Page, Pill, Segmented, Select, useApi } from '../../ui/index.jsx';
+import { Button, cx, dateTime, Empty, Load, Page, Pill, SearchInput, Segmented, Select, useApi } from '../../ui/index.jsx';
 import { INCIDENT_STATUS, INCIDENT_TYPES, NotLinked, SEVERITIES, typeLabel } from '../officer/_parts.jsx';
 
 const SEV_BAR = { low: 'bg-faint', medium: 'bg-amber', high: 'bg-red', critical: 'bg-red' };
@@ -37,12 +37,8 @@ export default function Incidents() {
             options={[{ value: '', label: 'All' }, { value: 'submitted', label: officer ? 'Submitted' : 'To review' }, { value: 'changes_requested', label: 'Changes requested', count: toFix }, { value: 'closed', label: 'Closed' }]} />
         </div>
         <div className={cx('grid gap-2', officer ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-4')}>
-          <label className="relative col-span-2 lg:col-span-1">
-            <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
-            <input type="search" value={text} onChange={(e) => { setText(e.target.value); const n = new URLSearchParams(sp); if (e.target.value) n.set('q', e.target.value); else n.delete('q'); setSp(n, { replace: true }); }}
-              placeholder="Search ref, description, police ref" aria-label="Search incidents"
-              className="h-11 w-full rounded-xl border border-line bg-surface pl-9 pr-3 text-body outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
-          </label>
+          <SearchInput className="col-span-2 lg:col-span-1" value={text} onChange={(e) => { setText(e.target.value); const n = new URLSearchParams(sp); if (e.target.value) n.set('q', e.target.value); else n.delete('q'); setSp(n, { replace: true }); }}
+            placeholder="Search ref, description, police ref" aria-label="Search incidents" />
           <Select aria-label="Severity" value={f.severity} onChange={(e) => setF('severity', e.target.value)} options={[{ value: '', label: 'Any severity' }, ...SEVERITIES.map(({ value, label }) => ({ value, label }))]} />
           <Select aria-label="Type" value={f.type} onChange={(e) => setF('type', e.target.value)} options={[{ value: '', label: 'Any type' }, ...INCIDENT_TYPES]} />
           {!officer && (

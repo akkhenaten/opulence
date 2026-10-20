@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api } from '../../api.js';
-import { Button, Input, Select, Sheet, Textarea, useAction, useApi } from '../../ui/index.jsx';
+import { Button, Input, Pressable, Select, Sheet, Textarea, useAction, useApi } from '../../ui/index.jsx';
 import { Chips, useRoles } from '../people/_parts.jsx';
 import { Progress } from '../officer/_parts.jsx';
 import { TOPICS } from '../learn/_parts.jsx';
@@ -72,8 +72,8 @@ export function AssignSheet({ open, onClose, courses, courseId, onDone }) {
           <div className="mb-1.5 text-footnote font-semibold text-muted">Who</div>
           <div className="flex flex-wrap gap-2">
             {TARGETS.map((t) => (
-              <button key={t.value} type="button" onClick={() => setV((s) => ({ ...s, target: t.value, ids: [] }))}
-                className={`rounded-full border px-3 py-1.5 text-footnote font-semibold ${v.target === t.value ? 'border-blue bg-blue text-white' : 'border-line bg-surface'}`}>{t.label}</button>
+              <Pressable press key={t.value} onClick={() => setV((s) => ({ ...s, target: t.value, ids: [] }))}
+                className={`rounded-full border px-3 py-1.5 text-footnote font-semibold ${v.target === t.value ? 'border-blue bg-blue text-white' : 'border-line bg-surface'}`}>{t.label}</Pressable>
             ))}
           </div>
         </div>

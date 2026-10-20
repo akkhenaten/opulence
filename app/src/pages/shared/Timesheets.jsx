@@ -2,8 +2,7 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Check, ClipboardCheck, Clock, Lock, PenLine, Signature } from 'lucide-react';
 import {
-  Avatar, Button, Empty, Input, KV, List, Load, Page, Pill, Segmented, Sheet, Textarea, addDays, cx, dayLabel, hours, isoDate, mondayOf, range, relative,
-  titleCase, useAction, useApi, useForm,
+  ActionBar, addDays, Avatar, Button, cx, dayLabel, Empty, hours, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, range, relative, Sheet, Tabs, Textarea, titleCase, useAction, useApi, useForm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { Check as Tick, fromLondonInput, londonIso, toLondonInput, useBase } from '../manager/_parts.jsx';
@@ -56,7 +55,7 @@ export default function Timesheets() {
 
   return (
     <Page title="Timesheets" subtitle={missingTab ? 'Shifts with no clock record' : `${rows.length} shown · ${hours(totalH)}`} wide>
-      <div className="mb-3 no-scrollbar -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0"><Segmented value={status} onChange={setStatus} options={tabs} /></div>
+      <Tabs value={status} onChange={setStatus} tabs={tabs} />
 
       {missingTab ? <Missing q={missing} onDone={done} /> : (
         <>
@@ -99,16 +98,12 @@ export default function Timesheets() {
         </>
       )}
 
-      {(toApprove.length > 0 || toSign.length > 0) && (
-        <div className="fixed inset-x-0 bottom-[84px] z-40 flex justify-center px-4 lg:bottom-6">
-          <div className="flex items-center gap-2 rounded-full bg-ink/95 py-2 pl-5 pr-2 text-white shadow-sheet backdrop-blur-xl" style={{ animation: 'sheet-up .25s' }}>
-            <span className="num mr-2 text-subhead font-semibold">{chosen.length} selected</span>
-            <Button variant="secondary" size="sm" onClick={() => setSel(new Set())}>Clear</Button>
-            {toApprove.length > 0 && <Button size="sm" icon={Check} busy={busy} onClick={() => approve(toApprove.map((t) => t.id))}>Approve {toApprove.length}</Button>}
-            {toSign.length > 0 && <Button size="sm" icon={Signature} busy={busy} onClick={() => sign(toSign.map((t) => t.id))}>Sign {toSign.length}</Button>}
-          </div>
-        </div>
-      )}
+      <ActionBar show={toApprove.length > 0 || toSign.length > 0}>
+        <span className="num mr-2 text-subhead font-semibold">{chosen.length} selected</span>
+        <Button variant="secondary" size="sm" onClick={() => setSel(new Set())}>Clear</Button>
+        {toApprove.length > 0 && <Button size="sm" icon={Check} busy={busy} onClick={() => approve(toApprove.map((t) => t.id))}>Approve {toApprove.length}</Button>}
+        {toSign.length > 0 && <Button size="sm" icon={Signature} busy={busy} onClick={() => sign(toSign.map((t) => t.id))}>Sign {toSign.length}</Button>}
+      </ActionBar>
 
       {open && <Detail t={open} isManager={isManager} canSign={canSign} canDispute={canDispute} onClose={() => setOpen(null)}
         onDone={() => { setOpen(null); done(); }} approve={approve} sign={sign} busy={busy} />}

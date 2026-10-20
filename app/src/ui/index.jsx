@@ -265,7 +265,7 @@ export function Field({ label, hint, error, children, className }) {
   );
 }
 const inv = (error) => (error ? { 'aria-invalid': true } : {});
-export const Input = ({ label, hint, error, className, ...p }) => <Field label={label} hint={hint} error={error} className={className}><input className={inputCls} {...inv(error)} {...p} /></Field>;
+export const Input = ({ label, hint, error, className, inputClassName, ...p }) => <Field label={label} hint={hint} error={error} className={className}><input className={cx(inputCls, inputClassName)} {...inv(error)} {...p} /></Field>;
 export const Textarea = ({ label, hint, error, className, rows = 4, ...p }) => <Field label={label} hint={hint} error={error} className={className}><textarea rows={rows} className={cx(inputCls, 'h-auto py-2.5 leading-relaxed')} {...inv(error)} {...p} /></Field>;
 export function Select({ label, hint, error, options, className, placeholder, ...p }) {
   return (
@@ -651,7 +651,8 @@ export function Chips({ options, value = [], onChange, label }) {
 export function ActionBar({ show = true, children, className, tone = 'dark' }) {
   const { mounted, closing } = usePresence(show, 160);
   if (!mounted) return null;
-  return createPortal(
+  // in-flow spacer so the floating bar never covers the last row of the page
+  return <><div aria-hidden="true" className="h-20" />{createPortal(
     <div className="action-bar pointer-events-none fixed inset-x-0 z-40 flex justify-center [--px:1rem] safe-x">
       <div className={cx('pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full py-2 pl-5 pr-2 shadow-sheet backdrop-blur-xl',
         tone === 'dark' ? 'bg-ink/95 text-white' : 'border border-black/[0.06] bg-surface/95 text-ink', closing ? 'anim-toast-out' : 'anim-bar-in', className)}>
@@ -659,5 +660,5 @@ export function ActionBar({ show = true, children, className, tone = 'dark' }) {
       </div>
     </div>,
     document.body,
-  );
+  )}</>;
 }

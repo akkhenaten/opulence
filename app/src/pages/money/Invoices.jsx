@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Clock, Download, FilePlus2, FileText, ReceiptText, Search } from 'lucide-react';
+import { AlertTriangle, Clock, Download, FilePlus2, FileText, ReceiptText } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Bento, Button, Empty, Input, List, Load, Page, Pill, Section, Segmented, Select, Sheet, Stat, Tile, cx, dateShort, daysUntil, isoDate, money,
-  useAction, useApi,
+  Bento, Button, cx, dateShort, daysUntil, Empty, Input, isoDate, List, Load, money, Page, Pill, SearchInput, Section, Segmented, Select, Sheet, Stat, Tile, useAction, useApi,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 
@@ -78,11 +77,7 @@ function CompanyBody({ rows, status, setStatus, onGenerate }) {
           { value: 'all', label: 'All' }, { value: 'draft', label: 'Draft', count: c('draft') }, { value: 'issued', label: 'Issued' },
           { value: 'overdue', label: 'Overdue', count: c('overdue') }, { value: 'paid', label: 'Paid' }, { value: 'void', label: 'Void' }, { value: 'credit', label: 'Credit notes' },
         ]} />
-        <label className="relative min-w-0 flex-1 basis-48">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Number, venue or client"
-            className="h-10 w-full rounded-xl border border-line bg-surface pl-9 pr-3 text-subhead outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
-        </label>
+        <SearchInput className="min-w-0 flex-1 basis-48" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Number, venue or client" />
       </div>
 
       {!rows.length

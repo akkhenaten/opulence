@@ -4,7 +4,7 @@ import { Archive, ArrowDown, ArrowUp, Eye, Images, Plus, Save, Send, Sparkles, T
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Button, cx, date, ErrorBox, IconButton, Input, Page, Pill, Select, Sheet, Spinner, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
+  Button, cx, date, ErrorBox, IconButton, Input, Page, Pill, Pressable, Select, Sheet, Spinner, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { Lesson, TOPICS } from '../learn/_parts.jsx';
 import { Blocks, BlocksEditor, HeroImage } from '../learn/_blocks.jsx';
@@ -296,7 +296,7 @@ function OptionsEditor({ options, answer, onChange }) {
         {options.map((o, i) => (
           <div key={i} className="flex items-center gap-2">
             <input type="radio" className="h-4 w-4" checked={answer === i} onChange={() => onChange(options, i)} aria-label={`Answer ${i + 1} is correct`} />
-            <input className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 text-body outline-none focus:border-blue" value={o}
+            <Input className="min-w-0 flex-1" value={o}
               onChange={(e) => onChange(options.map((x, j) => (j === i ? e.target.value : x)), answer)} placeholder={`Answer ${i + 1}`} />
             {options.length > 2 && <IconButton icon={Trash2} label="Remove answer" onClick={() => onChange(options.filter((_, j) => j !== i), answer === i ? 0 : answer > i ? answer - 1 : answer)} />}
           </div>
@@ -318,10 +318,10 @@ function QuestionList({ qs, co, onEdit, onAdd }) {
         <ul className="space-y-1.5">
           {qs.map((x) => (
             <li key={x.key}>
-              <button type="button" onClick={() => onEdit(x)} className={cx('w-full rounded-xl bg-bg px-3 py-2 text-left text-subhead hover:bg-blue-soft', !x.active && 'opacity-50')}>
+              <Pressable press onClick={() => onEdit(x)} className={cx('w-full rounded-xl bg-bg px-3 py-2 text-left text-subhead hover:bg-blue-soft', !x.active && 'opacity-50')}>
                 <span className="font-medium">{x.prompt || 'Untitled question'}</span>
                 <span className="block text-caption text-muted">✓ {x.options[x.answer]}{x.kind === 'scenario' ? ' · Scenario' : ''}{!x.active ? ' · Turned off' : ''}</span>
-              </button>
+              </Pressable>
             </li>
           ))}
         </ul>

@@ -6,7 +6,7 @@ import {
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Button, cx, dateTime, KV, Lightbox, List, Load, Page, Pill, Row, Section, Sheet, Spinner, Textarea, Tile, useAction, useApi, useConfirm, useToast,
+  Button, cx, dateTime, KV, Lightbox, List, Load, Page, Pill, Pressable, Row, Section, Sheet, Spinner, Textarea, Tile, useAction, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
 import { INCIDENT_STATUS, typeLabel } from '../officer/_parts.jsx';
 import { DOC_ACCEPT, fileSize, MAX_FILES, useUploads } from './evidence.jsx';
@@ -232,12 +232,12 @@ function Attachments({ inc, images, files, canAdd, reload, openImage }) {
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {images.map((a, i) => (
             <div key={a.id} className="group relative aspect-square overflow-hidden rounded-2xl bg-bg shadow-tile">
-              <button type="button" onClick={() => openImage(i)} className="block h-full w-full" title={meta(a)}>
+              <Pressable press onClick={() => openImage(i)} className="block h-full w-full" title={meta(a)}>
                 <img src={a.url} alt={a.name || 'Incident photo'} loading="lazy" className="h-full w-full object-cover transition hover:scale-105" />
-              </button>
+              </Pressable>
               {a.can_remove && (
-                <button type="button" aria-label={`Remove ${a.name || 'photo'}`} disabled={busy} onClick={() => remove(a)}
-                  className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full bg-ink/70 text-white"><Trash2 size={16} /></button>
+                <Pressable press aria-label={`Remove ${a.name || 'photo'}`} disabled={busy} onClick={() => remove(a)}
+                  className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full bg-ink/70 text-white"><Trash2 size={16} /></Pressable>
               )}
             </div>
           ))}
@@ -250,7 +250,7 @@ function Attachments({ inc, images, files, canAdd, reload, openImage }) {
               right={(
                 <div className="flex gap-1">
                   <a href={a.url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${a.name || 'file'}`} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-bg"><Download size={16} /></a>
-                  {a.can_remove && <button type="button" aria-label={`Remove ${a.name || 'file'}`} disabled={busy} onClick={() => remove(a)} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-red-soft hover:text-red"><Trash2 size={16} /></button>}
+                  {a.can_remove && <Pressable press aria-label={`Remove ${a.name || 'file'}`} disabled={busy} onClick={() => remove(a)} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-red-soft hover:text-red"><Trash2 size={16} /></Pressable>}
                 </div>
               )} />
           ))}
@@ -265,7 +265,7 @@ function Attachments({ inc, images, files, canAdd, reload, openImage }) {
               <li key={x.uid} className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate">{x.name}</span>
                 <span className={cx('shrink-0 text-caption', x.status === 'error' ? 'text-red' : 'text-muted')}>{x.status === 'uploading' ? 'Uploading…' : x.status === 'error' ? 'Failed' : fileSize(x.size)}</span>
-                <button type="button" aria-label={`Remove ${x.name}`} onClick={() => uploads.remove(x.uid)} className="text-muted"><X size={16} /></button>
+                <Pressable press aria-label={`Remove ${x.name}`} onClick={() => uploads.remove(x.uid)} className="text-muted"><X size={16} /></Pressable>
               </li>
             ))}
           </ul>
@@ -338,7 +338,7 @@ function Finding({ text, onRequest }) {
   return (
     <li className="flex items-start gap-2">
       <span className="min-w-0 flex-1">{text}</span>
-      <button type="button" onClick={() => onRequest(text)} className="shrink-0 rounded-lg px-2 py-0.5 text-caption font-semibold text-blue hover:bg-blue-soft">Ask officer</button>
+      <Pressable press onClick={() => onRequest(text)} className="shrink-0 rounded-lg px-2 py-0.5 text-caption font-semibold text-blue hover:bg-blue-soft">Ask officer</Pressable>
     </li>
   );
 }

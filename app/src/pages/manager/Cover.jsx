@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, Megaphone, X } from 'lucide-react';
 import {
-  Button, Empty, KV, List, Load, Page, Pill, Row, Segmented, Sheet, Textarea, Toggle, dateTime, dayLabel, range, relative, useAction, useApi, useConfirm,
+  Button, dateTime, dayLabel, Empty, KV, List, Load, Page, Pill, range, relative, Row, Sheet, Tabs, Textarea, Toggle, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
@@ -26,12 +26,10 @@ export default function Cover() {
 
   return (
     <Page title="Cover requests" subtitle="Venues asking for extra officers">
-      <div className="mb-4">
-        <Segmented value={tab} onChange={setTab} options={[
+      <Tabs value={tab} onChange={setTab} tabs={[
           { value: 'pending', label: 'Pending', count: n('pending') }, { value: 'accepted', label: 'Staffing' }, { value: 'filled', label: 'Filled' },
           { value: 'declined', label: 'Declined' }, { value: 'all', label: 'All' },
-        ]} />
-      </div>
+      ]} />
       <Load q={q}>{(all) => {
         const list = all.filter(FILTERS[tab]);
         if (!list.length) return <Empty icon={Megaphone} title={tab === 'pending' ? 'No requests waiting' : 'Nothing here'} body={tab === 'pending' ? 'New requests from venues appear here.' : undefined} />;

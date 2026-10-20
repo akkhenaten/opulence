@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Check, ClipboardList, Pencil, Sparkles, Star, X } from 'lucide-react';
 import {
-  Button, Empty, Input, Load, Page, Pill, Segmented, Select, Sheet, Textarea, Tile, Toggle, cx, dateTime, dayLabel, hours, range, relative, useAction, useApi, useConfirm,
+  Button, cx, dateTime, dayLabel, Empty, hours, Input, Load, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
@@ -29,9 +29,7 @@ export default function OpsAI() {
   ];
   return (
     <Page title="Ops AI" subtitle="Your operations assistant. It prepares the work — you approve it.">
-      <div className="no-scrollbar -mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <Segmented value={tab} onChange={(v) => setSp(v === 'inbox' ? {} : { tab: v }, { replace: true })} options={tabs} />
-      </div>
+      <Tabs value={tab} onChange={(v) => setSp(v === 'inbox' ? {} : { tab: v }, { replace: true })} tabs={tabs} />
       {tab === 'inbox' && <Inbox onChange={count.reload} />}
       {tab === 'activity' && <Activity />}
       {tab === 'chat' && <OpsChat onItems={() => { count.reload(); }} />}
@@ -156,7 +154,7 @@ function CoverEdit({ it, busy, onClose, onSave }) {
       <p className="mb-3 text-subhead text-muted">Everyone ticked gets the offer at once. The first to accept gets the shift.</p>
       <div className="space-y-2">
         {it.payload.candidates.map((c) => (
-          <button key={c.officer_id} type="button" onClick={() => toggle(c.officer_id)}
+          <Pressable press key={c.officer_id} onClick={() => toggle(c.officer_id)}
             className={cx('flex w-full items-start gap-3 rounded-2xl border px-3 py-2.5 text-left transition', ids.includes(c.officer_id) ? 'border-blue bg-blue-soft' : 'border-line bg-surface')}>
             <span className={cx('mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border', ids.includes(c.officer_id) ? 'border-blue bg-blue text-white' : 'border-line')}>{ids.includes(c.officer_id) && <Check size={14} />}</span>
             <span className="min-w-0 flex-1">
@@ -164,7 +162,7 @@ function CoverEdit({ it, busy, onClose, onSave }) {
               <span className="block text-footnote text-muted">{c.reason}</span>
             </span>
             {c.reliability != null && <span className="num shrink-0 text-footnote font-bold">{Math.round(c.reliability * 100)}%</span>}
-          </button>
+          </Pressable>
         ))}
         {!it.payload.candidates.length && <Empty title="No eligible officers" body="Everyone is booked, on leave or not compliant for this shift." />}
       </div>
@@ -260,7 +258,7 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged }) 
               <div className="text-subhead font-semibold">{i.title}</div>
               {i.detail && <p className="text-footnote text-muted">{i.detail}</p>}
             </div>
-            {pending && <button type="button" onClick={() => setDismiss(i)} className="shrink-0 rounded-lg px-2 py-0.5 text-caption font-semibold text-muted hover:bg-bg">Dismiss</button>}
+            {pending && <Pressable press onClick={() => setDismiss(i)} className="shrink-0 -my-2 rounded-lg px-2 py-2.5 text-caption font-semibold text-muted hover:bg-bg">Dismiss</Pressable>}
           </div>
           {pending && i.actions.filter(allowed).length > 0 && (
             <div className="mt-2 space-y-1 pl-4">
@@ -433,8 +431,8 @@ function ModuleUsage() {
                 <div className="text-body font-medium">{m.label}</div>
                 <div className="num text-footnote text-muted">{used.toLocaleString('en-GB')} credits this month</div>
               </div>
-              <input type="number" min="0" step="1000" placeholder="No cap" aria-label={`${m.label} cap`} value={caps[m.k]} onChange={(e) => setCaps((c) => ({ ...c, [m.k]: e.target.value }))}
-                className="num h-10 w-28 rounded-xl border border-line bg-surface px-3 text-right text-body outline-none focus:border-blue" />
+              <Input type="number" min="0" step="1000" inputMode="numeric" placeholder="No cap" aria-label={`${m.label} cap`} value={caps[m.k]} onChange={(e) => setCaps((c) => ({ ...c, [m.k]: e.target.value }))}
+                className="w-28 shrink-0" inputClassName="num text-right" />
             </div>
           );
         })}

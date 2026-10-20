@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, GraduationCap, Plus, Sparkles, UserPlus } from 'lucide-react';
 import { api, downloadText } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Avatar, Button, cx, date, Empty, ErrorBox, List, Load, Page, Pill, Row, Spinner, Table, Tabs, Tile, useAction, useApi } from '../../ui/index.jsx';
+import { Avatar, Button, cx, date, Empty, ErrorBox, List, Load, Page, Pill, Pressable, Row, Spinner, Table, Tabs, Tile, useAction, useApi } from '../../ui/index.jsx';
 import { STATE, StatePill, TOPICS } from '../learn/_parts.jsx';
 import { AssignSheet, DraftProgress, draftCourse, NewCourseSheet } from './_parts.jsx';
 
@@ -98,7 +98,7 @@ function Results() {
               <th className="sticky left-0 z-10 bg-surface px-4 py-3 text-caption font-semibold uppercase tracking-wide text-faint">Officer</th>
               {totals.map(({ c, passed, overdue }) => (
                 <th key={c.id} className="min-w-[130px] px-3 py-3 align-bottom font-semibold">
-                  <button type="button" className="text-left hover:text-blue" onClick={() => nav(`/${user.role}/team/academy/${c.id}`)}>{c.title}</button>
+                  <Pressable press className="text-left hover:text-blue" onClick={() => nav(`/${user.role}/team/academy/${c.id}`)}>{c.title}</Pressable>
                   <div className="text-caption2 font-normal text-muted">{passed} passed{overdue ? ` · ${overdue} overdue` : ''}{c.mandatory ? ' · Required' : ''}</div>
                 </th>
               ))}
@@ -108,10 +108,10 @@ function Results() {
             {rows.map((r) => (
               <tr key={r.officer.id} className="border-b border-line last:border-0">
                 <td className="sticky left-0 z-10 bg-surface px-4 py-2.5">
-                  <button type="button" className="flex items-center gap-2 text-left font-semibold hover:text-blue" onClick={() => nav(`/${user.role}/staff/${r.officer.id}?tab=training`)}>
+                  <Pressable press className="flex items-center gap-2 text-left font-semibold hover:text-blue" onClick={() => nav(`/${user.role}/staff/${r.officer.id}?tab=training`)}>
                     <Avatar name={`${r.officer.first_name} ${r.officer.last_name}`} size={28} />
                     <span className="whitespace-nowrap">{r.officer.first_name} {r.officer.last_name}</span>
-                  </button>
+                  </Pressable>
                 </td>
                 {courses.map((c) => {
                   const x = r.cells[c.id];
@@ -127,7 +127,7 @@ function Results() {
                   );
                   return (
                     <td key={c.id} className="px-3 py-2.5 align-top">
-                      {x.certificate_id ? <button type="button" className="text-left" onClick={() => nav(`/${user.role}/team/certificates/${x.certificate_id}`)}>{body}</button> : body}
+                      {x.certificate_id ? <Pressable press className="text-left" onClick={() => nav(`/${user.role}/team/certificates/${x.certificate_id}`)}>{body}</Pressable> : body}
                     </td>
                   );
                 })}

@@ -4,8 +4,7 @@ import {
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
-  Bento, Button, Empty, ErrorBox, IconButton, Input, KV, List, Load, Pill, Row, Section, Segmented, Select, Sheet, Spinner, Stat, Table, Textarea, Tile, Toggle,
-  addDays, cx, date, dateShort, dateTime, dayLabel, hours, isoDate, money, range, relative, titleCase, useAction, useApi, useConfirm, useForm,
+  addDays, Bento, Button, cx, date, dateShort, dateTime, dayLabel, Empty, ErrorBox, hours, IconButton, Input, isoDate, KV, List, Load, money, Pill, Pressable, range, relative, Row, Section, Segmented, Select, Sheet, Spinner, Stat, Table, Textarea, Tile, titleCase, Toggle, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { DOC_KINDS, ExpiryPill, Progress, RTW_TYPES, SIA_TYPES, TIMEOFF_KINDS, WEEKDAYS, docKindLabel, openUrl } from './_parts.jsx';
 
@@ -450,9 +449,9 @@ export function AvailabilityTab({ o, reload }) {
             <div className="w-20"><Toggle checked={d.available} onChange={(x) => upd(i, 'available', x)} /></div>
             {d.available ? (
               <div className="flex flex-1 items-center gap-2">
-                <input type="time" value={d.from_time} onChange={(e) => upd(i, 'from_time', e.target.value)} className="h-10 w-28 rounded-xl border border-line px-2 num" aria-label="From" />
+                <Input type="time" value={d.from_time} onChange={(e) => upd(i, 'from_time', e.target.value)} className="w-32" inputClassName="num px-2" aria-label="From" />
                 <span className="text-faint">to</span>
-                <input type="time" value={d.to_time} onChange={(e) => upd(i, 'to_time', e.target.value)} className="h-10 w-28 rounded-xl border border-line px-2 num" aria-label="To" />
+                <Input type="time" value={d.to_time} onChange={(e) => upd(i, 'to_time', e.target.value)} className="w-32" inputClassName="num px-2" aria-label="To" />
               </div>
             ) : <span className="text-subhead text-faint">Not available</span>}
           </div>
@@ -662,11 +661,11 @@ export function OnboardingTab({ o, reload, onForbidden }) {
             </Tile>
             <List className="lg:col-span-2">
               {tasks.map((t) => (
-                <button key={t.code} type="button" onClick={() => toggle(t)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-bg">
+                <Pressable press key={t.code} onClick={() => toggle(t)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-bg">
                   <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${t.done ? 'border-green bg-green text-white' : 'border-line'}`}>{t.done && <Check size={14} strokeWidth={3} />}</span>
                   <span className={`flex-1 text-body ${t.done ? 'text-muted line-through' : 'font-semibold'}`}>{t.title}</span>
                   {t.done_at && <span className="text-caption text-faint">{dateShort(t.done_at)}</span>}
-                </button>
+                </Pressable>
               ))}
             </List>
           </div>
@@ -700,10 +699,10 @@ export function ContractsTab({ o, onForbidden }) {
               {rows.map((c) => (
                 <div key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                   <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><FileSignature size={18} /></div>
-                  <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setViewing(c.id)}>
+                  <Pressable press className="min-w-0 flex-1 text-left" onClick={() => setViewing(c.id)}>
                     <div className="truncate text-body font-semibold">{c.title}</div>
                     <div className="truncate text-footnote text-muted">{c.status === 'signed' ? `Signed by ${c.signed_name} · ${dateTime(c.signed_at)}` : `Sent ${date(c.created_at)}`}</div>
-                  </button>
+                  </Pressable>
                   <div className="flex items-center gap-1.5">
                     <Pill tone={tone[c.status]}>{c.status === 'sent' ? 'Awaiting signature' : titleCase(c.status)}</Pill>
                     <Button size="sm" variant="secondary" onClick={() => run(() => downloadAction('contracts.pdf', { id: c.id }))}>PDF</Button>

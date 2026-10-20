@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2, CalendarDays, MapPin, Plus, Search, ShieldAlert, Users } from 'lucide-react';
 import { api } from '../../api.js';
 import {
-  Button, Empty, Page, Input, List, Load, Pill, Row, Select, Sheet, Tabs, Textarea, Avatar, useAction, useApi, useForm, cx,
+  Avatar, Button, cx, Empty, Input, List, Load, Page, Pill, Pressable, Row, SearchInput, Select, Sheet, Tabs, Textarea, useAction, useApi, useForm,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 
@@ -45,16 +45,12 @@ function VenueGrid({ rows, onAdd }) {
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <label className="relative min-w-0 flex-1 basis-60">
-          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search venues, clients, postcodes"
-            className="h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-3.5 text-body outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
-        </label>
+        <SearchInput className="min-w-0 flex-1 basis-60" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search venues, clients, postcodes" />
         {inactive > 0 && (
           <div className="flex gap-1">
             {[['active', 'Active'], ['inactive', `Inactive (${inactive})`], ['all', 'All']].map(([v, l]) => (
-              <button key={v} type="button" onClick={() => setShow(v)}
-                className={cx('rounded-full px-3 py-1.5 text-footnote font-semibold transition', show === v ? 'bg-ink text-white' : 'bg-surface text-muted hover:text-ink')}>{l}</button>
+              <Pressable press key={v} onClick={() => setShow(v)}
+                className={cx('rounded-full px-3 py-1.5 text-footnote font-semibold transition', show === v ? 'bg-ink text-white' : 'bg-surface text-muted hover:text-ink')}>{l}</Pressable>
             ))}
           </div>
         )}

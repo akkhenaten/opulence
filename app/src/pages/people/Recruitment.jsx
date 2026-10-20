@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { api } from '../../api.js';
 import {
-  Avatar, Bento, Button, IconButton, Load, Page, Pill, Stat, Tile, cx, date, relative, useAction, useApi, useConfirm,
+  Avatar, Bento, Button, cx, date, IconButton, Load, Page, Pill, Pressable, relative, Stat, Tile, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { ComplianceBadge, Progress, useRoles } from './_parts.jsx';
 import { AddOfficerSheet } from './Staff.jsx';
@@ -105,10 +105,10 @@ function Card({ p, roleName, onMove }) {
         <div className="flex items-center">
           {prev && <IconButton icon={ChevronLeft} label={`Move back to ${prev}`} onClick={() => onMove(p, prev)} />}
           {next && (
-            <button type="button" onClick={() => onMove(p, next)}
+            <Pressable press onClick={() => onMove(p, next)}
               className={cx('inline-flex h-8 items-center gap-0.5 rounded-xl px-2.5 text-footnote font-semibold transition active:scale-95', complete || next === 'onboarding' ? 'bg-blue text-white' : 'bg-blue-soft text-blue')}>
               {next === 'active' ? 'Activate' : 'Start onboarding'}<ChevronRight size={16} />
-            </button>
+            </Pressable>
           )}
         </div>
       </div>

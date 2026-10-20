@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { AlertTriangle, FileText, Loader2, Trash2 } from 'lucide-react';
 import { upload } from '../../api.js';
-import { cx } from '../../ui/index.jsx';
+import { cx, Pressable } from '../../ui/index.jsx';
 import { compressImage } from '../officer/_parts.jsx';
 
 // Same limits the API enforces on incident attachments
@@ -46,17 +46,17 @@ export function useUploads({ existingCount = 0, toast }) {
 export function FileTile({ name, mime, url, size, status, badge, onRemove, onOpen }) {
   return (
     <div className="relative aspect-square overflow-hidden rounded-2xl bg-bg">
-      <button type="button" onClick={onOpen} disabled={!onOpen} className="block h-full w-full text-left">
+      <Pressable press onClick={onOpen} disabled={!onOpen} className="block h-full w-full text-left">
         {isImage(mime) && url
           ? <img src={url} alt="" className="h-full w-full object-cover" />
           : <div className="flex h-full flex-col items-center justify-center gap-1 p-2 text-center"><FileText size={24} className="text-blue" /><span className="line-clamp-2 break-all text-caption2 font-semibold text-ink">{name}</span>{size != null && <span className="text-caption2 text-muted">{fileSize(size)}</span>}</div>}
-      </button>
+      </Pressable>
       {status === 'uploading' && <div className="absolute inset-0 grid place-items-center bg-ink/35 text-white"><Loader2 className="animate-spin" /></div>}
       {status === 'error' && <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-red/80 p-2 text-center text-caption2 font-semibold text-white"><AlertTriangle size={18} />Upload failed</div>}
       {badge && <span className="absolute bottom-1 left-1 rounded-full bg-ink/70 px-2 py-0.5 text-caption2 font-semibold text-white">{badge}</span>}
       {onRemove && (
-        <button type="button" aria-label={`Remove ${name}`} onClick={onRemove}
-          className={cx('absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full bg-ink/70 text-white')}><Trash2 size={16} /></button>
+        <Pressable press aria-label={`Remove ${name}`} onClick={onRemove}
+          className={cx('absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full bg-ink/70 text-white')}><Trash2 size={16} /></Pressable>
       )}
     </div>
   );

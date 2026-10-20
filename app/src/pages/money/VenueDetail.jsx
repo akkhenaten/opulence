@@ -7,8 +7,7 @@ import {
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
-  Bento, Button, Empty, IconButton, Input, List, Load, Page, Pill, Row, Section, Select, Sheet, Stat, Table, Tabs, Textarea, Tile, Toggle,
-  Avatar, cx, date, isoDate, money, useAction, useApi, useConfirm, useForm, useToast, daysUntil,
+  Avatar, Bento, Button, cx, date, daysUntil, Empty, IconButton, Input, isoDate, List, Load, money, Page, Pill, Pressable, Row, Section, Select, Sheet, Stat, Table, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm, useToast,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 
@@ -166,7 +165,7 @@ function LocationTab({ v, onSaved }) {
               <span className="text-footnote font-semibold text-muted">Radius</span>
               <span className="num text-title2 font-bold">{radius}m</span>
             </div>
-            <input type="range" min={25} max={500} step={5} value={radius} onChange={(e) => setRadius(Number(e.target.value))} className="w-full accent-[#0A6CFF]" aria-label="Geofence radius in metres" />
+            <input type="range" min={25} max={500} step={5} value={radius} onChange={(e) => setRadius(Number(e.target.value))} className="w-full accent-blue" aria-label="Geofence radius in metres" />
             <div className="flex justify-between text-caption2 text-faint num"><span>25m</span><span>500m</span></div>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -443,10 +442,10 @@ function DocumentsTab({ venueId }) {
                 return (
                   <div key={d.id} className="flex items-center gap-3 px-4 py-3">
                     <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><FileText size={18} /></div>
-                    <button type="button" onClick={() => d.s3_key && openDoc(d)} className="min-w-0 flex-1 text-left">
+                    <Pressable press onClick={() => d.s3_key && openDoc(d)} className="min-w-0 flex-1 text-left">
                       <div className="truncate text-body font-semibold">{d.title}</div>
                       <div className="truncate text-footnote text-muted">{kindLabel(d.kind)} · added {date(d.created_at)}</div>
-                    </button>
+                    </Pressable>
                     {d.expiry && <Pill tone={left < 0 ? 'red' : left <= 30 ? 'amber' : 'grey'}>{left < 0 ? 'Expired' : `Expires ${date(d.expiry)}`}</Pill>}
                     <IconButton icon={Trash2} label="Delete document" onClick={() => del(d)} className="text-red hover:bg-red-soft" />
                   </div>

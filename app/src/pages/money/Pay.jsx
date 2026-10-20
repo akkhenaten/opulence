@@ -4,8 +4,7 @@ import { AlertTriangle, Banknote, CalendarRange, Check as CheckIcon, Download, F
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Bento, Button, Empty, Input, List, Load, Page, Pill, Section, Segmented, Select, Stat, Tile, cx, dateShort, date, hours, isoDate, money,
-  useAction, useApi, useConfirm,
+  ActionBar, Avatar, Bento, Button, cx, date, dateShort, Empty, hours, Input, isoDate, List, Load, money, Page, Pill, Section, Segmented, Select, Stat, Tile, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { Check, useBase } from './_parts.jsx';
 
@@ -177,15 +176,6 @@ function Statements({ rows, isCo, status, setStatus, reload }) {
         )}
       </div>
 
-      {isCo && selected.length > 0 && (
-        <div className="sticky-below-header sticky z-10 mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-ink px-4 py-2.5 text-white shadow-tile">
-          <span className="mr-auto text-subhead font-semibold"><span className="num">{selected.length}</span> selected · <span className="num">{total(selected)}</span></span>
-          {drafts.length > 0 && <Button size="sm" icon={Send} busy={busy} onClick={issue}>Issue {drafts.length}</Button>}
-          {issued.length > 0 && <Button size="sm" variant="soft" icon={CheckIcon} busy={busy} onClick={markPaid}>Mark {issued.length} paid</Button>}
-          <button type="button" className="px-2 text-footnote font-semibold opacity-70 hover:opacity-100" onClick={() => setSel(new Set())}>Clear</button>
-        </div>
-      )}
-
       {!shown.length ? (
         <Empty icon={FileText} title={status === 'draft' ? 'No draft statements' : 'No statements'} body={status === 'draft' && isCo ? 'Choose a period above and create drafts from signed timesheets.' : undefined} />
       ) : (
@@ -218,6 +208,13 @@ function Statements({ rows, isCo, status, setStatus, reload }) {
         </List>
       )}
       <p className="mt-3 px-1 text-caption text-faint">Officers are self-employed contractors. Statements show gross amounts — no tax or National Insurance is deducted.</p>
+
+      <ActionBar show={isCo && selected.length > 0}>
+        <span className="mr-2 text-subhead font-semibold"><span className="num">{selected.length}</span> selected · <span className="num">{total(selected)}</span></span>
+        <Button variant="secondary" size="sm" onClick={() => setSel(new Set())}>Clear</Button>
+        {drafts.length > 0 && <Button size="sm" icon={Send} busy={busy} onClick={issue}>Issue {drafts.length}</Button>}
+        {issued.length > 0 && <Button size="sm" variant="soft" icon={CheckIcon} busy={busy} onClick={markPaid}>Mark {issued.length} paid</Button>}
+      </ActionBar>
     </Section>
   );
 }

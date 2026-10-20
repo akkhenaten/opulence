@@ -3,8 +3,7 @@ import { Building2, CalendarDays, Clock, FileSignature, KeyRound, Landmark, Layo
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Button, Empty, IconButton, Input, List, Load, Page, Pill, Row, Section, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle,
-  dayLabel, isoDate, relative, useAction, useApi, useConfirm, useForm,
+  ActionBar, Avatar, Button, dayLabel, Empty, IconButton, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Row, Section, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { Chips, CopyLink, DOC_KINDS, docKindLabel, SIA_TYPES } from './_parts.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
@@ -129,9 +128,10 @@ function CompanyForm({ s, onSaved }) {
           <p className="mt-3 text-caption text-faint">Added on top of the officer's base rate for hours in each band. Client uplifts are set per venue rate.</p>
         </Tile>
       </div>
-      <div className="sticky bottom-20 z-10 mt-4 flex justify-end lg:bottom-4">
-        <Button size="lg" busy={busy} disabled={!dirty} onClick={save} className="shadow-tile">Save changes</Button>
-      </div>
+      <ActionBar show={dirty || busy} tone="light">
+        <span className="mr-2 text-subhead font-semibold">Unsaved changes</span>
+        <Button busy={busy} onClick={save}>Save changes</Button>
+      </ActionBar>
     </>
   );
 }
@@ -318,7 +318,7 @@ function CalendarTab() {
         {editing && <RoleSheet role={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); roles.reload(); }} />}
       </div>
       <div className="lg:col-span-3">
-        <Section title="Bank holidays" className="mt-0" action={<button type="button" className="text-footnote font-semibold text-blue" onClick={() => setShowPast((x) => !x)}>{showPast ? 'Hide past' : 'Show past'}</button>}>
+        <Section title="Bank holidays" className="mt-0" action={<Pressable press className="text-footnote font-semibold text-blue" onClick={() => setShowPast((x) => !x)}>{showPast ? 'Hide past' : 'Show past'}</Pressable>}>
           <Tile className="mb-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <Input label="Date" type="date" className="sm:w-44" {...bind('day')} />

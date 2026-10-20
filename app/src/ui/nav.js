@@ -28,7 +28,7 @@ export function useScrollMemory() {
     if (loc.pathname !== curPath) { prevPath = curPath; curPath = loc.pathname; }
   }, [loc.pathname]);
   useEffect(() => {
-    const key = loc.key;
+    const key = `${loc.key}:${loc.pathname}`;
     if (type !== 'POP') window.scrollTo(0, 0);
     else {
       const y = read()[key] || 0;
@@ -48,7 +48,7 @@ export function useScrollMemory() {
       return save(key, () => { cancelAnimationFrame(raf); window.removeEventListener('touchstart', halt); window.removeEventListener('wheel', halt); });
     }
     return save(key);
-  }, [loc.key]);
+  }, [loc.key, loc.pathname]);
 }
 // Keeps the last scroll position seen while this entry was showing. Reading scrollY at cleanup
 // is too late: the next page has rendered by then and the browser has already clamped it.

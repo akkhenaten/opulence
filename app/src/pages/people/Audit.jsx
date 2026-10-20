@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, History, Search } from 'lucide-react';
-import { Avatar, Empty, Input, List, Load, Page, Pill, Section, Segmented, Select, cx, dateTime, dayLabel, isoDate, relative, time, titleCase, useApi } from '../../ui/index.jsx';
+import { Avatar, cx, dateTime, dayLabel, Empty, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Section, Segmented, Select, time, titleCase, useApi } from '../../ui/index.jsx';
 
 const ENTITIES = ['officer', 'document', 'contract', 'hr_note', 'officer_rate', 'shift', 'assignment', 'cover_request', 'timesheet',
   'incident', 'venue', 'venue_rate', 'invoice', 'invoice_line', 'statement', 'statement_line', 'user', 'settings'];
@@ -75,9 +75,9 @@ function Entry({ r }) {
       </div>
       {detail && (
         <>
-          <button type="button" onClick={() => setOpen((x) => !x)} className="ml-12 mt-1 inline-flex items-center gap-1 text-caption font-semibold text-blue">
+          <Pressable press onClick={() => setOpen((x) => !x)} className="ml-12 mt-1 inline-flex items-center gap-1 text-caption font-semibold text-blue">
             {open ? 'Hide detail' : 'Show detail'}<ChevronDown size={14} className={cx('transition', open && 'rotate-180')} />
-          </button>
+          </Pressable>
           {open && <DetailView detail={detail} />}
         </>
       )}

@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, ShieldCheck, Users } from 'lucide-react';
+import { Plus, ShieldCheck, Users } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Bento, Page, Button, Empty, List, Load, Row, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useForm,
+  Avatar, Bento, Button, Empty, List, Load, Page, Row, SearchInput, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useForm,
 } from '../../ui/index.jsx';
 import {
   ComplianceBadge, CopyLink, OFFICER_STATUSES, OfficerCoreFields, cleanOfficer, complianceState, emptyOfficer, useBase, useRoles,
@@ -50,11 +50,7 @@ export default function Staff() {
 
             <div className="mb-4 space-y-3">
               <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                <label className="relative flex-1">
-                  <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
-                  <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, phone or SIA number"
-                    className="h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-3 text-body outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
-                </label>
+                <SearchInput className="flex-1" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, phone or SIA number" />
                 <div className="grid grid-cols-2 gap-3 md:flex">
                   <Select className="md:w-48" value={role} onChange={(e) => setRole(e.target.value)} placeholder="All roles" options={roles.map((r) => ({ value: r.code, label: r.name }))} />
                   <Select className="md:w-44" value={comp} onChange={(e) => setComp(e.target.value)}
