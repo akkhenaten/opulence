@@ -18,7 +18,7 @@ const PAGE = 20;
 // Notification links go through /everyday, which the app sends to the right portal for the reader
 const postLink = (id, comment) => `/everyday?post=${id}${comment ? `&comment=${comment}` : ''}`;
 
-const PERSON = `json_build_object('id', u.id, 'name', u.name, 'role', u.role, 'photo_key', o.photo_key)`;
+const PERSON = `json_build_object('id', u.id, 'name', u.name, 'role', u.role, 'photo_key', COALESCE(o.photo_key, u.photo_key))`;
 const VISIBLE = (alias, mgr) => `${alias}.deleted_at IS NULL${mgr ? '' : ` AND ${alias}.hidden_at IS NULL`}`;
 
 async function signPerson(p) {

@@ -54,7 +54,8 @@ export async function userFromEvent(event) {
   const payload = verifyToken(raw);
   if (!payload) return null;
   const user = await one(
-    `SELECT u.id, u.email, u.name, u.role, u.status, u.can_see_pay, o.id AS officer_id
+    `SELECT u.id, u.email, u.name, u.phone, u.role, u.status, u.can_see_pay, o.id AS officer_id,
+            COALESCE(o.photo_key, u.photo_key) AS photo_key
        FROM users u LEFT JOIN officers o ON o.user_id = u.id WHERE u.id = $1`,
     [payload.sub],
   );
@@ -63,7 +64,7 @@ export async function userFromEvent(event) {
 }
 
 export function publicUser(u) {
-  return { id: u.id, email: u.email, name: u.name, role: u.role, officer_id: u.officer_id || null, can_see_pay: u.can_see_pay };
+  return { id: u.id, email: u.email, name: u.name, phone: u.phone || '', role: u.role, officer_id: u.officer_id || null, can_see_pay: u.can_see_pay };
 }
 
 export const isManager = (u) => u.role === 'company' || u.role === 'security';

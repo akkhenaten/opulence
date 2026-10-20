@@ -3,6 +3,7 @@ import { fail, required, pick } from '../lib/http.mjs';
 import { randomToken } from '../lib/auth.mjs';
 import { sendRawEmail, emailHtml } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
+import { downloadUrl } from '../lib/storage.mjs';
 import { CO, ALL, def } from './_def.mjs';
 
 const ROLE_LABEL = { company: 'Company Manager', security: 'Security Manager', venue: 'Venue Manager', officer: 'Security Officer' };
@@ -31,9 +32,11 @@ async function setVenues(t, userId, role, venueIds) {
   for (const v of venueIds) await t.q(`INSERT INTO ${table} (venue_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [v, userId]);
 }
 
+const withPhotos = (rows) => Promise.all(rows.map(async ({ photo_key, ...u }) => ({ ...u, photo_url: await downloadUrl(photo_key) })));
+
 export const actions = {
-  'users.list': def(CO, async (b) => q(
-    `SELECT u.id, u.email, u.name, u.phone, u.role, u.status, u.can_see_pay, u.last_login, u.created_at,
+  'users.list': def(CO, async (b) => withPhotos(await q(
+    `SELECT u.id, u.email, u.name, u.phone, u.role, COALESCE((SELECT o.photo_key FROM officers o WHERE o.user_id = u.id LIMIT 1), u.photo_key) AS photo_key, u.status, u.can_see_pay, u.last_login, u.created_at,
             COALESCE(array_agg(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS venues,
             COALESCE(array_agg(DISTINCT v.id) FILTER (WHERE v.id IS NOT NULL), '{}') AS venue_ids,
             CASE WHEN u.status = 'invited' THEN '/app/invite/' || u.invite_token END AS invite_link,
@@ -43,7 +46,7 @@ export const actions = {
        LEFT JOIN security_venues sv ON sv.user_id = u.id AND u.role = 'security'
        LEFT JOIN venues v ON v.id = COALESCE(vc.venue_id, sv.venue_id)
       WHERE ($1::text IS NULL OR u.role = $1)
-      GROUP BY u.id ORDER BY u.role, u.name`, [b.role || null])),
+      GROUP BY u.id ORDER BY u.role, u.name`, [b.role || null]))),
 
   'users.invite': def(CO, async (b, { user }) => {
     required(b, 'email', 'name', 'role');
@@ -60,14 +63,28 @@ export const actions = {
   'users.update': def(CO, async (b, { user }) => {
     required(b, 'id');
     if (b.id === user.id && b.status === 'disabled') fail(400, "You can't disable yourself");
-    const fields = pick(b, ['name', 'phone', 'can_see_pay']);
+    const fields = pick(b, ['name', 'phone', 'can_see_pay', 'email']);
     if (b.status === 'disabled' || b.status === 'active') fields.status = b.status;
+    if (fields.name !== undefined && String(fields.name).trim().length < 2) fail(400, 'Enter a name');
+    if (fields.email !== undefined) {
+      fields.email = String(fields.email).trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(fields.email)) fail(400, 'Enter a valid email');
+      const cur = await one('SELECT role, email FROM users WHERE id = $1', [b.id]);
+      if (cur?.role === 'officer' && cur.email !== fields.email) fail(400, "Change an officer's email on their staff profile");
+      if (await one('SELECT 1 FROM users WHERE email = $1 AND id <> $2', [fields.email, b.id])) fail(409, 'A user with this email already exists');
+    }
     const u = await tx(async (t) => {
       const keys = Object.keys(fields);
       const row = keys.length
         ? await t.one(`UPDATE users SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1 RETURNING *`, [b.id, ...keys.map((k) => fields[k])])
         : await t.one('SELECT * FROM users WHERE id = $1', [b.id]);
       if (!row) fail(404, 'User not found');
+      // An officer's staff record carries the same name and phone
+      if (row.role === 'officer' && (fields.name !== undefined || fields.phone !== undefined)) {
+        const cut = row.name.lastIndexOf(' ');
+        await t.q('UPDATE officers SET first_name = $2, last_name = $3, phone = $4 WHERE user_id = $1',
+          [row.id, cut > 0 ? row.name.slice(0, cut) : row.name, cut > 0 ? row.name.slice(cut + 1) : '', row.phone || '']);
+      }
       await setVenues(t, row.id, row.role, b.venue_ids);
       return row;
     });

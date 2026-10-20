@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, Copy, Link2 } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
-import { Button, Input, Pill, Select, Toggle, cx, daysUntil, useApi, useToast } from '../../ui/index.jsx';
+import { Button, Chips, Input, Pill, Select, Toggle, cx, daysUntil, useApi, useToast } from '../../ui/index.jsx';
 
 export const OFFICER_STATUSES = ['active', 'onboarding', 'applicant', 'suspended', 'left'];
 
@@ -91,7 +91,7 @@ export function CopyLink({ link, label = 'Invite link', hint = 'Email may not be
   );
 }
 
-export { Chips } from '../../ui/index.jsx';
+export { Chips };
 
 // Core officer fields used by "Add officer" and "Add applicant"
 export function OfficerCoreFields({ form, roles, statusOptions = ['active', 'onboarding', 'applicant'], showInvite = true }) {
@@ -118,7 +118,7 @@ export function OfficerCoreFields({ form, roles, statusOptions = ['active', 'onb
       </div>
       {showInvite && (
         <div className="rounded-2xl bg-bg px-4 py-2">
-          <Toggle checked={v.invite} onChange={(x) => set('invite', x)} label="Invite to the app" hint={v.email ? 'Creates a login and sends an invite email' : 'Add an email address to invite'} />
+          <Toggle checked={v.invite} onChange={(x) => set('invite', x)} label="App access" hint={v.email ? 'Creates their login and emails an invite to the officer app' : 'Add an email address to give them app access'} />
         </div>
       )}
     </div>

@@ -91,27 +91,30 @@ export default function Staff() {
 function Page2({ isCo, onAdd, children }) {
   return (
     <Page title={isCo ? 'Staff' : 'Officers'} subtitle={isCo ? 'Officers, licences and compliance' : 'Officers you can roster'}
-      actions={isCo && <Button icon={Plus} onClick={onAdd}>Add officer</Button>}>
+      actions={isCo && <Button icon={Plus} onClick={onAdd}>Add staff member</Button>}>
       {children}
     </Page>
   );
 }
 
-export function AddOfficerSheet({ open, onClose, roles, onDone, status = 'active', title = 'Add officer', statusOptions }) {
+export function AddOfficerSheet({ open, onClose, roles, onDone, status = 'active', title = 'Add staff member', statusOptions }) {
   const nav = useNavigate();
   const base = useBase();
   const form = useForm(emptyOfficer(status));
   const [run, busy] = useAction();
   const [result, setResult] = useState(null);
-  const close = () => { onClose(); setTimeout(() => { setResult(null); form.setV(emptyOfficer(status)); }, 300); };
+  const [dup, setDup] = useState(null);
+  const close = () => { onClose(); setTimeout(() => { setResult(null); setDup(null); form.setV(emptyOfficer(status)); }, 300); };
   const save = async () => {
-    const r = await run(() => api('officers.save', cleanOfficer(form.v)), `${form.v.first_name} added`);
+    setDup(null);
+    const r = await run(() => api('officers.save', cleanOfficer(form.v)), `${form.v.first_name} added`).catch((e) => { setDup(e.data?.duplicate || null); });
+    if (!r) return;
     onDone?.();
     if (r.invite_link) setResult(r);
     else { close(); nav(`${base}/staff/${r.id}`); }
   };
   return (
-    <Sheet open={open} onClose={close} title={result ? 'Officer added' : title}
+    <Sheet open={open} onClose={close} title={result ? 'Staff member added' : title}
       footer={result
         ? <><Button variant="secondary" onClick={close}>Done</Button><Button onClick={() => { close(); nav(`${base}/staff/${result.id}`); }}>Open profile</Button></>
         : <><Button variant="secondary" onClick={close}>Cancel</Button><Button busy={busy} disabled={!form.v.first_name || !form.v.last_name} onClick={save}>Save</Button></>}>
@@ -121,7 +124,17 @@ export function AddOfficerSheet({ open, onClose, roles, onDone, status = 'active
           <CopyLink link={result.invite_link} />
         </div>
       ) : (
-        <OfficerCoreFields form={form} roles={roles} statusOptions={statusOptions} />
+        <div className="space-y-4">
+          <p className="text-subhead text-muted">Someone who works shifts. Turn on App access to email them a login. Managers and venue users are invited from Settings → Users &amp; access.</p>
+          {dup && (
+            <div className="flex items-center gap-3 rounded-2xl bg-amber-soft p-3 text-amber">
+              <Users size={20} className="shrink-0" />
+              <span className="min-w-0 flex-1 text-subhead font-semibold">Already on your staff: {dup.name}{dup.status && dup.status !== 'active' ? ` (${dup.status})` : ''}</span>
+              <Button size="sm" variant="secondary" onClick={() => { close(); nav(`${base}/staff/${dup.id}`); }}>Open</Button>
+            </div>
+          )}
+          <OfficerCoreFields form={form} roles={roles} statusOptions={statusOptions} />
+        </div>
       )}
       {!result && <p className="mt-4 text-caption text-faint">You can add right to work, bank details and documents from the profile.</p>}
     </Sheet>

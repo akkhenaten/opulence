@@ -109,7 +109,7 @@ function Results() {
               <tr key={r.officer.id} className="border-b border-line last:border-0">
                 <td className="sticky left-0 z-10 bg-surface px-4 py-2.5">
                   <Pressable press className="flex items-center gap-2 text-left font-semibold hover:text-blue" onClick={() => nav(`/${user.role}/staff/${r.officer.id}?tab=training`)}>
-                    <Avatar name={`${r.officer.first_name} ${r.officer.last_name}`} size={28} />
+                    <Avatar name={`${r.officer.first_name} ${r.officer.last_name}`} src={r.officer.photo_url} size={28} />
                     <span className="whitespace-nowrap">{r.officer.first_name} {r.officer.last_name}</span>
                   </Pressable>
                 </td>

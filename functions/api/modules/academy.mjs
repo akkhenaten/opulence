@@ -603,7 +603,7 @@ ${await courseText(course)}`,
     const C = new Map(certs.map((r) => [key(r), r]));
     const T = new Map(attempts.map((r) => [key(r), r]));
     const P = new Set(progress.map(key));
-    const rows = officers.map((o) => ({
+    const rows = (await Promise.all(officers.map(async ({ photo_key, ...o }) => ({ ...o, photo_url: await downloadUrl(photo_key) })))).map((o) => ({
       officer: o,
       cells: Object.fromEntries(courses.map((c) => {
         const k = `${c.id}:${o.id}`;

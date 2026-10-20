@@ -42,3 +42,15 @@ export async function headObject(key) {
     return null;
   }
 }
+
+// A profile photo must be an image this person uploaded themselves (files.uploadUrl purpose "photo"), under 10 MB.
+// '' or null clears the photo.
+export async function checkOwnPhoto(user, key, fail) {
+  if (!key) return null;
+  if (!String(key).startsWith(`docs/photos/${user.id.slice(0, 8)}/`)) fail(400, 'Upload the photo first');
+  const h = await headObject(key);
+  if (!h) fail(400, 'Upload the photo first');
+  if (!/^image\/(jpeg|png|webp|gif|heic|heif)$/.test(h.mime)) fail(400, 'The photo must be an image');
+  if (h.size > 10 * 1024 * 1024) fail(400, 'The photo must be under 10 MB');
+  return key;
+}

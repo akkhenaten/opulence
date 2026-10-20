@@ -170,7 +170,7 @@ export default function Shell() {
             ))}
           </nav>
           <Pressable press onClick={() => setAccount(true)} aria-label="My account" className="mt-4 flex items-center gap-3 rounded-2xl bg-bg p-3 hover:bg-line/40">
-            <Avatar name={user.name} size={36} />
+            <Avatar name={user.name} src={user.photo_url} size={36} />
             <div className="min-w-0 flex-1"><div className="truncate text-subhead font-semibold">{user.name}</div><div className="truncate text-caption text-muted">{ROLE_LABEL[user.role]}</div></div>
             <ChevronRight size={18} className="text-faint" />
           </Pressable>
@@ -226,7 +226,7 @@ export default function Shell() {
           ))}
         </div>
         <Pressable press onClick={() => { setMore(false); setAccount(true); }} className="mt-4 flex items-center gap-3 rounded-2xl bg-bg p-3">
-          <Avatar name={user.name} size={36} />
+          <Avatar name={user.name} src={user.photo_url} size={36} />
           <div className="min-w-0 flex-1"><div className="truncate font-semibold">{user.name}</div><div className="text-footnote text-muted">My account · {ROLE_LABEL[user.role]}</div></div>
           <ChevronRight size={18} className="text-faint" />
         </Pressable>

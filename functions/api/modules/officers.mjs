@@ -2,7 +2,7 @@ import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, pick, need } from '../lib/http.mjs';
 import { canSeePay } from '../lib/auth.mjs';
 import { assertOfficerAccess, venueScope } from '../lib/scope.mjs';
-import { downloadUrl } from '../lib/storage.mjs';
+import { downloadUrl, checkOwnPhoto } from '../lib/storage.mjs';
 import { londonDate } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { createInvite, sendInvite } from './users.mjs';
@@ -38,6 +38,37 @@ export function shapeOfficer(o, user) {
   return out;
 }
 
+// One staff record per person: the same email or SIA licence number can't be added twice.
+// When the record has (or is getting) an app login, its email must not already sign in as someone else.
+async function assertNotDuplicate(db, { id = null, email, sia_number, login = false }) {
+  const e = (email || '').trim().toLowerCase();
+  const sia = (sia_number || '').replace(/\s+/g, '');
+  if (e || sia) {
+    const d = await db.one(
+      `SELECT id, first_name || ' ' || last_name AS name, status FROM officers
+        WHERE id IS DISTINCT FROM $1 AND (($2 <> '' AND lower(email) = $2) OR ($3 <> '' AND replace(sia_number, ' ', '') = $3)) LIMIT 1`, [id, e, sia]);
+    if (d) fail(409, `Already on your staff: ${d.name}`, { duplicate: d });
+  }
+  if (e && login) {
+    const u = await db.one(
+      'SELECT u.role FROM users u WHERE u.email = $1 AND NOT EXISTS (SELECT 1 FROM officers o WHERE o.user_id = u.id AND o.id = $2)', [e, id]);
+    if (u) fail(409, u.role === 'officer' ? 'Another officer already signs in with this email' : 'This email already signs in as a manager or venue user');
+  }
+}
+
+// Create an app login for a staff record and link it (used by "Invite to app" and when hiring)
+export async function inviteOfficerLogin(id) {
+  const o = need(await one('SELECT * FROM officers WHERE id = $1', [id]));
+  if (o.user_id) fail(409, 'Officer already has a login');
+  if (!o.email) fail(400, 'Add an email address first');
+  const u = await tx(async (t) => {
+    const created = await createInvite(t, { email: o.email, name: `${o.first_name} ${o.last_name}`, role: 'officer', phone: o.phone });
+    await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [o.id, created.id]);
+    return created;
+  });
+  return sendInvite(u);
+}
+
 export const actions = {
   'officers.list': def(MGR, async (b, { user }) => {
     const rows = await q(
@@ -71,19 +102,34 @@ export const actions = {
     if (user.role === 'officer') {
       if (b.id && b.id !== user.officer_id) fail(403, 'Forbidden');
       const f = pick(b, SELF_FIELDS);
+      if (f.photo_key !== undefined) f.photo_key = await checkOwnPhoto(user, f.photo_key, fail);
       const keys = Object.keys(f);
       if (keys.length) await q(`UPDATE officers SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [user.officer_id, ...keys.map((k) => f[k])]);
+      if (f.phone !== undefined) await q('UPDATE users SET phone = $2 WHERE id = $1', [user.id, f.phone || '']);
       await audit(user, 'officer.self_update', 'officer', user.officer_id, Object.keys(f));
       return { ok: true };
     }
     const f = pick(b, MANAGER_FIELDS);
+    if (typeof f.email === 'string') f.email = f.email.trim().toLowerCase();
     if (b.id) {
-      const keys = Object.keys(f);
-      if (keys.length) await q(`UPDATE officers SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [b.id, ...keys.map((k) => f[k])]);
+      const cur = need(await one('SELECT * FROM officers WHERE id = $1', [b.id]));
+      const changed = (k) => f[k] !== undefined && String(f[k] || '') !== String(cur[k] || '');
+      if (changed('email') || changed('sia_number')) await assertNotDuplicate({ one }, { id: b.id, email: changed('email') ? f.email : '', sia_number: changed('sia_number') ? f.sia_number : '', login: !!cur.user_id });
+      if (cur.user_id && f.email === '') fail(400, 'This person signs in with their email, so it can\'t be blank');
+      await tx(async (t) => {
+        const keys = Object.keys(f);
+        if (keys.length) await t.q(`UPDATE officers SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [b.id, ...keys.map((k) => f[k])]);
+        // The app login follows the staff record, so the sign-in email and name never drift apart
+        if (cur.user_id && (changed('email') || changed('first_name') || changed('last_name') || changed('phone'))) {
+          const o = await t.one('SELECT first_name, last_name, email, phone FROM officers WHERE id = $1', [b.id]);
+          await t.q('UPDATE users SET email = $2, name = $3, phone = $4 WHERE id = $1', [cur.user_id, o.email, `${o.first_name} ${o.last_name}`.trim(), o.phone || '']);
+        }
+      });
       await audit(user, 'officer.update', 'officer', b.id, f);
       return { id: b.id };
     }
     required(b, 'first_name', 'last_name');
+    await assertNotDuplicate({ one }, { email: f.email, sia_number: f.sia_number, login: !!(b.invite && f.email) });
     const res = await tx(async (t) => {
       let userId = null;
       let invite = null;
@@ -101,17 +147,7 @@ export const actions = {
   }),
 
   // Give an existing officer record a login
-  'officers.inviteLogin': def(CO, async (b) => {
-    const o = need(await one('SELECT * FROM officers WHERE id = $1', [b.id]));
-    if (o.user_id) fail(409, 'Officer already has a login');
-    if (!o.email) fail(400, 'Add an email address first');
-    const u = await tx(async (t) => {
-      const created = await createInvite(t, { email: o.email, name: `${o.first_name} ${o.last_name}`, role: 'officer', phone: o.phone });
-      await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [o.id, created.id]);
-      return created;
-    });
-    return { invite_link: await sendInvite(u) };
-  }),
+  'officers.inviteLogin': def(CO, async (b) => ({ invite_link: await inviteOfficerLogin(b.id) })),
 
   'officers.saveRate': def(CO, async (b, { user }) => {
     required(b, 'officer_id', 'role', 'rate');

@@ -131,9 +131,15 @@ export const actions = {
       if (!o.start_date) await q('UPDATE officers SET start_date = CURRENT_DATE WHERE id = $1', [b.officer_id]);
     }
     await q('UPDATE officers SET status = $2 WHERE id = $1', [b.officer_id, b.status]);
-    if (b.status === 'active') await notify(await officerUser(b.officer_id), { kind: 'hr', title: "You're all set", body: 'Your account is active. You can now be offered shifts.', link: '/officer', email: true });
-    await audit(user, 'officer.status', 'officer', b.officer_id, { status: b.status });
-    return { ok: true };
+    // Hiring can send the app login at the same time, so nobody is left active without one
+    let invite_link = null;
+    if (b.status === 'active' && b.invite) {
+      const o = await one('SELECT user_id, email FROM officers WHERE id = $1', [b.officer_id]);
+      if (!o.user_id && o.email) invite_link = await (await import('./officers.mjs')).inviteOfficerLogin(b.officer_id);
+    }
+    if (b.status === 'active' && !invite_link) await notify(await officerUser(b.officer_id), { kind: 'hr', title: "You're all set", body: 'Your account is active. You can now be offered shifts.', link: '/officer', email: true });
+    await audit(user, 'officer.status', 'officer', b.officer_id, { status: b.status, invite: !!invite_link });
+    return { ok: true, invite_link };
   }),
 
   // ---- Contracts / e-signing ----

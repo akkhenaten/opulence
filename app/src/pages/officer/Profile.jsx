@@ -23,6 +23,8 @@ function Editor({ o, reload, notes }) {
   const { refresh } = useAuth();
   const init = Object.fromEntries(FIELDS.map((k) => [k, o[k] ?? '']));
   const [v, setV] = useState(init);
+  const [name, setName] = useState(o.name);
+  const nameBad = name.trim().length < 2;
   const [contacts, setContacts] = useState(() => (o.emergency_contacts?.length ? o.emergency_contacts : [{ name: '', relationship: '', phone: '' }]).map(({ name, relationship, phone }) => ({ name, relationship, phone })));
   const [photo, setPhoto] = useState(o.photo_url);
   const [run, busy] = useAction();
@@ -41,8 +43,10 @@ function Editor({ o, reload, notes }) {
   const save = () => run(async () => {
     const body = { ...v, dob: v.dob || null, ni_number: v.ni_number.replace(/\s/g, '').toUpperCase(), utr: v.utr.replace(/\D/g, ''), postcode: v.postcode.toUpperCase().trim() };
     if (sort) body.bank_sort_code = `${sort.slice(0, 2)}-${sort.slice(2, 4)}-${sort.slice(4, 6)}`;
+    if (name.trim() !== o.name) await api('auth.updateMe', { name });
     await api('officers.save', body);
     await api('officers.saveContacts', { contacts: contacts.filter((c) => c.name.trim()) });
+    refresh?.();
   }, 'Details saved').then(reload).catch(() => {});
 
   const changePhoto = async (e) => {
@@ -69,13 +73,14 @@ function Editor({ o, reload, notes }) {
         <div className="min-w-0">
           <div className="display truncate text-title3 font-bold">{o.name}</div>
           <div className="truncate text-subhead text-muted">{o.email}</div>
-          <div className="mt-0.5 text-caption text-faint">Your name and email are changed by the office.</div>
+          <div className="mt-0.5 text-caption text-faint">You sign in with this email. The office can change it.</div>
         </div>
       </div>
 
       <Section title="Contact">
         <Tile>
           <div className="space-y-3">
+            <Input label="Name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} hint={nameBad ? 'Enter your name' : 'As it appears on your SIA licence'} />
             <Input label="Mobile" type="tel" inputMode="tel" autoComplete="tel" value={v.phone} onChange={set('phone')} />
             <Input label="Address" autoComplete="street-address" value={v.address} onChange={set('address')} />
             <div className="grid grid-cols-2 gap-3">
@@ -127,7 +132,7 @@ function Editor({ o, reload, notes }) {
         </div>
       </Section>
 
-      <Button size="lg" icon={Save} className="w-full" busy={busy} disabled={sortBad || acctBad} onClick={save}>Save details</Button>
+      <Button size="lg" icon={Save} className="w-full" busy={busy} disabled={sortBad || acctBad || nameBad} onClick={save}>Save details</Button>
 
       <Section title="Licence and right to work">
         <Tile>

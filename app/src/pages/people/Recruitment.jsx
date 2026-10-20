@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, ShieldCheck } from 'lucide-react';
 import { api } from '../../api.js';
 import {
-  Avatar, Bento, Button, cx, date, IconButton, Load, Page, Pill, Pressable, relative, Stat, Tile, useAction, useApi, useConfirm,
+  Avatar, Bento, Button, cx, date, IconButton, Load, Page, Pill, Pressable, relative, Sheet, Stat, Tile, Toggle, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
-import { ComplianceBadge, Progress, useRoles } from './_parts.jsx';
+import { ComplianceBadge, CopyLink, Progress, useRoles } from './_parts.jsx';
 import { AddOfficerSheet } from './Staff.jsx';
 
 const STAGES = [
@@ -21,20 +21,26 @@ export default function Recruitment() {
   const active = useApi('officers.list', { status: 'active' });
   const { roles, name: roleName } = useRoles();
   const [adding, setAdding] = useState(false);
+  const [hiring, setHiring] = useState(null);
   const [run] = useAction();
   const confirm = useConfirm();
   const reload = () => { pipeline.reload(); active.reload(); };
 
-  const move = async (p, status) => {
+  // Returns the server reply (with invite_link when a login was sent), or null when nothing changed
+  const setStatus = async (p, status, extra = {}) => {
+    let r = null;
     try {
-      await run(() => api('onboarding.setStatus', { officer_id: p.id, status }), `${p.name} moved to ${status}`);
+      r = await run(() => api('onboarding.setStatus', { officer_id: p.id, status, ...extra }), `${p.name} moved to ${status}`);
     } catch (e) {
-      if (e.status !== 422) return;
-      if (!(await confirm({ title: 'Not compliant yet', body: `${e.message}. Make ${p.name} active anyway?`, confirm: 'Make active', danger: true }))) return;
-      await run(() => api('onboarding.setStatus', { officer_id: p.id, status, force: true }), `${p.name} is now active`);
+      if (e.status !== 422) return null;
+      if (!(await confirm({ title: 'Not compliant yet', body: `${e.message}. Make ${p.name} active anyway?`, confirm: 'Make active', danger: true }))) return null;
+      r = await run(() => api('onboarding.setStatus', { officer_id: p.id, status, force: true, ...extra }), `${p.name} is now active`).catch(() => null);
     }
     reload();
+    return r;
   };
+  // Hiring someone without a login yet: offer to email them one
+  const move = (p, status) => (status === 'active' && p.email && !p.login_status ? setHiring(p) : setStatus(p, status));
 
   const cutoff = Date.now() - 60 * 86400000;
   const recent = (active.data || []).filter((o) => new Date(o.start_date || o.created_at).getTime() >= cutoff)
@@ -75,6 +81,7 @@ export default function Recruitment() {
           </>
         )}
       </Load>
+      <HireSheet p={hiring} onClose={() => setHiring(null)} onHire={(invite) => setStatus(hiring, 'active', { invite })} />
       <AddOfficerSheet open={adding} onClose={() => setAdding(false)} roles={roles} onDone={reload} status="applicant" title="Add applicant" statusOptions={['applicant', 'onboarding']} />
     </Page>
   );
@@ -129,3 +136,37 @@ function ActiveCard({ o, roleName }) {
   );
 }
 
+
+function HireSheet({ p, onClose, onHire }) {
+  const [invite, setInvite] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [link, setLink] = useState(null);
+  const last = p || {};
+  const close = () => { onClose(); setTimeout(() => { setLink(null); setInvite(true); }, 300); };
+  const hire = async () => {
+    setBusy(true);
+    const r = await onHire(invite).finally(() => setBusy(false));
+    if (r?.invite_link) setLink(r.invite_link);
+    else if (r) close();
+  };
+  return (
+    <Sheet open={!!p} onClose={close} title={link ? `${last.name} is active` : `Make ${last.name} active`} size="sm"
+      footer={link
+        ? <Button onClick={close}>Done</Button>
+        : <><Button variant="secondary" onClick={close}>Cancel</Button><Button busy={busy} onClick={hire}>Make active</Button></>}>
+      {link ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-2xl bg-green-soft p-4 text-green"><ShieldCheck size={20} /><span className="text-body font-semibold">Login created and invite emailed to {last.email}.</span></div>
+          <CopyLink link={link} />
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-body text-muted">They can be offered shifts once active.</p>
+          <div className="rounded-2xl bg-bg px-4 py-2">
+            <Toggle checked={invite} onChange={setInvite} label="Email them an app login" hint={`Sends an invite to ${last.email} so they can see shifts, clock in and get paid`} />
+          </div>
+        </div>
+      )}
+    </Sheet>
+  );
+}

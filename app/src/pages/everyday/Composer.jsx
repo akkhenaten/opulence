@@ -71,7 +71,7 @@ export default function Composer({ rulesAccepted, onPosted, post, onCancel, auto
   return (
     <div className="rounded-tile bg-surface p-4 shadow-tile">
       <div className="flex gap-3">
-        {!post && <Avatar name={user.name} size={40} />}
+        {!post && <Avatar name={user.name} src={user.photo_url} size={40} />}
         <div className="min-w-0 flex-1">
           <MentionBox value={text} mentions={mentions} rows={post ? 4 : 2} autoFocus={autoFocus}
             onChange={(t, ids) => { setText(t); setMentions(ids); }} placeholder={`What's happening, ${user.name.split(' ')[0]}?`} />

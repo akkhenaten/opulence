@@ -238,7 +238,7 @@ function CommentBox({ post, parent, onSent, onCancel, autoFocus }) {
   };
   return (
     <div className={cx('flex items-end gap-2', parent && 'ml-10')}>
-      <Avatar name={user.name} size={parent ? 26 : 32} />
+      <Avatar name={user.name} src={user.photo_url} size={parent ? 26 : 32} />
       <div className="flex min-w-0 flex-1 items-end gap-1 rounded-2xl bg-bg py-1 pl-3 pr-1">
         <div className="min-w-0 flex-1">
           <MentionBox value={text} mentions={mentions} rows={1} autoFocus={autoFocus} onSubmit={send}

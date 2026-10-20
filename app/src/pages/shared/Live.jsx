@@ -69,7 +69,7 @@ function Board({ rows, filter, setFilter, onOpen, base }) {
                 {g.rows.map((r) => (
                   <Row key={r.assignment_id}
                     onClick={onOpen ? () => onOpen(r) : undefined}
-                    left={<Avatar name={r.officer_name} size={40} />}
+                    left={<Avatar name={r.officer_name} src={r.photo_url} size={40} />}
                     title={r.officer_name}
                     subtitle={<><span className="num">{range(r.starts_at, r.ends_at)}</span> · {r.role_name}{r.clocked_in ? <> · in <span className="num">{time(r.clocked_in)}</span></> : ''}</>}
                     right={

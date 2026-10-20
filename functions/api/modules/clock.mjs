@@ -7,6 +7,7 @@ import { roundHours } from '../lib/rates.mjs';
 import { notify, managersFor } from '../lib/notify.mjs';
 import { fmtTime } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
+import { downloadUrl } from '../lib/storage.mjs';
 import { compliance } from './officers.mjs';
 import { getSettings } from './settings.mjs';
 import { MGR, def } from './_def.mjs';
@@ -193,7 +194,7 @@ export const actions = {
           AND ($1::uuid[] IS NULL OR s.venue_id = ANY($1)) AND ($2::uuid IS NULL OR s.venue_id = $2)
         ORDER BY v.name, s.starts_at, officer_name`, [scope, b.venue_id || null]);
     const now = Date.now();
-    return rows.map((r) => {
+    return Promise.all(rows.map(async (r) => {
       const st = stateOf(r.events);
       let state = st;
       if (st === 'not_started') {
@@ -203,9 +204,9 @@ export const actions = {
       }
       if (st === 'finished' && new Date(r.ends_at) - new Date(r.events.at(-1).ts) > 15 * 60000) state = 'left_early';
       const out = { ...r, state, clocked_in: r.events.find((e) => e.kind === 'in')?.ts || null, has_exception: r.events.some((e) => e.status === 'exception') };
-      delete out.photo_key;
-      if (user.role === 'venue') { delete out.phone; delete out.events; }
-      return out;
-    });
+      const { photo_key, ...rest } = out;
+      if (user.role === 'venue') { delete rest.phone; delete rest.events; }
+      return { ...rest, photo_url: await downloadUrl(photo_key) };
+    }));
   }),
 };
