@@ -105,7 +105,7 @@ function Body({ d, name }) {
           )}
         </Section>
 
-        <Section title="Cover requests" action={<Link to="/venue/cover" className="text-subhead font-semibold text-blue">Request cover</Link>}>
+        <Section title="Cover requests" action={<Link to="/venue/cover" className="-my-2.5 inline-block py-2.5 text-subhead font-semibold text-blue">Request cover</Link>}>
           {!d.cover.length ? <Quiet icon={Megaphone} text="No upcoming cover requests." action={<Button size="sm" variant="soft" icon={Plus} to="/venue/cover">Request cover</Button>} /> : (
             <List>
               {d.cover.map((c) => (
@@ -117,7 +117,7 @@ function Body({ d, name }) {
           )}
         </Section>
 
-        <Section title="Recent incidents" action={<Link to="/venue/incidents" className="text-subhead font-semibold text-blue">See all</Link>}>
+        <Section title="Recent incidents" action={<Link to="/venue/incidents" className="-my-2.5 inline-block py-2.5 text-subhead font-semibold text-blue">See all</Link>}>
           {!d.incidents.length ? <Quiet icon={ShieldAlert} text="No incidents reported." /> : (
             <List>
               {d.incidents.map((i) => (

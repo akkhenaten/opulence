@@ -109,7 +109,7 @@ export default function Me() {
               </Section>
 
               {modules?.academy && learn.data && (learn.data.courses.length > 0 || learn.data.certificates.length > 0) && (
-                <Section title="Training" action={<Link to="/officer/learn" className="text-subhead font-semibold text-blue">Open Learn</Link>}>
+                <Section title="Training" action={<Link to="/officer/learn" className="-my-2.5 inline-block py-2.5 text-subhead font-semibold text-blue">Open Learn</Link>}>
                   <List>
                     {learn.data.courses.filter((x) => x.state !== 'passed').map((x) => (
                       <Row key={x.id} to={`/officer/learn/academy/${x.id}`} left={<Ico icon={GraduationCap} tone={x.state === 'overdue' || x.state === 'expired' ? 'red' : 'blue'} />}

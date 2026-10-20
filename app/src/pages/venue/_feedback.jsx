@@ -2,16 +2,16 @@
 import { useState } from 'react';
 import { Star } from 'lucide-react';
 import { api } from '../../api.js';
-import { Button, Tile, cx, dayLabel, range, useAction, useApi } from '../../ui/index.jsx';
+import { Button, Input, Pressable, Tile, cx, dayLabel, range, useAction, useApi } from '../../ui/index.jsx';
 
 function Stars({ value, onChange }) {
   return (
-    <div className="flex gap-1" role="radiogroup" aria-label="Rating">
+    <div className="-mr-1.5 flex" role="radiogroup" aria-label="Rating">
       {[1, 2, 3, 4, 5].map((n) => (
-        <button key={n} type="button" role="radio" aria-checked={value === n} aria-label={`${n} star${n === 1 ? '' : 's'}`} onClick={() => onChange(n)}
-          className="grid h-9 w-9 place-items-center rounded-full transition hover:bg-amber-soft">
+        <Pressable press key={n} role="radio" aria-checked={value === n} aria-label={`${n} star${n === 1 ? '' : 's'}`} onClick={() => onChange(n)}
+          className="grid h-11 w-11 place-items-center rounded-full hover:bg-amber-soft">
           <Star size={24} className={cx(n <= value ? 'fill-amber text-amber' : 'text-line')} />
-        </button>
+        </Pressable>
       ))}
     </div>
   );
@@ -34,8 +34,7 @@ function ShiftRating({ s, multi, onDone }) {
               <Stars value={r[o.officer_id]?.rating || 0} onChange={(v) => set(o.officer_id, 'rating', v)} />
             </div>
             {r[o.officer_id]?.rating > 0 && (
-              <input value={r[o.officer_id]?.note || ''} onChange={(e) => set(o.officer_id, 'note', e.target.value)} placeholder="Anything we should know? (optional)"
-                className="mt-1.5 h-10 w-full rounded-xl border border-line bg-surface px-3 text-subhead outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
+              <Input className="mt-1.5" aria-label={`Note about ${o.name}`} value={r[o.officer_id]?.note || ''} onChange={(e) => set(o.officer_id, 'note', e.target.value)} placeholder="Anything we should know? (optional)" />
             )}
           </div>
         ))}

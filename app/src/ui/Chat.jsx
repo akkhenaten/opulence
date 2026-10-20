@@ -1,9 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUp, MessageSquareText } from 'lucide-react';
-import { cx } from './index.jsx';
+import { cx, IconButton, Pressable } from './index.jsx';
 import { api } from '../api.js';
 
 const Dot3 = () => [0, 1, 2].map((i) => <span key={i} className="h-2 w-2 animate-bounce rounded-full bg-faint" style={{ animationDelay: `${i * 0.15}s` }} />);
+
+// Tappable example prompts shown before the first message
+export function Suggestions({ items, onPick }) {
+  return (
+    <div className="mt-4 flex flex-wrap justify-center gap-2">
+      {items.map((p) => <Pressable press key={p} onClick={() => onPick(p)} className="rounded-full border border-line bg-surface px-4 py-2.5 text-center text-footnote font-semibold hover:border-blue hover:text-blue">{p}</Pressable>)}
+    </div>
+  );
+}
+
+// Message box with a round send button. Enter sends, Shift+Enter adds a line
+export function Composer({ value, onChange, onSend, busy, placeholder }) {
+  // Grows with the text up to max-h-32, then scrolls
+  const box = useRef(null);
+  useEffect(() => { const el = box.current; if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight + 2}px`; } }, [value]);
+  return (
+    <form className="flex items-end gap-2 border-t border-line p-3" onSubmit={(e) => { e.preventDefault(); onSend(); }}>
+      <textarea ref={box} rows={1} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} enterKeyHint="send"
+        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }}
+        className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-2.5 text-callout outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
+      <IconButton type="submit" icon={ArrowUp} label="Send" tone="primary" className="!h-11 !w-11 disabled:opacity-40" disabled={busy || !value.trim()} />
+    </form>
+  );
+}
 
 /**
  * Chat with an AI action that takes {messages, ...extra} and returns {reply, ...}.
@@ -43,9 +67,7 @@ export default function Chat({ action, extra = {}, storageKey, prompts = [], emp
             <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-soft text-blue"><MessageSquareText size={24} /></div>
             {empty}
             {prompts.length > 0 && (
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {prompts.map((p) => <button key={p} type="button" onClick={() => send(p)} className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-footnote font-semibold transition hover:border-blue hover:text-blue">{p}</button>)}
-              </div>
+              <Suggestions items={prompts} onPick={send} />
             )}
           </div>
         )}
@@ -60,12 +82,7 @@ export default function Chat({ action, extra = {}, storageKey, prompts = [], emp
         {busy && <div className="flex"><div className="rounded-tile bg-bg px-4 py-3"><span className="inline-flex gap-1"><Dot3 /></span></div></div>}
         <div ref={end} />
       </div>
-      <form className="flex items-end gap-2 border-t border-line p-3" onSubmit={(e) => { e.preventDefault(); send(); }}>
-        <textarea rows={1} value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-          className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-2.5 text-body outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
-        <button type="submit" aria-label="Send" disabled={busy || !text.trim()} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue text-white transition disabled:opacity-40"><ArrowUp size={20} /></button>
-      </form>
+      <Composer value={text} onChange={setText} onSend={() => send()} busy={busy} placeholder={placeholder} />
       {msgs.length > 0 && <button type="button" onClick={() => setMsgs([])} className="pb-3 text-center text-caption font-semibold text-faint hover:text-ink">Clear conversation</button>}
     </div>
   );

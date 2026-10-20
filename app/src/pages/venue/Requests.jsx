@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ArrowUp, MessageSquarePlus } from 'lucide-react';
+import { MessageSquarePlus } from 'lucide-react';
+import { Composer, Suggestions } from '../../ui/Chat.jsx';
 import { Empty, Load, Page, Pill, Tile, cx, dateTime, useApi } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 
@@ -40,9 +41,7 @@ export default function Requests() {
                 <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-soft text-blue"><MessageSquarePlus size={24} /></div>
                 <div className="text-callout font-semibold">What do you need?</div>
                 <p className="mx-auto mt-1 max-w-sm text-subhead text-muted">Extra officers, a change of times or a cancellation. Include the day, times and how many.</p>
-                <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  {EXAMPLES.map((e) => <button key={e} type="button" onClick={() => setText(e)} className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-footnote font-semibold transition hover:border-blue hover:text-blue">{e}</button>)}
-                </div>
+                <Suggestions items={EXAMPLES} onPick={setText} />
               </div>
             )}
             {msgs.map((m, i) => (
@@ -52,12 +51,7 @@ export default function Requests() {
             ))}
             {busy && <div className="flex"><div className="rounded-tile bg-bg px-4 py-2.5 text-subhead text-muted">Reading your request…</div></div>}
           </div>
-          <form className="flex items-end gap-2 border-t border-line p-3" onSubmit={(e) => { e.preventDefault(); send(); }}>
-            <textarea rows={1} value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. 2 door staff Saturday 9pm–3am"
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-              className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-2.5 text-body outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
-            <button type="submit" aria-label="Send" disabled={busy || !text.trim()} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue text-white transition disabled:opacity-40"><ArrowUp size={20} /></button>
-          </form>
+          <Composer value={text} onChange={setText} onSend={() => send()} busy={busy} placeholder="e.g. 2 door staff Saturday 9pm–3am" />
         </Tile>
 
         <div>

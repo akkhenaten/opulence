@@ -31,7 +31,7 @@ export function shiftTimes(date, start, end) {
   return { starts_at, ends_at };
 }
 
-// 'YYYY-MM-DDTHH:MM' (London) for <input type="datetime-local">, and back
+// 'YYYY-MM-DDTHH:MM' (London) for datetime-local inputs, and back
 export const toLondonInput = (iso) => { if (!iso) return ''; const p = londonParts(iso); return `${p.date}T${p.time}`; };
 export const fromLondonInput = (s) => (s ? londonIso(s.slice(0, 10), s.slice(11, 16)) : null);
 

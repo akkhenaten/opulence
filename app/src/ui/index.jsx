@@ -223,6 +223,7 @@ const ICON_T = {
   soft: 'bg-fill text-ink hover:bg-fill-strong',
   solid: 'bg-surface text-ink shadow-tile border border-black/[0.04] hover:bg-bg',
   dark: 'bg-white/15 text-white hover:bg-white/25',
+  primary: 'bg-blue text-white hover:bg-blue/90',
 };
 const ICON_S = { sm: 'h-9 w-9 before:absolute before:-inset-1', md: 'h-10 w-10 before:absolute before:-inset-0.5', lg: 'h-12 w-12' };
 // Round icon-only button. badge: a count shown top-right
@@ -242,7 +243,7 @@ export function IconButton({ icon: Icon, label, tone = 'ghost', size = 'md', bad
 // card: press scale for tiles; press: press scale only (for chips/options that set their own colours); default: row highlight
 export function Pressable({ to, href, onClick, card, press, className, children, ...p }) {
   const display = /(^|\s)(flex|grid|inline|inline-flex|inline-grid|inline-block|hidden)(\s|$)/.test(className || '');
-  const cls = cx(!display && 'block', 'text-left', !press && 'w-full', card ? 'pressable-card' : press ? 'pressable' : 'transition-colors hover:bg-bg active:bg-fill', className);
+  const cls = cx(!display && 'block', !/(^|\s)text-(center|right)(\s|$)/.test(className || '') && 'text-left', !press && 'w-full', card ? 'pressable-card' : press ? 'pressable' : 'transition-colors hover:bg-bg active:bg-fill', className);
   if (to) return <Link to={to} onClick={onClick} className={cls} {...p}>{children}</Link>;
   if (href) return <a href={href} onClick={onClick} className={cls} {...p}>{children}</a>;
   return <button type="button" onClick={onClick} className={cls} {...p}>{children}</button>;
