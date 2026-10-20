@@ -93,8 +93,8 @@ async function logUsage(module, credits) {
 }
 
 export const IMAGE_MODEL = 'gemini-3-pro-image';
-// Charged per picture when the proxy reports no token usage (measured against the project balance)
-export const IMAGE_CREDITS = 1000;
+// Charged per picture when the proxy reports no token usage: the model's published rate (about 1,120 output tokens per picture) in credits
+export const IMAGE_CREDITS = 20000;
 // AI pictures cannot be trusted with text or faces, so every prompt asks for neither
 const IMAGE_STYLE = 'Style: clean flat editorial illustration, calm colours, set in the UK. Absolutely no text, letters, numbers, signs or logos. No identifiable faces (people seen from a distance, side or behind, simple features). No blood, wounds or gore. People of mixed ages and backgrounds.';
 
