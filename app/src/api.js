@@ -21,6 +21,8 @@ export async function api(action, body = {}) {
   } catch {
     throw new ApiError('No connection. Check your signal and try again.', 0);
   }
+  // The CDN answers an API 404 with the app's index.html (status 200), so a non-JSON reply means "not found"
+  if (!(res.headers.get('content-type') || '').includes('json')) throw new ApiError('Not found', 404);
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && token) {
     setToken(null);
