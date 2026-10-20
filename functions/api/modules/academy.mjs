@@ -118,6 +118,7 @@ function courseState(c, today = londonDate(new Date())) {
   if (c.due_date && c.due_date < today) return 'overdue';
   if (valid) return 'renew';
   if (cert) return 'expired';
+  if (c.last_attempt && !c.last_attempt.passed) return 'failed';
   if (c.done_sections || c.last_attempt) return 'in_progress';
   return c.assignment_id ? 'assigned' : 'not_started';
 }

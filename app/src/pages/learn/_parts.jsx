@@ -21,7 +21,7 @@ export const STATE = {
   failed: { label: 'Not passed yet', tone: 'amber' },
   in_progress: { label: 'In progress', tone: 'blue' },
   assigned: { label: 'To do', tone: 'blue' },
-  not_started: { label: 'Optional', tone: 'grey' },
+  not_started: { label: 'Not started', tone: 'grey' },
   none: { label: '—', tone: 'grey' },
 };
 export const StatePill = ({ state }) => <Pill tone={STATE[state]?.tone}>{STATE[state]?.label || state}</Pill>;
