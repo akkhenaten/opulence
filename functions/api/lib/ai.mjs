@@ -97,6 +97,8 @@ export async function extract({ model = HAIKU, system, messages, tool, max_token
 // Models sometimes send a list or object as a JSON string (or a plain list as lines of text); put it back in the schema's shape
 function fixShapes(v, schema) {
   if (!schema) return v;
+  // Stray tool-call markup inside a value, e.g. '<parameter name="steps">[…]' or '<item>…</item>'
+  if (typeof v === 'string' && /<\/?(parameter|item)[^>]*>/.test(v)) v = v.replace(/<\/?(parameter|item)[^>]*>/g, '').trim();
   if ((schema.type === 'array' || schema.type === 'object') && typeof v === 'string') {
     try { v = JSON.parse(v); } catch {
       if (schema.type === 'array' && schema.items?.type === 'string') v = v.split('\n').map((x) => x.replace(/^\s*(\d+[.)]|[-•*])\s*/, '').trim()).filter(Boolean);

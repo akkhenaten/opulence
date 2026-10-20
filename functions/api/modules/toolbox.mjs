@@ -11,7 +11,9 @@ import { CO, def } from './_def.mjs';
 
 const STAFF = ['company', 'security', 'officer'];
 const CATEGORIES = ['first_aid', 'situations', 'law', 'venue'];
-const strList = (x) => (Array.isArray(x) ? x.map((s) => String(s).trim()).filter(Boolean).slice(0, 30) : []);
+// Lists arrive as arrays (editor) or as one-item-per-line text (AI drafts)
+const strList = (x, sep = /\n/) => (Array.isArray(x) ? x : typeof x === 'string' ? x.split(sep) : [])
+  .map((s) => String(s).replace(/^\s*(\d+[.)]|[-•*])\s+/, '').trim()).filter(Boolean).slice(0, 30);
 
 const CARD_TOOL = {
   name: 'save_card',
@@ -21,13 +23,13 @@ const CARD_TOOL = {
     properties: {
       title: { type: 'string', description: 'Short, e.g. "Someone has collapsed and is not breathing"' },
       summary: { type: 'string', description: 'One line: the key thing to do' },
-      steps: { type: 'array', items: { type: 'string' }, description: '4-10 numbered steps, in order, each one action' },
-      dont: { type: 'array', items: { type: 'string' }, description: '2-6 things not to do' },
+      steps: { type: 'string', description: '4-10 steps in order, one per line, each one action. No numbering.' },
+      dont: { type: 'string', description: '2-6 things not to do, one per line' },
       law: { type: 'string', description: 'The law or guidance that applies, plainly, 1-4 sentences. Empty if none.' },
       report_tips: { type: 'string', description: 'What to write in the incident report' },
       escalate: { type: 'string', description: 'When to call 999 / the police / a supervisor or manager' },
-      tags: { type: 'array', items: { type: 'string' }, description: 'Search words, e.g. CPR, unconscious, AED' },
-      sources: { type: 'array', items: { type: 'string' }, description: 'Named sources relied on' },
+      tags: { type: 'string', description: 'Search words, comma separated, e.g. CPR, unconscious, AED' },
+      sources: { type: 'string', description: 'Named sources relied on, one per line' },
     },
     required: ['title', 'summary', 'steps', 'dont', 'law', 'report_tips', 'escalate', 'tags', 'sources'],
   },
@@ -48,7 +50,7 @@ function cardFields(b) {
   if (b.category !== undefined) { if (!CATEGORIES.includes(b.category)) fail(400, 'Unknown category'); f.category = b.category; }
   for (const k of ['title', 'summary', 'law', 'report_tips', 'escalate']) if (b[k] !== undefined) f[k] = String(b[k] || '').trim();
   for (const k of ['steps', 'dont', 'sources']) if (b[k] !== undefined) f[k] = JSON.stringify(strList(b[k]));
-  if (b.tags !== undefined) f.tags = strList(b.tags);
+  if (b.tags !== undefined) f.tags = strList(b.tags, /[,\n]/);
   if (b.venue_id !== undefined) f.venue_id = b.venue_id || null;
   if (b.course_id !== undefined) f.course_id = b.course_id || null;
   if (f.title === '') fail(400, 'A card needs a title');
