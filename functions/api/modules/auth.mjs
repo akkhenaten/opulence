@@ -5,6 +5,7 @@ import { sendRawEmail, emailHtml } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
 import { downloadUrl, checkOwnPhoto } from '../lib/storage.mjs';
 import { ALL, pub, def } from './_def.mjs';
+import { getBrand } from '../lib/brand.mjs';
 
 const loadUser = (userId) => one(
   'SELECT u.*, o.id AS officer_id, COALESCE(o.photo_key, u.photo_key) AS photo_key FROM users u LEFT JOIN officers o ON o.user_id = u.id WHERE u.id = $1', [userId]);
@@ -43,8 +44,8 @@ export const actions = {
   }),
 
   'auth.me': def(ALL, async (_b, { user }) => {
-    const s = await one('SELECT company_name FROM settings');
-    return { user: await me(user), company_name: s.company_name };
+    const brand = await getBrand();
+    return { user: await me(user), company_name: brand.name, brand };
   }),
 
   // Your own name, phone and photo. Email is the sign-in, so only the company manager changes it.
@@ -92,8 +93,8 @@ export const actions = {
       [b.email.trim(), token],
     );
     if (u) {
-      await sendRawEmail(u.email, 'Reset your Orb Security password',
-        emailHtml('Reset your password', 'Use the button below within 2 hours to choose a new password.', `/reset/${token}`));
+      await sendRawEmail(u.email, `Reset your ${(await getBrand()).name} password`,
+        await emailHtml('Reset your password', 'Use the button below within 2 hours to choose a new password.', `/reset/${token}`));
     }
     return { ok: true };
   }),

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { api, getToken, setToken } from './api.js';
 
 const AuthCtx = createContext(null);
+const DEFAULT_BRAND = { name: 'Orb Security', logo_url: null, color: '#0A6CFF' };
 export const useAuth = () => useContext(AuthCtx);
 
 // Home path per role
@@ -9,16 +10,24 @@ export const HOME = { company: '/company', security: '/security', venue: '/venue
 
 export function AuthProvider({ children }) {
   const [state, setState] = useState({ user: null, company: '', ready: !getToken() });
+  // The company's name, logo and colour; shown on the sign-in page too
+  const [brand, setBrand] = useState(DEFAULT_BRAND);
 
   const refresh = useCallback(async () => {
-    if (!getToken()) return setState({ user: null, company: '', ready: true });
+    if (!getToken()) {
+      api('settings.brand').then(setBrand).catch(() => {});
+      return setState({ user: null, company: '', ready: true });
+    }
     try {
-      const { user, company_name } = await api('auth.me');
+      const { user, company_name, brand: b } = await api('auth.me');
+      if (b) setBrand(b);
       setState({ user, company: company_name, ready: true });
     } catch {
       setState({ user: null, company: '', ready: true });
     }
   }, []);
+
+  useEffect(() => { document.title = brand.name; }, [brand.name]);
 
   useEffect(() => {
     refresh();
@@ -39,7 +48,7 @@ export function AuthProvider({ children }) {
     setState({ user: null, company: '', ready: true });
   }, []);
 
-  return <AuthCtx.Provider value={{ ...state, signIn, signOut, refresh }}>{children}</AuthCtx.Provider>;
+  return <AuthCtx.Provider value={{ ...state, brand, signIn, signOut, refresh }}>{children}</AuthCtx.Provider>;
 }
 
 // Notification links are written for company managers; map them into the viewer's portal

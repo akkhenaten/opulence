@@ -39,7 +39,7 @@ const Err = ({ msg }) => (msg ? (
 ) : null);
 
 export function Login() {
-  const { signIn } = useAuth();
+  const { signIn, brand } = useAuth();
   const nav = useNavigate();
   const f = useForm({ email: '', password: '' });
   const { err, fieldErr, busy, submit } = useSubmit();
@@ -47,7 +47,7 @@ export function Login() {
   useEffect(() => { api('auth.needsBootstrap').then((r) => setSetup(r.needed)).catch(() => {}); }, []);
   if (setup) return <Bootstrap />;
   return (
-    <AuthCard title="Sign in" subtitle="Welcome back to Orb Security." footer={<Link to="/forgot" className="font-semibold text-blue">Forgot password?</Link>}>
+    <AuthCard title="Sign in" subtitle={`Welcome back to ${brand.name}.`} footer={<Link to="/forgot" className="font-semibold text-blue">Forgot password?</Link>}>
       <form className="space-y-4" onSubmit={submit(async () => { const u = await signIn(await api('auth.login', f.v)); nav(HOME[u.role], { replace: true }); })}>
         <Input label="Email" type="email" autoComplete="email" required {...f.bind('email')} />
         <Input label="Password" type="password" autoComplete="current-password" required {...f.bind('password')} />

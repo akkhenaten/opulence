@@ -205,12 +205,12 @@ export const actions = {
     if (user.role === 'officer' && c.officer_id !== user.officer_id) fail(403, 'Forbidden');
     const s = await getSettings();
     const d = await Doc.create(c.title);
-    d.header(s, 'Agreement', c.title);
+    await d.header(s, 'Agreement', c.title);
     d.text(c.body, { size: 10, gap: 5 });
     d.section('Signature');
     if (c.signature) await d.image(c.signature, { width: 180 });
     d.meta([['Signed by', c.signed_name || 'Not signed'], ['Signed at', c.signed_at ? fmtDateTime(c.signed_at) : '-']], [['IP address', c.signed_ip || '-'], ['Contractor', `${c.first_name} ${c.last_name}`]]);
-    d.footer(`${s.company_name} - electronically signed via Orb Security`);
+    d.footer(`${s.company_name} - electronically signed`);
     return { filename: `${c.title} - ${c.first_name} ${c.last_name}.pdf`, pdf: await d.base64() };
   }),
 

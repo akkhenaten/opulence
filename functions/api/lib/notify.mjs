@@ -1,5 +1,6 @@
 import { q } from './db.mjs';
 import { pushToUsers } from './webpush.mjs';
+import { esc, getBrand } from './brand.mjs';
 
 // Kinds a person can switch off in their notification settings; operational alerts always go
 export const OPTIONAL_KINDS = ['mention', 'comment', 'reaction', 'announcement', 'training'];
@@ -26,15 +27,22 @@ async function sendEmail(to, subject, html) {
   }
 }
 
-function emailHtml(title, body, link) {
+// Emails carry the company's own logo, name and colour, with a small "Sent via Orb Security" line
+async function emailHtml(title, body, link) {
+  const b = await getBrand();
   const url = link ? `${APP_URL()}/app${link}` : `${APP_URL()}/app`;
+  const head = b.logo_url
+    ? `<img src="${esc(b.logo_url)}" alt="${esc(b.name)}" height="36" style="display:block;height:36px;max-width:200px;object-fit:contain">`
+    : `<div style="font-weight:700;color:#0B1220;font-size:15px">${esc(b.name)}</div>`;
+  const label = b.name.length <= 24 ? `Open ${esc(b.name)}` : 'Open the app';
   return `<div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:520px;margin:auto;padding:24px;background:#F2F4F7">
-  <div style="background:#fff;border-radius:18px;padding:24px;border:1px solid #E5E7EB">
-  <div style="font-weight:700;color:#0A6CFF;letter-spacing:.04em;font-size:12px">ORB SECURITY</div>
-  <h2 style="margin:8px 0 8px;color:#0B1220;font-size:20px">${title}</h2>
+  <div style="background:#fff;border-radius:18px;padding:24px;border:1px solid #E5E7EB;border-top:4px solid ${b.color}">
+  ${head}
+  <h2 style="margin:16px 0 8px;color:#0B1220;font-size:20px">${title}</h2>
   <p style="color:#4B5563;line-height:1.5">${body || ''}</p>
-  <a href="${url}" style="display:inline-block;margin-top:12px;background:#0A6CFF;color:#fff;padding:10px 18px;border-radius:12px;text-decoration:none;font-weight:600">Open Orb</a>
-  </div></div>`;
+  <a href="${url}" style="display:inline-block;margin-top:12px;background:${b.color};color:#fff;padding:10px 18px;border-radius:12px;text-decoration:none;font-weight:600">${label}</a>
+  </div>
+  <div style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:12px">Sent via Orb Security</div></div>`;
 }
 
 /**
@@ -62,7 +70,8 @@ export async function notify(userIds, { kind, title, body = '', link = '', sever
   }
   if (email && rows.length) {
     const users = await q("SELECT email FROM users WHERE id = ANY($1::uuid[]) AND status = 'active'", [rows.map((r) => r.user_id)]);
-    await Promise.allSettled(users.map((u) => sendEmail(u.email, `Orb Security — ${title}`, emailHtml(title, body, link))));
+    const [{ name }, html] = await Promise.all([getBrand(), emailHtml(title, body, link)]);
+    await Promise.allSettled(users.map((u) => sendEmail(u.email, `${name} — ${title}`, html)));
   }
 }
 

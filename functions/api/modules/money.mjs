@@ -220,7 +220,7 @@ export const actions = {
     const s = await getSettings();
     const o = await one('SELECT * FROM officers WHERE id = $1', [st.officer_id]);
     const d = await Doc.create(`Remittance ${st.number || 'draft'}`);
-    d.header(s, 'Remittance statement', st.number || 'DRAFT');
+    await d.header(s, 'Remittance statement', st.number || 'DRAFT');
     d.meta(
       [['Contractor', `${o.first_name} ${o.last_name}`], ['UTR', o.utr || 'Not provided'], ['Address', [o.address, o.postcode].filter(Boolean).join(', ')]],
       [['Period', `${fmtDate(st.period_start)} - ${fmtDate(st.period_end)}`], ['Paid to', o.bank_account ? `${o.bank_sort_code} / ****${o.bank_account.slice(-4)}` : '-'], ['Status', st.status.toUpperCase()]],
@@ -423,7 +423,7 @@ export const actions = {
     const s = await getSettings();
     const title = inv.kind === 'credit' ? 'Credit note' : 'Invoice';
     const d = await Doc.create(`${title} ${inv.number || 'draft'}`);
-    d.header(s, title, inv.number || 'DRAFT');
+    await d.header(s, title, inv.number || 'DRAFT');
     d.meta(
       [['Bill to', inv.client_name || inv.venue_name], ['Address', inv.billing_address || [inv.venue_address, inv.postcode].filter(Boolean).join(', ')], ['Venue', inv.venue_name]],
       [['Issue date', inv.issue_date ? fmtDate(inv.issue_date) : '-'], ['Due date', inv.due_date ? fmtDate(inv.due_date) : '-'],

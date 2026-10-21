@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Bell, Building2, CalendarDays, ChevronRight, Clock, FileSignature, KeyRound, Landmark, LayoutGrid, Percent, Plus, ReceiptText, Trash2, UserPlus, Users } from 'lucide-react';
-import { api } from '../../api.js';
+import { Bell, Building2, ImageUp, Palette, CalendarDays, ChevronRight, Clock, FileSignature, KeyRound, Landmark, LayoutGrid, Percent, Plus, ReceiptText, Trash2, UserPlus, Users } from 'lucide-react';
+import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  ActionBar, Avatar, Button, dayLabel, Empty, IconButton, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Row, Section, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm,
+  ActionBar, Avatar, Button, cx, dayLabel, Empty, IconButton, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Row, Section, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { Chips, CopyLink, DOC_KINDS, docKindLabel, SIA_TYPES } from './_parts.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
@@ -46,7 +46,93 @@ const RULE_KEYS = ['pay_period', 'rounding_minutes', 'grace_minutes', 'auto_sign
 
 function CompanyTab() {
   const q = useApi('settings.get');
-  return <Load q={q}>{(s) => <><ModulesTile s={s} onSaved={(d) => q.setData(d)} /><SettingsForm s={s} keys={COMPANY_KEYS} onSaved={(d) => q.setData(d)}>{(b) => <CompanyFields b={b} />}</SettingsForm></>}</Load>;
+  return <Load q={q}>{(s) => <><BrandingTile s={s} onSaved={(d) => q.setData(d)} /><ModulesTile s={s} onSaved={(d) => q.setData(d)} /><SettingsForm s={s} keys={COMPANY_KEYS} onSaved={(d) => q.setData(d)}>{(b) => <CompanyFields b={b} />}</SettingsForm></>}</Load>;
+}
+
+const DEFAULT_COLOR = '#0A6CFF';
+const PRESETS = ['#0A6CFF', '#1B5E20', '#00796B', '#C62828', '#6A1B9A', '#0B1220'];
+const HEX = /^#[0-9a-f]{6}$/i;
+
+// The company's logo and colour, used on reports, certificates, emails and in the app
+function BrandingTile({ s, onSaved }) {
+  const { refresh } = useAuth();
+  const [color, setColor] = useState(s.brand_color || DEFAULT_COLOR);
+  const [runLogo, logoBusy] = useAction();
+  const [runColor, colorBusy] = useAction();
+  const file = useRef(null);
+  const saved = (d) => { onSaved(d); refresh(); };
+  const setLogo = (getKey, msg) => runLogo(async () => saved(await api('settings.setLogo', { key: await getKey() })), msg).catch(() => {});
+  const pick = (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    if (!['image/png', 'image/jpeg'].includes(f.type)) return runLogo(async () => { throw new Error('The logo must be a PNG or JPG image'); }).catch(() => {});
+    if (f.size > 2 * 1024 * 1024) return runLogo(async () => { throw new Error('The logo must be under 2 MB'); }).catch(() => {});
+    setLogo(() => upload(f, 'company'), 'Logo updated');
+  };
+  const valid = HEX.test(color);
+  const current = (s.brand_color || DEFAULT_COLOR).toLowerCase();
+  const shown = valid ? color : current;
+  const saveColor = () => runColor(async () => saved(await api('settings.update', { brand_color: color.toLowerCase() === DEFAULT_COLOR.toLowerCase() ? '' : color })), 'Colour saved').catch(() => {});
+  const name = s.company_name || 'Your company';
+  const mark = s.logo_url
+    ? <img src={s.logo_url} alt="" className="h-7 w-auto max-w-[120px] object-contain object-left" />
+    : <span className="truncate text-subhead font-bold">{name}</span>;
+  return (
+    <Tile title="Branding" icon={Palette} className="mb-4">
+      <p className="mb-4 text-subhead text-muted">Your logo and colour go on incident reports, invoices, pay statements, agreements, QR posters, certificates and emails, and show in the app and on the sign-in page.</p>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="space-y-4">
+          <div>
+            <div className="mb-1.5 text-footnote font-semibold text-muted">Logo</div>
+            <div className="flex items-center gap-3">
+              <div className="grid h-16 w-40 shrink-0 place-items-center rounded-xl border border-line bg-white p-2">
+                {s.logo_url ? <img src={s.logo_url} alt="Company logo" className="max-h-full max-w-full object-contain" /> : <ImageUp size={24} className="text-faint" />}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" size="sm" icon={ImageUp} busy={logoBusy} onClick={() => file.current?.click()}>{s.logo_url ? 'Replace' : 'Upload logo'}</Button>
+                {s.logo_url && <Button variant="link-red" size="sm" disabled={logoBusy} onClick={() => setLogo(async () => '', 'Logo removed')}>Remove</Button>}
+              </div>
+              <input ref={file} type="file" accept="image/png,image/jpeg" className="hidden" onChange={pick} />
+            </div>
+            <div className="mt-1.5 text-caption text-muted">PNG or JPG, under 2 MB. A wide logo at least 400 px across, on a transparent or white background, works best.</div>
+          </div>
+          <div>
+            <div className="mb-1.5 text-footnote font-semibold text-muted">Brand colour</div>
+            <div className="flex flex-wrap items-center gap-2">
+              {PRESETS.map((c) => (
+                <Pressable key={c} press onClick={() => setColor(c)} aria-label={`Use colour ${c}`}
+                  className={cx('h-9 w-9 rounded-full ring-offset-2 ring-offset-surface', shown.toLowerCase() === c.toLowerCase() ? 'ring-2 ring-ink' : 'ring-1 ring-line')}
+                  style={{ background: c }} />
+              ))}
+              <Input aria-label="Colour hex code" className="w-32" value={color} onChange={(e) => setColor(e.target.value.trim())} error={color && !valid ? 'Like #0A6CFF' : undefined} />
+            </div>
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" busy={colorBusy} disabled={!valid || color.toLowerCase() === current} onClick={saveColor}>Save colour</Button>
+              {s.brand_color && <Button variant="secondary" size="sm" disabled={colorBusy} onClick={() => setColor(DEFAULT_COLOR)}>Back to default</Button>}
+            </div>
+          </div>
+        </div>
+        <div className="space-y-3" aria-label="Preview">
+          <div className="text-footnote font-semibold text-muted">Preview</div>
+          <div className="rounded-xl border border-line bg-white p-4 text-ink shadow-sm">
+            <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
+              <div className="min-w-0">{mark}</div>
+              <div className="text-right"><div className="text-headline font-bold">Incident report</div><div className="text-caption text-muted">INC-0042 · v1</div></div>
+            </div>
+            <div className="mt-3 text-subhead font-bold" style={{ color: shown }}>Summary</div>
+            <div className="mt-1 h-2 w-4/5 rounded bg-line" /><div className="mt-1.5 h-2 w-3/5 rounded bg-line" />
+            <div className="mt-3 text-right text-caption text-faint">Generated with Orb Security</div>
+          </div>
+          <div className="rounded-xl border border-line bg-white p-4 text-ink shadow-sm" style={{ borderTop: `4px solid ${shown}` }}>
+            {mark}
+            <div className="mt-2 text-subhead font-bold">New incident at Riverside Mall</div>
+            <span className="mt-2 inline-block rounded-lg px-3 py-1.5 text-footnote font-semibold text-white" style={{ background: shown }}>Open {name.length <= 24 ? name : 'the app'}</span>
+          </div>
+        </div>
+      </div>
+    </Tile>
+  );
 }
 
 const MODULES = [

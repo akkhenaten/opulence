@@ -391,7 +391,7 @@ export const actions = {
 
   'academy.certificate': def(STAFF, async (b, { user }) => {
     required(b, 'id');
-    const c = need(await one(`SELECT c.*, co.title, co.summary, o.first_name, o.last_name, s.company_name
+    const c = need(await one(`SELECT c.*, co.title, co.summary, o.first_name, o.last_name, s.company_name, s.logo_url, s.brand_color
         FROM certificates c JOIN courses co ON co.id = c.course_id JOIN officers o ON o.id = c.officer_id CROSS JOIN settings s
        WHERE c.id = $1 AND s.id = 1`, [b.id]), 'Certificate not found');
     if (!isManager(user) && c.officer_id !== user.officer_id) fail(404, 'Certificate not found');

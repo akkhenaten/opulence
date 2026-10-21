@@ -7,6 +7,7 @@ import { qrPosterPdf } from '../lib/pdf.mjs';
 import { downloadUrl } from '../lib/storage.mjs';
 import { audit } from '../lib/audit.mjs';
 import { CO, MGR, def } from './_def.mjs';
+import { getSettings } from './settings.mjs';
 
 const VENUE_FIELDS = ['client_id', 'name', 'address', 'postcode', 'lat', 'lng', 'radius_m', 'phone', 'instructions', 'notes', 'photo_key', 'invoice_cycle', 'active'];
 
@@ -88,7 +89,7 @@ export const actions = {
   'venues.qrPoster': def(MGR, async (b, { user }) => {
     await assertVenue(user, b.id);
     const v = need(await one('SELECT * FROM venues WHERE id = $1', [b.id]));
-    return { filename: `QR-${v.name}.pdf`, pdf: await qrPosterPdf(v, qrPayload(v)) };
+    return { filename: `QR-${v.name}.pdf`, pdf: await qrPosterPdf(v, qrPayload(v), await getSettings()) };
   }),
 
   'clients.list': def(CO, async () => q(

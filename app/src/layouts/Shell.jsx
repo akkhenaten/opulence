@@ -7,19 +7,26 @@ import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, Skel
 import { NAV, ROLE_LABEL } from './nav.js';
 import { AccountSheet } from './AccountSheet.jsx';
 
+// The company's logo, or its name next to the mark in the brand colour.
 // faded: the wordmark fades out (header shows the page title instead)
 export function Logo({ compact, faded }) {
+  const { brand } = useAuth();
+  const fade = cx('transition-opacity duration-[var(--dur-2)]', faded && 'opacity-0');
+  if (brand.logo_url && !compact) return <img src={brand.logo_url} alt={brand.name} className={cx('h-8 w-auto max-w-[168px] object-contain object-left', fade)} />;
+  const orb = brand.name === 'Orb Security';
   return (
-    <div className="flex items-center gap-2.5">
-      <svg viewBox="0 0 512 512" className="h-8 w-8 shrink-0" aria-hidden><rect width="512" height="512" rx="120" fill="#0A6CFF" /><circle cx="256" cy="256" r="132" fill="none" stroke="#fff" strokeWidth="44" /><circle cx="256" cy="256" r="40" fill="#fff" /></svg>
-      {!compact && <span className={cx('display text-title3 font-bold tracking-tight transition-opacity duration-[var(--dur-2)]', faded && 'opacity-0')}>Orb <span className="text-muted font-semibold">Security</span></span>}
+    <div className="flex min-w-0 items-center gap-2.5">
+      <svg viewBox="0 0 512 512" className="h-8 w-8 shrink-0" aria-hidden><rect width="512" height="512" rx="120" fill={brand.color} /><circle cx="256" cy="256" r="132" fill="none" stroke="#fff" strokeWidth="44" /><circle cx="256" cy="256" r="40" fill="#fff" /></svg>
+      {!compact && (orb
+        ? <span className={cx('display text-title3 font-bold tracking-tight', fade)}>Orb <span className="text-muted font-semibold">Security</span></span>
+        : <span className={cx('display max-w-[180px] truncate text-headline font-bold tracking-tight', fade)}>{brand.name}</span>)}
     </div>
   );
 }
 
 // Polls the unread count; opens the notification sheet
 function NotificationBell() {
-  const { user } = useAuth();
+  const { user, brand } = useAuth();
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const count = useApi('notifications.unreadCount', {}, { poll: 30000 });
@@ -30,10 +37,10 @@ function NotificationBell() {
   // Surface brand-new critical alerts in the tab title
   useEffect(() => {
     const latest = count.data?.latest;
-    if (latest && last.current && latest !== last.current && count.data.critical) document.title = `(${unread}) Orb Security`;
-    if (!unread) document.title = 'Orb Security';
+    if (latest && last.current && latest !== last.current && count.data.critical) document.title = `(${unread}) ${brand.name}`;
+    if (!unread) document.title = brand.name;
     last.current = latest;
-  }, [count.data, unread]);
+  }, [count.data, unread, brand.name]);
 
   const openItem = async (n) => {
     setOpen(false);
@@ -86,7 +93,7 @@ function HeaderTitle() {
 const Badge = ({ n, className }) => (n > 0 ? <span className={cx('rounded-full bg-blue px-1.5 text-caption2 font-bold leading-[18px] text-white', className)}>{n > 99 ? '99+' : n}</span> : null);
 
 export default function Shell() {
-  const { user, company, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const isMgr = ['company', 'security'].includes(user.role);
   const opsCount = useApi('ops.count', {}, { poll: 30000, skip: !isMgr });
   const settings = useApi('settings.get', {});
@@ -184,7 +191,6 @@ export default function Shell() {
             <HeaderTitle />
             <div className={cx(!isOfficer && 'lg:invisible')}><Logo faded={header.collapsed && !!header.title} /></div>
             <div className="flex items-center gap-2">
-              {company && !isOfficer && <span className="hidden text-footnote font-semibold text-muted sm:block lg:hidden">{company}</span>}
               {feedOn && <EverydayButton to={isOfficer ? '/officer/everyday' : `/${user.role}?tab=everyday`} unread={badges.everyday} />}
               <NotificationBell />
               {isOfficer && <span className="hidden sm:block"><Button variant="secondary" size="sm" icon={LogOut} onClick={signOut}>Sign out</Button></span>}

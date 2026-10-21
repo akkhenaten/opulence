@@ -5,6 +5,7 @@ import { sendRawEmail, emailHtml } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
 import { downloadUrl } from '../lib/storage.mjs';
 import { CO, ALL, def } from './_def.mjs';
+import { getBrand } from '../lib/brand.mjs';
 
 const ROLE_LABEL = { company: 'Company Manager', security: 'Security Manager', venue: 'Venue Manager', officer: 'Security Officer' };
 
@@ -19,8 +20,9 @@ export async function createInvite(t, { email, name, role, phone = '', can_see_p
 }
 
 export async function sendInvite(u) {
-  await sendRawEmail(u.email, "You're invited to Orb Security",
-    emailHtml(`Welcome, ${u.name}`, `You've been invited to Orb Security as a ${ROLE_LABEL[u.role]}. Set your password to get started.`, `/invite/${u.invite_token}`));
+  const { name } = await getBrand();
+  await sendRawEmail(u.email, `You're invited to ${name}`,
+    await emailHtml(`Welcome, ${u.name}`, `You've been invited to ${name} as a ${ROLE_LABEL[u.role]}. Set your password to get started.`, `/invite/${u.invite_token}`));
   return `/app/invite/${u.invite_token}`;
 }
 

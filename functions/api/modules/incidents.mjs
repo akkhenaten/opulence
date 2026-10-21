@@ -239,7 +239,7 @@ export const actions = {
     await canSee(user, inc);
     const s = await getSettings();
     const d = await Doc.create(`Incident ${inc.ref}`);
-    d.header(s, 'Incident report', `${inc.ref} · v${inc.version}`);
+    await d.header(s, 'Incident report', `${inc.ref} · v${inc.version}`);
     const yn = (v, ref) => (v ? `Yes${ref ? ` (ref ${ref})` : ''}` : 'No');
     d.meta(
       [['Venue', inc.venue_name], ['Type', inc.type.replace(/_/g, ' ')], ['Severity', inc.severity.toUpperCase()], ['Location', inc.location || '-']],

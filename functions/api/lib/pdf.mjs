@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import QRCode from 'qrcode';
+import { hexToRgb, logoBytes } from './brand.mjs';
 
 const BLUE = rgb(0.04, 0.42, 1);
 const INK = rgb(0.04, 0.07, 0.13);
@@ -50,22 +51,42 @@ class Doc {
 
   space(n = 10) { this.y -= n; }
 
-  header(company, docTitle, subtitle) {
-    this.page.drawCircle({ x: this.x + 9, y: this.y - 9, size: 9, color: BLUE });
-    this.page.drawCircle({ x: this.x + 9, y: this.y - 9, size: 4, color: rgb(1, 1, 1) });
-    this.page.drawText('ORB SECURITY', { x: this.x + 26, y: this.y - 13, size: 11, font: this.bold, color: INK });
+  // The company's logo (or its name) top left, the document title top right
+  async header(company, docTitle, subtitle) {
+    this.accent = hexToRgb(company?.brand_color);
+    const logo = await this.logo(company);
+    if (logo) {
+      const { width, height } = logo.scaleToFit(150, 36);
+      this.page.drawImage(logo, { x: this.x, y: this.y - height + 4, width, height });
+    } else {
+      let name = clean(company?.company_name || 'Orb Security');
+      while (name.length > 3 && this.bold.widthOfTextAtSize(name, 13) > this.w * 0.5) name = name.slice(0, -1);
+      this.page.drawText(name, { x: this.x, y: this.y - 14, size: 13, font: this.bold, color: INK });
+    }
     const t = clean(docTitle);
     this.page.drawText(t, { x: this.x + this.w - this.bold.widthOfTextAtSize(t, 18), y: this.y - 16, size: 18, font: this.bold, color: INK });
-    this.y -= 26;
+    this.y -= logo ? 40 : 26;
     if (subtitle) {
       const s = clean(subtitle);
       this.page.drawText(s, { x: this.x + this.w - this.font.widthOfTextAtSize(s, 10), y: this.y - 8, size: 10, font: this.font, color: MUTED });
     }
-    this.text(company?.company_name || '', { size: 9, color: MUTED });
+    if (logo) this.text(company?.company_name || '', { size: 9, color: MUTED });
     if (company?.company_address) this.text(company.company_address, { size: 9, color: MUTED });
     this.space(14);
     this.page.drawLine({ start: { x: this.x, y: this.y }, end: { x: this.x + this.w, y: this.y }, thickness: 1, color: LINE });
     this.space(16);
+  }
+
+  // Embedded logo image (PNG or JPG), or null when there is none or it can't be read
+  async logo(company) {
+    const bytes = await logoBytes(company?.logo_key);
+    if (!bytes) return null;
+    try {
+      return bytes[0] === 0x89 ? await this.pdf.embedPng(bytes) : await this.pdf.embedJpg(bytes);
+    } catch (e) {
+      console.warn('[pdf] logo not embedded:', e.message);
+      return null;
+    }
   }
 
   // Two columns of label/value pairs
@@ -87,7 +108,7 @@ class Doc {
   section(title) {
     this.space(6);
     this.ensure(30);
-    this.text(title, { size: 11, font: this.bold, color: BLUE, gap: 8 });
+    this.text(title, { size: 11, font: this.bold, color: this.accent || BLUE, gap: 8 });
   }
 
   // cols: [{ label, width (fraction), align }]
@@ -142,7 +163,18 @@ class Doc {
     }
   }
 
-  async base64() { return Buffer.from(await this.pdf.save()).toString('base64'); }
+  // Small platform credit on every page
+  credit() {
+    const t = 'Generated with Orb Security';
+    for (const p of this.pdf.getPages()) {
+      p.drawText(t, { x: 595.28 - 48 - this.font.widthOfTextAtSize(t, 6.5), y: 18, size: 6.5, font: this.font, color: MUTED });
+    }
+  }
+
+  async base64() {
+    this.credit();
+    return Buffer.from(await this.pdf.save()).toString('base64');
+  }
 }
 
 export { Doc };
@@ -151,22 +183,26 @@ export async function qrPng(text, width = 600) {
   return QRCode.toBuffer(text, { type: 'png', width, margin: 1, color: { dark: '#0B1220', light: '#FFFFFF' } });
 }
 
-export async function qrPosterPdf(venue, payload) {
+export async function qrPosterPdf(venue, payload, company) {
   const d = await Doc.create(`QR poster - ${venue.name}`);
   const p = d.page;
   p.drawRectangle({ x: 0, y: 0, width: 595.28, height: 841.89, color: rgb(0.95, 0.96, 0.97) });
   p.drawRectangle({ x: 60, y: 120, width: 475, height: 640, color: rgb(1, 1, 1), borderColor: LINE, borderWidth: 1 });
-  p.drawCircle({ x: 297.6, y: 715, size: 16, color: BLUE });
-  p.drawCircle({ x: 297.6, y: 715, size: 7, color: rgb(1, 1, 1) });
+  const accent = hexToRgb(company?.brand_color);
+  const logo = await d.logo(company);
   const center = (s, y, size, font = d.bold, color = INK) => {
     const t = clean(s);
     p.drawText(t, { x: 297.6 - font.widthOfTextAtSize(t, size) / 2, y, size, font, color });
   };
+  if (logo) {
+    const { width, height } = logo.scaleToFit(200, 48);
+    p.drawImage(logo, { x: 297.6 - width / 2, y: 700, width, height });
+  } else center(company?.company_name || 'Orb Security', 712, 16, d.bold, accent);
   center('Officer clock-in', 665, 26);
   center(venue.name, 638, 14, d.font, MUTED);
   const img = await d.pdf.embedPng(await qrPng(payload, 800));
   p.drawImage(img, { x: 297.6 - 160, y: 290, width: 320, height: 320 });
-  center('Open the Orb app  >  Clock in  >  Scan this code', 250, 12, d.font);
+  center('Open the app  >  Clock in  >  Scan this code', 250, 12, d.font);
   center('You must be on site. Location is checked.', 230, 10, d.font, MUTED);
   center(`Code v${venue.qr_version}  -  do not copy or photograph for use elsewhere`, 150, 8, d.font, MUTED);
   return d.base64();
