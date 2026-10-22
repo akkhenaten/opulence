@@ -43,11 +43,13 @@ const DISMISS_DAYS = 30;
 const dismissedRecently = () => Date.now() - Number(localStorage.getItem(DISMISS_KEY) || 0) < DISMISS_DAYS * 864e5;
 
 function IosSteps() {
+  const n = (i) => <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-soft text-caption font-bold text-blue">{i}</span>;
+  const icon = 'mx-0.5 inline align-[-3px] text-blue';
   return (
     <ol className="space-y-2 text-subhead">
-      <li className="flex items-center gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-soft text-caption font-bold text-blue">1</span>Open this page in <b>Safari</b></li>
-      <li className="flex items-center gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-soft text-caption font-bold text-blue">2</span>Tap <Share size={16} className="text-blue" aria-label="Share" /> <b>Share</b> at the bottom of the screen</li>
-      <li className="flex items-center gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-soft text-caption font-bold text-blue">3</span>Choose <SquarePlus size={16} className="text-blue" aria-hidden /> <b>Add to Home Screen</b>, then <b>Add</b></li>
+      <li className="flex items-start gap-2">{n(1)}<span className="pt-0.5">Open this page in <b>Safari</b></span></li>
+      <li className="flex items-start gap-2">{n(2)}<span className="pt-0.5">Tap <Share size={16} className={icon} aria-label="Share" /><b>Share</b> at the bottom of the screen</span></li>
+      <li className="flex items-start gap-2">{n(3)}<span className="pt-0.5">Choose <SquarePlus size={16} className={icon} aria-hidden /><b>Add to Home Screen</b>, then <b>Add</b></span></li>
     </ol>
   );
 }

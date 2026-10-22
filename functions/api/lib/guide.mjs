@@ -40,7 +40,7 @@ Shift and safety alerts always come through. You can switch the others (mentions
       },
       {
         id: 'updates', title: 'Updates and working offline',
-        body: `When a new version of the app is released, a "New version available" message appears. Tap Refresh to start using it.
+        body: `When a new version of the app is released, a "A new version of Orb is available" message appears. Tap Refresh to start using it.
 
 If your phone loses signal, an amber "You're offline" bar appears under the top bar. The app still opens, but nothing is saved until you are back online. Clocking in and sending reports need a connection.`,
       },
@@ -79,7 +79,7 @@ On the venue page you can:
       },
       {
         id: 'staff', title: 'Add your officers', image: 'staff.png',
-        body: `Open Staff and tap Add officer. Enter their name, email, phone and SIA licence. The app checks licence expiry and warns you before it runs out.
+        body: `Open Staff and tap Add staff member. Enter their name, email, phone and SIA licence. The app checks licence expiry and warns you before it runs out.
 
 For new starters use Recruitment: add an applicant, tick off onboarding tasks (right to work, documents, training), then activate them. You can email them an app login when they are ready.`,
       },
@@ -102,7 +102,7 @@ Under Roles and requirements, choose which SIA licences cover each role (for exa
     sections: [
       {
         id: 'shifts', title: 'Create and publish shifts', image: 'rota.png',
-        body: `Open Rota. Tap Add (or + Add on a day) and choose the venue, role, date, start and end time, break and how many officers are needed. Use Repeat for regular weekly shifts.
+        body: `Open Rota. Tap + Add on a day (or the + next to a venue) and choose the venue, role, date, start and end time, break and how many officers are needed. Turn on Repeat to copy the same times to other days.
 
 Tap Assign to put officers on the shift. Officers you assign are asked to confirm. When the week is ready, tap Publish so officers see it.`,
       },
@@ -112,7 +112,7 @@ Tap Assign to put officers on the shift. Officers you assign are asked to confir
       },
       {
         id: 'open', title: 'Open shifts and shift requests',
-        body: `Mark a shift as an Open shift to let eligible officers request it from their app. Requests appear on the Rota page: Approve or Decline each one. Officers can also accept or decline offers you send them.`,
+        body: `Turn on Open shift when you create a shift to let eligible officers request it from their app. Requests appear on the Rota page: Approve or Decline each one. Officers can also accept or decline offers you send them.`,
       },
       {
         id: 'cover', title: 'Cover requests from venues', image: 'cover.png',
@@ -158,8 +158,8 @@ Open Incidents to review a report. You can request changes (the officer fixes an
 1. Drafts created: check the statements.
 2. Staff review: tap Send for review so each officer can approve their statement or raise a query.
 3. Finalised: resolve any queries, then tap Finalise.
-4. Issued: officers get their remittance statement (PDF) in the app.
-5. Paid: mark the run as paid when the money has gone out.
+4. Issued: tap Issue. Each officer is emailed their remittance statement and a PDF copy is saved in their documents.
+5. Paid: tap Mark paid when the money has gone out. Officers are told their payment is on its way.
 
 Officers are self-employed: statements show that no tax or NI has been deducted.`,
       },
@@ -206,7 +206,7 @@ Compliance checks licences, right to work, documents and training against the ro
     id: 'comms', title: 'Communication', roles: MGR,
     sections: [
       {
-        id: 'messages', title: 'Messages', image: 'messages.png',
+        id: 'messages', title: 'Messages',
         body: `Messages is private chat with officers, managers and venues. Start a new message, add people, and send text and photos. Unread messages show a count on the Messages icon.`,
       },
       {
@@ -278,7 +278,7 @@ AI features use credits from your plan. The usage is shown in Settings.`,
       },
       {
         id: 'shifts', title: 'Shifts and picking up work', image: 'officer-shifts.png',
-        body: `Shifts shows your calendar and list. Accept or Decline offers, and use Open shifts to Request extra work. Set your Availability so managers know when you can work.`,
+        body: `Shifts shows your calendar and list. Accept or Decline offers, and use Find open shifts to Request extra work. Set your Availability so managers know when you can work.`,
       },
       {
         id: 'clock', title: 'Clock in and out', image: 'officer-clock.png',
