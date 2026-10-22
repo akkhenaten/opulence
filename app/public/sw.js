@@ -1,6 +1,6 @@
 // App-shell cache only: API calls and private files always go to the network.
-const CACHE = 'orb-shell-v2';
-self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/app/', '/app/icon.svg']))); self.skipWaiting(); });
+const CACHE = 'orb-shell-v3';
+self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/app/', '/app/icon.svg', '/app/icon-192.png', '/app/badge-96.png']))); self.skipWaiting(); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
@@ -19,7 +19,7 @@ self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
   e.waitUntil(self.registration.showNotification(d.title || 'Orb Security', {
-    body: d.body || '', icon: '/app/icon.svg', badge: '/app/icon.svg', data: { link: d.link || '' }, tag: d.tag,
+    body: d.body || '', icon: '/app/icon-192.png', badge: '/app/badge-96.png', data: { link: d.link || '' }, tag: d.tag,
   }));
 });
 self.addEventListener('notificationclick', (e) => {

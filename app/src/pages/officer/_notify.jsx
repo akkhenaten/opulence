@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { BellRing, Smartphone } from 'lucide-react';
 import { api } from '../../api.js';
 import { Button, Load, Sheet, Toggle, useAction, useApi, useToast } from '../../ui/index.jsx';
+import { isIOS, standalone } from '../../ui/pwa.jsx';
 
 export const NOTIFY_KINDS = [
   { key: 'mention', label: 'Someone mentions me', hint: 'In an Everyday post or comment' },
@@ -16,8 +17,6 @@ const b64 = (s) => {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 };
 const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
-const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 
 async function currentSub() {
   if (!supported()) return null;

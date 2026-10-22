@@ -1,19 +1,31 @@
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { Bell, BellOff, ChevronRight, LogOut, MessagesSquare, MoreHorizontal, Newspaper } from 'lucide-react';
+import { Bell, BellOff, BookOpen, ChevronRight, LogOut, MessagesSquare, MoreHorizontal, Newspaper } from 'lucide-react';
 import { api } from '../api.js';
 import { portalLink, useAuth } from '../auth.jsx';
 import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, usePageHeader, useScrollMemory } from '../ui/index.jsx';
 import { NAV, ROLE_LABEL } from './nav.js';
 import { AccountSheet } from './AccountSheet.jsx';
 import AskOrb, { AskOrbButton } from '../ui/AskOrb.jsx';
+import { OfflineBanner, useUpdateToast } from '../ui/pwa.jsx';
 
 // The company's logo, or its name next to the mark in the brand colour.
 // faded: the wordmark fades out (header shows the page title instead)
-export function Logo({ compact, faded }) {
+// place: sidebar / header / auth — wide logos get a height cap, square ones a bigger tile
+const LOGO_SIZE = {
+  sidebar: { wide: 'h-11 max-w-[200px]', square: 'h-14 max-w-[200px]' },
+  header: { wide: 'h-9 max-w-[160px]', square: 'h-10 max-w-[160px]' },
+  auth: { wide: 'h-14 max-w-[240px]', square: 'h-20 max-w-[240px]' },
+};
+export function Logo({ compact, faded, place = 'header' }) {
   const { brand } = useAuth();
+  const [wide, setWide] = useState(false);
   const fade = cx('transition-opacity duration-[var(--dur-2)]', faded && 'opacity-0');
-  if (brand.logo_url && !compact) return <img src={brand.logo_url} alt={brand.name} className={cx('h-8 w-auto max-w-[168px] object-contain object-left', fade)} />;
+  if (brand.logo_url && !compact) {
+    const size = LOGO_SIZE[place] || LOGO_SIZE.header;
+    return <img src={brand.logo_url} alt={brand.name} onLoad={(e) => setWide(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight > 2)}
+      className={cx('w-auto min-w-0 shrink object-contain object-left', wide ? size.wide : size.square, fade)} />;
+  }
   const orb = brand.name === 'Orb Security';
   return (
     <div className="flex min-w-0 items-center gap-2.5">
@@ -84,7 +96,7 @@ function EverydayButton({ to, unread }) {
 function HeaderTitle() {
   const { title, collapsed } = usePageHeader();
   return (
-    <div aria-hidden="true" className={cx('pointer-events-none absolute inset-x-0 top-0 flex h-14 items-center justify-center px-28 transition-[opacity,transform] duration-[var(--dur-2)] ease-ios', collapsed && title ? 'opacity-100' : 'translate-y-1 opacity-0')}>
+    <div aria-hidden="true" className={cx('pointer-events-none absolute inset-x-0 top-0 flex h-14 items-center justify-start pl-[calc(var(--px)+env(safe-area-inset-left))] pr-[13rem] transition-[opacity,transform] duration-[var(--dur-2)] ease-ios', collapsed && title ? 'opacity-100' : 'translate-y-1 opacity-0')}>
       <span className="truncate text-headline font-semibold">{title}</span>
     </div>
   );
@@ -142,6 +154,7 @@ export default function Shell() {
   const isOfficer = user.role === 'officer';
   useEffect(() => { setMore(false); setAccount(false); }, [loc.pathname]);
   useScrollMemory();
+  useUpdateToast();
   const header = usePageHeader();
   // Desktop header is see-through at the top; it gets its frosted background once the page scrolls under it
   const [scrolled, setScrolled] = useState(false);
@@ -179,7 +192,7 @@ export default function Shell() {
       {/* Desktop sidebar (managers) */}
       {!isOfficer && (
         <aside className="sticky top-0 hidden h-dvh w-[260px] shrink-0 flex-col border-r border-line/70 bg-surface/70 px-3 py-5 backdrop-blur-xl lg:flex">
-          <div className="px-3 pb-6"><Logo /></div>
+          <div className="px-3 pb-6"><Logo place="sidebar" /></div>
           <nav className="flex-1 space-y-4 overflow-y-auto no-scrollbar">
             {groups.map((g, i) => (
               <div key={i}>
@@ -193,6 +206,10 @@ export default function Shell() {
               </div>
             ))}
           </nav>
+          <NavLink to={`/${user.role}/help`}
+            className={({ isActive: on }) => cx('pressable mt-2 flex min-h-9 items-center gap-3 rounded-xl px-3 py-1.5 text-subhead font-semibold', on ? 'bg-blue-soft text-blue' : 'text-ink/75 hover:bg-bg hover:text-ink')}>
+            <BookOpen size={18} /><span className="flex-1">Help & user guide</span>
+          </NavLink>
           <Pressable press onClick={() => setAccount(true)} aria-label="My account" className="mt-4 flex items-center gap-3 rounded-2xl bg-bg p-3 hover:bg-line/40">
             <Avatar name={user.name} src={user.photo_url} size={36} />
             <div className="min-w-0 flex-1"><div className="truncate text-subhead font-semibold">{user.name}</div><div className="truncate text-caption text-muted">{ROLE_LABEL[user.role]}</div></div>
@@ -206,7 +223,7 @@ export default function Shell() {
         <header className={cx('sticky top-0 z-30 border-b border-line/50 bg-bg/80 backdrop-blur-xl safe-t', !isOfficer && !scrolled && 'lg:border-transparent lg:bg-transparent lg:backdrop-blur-none', 'transition-[background-color,border-color] duration-200')}>
           <div className={cx('relative mx-auto flex h-14 items-center justify-between [--px:1rem] sm:[--px:1.5rem] safe-x', isOfficer ? 'max-w-2xl' : header.wide ? 'max-w-[1400px]' : 'max-w-6xl')}>
             <HeaderTitle />
-            <div className={cx(!isOfficer && 'lg:invisible')}><Logo faded={header.collapsed && !!header.title} /></div>
+            <div className={cx('flex min-w-0', !isOfficer && 'lg:invisible')}><Logo faded={header.collapsed && !!header.title} /></div>
             <div className="flex items-center gap-2">
               {isMgr && <AskOrbButton onClick={() => setAsk((v) => !v)} />}
               {feedOn && <EverydayButton to={isOfficer ? '/officer/everyday' : `/${user.role}?tab=everyday`} unread={badges.everyday} />}
@@ -220,6 +237,7 @@ export default function Shell() {
             </div>
           </div>
         </header>
+        <OfflineBanner />
         <main className={cx(isOfficer && 'mx-auto max-w-2xl')}>
           <Suspense fallback={<SkeletonPage />}>
             <div key={loc.pathname} className={pageAnim}><Outlet /></div>

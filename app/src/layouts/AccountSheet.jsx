@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
-import { Bell, Camera, KeyRound, LogOut, UserPen } from 'lucide-react';
+import { Bell, BookOpen, Camera, Download, KeyRound, LogOut, UserPen } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { api, upload } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { Avatar, Button, Input, List, Pill, Pressable, Row, Sheet, useAction, useForm } from '../ui/index.jsx';
 import { NotificationsSheet } from '../pages/officer/_notify.jsx';
 import { compressImage } from '../pages/officer/_parts.jsx';
 import { ROLE_LABEL } from './nav.js';
+import { InstallSheet, usePwa } from '../ui/pwa.jsx';
 
 const TITLES = { password: 'Change password', details: 'My details' };
 
@@ -15,6 +17,8 @@ export function AccountSheet({ open, onClose }) {
   const [view, setView] = useState('main');
   const [runPhoto, photoBusy] = useAction();
   const file = useRef(null);
+  const nav = useNavigate();
+  const pwa = usePwa();
   const close = () => { setView('main'); onClose(); };
   const setPhoto = (getKey, msg) => runPhoto(async () => { await api('auth.updateMe', { photo_key: await getKey() }); await refresh(); }, msg).catch(() => {});
   const pick = (e) => {
@@ -24,7 +28,7 @@ export function AccountSheet({ open, onClose }) {
   };
   return (
     <>
-      <Sheet open={open && view !== 'notify'} onClose={close} title={TITLES[view] || 'My account'} size="sm">
+      <Sheet open={open && view !== 'notify' && view !== 'install'} onClose={close} title={TITLES[view] || 'My account'} size="sm">
         {view === 'password' ? <PasswordForm onDone={() => setView('main')} /> : view === 'details' ? <DetailsForm onDone={() => setView('main')} /> : (
           <div className="space-y-5">
             <div className="flex items-center gap-3">
@@ -47,11 +51,16 @@ export function AccountSheet({ open, onClose }) {
               <Row left={<KeyRound size={20} className="text-blue" />} title="Password" subtitle="Change the password you sign in with" chevron onClick={() => setView('password')} />
               <Row left={<Bell size={20} className="text-blue" />} title="Notifications" subtitle="Which alerts you get, and phone notifications" chevron onClick={() => setView('notify')} />
             </List>
+            <List>
+              <Row left={<BookOpen size={20} className="text-blue" />} title="Help & user guide" subtitle="How to use the app, step by step" chevron onClick={() => { close(); nav(`/${user.role}/help`); }} />
+              {!pwa.installed && <Row left={<Download size={20} className="text-blue" />} title="Install the app" subtitle="Open Orb from your home screen or desktop" chevron onClick={() => setView('install')} />}
+            </List>
             <Button variant="danger" icon={LogOut} className="w-full" onClick={signOut}>Sign out</Button>
           </div>
         )}
       </Sheet>
       <NotificationsSheet open={open && view === 'notify'} onClose={() => setView('main')} />
+      <InstallSheet open={open && view === 'install'} onClose={() => setView('main')} />
     </>
   );
 }

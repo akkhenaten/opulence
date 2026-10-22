@@ -6,6 +6,7 @@ import { FeedbackTile, RateStaffSheet } from '../venue/_feedback.jsx';
 import {
   Bento, Button, Dot, List, Load, Page, Pill, Row, Section, Stat, Tile, cx, dayLabel, money, range, relative, titleCase, useApi,
 } from '../../ui/index.jsx';
+import { InstallCard } from '../../ui/pwa.jsx';
 
 const STATE_LABEL = { late: 'Late', no_show: 'No show', left_early: 'Left early' };
 
@@ -42,6 +43,7 @@ function Body({ d, name }) {
   return (
     <Page title={`${greeting()}${name ? `, ${name}` : ''}`} subtitle={multi ? `${d.venues.length} venues` : d.venues[0].name}
       actions={<><Button variant="secondary" icon={Star} onClick={() => setRate(true)}>Rate staff</Button><Button icon={Plus} to="/venue/cover">Request cover</Button></>}>
+      <InstallCard className="mb-4" />
       <FeedbackTile multi={multi} />
       <RateStaffSheet open={rate} onClose={() => setRate(false)} />
       <Bento>

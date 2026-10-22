@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Award, BadgeCheck, Bell, Newspaper, Target, CalendarOff, GraduationCap, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
+  Award, BadgeCheck, Bell, BookOpen, Download, Newspaper, Target, CalendarOff, GraduationCap, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -10,6 +10,7 @@ import {
 } from '../../ui/index.jsx';
 import { StatePill, useModules } from '../learn/_parts.jsx';
 import { NotificationsSheet } from './_notify.jsx';
+import { InstallSheet, usePwa } from '../../ui/pwa.jsx';
 import { expiryText, expiryTone, NotLinked } from './_parts.jsx';
 
 const ICON_TONE = { blue: 'bg-blue text-white', green: 'bg-green text-white', amber: 'bg-amber text-white', red: 'bg-red text-white', grey: 'bg-faint text-white', ink: 'bg-ink text-white' };
@@ -20,6 +21,8 @@ export default function Me() {
   const confirm = useConfirm();
   const [pw, setPw] = useState(false);
   const [notes, setNotes] = useState(false);
+  const [inst, setInst] = useState(false);
+  const pwa = usePwa();
   const modules = useModules();
   const linked = !!user.officer_id;
   const me = useApi('officers.get', {}, { skip: !linked });
@@ -35,6 +38,8 @@ export default function Me() {
       <List>
         <Row left={<Ico icon={Bell} tone="amber" />} title="Notifications" subtitle="What to hear about, phone notifications" onClick={() => setNotes(true)} chevron />
         <Row left={<Ico icon={KeyRound} tone="grey" />} title="Change password" onClick={() => setPw(true)} chevron />
+        {!pwa.installed && <Row left={<Ico icon={Download} />} title="Install the app" subtitle="Open Orb from your home screen" onClick={() => setInst(true)} chevron />}
+        <Row to="/officer/help" left={<Ico icon={BookOpen} tone="green" />} title="Help & user guide" />
         <Row left={<Ico icon={LogOut} tone="red" />} title={<span className="text-red">Sign out</span>} subtitle={user.email} onClick={out} />
       </List>
     </Section>
@@ -48,6 +53,7 @@ export default function Me() {
         {account}
         <PasswordSheet open={pw} onClose={() => setPw(false)} />
         <NotificationsSheet open={notes} onClose={() => setNotes(false)} />
+        <InstallSheet open={inst} onClose={() => setInst(false)} />
       </Page>
     );
   }
@@ -156,6 +162,7 @@ export default function Me() {
       </Load>
       <PasswordSheet open={pw} onClose={() => setPw(false)} />
       <NotificationsSheet open={notes} onClose={() => setNotes(false)} />
+      <InstallSheet open={inst} onClose={() => setInst(false)} />
     </Page>
   );
 }

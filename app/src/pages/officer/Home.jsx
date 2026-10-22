@@ -10,6 +10,7 @@ import {
 import { useModules } from '../learn/_parts.jsx';
 import { ChaseBanner, OffersList, useOps } from './_ops.jsx';
 import { ASSIGN_LABEL, assignTone, expiryText, greeting, NotLinked, ShiftCard, until } from './_parts.jsx';
+import { InstallCard } from '../../ui/pwa.jsx';
 
 export default function Home() {
   const { user } = useAuth();
@@ -23,6 +24,7 @@ export default function Home() {
   return (
     <Page title={`${greeting()}${first ? `, ${first}` : ''}`} subtitle={dayLabel(new Date())}>
       {pull}
+      <InstallCard className="mb-4" />
       <Load q={dash} skeleton="tiles">
         {(d) => (d.linked === false ? <NotLinked /> : <Body d={d} clock={clock} ops={ops} reload={reloadAll} />)}
       </Load>

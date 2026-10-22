@@ -211,7 +211,7 @@ function Timeline({ status }) {
           <span className={cx('grid h-6 w-6 place-items-center rounded-full text-caption font-bold', i < at ? 'bg-green text-white' : i === at ? 'bg-blue text-white' : 'bg-fill text-muted')}>
             {i < at ? <CheckIcon size={14} /> : i + 1}
           </span>
-          <span className={cx('text-footnote font-semibold', i === at ? 'text-ink' : 'text-muted')}>{STEP_TEXT[s]}</span>
+          <span className={cx('text-footnote font-semibold', i === at ? 'text-ink' : 'hidden text-muted sm:inline')}>{STEP_TEXT[s]}</span>
           {i < STEPS.length - 1 && <span className={cx('mx-1.5 h-px w-6', i < at ? 'bg-green' : 'bg-line')} />}
         </li>
       ))}

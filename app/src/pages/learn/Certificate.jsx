@@ -16,7 +16,7 @@ export default function Certificate() {
           return (
           <div className="print-sheet mx-auto max-w-2xl rounded-tile border-2 bg-surface p-8 text-center shadow-tile sm:p-12" style={{ borderColor: `${color}33` }}>
             {c.logo_url
-              ? <img src={c.logo_url} alt={c.company_name} className="mx-auto h-14 w-auto max-w-[220px] object-contain" />
+              ? <img src={c.logo_url} alt={c.company_name} className="mx-auto h-20 w-auto max-w-[280px] object-contain" />
               : <svg viewBox="0 0 512 512" className="mx-auto h-12 w-12" aria-hidden><rect width="512" height="512" rx="120" fill={color} /><circle cx="256" cy="256" r="132" fill="none" stroke="#fff" strokeWidth="44" /><circle cx="256" cy="256" r="40" fill="#fff" /></svg>}
             <div className="mt-3 text-caption font-semibold uppercase tracking-[0.2em]" style={{ color }}>{c.company_name || 'Orb Security'} Academy</div>
             <div className="mt-6 text-[14px] text-muted">This is to record that</div>

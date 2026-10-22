@@ -72,6 +72,7 @@ const CourseEditor = P(() => import('./pages/team/CourseEditor.jsx'));
 const Everyday = P(() => import('./pages/everyday/Feed.jsx'));
 const ToolboxAdmin = P(() => import('./pages/team/ToolboxAdmin.jsx'));
 const CardEditor = P(() => import('./pages/team/CardEditor.jsx'));
+const Help = P(() => import('./pages/shared/Help.jsx'));
 
 function Guard({ role }) {
   const { user, ready } = useAuth();
@@ -86,13 +87,21 @@ function Root() {
   if (!ready) return <Spinner className="min-h-dvh" />;
   return <Navigate to={user ? HOME[user.role] : '/login'} replace />;
 }
+// Home-screen shortcuts (manifest) are the same for everyone: open the right page for the person's role
+const SHORTCUTS = {
+  clock: { officer: '/officer/clock', company: '/company/live', security: '/security/live', venue: '/venue/live' },
+  rota: { officer: '/officer/shifts', company: '/company/rota', security: '/security/rota', venue: '/venue/logs' },
+  incidents: { officer: '/officer/incidents', company: '/company/incidents', security: '/security/incidents', venue: '/venue/incidents' },
+};
 // Tapping a phone notification lands here: send the person to the link inside their own portal
 function Open() {
   const { user, ready } = useAuth();
   const [sp] = useSearchParams();
   if (!ready) return <Spinner className="min-h-dvh" />;
   if (!user) return <Navigate to="/login" replace />;
-  return <Navigate to={portalLink(sp.get('to') || '', user.role).replace(/^\/app/, '') || HOME[user.role]} replace />;
+  const to = sp.get('to') || '';
+  if (SHORTCUTS[to]) return <Navigate to={SHORTCUTS[to][user.role] || HOME[user.role]} replace />;
+  return <Navigate to={portalLink(to, user.role).replace(/^\/app/, '') || HOME[user.role]} replace />;
 }
 function PublicOnly({ children }) {
   const { user, ready } = useAuth();
@@ -125,6 +134,7 @@ const managerRoutes = (
     <Route path="everyday" element={<EverydayRedirect />} />
     <Route path="messages" element={<Messages />} />
     <Route path="messages/:id" element={<Messages />} />
+    <Route path="help" element={<Help />} />
   </>
 );
 
@@ -189,6 +199,7 @@ function App() {
             <Route path="incidents/:id" element={<IncidentDetail />} />
             <Route path="invoices" element={<Invoices />} />
             <Route path="invoices/:id" element={<InvoiceDetail />} />
+            <Route path="help" element={<Help />} />
           </Route>
         </Route>
 
@@ -204,6 +215,7 @@ function App() {
             <Route path="messages/:id" element={<Messages />} />
             <Route path="pay/:id" element={<OfficerPay />} />
             <Route path="me" element={<OfficerMe />} />
+            <Route path="help" element={<Help />} />
             <Route path="documents" element={<OfficerDocuments />} />
             <Route path="time-off" element={<OfficerTimeOff />} />
             <Route path="profile" element={<OfficerProfile />} />
@@ -243,4 +255,9 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 );
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' }).catch(() => {});
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  // A new release takes over an open app (skipWaiting): offer a refresh, but not on the very first install
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) window.dispatchEvent(new Event('orb:update')); });
+  navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' }).then((r) => r.update()).catch(() => {});
+}

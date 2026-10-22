@@ -54,6 +54,42 @@ const DEFAULT_COLOR = '#0A6CFF';
 const PRESETS = ['#0A6CFF', '#1B5E20', '#00796B', '#C62828', '#6A1B9A', '#0B1220'];
 const HEX = /^#[0-9a-f]{6}$/i;
 
+// Crops the empty border (white, off-white or transparent) off a logo, keeping a small even margin.
+// Returns the original file when there's nothing to trim or the image looks blank.
+async function trimLogo(file) {
+  try {
+    const bmp = await createImageBitmap(file);
+    const { width: w, height: h } = bmp;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(bmp, 0, 0);
+    const px = ctx.getImageData(0, 0, w, h).data;
+    const bg = [px[0], px[1], px[2], px[3]];
+    const isBg = (i) => px[i + 3] < 16 || (bg[3] > 16 && Math.abs(px[i] - bg[0]) <= 24 && Math.abs(px[i + 1] - bg[1]) <= 24 && Math.abs(px[i + 2] - bg[2]) <= 24);
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (isBg((y * w + x) * 4)) continue;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+    if (x1 < 0 || bw * bh < w * h * 0.05) return file;
+    const m = Math.round(Math.max(bw, bh) * 0.04);
+    const cx0 = Math.max(0, x0 - m), cy0 = Math.max(0, y0 - m);
+    const cw = Math.min(w, x1 + m + 1) - cx0, ch = Math.min(h, y1 + m + 1) - cy0;
+    if (cw >= w && ch >= h) return file;
+    // PNG keeps transparency; cap the size so the file stays well under the 2 MB limit
+    const k = Math.min(1, 1200 / Math.max(cw, ch));
+    const out = document.createElement('canvas');
+    out.width = Math.round(cw * k); out.height = Math.round(ch * k);
+    out.getContext('2d').drawImage(c, cx0, cy0, cw, ch, 0, 0, out.width, out.height);
+    const blob = await new Promise((res) => out.toBlob(res, 'image/png'));
+    return blob ? new File([blob], (file.name || 'logo').replace(/\.[^.]+$/, '') + '.png', { type: 'image/png' }) : file;
+  } catch {
+    return file;
+  }
+}
+
 // The company's logo and colour, used on reports, certificates, emails and in the app
 function BrandingTile({ s, onSaved }) {
   const { refresh } = useAuth();
@@ -69,7 +105,7 @@ function BrandingTile({ s, onSaved }) {
     if (!f) return;
     if (!['image/png', 'image/jpeg'].includes(f.type)) return runLogo(async () => { throw new Error('The logo must be a PNG or JPG image'); }).catch(() => {});
     if (f.size > 2 * 1024 * 1024) return runLogo(async () => { throw new Error('The logo must be under 2 MB'); }).catch(() => {});
-    setLogo(() => upload(f, 'company'), 'Logo updated');
+    setLogo(async () => upload(await trimLogo(f), 'company'), 'Logo updated');
   };
   const valid = HEX.test(color);
   const current = (s.brand_color || DEFAULT_COLOR).toLowerCase();
@@ -87,7 +123,7 @@ function BrandingTile({ s, onSaved }) {
           <div>
             <div className="mb-1.5 text-footnote font-semibold text-muted">Logo</div>
             <div className="flex items-center gap-3">
-              <div className="grid h-16 w-40 shrink-0 place-items-center rounded-xl border border-line bg-white p-2">
+              <div className="grid h-20 w-44 shrink-0 place-items-center rounded-xl border border-line bg-white p-2">
                 {s.logo_url ? <img src={s.logo_url} alt="Company logo" className="max-h-full max-w-full object-contain" /> : <ImageUp size={24} className="text-faint" />}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -96,7 +132,7 @@ function BrandingTile({ s, onSaved }) {
               </div>
               <input ref={file} type="file" accept="image/png,image/jpeg" className="hidden" onChange={pick} />
             </div>
-            <div className="mt-1.5 text-caption text-muted">PNG or JPG, under 2 MB. A wide logo at least 400 px across, on a transparent or white background, works best.</div>
+            <div className="mt-1.5 text-caption text-muted">PNG or JPG, under 2 MB. A wide logo at least 400 px across, on a transparent or white background, works best. Empty borders are trimmed automatically{s.logo_url ? ' — re-upload your logo to get the tighter crop' : ''}.</div>
           </div>
           <div>
             <div className="mb-1.5 text-footnote font-semibold text-muted">Brand colour</div>
@@ -430,8 +466,8 @@ function RulesTab() {
     <Section title="Pay, timesheets and uplifts" className="mt-0">
       <Load q={settings}>{(s) => <SettingsForm s={s} keys={RULE_KEYS} onSaved={(d) => settings.setData(d)}>{(b) => <RuleFields b={b} />}</SettingsForm>}</Load>
     </Section>
-    <div className="mt-6 grid gap-4 lg:grid-cols-5">
-      <div className="lg:col-span-2">
+    <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-5">
+      <div className="min-w-0 lg:col-span-2">
         <Section title="Roles and requirements" className="mt-0">
           <Load q={roles}>
             {(rows) => (
@@ -448,7 +484,7 @@ function RulesTab() {
         </Section>
         {editing && <RoleSheet role={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); roles.reload(); }} />}
       </div>
-      <div className="lg:col-span-3">
+      <div className="min-w-0 lg:col-span-3">
         <Section title="Bank holidays" className="mt-0" action={<Pressable press className="text-footnote font-semibold text-blue" onClick={() => setShowPast((x) => !x)}>{showPast ? 'Hide past' : 'Show past'}</Pressable>}>
           <Tile className="mb-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">

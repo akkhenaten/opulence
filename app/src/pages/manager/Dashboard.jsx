@@ -7,6 +7,7 @@ import {
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 import { FeedBody } from '../everyday/Feed.jsx';
+import { InstallCard } from '../../ui/pwa.jsx';
 
 // Everyday lives on the Dashboard now; old links (and notification links) land on that tab
 export function EverydayRedirect() {
@@ -57,6 +58,7 @@ export default function Dashboard() {
         <Tabs value={tab} onChange={(t) => setSp(t === 'overview' ? {} : { tab: t }, { replace: true })}
           tabs={[{ value: 'overview', label: 'Overview' }, { value: 'everyday', label: 'Everyday', count: unread.data?.unread || undefined }]} />
       )}
+      {tab !== 'everyday' && <InstallCard className="mb-4" />}
       {tab === 'everyday' ? <FeedBody /> : <Load q={q}>{(d) => <Body d={d} base={base} isCompany={user.role === 'company'} />}</Load>}
     </Page>
   );
