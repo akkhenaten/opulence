@@ -371,7 +371,7 @@ export const actions = {
       return out;
     });
     const conv = series ? await coverThread(series, occ.venue_name) : null;
-    const text = all ? `Accepted all ${shifts.length} dates${series.kind === 'recurring' ? ' — new dates will be booked automatically' : ''}` : `Accepted ${fmtDate(occ.occurs_on || occ.starts_at)}`;
+    const text = all ? `Accepted all ${shifts.length} dates${series.kind === 'recurring' && !series.end_date ? ' — new dates will be booked automatically' : ''}` : `Accepted ${fmtDate(occ.occurs_on || occ.starts_at)}`;
     if (conv) await post(conv.id, user.id, { body: `${text}. We'll confirm the team nearer the time.` });
     await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Cover request accepted', body: text, link: '/venue/cover', email: true });
     await audit(user, 'cover.accept', 'cover_request', occ.id, { scope: all ? 'series' : 'one', count: shifts.length });

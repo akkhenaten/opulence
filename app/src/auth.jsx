@@ -55,6 +55,8 @@ export function AuthProvider({ children }) {
 export function portalLink(link, role) {
   if (!link) return HOME[role];
   if (link.startsWith('/everyday') || link.startsWith('/messages')) return `${HOME[role] === '/' ? '' : HOME[role]}${link}`;
+  // One shift page for everyone: officers, managers and the venue each open it in their own portal
+  if (link.startsWith('/officer/shifts/') && role !== 'officer') return link.replace('/officer/shifts/', role === 'venue' ? '/venue/logs/' : `/${role}/shifts/`);
   if (role === 'security') return link.replace(/^\/company/, '/security');
   return link;
 }

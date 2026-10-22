@@ -2,7 +2,8 @@
 // (cover requests, shift teams, Orb Ops for chases and cover offers, pay disputes).
 import { one, q } from '../lib/db.mjs';
 import { fail, required, need, HttpError } from '../lib/http.mjs';
-import { downloadUrl, headObject } from '../lib/storage.mjs';
+import { downloadUrl } from '../lib/storage.mjs';
+import { cleanFiles } from '../lib/files.mjs';
 import { notify, companyManagers } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
 import { extract, HAIKU } from '../lib/ai.mjs';
@@ -41,17 +42,7 @@ async function canWrite(user, convId) {
   return { c, m };
 }
 
-async function cleanAttachments(user, list) {
-  const out = [];
-  for (const a of (Array.isArray(list) ? list : []).slice(0, 6)) {
-    if (!String(a.key || '').startsWith(`docs/messages/${user.id.slice(0, 8)}/`)) fail(400, 'Upload the file first');
-    const h = await headObject(a.key);
-    if (!h) fail(400, 'Upload the file first');
-    if (h.size > 15 * 1024 * 1024) fail(400, 'Files must be under 15 MB');
-    out.push({ key: a.key, name: String(a.name || 'file').slice(0, 120), mime: h.mime || a.mime || '' });
-  }
-  return out;
-}
+const cleanAttachments = (user, list) => cleanFiles(user, list, 'messages');
 
 async function shapeMessages(rows) {
   return Promise.all(rows.map(async (r) => ({

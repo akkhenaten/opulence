@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, Ambulance, Baby, Ban, Camera, Check, ChevronLeft, ChevronRight, CircleHelp, DoorOpen, FilePlus, Flame, Hammer, HeartPulse, ImagePlus, MessageSquareWarning,
   Pencil, Pill as PillIcon, Plus, ShieldAlert, ShoppingBag, Siren, Sparkles, Swords, Trash2, UserRoundX,
@@ -57,7 +57,15 @@ function Wizard({ existing }) {
   const uploads = useUploads({ existingCount: saved.length, toast });
   const [notes, setNotes] = useState('');
   const [aiAssisted, setAiAssisted] = useState(!!existing?.ai_assisted);
-  const [shiftId, setShiftId] = useState(null);
+  // From the shift page: ?shift= picks the shift, ?entry= links the report to a shift log entry and starts from its words
+  const [sp] = useSearchParams();
+  const entryId = edit ? null : sp.get('entry');
+  const [shiftId, setShiftId] = useState(() => (edit ? null : sp.get('shift')));
+  const fromLog = useApi('shifts.detail', { id: sp.get('shift') }, { skip: !entryId || !sp.get('shift') });
+  useEffect(() => {
+    const e = fromLog.data?.entries.find((x) => x.id === entryId);
+    if (e?.body) setNotes((n) => n || e.body);
+  }, [fromLog.data, entryId]);
   const [run, busy] = useAction();
   const top = useRef(null);
 
@@ -114,7 +122,7 @@ function Wizard({ existing }) {
       if (attachments.length) await api('incidents.addAttachments', { id: existing.id, attachments });
       return existing;
     }
-    return api('incidents.create', { ...body, shift_id: shift.id, venue_id: shift.venue_id, attachments });
+    return api('incidents.create', { ...body, shift_id: shift.id, venue_id: shift.venue_id, attachments, log_entry_id: entryId || undefined });
   }, edit ? 'Report updated and resubmitted' : 'Incident reported').then((inc) => nav(`/officer/incidents/${inc.id}`, { replace: true })).catch(() => {});
 
   const back = edit ? { to: `/officer/incidents/${existing.id}`, label: existing.ref } : { to: '/officer/incidents', label: 'Incidents' };

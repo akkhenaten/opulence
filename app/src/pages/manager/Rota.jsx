@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Hand, Plus, Send, Trash2, UserMinus, UserPlus, X,
+  CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Crown, Hand, NotebookPen, Plus, Send, Trash2, UserMinus, UserPlus, X,
 } from 'lucide-react';
 import {
-  addDays, Avatar, Button, cx, dateShort, dayLabel, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm,
+  addDays, Avatar, Button, cx, dateShort, dayLabel, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useToast,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { WEEKDAYS, durationH, londonIso, londonParts, shiftTimes, useBase } from './_parts.jsx';
@@ -418,6 +418,8 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
   const [reason, setReason] = useState('');
   const changed = () => { q.reload(); onChanged(); };
   const s = q.data;
+  const { base } = useBase();
+  const toast = useToast();
 
   const unassign = async (a) => {
     if (!(await confirm({ title: `Remove ${a.name}?`, body: s.status === 'published' ? 'They will be told they are no longer on this shift.' : undefined, confirm: 'Remove', danger: true }))) return;
@@ -430,6 +432,8 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
     run(() => api('shifts.delete', { id: s.id }), 'Shift deleted').then(() => { onChanged(); onClose(); }).catch(() => {});
   };
   const cancel = () => run(() => api('shifts.cancel', { id: s.id, reason: reason.trim() }), 'Shift cancelled').then(() => { onChanged(); onClose(); }).catch(() => {});
+  const setLead = (a) => run(() => api('shifts.setLead', { shift_id: s.id, assignment_id: a.is_lead ? null : a.id }), a.is_lead ? 'Lead removed' : `${a.name} leads this shift`)
+    .then((r) => { if (r?.warning) toast(r.warning); changed(); }).catch(() => {});
 
   const footer = s && s.status !== 'cancelled' && !cancelling && (
     <>
@@ -450,6 +454,7 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
             <Pill tone={s.filled < s.headcount ? 'red' : 'green'} className="num">{s.filled}/{s.headcount} filled</Pill>
             {s.cover_request_id && <Pill tone="grey">From cover request</Pill>}
           </div>
+          {s.status === 'published' && <Button variant="soft" icon={NotebookPen} to={`${base}/shifts/${s.id}`}>Shift page, log and bans</Button>}
           <KV items={[
             ['When', <>{dayLabel(s.starts_at)}, <span className="num">{range(s.starts_at, s.ends_at)}</span></>],
             ['Role', s.role_name || roleName(s.role)],
@@ -477,7 +482,7 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
                   <div key={a.id} className="flex items-center gap-3 px-4 py-3">
                     <Avatar name={a.name} size={36} />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-body font-semibold">{a.name}</div>
+                      <div className="flex items-center gap-1.5 truncate text-body font-semibold">{a.name}{a.is_lead && <Pill tone="ink">Lead</Pill>}</div>
                       <div className="truncate text-caption text-muted">
                         {a.clocked_in ? <>In <span className="num">{time(a.clocked_in)}</span>{a.clocked_out && <> · out <span className="num">{time(a.clocked_out)}</span></>}</> : a.sia_number ? `SIA ${a.sia_number}` : ''}
                       </div>
@@ -488,9 +493,13 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
                         <IconButton icon={X} label="Decline request" onClick={() => decide(a, false)} />
                         <IconButton icon={Check} label="Approve request" className="text-green" onClick={() => decide(a, true)} />
                       </div>
-                    ) : ACTIVE.includes(a.status) && !a.clocked_in && s.status !== 'cancelled' ? (
-                      <IconButton icon={UserMinus} label={`Remove ${a.name}`} onClick={() => unassign(a)} />
                     ) : null}
+                    {ACTIVE.includes(a.status) && s.status !== 'cancelled' && (
+                      <IconButton icon={Crown} label={a.is_lead ? `Remove ${a.name} as lead` : `Make ${a.name} the shift lead`} className={a.is_lead ? 'text-amber' : ''} disabled={busy} onClick={() => setLead(a)} />
+                    )}
+                    {ACTIVE.includes(a.status) && !a.clocked_in && s.status !== 'cancelled' && a.status !== 'requested' && (
+                      <IconButton icon={UserMinus} label={`Remove ${a.name}`} onClick={() => unassign(a)} />
+                    )}
                   </div>
                 ))}
               </List>

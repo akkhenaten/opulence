@@ -50,6 +50,10 @@ const OfficerTimeOff = P(() => import('./pages/officer/TimeOff.jsx'));
 const OfficerProfile = P(() => import('./pages/officer/Profile.jsx'));
 const OfficerContract = P(() => import('./pages/officer/Contract.jsx'));
 const IncidentForm = P(() => import('./pages/officer/IncidentForm.jsx'));
+// The shift page, shift logs and the ban register (everyone on a shift, managers and venues)
+const ShiftView = P(() => import('./pages/shift/ShiftView.jsx'));
+const ShiftLogs = P(() => import('./pages/shift/ShiftLogs.jsx'));
+const Bans = P(() => import('./pages/shift/Bans.jsx'));
 // Learn (officers; managers reuse Course and Certificate as previews)
 const Learn = P(() => import('./pages/learn/Learn.jsx'));
 const LearnToolbox = P(() => import('./pages/learn/Toolbox.jsx'));
@@ -98,6 +102,7 @@ const managerRoutes = (
     <Route path="ops" element={<OpsAI />} />
     <Route path="live" element={<Live />} />
     <Route path="rota" element={<Rota />} />
+    <Route path="shifts/:id" element={<ShiftView />} />
     <Route path="cover" element={<CoverManage />} />
     <Route path="timesheets" element={<Timesheets />} />
     <Route path="exceptions" element={<Exceptions />} />
@@ -168,6 +173,9 @@ function App() {
             <Route path="messages" element={<Messages />} />
             <Route path="messages/:id" element={<Messages />} />
             <Route path="site" element={<VenueSite />} />
+            <Route path="logs" element={<ShiftLogs />} />
+            <Route path="logs/:id" element={<ShiftView />} />
+            <Route path="bans" element={<Bans />} />
             <Route path="timesheets" element={<Timesheets />} />
             <Route path="incidents" element={<Incidents />} />
             <Route path="incidents/:id" element={<IncidentDetail />} />
@@ -180,6 +188,7 @@ function App() {
           <Route path="/officer" element={<Shell />}>
             <Route index element={<OfficerHome />} />
             <Route path="shifts" element={<OfficerShifts />} />
+            <Route path="shifts/:id" element={<ShiftView />} />
             <Route path="clock" element={<OfficerClock />} />
             <Route path="pay" element={<OfficerPay />} />
             <Route path="everyday" element={<Everyday />} />

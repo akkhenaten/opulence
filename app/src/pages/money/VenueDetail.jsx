@@ -11,6 +11,8 @@ import {
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 import { useAuth } from '../../auth.jsx';
+import { ShiftLogList } from '../shift/ShiftLogs.jsx';
+import { BanRegister } from '../shift/Bans.jsx';
 
 const UK = [54.3, -2.6];
 
@@ -54,6 +56,7 @@ export default function VenueDetail() {
           <Tabs value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })} tabs={[
             { value: 'location', label: 'Location' }, { value: 'details', label: 'Details' }, { value: 'qr', label: 'QR code' },
             ...(isCo ? [{ value: 'rates', label: 'Charge rates' }] : []), { value: 'people', label: 'People' }, { value: 'documents', label: 'Documents', count: v.documents.length },
+            { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Bans' },
           ]} />
 
           {tab === 'location' && <LocationTab v={v} onSaved={q.reload} />}
@@ -62,6 +65,8 @@ export default function VenueDetail() {
           {tab === 'rates' && isCo && <RatesTab venueId={v.id} />}
           {tab === 'people' && <PeopleTab v={v} isCo={isCo} />}
           {tab === 'documents' && <DocumentsTab venueId={v.id} />}
+          {tab === 'logs' && <ShiftLogList venueId={v.id} />}
+          {tab === 'bans' && <BanRegister venueId={v.id} />}
         </Page>
       )}
     </Load>

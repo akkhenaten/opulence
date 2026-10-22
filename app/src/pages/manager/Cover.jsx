@@ -20,7 +20,7 @@ function group(list) {
   const out = [];
   const at = {};
   for (const c of list) {
-    const key = c.kind === 'recurring' && c.change_status !== 'pending' ? `${c.root_id}:${statusOf(c)}` : c.id;
+    const key = c.kind === 'recurring' && c.change_status !== 'pending' ? `${c.series_id}:${statusOf(c)}` : c.id;
     if (at[key] != null) out[at[key]].dates.push(c);
     else { at[key] = out.length; out.push({ key, first: c, dates: [c] }); }
   }
@@ -53,7 +53,7 @@ export default function Cover() {
                 right={(
                   <div className="flex flex-col items-end gap-1">
                     {c.change_status === 'pending' ? <Pill tone="amber">Change asked</Pill> : <Pill status={statusOf(c)} />}
-                    {c.status === 'accepted' && dates.length === 1 ? <span className="num text-caption text-muted">{c.filled}/{c.headcount} staffed</span> : <RepeatTag c={c} />}
+                    {c.status === 'accepted' && dates.length === 1 ? <span className="num text-caption text-muted">{c.filled}/{c.headcount} staffed</span> : <RepeatTag c={c} short />}
                   </div>
                 )} />
             ))}

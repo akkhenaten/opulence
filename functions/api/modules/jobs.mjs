@@ -8,6 +8,7 @@ import { runOpsJobs } from './ops.mjs';
 import { learnJobs } from './academy.mjs';
 import { opsMessage } from '../lib/threads.mjs';
 import { extendSeries } from './cover.mjs';
+import { banJobs } from './bans.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in
 async function lateAlerts(s) {
@@ -124,6 +125,8 @@ export async function runJobs() {
   if (new Date().getUTCMinutes() < 5) result.learn = await learnJobs().catch((e) => `error: ${e.message}`);
   // Rolling recurring cover requests keep eight weeks of dates ahead, at most once an hour
   if (new Date().getUTCMinutes() < 5) result.series = await extendSeries().catch((e) => `error: ${e.message}`);
+  // Bans lapse after their end date and old photos are deleted, once an hour
+  if (new Date().getUTCMinutes() < 5) result.bans = await banJobs().catch((e) => `error: ${e.message}`);
   console.log('[jobs]', JSON.stringify(result));
   return result;
 }

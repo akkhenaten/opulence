@@ -1,31 +1,32 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { OffersList, useOps } from './_ops.jsx';
-import { CalendarDays, CalendarOff, Check, Hand, Info, Megaphone, X } from 'lucide-react';
+import { CalendarDays, CalendarOff, Check, ChevronRight, Hand, Info, Megaphone, X } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
   addDays, Button, Empty, isoDate, Load, Page, Section, Sheet, Tabs, Textarea, time, useAction, useApi, useConfirm, usePullRefresh,
 } from '../../ui/index.jsx';
 import { ASSIGN_LABEL, assignTone, NotLinked, ShiftCard } from './_parts.jsx';
+import ShiftCalendar from './ShiftCalendar.jsx';
 
 export default function Shifts() {
   const { user } = useAuth();
   const [sp, setSp] = useSearchParams();
-  const tab = ['open', 'offers'].includes(sp.get('tab')) ? sp.get('tab') : 'mine';
-  const setTab = (t) => setSp(t === 'mine' ? {} : { tab: t }, { replace: true });
+  const tab = ['open', 'offers', 'mine'].includes(sp.get('tab')) ? sp.get('tab') : 'calendar';
+  const setTab = (t) => setSp(t === 'calendar' ? {} : { tab: t }, { replace: true });
   const open = useApi('shifts.open', {}, { skip: !user.officer_id });
   const ops = useOps(!user.officer_id);
   const offered = (ops.data?.offers || []).filter((o) => o.status === 'offered').length;
-  const pull = usePullRefresh(() => Promise.all([open.reload(), ops.reload()]), tab !== 'mine' && !!user.officer_id);
+  const pull = usePullRefresh(() => Promise.all([open.reload(), ops.reload()]), !['mine', 'calendar'].includes(tab) && !!user.officer_id);
 
   return (
     <Page title="Shifts" actions={<Button size="sm" variant="secondary" icon={CalendarOff} to="/officer/time-off">Availability</Button>}>
       {pull}
       {!user.officer_id ? <NotLinked /> : (
         <>
-          <Tabs value={tab} onChange={setTab} tabs={[{ value: 'mine', label: 'My shifts' }, { value: 'offers', label: 'Offers', count: offered }, { value: 'open', label: 'Open shifts', count: open.data?.length }]} />
-          {tab === 'mine' ? <Mine /> : tab === 'offers' ? <OffersList ops={ops} /> : <Open q={open} />}
+          <Tabs value={tab} onChange={setTab} tabs={[{ value: 'calendar', label: 'Calendar' }, { value: 'mine', label: 'List' }, { value: 'offers', label: 'Offers', count: offered }, { value: 'open', label: 'Open shifts', count: open.data?.length }]} />
+          {tab === 'calendar' ? <ShiftCalendar /> : tab === 'mine' ? <Mine /> : tab === 'offers' ? <OffersList ops={ops} /> : <Open q={open} />}
         </>
       )}
     </Page>
@@ -85,8 +86,11 @@ function Mine() {
                           <Button variant="ghost" size="sm" onClick={() => withdraw(s)}>Withdraw</Button>
                         </div>
                       )}
-                      {s.assignment_status === 'accepted' && !clocked && new Date(s.starts_at) > now && (
-                        <div className="mt-3 flex justify-end"><Button variant="ghost" size="sm" onClick={() => setDeclining(s)}>I can't work this</Button></div>
+                      {s.assignment_status === 'accepted' && (
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <Button variant="soft" size="sm" iconRight={ChevronRight} to={`/officer/shifts/${s.id}`}>{s.is_lead ? 'Shift page · you lead' : 'Shift page'}</Button>
+                          {!clocked && new Date(s.starts_at) > now && <Button variant="ghost" size="sm" onClick={() => setDeclining(s)}>I can't work this</Button>}
+                        </div>
                       )}
                     </ShiftCard>
                   );
@@ -101,7 +105,7 @@ function Mine() {
                     const ins = (s.clock || []).filter((e) => e.kind === 'in' && e.status !== 'rejected');
                     const outs = (s.clock || []).filter((e) => e.kind === 'out' && e.status !== 'rejected');
                     const worked = ins.length ? `Worked ${time(ins[0].ts)}${outs.length ? `–${time(outs.at(-1).ts)}` : ''}` : 'No clock-in recorded';
-                    return <ShiftCard key={s.assignment_id} s={s} status={ins.length ? 'Worked' : 'Not clocked'} statusTone={ins.length ? 'grey' : 'amber'}><p className="mt-2 text-footnote text-muted">{worked}</p></ShiftCard>;
+                    return <ShiftCard key={s.assignment_id} s={s} to={`/officer/shifts/${s.id}`} status={ins.length ? 'Worked' : 'Not clocked'} statusTone={ins.length ? 'grey' : 'amber'}><p className="mt-2 text-footnote text-muted">{worked}</p></ShiftCard>;
                   })}
                 </div>
               </Section>

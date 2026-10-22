@@ -62,7 +62,7 @@ export async function shiftsWithAssignments(where, params, user) {
   const rows = await q(
     `SELECT s.*, v.name AS venue_name, r.name AS role_name,
        COALESCE(json_agg(json_build_object(
-         'id', a.id, 'officer_id', a.officer_id, 'status', a.status,
+         'id', a.id, 'officer_id', a.officer_id, 'status', a.status, 'is_lead', a.is_lead,
          'name', o.first_name || ' ' || o.last_name, 'sia_number', o.sia_number,
          'clocked_in', (SELECT min(ts) FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status IN ('ok','approved','manual')),
          'clocked_out', (SELECT max(ts) FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'out' AND ce.status IN ('ok','approved','manual'))
@@ -73,7 +73,7 @@ export async function shiftsWithAssignments(where, params, user) {
   return rows.map((s) => {
     const filled = s.assignments.filter((a) => ['assigned', 'accepted'].includes(a.status)).length;
     const out = { ...s, filled };
-    if (venueView) out.assignments = s.assignments.filter((a) => ['assigned', 'accepted'].includes(a.status)).map(({ name, sia_number, clocked_in, clocked_out, status }) => ({ name, sia_number, clocked_in, clocked_out, status }));
+    if (venueView) out.assignments = s.assignments.filter((a) => ['assigned', 'accepted'].includes(a.status)).map(({ name, sia_number, clocked_in, clocked_out, status, is_lead }) => ({ name, sia_number, clocked_in, clocked_out, status, is_lead }));
     return out;
   });
 }
@@ -285,7 +285,7 @@ export const actions = {
   // ---------- Officer side ----------
   'shifts.mine': def(['officer'], async (b, { user }) => {
     const rows = await q(
-      `SELECT a.id AS assignment_id, a.status AS assignment_status, s.*, v.name AS venue_name, v.address AS venue_address, v.postcode, v.lat, v.lng,
+      `SELECT a.id AS assignment_id, a.status AS assignment_status, a.is_lead, s.*, v.name AS venue_name, v.address AS venue_address, v.postcode, v.lat, v.lng,
               v.instructions, r.name AS role_name,
               (SELECT json_agg(json_build_object('kind', kind, 'ts', ts, 'status', status) ORDER BY ts) FROM clock_events ce WHERE ce.assignment_id = a.id) AS clock
          FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role

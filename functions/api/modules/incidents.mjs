@@ -143,13 +143,17 @@ export const actions = {
       required(b, 'venue_id');
       await assertVenue(user, venueId);
     }
+    // Written up from a shift log note: the report and the note point at each other
+    const entry = b.log_entry_id ? need(await one('SELECT id, shift_id FROM shift_log_entries WHERE id = $1 AND shift_id = $2', [b.log_entry_id, shiftId]), 'That log note is not on this shift') : null;
     const inc = await tx(async (t) => {
       const f = pickFields(b);
+      if (entry) f.log_entry_id = entry.id;
       const cols = ['venue_id', 'shift_id', 'officer_id', 'reported_by', ...Object.keys(f)];
       const vals = [venueId, shiftId, officerId, user.id, ...Object.values(f)];
       const row = await t.one(`INSERT INTO incidents (${cols.join(',')}) VALUES (${cols.map((_, i) => `$${i + 1}`).join(',')}) RETURNING *`, vals);
       await saveWitnesses(t, row.id, b.witnesses);
       await saveAttachments(t, row.id, b.attachments, user);
+      if (entry) await t.q("UPDATE shift_log_entries SET incident_id = $2, kind = 'incident', updated_at = now() WHERE id = $1", [entry.id, row.id]);
       await t.q('INSERT INTO incident_versions (incident_id, version, data, edited_by) VALUES ($1,1,$2,$3)', [row.id, JSON.stringify({ ...f, witnesses: b.witnesses || [] }), user.id]);
       return row;
     });

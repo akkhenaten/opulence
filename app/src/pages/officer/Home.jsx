@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, CalendarDays, ChevronRight, GraduationCap, Newspaper, Clock3, Coffee, FileText, Hourglass, LogIn, LogOut, MapPin, Megaphone, PencilLine, ShieldAlert, ShieldCheck,
+  AlertTriangle, CalendarDays, ChevronRight, GraduationCap, Newspaper, Clock3, Coffee, FileText, Hourglass, LogIn, LogOut, MapPin, Megaphone, NotebookPen, PencilLine, ShieldAlert, ShieldCheck,
 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -109,7 +109,7 @@ function Body({ d, clock, ops, reload }) {
             <Button size="sm" variant="ghost" to="/officer/shifts">All shifts</Button>
           </div>
           <div className="space-y-2.5">
-            {later.map((s) => <ShiftCard key={s.assignment_id} s={s} to="/officer/shifts" status={ASSIGN_LABEL[s.assignment_status]} statusTone={assignTone[s.assignment_status]} />)}
+            {later.map((s) => <ShiftCard key={s.assignment_id} s={s} to={s.assignment_status === 'accepted' ? `/officer/shifts/${s.shift_id}` : '/officer/shifts?tab=mine'} status={ASSIGN_LABEL[s.assignment_status]} statusTone={assignTone[s.assignment_status]} />)}
           </div>
         </div>
       )}
@@ -187,6 +187,9 @@ function Hero({ s, isCurrent, state, onAccept, busy }) {
       ) : isCurrent ? (
         <Button size="lg" className="mt-5 w-full !bg-white/15 !text-white !shadow-none" icon={LogIn} to="/officer/clock">Clock-in opens 30 min before</Button>
       ) : null}
+      {s.assignment_status === 'accepted' && (
+        <Button className="mt-2 w-full !bg-white/15 !text-white !shadow-none" icon={NotebookPen} to={`/officer/shifts/${s.shift_id}`}>{s.is_lead ? 'Shift log · you lead' : 'Shift page and log'}</Button>
+      )}
     </Tile>
   );
 }

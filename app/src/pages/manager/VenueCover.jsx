@@ -40,7 +40,7 @@ export default function VenueCover() {
                 right={(
                   <div className="flex flex-col items-end gap-1">
                     <Pill status={statusOf(c)}>{LABEL[statusOf(c)]}</Pill>
-                    {c.change_status === 'pending' ? <span className="text-caption font-semibold text-amber">Change awaiting approval</span> : <RepeatTag c={c} />}
+                    {c.change_status === 'pending' ? <span className="text-caption font-semibold text-amber">Change awaiting approval</span> : <RepeatTag c={c} short />}
                   </div>
                 )} />
             ))}

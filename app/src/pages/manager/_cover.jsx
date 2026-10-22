@@ -173,8 +173,9 @@ export function ChangeSheet({ c, mode, isMgr, onClose, onDone }) {
 }
 
 // "Repeats every Fri & Sat" label for list rows
-export const RepeatTag = ({ c, className }) => (c.kind === 'recurring'
-  ? <span className={cx('inline-flex items-center gap-1 text-caption font-semibold text-blue', className)}><Repeat size={14} />{c.pattern || 'Repeats'}</span>
+// `short` keeps list rows narrow: just "Every week" without the times
+export const RepeatTag = ({ c, short, className }) => (c.kind === 'recurring'
+  ? <span className={cx('inline-flex items-center gap-1 text-caption font-semibold text-blue', className)}><Repeat size={14} className="shrink-0" />{(short ? c.pattern?.split(':')[0] : c.pattern) || 'Repeats'}</span>
   : null);
 
 /** What a pending change asks for, in words. */
