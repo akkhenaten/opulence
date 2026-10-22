@@ -550,7 +550,7 @@ export async function buildDigest() {
   const { name } = await getBrand();
   const esc = (t) => String(t || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const tone = { urgent: '#DC2626', soon: '#D97706', advisory: '#6B7280' };
-  const title = all.length ? `Compliance this week: ${plural(results.length, 'person')} need attention` : 'Compliance this week: all clear';
+  const title = all.length ? `Compliance this week: ${results.length === 1 ? '1 person needs' : `${results.length} people need`} attention` : 'Compliance this week: all clear';
   const body = all.length
     ? `<b style="color:${tone.urgent}">${count('urgent')} urgent</b> · <b style="color:${tone.soon}">${count('soon')} soon</b> · ${count('advisory')} to note</p>
 <table style="width:100%;border-collapse:collapse;margin:8px 0 4px">${all.slice(0, 10).map((i) => `<tr><td style="padding:8px 0;border-top:1px solid #E5E7EB;vertical-align:top;width:10px"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:${tone[i.severity]}"></span></td><td style="padding:8px 0 8px 8px;border-top:1px solid #E5E7EB;color:#0B1220;font-size:14px"><b>${esc(i.name)}</b><br><span style="color:#4B5563">${esc(i.title)}</span></td></tr>`).join('')}</table>
@@ -562,7 +562,8 @@ export async function buildDigest() {
 export async function sendDigest() {
   const d = await buildDigest();
   const users = await q("SELECT email FROM users WHERE id = ANY($1::uuid[]) AND status = 'active'", [await companyManagers()]);
-  await Promise.allSettled(users.map((u) => sendRawEmail(u.email, d.subject, d.html)));
-  await logActivity('compliance', `Weekly compliance email sent to ${plural(users.length, 'manager')}`);
-  return { sent: users.length, issues: d.issues };
+  const res = await Promise.allSettled(users.map((u) => sendRawEmail(u.email, d.subject, d.html)));
+  const sent = res.filter((r) => r.status === 'fulfilled' && r.value !== false).length;
+  if (sent) await logActivity('compliance', `Weekly compliance email sent to ${plural(sent, 'manager')}`);
+  return { sent, issues: d.issues };
 }
