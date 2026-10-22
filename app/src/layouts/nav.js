@@ -1,7 +1,7 @@
 import {
   BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
-  Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText, Sparkles, MessageSquarePlus,
-  GraduationCap, BookOpenCheck, Briefcase, FileSignature,
+  Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText, Sparkles,
+  GraduationCap, BookOpenCheck, Briefcase, FileSignature, MessagesSquare, Store,
 } from 'lucide-react';
 
 // Sidebar sections per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
@@ -10,6 +10,7 @@ export const NAV = {
   company: [
     { title: 'Overview', items: [
       { to: '/company', label: 'Dashboard', icon: LayoutGrid, end: true, tab: true, badge: 'everyday' },
+      { to: '/company/messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
       { to: '/company/ops', label: 'Ops AI', icon: Sparkles, badge: 'ops' },
     ] },
     { title: 'Operations', items: [
@@ -48,6 +49,7 @@ export const NAV = {
   security: [
     { title: 'Overview', items: [
       { to: '/security', label: 'Dashboard', icon: LayoutGrid, end: true, tab: true, badge: 'everyday' },
+      { to: '/security/messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
       { to: '/security/ops', label: 'Ops AI', icon: Sparkles, badge: 'ops' },
     ] },
     { title: 'Operations', items: [
@@ -65,6 +67,9 @@ export const NAV = {
     { title: 'Resources', items: [
       { to: '/security/team/toolbox', label: 'Toolbox', icon: BookOpenCheck, module: 'toolbox' },
     ] },
+    { title: 'Sites', items: [
+      { to: '/security/venues', label: 'Venues', icon: Building2 },
+    ] },
     { title: 'Finance', items: [
       { to: '/security/pay', label: 'Pay runs', icon: Banknote, perm: 'can_see_pay' },
     ] },
@@ -73,7 +78,8 @@ export const NAV = {
     { items: [
       { to: '/venue', label: 'Overview', icon: LayoutGrid, end: true, tab: true },
       { to: '/venue/live', label: 'On site', icon: Radio, tab: true },
-      { to: '/venue/requests', label: 'Requests', icon: MessageSquarePlus, tab: true },
+      { to: '/venue/messages', label: 'Messages', icon: MessagesSquare, tab: true, badge: 'messages' },
+      { to: '/venue/site', label: 'My venue', icon: Store },
       { to: '/venue/cover', label: 'Cover requests', icon: Megaphone },
       { to: '/venue/timesheets', label: 'Timesheets', icon: ClipboardCheck },
       { to: '/venue/incidents', label: 'Incidents', icon: ShieldAlert, tab: true },

@@ -6,6 +6,8 @@ import { buildTimesheet } from './clock.mjs';
 import { getSettings } from './settings.mjs';
 import { runOpsJobs } from './ops.mjs';
 import { learnJobs } from './academy.mjs';
+import { opsMessage } from '../lib/threads.mjs';
+import { extendSeries } from './cover.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in
 async function lateAlerts(s) {
@@ -22,9 +24,10 @@ async function lateAlerts(s) {
       kind: 'late', severity: 'warning', title: `${r.officer_name} not clocked in`, body: `${r.venue_name} · shift started ${fmtTime(r.starts_at)}`,
       link: '/company/live', dedupe: `late:${r.id}`, email: true,
     });
-    await notify(await officerUser(r.officer_id), {
-      kind: 'late', severity: 'warning', title: 'You have not clocked in', body: `${r.venue_name} started at ${fmtTime(r.starts_at)}. Clock in now, or tap to tell us if you're on your way or can't make it.`,
-      link: '/officer', dedupe: `late:${r.id}`,
+    // The chase goes to the officer's Orb Ops conversation; they can tap a reply or just type one
+    const [uid] = await officerUser(r.officer_id);
+    await opsMessage(uid, `Your shift at ${r.venue_name} started at ${fmtTime(r.starts_at)} and you haven't clocked in. Are you on your way?`, {
+      ref: `chase:${r.id}`, options: [{ label: 'On my way', value: 'on_my_way' }, { label: "Can't make it", value: 'cant_make_it' }],
     });
   }
   return rows.length;
@@ -119,6 +122,8 @@ export async function runJobs() {
   result.ops = await runOpsJobs(s);
   // Training reminders and renewals, at most once an hour
   if (new Date().getUTCMinutes() < 5) result.learn = await learnJobs().catch((e) => `error: ${e.message}`);
+  // Rolling recurring cover requests keep eight weeks of dates ahead, at most once an hour
+  if (new Date().getUTCMinutes() < 5) result.series = await extendSeries().catch((e) => `error: ${e.message}`);
   console.log('[jobs]', JSON.stringify(result));
   return result;
 }

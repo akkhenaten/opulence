@@ -1,102 +1,82 @@
-import { useState } from 'react';
-import { Megaphone, Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Megaphone, MessagesSquare, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
-  Button, Empty, Input, KV, List, Load, Page, Pill, Row, Segmented, Select, Sheet, Textarea, addDays, dayLabel, isoDate, range, relative,
-  useAction, useApi, useConfirm, useForm,
+  Button, Empty, KV, List, Load, Page, Pill, Row, Segmented, Sheet, dayLabel, range, relative, useApi,
 } from '../../ui/index.jsx';
-import { api } from '../../api.js';
-import { londonParts, shiftTimes } from './_parts.jsx';
-
-const isFilled = (c) => c.status === 'accepted' && Number(c.filled) >= c.headcount;
-const statusOf = (c) => (isFilled(c) ? 'filled' : c.status);
-const LABEL = { pending: 'Waiting', accepted: 'Accepted', filled: 'Staffed', declined: 'Declined', cancelled: 'Cancelled' };
+import { ChangeSheet, describeChange, LABEL, RepeatTag, RequestForm, statusOf } from './_cover.jsx';
 
 export default function VenueCover() {
   const q = useApi('cover.list', {});
   const venues = useApi('venues.list', {});
   const roles = useApi('roles.list', {});
+  const loc = useLocation();
+  const nav = useNavigate();
   const [tab, setTab] = useState('upcoming');
-  const [form, setForm] = useState(false);
+  const [form, setForm] = useState(null);
   const [open, setOpen] = useState(null);
   const now = Date.now();
 
+  // A message turned into a request arrives with a draft to check
+  useEffect(() => {
+    if (loc.state?.draft) { setForm({ draft: loc.state.draft }); nav(loc.pathname, { replace: true, state: null }); }
+  }, [loc.state]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <Page title="Request cover" subtitle="Ask for extra officers at your venue"
-      actions={<Button icon={Plus} onClick={() => setForm(true)}>New request</Button>}>
+    <Page title="Request cover" subtitle="Ask for extra officers, once or every week"
+      actions={<Button icon={Plus} onClick={() => setForm({})}>New request</Button>}>
       <div className="mb-4"><Segmented value={tab} onChange={setTab} options={[{ value: 'upcoming', label: 'Upcoming' }, { value: 'past', label: 'Past' }]} /></div>
       <Load q={q}>{(rows) => {
         const list = rows.filter((c) => (tab === 'upcoming' ? new Date(c.ends_at) > now : new Date(c.ends_at) <= now))
           .sort((a, b) => (tab === 'upcoming' ? new Date(a.starts_at) - new Date(b.starts_at) : new Date(b.starts_at) - new Date(a.starts_at)));
-        if (!list.length) return <Empty icon={Megaphone} title={tab === 'upcoming' ? 'No upcoming requests' : 'No past requests'} body={tab === 'upcoming' ? 'Need extra officers for an event or a busy night? Send a request and we will confirm.' : undefined}
-          action={tab === 'upcoming' && <Button icon={Plus} onClick={() => setForm(true)}>Request cover</Button>} />;
+        if (!list.length) return <Empty icon={Megaphone} title={tab === 'upcoming' ? 'No upcoming requests' : 'No past requests'} body={tab === 'upcoming' ? 'Need extra officers for an event, or every Friday and Saturday? Send a request and we will confirm.' : undefined}
+          action={tab === 'upcoming' && <Button icon={Plus} onClick={() => setForm({})}>Request cover</Button>} />;
         return (
           <List>
             {list.map((c) => (
               <Row key={c.id} onClick={() => setOpen(c)} chevron
                 title={<>{c.headcount} × {c.role_name}</>}
                 subtitle={<>{dayLabel(c.starts_at)} <span className="num">{range(c.starts_at, c.ends_at)}</span>{(venues.data?.length || 0) > 1 ? ` · ${c.venue_name}` : ''}</>}
-                right={<Pill status={statusOf(c)}>{LABEL[statusOf(c)]}</Pill>} />
+                right={(
+                  <div className="flex flex-col items-end gap-1">
+                    <Pill status={statusOf(c)}>{LABEL[statusOf(c)]}</Pill>
+                    {c.change_status === 'pending' ? <span className="text-caption font-semibold text-amber">Change awaiting approval</span> : <RepeatTag c={c} />}
+                  </div>
+                )} />
             ))}
           </List>
         );
       }}</Load>
-      {form && <RequestForm venues={venues.data || []} roles={roles.data || []} onClose={() => setForm(false)} onDone={() => { setForm(false); setTab('upcoming'); q.reload(); }} />}
+      {form && <RequestForm venues={venues.data || []} roles={roles.data || []} draft={form.draft} onClose={() => setForm(null)} onDone={() => { setForm(null); setTab('upcoming'); q.reload(); }} />}
       {open && <Detail c={open} onClose={() => setOpen(null)} onDone={() => { setOpen(null); q.reload(); }} />}
     </Page>
   );
 }
 
-function RequestForm({ venues, roles, onClose, onDone }) {
-  const f = useForm({ venue_id: venues.length === 1 ? venues[0].id : '', role: '', date: addDays(isoDate(), 1), start: '19:00', end: '03:00', headcount: 1, notes: '' });
-  const [run, busy] = useAction();
-  const v = f.v;
-  const t = v.date && v.start && v.end ? shiftTimes(v.date, v.start, v.end) : null;
-  const overnight = t && londonParts(t.ends_at).date !== v.date;
-  const ok = (v.venue_id || venues.length === 1) && v.role && t && Number(v.headcount) >= 1;
-  const send = () => run(() => api('cover.create', {
-    venue_id: v.venue_id || venues[0]?.id, role: v.role, ...t, headcount: Number(v.headcount), notes: v.notes.trim(),
-  }), 'Request sent').then(onDone).catch(() => {});
-
-  return (
-    <Sheet open onClose={onClose} title="Request cover"
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={send} busy={busy} disabled={!ok}>Send request</Button></>}>
-      <div className="space-y-3">
-        {venues.length !== 1 && <Select label="Venue" value={v.venue_id} onChange={(e) => f.set('venue_id', e.target.value)} placeholder="Choose venue" options={venues.map((x) => ({ value: x.id, label: x.name }))} />}
-        <Select label="Officer type" value={v.role} onChange={(e) => f.set('role', e.target.value)} placeholder="Choose" options={roles.map((r) => ({ value: r.code, label: r.name }))} />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Input label="Date" type="date" min={isoDate()} className="col-span-2 sm:col-span-1" {...f.bind('date')} />
-          <Input label="Start" type="time" {...f.bind('start')} />
-          <Input label="End" type="time" {...f.bind('end')} hint={overnight ? 'Ends next day' : undefined} />
-        </div>
-        <Input label="How many officers" type="number" min="1" max="100" inputMode="numeric" {...f.bind('headcount')} />
-        <Textarea label="Notes" rows={3} placeholder="Event, dress code, where to report" {...f.bind('notes')} />
-      </div>
-    </Sheet>
-  );
-}
-
 function Detail({ c, onClose, onDone }) {
-  const [run, busy] = useAction();
-  const confirm = useConfirm();
-  const cancel = async () => {
-    if (!(await confirm({ title: 'Cancel this request?', confirm: 'Cancel request', danger: true }))) return;
-    run(() => api('cover.cancel', { id: c.id }), 'Request cancelled').then(onDone).catch(() => {});
-  };
+  const [change, setChange] = useState(null);
   const st = statusOf(c);
+  const live = ['pending', 'accepted'].includes(c.status) && new Date(c.starts_at) > new Date();
+  const waiting = c.change_status === 'pending';
+  if (change) return <ChangeSheet c={c} mode={change} isMgr={false} onClose={() => setChange(null)} onDone={onDone} />;
   return (
     <Sheet open onClose={onClose} title={`${c.headcount} × ${c.role_name}`}
-      footer={c.status === 'pending' ? <Button variant="danger" onClick={cancel} busy={busy}>Cancel request</Button> : null}>
+      footer={live && !waiting ? <><Button variant="secondary" icon={Trash2} onClick={() => setChange('delete')}>Cancel</Button><Button icon={Pencil} onClick={() => setChange('edit')}>Change</Button></> : null}>
       <div className="space-y-5">
-        <Pill status={st}>{LABEL[st]}</Pill>
+        <div className="flex flex-wrap items-center gap-2"><Pill status={st}>{LABEL[st]}</Pill><RepeatTag c={c} /></div>
+        {waiting && <p className="rounded-2xl bg-amber-soft px-3 py-2 text-footnote text-amber"><b>Waiting for approval:</b> {describeChange(c)}. The booking stays as it is until Orb approves.</p>}
+        {c.change_status === 'declined' && c.change_reason && <p className="rounded-2xl bg-red-soft px-3 py-2 text-footnote text-red">Your last change wasn't approved: {c.change_reason}</p>}
         <KV items={[
           ['Venue', c.venue_name],
           ['When', <>{dayLabel(c.starts_at)}, <span className="num">{range(c.starts_at, c.ends_at)}</span></>],
+          c.kind === 'recurring' && ['Pattern', c.pattern],
           ['Sent', c.requested_by_name ? `${relative(c.created_at)} by ${c.requested_by_name}` : relative(c.created_at)],
           c.status === 'accepted' && ['Officers confirmed', <span className="num">{c.filled} of {c.headcount}</span>],
           ['Notes', c.notes],
           c.status === 'declined' && ['Reason', c.decline_reason || 'Please contact us to discuss.'],
         ]} />
-        {c.status === 'accepted' && <p className="text-subhead text-muted">We are staffing this. Confirmed officers show under On site on the day. To change it, contact the office.</p>}
+        {c.status === 'accepted' && <p className="text-subhead text-muted">We are staffing this. Confirmed officers show under On site on the day. Changes to booked cover need Orb's approval.</p>}
+        {c.conversation_id && <Button variant="soft" icon={MessagesSquare} to={`/venue/messages/${c.conversation_id}`}>Messages about this request</Button>}
       </div>
     </Sheet>
   );

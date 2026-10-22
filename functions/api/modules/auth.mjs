@@ -20,12 +20,12 @@ const session = async (userId) => {
 const checkPw = (pw) => { if (!pw || pw.length < 8) fail(400, 'Password must be at least 8 characters'); };
 
 export const actions = {
-  'auth.needsBootstrap': pub(async () => ({ needed: !(await one("SELECT 1 FROM users WHERE role = 'company'")) })),
+  'auth.needsBootstrap': pub(async () => ({ needed: !(await one("SELECT 1 FROM users WHERE role = 'company' AND NOT system")) })),
 
   'auth.bootstrap': pub(async (b) => {
     required(b, 'email', 'password', 'name');
     checkPw(b.password);
-    if (await one("SELECT 1 FROM users WHERE role = 'company'")) fail(409, 'Already set up');
+    if (await one("SELECT 1 FROM users WHERE role = 'company' AND NOT system")) fail(409, 'Already set up');
     const u = await one(
       "INSERT INTO users (email, name, role, password_hash, status) VALUES (lower($1), $2, 'company', $3, 'active') RETURNING id",
       [b.email.trim(), b.name.trim(), hashPassword(b.password)],

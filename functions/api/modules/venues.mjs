@@ -17,6 +17,13 @@ export async function currentVenueRates(venueId, onDate = new Date().toISOString
       WHERE venue_id = $1 AND effective_from <= $2 ORDER BY role, effective_from DESC`, [venueId, onDate]);
 }
 
+// Venue managers never see the security company's internal notes about their site
+const clientView = (user, v) => {
+  if (user.role !== 'venue') return v;
+  const { notes, ...rest } = v;
+  return rest;
+};
+
 export const actions = {
   'venues.list': def(['company', 'security', 'venue'], async (b, { user }) => {
     const scope = await venueScope(user);
@@ -27,7 +34,7 @@ export const actions = {
          FROM venues v LEFT JOIN clients c ON c.id = v.client_id
         WHERE ($1::uuid[] IS NULL OR v.id = ANY($1)) AND ($2::boolean OR v.active)
         ORDER BY v.active DESC, v.name`, [scope, !!b.include_inactive]);
-    return Promise.all(rows.map(async (v) => ({ ...v, photo_url: await downloadUrl(v.photo_key) })));
+    return Promise.all(rows.map(async (v) => ({ ...clientView(user, v), photo_url: await downloadUrl(v.photo_key) })));
   }),
 
   'venues.get': def(['company', 'security', 'venue'], async (b, { user }) => {
@@ -40,16 +47,20 @@ export const actions = {
       user.role === 'venue' || canSeePay(user) ? currentVenueRates(b.id) : [],
       q("SELECT id, kind, title, expiry, created_at, mime FROM documents WHERE owner_type = 'venue' AND owner_id = $1 ORDER BY created_at DESC", [b.id]),
     ]);
-    return { ...v, photo_url: await downloadUrl(v.photo_key), contacts, security, rates, documents: docs };
+    return { ...clientView(user, v), photo_url: await downloadUrl(v.photo_key), contacts, security, rates, documents: docs };
   }),
 
-  'venues.save': def(CO, async (b, { user }) => {
+  // Company and security managers run venues; the client and invoicing set-up stay with the company
+  'venues.save': def(MGR, async (b, { user }) => {
     const f = pick(b, VENUE_FIELDS);
+    if (user.role !== 'company') { delete f.client_id; delete f.invoice_cycle; }
+    if (b.id) await assertVenue(user, b.id);
     let v;
     if (b.id) v = await update('venues', b.id, f);
     else {
       required(b, 'name');
       v = await insert('venues', f);
+      if (user.role === 'security') await q('INSERT INTO security_venues (venue_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [v.id, user.id]);
     }
     await audit(user, b.id ? 'venue.update' : 'venue.create', 'venue', v.id, f);
     return v;

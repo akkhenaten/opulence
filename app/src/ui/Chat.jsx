@@ -15,16 +15,19 @@ export function Suggestions({ items, onPick }) {
 }
 
 // Message box with a round send button. Enter sends, Shift+Enter adds a line
-export function Composer({ value, onChange, onSend, busy, placeholder }) {
+// `left` adds a control before the box (e.g. attach a photo); `ready` lets it send without text (photo only)
+export function Composer({ value, onChange, onSend, busy, placeholder, left, ready, enterSends = true, inputRef }) {
   // Grows with the text up to max-h-32, then scrolls
   const box = useRef(null);
   useEffect(() => { const el = box.current; if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight + 2}px`; } }, [value]);
+  const setRef = (el) => { box.current = el; if (inputRef) inputRef.current = el; };
   return (
     <form className="flex items-end gap-2 border-t border-line p-3" onSubmit={(e) => { e.preventDefault(); onSend(); }}>
-      <textarea ref={box} rows={1} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} enterKeyHint="send"
-        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }}
-        className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-2.5 text-callout outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
-      <IconButton type="submit" icon={ArrowUp} label="Send" tone="primary" className="!h-11 !w-11 disabled:opacity-40" disabled={busy || !value.trim()} />
+      {left}
+      <textarea ref={setRef} rows={1} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} enterKeyHint="send"
+        onKeyDown={(e) => { if (enterSends && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }}
+        className="max-h-32 min-h-[44px] min-w-0 flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-2.5 text-callout outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
+      <IconButton type="submit" icon={ArrowUp} label="Send" tone="primary" className="!h-11 !w-11 disabled:opacity-40" disabled={busy || !(ready || value.trim())} />
     </form>
   );
 }

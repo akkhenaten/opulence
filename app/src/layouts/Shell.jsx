@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { Bell, BellOff, ChevronRight, LogOut, MoreHorizontal, Newspaper } from 'lucide-react';
+import { Bell, BellOff, ChevronRight, LogOut, MessagesSquare, MoreHorizontal, Newspaper } from 'lucide-react';
 import { api } from '../api.js';
 import { portalLink, useAuth } from '../auth.jsx';
 import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, usePageHeader, useScrollMemory } from '../ui/index.jsx';
@@ -101,7 +101,8 @@ export default function Shell() {
   const on = (m) => modules[m] !== false;
   const feedOn = user.role !== 'venue' && settings.data && on('everyday');
   const feed = useApi('everyday.unread', {}, { poll: 60000, skip: !feedOn });
-  const badges = { ops: opsCount.data?.n || 0, everyday: feed.data?.unread || 0 };
+  const msgs = useApi('messages.unread', {}, { poll: 30000 });
+  const badges = { ops: opsCount.data?.n || 0, everyday: feed.data?.unread || 0, messages: msgs.data?.unread || 0 };
   const loc = useLocation();
   const [more, setMore] = useState(false);
   const [account, setAccount] = useState(false);
@@ -112,6 +113,14 @@ export default function Shell() {
     const r = () => reloadSettings.current();
     window.addEventListener('orb:settings', r);
     return () => window.removeEventListener('orb:settings', r);
+  }, []);
+  // Opening a conversation clears its part of the Messages badge
+  const reloadMsgs = useRef(msgs.reload);
+  reloadMsgs.current = msgs.reload;
+  useEffect(() => {
+    const r = () => reloadMsgs.current();
+    window.addEventListener('orb:messages', r);
+    return () => window.removeEventListener('orb:messages', r);
   }, []);
   // Opening the feed clears the badge
   const onFeed = /\/everyday$/.test(loc.pathname) || /[?&]tab=everyday/.test(loc.search);
@@ -192,6 +201,11 @@ export default function Shell() {
             <div className={cx(!isOfficer && 'lg:invisible')}><Logo faded={header.collapsed && !!header.title} /></div>
             <div className="flex items-center gap-2">
               {feedOn && <EverydayButton to={isOfficer ? '/officer/everyday' : `/${user.role}?tab=everyday`} unread={badges.everyday} />}
+              {user.role !== 'venue' && (
+                <span className={cx(!isOfficer && 'lg:hidden')}>
+                  <IconButton icon={MessagesSquare} tone="solid" to={`/${user.role}/messages`} active={loc.pathname.startsWith(`/${user.role}/messages`)} badge={badges.messages} label={`Messages${badges.messages ? `, ${badges.messages} unread` : ''}`} />
+                </span>
+              )}
               <NotificationBell />
               {isOfficer && <span className="hidden sm:block"><Button variant="secondary" size="sm" icon={LogOut} onClick={signOut}>Sign out</Button></span>}
             </div>

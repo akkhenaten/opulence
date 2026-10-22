@@ -14,7 +14,7 @@ async function assertOwner(user, ownerType, ownerId, write = false) {
     if (write && user.role === 'security') fail(403, 'Only the company or the officer can upload officer documents');
   } else if (ownerType === 'venue') {
     await assertVenue(user, ownerId);
-    if (write && user.role !== 'company') fail(403, 'Only the company can upload venue documents');
+    if (write && !['company', 'security'].includes(user.role)) fail(403, 'Only the company or its security managers can upload venue documents');
   } else if (user.role !== 'company') fail(403, 'Forbidden');
 }
 
@@ -22,7 +22,7 @@ export const actions = {
   // Generic presigned upload for any private file (documents, incident photos, profile photos)
   'files.uploadUrl': def(ALL, async (b, { user }) => {
     required(b, 'filename', 'content_type');
-    const folder = ({ officer: 'officers', venue: 'venues', incident: 'incidents', photo: 'photos', company: 'company', feed: 'feed', learn: 'learn' })[b.purpose] || 'misc';
+    const folder = ({ officer: 'officers', venue: 'venues', incident: 'incidents', photo: 'photos', company: 'company', feed: 'feed', learn: 'learn', message: 'messages' })[b.purpose] || 'misc';
     return uploadUrl(`${folder}/${user.id.slice(0, 8)}`, b.filename, b.content_type);
   }),
 

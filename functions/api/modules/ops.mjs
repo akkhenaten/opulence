@@ -3,7 +3,7 @@
 import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, need, pick } from '../lib/http.mjs';
 import { venueScope, assertVenue, assertOfficerAccess } from '../lib/scope.mjs';
-import { notify, companyManagers, securityFor, venueContacts, officerUser } from '../lib/notify.mjs';
+import { notify, companyManagers, securityFor, venueContacts, officerUser, managersFor } from '../lib/notify.mjs';
 import { fmtDate, fmtTime, fmtDateTime, londonDate, londonParts, addDays } from '../lib/time.mjs';
 import { roundHours, money } from '../lib/rates.mjs';
 import { audit } from '../lib/audit.mjs';
@@ -14,6 +14,7 @@ import { recalcStatement, recalcInvoice } from './money.mjs';
 import { ALL, MGR, CO, def } from './_def.mjs';
 import { runCompliance, readDocuments, decideCompliance, computeIssues } from './compliance.mjs';
 import { evidenceScan } from './incidentAi.mjs';
+import { opsMessage, closeQuick, ensureThread, post, opsUser, syncMembers } from '../lib/threads.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const NO_CLOCK_IN = "NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')";
@@ -189,6 +190,17 @@ const REQUEST_TOOL = {
           },
         },
       },
+      recurrence: {
+        type: 'object',
+        description: 'Only when they ask for the same cover repeatedly ("every Friday and Saturday", "weekly until Christmas").',
+        properties: {
+          frequency: { type: 'string', enum: ['weekly', 'fortnightly'] },
+          days: { type: 'array', items: { type: 'object', properties: { dow: { type: 'integer', description: 'ISO weekday 1=Mon..7=Sun' }, start: { type: 'string' }, end: { type: 'string' }, headcount: { type: 'integer' } } } },
+          start_date: { type: 'string', description: 'YYYY-MM-DD first week' },
+          end_date: { type: 'string', description: 'YYYY-MM-DD last date, or empty for no end' },
+          role: { type: 'string' },
+        },
+      },
     },
     required: ['intent'],
   },
@@ -254,6 +266,10 @@ async function escalate(a, s) {
   const name = `${a.first_name} ${a.last_name}`;
   const why = a.reply === 'cant_make_it' ? `says they can't make it${a.reply_reason ? `: "${a.reply_reason}"` : ''}` : a.reply === 'on_my_way' ? `said on my way (${a.reply_eta_min} min) but still not clocked in` : 'has not replied or clocked in';
   if (a.reply === 'cant_make_it') await q("UPDATE shift_assignments SET status = 'cancelled' WHERE id = $1", [a.id]);
+  else {
+    const [uid] = await officerUser(a.officer_id);
+    await opsMessage(uid, `We still haven't seen you clock in at ${sh.venue_name}, so the office is lining up cover. If you're on your way, tell us now.`);
+  }
   await notifyManagers(sh.venue_id, { kind: 'late', severity: 'critical', title: `${name} ${a.reply === 'cant_make_it' ? "can't make it" : 'is a no-show'}`, body: `${sh.venue_name} · ${when(sh)}. ${name} ${why}. Cover options are in Ops AI.`, link: 'ops', dedupe: `esc:${a.id}`, email: true });
   await logActivity('escalate', `Escalated ${name} at ${sh.venue_name} (${fmtTime(sh.starts_at)}) — ${why}`, { ref_type: 'assignment', ref_id: a.id, venue_id: sh.venue_id });
   if (jobOn(s, 'cover')) await proposeCover(sh, a.reply === 'cant_make_it' ? 'cant_make_it' : 'no-show', { replacing: a.reply === 'cant_make_it' ? null : a.id });
@@ -414,16 +430,21 @@ async function decideCover(it, b, user) {
   if (!ids.length) fail(400, 'Pick at least one officer to offer the shift to');
   if (it.payload.replacing) {
     const r = await one(`UPDATE shift_assignments a SET status = 'cancelled' WHERE a.id = $1 AND a.status IN ${ACTIVE} AND ${NO_CLOCK_IN} RETURNING officer_id`, [it.payload.replacing]);
-    if (r) await notify(await officerUser(r.officer_id), { kind: 'shift', severity: 'warning', title: 'You have been replaced on a shift', body: `${sh.venue_name} · ${when(sh)}. Contact your manager if this is wrong.`, link: '/officer/shifts' });
+    if (r) {
+      const [uid] = await officerUser(r.officer_id);
+      await closeQuick(uid, { ref: `chase:${it.payload.replacing}`, used: 'stood_down' });
+      await opsMessage(uid, `You've been stood down from ${sh.venue_name} · ${when(sh)} because we couldn't reach you. Reply here or call the office if this is wrong.`);
+    }
   }
   const batch = it.payload.batch || 1;
   const offered = await q(
     `INSERT INTO cover_offers (item_id, shift_id, officer_id, batch) SELECT $1, $2, unnest($3::uuid[]), $4
      ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'offered', item_id = EXCLUDED.item_id, batch = EXCLUDED.batch, offered_at = now(), responded_at = NULL
        WHERE cover_offers.status IN ('expired','filled_by_other')
-     RETURNING officer_id`, [it.id, sh.id, ids, batch]);
+     RETURNING id, officer_id`, [it.id, sh.id, ids, batch]);
   for (const o of offered) {
-    await notify(await officerUser(o.officer_id), { kind: 'offer', severity: 'warning', title: 'Cover shift offered to you', body: `${sh.venue_name} · ${when(sh)}. First to accept gets it.`, link: '/officer/shifts?tab=offers', email: true, dedupe: `offer:${sh.id}:${o.officer_id}:${batch}` });
+    const [uid] = await officerUser(o.officer_id);
+    await opsMessage(uid, `Can you cover ${sh.venue_name} · ${when(sh)}? First to accept gets it.`, { ref: `offer:${o.id}`, options: [{ label: 'Accept', value: 'accept' }, { label: 'Decline', value: 'decline' }] }, { email: true });
   }
   return { offered: offered.length };
 }
@@ -461,7 +482,7 @@ async function decideVenueRequest(it, b, user) {
   }
   if (req) {
     await q("UPDATE venue_requests SET status = 'confirmed' WHERE id = $1", [req.id]);
-    await notify(await venueContacts(it.venue_id), { kind: 'cover', title: 'Your request is confirmed', body: done.join(' · '), link: '/venue/requests', email: true });
+    await notify(await venueContacts(it.venue_id), { kind: 'cover', title: 'Your request is confirmed', body: done.join(' · '), link: '/venue/messages', email: true });
   }
   return { done };
 }
@@ -621,6 +642,95 @@ async function runTool(name, input, user, created) {
 }
 
 // ---------- Actions ----------
+// ---------- Officer replies (buttons in the app, quick replies and free text in Messages) ----------
+/** After cover is found: the shift team thread and the venue's cover thread hear about it. */
+async function coverFilledThreads(sh, name) {
+  const sys = await opsUser();
+  const team = (await q(`SELECT o.user_id FROM shift_assignments a JOIN officers o ON o.id = a.officer_id WHERE a.shift_id = $1 AND a.status IN ${ACTIVE} AND o.user_id IS NOT NULL`, [sh.id])).map((r) => r.user_id);
+  const shiftThread = await ensureThread('shift', sh.id, [...team, ...(await managersFor(sh.venue_id)), sys], `${sh.venue_name} · ${when(sh)}`);
+  await post(shiftThread.id, sys, { body: `${name} is now covering this shift.` });
+  const series = sh.cover_request_id ? await one('SELECT COALESCE(cs.root_id, cs.id) AS root FROM cover_requests c JOIN cover_series cs ON cs.id = c.series_id WHERE c.id = $1', [sh.cover_request_id]) : null;
+  const venueThread = series ? await one("SELECT id FROM conversations WHERE kind = 'cover' AND ref_id = $1", [series.root]) : null;
+  if (venueThread) {
+    await syncMembers(venueThread.id, [sys]);
+    await post(venueThread.id, sys, { body: `Cover update for ${when(sh)}: ${name} will be working this shift.` });
+  }
+}
+
+export async function officerReply(b, user) {
+  required(b, 'assignment_id', 'reply');
+  if (!['on_my_way', 'cant_make_it'].includes(b.reply)) fail(400, 'Unknown reply');
+  const a = need(await one(
+    `SELECT a.*, o.first_name, o.last_name FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN officers o ON o.id = a.officer_id
+      WHERE a.id = $1 AND a.officer_id = $2 AND a.status IN ${ACTIVE} AND s.status = 'published' AND s.ends_at > now()`, [b.assignment_id, user.officer_id]), 'Shift not found');
+  const eta = b.reply === 'on_my_way' ? Math.min(Math.max(Number(b.eta_min) || 15, 1), 120) : null;
+  const reason = String(b.reason || '').slice(0, 300);
+  await q('UPDATE shift_assignments SET reply = $2, reply_eta_min = $3, reply_reason = $4, replied_at = now(), chased_at = COALESCE(chased_at, now()) WHERE id = $1', [a.id, b.reply, eta, reason]);
+  const sh = await getShift(a.shift_id);
+  const name = `${a.first_name} ${a.last_name}`;
+  await closeQuick(user.id, { ref: `chase:${a.id}`, used: b.reply });
+  await opsMessage(user.id, b.reply === 'cant_make_it'
+    ? `Thanks for letting us know. We'll arrange cover for ${sh.venue_name} — no need to do anything else.`
+    : `Thanks — we've told the office you're about ${eta} minutes away. Clock in as soon as you arrive.`);
+  if (b.reply === 'cant_make_it') {
+    await q("INSERT INTO attendance_events (officer_id, assignment_id, kind, reason, notified) VALUES ($1,$2,'cant_make_it',$3,true) ON CONFLICT DO NOTHING", [a.officer_id, a.id, reason]);
+    await escalate({ ...a, reply: 'cant_make_it', reply_reason: reason }, await getSettings());
+  } else {
+    await notifyManagers(sh.venue_id, { kind: 'late', title: `${name}: on my way (${eta} min)`, body: `${sh.venue_name} · started ${fmtTime(sh.starts_at)}`, link: 'live', dedupe: `omw:${a.id}` });
+    await logActivity('reply', `${name} replied "on my way, ${eta} min" for ${sh.venue_name}`, { ref_type: 'assignment', ref_id: a.id, venue_id: sh.venue_id });
+  }
+  return { ok: true };
+}
+
+export async function offerRespond(b, user) {
+  required(b, 'offer_id');
+  const offer = need(await one("SELECT * FROM cover_offers WHERE id = $1 AND officer_id = $2", [b.offer_id, user.officer_id]), 'Offer not found');
+  if (offer.status === 'filled_by_other') fail(409, 'Already filled — thanks for looking');
+  if (offer.status !== 'offered') fail(409, `Offer ${offer.status}`);
+  const sh = await getShift(offer.shift_id);
+  const o = await one('SELECT first_name, last_name FROM officers WHERE id = $1', [offer.officer_id]);
+  await closeQuick(user.id, { ref: `offer:${offer.id}`, used: b.accept ? 'accept' : 'decline' });
+  if (!b.accept) {
+    await q("UPDATE cover_offers SET status = 'declined', responded_at = now() WHERE id = $1", [offer.id]);
+    await opsMessage(user.id, 'No problem — thanks for letting us know.');
+    await logActivity('offer', `${firstLast(o)} declined cover at ${sh.venue_name} (${fmtDate(sh.starts_at)})`, { venue_id: sh.venue_id });
+    const left = await one("SELECT count(*)::int AS n FROM cover_offers WHERE item_id = $1 AND status = 'offered'", [offer.item_id]);
+    if (!left.n) { const it = await one("SELECT * FROM ops_items WHERE id = $1 AND status = 'approved'", [offer.item_id]); if (it) await nextBatch(it); }
+    return { ok: true };
+  }
+  const check = await checkOfficerForShift(offer.officer_id, sh);
+  if (check.blocking.length) fail(409, `No longer eligible: ${check.blocking.join('; ')}`);
+  const full = await tx(async (t) => {
+    const s = await t.one('SELECT * FROM shifts WHERE id = $1 FOR UPDATE', [sh.id]);
+    if (s.status !== 'published') fail(409, 'This shift was cancelled');
+    const filled = Number((await t.one(`SELECT count(*) AS n FROM shift_assignments WHERE shift_id = $1 AND status IN ${ACTIVE}`, [s.id])).n);
+    if (filled >= s.headcount) {
+      await t.q("UPDATE cover_offers SET status = 'filled_by_other', responded_at = now() WHERE id = $1", [offer.id]);
+      return 'already';
+    }
+    await t.q(`INSERT INTO shift_assignments (shift_id, officer_id, status, responded_at) VALUES ($1,$2,'accepted',now())
+               ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'accepted', responded_at = now()`, [s.id, offer.officer_id]);
+    await t.q("UPDATE cover_offers SET status = 'accepted', responded_at = now() WHERE id = $1", [offer.id]);
+    return filled + 1 >= s.headcount;
+  });
+  if (full === 'already') fail(409, 'Already filled — thanks for looking');
+  if (full) {
+    const others = await q("UPDATE cover_offers SET status = 'filled_by_other', responded_at = now() WHERE shift_id = $1 AND status = 'offered' RETURNING id, officer_id", [sh.id]);
+    for (const x of others) {
+      const [uid] = await officerUser(x.officer_id);
+      await closeQuick(uid, { ref: `offer:${x.id}`, used: 'filled' });
+      await opsMessage(uid, `The cover shift at ${sh.venue_name} (${when(sh)}) has been taken. Thanks for looking.`);
+    }
+    await q("UPDATE ops_items SET status = 'done' WHERE kind = 'cover' AND shift_id = $1 AND status IN ('pending','approved')", [sh.id]);
+  }
+  await opsMessage(user.id, `It's yours: ${sh.venue_name} · ${when(sh)}. It is now on your rota.`);
+  await coverFilledThreads(sh, firstLast(o));
+  await notifyManagers(sh.venue_id, { kind: 'ops', title: `${firstLast(o)} took the cover shift`, body: `${sh.venue_name} · ${when(sh)}`, link: 'rota', dedupe: `took:${offer.id}` });
+  await logActivity('offer', `${firstLast(o)} accepted cover at ${sh.venue_name} (${when(sh)})`, { ref_type: 'shift', ref_id: sh.id, venue_id: sh.venue_id });
+  await audit(user, 'ops.offer_accept', 'shift', sh.id, { officer: offer.officer_id });
+  return { ok: true };
+}
+
 const OPS_SETTINGS = ['ops_jobs', 'ops_escalate_minutes', 'ops_offer_wait_minutes', 'ops_reconcile_dow', 'ops_compliance_dow', 'ops_ai_cap_credits'];
 
 export const actions = {
@@ -664,7 +774,7 @@ export const actions = {
     if (b.decision === 'reject') {
       if (it.kind === 'venue_request' && it.payload.request_id) {
         await q("UPDATE venue_requests SET status = 'declined', decline_reason = $2 WHERE id = $1 AND status = 'requested'", [it.payload.request_id, b.reason || '']);
-        await notify(await venueContacts(it.venue_id), { kind: 'cover', title: 'Request declined', body: b.reason || 'Please contact us to discuss.', link: '/venue/requests', email: true });
+        await notify(await venueContacts(it.venue_id), { kind: 'cover', title: 'Request declined', body: b.reason || 'Please contact us to discuss.', link: '/venue/messages', email: true });
       }
       result = { rejected: true, reason: b.reason || '' };
     } else if (b.decision === 'approve') {
@@ -770,26 +880,7 @@ Answer in short, plain British business English. Use the officers' and venues' n
   }),
 
   // ----- Officers -----
-  'ops.reply': def(['officer'], async (b, { user }) => {
-    required(b, 'assignment_id', 'reply');
-    if (!['on_my_way', 'cant_make_it'].includes(b.reply)) fail(400, 'Unknown reply');
-    const a = need(await one(
-      `SELECT a.*, o.first_name, o.last_name FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN officers o ON o.id = a.officer_id
-        WHERE a.id = $1 AND a.officer_id = $2 AND a.status IN ${ACTIVE} AND s.status = 'published' AND s.ends_at > now()`, [b.assignment_id, user.officer_id]), 'Shift not found');
-    const eta = b.reply === 'on_my_way' ? Math.min(Math.max(Number(b.eta_min) || 15, 1), 120) : null;
-    const reason = String(b.reason || '').slice(0, 300);
-    await q('UPDATE shift_assignments SET reply = $2, reply_eta_min = $3, reply_reason = $4, replied_at = now(), chased_at = COALESCE(chased_at, now()) WHERE id = $1', [a.id, b.reply, eta, reason]);
-    const sh = await getShift(a.shift_id);
-    const name = `${a.first_name} ${a.last_name}`;
-    if (b.reply === 'cant_make_it') {
-      await q("INSERT INTO attendance_events (officer_id, assignment_id, kind, reason, notified) VALUES ($1,$2,'cant_make_it',$3,true) ON CONFLICT DO NOTHING", [a.officer_id, a.id, reason]);
-      await escalate({ ...a, reply: 'cant_make_it', reply_reason: reason }, await getSettings());
-    } else {
-      await notifyManagers(sh.venue_id, { kind: 'late', title: `${name}: on my way (${eta} min)`, body: `${sh.venue_name} · started ${fmtTime(sh.starts_at)}`, link: 'live', dedupe: `omw:${a.id}` });
-      await logActivity('reply', `${name} replied "on my way, ${eta} min" for ${sh.venue_name}`, { ref_type: 'assignment', ref_id: a.id, venue_id: sh.venue_id });
-    }
-    return { ok: true };
-  }),
+  'ops.reply': def(['officer'], async (b, { user }) => officerReply(b, user)),
 
   'ops.myOffers': def(['officer'], async (_b, { user }) => {
     const oid = user.officer_id;
@@ -804,52 +895,13 @@ Answer in short, plain British business English. Use the officers' and venues' n
     return { chase, offers };
   }),
 
-  'ops.offerRespond': def(['officer'], async (b, { user }) => {
-    required(b, 'offer_id');
-    const offer = need(await one("SELECT * FROM cover_offers WHERE id = $1 AND officer_id = $2", [b.offer_id, user.officer_id]), 'Offer not found');
-    if (offer.status === 'filled_by_other') fail(409, 'Already filled — thanks for looking');
-    if (offer.status !== 'offered') fail(409, `Offer ${offer.status}`);
-    const sh = await getShift(offer.shift_id);
-    const o = await one('SELECT first_name, last_name FROM officers WHERE id = $1', [offer.officer_id]);
-    if (!b.accept) {
-      await q("UPDATE cover_offers SET status = 'declined', responded_at = now() WHERE id = $1", [offer.id]);
-      await logActivity('offer', `${firstLast(o)} declined cover at ${sh.venue_name} (${fmtDate(sh.starts_at)})`, { venue_id: sh.venue_id });
-      const left = await one("SELECT count(*)::int AS n FROM cover_offers WHERE item_id = $1 AND status = 'offered'", [offer.item_id]);
-      if (!left.n) { const it = await one("SELECT * FROM ops_items WHERE id = $1 AND status = 'approved'", [offer.item_id]); if (it) await nextBatch(it); }
-      return { ok: true };
-    }
-    const check = await checkOfficerForShift(offer.officer_id, sh);
-    if (check.blocking.length) fail(409, `No longer eligible: ${check.blocking.join('; ')}`);
-    const full = await tx(async (t) => {
-      const s = await t.one('SELECT * FROM shifts WHERE id = $1 FOR UPDATE', [sh.id]);
-      if (s.status !== 'published') fail(409, 'This shift was cancelled');
-      const filled = Number((await t.one(`SELECT count(*) AS n FROM shift_assignments WHERE shift_id = $1 AND status IN ${ACTIVE}`, [s.id])).n);
-      if (filled >= s.headcount) {
-        await t.q("UPDATE cover_offers SET status = 'filled_by_other', responded_at = now() WHERE id = $1", [offer.id]);
-        return 'already';
-      }
-      await t.q(`INSERT INTO shift_assignments (shift_id, officer_id, status, responded_at) VALUES ($1,$2,'accepted',now())
-                 ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'accepted', responded_at = now()`, [s.id, offer.officer_id]);
-      await t.q("UPDATE cover_offers SET status = 'accepted', responded_at = now() WHERE id = $1", [offer.id]);
-      return filled + 1 >= s.headcount;
-    });
-    if (full === 'already') fail(409, 'Already filled — thanks for looking');
-    if (full) {
-      const others = await q("UPDATE cover_offers SET status = 'filled_by_other', responded_at = now() WHERE shift_id = $1 AND status = 'offered' RETURNING officer_id", [sh.id]);
-      for (const x of others) await notify(await officerUser(x.officer_id), { kind: 'offer', title: 'Cover shift filled', body: `${sh.venue_name} · ${when(sh)} has been taken. Thanks for looking.`, link: '/officer/shifts?tab=offers' });
-      await q("UPDATE ops_items SET status = 'done' WHERE kind = 'cover' AND shift_id = $1 AND status IN ('pending','approved')", [sh.id]);
-    }
-    await notifyManagers(sh.venue_id, { kind: 'ops', title: `${firstLast(o)} took the cover shift`, body: `${sh.venue_name} · ${when(sh)}`, link: 'rota', dedupe: `took:${offer.id}` });
-    await logActivity('offer', `${firstLast(o)} accepted cover at ${sh.venue_name} (${when(sh)})`, { ref_type: 'shift', ref_id: sh.id, venue_id: sh.venue_id });
-    await audit(user, 'ops.offer_accept', 'shift', sh.id, { officer: offer.officer_id });
-    return { ok: true };
-  }),
+  'ops.offerRespond': def(['officer'], async (b, { user }) => offerRespond(b, user)),
 
   // ----- Venues -----
   'venueRequests.create': def(['venue', 'company'], async (b, { user }) => {
     required(b, 'text');
     const s = await getSettings();
-    if (!jobOn(s, 'venue_requests')) fail(400, 'Chat requests are switched off — please use Cover requests');
+    if (!b.draft && !jobOn(s, 'venue_requests')) fail(400, 'Chat requests are switched off — please use Cover requests');
     const scope = await venueScope(user);
     const venueId = b.venue_id || (scope && scope[0]);
     need(venueId, 'No venue linked to your account');
@@ -869,6 +921,26 @@ If the date, times or number of officers are missing or ambiguous, use intent "u
     const messages = [...history, { role: 'user', content: String(b.text).slice(0, 2000) }];
     while (messages.length && messages[0].role !== 'user') messages.shift();
     const { input: parsed, credits } = await extract({ model: HAIKU, system, messages, tool: REQUEST_TOOL, max_tokens: 800 });
+    // Draft: read a message into a cover request form for the person to check — nothing is filed
+    if (b.draft) {
+      const codes = roles.map((r) => r.code);
+      const okRole = (r) => (codes.includes(r) ? r : codes.includes('door') ? 'door' : codes[0]);
+      const hhmm = (t) => (/^\d{1,2}:\d{2}$/.test(t || '') ? t.padStart(5, '0') : '');
+      const rec = parsed?.recurrence;
+      if (rec?.days?.length) {
+        return { status: 'draft', credits, draft: {
+          venue_id: venueId, kind: 'recurring', role: okRole(rec.role || parsed.shifts?.[0]?.role), frequency: rec.frequency === 'fortnightly' ? 'fortnightly' : 'weekly',
+          days: rec.days.filter((d) => d.dow >= 1 && d.dow <= 7).map((d) => ({ dow: d.dow, start: hhmm(d.start) || '21:00', end: hhmm(d.end) || '03:00', headcount: Math.max(1, d.headcount || 1) })),
+          start_date: /^\d{4}-\d{2}-\d{2}$/.test(rec.start_date || '') && rec.start_date >= today ? rec.start_date : today,
+          end_date: /^\d{4}-\d{2}-\d{2}$/.test(rec.end_date || '') ? rec.end_date : '', notes: parsed.summary || '',
+        } };
+      }
+      const x = parsed?.shifts?.[0];
+      return { status: 'draft', credits, draft: {
+        venue_id: venueId, kind: 'one_off', role: okRole(x?.role), date: /^\d{4}-\d{2}-\d{2}$/.test(x?.date || '') && x.date >= today ? x.date : '',
+        start: hhmm(x?.start), end: hhmm(x?.end), headcount: Math.max(1, x?.headcount || 1), notes: x?.notes || parsed?.summary || '',
+      } };
+    }
     if (parsed?.intent === 'unclear' || !parsed) return { status: 'question', reply: parsed?.question || 'Could you tell us the date, start and finish times, and how many officers you need?' };
     const v = validateRequest(parsed, { today, roles: roles.map((r) => r.code), shiftIds: upcoming.map((x) => x.id) });
     if (!v.ok) return { status: 'question', reply: v.errors.join(' ') };

@@ -10,6 +10,7 @@ import {
   Avatar, Bento, Button, cx, date, daysUntil, Empty, IconButton, Input, isoDate, List, Load, money, Page, Pill, Pressable, Row, Section, Select, Sheet, Stat, Table, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm, useToast,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
+import { useAuth } from '../../auth.jsx';
 
 const UK = [54.3, -2.6];
 
@@ -18,8 +19,10 @@ export default function VenueDetail() {
   const base = useBase();
   const [params, setParams] = useSearchParams();
   const tab = params.get('tab') || 'location';
+  const { user } = useAuth();
+  const isCo = user.role === 'company';
   const q = useApi('venues.get', { id });
-  const clients = useApi('clients.list');
+  const clients = useApi('clients.list', {}, { skip: !isCo });
 
   return (
     <Load q={q}>
@@ -50,14 +53,14 @@ export default function VenueDetail() {
 
           <Tabs value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })} tabs={[
             { value: 'location', label: 'Location' }, { value: 'details', label: 'Details' }, { value: 'qr', label: 'QR code' },
-            { value: 'rates', label: 'Charge rates' }, { value: 'people', label: 'People' }, { value: 'documents', label: 'Documents', count: v.documents.length },
+            ...(isCo ? [{ value: 'rates', label: 'Charge rates' }] : []), { value: 'people', label: 'People' }, { value: 'documents', label: 'Documents', count: v.documents.length },
           ]} />
 
           {tab === 'location' && <LocationTab v={v} onSaved={q.reload} />}
-          {tab === 'details' && <DetailsTab v={v} clients={clients.data || []} onSaved={q.reload} />}
+          {tab === 'details' && <DetailsTab v={v} clients={clients.data || []} isCo={isCo} onSaved={q.reload} />}
           {tab === 'qr' && <QrTab v={v} />}
-          {tab === 'rates' && <RatesTab venueId={v.id} />}
-          {tab === 'people' && <PeopleTab v={v} />}
+          {tab === 'rates' && isCo && <RatesTab venueId={v.id} />}
+          {tab === 'people' && <PeopleTab v={v} isCo={isCo} />}
           {tab === 'documents' && <DocumentsTab venueId={v.id} />}
         </Page>
       )}
@@ -187,14 +190,16 @@ function LocationTab({ v, onSaved }) {
 
 /* ---------- Details ---------- */
 
-function DetailsTab({ v, clients, onSaved }) {
+function DetailsTab({ v, clients, isCo, onSaved }) {
   const [run, busy] = useAction();
   const f = useForm({
     client_id: v.client_id || '', name: v.name || '', address: v.address || '', postcode: v.postcode || '', phone: v.phone || '',
     instructions: v.instructions || '', notes: v.notes || '', invoice_cycle: v.invoice_cycle || '', active: !!v.active,
   });
+  // Client and invoicing belong to the company manager; the server ignores them from anyone else
   const save = () => run(() => api('venues.save', {
     id: v.id, ...f.v, client_id: f.v.client_id || null, invoice_cycle: f.v.invoice_cycle || null, postcode: f.v.postcode.toUpperCase(),
+    ...(isCo ? {} : { client_id: undefined, invoice_cycle: undefined }),
   }), 'Venue saved').then(onSaved).catch(() => {});
 
   return (
@@ -202,7 +207,7 @@ function DetailsTab({ v, clients, onSaved }) {
       <Tile title="Venue">
         <div className="space-y-4">
           <Input label="Name" {...f.bind('name')} />
-          <Select label="Client" placeholder="No client" options={clients.map((c) => ({ value: c.id, label: c.name }))} {...f.bind('client_id')} />
+          {isCo && <Select label="Client" placeholder="No client" options={clients.map((c) => ({ value: c.id, label: c.name }))} {...f.bind('client_id')} />}
           <Textarea label="Address" rows={2} {...f.bind('address')} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Postcode" {...f.bind('postcode')} />
@@ -214,7 +219,7 @@ function DetailsTab({ v, clients, onSaved }) {
         <div className="space-y-4">
           <Textarea label="Assignment instructions" rows={5} hint="Shown to officers before and during their shift" {...f.bind('instructions')} />
           <Textarea label="Internal notes" rows={3} hint="Only visible to your managers" {...f.bind('notes')} />
-          <Select label="Invoice cycle" placeholder="Company default" options={[{ value: 'weekly', label: 'Weekly' }, { value: 'fortnightly', label: 'Fortnightly' }, { value: 'monthly', label: 'Monthly' }]} {...f.bind('invoice_cycle')} />
+          {isCo && <Select label="Invoice cycle" placeholder="Company default" options={[{ value: 'weekly', label: 'Weekly' }, { value: 'fortnightly', label: 'Fortnightly' }, { value: 'monthly', label: 'Monthly' }]} {...f.bind('invoice_cycle')} />}
           <div className="rounded-xl bg-bg px-4 py-2">
             <Toggle label="Active" hint="Inactive venues are hidden from the rota" checked={f.v.active} onChange={(x) => f.set('active', x)} />
           </div>
@@ -371,7 +376,7 @@ function RateSheet({ venueId, roles, onClose, onSaved }) {
 
 /* ---------- People ---------- */
 
-function PeopleTab({ v }) {
+function PeopleTab({ v, isCo }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <div>
@@ -396,7 +401,7 @@ function PeopleTab({ v }) {
         </Section>
       </div>
       <div className="lg:col-span-2">
-        <Button variant="soft" icon={Users} to="/company/settings">Manage users and venue access</Button>
+        {isCo && <Button variant="soft" icon={Users} to="/company/settings">Manage users and venue access</Button>}
       </div>
     </div>
   );
@@ -414,7 +419,8 @@ const DOC_KINDS = [
 ];
 const kindLabel = (k) => DOC_KINDS.find((x) => x.value === k)?.label || k;
 
-function DocumentsTab({ venueId }) {
+// Venue managers see the same list read-only (their My venue page)
+export function DocumentsTab({ venueId, readOnly }) {
   const docs = useApi('docs.list', { owner_type: 'venue', owner_id: venueId });
   const [open, setOpen] = useState(false);
   const confirm = useConfirm();
@@ -431,10 +437,10 @@ function DocumentsTab({ venueId }) {
   };
 
   return (
-    <Section title="Venue documents" className="mt-0" action={<Button size="sm" icon={Upload} onClick={() => setOpen(true)}>Upload</Button>}>
+    <Section title="Venue documents" className="mt-0" action={!readOnly && <Button size="sm" icon={Upload} onClick={() => setOpen(true)}>Upload</Button>}>
       <Load q={docs}>
         {(rows) => (!rows.length
-          ? <Empty icon={FileText} title="No documents" body="Upload assignment instructions, risk assessments and site plans." />
+          ? <Empty icon={FileText} title="No documents" body={readOnly ? 'Documents Orb shares with you, such as assignment instructions and invoices, appear here.' : 'Upload assignment instructions, risk assessments and site plans.'} />
           : (
             <List>
               {rows.map((d) => {
@@ -447,7 +453,7 @@ function DocumentsTab({ venueId }) {
                       <div className="truncate text-footnote text-muted">{kindLabel(d.kind)} · added {date(d.created_at)}</div>
                     </Pressable>
                     {d.expiry && <Pill tone={left < 0 ? 'red' : left <= 30 ? 'amber' : 'grey'}>{left < 0 ? 'Expired' : `Expires ${date(d.expiry)}`}</Pill>}
-                    <IconButton icon={Trash2} label="Delete document" onClick={() => del(d)} className="text-red hover:bg-red-soft" />
+                    {!readOnly && <IconButton icon={Trash2} label="Delete document" onClick={() => del(d)} className="text-red hover:bg-red-soft" />}
                   </div>
                 );
               })}

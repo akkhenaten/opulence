@@ -6,11 +6,14 @@ import {
   Avatar, Button, cx, Empty, Input, List, Load, Page, Pill, Pressable, Row, SearchInput, Select, Sheet, Textarea, useAction, useApi, useForm,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
+import { useAuth } from '../../auth.jsx';
 
 export default function Venues() {
   const [params] = useSearchParams();
+  const { user } = useAuth();
   const venues = useApi('venues.list', { include_inactive: true });
-  const clients = useApi('clients.list');
+  // Clients (who is billed) are the company manager's; security managers add and run venues
+  const clients = useApi('clients.list', {}, { skip: user.role !== 'company' });
   const [addVenue, setAddVenue] = useState(false);
   // Clients used to be a tab here
   if (params.get('tab') === 'clients') return <Navigate to="../clients" replace />;
@@ -126,7 +129,7 @@ function AddVenueSheet({ open, onClose, clients }) {
     <Sheet open={open} onClose={onClose} title="Add venue"
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!f.v.name.trim()} onClick={save}>Add venue</Button></>}>
       <div className="space-y-4">
-        <Select label="Client" placeholder="No client" options={clients.map((c) => ({ value: c.id, label: c.name }))} {...f.bind('client_id')} />
+        {clients.length > 0 && <Select label="Client" placeholder="No client" options={clients.map((c) => ({ value: c.id, label: c.name }))} {...f.bind('client_id')} />}
         <Input label="Venue name" placeholder="e.g. The Crown, Soho" autoFocus {...f.bind('name')} />
         <Textarea label="Address" rows={2} {...f.bind('address')} />
         <div className="grid grid-cols-2 gap-3">

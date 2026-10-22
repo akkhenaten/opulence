@@ -15,7 +15,8 @@ const Rota = P(() => import('./pages/manager/Rota.jsx'));
 const CoverManage = P(() => import('./pages/manager/Cover.jsx'));
 const Exceptions = P(() => import('./pages/manager/Exceptions.jsx'));
 const OpsAI = P(() => import('./pages/manager/OpsAI.jsx'));
-const VenueRequests = P(() => import('./pages/venue/Requests.jsx'));
+const Messages = P(() => import('./pages/messages/Messages.jsx'));
+const VenueSite = P(() => import('./pages/venue/Site.jsx'));
 const Timesheets = P(() => import('./pages/shared/Timesheets.jsx'));
 const Incidents = P(() => import('./pages/shared/Incidents.jsx'));
 const IncidentDetail = P(() => import('./pages/shared/IncidentDetail.jsx'));
@@ -111,6 +112,8 @@ const managerRoutes = (
     <Route path="team/toolbox/:id" element={<CardEditor />} />
     <Route path="team/certificates/:id" element={<Certificate />} />
     <Route path="everyday" element={<EverydayRedirect />} />
+    <Route path="messages" element={<Messages />} />
+    <Route path="messages/:id" element={<Messages />} />
   </>
 );
 
@@ -149,6 +152,8 @@ function App() {
           <Route path="/security" element={<Shell />}>
             <Route index element={<ManagerDashboard />} />
             {managerRoutes}
+            <Route path="venues" element={<Venues />} />
+            <Route path="venues/:id" element={<VenueDetail />} />
             <Route path="pay" element={<Pay />} />
             <Route path="pay/:id" element={<StatementDetail />} />
           </Route>
@@ -159,7 +164,10 @@ function App() {
             <Route index element={<VenueDashboard />} />
             <Route path="live" element={<Live />} />
             <Route path="cover" element={<VenueCover />} />
-            <Route path="requests" element={<VenueRequests />} />
+            <Route path="requests" element={<Navigate to="/venue/messages" replace />} />
+            <Route path="messages" element={<Messages />} />
+            <Route path="messages/:id" element={<Messages />} />
+            <Route path="site" element={<VenueSite />} />
             <Route path="timesheets" element={<Timesheets />} />
             <Route path="incidents" element={<Incidents />} />
             <Route path="incidents/:id" element={<IncidentDetail />} />
@@ -175,6 +183,8 @@ function App() {
             <Route path="clock" element={<OfficerClock />} />
             <Route path="pay" element={<OfficerPay />} />
             <Route path="everyday" element={<Everyday />} />
+            <Route path="messages" element={<Messages />} />
+            <Route path="messages/:id" element={<Messages />} />
             <Route path="pay/:id" element={<OfficerPay />} />
             <Route path="me" element={<OfficerMe />} />
             <Route path="documents" element={<OfficerDocuments />} />

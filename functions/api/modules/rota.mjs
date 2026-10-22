@@ -86,62 +86,6 @@ async function notifyAssigned(assignment, shift, kind = 'assigned') {
 }
 
 export const actions = {
-  // ---------- Cover requests (venue → company) ----------
-  'cover.list': def(['company', 'security', 'venue'], async (b, { user }) => {
-    const scope = await venueScope(user);
-    return q(
-      `SELECT c.*, v.name AS venue_name, r.name AS role_name, u.name AS requested_by_name,
-              (SELECT count(*) FROM shifts s WHERE s.cover_request_id = c.id AND s.status <> 'cancelled') AS shift_count,
-              (SELECT COALESCE(sum(sub.n), 0) FROM (SELECT count(*) AS n FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
-                 WHERE s.cover_request_id = c.id AND a.status IN ('assigned','accepted') GROUP BY s.id) sub) AS filled
-         FROM cover_requests c JOIN venues v ON v.id = c.venue_id JOIN roles r ON r.code = c.role LEFT JOIN users u ON u.id = c.requested_by
-        WHERE ($1::uuid[] IS NULL OR c.venue_id = ANY($1)) AND ($2::text IS NULL OR c.status = $2)
-        ORDER BY c.status = 'pending' DESC, c.starts_at DESC LIMIT 200`, [scope, b.status || null]);
-  }),
-
-  'cover.create': def(['company', 'venue'], async (b, { user }) => {
-    required(b, 'venue_id', 'role', 'starts_at', 'ends_at', 'headcount');
-    await assertVenue(user, b.venue_id);
-    if (new Date(b.ends_at) <= new Date(b.starts_at)) fail(400, 'End must be after start');
-    if (b.headcount < 1 || b.headcount > 100) fail(400, 'Headcount must be 1–100');
-    const c = await insert('cover_requests', { ...pick(b, ['venue_id', 'role', 'starts_at', 'ends_at', 'headcount', 'notes']), requested_by: user.id });
-    const v = await one('SELECT name FROM venues WHERE id = $1', [b.venue_id]);
-    await notify(await managersFor(b.venue_id), {
-      kind: 'cover', title: 'New cover request', body: `${v.name} needs ${b.headcount} × ${b.role} · ${fmtDateTime(b.starts_at)}`, link: '/company/cover', email: true,
-    });
-    return c;
-  }),
-
-  'cover.cancel': def(['company', 'security', 'venue'], async (b, { user }) => {
-    const c = need(await one('SELECT * FROM cover_requests WHERE id = $1', [b.id]));
-    await assertVenue(user, c.venue_id);
-    if (c.status !== 'pending' && user.role === 'venue') fail(400, 'Already accepted — contact the company to change it');
-    await q("UPDATE cover_requests SET status = 'cancelled' WHERE id = $1", [b.id]);
-    return { ok: true };
-  }),
-
-  // Accepting a request creates the shift (published or as open shift) ready to staff
-  'cover.accept': def(MGR, async (b, { user }) => {
-    const c = need(await one("SELECT * FROM cover_requests WHERE id = $1 AND status = 'pending'", [b.id]), 'Request not pending');
-    await assertVenue(user, c.venue_id);
-    const shift = await tx(async (t) => {
-      await t.q("UPDATE cover_requests SET status = 'accepted', decided_by = $2 WHERE id = $1", [c.id, user.id]);
-      return insert('shifts', {
-        venue_id: c.venue_id, role: c.role, starts_at: c.starts_at, ends_at: c.ends_at, headcount: c.headcount, cover_request_id: c.id,
-        status: 'published', open: !!b.open, notes: c.notes, created_by: user.id,
-      }, t);
-    });
-    await notify(await venueContacts(c.venue_id), { kind: 'cover', title: 'Cover request accepted', body: `${c.headcount} × ${c.role} · ${fmtDateTime(c.starts_at)}`, link: '/venue/cover', email: true });
-    await audit(user, 'cover.accept', 'cover_request', c.id);
-    return shift;
-  }),
-
-  'cover.decline': def(MGR, async (b, { user }) => {
-    const c = need(await one("UPDATE cover_requests SET status = 'declined', decided_by = $2, decline_reason = $3 WHERE id = $1 AND status = 'pending' RETURNING *", [b.id, user.id, b.reason || '']));
-    await notify(await venueContacts(c.venue_id), { kind: 'cover', title: 'Cover request declined', body: b.reason || 'Please contact us to discuss.', link: '/venue/cover', email: true });
-    return { ok: true };
-  }),
-
   // ---------- Shifts ----------
   'shifts.list': def(ALL, async (b, { user }) => {
     required(b, 'from', 'to');

@@ -47,7 +47,7 @@ export const actions = {
        LEFT JOIN venue_contacts vc ON vc.user_id = u.id AND u.role = 'venue'
        LEFT JOIN security_venues sv ON sv.user_id = u.id AND u.role = 'security'
        LEFT JOIN venues v ON v.id = COALESCE(vc.venue_id, sv.venue_id)
-      WHERE ($1::text IS NULL OR u.role = $1)
+      WHERE NOT u.system AND ($1::text IS NULL OR u.role = $1)
       GROUP BY u.id ORDER BY u.role, u.name`, [b.role || null]))),
 
   'users.invite': def(CO, async (b, { user }) => {
