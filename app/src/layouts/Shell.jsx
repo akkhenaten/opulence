@@ -6,6 +6,7 @@ import { portalLink, useAuth } from '../auth.jsx';
 import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, usePageHeader, useScrollMemory } from '../ui/index.jsx';
 import { NAV, ROLE_LABEL } from './nav.js';
 import { AccountSheet } from './AccountSheet.jsx';
+import AskOrb, { AskOrbButton } from '../ui/AskOrb.jsx';
 
 // The company's logo, or its name next to the mark in the brand colour.
 // faded: the wordmark fades out (header shows the page title instead)
@@ -106,6 +107,13 @@ export default function Shell() {
   const loc = useLocation();
   const [more, setMore] = useState(false);
   const [account, setAccount] = useState(false);
+  const [ask, setAsk] = useState(false);
+  // Other pages open Ask Orb with this event (e.g. the Ops AI page)
+  useEffect(() => {
+    const o = () => setAsk(true);
+    window.addEventListener('orb:askorb', o);
+    return () => window.removeEventListener('orb:askorb', o);
+  }, []);
   // Settings saves fire this so switched-off modules disappear straight away
   const reloadSettings = useRef(settings.reload);
   reloadSettings.current = settings.reload;
@@ -200,6 +208,7 @@ export default function Shell() {
             <HeaderTitle />
             <div className={cx(!isOfficer && 'lg:invisible')}><Logo faded={header.collapsed && !!header.title} /></div>
             <div className="flex items-center gap-2">
+              {isMgr && <AskOrbButton onClick={() => setAsk((v) => !v)} />}
               {feedOn && <EverydayButton to={isOfficer ? '/officer/everyday' : `/${user.role}?tab=everyday`} unread={badges.everyday} />}
               {user.role !== 'venue' && (
                 <span className={cx(!isOfficer && 'lg:hidden')}>
@@ -252,6 +261,7 @@ export default function Shell() {
         </Pressable>
       </Sheet>
       {!isOfficer && <AccountSheet open={account} onClose={() => setAccount(false)} />}
+      {isMgr && <AskOrb open={ask} onClose={() => setAsk(false)} />}
     </div>
   );
 }

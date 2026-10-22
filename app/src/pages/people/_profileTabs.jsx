@@ -254,11 +254,11 @@ export function DocumentsTab({ o, isCo, onForbidden }) {
                     {d.ai_read && d.ai_read_key === d.s3_key && <AiRead r={d.ai_read} />}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {d.verified_at ? <Pill tone="green" className="max-w-[160px] truncate">Verified{d.verified_by_name ? ` · ${d.verified_by_name}` : ''}</Pill> : <Pill tone="amber">Unverified</Pill>}
+                    {d.system ? <Pill tone="blue">Saved copy</Pill> : d.verified_at ? <Pill tone="green" className="max-w-[160px] truncate">Verified{d.verified_by_name ? ` · ${d.verified_by_name}` : ''}</Pill> : <Pill tone="amber">Unverified</Pill>}
                     {d.expiry && <ExpiryPill date={d.expiry} />}
                     {d.s3_key && <IconButton icon={Eye} label="Open" onClick={() => open(d)} />}
-                    {isCo && !d.verified_at && <IconButton icon={Check} label="Verify" onClick={() => verify(d)} className="text-green" />}
-                    {isCo && <IconButton icon={Trash2} label="Delete" onClick={() => remove(d)} className="text-red" />}
+                    {isCo && !d.system && !d.verified_at && <IconButton icon={Check} label="Verify" onClick={() => verify(d)} className="text-green" />}
+                    {isCo && !d.system && <IconButton icon={Trash2} label="Delete" onClick={() => remove(d)} className="text-red" />}
                   </div>
                 </div>
               ))}

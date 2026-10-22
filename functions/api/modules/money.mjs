@@ -251,8 +251,9 @@ export const actions = {
     if (user.role === 'venue') fail(403, 'Forbidden');
     if (user.role !== 'officer') requirePay(user);
     return q(
-      `SELECT st.*, o.first_name || ' ' || o.last_name AS officer_name, o.bank_sort_code IS NOT NULL AND o.bank_sort_code <> '' AS has_bank
-         FROM statements st JOIN officers o ON o.id = st.officer_id
+      `SELECT st.*, o.first_name || ' ' || o.last_name AS officer_name, o.bank_sort_code IS NOT NULL AND o.bank_sort_code <> '' AS has_bank,
+              r.status AS run_status, r.review_deadline
+         FROM statements st JOIN officers o ON o.id = st.officer_id LEFT JOIN pay_runs r ON r.id = st.pay_run_id
         WHERE ($1::uuid IS NULL OR st.officer_id = $1) AND ($2::text IS NULL OR st.status = $2) AND ($3::boolean OR st.status <> 'draft' OR st.review_status IS NOT NULL)
           AND ($5::uuid IS NULL OR st.pay_run_id = $5)
           AND ($4::date IS NULL OR st.period_start = $4)

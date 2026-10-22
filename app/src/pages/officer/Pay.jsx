@@ -1,14 +1,18 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Banknote, Download, FileText, Info } from 'lucide-react';
-import { downloadAction } from '../../api.js';
+import { AlertTriangle, Banknote, Check, ClipboardCheck, Download, FileText, Info, MessageSquare } from 'lucide-react';
+import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Bento, Button, date, dateShort, hours, List, Load, money, Page, Pill, Row, Section, Stat, Tile, useAction, useApi,
+  Bento, Button, date, dateShort, dateTime, hours, List, Load, money, Page, Pill, Row, Section, Select, Sheet, Stat, Textarea, Tile, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { NotLinked } from './_parts.jsx';
 
 const SELF_EMPLOYED = 'You are self-employed: no tax or NI has been deducted.';
-const STATUS_LABEL = { issued: 'Issued', paid: 'Paid' };
+const STATUS_LABEL = { issued: 'Issued', paid: 'Paid', draft: 'To check' };
+// A draft the office has sent for checking and the officer can still answer
+const toCheck = (r) => r.status === 'draft' && r.run_status === 'in_review' && ['pending', 'no_response'].includes(r.review_status);
+const REVIEW_TEXT = { pending: 'Please check', no_response: 'Please check', approved: 'You approved this', disputed: 'Query with the office', resolved: 'Query resolved' };
 const KIND_TITLE = { hours: 'Hours worked', bonus: 'Bonuses', expense: 'Expenses', deduction: 'Deductions' };
 
 export default function Pay() {
@@ -45,14 +49,28 @@ function Statements() {
               </div>
             );
           }
-          const latest = rows[0];
+          const checks = rows.filter(toCheck);
+          const final = rows.filter((r) => r.status !== 'draft');
+          const latest = final[0];
           const year = new Date().getFullYear();
-          const ytd = rows.filter((r) => String(r.period_end).startsWith(String(year)));
+          const ytd = final.filter((r) => String(r.period_end).startsWith(String(year)));
           const ytdTotal = ytd.reduce((a, r) => a + Number(r.total || 0), 0);
           const ytdHours = ytd.reduce((a, r) => a + Number(r.hours || 0), 0);
           return (
             <div className="space-y-3">
-              <Tile tone="blue" to={`/officer/pay/${latest.id}`} className="!p-6">
+              {checks.map((c) => (
+                <Tile key={c.id} to={`/officer/pay/${c.id}`} className="!bg-amber-soft">
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-amber"><ClipboardCheck size={20} /></span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-callout font-semibold">Please check your pay</div>
+                      <div className="text-subhead">{dateShort(c.period_start)} – {date(c.period_end)} · <span className="num font-semibold">{money(c.total)}</span></div>
+                      {c.review_deadline && <div className="text-footnote text-muted">Approve or tell us what's wrong by {dateTime(c.review_deadline)}</div>}
+                    </div>
+                  </div>
+                </Tile>
+              ))}
+              {latest && <Tile tone="blue" to={`/officer/pay/${latest.id}`} className="!p-6">
                 <div className="flex items-center justify-between">
                   <span className="text-footnote font-semibold uppercase tracking-wide opacity-80">Latest statement</span>
                   <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-caption font-semibold">{latest.status === 'paid' ? 'Paid' : 'Awaiting payment'}</span>
@@ -60,7 +78,7 @@ function Statements() {
                 <div className="display num mt-3 text-[40px] font-bold leading-none">{money(latest.total)}</div>
                 <div className="mt-2 text-body opacity-85">{dateShort(latest.period_start)} – {date(latest.period_end)} · {hours(latest.hours)}</div>
                 {latest.status === 'paid' && latest.paid_at && <div className="mt-1 text-footnote opacity-75">Paid on {date(latest.paid_at)}</div>}
-              </Tile>
+              </Tile>}
 
               <Bento className="!grid-cols-2">
                 <Tile title={`${year} so far`} icon={Banknote}><Stat value={money(ytdTotal)} label={`${ytd.length} statement${ytd.length === 1 ? '' : 's'}`} /></Tile>
@@ -75,7 +93,7 @@ function Statements() {
                     <Row key={r.id} to={`/officer/pay/${r.id}`}
                       title={`${dateShort(r.period_start)} – ${date(r.period_end)}`}
                       subtitle={`${r.number || 'Statement'} · ${hours(r.hours)}`}
-                      right={<div className="flex flex-col items-end gap-1"><span className="num font-bold">{money(r.total)}</span><Pill status={r.status}>{STATUS_LABEL[r.status]}</Pill></div>} />
+                      right={<div className="flex flex-col items-end gap-1"><span className="num font-bold">{money(r.total)}</span>{r.status === 'draft' ? <Pill status={r.review_status}>{REVIEW_TEXT[r.review_status] || 'Draft'}</Pill> : <Pill status={r.status}>{STATUS_LABEL[r.status]}</Pill>}</div>} />
                   ))}
                 </List>
               </Section>
@@ -90,6 +108,9 @@ function Statements() {
 function Statement({ id }) {
   const q = useApi('pay.get', { id });
   const [run, busy] = useAction();
+  const [act, actBusy] = useAction();
+  const [querying, setQuerying] = useState(false);
+  const confirm = useConfirm();
   const pdf = () => run(() => downloadAction('pay.pdf', { id })).catch(() => {});
   return (
     <Page title="Statement" back={{ to: '/officer/pay', label: 'Pay' }}
@@ -98,10 +119,57 @@ function Statement({ id }) {
         {(st) => {
           const lines = st.lines || [];
           const groups = ['hours', 'bonus', 'expense', 'deduction'].map((k) => ({ k, items: lines.filter((l) => l.kind === k) })).filter((g) => g.items.length);
+          const draft = st.status === 'draft';
+          const open = (st.disputes || []).filter((d) => d.status === 'open');
+          const canAnswer = draft && st.run?.status === 'in_review' && ['pending', 'no_response', 'disputed', 'resolved'].includes(st.review_status);
+          const approve = async () => {
+            if (!(await confirm({ title: 'Approve this statement?', body: `You confirm ${money(st.total)} for ${dateShort(st.period_start)} – ${date(st.period_end)} is right.`, confirm: 'Approve' }))) return;
+            await act(() => api('pay.review', { statement_id: st.id, approve: true }), 'Thanks, approved').catch(() => {});
+            q.reload();
+          };
           return (
             <div className="space-y-3">
+              {draft && (
+                <div className="rounded-tile bg-amber-soft p-4">
+                  <div className="flex gap-2.5">
+                    {open.length ? <MessageSquare size={20} className="mt-0.5 shrink-0 text-amber" /> : <AlertTriangle size={20} className="mt-0.5 shrink-0 text-amber" />}
+                    <div className="min-w-0 flex-1 text-subhead">
+                      {open.length ? <p><b>Your query is with the office.</b> They will reply in the thread and update your statement.</p>
+                        : st.review_status === 'approved' ? <p><b>You approved this statement.</b> It will be issued once the office finalises the pay run.</p>
+                          : canAnswer ? <p><b>Please check this statement.</b> {st.run?.review_deadline ? `Approve it or tell us what's wrong by ${dateTime(st.run.review_deadline)}.` : "Approve it or tell us what's wrong."}</p>
+                            : <p><b>Draft.</b> This statement has not been issued yet.</p>}
+                    </div>
+                  </div>
+                  {canAnswer && !open.length && st.review_status !== 'approved' && (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Button icon={Check} busy={actBusy} onClick={approve}>Approve</Button>
+                      <Button variant="secondary" icon={MessageSquare} onClick={() => setQuerying(true)}>Something's wrong</Button>
+                    </div>
+                  )}
+                  {canAnswer && st.review_status === 'approved' && <Button size="sm" variant="link" className="mt-2" onClick={() => setQuerying(true)}>Spotted a problem? Tell us</Button>}
+                </div>
+              )}
+
+              {(st.disputes || []).length > 0 && (
+                <Section title="Your queries">
+                  <List>
+                    {st.disputes.map((d) => (
+                      <div key={d.id} className="px-4 py-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-footnote font-semibold text-muted">{d.line_description}</span>
+                          <Pill status={d.status}>{d.status === 'open' ? 'With the office' : 'Resolved'}</Pill>
+                        </div>
+                        <p className="mt-1 whitespace-pre-wrap text-subhead">{d.comment}</p>
+                        {d.resolution && <p className="mt-1.5 rounded-xl bg-green-soft px-3 py-2 text-footnote">{d.resolution}</p>}
+                        {d.conversation_id && <Button size="sm" variant="link" icon={MessageSquare} to={`/officer/messages/${d.conversation_id}`}>Open thread</Button>}
+                      </div>
+                    ))}
+                  </List>
+                </Section>
+              )}
+
               <section className="rounded-tile bg-surface p-6 text-center shadow-tile">
-                <Pill status={st.status}>{st.status === 'paid' ? 'Paid' : 'Issued, awaiting payment'}</Pill>
+                {draft ? <Pill status="pending">Not yet issued</Pill> : <Pill status={st.status}>{st.status === 'paid' ? 'Paid' : 'Issued, awaiting payment'}</Pill>}
                 <div className="display num mt-3 text-[44px] font-bold leading-none">{money(st.total)}</div>
                 <div className="mt-2 text-body text-muted">{dateShort(st.period_start)} – {date(st.period_end)}</div>
                 <div className="mt-4 grid grid-cols-3 divide-x divide-line rounded-2xl bg-bg py-3 text-footnote">
@@ -139,10 +207,30 @@ function Statement({ id }) {
               </Section>
 
               <Button size="lg" variant="secondary" icon={Download} className="w-full" busy={busy} onClick={pdf}>Download PDF</Button>
+              {querying && <QuerySheet st={st} onClose={() => setQuerying(false)} onDone={q.reload} />}
             </div>
           );
         }}
       </Load>
     </Page>
+  );
+}
+
+function QuerySheet({ st, onClose, onDone }) {
+  const [line, setLine] = useState('');
+  const [text, setText] = useState('');
+  const [run, busy] = useAction();
+  const send = () => run(() => api('pay.review', { statement_id: st.id, dispute: { line_id: line || undefined, comment: text.trim() } }), 'Sent to the office')
+    .then(() => { onDone(); onClose(); }).catch(() => {});
+  return (
+    <Sheet open onClose={onClose} title="What looks wrong?"
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button icon={MessageSquare} busy={busy} disabled={text.trim().length < 3} onClick={send}>Send</Button></>}>
+      <div className="space-y-4">
+        <Select label="Which line?" value={line} onChange={(e) => setLine(e.target.value)} placeholder="The whole statement"
+          options={(st.lines || []).map((l) => ({ value: l.id, label: `${l.work_date ? `${dateShort(l.work_date)} · ` : ''}${l.description} · ${money(l.amount)}` }))} />
+        <Textarea label="Tell us what's wrong" rows={4} autoFocus placeholder="e.g. I stayed until 3am on Saturday, not 2am." value={text} onChange={(e) => setText(e.target.value)}
+          hint="The office gets your message straight away and replies in a chat thread." />
+      </div>
+    </Sheet>
   );
 }

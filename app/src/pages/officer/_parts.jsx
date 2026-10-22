@@ -58,7 +58,9 @@ export const DOC_KINDS = [
   { value: 'training', label: 'Training certificate' },
   { value: 'other', label: 'Other' },
 ];
-export const docKindLabel = (k) => DOC_KINDS.find((d) => d.value === k)?.label || titleCase(k);
+// Saved by the system when a statement or invoice is issued; never offered for upload
+const SYSTEM_KINDS = { pay_statement: 'Pay statement', invoice: 'Invoice' };
+export const docKindLabel = (k) => SYSTEM_KINDS[k] || DOC_KINDS.find((d) => d.value === k)?.label || titleCase(k);
 
 export const TIMEOFF_KINDS = [
   { value: 'holiday', label: 'Holiday' },

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Check as CheckIcon, Download, Plus, Send, Trash2 } from 'lucide-react';
+import { Banknote, Check as CheckIcon, Download, MessageSquare, Plus, Send, Trash2 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -8,6 +8,7 @@ import {
   hours, money, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
+import { REVIEW_LABEL, RUN_LABEL } from './PayRuns.jsx';
 
 const KIND = { bonus: 'Bonus', expense: 'Expense', deduction: 'Deduction' };
 
@@ -32,6 +33,9 @@ export default function StatementDetail() {
         const shiftTotal = shiftLines.reduce((a, l) => a + Number(l.amount), 0);
         const extrasTotal = extras.reduce((a, l) => a + Number(l.amount), 0);
         const editable = isCo && draft;
+        // Inside a pay run, statements are issued from the run once staff have checked them
+        const inRun = !!st.run;
+        const canIssue = isCo && draft && (!inRun || (['reconciled', 'issued'].includes(st.run.status) && !st.held && ['approved', 'resolved'].includes(st.review_status)));
 
         const issue = async () => {
           if (!(await confirm({ title: 'Issue statement?', body: `${st.officer_name} is emailed a remittance statement for ${money(st.total)}. It can no longer be edited.`, confirm: 'Issue' }))) return;
@@ -57,8 +61,8 @@ export default function StatementDetail() {
         return (
           <Page title={st.officer_name} subtitle={`Remittance statement · ${date(st.period_start)} – ${date(st.period_end)}`} back={{ to: `${base}/pay`, label: 'Pay runs' }}
             actions={<>
-              <Button variant="secondary" icon={Download} busy={pdfBusy} onClick={() => pdf(() => downloadAction('pay.pdf', { id: st.id })).catch(() => {})}>PDF</Button>
-              {isCo && draft && <Button icon={Send} busy={busy} onClick={issue}>Issue</Button>}
+              <Button variant="secondary" icon={Download} busy={pdfBusy} onClick={() => pdf(() => downloadAction('pay.pdf', { id: st.id })).catch(() => {})}>{st.pdf_document_id ? 'Saved PDF' : 'PDF'}</Button>
+              {canIssue && <Button icon={Send} busy={busy} onClick={issue}>Issue</Button>}
               {isCo && st.status === 'issued' && <Button icon={CheckIcon} busy={busy} onClick={markPaid}>Mark paid</Button>}
             </>}>
             <Bento className="mb-2">
@@ -71,6 +75,33 @@ export default function StatementDetail() {
               <Tile title="Hours"><Stat value={hours(st.hours)} label={`${shiftLines.length} shift${shiftLines.length === 1 ? '' : 's'}`} /></Tile>
               <Tile title="Adjustments"><Stat value={money(extrasTotal)} label={`${extras.length} line${extras.length === 1 ? '' : 's'}`} tone={extrasTotal < 0 ? 'red' : undefined} /></Tile>
             </Bento>
+
+            {inRun && (
+              <Section title="Staff check" action={<Button size="sm" variant="soft" icon={Banknote} to={`${base}/pay/runs/${st.run.id}`}>Pay run · {RUN_LABEL[st.run.status]}</Button>}>
+                <Tile>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {st.held ? <Pill status="held">Held back</Pill> : st.review_status ? <Pill status={st.review_status}>{REVIEW_LABEL[st.review_status]}</Pill> : <Pill status="draft">Not sent to staff</Pill>}
+                    {st.reviewed_at && <span className="text-footnote text-muted">{dateTime(st.reviewed_at)}</span>}
+                  </div>
+                  {st.disputes?.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {st.disputes.map((d) => (
+                        <div key={d.id} className={cx('rounded-xl px-3 py-2.5', d.status === 'open' ? 'bg-red-soft' : 'bg-bg')}>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate text-footnote font-semibold">{d.line_description}</span>
+                            <Pill status={d.status}>{d.status === 'open' ? 'Open' : 'Resolved'}</Pill>
+                          </div>
+                          <p className="mt-1 whitespace-pre-wrap text-subhead">{d.comment}</p>
+                          {d.resolution && <p className="mt-1 text-footnote text-muted"><b>{d.resolved_by_name || 'Office'}:</b> {d.resolution}</p>}
+                          {d.conversation_id && <Button size="sm" variant="link" icon={MessageSquare} to={`${base}/messages/${d.conversation_id}`}>Open thread</Button>}
+                        </div>
+                      ))}
+                      {isCo && st.disputes.some((d) => d.status === 'open') && <p className="text-caption text-faint">Resolve queries from the pay run page.</p>}
+                    </div>
+                  )}
+                </Tile>
+              </Section>
+            )}
 
             <Section title="Contractor">
               <Tile>

@@ -422,6 +422,7 @@ const STATUS_TONE = {
   pending: 'amber', draft: 'grey', submitted: 'blue', issued: 'blue', requested: 'amber', onboarding: 'amber', applicant: 'blue', assigned: 'blue', upcoming: 'grey', on_break: 'amber',
   disputed: 'red', overdue: 'red', exception: 'red', rejected: 'red', declined: 'grey', cancelled: 'grey', void: 'grey', late: 'amber', no_show: 'red', left_early: 'amber', suspended: 'red', left: 'grey',
   changes_requested: 'amber', critical: 'red', high: 'red', medium: 'amber', low: 'grey', credited: 'grey', finished: 'grey', manual: 'blue', partial: 'amber', open: 'blue',
+  in_review: 'amber', reconciled: 'blue', no_response: 'amber', resolved: 'green', held: 'amber',
 };
 export function Pill({ children, tone, status, className }) {
   const t = tone || STATUS_TONE[status] || 'grey';

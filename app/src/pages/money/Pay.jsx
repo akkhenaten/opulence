@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Banknote, CalendarRange, Check as CheckIcon, Download, FileText, Lock, Play, Send } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -7,6 +7,7 @@ import {
   ActionBar, Avatar, Bento, Button, cx, date, dateShort, Empty, hours, Input, isoDate, List, Load, money, Page, Pill, Section, Segmented, Select, Stat, Tile, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { Check, useBase } from './_parts.jsx';
+import { RunsList } from './PayRuns.jsx';
 
 const periodLabel = (s) => `${dateShort(s.period_start)} – ${date(s.period_end)}`;
 
@@ -24,6 +25,7 @@ function PayInner({ isCo }) {
   const [params, setParams] = useSearchParams();
   const status = params.get('status') || (isCo ? 'draft' : 'issued');
   const setStatus = (s) => setParams((p) => { const n = new URLSearchParams(p); n.set('status', s); return n; }, { replace: true });
+  const [runsKey, setRunsKey] = useState(0);
 
   return (
     <Page title="Pay runs" subtitle="Remittance statements for self-employed officers">
@@ -31,7 +33,8 @@ function PayInner({ isCo }) {
         {(rows) => (
           <>
             <Totals rows={rows} />
-            {isCo && <RunTile onDone={() => { list.reload(); setStatus('draft'); }} />}
+            {isCo && <RunTile onDone={() => { list.reload(); setRunsKey((k) => k + 1); }} />}
+            <RunsList reloadKey={runsKey} />
             <Statements rows={rows} isCo={isCo} status={status} setStatus={setStatus} reload={list.reload} />
           </>
         )}
@@ -64,16 +67,19 @@ function RunTile({ onDone }) {
   const [run, busy] = useAction();
   const [gen, genBusy] = useAction();
   const confirm = useConfirm();
+  const nav = useNavigate();
+  const base = useBase();
 
   const set = (k, val) => { setRange({ ...r, [k]: val }); setPreview(null); setResult(null); };
   const doPreview = () => run(() => api('pay.preview', { start: r.start, end: r.end })).then(setPreview).catch(() => {});
   const generate = async () => {
-    if (!(await confirm({ title: 'Create draft statements?', body: `One draft remittance statement per officer for ${date(r.start)} – ${date(r.end)}. Nothing is sent until you issue them.`, confirm: 'Create drafts' }))) return;
+    if (!(await confirm({ title: 'Create draft statements?', body: `One draft remittance statement per officer for ${date(r.start)} – ${date(r.end)}. Next you can send them to staff to check, then finalise and issue.`, confirm: 'Create drafts' }))) return;
     const res = await gen(() => api('pay.generate', { start: r.start, end: r.end }), (x) => `${x.created} draft statement${x.created === 1 ? '' : 's'} created`).catch(() => null);
     if (!res) return;
     setResult(res);
     setPreview(null);
     onDone();
+    if (res.pay_run_id && !res.missing_rates?.length) nav(`${base}/pay/runs/${res.pay_run_id}`);
   };
 
   return (
@@ -111,6 +117,7 @@ function RunTile({ onDone }) {
       {result && (
         <div className="mt-4 rounded-2xl bg-green-soft p-4 text-subhead">
           <div className="font-semibold text-green">{result.created} draft statement{result.created === 1 ? '' : 's'} from {result.timesheets} timesheet{result.timesheets === 1 ? '' : 's'}</div>
+          {result.pay_run_id && <Link to={`${base}/pay/runs/${result.pay_run_id}`} className="mt-1 inline-block text-footnote font-semibold text-blue">Open the pay run</Link>}
           {result.missing_rates?.length > 0 && (
             <div className="mt-3 rounded-xl bg-white p-3">
               <div className="flex items-center gap-1.5 font-semibold text-amber"><AlertTriangle size={16} />No pay rate set — paid at £0.00</div>

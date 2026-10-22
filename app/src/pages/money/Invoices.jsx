@@ -150,6 +150,7 @@ function GenerateSheet({ onClose, onDone }) {
           <div className="rounded-2xl bg-green-soft p-4">
             <div className="text-callout font-bold text-green">{result.created} draft invoice{result.created === 1 ? '' : 's'}</div>
             <div className="text-subhead text-muted">from {result.timesheets} signed timesheet{result.timesheets === 1 ? '' : 's'}</div>
+            {result.skipped > 0 && <div className="text-footnote text-amber">{result.skipped} timesheet{result.skipped === 1 ? '' : 's'} left out: the hours are not yet approved in a finalised pay run</div>}
           </div>
           {result.missing_rates?.length > 0 && (
             <div className="rounded-2xl bg-amber-soft p-4">

@@ -79,21 +79,21 @@ function DocCard({ d, reload }) {
   return (
     <div className="rounded-tile bg-surface p-4 shadow-tile">
       <div className="flex items-start gap-3">
-        <span className={cx('grid h-11 w-11 shrink-0 place-items-center rounded-2xl', d.verified_at ? 'bg-green-soft text-green' : 'bg-bg text-muted')}>
-          {d.verified_at ? <BadgeCheck size={24} /> : <FileText size={24} />}
+        <span className={cx('grid h-11 w-11 shrink-0 place-items-center rounded-2xl', d.verified_at || d.system ? 'bg-green-soft text-green' : 'bg-bg text-muted')}>
+          {d.verified_at && !d.system ? <BadgeCheck size={24} /> : <FileText size={24} />}
         </span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-callout font-semibold">{d.title}</div>
           <div className="truncate text-footnote text-muted">{docKindLabel(d.kind)}{d.number ? ` · ${d.number}` : ''}</div>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {d.verified_at ? <Pill tone="green">Verified</Pill> : <Pill tone="grey"><Clock3 size={14} />Awaiting check</Pill>}
+            {d.system ? <Pill tone="blue">Saved copy</Pill> : d.verified_at ? <Pill tone="green">Verified</Pill> : <Pill tone="grey"><Clock3 size={14} />Awaiting check</Pill>}
             {d.expiry && <Pill tone={tone}>{days < 0 || days <= 60 ? expiryText(days) : `Expires ${date(d.expiry)}`}</Pill>}
           </div>
         </div>
       </div>
       <div className="mt-3 flex gap-2">
         {d.s3_key && <Button variant="secondary" size="sm" icon={ExternalLink} className="flex-1" disabled={busy} onClick={open}>Open</Button>}
-        {!d.verified_at && <Button variant="ghost" size="sm" icon={Trash2} className="text-red" disabled={busy} onClick={del}>Delete</Button>}
+        {!d.verified_at && !d.system && <Button variant="ghost" size="sm" icon={Trash2} className="text-red" disabled={busy} onClick={del}>Delete</Button>}
       </div>
     </div>
   );

@@ -32,6 +32,7 @@ const StaffContracts = P(() => import('./pages/people/StaffContracts.jsx'));
 const EverydayRedirect = P(() => import('./pages/manager/Dashboard.jsx').then((m) => ({ default: m.EverydayRedirect })));
 const VenueDetail = P(() => import('./pages/money/VenueDetail.jsx'));
 const Pay = P(() => import('./pages/money/Pay.jsx'));
+const PayRun = P(() => import('./pages/money/PayRuns.jsx'));
 const StatementDetail = P(() => import('./pages/money/StatementDetail.jsx'));
 const Invoices = P(() => import('./pages/money/Invoices.jsx'));
 const InvoiceDetail = P(() => import('./pages/money/InvoiceDetail.jsx'));
@@ -149,6 +150,7 @@ function App() {
             <Route path="venues" element={<Venues />} />
             <Route path="venues/:id" element={<VenueDetail />} />
             <Route path="pay" element={<Pay />} />
+            <Route path="pay/runs/:id" element={<PayRun />} />
             <Route path="pay/:id" element={<StatementDetail />} />
             <Route path="invoices" element={<Invoices />} />
             <Route path="invoices/:id" element={<InvoiceDetail />} />
@@ -165,6 +167,7 @@ function App() {
             <Route path="venues" element={<Venues />} />
             <Route path="venues/:id" element={<VenueDetail />} />
             <Route path="pay" element={<Pay />} />
+            <Route path="pay/runs/:id" element={<PayRun />} />
             <Route path="pay/:id" element={<StatementDetail />} />
           </Route>
         </Route>

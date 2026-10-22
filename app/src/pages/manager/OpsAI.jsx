@@ -6,7 +6,6 @@ import {
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
-import Chat from '../../ui/Chat.jsx';
 
 const KIND = {
   cover: { label: 'Cover', tone: 'blue' },
@@ -24,15 +23,16 @@ export default function OpsAI() {
   const tab = sp.get('tab') || 'inbox';
   const count = useApi('ops.count', {}, { poll: 30000 });
   const tabs = [
-    { value: 'inbox', label: 'Inbox', count: count.data?.n }, { value: 'activity', label: 'Activity' }, { value: 'chat', label: 'Ask Ops AI' },
+    { value: 'inbox', label: 'Inbox', count: count.data?.n }, { value: 'activity', label: 'Activity' },
     ...(user.role === 'company' ? [{ value: 'settings', label: 'Settings' }] : []),
   ];
   return (
-    <Page title="Ops AI" subtitle="Your operations assistant. It prepares the work — you approve it.">
+    <Page title="Ops AI" subtitle="Your operations assistant. It prepares the work — you approve it."
+      actions={<Button variant="secondary" icon={Sparkles} onClick={() => window.dispatchEvent(new Event('orb:askorb'))}>Ask Orb</Button>}>
       <Tabs value={tab} onChange={(v) => setSp(v === 'inbox' ? {} : { tab: v }, { replace: true })} tabs={tabs} />
       {tab === 'inbox' && <Inbox onChange={count.reload} />}
       {tab === 'activity' && <Activity />}
-      {tab === 'chat' && <OpsChat onItems={() => { count.reload(); }} />}
+      {tab === 'chat' && <AskOrbMoved />}
       {tab === 'settings' && user.role === 'company' && <OpsSettings />}
     </Page>
   );
@@ -317,22 +317,12 @@ function Activity() {
   );
 }
 
-/* ---------- Chat ---------- */
+/* ---------- Chat (moved to Ask Orb) ---------- */
 
-const PROMPTS = ['Unfilled shifts next week', 'Who can cover Saturday night?', 'Lates and no-shows this month', 'Hours worked by each officer last week'];
-
-function OpsChat({ onItems }) {
-  const [, setSp] = useSearchParams();
+function AskOrbMoved() {
   return (
-    <Tile pad={false} className="overflow-hidden">
-      <Chat action="ops.chat" storageKey="orb.opschat" prompts={PROMPTS} placeholder="Ask Ops AI…"
-        onReply={(r) => { if (r.items?.length) onItems(); }}
-        empty={<>
-          <div className="text-callout font-semibold">Ask about rotas, cover, lates or hours</div>
-          <p className="mx-auto mt-1 max-w-sm text-subhead text-muted">Ops AI looks it up for you. It never changes anything itself — anything it suggests lands in your Inbox to approve.</p>
-        </>}
-        renderReply={(m) => m.items?.length > 0 && <div className="mt-2"><Button size="sm" variant="soft" icon={Sparkles} onClick={() => setSp({}, { replace: true })}>Open in Inbox ({m.items.length})</Button></div>} />
-    </Tile>
+    <Empty icon={Sparkles} title="Chat has moved to Ask Orb" body="Ask Orb is on every page (the sparkle button at the top). It can look things up and prepare changes for you to confirm."
+      action={<Button icon={Sparkles} onClick={() => window.dispatchEvent(new Event('orb:askorb'))}>Open Ask Orb</Button>} />
   );
 }
 

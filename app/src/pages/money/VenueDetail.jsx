@@ -422,7 +422,7 @@ const DOC_KINDS = [
   { value: 'licence', label: 'Premises licence' },
   { value: 'other', label: 'Other' },
 ];
-const kindLabel = (k) => DOC_KINDS.find((x) => x.value === k)?.label || k;
+const kindLabel = (k) => ({ invoice: 'Invoice' })[k] || DOC_KINDS.find((x) => x.value === k)?.label || k;
 
 // Venue managers see the same list read-only (their My venue page)
 export function DocumentsTab({ venueId, readOnly }) {
@@ -458,7 +458,8 @@ export function DocumentsTab({ venueId, readOnly }) {
                       <div className="truncate text-footnote text-muted">{kindLabel(d.kind)} · added {date(d.created_at)}</div>
                     </Pressable>
                     {d.expiry && <Pill tone={left < 0 ? 'red' : left <= 30 ? 'amber' : 'grey'}>{left < 0 ? 'Expired' : `Expires ${date(d.expiry)}`}</Pill>}
-                    {!readOnly && <IconButton icon={Trash2} label="Delete document" onClick={() => del(d)} className="text-red hover:bg-red-soft" />}
+                    {d.system && <Pill tone="blue" className="hidden sm:inline-flex">Saved copy</Pill>}
+                    {!readOnly && !d.system && <IconButton icon={Trash2} label="Delete document" onClick={() => del(d)} className="text-red hover:bg-red-soft" />}
                   </div>
                 );
               })}

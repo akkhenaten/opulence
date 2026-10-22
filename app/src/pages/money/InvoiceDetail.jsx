@@ -74,7 +74,7 @@ export default function InvoiceDetail() {
         return (
           <Page title={title} subtitle={[inv.client_name, inv.venue_name].filter(Boolean).join(' · ')} back={{ to: `${base}/invoices`, label: 'Invoices' }}
             actions={<>
-              <Button variant="secondary" icon={Download} busy={pdfBusy} onClick={() => pdf(() => downloadAction('invoices.pdf', { id: inv.id })).catch(() => {})}>PDF</Button>
+              <Button variant="secondary" icon={Download} busy={pdfBusy} onClick={() => pdf(() => downloadAction('invoices.pdf', { id: inv.id })).catch(() => {})}>{inv.pdf_document_id ? 'Saved PDF' : 'PDF'}</Button>
               {editable && <Button icon={Send} busy={busy} disabled={!inv.lines.length} onClick={issue}>Issue</Button>}
               {isCo && ['issued', 'overdue'].includes(inv.status) && !credit && <Button icon={CheckIcon} onClick={() => setPaying(true)}>Mark paid</Button>}
             </>}>
