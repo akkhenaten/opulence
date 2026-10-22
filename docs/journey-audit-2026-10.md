@@ -23,16 +23,21 @@ On each screen we checked for:
 | All | After a release | Gap | Open apps kept running the old version without saying so. | A "A new version of Orb is available" message appears, with a Refresh button. |
 | All | Phone notifications | Polish | The notification icon was an SVG, which Android shows as a grey square. | It's now a PNG app icon, plus a monochrome badge for the status bar. |
 | All | Help | Gap | There was no user guide. | "Help & user guide" is in the sidebar, My account and Me. It has search and screenshots, and can be downloaded as a branded PDF. |
+| Venue | Overview | Polish | "Rate your recent officers" filled the top of the dashboard, which pushed "On site now" below the fold on a phone. | "On site now" and the summary tiles come first, with the ratings below them. "Rate staff" stays in the page header. |
+| Public | Password reset link | Gap | An expired or wrong reset link still showed the new-password form, and only failed when you pressed Save. | The link is checked when the page opens. An expired link shows "Link expired" with a "Send a new link" button. |
+| Officer | Pay | Polish | The empty screen didn't say clearly when to expect a statement. | It now says: "Your statement appears here when the company runs pay. You'll be asked to check it before it's issued." |
+| All | Two-column layouts | Polish | 19 two-column layouts could get wider than a phone screen if they held very wide content. None did with today's data. | All of them now use the same one-line fix as Workforce rules, so the column always stays at screen width on phones. Wide tables and inputs no longer stretch the page. A single very long unbroken word (for example a pasted link) can still run past the edge of its card. If that happens, the fix is to let that text wrap on the screen concerned. |
+
+## Checked, no change needed
+
+| Role | Screen | Finding |
+|---|---|---|
+| Venue | Shift logs | The empty screen already says "When the shift lead signs off a shift, the log and the handover appear here." The earlier finding was wrong. |
 
 ## Still to do (recommended)
 
 | Role | Screen | Severity | Finding | Recommendation |
 |---|---|---|---|---|
-| Venue | Overview | Polish | "Rate your recent officers" fills the top of the dashboard, which pushes "On site now" below the fold on a phone. | Move ratings below "On site now", or fold them into one "3 officers to rate" row. |
-| Public | Password reset link | Gap | An expired or wrong reset link still shows the new-password form, and only fails when you press Save. | Check the link when the page opens, and show "This link has expired" with a button to request a new one. |
-| Venue | Shift logs | Gap | Shift logs stay empty until the shift lead signs off, but the empty screen doesn't say so. | Change the empty text to "Logs appear here when the shift lead signs off the shift." |
-| Officer | Pay | Polish | "No statements yet" doesn't say when to expect one. | Add "Your statement appears here when the company issues the pay run." |
-| All | Some two-column layouts | Polish | About 22 two-column layouts could get wider than a phone screen if they hold a very long unbroken word or number. None do with today's data. | Apply the same one-line fix used on Workforce rules when each screen is next touched. |
 | All | Email | Gap | The email sending domain isn't verified yet, so some invites, password resets and statements may not be delivered. | Connect and verify the company domain for email. Until then, managers can copy invite and reset links from Settings → Users & access. |
 | Company | Desktop install | By design | On desktop the install card only shows when the browser offers installing (Chrome or Edge). | No change. The "Install the app" row in My account explains how to install in other browsers. |
 
