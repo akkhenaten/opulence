@@ -8,7 +8,7 @@ import {
 } from '../../ui/index.jsx';
 import { ComplianceBadge, CopyLink, ExpiryPill, LoginPill, OFFICER_STATUSES, SIA_TYPES, Chips, canPay, useBase, useRoles } from './_parts.jsx';
 import {
-  AttendanceTab, AvailabilityTab, ComplianceTab, ContractsTab, DocumentsTab, HrTab, OffboardingTab, OnboardingTab, OverviewTab, RatesTab, ShiftsTab, TimeOffTab, TrainingTab,
+  AttendanceTab, AvailabilityTab, ComplianceTab, ContractsTab, DocumentsTab, GrowthTab, HrTab, OffboardingTab, OnboardingTab, OverviewTab, RatesTab, ShiftsTab, TimeOffTab, TrainingTab,
 } from './_profileTabs.jsx';
 
 export default function StaffProfile() {
@@ -37,7 +37,7 @@ function Profile({ o, reload, user, base }) {
 
   const tabs = useMemo(() => [
     ['overview', 'Overview'], ['compliance', 'Compliance'], ['documents', 'Documents'],
-    canPay(user) && ['rates', 'Rates'], ['shifts', 'Shifts'], ['attendance', 'Attendance'], ['availability', 'Availability'], ['timeoff', 'Time off'], ['training', 'Training'], ['hr', 'HR notes'],
+    canPay(user) && ['rates', 'Rates'], ['shifts', 'Shifts'], ['attendance', 'Attendance'], ['availability', 'Availability'], ['timeoff', 'Time off'], ['training', 'Training'], ['growth', 'One-to-ones'], ['hr', 'HR notes'],
     isCo && ['onboarding', 'Onboarding'], isCo && ['contracts', 'Contracts'], isCo && ['offboarding', 'Offboarding'],
   ].filter(Boolean).filter(([k]) => !hidden.includes(k)).map(([value, label]) => ({ value, label })), [user, isCo, hidden]);
   const current = tabs.some((t) => t.value === tab) ? tab : 'overview';
@@ -123,6 +123,7 @@ function Profile({ o, reload, user, base }) {
       {current === 'availability' && <AvailabilityTab {...props} />}
       {current === 'timeoff' && <TimeOffTab {...props} onForbidden={() => forbid('timeoff')} />}
       {current === 'training' && <TrainingTab {...props} onForbidden={() => forbid('training')} />}
+      {current === 'growth' && <GrowthTab {...props} onForbidden={() => forbid('growth')} />}
       {current === 'hr' && <HrTab {...props} onForbidden={() => forbid('hr')} />}
       {current === 'onboarding' && <OnboardingTab {...props} onForbidden={() => forbid('onboarding')} />}
       {current === 'contracts' && <ContractsTab {...props} onForbidden={() => forbid('contracts')} />}

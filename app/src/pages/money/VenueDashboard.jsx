@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, CalendarDays, ClipboardCheck, MapPin, Megaphone, Plus, Radio, ReceiptText, ShieldAlert } from 'lucide-react';
+import { Building2, CalendarDays, ClipboardCheck, MapPin, Megaphone, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
-import { FeedbackTile } from '../venue/_feedback.jsx';
+import { FeedbackTile, RateStaffSheet } from '../venue/_feedback.jsx';
 import {
   Bento, Button, Dot, List, Load, Page, Pill, Row, Section, Stat, Tile, cx, dayLabel, money, range, relative, titleCase, useApi,
 } from '../../ui/index.jsx';
@@ -28,6 +29,7 @@ function Body({ d, name }) {
   const live = d.live;
   const toSign = d.counts?.toSign || 0;
   const pendingCover = d.cover.filter((c) => c.status === 'pending').length;
+  const [rate, setRate] = useState(false);
 
   if (!d.venues.length) {
     return (
@@ -39,8 +41,9 @@ function Body({ d, name }) {
 
   return (
     <Page title={`${greeting()}${name ? `, ${name}` : ''}`} subtitle={multi ? `${d.venues.length} venues` : d.venues[0].name}
-      actions={<Button icon={Plus} to="/venue/cover">Request cover</Button>}>
+      actions={<><Button variant="secondary" icon={Star} onClick={() => setRate(true)}>Rate staff</Button><Button icon={Plus} to="/venue/cover">Request cover</Button></>}>
       <FeedbackTile multi={multi} />
+      <RateStaffSheet open={rate} onClose={() => setRate(false)} />
       <Bento>
         <Tile tone="blue" to="/venue/live" title="On site now" icon={Radio} className="col-span-2 lg:row-span-2">
           <div className="flex items-end gap-3">

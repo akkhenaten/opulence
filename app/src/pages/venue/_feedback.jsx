@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Star } from 'lucide-react';
 import { api } from '../../api.js';
-import { Button, Input, Pressable, Tile, cx, dayLabel, range, useAction, useApi } from '../../ui/index.jsx';
+import { Avatar, Button, Empty, Input, Pressable, Sheet, Spinner, Tile, cx, dayLabel, range, useAction, useApi } from '../../ui/index.jsx';
 
 function Stars({ value, onChange }) {
   return (
@@ -53,5 +53,46 @@ export function FeedbackTile({ multi }) {
       <p className="-mt-1 mb-3 text-subhead text-muted">How did they do? It takes a few seconds and helps us send the right people.</p>
       <div className="space-y-3">{list.slice(0, 3).map((s) => <ShiftRating key={s.shift_id} s={s} multi={multi} onDone={q.reload} />)}</div>
     </Tile>
+  );
+}
+
+// Rate anyone who worked at your venue in the last week, without waiting to be asked
+export function RateStaffSheet({ open, onClose }) {
+  const q = useApi('feedback.recentOfficers', {}, { skip: !open });
+  const [pick, setPick] = useState(null);
+  const [v, setV] = useState({ rating: 0, note: '' });
+  const [run, busy] = useAction();
+  const close = () => { setPick(null); setV({ rating: 0, note: '' }); onClose(); };
+  const send = () => run(() => api('feedback.submitAdhoc', { officer_id: pick.officer_id, rating: v.rating, note: v.note.trim() || null }), `Thanks, ${pick.name.split(' ')[0]}'s rating is in`)
+    .then(() => { setPick(null); setV({ rating: 0, note: '' }); q.reload(); }).catch(() => {});
+  return (
+    <Sheet open={open} onClose={close} title={pick ? `Rate ${pick.name}` : 'Rate staff'} size="sm"
+      footer={pick
+        ? <><Button variant="secondary" onClick={() => setPick(null)}>Back</Button><Button busy={busy} disabled={!v.rating} onClick={send}>Send rating</Button></>
+        : <Button variant="secondary" onClick={close}>Close</Button>}>
+      {pick ? (
+        <div className="space-y-3">
+          <p className="text-subhead text-muted">{pick.venue_name} · {dayLabel(pick.starts_at)}</p>
+          <Stars value={v.rating} onChange={(n) => setV((s) => ({ ...s, rating: n }))} />
+          <Input label="Note (optional)" value={v.note} onChange={(e) => setV((s) => ({ ...s, note: e.target.value }))} placeholder="What went well, or what should change?" />
+        </div>
+      ) : !q.data ? <Spinner /> : !q.data.length ? (
+        <Empty icon={Star} title="Nobody to rate" body="Officers who clocked in at your venue in the last 7 days appear here." />
+      ) : (
+        <div className="space-y-1">
+          <p className="mb-2 text-subhead text-muted">Officers who worked at your venue in the last 7 days.</p>
+          {q.data.map((o) => (
+            <Pressable key={o.officer_id} onClick={() => setPick(o)} className="flex w-full items-center gap-3 rounded-2xl p-2 text-left hover:bg-bg">
+              <Avatar name={o.name} size={40} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-body font-semibold">{o.name}</span>
+                <span className="block text-footnote text-muted">{o.venue_name} · {dayLabel(o.starts_at)}</span>
+              </span>
+              {o.last_rating && <span className="flex items-center gap-1 text-footnote font-semibold text-amber"><Star size={14} className="fill-amber" />{o.last_rating}</span>}
+            </Pressable>
+          ))}
+        </div>
+      )}
+    </Sheet>
   );
 }

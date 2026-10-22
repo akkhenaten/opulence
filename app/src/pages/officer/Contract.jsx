@@ -79,7 +79,7 @@ function SignForm({ id, onSigned }) {
 }
 
 // Canvas signature pad (touch, pen and mouse via pointer events)
-function SignaturePad({ handle: outer, onInk }) {
+export function SignaturePad({ handle: outer, onInk }) {
   const canvas = useRef(null);
   const drawing = useRef(false);
   const last = useRef(null);

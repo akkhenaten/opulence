@@ -352,6 +352,11 @@ const JOBS = {
        SELECT DISTINCT s.id, s.venue_id, a.officer_id FROM shifts s JOIN shift_assignments a ON a.shift_id = s.id
         WHERE s.status = 'published' AND s.ends_at < now() AND s.ends_at > now() - interval '48 hours' AND a.status IN ${ACTIVE}
           AND EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status IN ('ok','approved','manual'))
+          -- Ask after an officer's first shift at a venue, then at most once a month per officer and venue
+          AND NOT EXISTS (SELECT 1 FROM venue_feedback f WHERE f.venue_id = s.venue_id AND f.officer_id = a.officer_id
+                AND (f.answered_at > now() - interval '30 days' OR (f.answered_at IS NULL AND f.requested_at > now() - interval '7 days')))
+          AND (NOT EXISTS (SELECT 1 FROM venue_feedback f WHERE f.venue_id = s.venue_id AND f.officer_id = a.officer_id)
+               OR NOT EXISTS (SELECT 1 FROM venue_feedback f WHERE f.venue_id = s.venue_id AND f.officer_id = a.officer_id AND f.requested_at > now() - interval '30 days'))
        ON CONFLICT DO NOTHING RETURNING shift_id, venue_id`);
     const byShift = {};
     for (const r of created) byShift[r.shift_id] = r.venue_id;
@@ -1019,5 +1024,43 @@ If the date, times or number of officers are missing or ambiguous, use intent "u
       await logActivity('feedback', `${sh.venue_name} rated ${firstLast(o)} ${rating}/5`, { venue_id: sh.venue_id, credits });
     }
     return { ok: true, flagged };
+  }),
+
+  // Officers who worked at the venue in the last 7 days, for a rating at any time
+  'feedback.recentOfficers': def(['venue'], async (_b, { user }) => {
+    const scope = await venueScope(user);
+    return q(
+      `SELECT DISTINCT ON (a.officer_id) a.officer_id, o.first_name || ' ' || left(o.last_name, 1) || '.' AS name, s.id AS shift_id, s.starts_at, v.name AS venue_name,
+              (SELECT rating FROM venue_feedback f WHERE f.officer_id = a.officer_id AND f.venue_id = s.venue_id AND f.rating IS NOT NULL ORDER BY answered_at DESC LIMIT 1) AS last_rating
+         FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN officers o ON o.id = a.officer_id JOIN venues v ON v.id = s.venue_id
+        WHERE s.venue_id = ANY($1::uuid[]) AND s.starts_at > now() - interval '7 days' AND s.starts_at < now()
+          AND EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status IN ('ok','approved','manual'))
+        ORDER BY a.officer_id, s.starts_at DESC`, [scope]);
+  }),
+
+  'feedback.submitAdhoc': def(['venue'], async (b, { user }) => {
+    required(b, 'officer_id', 'rating');
+    const rating = Number(b.rating);
+    if (!(rating >= 1 && rating <= 5)) fail(400, 'Ratings are 1 to 5 stars');
+    const note = String(b.note || '').slice(0, 1000);
+    const scope = await venueScope(user);
+    const last = need(await one(
+      `SELECT s.id FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
+        WHERE a.officer_id = $1 AND s.venue_id = ANY($2::uuid[]) AND s.starts_at > now() - interval '7 days' AND s.starts_at < now()
+          AND EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status IN ('ok','approved','manual'))
+        ORDER BY s.starts_at DESC LIMIT 1`, [b.officer_id, scope]), 'This officer has not worked here in the last 7 days');
+    const sh = await getShift(last.id);
+    const f = await one(
+      `INSERT INTO venue_feedback (shift_id, venue_id, officer_id, rating, note, answered_at, answered_by, adhoc) VALUES ($1,$2,$3,$4,$5,now(),$6,true)
+       ON CONFLICT (shift_id, officer_id) DO UPDATE SET rating = EXCLUDED.rating, note = EXCLUDED.note, answered_at = now(), answered_by = EXCLUDED.answered_by
+       RETURNING *`, [sh.id, sh.venue_id, b.officer_id, rating, note, user.id]);
+    const o = await one('SELECT first_name, last_name FROM officers WHERE id = $1', [b.officer_id]);
+    if (rating <= 2) {
+      await createItem({ kind: 'feedback', venue_id: sh.venue_id, shift_id: sh.id, officer_id: b.officer_id, severity: 'warning',
+        title: `Feedback: ${firstLast(o)} rated ${rating}/5 at ${sh.venue_name}`, reason: note ? `"${note}" — ${user.name}` : `Rated ${rating}/5 by ${user.name}.`,
+        payload: { rating, note, feedback_id: f.id, shift: when(sh) }, dedupe: `fbk:${f.id}:${rating}` });
+    }
+    await logActivity('feedback', `${sh.venue_name} rated ${firstLast(o)} ${rating}/5`, { venue_id: sh.venue_id });
+    return { ok: true };
   }),
 };

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Award, BadgeCheck, Bell, CalendarOff, GraduationCap, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
+  Award, BadgeCheck, Bell, Newspaper, Target, CalendarOff, GraduationCap, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -105,6 +105,8 @@ export default function Me() {
                   <Row to="/officer/time-off" left={<Ico icon={CalendarOff} tone="ink" />} title="Time off and availability" />
                   <Row to="/officer/incidents" left={<Ico icon={ShieldAlert} tone="red" />} title="Incident reports" right={toFix.length ? <Pill tone="amber">{toFix.length} to fix</Pill> : null} />
                   <Row to="/officer/pay" left={<Ico icon={FileText} />} title="Pay statements" />
+                  <Row to="/officer/me/growth" left={<Ico icon={Target} tone="green" />} title="Goals and one-to-ones" subtitle="What you're working on, notes and pay rises" />
+                  <Row to="/officer/everyday" left={<Ico icon={Newspaper} tone="amber" />} title="Everyday" subtitle="News and updates from the team" />
                 </List>
               </Section>
 

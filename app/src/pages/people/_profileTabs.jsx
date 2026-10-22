@@ -977,3 +977,229 @@ export function TrainingTab({ o, user, onForbidden }) {
   );
 }
 const TRAINING_TONE = { passed: 'green', overdue: 'red', renew: 'amber', expired: 'red', in_progress: 'blue', assigned: 'blue', not_started: 'grey' };
+
+/* ---------------- One-to-ones, goals and pay rises ---------------- */
+
+const GOAL_TONE = { open: 'blue', met: 'green', missed: 'red', dropped: 'grey' };
+const GOAL_LABEL = { open: 'Open', met: 'Met', missed: 'Missed', dropped: 'Dropped' };
+const AGREEMENT = {
+  draft: { label: 'Draft', tone: 'grey' }, sent: { label: 'Waiting for signature', tone: 'amber' }, signed: { label: 'Signed', tone: 'blue' },
+  applied: { label: 'In effect', tone: 'green' }, void: { label: 'Withdrawn', tone: 'grey' },
+};
+
+export function GrowthTab({ o, isCo, roles, onForbidden }) {
+  const q = useTabApi('growth.officer', { officer_id: o.id }, onForbidden);
+  const [meeting, setMeeting] = useState(null);
+  const [goal, setGoal] = useState(false);
+  const [rise, setRise] = useState(false);
+  return (
+    <TabLoad q={q}>
+      {(d) => (
+        <>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="flex items-center gap-1.5 text-subhead text-muted">
+              <Star size={16} className="fill-amber text-amber" />
+              {d.rating.count
+                ? <>Venue rating {d.rating.since ? `since ${date(d.rating.since)}` : 'overall'}: <span className="num font-semibold text-ink">{d.rating.avg}</span> from {d.rating.count} rating{d.rating.count === 1 ? '' : 's'}</>
+                : `No venue ratings ${d.rating.since ? 'since the last one-to-one' : 'yet'}`}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" icon={Plus} onClick={() => setGoal(true)}>Add goal</Button>
+              {isCo && d.can_see_pay && <Button variant="secondary" icon={Plus} onClick={() => setRise(true)}>Add pay rise</Button>}
+              <Button icon={Plus} onClick={() => setMeeting({})}>Record one-to-one</Button>
+            </div>
+          </div>
+          <Goals goals={d.goals} onDone={q.reload} />
+          {d.can_see_pay && <Agreements rows={d.agreements} isCo={isCo} onDone={q.reload} />}
+          <Section title="Meetings">
+            {d.meetings.length ? (
+              <List>
+                {d.meetings.map((m) => (
+                  <Row key={m.id} onClick={() => setMeeting(m)} chevron
+                    title={<>{date(m.held_on)}{m.rating ? <span className="font-normal text-muted"> · {m.rating}/5</span> : null}</>}
+                    subtitle={<><span className="line-clamp-2 whitespace-pre-wrap">{m.notes || 'No notes'}</span><span className="text-caption text-faint">{m.manager_name || 'Manager'}{m.shared_with_officer ? ' · shared with officer' : ''}</span></>} />
+                ))}
+              </List>
+            ) : <Empty icon={MessageSquare} title="No one-to-ones yet" body="Record how they are doing, agree goals and link a pay rise to them." />}
+          </Section>
+          {meeting && <MeetingSheet o={o} m={meeting} onClose={() => setMeeting(null)} onDone={q.reload} />}
+          {goal && <GoalSheet o={o} onClose={() => setGoal(false)} onDone={q.reload} />}
+          {rise && <RiseSheet o={o} roles={roles} goals={d.goals} onClose={() => setRise(false)} onDone={q.reload} />}
+        </>
+      )}
+    </TabLoad>
+  );
+}
+
+function Goals({ goals, onDone }) {
+  const [run, busy] = useAction();
+  const [note, setNote] = useState({});
+  const status = (g, s) => run(() => api('goals.setStatus', { id: g.id, status: s }), (r) => (r.applied ? 'Goal met · pay rise applied' : `Goal marked ${GOAL_LABEL[s].toLowerCase()}`)).then(onDone).catch(() => {});
+  const add = (g) => run(() => api('goals.addNote', { goal_id: g.id, body: note[g.id] }), 'Note added').then(() => { setNote((n) => ({ ...n, [g.id]: '' })); onDone(); }).catch(() => {});
+  return (
+    <Section title="Goals">
+      {goals.length ? (
+        <div className="space-y-2">
+          {goals.map((g) => (
+            <Tile key={g.id}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-body font-semibold">{g.title}</div>
+                  {g.target && <p className="text-subhead text-muted">{g.target}</p>}
+                  {g.due_on && <p className="text-footnote text-faint">Due {date(g.due_on)}</p>}
+                </div>
+                <Pill tone={GOAL_TONE[g.status]}>{GOAL_LABEL[g.status]}</Pill>
+              </div>
+              {g.notes.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  {g.notes.map((n) => (
+                    <div key={n.id} className="rounded-xl bg-bg px-3 py-2 text-subhead">
+                      <span className="whitespace-pre-wrap">{n.body}</span>
+                      <span className="block text-caption text-faint">{n.author_name || 'Someone'} · {dateTime(n.created_at)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-2 flex gap-2">
+                <Input className="flex-1" aria-label="Add a note" placeholder="Add a progress note" value={note[g.id] || ''} onChange={(e) => setNote((n) => ({ ...n, [g.id]: e.target.value }))} />
+                <Button variant="secondary" disabled={busy || !(note[g.id] || '').trim()} onClick={() => add(g)}>Add</Button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {Object.keys(GOAL_LABEL).filter((s) => s !== g.status).map((s) => (
+                  <Button key={s} size="sm" variant={s === 'met' ? 'soft' : 'ghost'} disabled={busy} onClick={() => status(g, s)}>{s === 'open' ? 'Reopen' : `Mark ${GOAL_LABEL[s].toLowerCase()}`}</Button>
+                ))}
+              </div>
+            </Tile>
+          ))}
+        </div>
+      ) : <Empty icon={Check} title="No goals" body="Goals agreed in a one-to-one show here. A pay rise can wait on them." />}
+    </Section>
+  );
+}
+
+function Agreements({ rows, isCo, onDone }) {
+  const [run, busy] = useAction();
+  const confirm = useConfirm();
+  const send = (a) => run(() => api('payAgreements.send', { id: a.id }), 'Sent for signature').then(onDone).catch(() => {});
+  const voidIt = async (a) => {
+    if (!(await confirm({ title: 'Withdraw this pay rise?', body: `${money(a.new_rate)}/h from ${date(a.effective_from)}`, confirm: 'Withdraw', danger: true }))) return;
+    run(() => api('payAgreements.void', { id: a.id }), 'Withdrawn').then(onDone).catch(() => {});
+  };
+  const pdf = (a) => run(() => downloadAction('payAgreements.pdf', { id: a.id })).catch(() => {});
+  if (!rows.length) return null;
+  return (
+    <Section title="Pay rises">
+      <List>
+        {rows.map((a) => (
+          <div key={a.id} className="px-4 py-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="num text-body font-semibold">{a.current_rate != null ? `${money(a.current_rate)} → ` : ''}{money(a.new_rate)}/h</div>
+                <p className="text-subhead text-muted">{a.role_name} · {a.venue_name || 'All venues'} · from {date(a.effective_from)}</p>
+                {a.conditions.length > 0 && <p className="text-footnote text-muted">Once met: {a.conditions.map((g) => `${g.title} (${GOAL_LABEL[g.status].toLowerCase()})`).join(', ')}</p>}
+                {a.signed_at && <p className="text-caption text-faint">Signed by {a.signed_name} · {dateTime(a.signed_at)}</p>}
+              </div>
+              <Pill tone={AGREEMENT[a.status].tone}>{AGREEMENT[a.status].label}</Pill>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {isCo && a.status === 'draft' && <Button size="sm" icon={FileSignature} disabled={busy} onClick={() => send(a)}>Send to sign</Button>}
+              <Button size="sm" variant="ghost" icon={FileText} disabled={busy} onClick={() => pdf(a)}>PDF</Button>
+              {isCo && ['draft', 'sent', 'signed'].includes(a.status) && <Button size="sm" variant="link-red" disabled={busy} onClick={() => voidIt(a)}>Withdraw</Button>}
+            </div>
+          </div>
+        ))}
+      </List>
+    </Section>
+  );
+}
+
+function MeetingSheet({ o, m, onClose, onDone }) {
+  const { v, bind, set } = useForm({ held_on: m.held_on || isoDate(), notes: m.notes || '', rating: m.rating ? String(m.rating) : '', shared_with_officer: !!m.shared_with_officer });
+  const [goals, setGoals] = useState([]);
+  const [run, busy] = useAction();
+  const confirm = useConfirm();
+  const setGoal = (i, k, val) => setGoals((g) => g.map((x, j) => (j === i ? { ...x, [k]: val } : x)));
+  const save = () => run(() => api('oneToOnes.save', { id: m.id, officer_id: o.id, ...v, rating: v.rating || null, goals }), 'One-to-one saved').then(() => { onDone(); onClose(); }).catch(() => {});
+  const del = async () => {
+    if (!(await confirm({ title: 'Delete this one-to-one?', body: 'Goals agreed in it are kept.', confirm: 'Delete', danger: true }))) return;
+    run(() => api('oneToOnes.delete', { id: m.id }), 'Deleted').then(() => { onDone(); onClose(); }).catch(() => {});
+  };
+  return (
+    <Sheet open onClose={onClose} title={m.id ? 'One-to-one' : 'Record one-to-one'}
+      footer={<>{m.id && <Button variant="link-red" className="mr-auto" disabled={busy} onClick={del}>Delete</Button>}<Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={save}>Save</Button></>}>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Date" type="date" {...bind('held_on')} />
+          <Select label="How are they doing?" placeholder="No rating" options={[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: `${n} out of 5` }))} {...bind('rating')} />
+        </div>
+        <Textarea label="Notes" rows={6} placeholder="What went well, what to work on, anything they raised" {...bind('notes')} />
+        <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.shared_with_officer} onChange={(x) => set('shared_with_officer', x)} label="Share notes with officer" hint="They see them on their Me page and get a notification" /></div>
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-subhead font-semibold">New goals</span>
+            <Button size="sm" variant="ghost" icon={Plus} disabled={goals.length >= 10} onClick={() => setGoals((g) => [...g, { title: '', target: '', due_on: '' }])}>Add goal</Button>
+          </div>
+          {goals.map((g, i) => (
+            <div key={i} className="mb-2 space-y-2 rounded-2xl bg-bg p-3">
+              <div className="flex gap-2">
+                <Input className="flex-1" aria-label="Goal" placeholder="Goal, e.g. Pass the conflict management course" value={g.title} onChange={(e) => setGoal(i, 'title', e.target.value)} />
+                <IconButton icon={X} label="Remove goal" onClick={() => setGoals((x) => x.filter((_, j) => j !== i))} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input aria-label="How we'll know" placeholder="How we'll know (optional)" value={g.target} onChange={(e) => setGoal(i, 'target', e.target.value)} />
+                <Input aria-label="Due" type="date" value={g.due_on} onChange={(e) => setGoal(i, 'due_on', e.target.value)} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+function GoalSheet({ o, onClose, onDone }) {
+  const { v, bind } = useForm({ title: '', target: '', due_on: '' });
+  const [run, busy] = useAction();
+  const save = () => run(() => api('goals.save', { officer_id: o.id, ...v, due_on: v.due_on || null }), 'Goal added').then(() => { onDone(); onClose(); }).catch(() => {});
+  return (
+    <Sheet open onClose={onClose} title="Add goal" size="sm"
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!v.title.trim()} onClick={save}>Add goal</Button></>}>
+      <div className="space-y-4">
+        <Input label="Goal" placeholder="e.g. No late clock-ins for 8 weeks" {...bind('title')} />
+        <Input label="How we'll know (optional)" {...bind('target')} />
+        <Input label="Due (optional)" type="date" {...bind('due_on')} />
+      </div>
+    </Sheet>
+  );
+}
+
+function RiseSheet({ o, roles, goals, onClose, onDone }) {
+  const venues = useApi('venues.list');
+  const { v, bind, set } = useForm({ role: o.roles?.[0] || '', venue_id: '', new_rate: '', effective_from: addDays(isoDate(), 7), condition_goal_ids: [] });
+  const [run, busy] = useAction();
+  const open = goals.filter((g) => g.status === 'open' || g.status === 'met');
+  const toggle = (id) => set('condition_goal_ids', v.condition_goal_ids.includes(id) ? v.condition_goal_ids.filter((x) => x !== id) : [...v.condition_goal_ids, id]);
+  const save = () => run(() => api('payAgreements.save', { officer_id: o.id, ...v, new_rate: Number(v.new_rate), venue_id: v.venue_id || null }), 'Draft saved · send it when ready').then(() => { onDone(); onClose(); }).catch(() => {});
+  return (
+    <Sheet open onClose={onClose} title="Add pay rise"
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!v.role || !(Number(v.new_rate) > 0) || !v.effective_from} onClick={save}>Save draft</Button></>}>
+      <div className="space-y-4">
+        <p className="text-subhead text-muted">{o.first_name} signs it in the app. It goes into their pay from the start date, once any goals you tick are met.</p>
+        <Select label="Role" placeholder="Choose role" options={roles.filter((r) => !o.roles?.length || o.roles.includes(r.code)).map((r) => ({ value: r.code, label: r.name }))} {...bind('role')} />
+        <Select label="Venue" placeholder="All venues" options={(venues.data || []).map((x) => ({ value: x.id, label: x.name }))} {...bind('venue_id')} />
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="New rate per hour (£)" type="number" step="0.01" min="0" inputMode="decimal" {...bind('new_rate')} />
+          <Input label="Starts" type="date" {...bind('effective_from')} />
+        </div>
+        <div>
+          <div className="mb-1.5 text-subhead font-semibold">Only once these goals are met</div>
+          {open.length ? (
+            <div className="rounded-2xl bg-bg px-4 py-1">
+              {open.map((g) => <Toggle key={g.id} checked={v.condition_goal_ids.includes(g.id)} onChange={() => toggle(g.id)} label={g.title} hint={g.status === 'met' ? 'Already met' : g.due_on ? `Due ${date(g.due_on)}` : undefined} />)}
+            </div>
+          ) : <p className="text-footnote text-muted">No open goals. Add one first to make the rise conditional.</p>}
+        </div>
+      </div>
+    </Sheet>
+  );
+}

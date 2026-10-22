@@ -49,6 +49,8 @@ const OfficerDocuments = P(() => import('./pages/officer/Documents.jsx'));
 const OfficerTimeOff = P(() => import('./pages/officer/TimeOff.jsx'));
 const OfficerProfile = P(() => import('./pages/officer/Profile.jsx'));
 const OfficerContract = P(() => import('./pages/officer/Contract.jsx'));
+const OfficerAgreement = P(() => import('./pages/officer/Agreement.jsx'));
+const OfficerGrowth = P(() => import('./pages/officer/Growth.jsx'));
 const IncidentForm = P(() => import('./pages/officer/IncidentForm.jsx'));
 // The shift page, shift logs and the ban register (everyone on a shift, managers and venues)
 const ShiftView = P(() => import('./pages/shift/ShiftView.jsx'));
@@ -203,6 +205,8 @@ function App() {
             <Route path="time-off" element={<OfficerTimeOff />} />
             <Route path="profile" element={<OfficerProfile />} />
             <Route path="contracts/:id" element={<OfficerContract />} />
+            <Route path="agreements/:id" element={<OfficerAgreement />} />
+            <Route path="me/growth" element={<OfficerGrowth />} />
             <Route path="incidents" element={<Incidents />} />
             <Route path="incidents/new" element={<IncidentForm />} />
             <Route path="incidents/:id" element={<IncidentDetail />} />
