@@ -36,7 +36,7 @@ function VenueView({ id }) {
                 : <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white text-blue"><Building2 size={26} /></div>}
               <div className="min-w-0">
                 <div className="truncate text-title3 font-bold">{v.name}</div>
-                <div className="mt-1 flex items-start gap-1.5 text-subhead text-muted"><MapPin size={16} className="mt-0.5 shrink-0" /><span>{[v.address, v.postcode].filter(Boolean).join(', ') || 'No address'}</span></div>
+                <div className="mt-1 flex items-start gap-1.5 text-subhead text-muted"><MapPin size={16} className="mt-0.5 shrink-0" /><span className="min-w-0">{[v.address, v.postcode].filter(Boolean).join(', ') || 'No address'}</span></div>
                 {v.phone && <a href={`tel:${v.phone}`} className="mt-1 flex items-center gap-1.5 text-subhead font-semibold text-blue"><Phone size={14} />{v.phone}</a>}
               </div>
             </div>

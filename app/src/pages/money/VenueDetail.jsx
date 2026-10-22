@@ -40,7 +40,7 @@ export default function VenueDetail() {
                 <div className="min-w-0">
                   <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Venue</div>
                   <div className="truncate text-title3 font-bold">{v.name}</div>
-                  <div className="mt-1 flex items-start gap-1.5 text-subhead text-muted"><MapPin size={16} className="mt-0.5 shrink-0" /><span>{[v.address, v.postcode].filter(Boolean).join(', ') || 'No address'}</span></div>
+                  <div className="mt-1 flex items-start gap-1.5 text-subhead text-muted"><MapPin size={16} className="mt-0.5 shrink-0" /><span className="min-w-0">{[v.address, v.postcode].filter(Boolean).join(', ') || 'No address'}</span></div>
                   {v.phone && <a href={`tel:${v.phone}`} className="mt-1 flex items-center gap-1.5 text-subhead font-semibold text-blue"><Phone size={14} />{v.phone}</a>}
                 </div>
               </div>
@@ -161,7 +161,7 @@ function LocationTab({ v, onSaved }) {
   const save = () => run(() => api('venues.save', { id: v.id, lat: pos?.lat ?? null, lng: pos?.lng ?? null, radius_m: radius }), 'Location saved').then(onSaved).catch(() => {});
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
       <Tile pad={false} className="overflow-hidden p-2">
         <GeoMap pos={pos} radius={radius} onPick={(lat, lng) => setPos({ lat, lng })} focus={focus} />
       </Tile>
@@ -263,7 +263,7 @@ function QrTab({ v }) {
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[340px_1fr]">
       <Tile title="Clock-in QR" icon={QrCode}>
         <Load q={qr}>
           {(d) => (

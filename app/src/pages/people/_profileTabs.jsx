@@ -167,12 +167,12 @@ function ComplianceSheet({ o, onClose, onDone }) {
     <Sheet open onClose={onClose} title="Licence and right to work"
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={save}>Save</Button></>}>
       <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Input label="SIA number" {...bind('sia_number')} />
           <Select label="Licence type" placeholder="Choose" options={SIA_TYPES} {...bind('sia_type')} />
           <Input label="SIA expiry" type="date" {...bind('sia_expiry')} />
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Select label="Right to work evidence" placeholder="Choose" options={RTW_TYPES} {...bind('rtw_type')} />
           <Input label="Right to work expiry" type="date" hint="Leave blank if indefinite" {...bind('rtw_expiry')} />
         </div>
@@ -816,7 +816,7 @@ export function OffboardingTab({ o, reload }) {
   return (
     <Tile title="Record a leaver">
       <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Last working day" type="date" {...bind('leave_date')} />
           <Select label="Reason" placeholder="Choose" options={['Resigned', 'Contract ended', 'Dismissed', 'Licence revoked', 'Moved away', 'Other'].map((x) => ({ value: x, label: x }))} {...bind('reason')} />
         </div>

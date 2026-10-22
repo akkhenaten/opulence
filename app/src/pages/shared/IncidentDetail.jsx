@@ -46,7 +46,7 @@ function Detail({ inc, reload, base }) {
   const files = inc.attachments.filter((a) => !a.mime?.startsWith('image/'));
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="min-w-0 space-y-3">
         <StatusBanner inc={inc} isOfficer={isOfficer} />
         {canEdit && (

@@ -62,7 +62,7 @@ function MoneySection({ q, overdue, hrs }) {
       <Section title="Margin by venue">
         <Wait q={q}>
           {(data) => (!data.length ? <Empty icon={BarChart3} title="No invoiced hours in this period" body="Margin is based on invoice lines. Generate invoices to see it here." /> : (
-            <div className="grid gap-4 lg:grid-cols-[2fr_3fr]">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_3fr]">
               <Tile title="Revenue">
                 <HBars items={data.map((r) => ({ key: r.id, label: r.venue_name, value: r.revenue, display: money0(r.revenue), sub: pct(r.margin, r.revenue) }))} />
               </Tile>

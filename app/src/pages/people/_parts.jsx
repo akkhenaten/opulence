@@ -102,17 +102,17 @@ export function OfficerCoreFields({ form, roles, statusOptions = ['active', 'onb
         <Input label="First name" {...bind('first_name')} autoFocus />
         <Input label="Last name" {...bind('last_name')} />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Input label="Email" type="email" {...bind('email')} />
         <Input label="Mobile" type="tel" {...bind('phone')} />
       </div>
       <Chips label="Roles" options={roles.map((r) => ({ value: r.code, label: r.name }))} value={v.roles} onChange={(x) => set('roles', x)} />
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Input label="SIA number" inputMode="numeric" {...bind('sia_number')} />
         <Select label="Licence type" placeholder="Choose" options={SIA_TYPES} {...bind('sia_type')} />
         <Input label="SIA expiry" type="date" {...bind('sia_expiry')} />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {statusOptions.length > 1 && <Select label="Status" options={statusOptions} {...bind('status')} />}
         <Input label="Start date" type="date" {...bind('start_date')} />
       </div>

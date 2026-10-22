@@ -73,6 +73,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   font-feature-settings: "ss01", "cv11";
+  /* A long link, email or reference breaks onto the next line instead of pushing past the screen edge */
+  overflow-wrap: break-word;
 }
 /* In the base layer so Tailwind utilities (text-*, font-*, tracking-*) still win */
 @layer base {

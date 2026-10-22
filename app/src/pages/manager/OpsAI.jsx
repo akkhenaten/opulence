@@ -370,7 +370,7 @@ function OpsSettings() {
       </Tile>
       <div className="space-y-4">
         <Tile title="Timings">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="Escalate after no reply (min)" type="number" min="1" max="240" value={v.ops_escalate_minutes} onChange={(e) => set('ops_escalate_minutes', e.target.value)} hint="After the grace period" />
             <Input label="Wait for cover replies (min)" type="number" min="1" max="240" value={v.ops_offer_wait_minutes} onChange={(e) => set('ops_offer_wait_minutes', e.target.value)} hint="Then offers the next officers" />
             <Select label="Weekly hours check" value={v.ops_reconcile_dow} onChange={(e) => set('ops_reconcile_dow', e.target.value)} options={DAYS.map((d, i) => ({ value: i + 1, label: d }))} />

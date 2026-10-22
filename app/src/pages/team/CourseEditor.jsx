@@ -189,7 +189,7 @@ export default function CourseEditor() {
           To publish, every section needs its lesson text and the course needs at least 5 quiz questions ({activeQs} so far).
         </div>
       )}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-4">
           {st.sections.map((s, i) => (
             <Tile key={s.key} title={`Section ${i + 1}`}

@@ -143,7 +143,7 @@ function Body({ d, name }) {
                   <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><Building2 size={20} /></div>
                   <div className="min-w-0">
                     <div className="truncate text-callout font-bold">{v.name}</div>
-                    <div className="mt-0.5 flex items-start gap-1 text-footnote text-muted"><MapPin size={14} className="mt-0.5 shrink-0" />{[v.address, v.postcode].filter(Boolean).join(', ') || 'No address'}</div>
+                    <div className="mt-0.5 flex items-start gap-1 text-footnote text-muted"><MapPin size={14} className="mt-0.5 shrink-0" /><span className="min-w-0">{[v.address, v.postcode].filter(Boolean).join(', ') || 'No address'}</span></div>
                   </div>
                 </div>
               </Tile>

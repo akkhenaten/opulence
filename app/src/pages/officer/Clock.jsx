@@ -132,7 +132,7 @@ function ClockScreen({ data, reload }) {
       <VenueStrip a={a} />
 
       {a.instructions && (
-        <div className="flex gap-2.5 rounded-2xl bg-blue-soft px-4 py-3 text-subhead text-ink"><Info size={18} className="mt-0.5 shrink-0 text-blue" /><p className="whitespace-pre-line">{a.instructions}</p></div>
+        <div className="flex gap-2.5 rounded-2xl bg-blue-soft px-4 py-3 text-subhead text-ink"><Info size={18} className="mt-0.5 shrink-0 text-blue" /><p className="min-w-0 whitespace-pre-line">{a.instructions}</p></div>
       )}
 
       <div className="space-y-2.5 pt-1">

@@ -160,7 +160,7 @@ function Hero({ s, isCurrent, state, onAccept, busy }) {
       </div>
       <div className="display mt-3 text-title2 font-bold leading-tight">{s.venue_name}</div>
       {(s.address || s.postcode) && (
-        <div className="mt-1 flex items-start gap-1.5 text-subhead opacity-85"><MapPin size={16} className="mt-0.5 shrink-0" />{[s.address, s.postcode].filter(Boolean).join(', ')}</div>
+        <div className="mt-1 flex items-start gap-1.5 text-subhead opacity-85"><MapPin size={16} className="mt-0.5 shrink-0" /><span className="min-w-0">{[s.address, s.postcode].filter(Boolean).join(', ')}</span></div>
       )}
       <div className="mt-4 flex items-end justify-between gap-3">
         <div>

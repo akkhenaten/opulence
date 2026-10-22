@@ -166,7 +166,7 @@ function Body({ d, base, isCompany }) {
 
         {isCompany && (
           <Tile title="Compliance" icon={ShieldCheck} className="col-span-2" action={<Link to="/company/staff" className="-my-2.5 inline-block py-2.5 text-footnote font-semibold text-blue">Staff ›</Link>}>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <div className="mb-2 flex items-baseline gap-2"><span className={cx('display num text-title2 font-bold', d.nonCompliantCount ? 'text-red' : 'text-green')}>{d.nonCompliantCount || 0}</span><span className="text-footnote font-semibold">can't work</span></div>
                 {(d.nonCompliant || []).length === 0 ? <p className="text-footnote text-muted">All active officers are compliant.</p> : (

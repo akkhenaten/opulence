@@ -225,7 +225,7 @@ function CompanyFields({ b }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Tile title="Company" icon={Building2} className="lg:col-span-2">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Company name" {...b('company_name')} />
           <Input label="Company number" {...b('company_number')} />
           <Input label="Email" type="email" {...b('company_email')} />
@@ -353,7 +353,7 @@ function InviteSheet({ venues, onClose, onDone }) {
           <Segmented value={v.role} onChange={(r) => set('role', r)} options={USER_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))} />
           <p className="text-footnote text-muted">{ROLE_HINT[v.role]}</p>
           <Input label="Full name" {...bind('name')} />
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="Email" type="email" {...bind('email')} />
             <Input label="Phone" type="tel" {...bind('phone')} />
           </div>
@@ -394,7 +394,7 @@ function UserSheet({ u, me, venues, onClose, onDone }) {
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={save}>Save</Button></>}>
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2"><Pill tone="grey">{ROLE_LABEL[u.role]}</Pill><Pill status={u.status === 'active' ? 'active' : u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : u.status === 'active' ? 'Active' : 'Disabled'}</Pill><span className="text-footnote text-muted">{u.email}</span></div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Name" {...bind('name')} />
           <Input label="Phone" type="tel" {...bind('phone')} />
         </div>

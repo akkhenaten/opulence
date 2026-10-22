@@ -377,7 +377,7 @@ export function Row({ title, subtitle, left, right, to, onClick, chevron, classN
 }
 export const Section = ({ title, action, children, className }) => (
   <div className={cx('mt-6', className)}>
-    {(title || action) && <div className="mb-2 flex items-center justify-between px-1"><h2 className="text-footnote font-semibold uppercase tracking-wide text-muted">{title}</h2>{action}</div>}
+    {(title || action) && <div className="mb-2 flex items-center justify-between px-1"><h2 className="min-w-0 text-footnote font-semibold uppercase tracking-wide text-muted">{title}</h2>{action}</div>}
     {children}
   </div>
 );

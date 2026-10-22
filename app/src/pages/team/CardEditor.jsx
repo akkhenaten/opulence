@@ -77,7 +77,7 @@ export default function CardEditor() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Tile title="Edit">
           <fieldset disabled={!co} className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Select label="Category" value={f.category} onChange={set('category')} options={CATEGORIES.map(({ value, label }) => ({ value, label }))} />
               {f.category === 'venue' && <Select label="Venue" value={f.venue_id} onChange={set('venue_id')} placeholder="Choose a venue" options={(venues.data || []).map((v) => ({ value: v.id, label: v.name }))} />}
             </div>

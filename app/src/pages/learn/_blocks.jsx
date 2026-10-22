@@ -90,7 +90,7 @@ function DosDonts({ b }) {
       </ul>
     </div>
   );
-  return <div className="grid gap-2.5 sm:grid-cols-2">{panel(b.do, true)}{panel(b.dont, false)}</div>;
+  return <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">{panel(b.do, true)}{panel(b.dont, false)}</div>;
 }
 
 function OptionsCard({ b }) {
@@ -171,7 +171,7 @@ export function BlocksEditor({ blocks = [], onChange, onDraw, onEnrich, drawing,
             </div>
           )}
           {b.type === 'dos_donts' && (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Textarea label="Do (one per line)" rows={4} value={b.do.join('\n')} onChange={(e) => set('dos_donts', (x) => ({ ...x, do: linesOf(e.target.value) }))} />
               <Textarea label="Don't (one per line)" rows={4} value={b.dont.join('\n')} onChange={(e) => set('dos_donts', (x) => ({ ...x, dont: linesOf(e.target.value) }))} />
             </div>
@@ -230,7 +230,7 @@ function ImageEditor({ img, onChange, onDraw, drawing, busy }) {
         <span className="text-subhead font-bold">Picture</span>
         {img && <IconButton icon={Trash2} label="Remove picture" onClick={() => onChange(null)} />}
       </div>
-      <div className="grid gap-3 sm:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[220px_minmax(0,1fr)]">
         <div className="grid aspect-video place-items-center overflow-hidden rounded-xl bg-fill text-faint">
           {v.url ? <img src={v.url} alt="" className="h-full w-full object-cover" /> : <ImagePlus size={28} />}
         </div>
