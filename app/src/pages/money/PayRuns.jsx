@@ -110,11 +110,11 @@ function Detail({ isCo }) {
             <Bento className="mb-2">
               <Tile tone="blue" className="col-span-2">
                 <div className="flex items-start justify-between gap-3">
-                  <Stat value={money(r.total)} label={plural(r.statements, 'statement')} hint={hours(r.hours)} />
+                  <Stat value={money(r.total)} label={plural(r.statements.length, 'statement')} hint={hours(r.hours)} />
                   <Pill tone="ink">{RUN_LABEL[r.status]}</Pill>
                 </div>
               </Tile>
-              <Tile title="Checked by staff"><Stat value={`${r.approved + r.resolved}/${r.statements}`} label={r.pending ? `${r.pending} still to respond` : 'Approved or resolved'} tone={r.pending ? undefined : 'green'} /></Tile>
+              <Tile title="Checked by staff"><Stat value={`${r.approved + r.resolved}/${r.statements.length}`} label={r.pending ? `${r.pending} still to respond` : 'Approved or resolved'} tone={r.pending ? undefined : 'green'} /></Tile>
               <Tile title="Queries"><Stat value={open.length} label={open.length ? 'Need an answer' : `${r.disputes.length} in total`} tone={open.length ? 'red' : undefined} /></Tile>
             </Bento>
 
@@ -228,7 +228,7 @@ function ReviewSheet({ run: r, onClose, onDone }) {
     <Sheet open onClose={onClose} title="Send to staff for review" size="sm"
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button icon={Send} busy={busy} onClick={send}>Send</Button></>}>
       <div className="space-y-4">
-        <p className="text-subhead text-muted">Each of the {plural(r.statements, 'officer')} gets a push and an email asking them to approve their statement or tell you what looks wrong.</p>
+        <p className="text-subhead text-muted">Each of the {plural(r.statements.length, 'officer')} gets a push and an email asking them to approve their statement or tell you what looks wrong.</p>
         <Select label="Deadline" value={days} onChange={(e) => setDays(e.target.value)}
           options={[1, 2, 3, 4, 5, 6, 7].map((n) => ({ value: String(n), label: plural(n, 'day') }))}
           hint={Number(days) > 2 ? 'A reminder goes out 48 hours before the deadline.' : 'Short deadline: no separate reminder.'} />
