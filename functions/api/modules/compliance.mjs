@@ -497,7 +497,8 @@ export const actions = {
         });
       }
     }
-    rows.sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity] || (a.shift?.starts_at || '9').localeCompare(b.shift?.starts_at || '9'));
+    const at = (r) => (r.shift?.starts_at ? new Date(r.shift.starts_at).getTime() : Infinity);
+    rows.sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity] || at(a) - at(b));
     const { n: checked } = await one("SELECT count(*)::int AS n FROM officers WHERE status IN ('active','onboarding')");
     const last = await one("SELECT created_at FROM ops_activity WHERE kind = 'compliance' ORDER BY created_at DESC LIMIT 1");
     return { rows, checked, people: results.length, last_run: last?.created_at || null };
