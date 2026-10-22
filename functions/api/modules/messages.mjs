@@ -118,7 +118,7 @@ async function handleOpsText(user, conv, text) {
   }
   const kind = String(open.quick.ref).split(':')[0];
   let r;
-  try { r = await classifyReply(text, kind); } catch { r = { intent: 'unclear' }; }
+  try { r = await classifyReply(text, kind); } catch (e) { console.error('classifyReply', e.message); r = { intent: 'unclear' }; }
   if (r.intent === 'unclear' || !open.quick.options.some((o) => o.value === r.intent)) {
     await opsMessage(user.id, r.question || 'Sorry, I didn\'t catch that — please tap one of the buttons above.');
     return;
