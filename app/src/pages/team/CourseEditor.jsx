@@ -61,8 +61,8 @@ export default function CourseEditor() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
-  if (q.error) return <Page title="Course" back={{ to: `${base}/team/academy`, label: 'Academy' }}><ErrorBox error={q.error} retry={q.reload} /></Page>;
-  if (!st) return <Page title="Course" back={{ to: `${base}/team/academy`, label: 'Academy' }}><Spinner /></Page>;
+  if (q.error) return <Page title="Course" back={{ to: `${base}/team/training?tab=courses`, label: 'Courses' }}><ErrorBox error={q.error} retry={q.reload} /></Page>;
+  if (!st) return <Page title="Course" back={{ to: `${base}/team/training?tab=courses`, label: 'Courses' }}><Spinner /></Page>;
 
   const c = st.course;
   const edit = (fn) => { setSt((s) => fn(structuredClone(s))); setDirty(true); };
@@ -167,7 +167,7 @@ export default function CourseEditor() {
 
   const status = c.status === 'published' ? <Pill tone="green">Published · v{c.version}</Pill> : c.status === 'archived' ? <Pill tone="grey">Archived</Pill> : <Pill tone="blue">Draft</Pill>;
   return (
-    <Page title={c.title || 'Untitled course'} back={{ to: `${base}/team/academy`, label: 'Academy' }} wide
+    <Page title={c.title || 'Untitled course'} back={{ to: `${base}/team/training?tab=courses`, label: 'Courses' }} wide
       subtitle={<span className="flex flex-wrap items-center gap-2">{status}{c.review_by && <span className="text-footnote">Review by {date(c.review_by)}</span>}{dirty && <Pill tone="amber">Unsaved changes</Pill>}</span>}
       actions={(
         <div className="flex flex-wrap gap-2">

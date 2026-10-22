@@ -4,21 +4,31 @@ import { Download, GraduationCap, Plus, Sparkles, UserPlus } from 'lucide-react'
 import { api, downloadText } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { Avatar, Button, cx, date, Empty, ErrorBox, List, Load, Page, Pill, Pressable, Row, Spinner, Table, Tabs, Tile, useAction, useApi } from '../../ui/index.jsx';
-import { STATE, StatePill, TOPICS } from '../learn/_parts.jsx';
+import { STATE, StatePill, TOPICS, useModules } from '../learn/_parts.jsx';
+import { Refreshers, StaffRecords } from './_training.jsx';
 import { AssignSheet, DraftProgress, draftCourse, NewCourseSheet } from './_parts.jsx';
 
+// Training hub: staff records, refreshers due, and the Academy (courses, results, starter library)
 export default function Academy() {
   const { user } = useAuth();
   const [sp, setSp] = useSearchParams();
+  const modules = useModules();
   const co = user.role === 'company';
-  const tab = sp.get('tab') || 'courses';
-  const tabs = [{ value: 'courses', label: 'Courses' }, { value: 'results', label: 'Results' }, ...(co ? [{ value: 'starter', label: 'Starter library' }] : [])];
+  const academy = modules?.academy !== false;
+  const tab = sp.get('tab') || 'records';
+  const tabs = [
+    { value: 'records', label: 'Staff records' }, { value: 'refreshers', label: 'Refreshers due' },
+    ...(academy ? [{ value: 'courses', label: 'Courses' }, { value: 'results', label: 'Academy results' }] : []),
+    ...(academy && co ? [{ value: 'starter', label: 'Starter library' }] : []),
+  ];
   return (
-    <Page title="Academy" subtitle="Training for your officers, with quizzes and certificates" wide>
-      <Tabs tabs={tabs} value={tab} onChange={(v) => setSp(v === 'courses' ? {} : { tab: v }, { replace: true })} />
-      {tab === 'courses' && <Courses co={co} />}
-      {tab === 'results' && <Results />}
-      {tab === 'starter' && co && <Starter onDone={() => setSp({}, { replace: true })} />}
+    <Page title="Training" subtitle="Certificates, refreshers and Academy courses for your staff" wide>
+      <Tabs tabs={tabs} value={tab} onChange={(v) => setSp(v === 'records' ? {} : { tab: v }, { replace: true })} />
+      {tab === 'records' && <StaffRecords />}
+      {tab === 'refreshers' && <Refreshers />}
+      {tab === 'courses' && academy && <Courses co={co} />}
+      {tab === 'results' && academy && <Results />}
+      {tab === 'starter' && academy && co && <Starter onDone={() => setSp({ tab: 'courses' }, { replace: true })} />}
     </Page>
   );
 }

@@ -7,6 +7,7 @@ import {
   addDays, Bento, Button, cx, date, dateShort, dateTime, dayLabel, Empty, ErrorBox, hours, IconButton, Input, isoDate, KV, List, Load, money, Pill, Pressable, range, relative, Row, Section, Segmented, Select, Sheet, Spinner, Stat, Table, Textarea, Tile, titleCase, Toggle, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { DOC_KINDS, ExpiryPill, Progress, RTW_TYPES, SIA_TYPES, TIMEOFF_KINDS, WEEKDAYS, docKindLabel, openUrl } from './_parts.jsx';
+import { CertificateSheet } from '../team/_training.jsx';
 
 // useApi that reports 403 to the parent so the tab can be hidden
 function useTabApi(action, body, onForbidden, opts) {
@@ -921,6 +922,8 @@ export function TrainingTab({ o, user, onForbidden }) {
   const [run] = useAction();
   const confirm = useConfirm();
   const base = `/${user.role}`;
+  const [adding, setAdding] = useState(false);
+  const openDoc = (d) => openUrl(() => api('docs.url', { id: d.id })).catch(() => {});
   const unassign = async (c) => {
     if (!(await confirm({ title: `Remove ${c.title} from ${o.first_name}'s training?`, confirm: 'Remove' }))) return;
     await run(() => api('academy.unassign', { course_id: c.id, officer_id: o.id }), 'Removed');
@@ -928,7 +931,7 @@ export function TrainingTab({ o, user, onForbidden }) {
   };
   return (
     <TabLoad q={q}>
-      {({ courses, certificates }) => (
+      {({ courses, certificates, outside = [] }) => (
         <div className="grid gap-4 lg:grid-cols-2">
           <Tile title="Courses" pad={false}>
             {courses.length ? (
@@ -942,7 +945,7 @@ export function TrainingTab({ o, user, onForbidden }) {
                     </span>} />
                 ))}
               </List>
-            ) : <Empty title="No training yet" body="Assign courses from Team › Academy." />}
+            ) : <Empty title="No training yet" body="Assign courses from Training › Courses." />}
           </Tile>
           <Tile title="Certificates" pad={false}>
             {certificates.length ? (
@@ -955,6 +958,19 @@ export function TrainingTab({ o, user, onForbidden }) {
               </List>
             ) : <Empty title="No certificates yet" />}
           </Tile>
+          <Tile title="Outside certificates" pad={false} className="lg:col-span-2"
+            action={<Button size="sm" variant="soft" icon={Plus} onClick={() => setAdding(true)}>Add</Button>}>
+            {outside.length ? (
+              <List>
+                {outside.map((d) => (
+                  <Row key={d.id} onClick={d.has_file ? () => openDoc(d) : undefined} left={<Award size={20} className="text-green" />} title={d.title}
+                    subtitle={[docKindLabel(d.kind), d.provider, d.issued_on && `Passed ${date(d.issued_on)}`, !d.verified_at && 'Not checked yet'].filter(Boolean).join(' · ')}
+                    right={d.expiry ? <ExpiryPill date={d.expiry} /> : <Pill tone="green">No expiry</Pill>} />
+                ))}
+              </List>
+            ) : <Empty title="None on file" body="First aid, CCTV and other courses from outside providers." />}
+          </Tile>
+          <CertificateSheet open={adding} officerId={o.id} onClose={() => setAdding(false)} onDone={() => { setAdding(false); q.reload(); }} />
         </div>
       )}
     </TabLoad>

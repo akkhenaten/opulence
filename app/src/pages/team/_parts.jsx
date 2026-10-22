@@ -47,8 +47,8 @@ const TARGETS = [
 ];
 
 /** Assign a published course to officers, with an optional due date. */
-export function AssignSheet({ open, onClose, courses, courseId, onDone }) {
-  const [v, setV] = useState({ course_id: courseId || '', target: 'all', ids: [], due_date: '' });
+export function AssignSheet({ open, onClose, courses, courseId, onDone, preset }) {
+  const [v, setV] = useState({ course_id: courseId || '', target: 'all', ids: [], due_date: '', ...preset });
   const { roles } = useRoles();
   const venues = useApi('venues.list', {}, { skip: !open || v.target !== 'venue' });
   const officers = useApi('officers.list', { status: 'active' }, { skip: !open || v.target !== 'officers' });

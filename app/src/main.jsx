@@ -64,6 +64,7 @@ const Quiz = P(() => import('./pages/learn/Quiz.jsx'));
 const Certificate = P(() => import('./pages/learn/Certificate.jsx'));
 // Team (managers)
 const Academy = P(() => import('./pages/team/Academy.jsx'));
+const Compliance = P(() => import('./pages/people/Compliance.jsx'));
 const CourseEditor = P(() => import('./pages/team/CourseEditor.jsx'));
 const Everyday = P(() => import('./pages/everyday/Feed.jsx'));
 const ToolboxAdmin = P(() => import('./pages/team/ToolboxAdmin.jsx'));
@@ -111,6 +112,8 @@ const managerRoutes = (
     <Route path="staff" element={<Staff />} />
     <Route path="staff/:id" element={<StaffProfile />} />
     <Route path="team/academy" element={<Academy />} />
+    <Route path="team/training" element={<Academy />} />
+    <Route path="people/compliance" element={<Compliance />} />
     <Route path="team/academy/:id" element={<CourseEditor />} />
     <Route path="team/academy/:id/preview" element={<Course />} />
     <Route path="team/toolbox" element={<ToolboxAdmin />} />

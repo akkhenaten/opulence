@@ -5,7 +5,8 @@ import { useAuth } from '../../auth.jsx';
 import { Button, cx, date, daysUntil, Empty, Input, Load, Page, Pill, Pressable, Select, Sheet, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { compressImage, DOC_KINDS, docKindLabel, expiryText, expiryTone, NotLinked } from './_parts.jsx';
 
-const NEEDS_EXPIRY = new Set(['sia', 'first_aid', 'id']);
+const NEEDS_EXPIRY = new Set(['sia', 'first_aid', 'cctv', 'id']);
+const TRAINING = new Set(['first_aid', 'cctv', 'training']);
 const NEEDS_NUMBER = new Set(['sia', 'id', 'rtw']);
 const NUMBER_LABEL = { sia: 'Licence number', id: 'Document number', rtw: 'Share code (if any)' };
 
@@ -99,7 +100,7 @@ function DocCard({ d, reload }) {
 }
 
 function AddSheet({ kind, onClose, ownerId, onDone }) {
-  const [v, setV] = useState({ kind: 'sia', title: '', number: '', expiry: '' });
+  const [v, setV] = useState({ kind: 'sia', title: '', number: '', expiry: '', provider: '', issued_on: '' });
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [last, setLast] = useState(null);
@@ -110,7 +111,7 @@ function AddSheet({ kind, onClose, ownerId, onDone }) {
   // Reset the form each time the sheet opens
   if (kind && kind !== last) {
     setLast(kind);
-    setV({ kind, title: '', number: '', expiry: '' });
+    setV({ kind, title: '', number: '', expiry: '', provider: '', issued_on: '' });
     setFile(null);
     setPreview(null);
   }
@@ -132,6 +133,7 @@ function AddSheet({ kind, onClose, ownerId, onDone }) {
     return api('docs.create', {
       owner_type: 'officer', owner_id: ownerId, kind: v.kind, title: v.title.trim() || docKindLabel(v.kind),
       number: v.number.trim(), expiry: v.expiry || null, s3_key: key, mime: file.type || null,
+      ...(TRAINING.has(v.kind) ? { provider: v.provider.trim() || null, issued_on: v.issued_on || null } : {}),
     });
   }, 'Uploaded. The office will check it.').then(onDone).catch(() => {});
 
@@ -155,6 +157,12 @@ function AddSheet({ kind, onClose, ownerId, onDone }) {
           </div>
         )}
         {(v.kind === 'other' || v.kind === 'training') && <Input label="Title" value={v.title} onChange={set('title')} placeholder={v.kind === 'training' ? 'e.g. Physical intervention' : 'What is it?'} />}
+        {TRAINING.has(v.kind) && (
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Training provider" value={v.provider} onChange={set('provider')} placeholder="e.g. St John Ambulance" />
+            <Input label="Date passed" type="date" value={v.issued_on} onChange={set('issued_on')} />
+          </div>
+        )}
         {NEEDS_NUMBER.has(v.kind) && <Input label={NUMBER_LABEL[v.kind]} value={v.number} onChange={set('number')} autoCapitalize="characters" />}
         <Input label={needsExpiry ? 'Expiry date' : 'Expiry date (optional)'} type="date" value={v.expiry} onChange={set('expiry')}
           hint={v.kind === 'rtw' ? 'Leave blank only if your right to work has no end date' : undefined} />

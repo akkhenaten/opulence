@@ -12,6 +12,7 @@ import { requireModule, moduleOn } from '../lib/modules.mjs';
 import { CONTENT_RULES, reviewDate, venueTeam } from '../lib/learn.mjs';
 import { addDays, fmtDate, londonDate } from '../lib/time.mjs';
 import { CO, MGR, def } from './_def.mjs';
+import { TRAINING_KINDS } from '../lib/licences.mjs';
 
 const STAFF = ['company', 'security', 'officer'];
 const TOPICS = ['law', 'operations', 'first_aid'];
@@ -636,7 +637,9 @@ ${await courseText(course)}`,
     const courses = (await myCourses(b.officer_id)).filter((c) => c.assignment_id || c.certificate || c.last_attempt || c.done_sections)
       .map((c) => ({ ...c, state: courseState(c, today) }));
     const certificates = await q('SELECT c.*, co.title FROM certificates c JOIN courses co ON co.id = c.course_id WHERE c.officer_id = $1 ORDER BY c.issued_at DESC', [b.officer_id]);
-    return { courses, certificates };
+    const outside = await q(`SELECT id, kind, title, provider, issued_on, expiry, verified_at, s3_key IS NOT NULL AS has_file, created_at FROM documents
+      WHERE owner_type = 'officer' AND owner_id = $1 AND kind = ANY($2) ORDER BY COALESCE(expiry, '9999-12-31') DESC, created_at DESC`, [b.officer_id, TRAINING_KINDS]);
+    return { courses, certificates, outside };
   }),
 };
 
@@ -677,7 +680,7 @@ export async function learnJobs() {
     await notify(await companyManagers(), {
       kind: 'training', severity: 'info', title: `${stale.length} training item${stale.length === 1 ? '' : 's'} due for review`,
       body: `${stale.slice(0, 4).map((s) => s.title).join(', ')}${stale.length > 4 ? '…' : ''}. Check they are still accurate, then publish again to reset the review date.`,
-      link: '/company/team/academy', dedupe: `review:${today.slice(0, 7)}`,
+      link: '/company/team/academy?tab=courses', dedupe: `review:${today.slice(0, 7)}`,
     });
   }
   return { reminders: due.length, renewed, review: stale.length };

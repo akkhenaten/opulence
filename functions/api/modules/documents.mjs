@@ -43,6 +43,7 @@ export const actions = {
     const d = await insert('documents', {
       owner_type: b.owner_type, owner_id: b.owner_id || null, kind: b.kind, title: b.title, number: b.number || '',
       expiry: b.expiry || null, s3_key: b.s3_key || null, mime: b.mime || null, uploaded_by: user.id,
+      provider: b.provider || null, issued_on: b.issued_on || null,
     });
     if (b.owner_type === 'officer' && ONBOARD_FOR_KIND[b.kind]) await tickOnboarding(b.owner_id, ONBOARD_FOR_KIND[b.kind]);
     await audit(user, 'doc.create', 'document', d.id, { kind: d.kind, owner: b.owner_id });

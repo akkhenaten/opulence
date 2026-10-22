@@ -12,7 +12,7 @@ import { getSettings } from './settings.mjs';
 import { checkOfficerForShift, getShift, filledCount, shiftsWithAssignments, londonToUtc, actions as rota } from './rota.mjs';
 import { recalcStatement, recalcInvoice } from './money.mjs';
 import { ALL, MGR, CO, def } from './_def.mjs';
-import { runCompliance, readDocuments, decideCompliance, computeIssues } from './compliance.mjs';
+import { runCompliance, readDocuments, decideCompliance, computeIssues, sendDigest } from './compliance.mjs';
 import { evidenceScan } from './incidentAi.mjs';
 import { opsMessage, closeQuick, ensureThread, post, opsUser, syncMembers } from '../lib/threads.mjs';
 
@@ -391,7 +391,9 @@ const JOBS = {
     if (dow !== s.ops_compliance_dow || londonParts(new Date()).hour < 6) return 'not today';
     if (await one("SELECT 1 FROM ops_activity WHERE kind = 'compliance_run' AND text = $1", [today])) return 'done';
     await logActivity('compliance_run', today);
-    return runCompliance();
+    const r = await runCompliance();
+    if (jobOn(s, 'compliance_digest')) r.digest = await sendDigest().catch((e) => ({ error: e.message }));
+    return r;
   },
 
   async docRead(s) {

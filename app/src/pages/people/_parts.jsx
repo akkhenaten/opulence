@@ -16,7 +16,7 @@ export const RTW_TYPES = [
 
 export const DOC_KINDS = [
   { value: 'sia', label: 'SIA licence' }, { value: 'rtw', label: 'Right to work' }, { value: 'id', label: 'Photo ID' },
-  { value: 'poa', label: 'Proof of address' }, { value: 'training', label: 'Training certificate' }, { value: 'first_aid', label: 'First aid' },
+  { value: 'poa', label: 'Proof of address' }, { value: 'training', label: 'Training certificate' }, { value: 'first_aid', label: 'First aid' }, { value: 'cctv', label: 'CCTV certificate' },
   { value: 'contract', label: 'Contract' }, { value: 'other', label: 'Other' },
 ];
 export const docKindLabel = (k) => DOC_KINDS.find((d) => d.value === k)?.label || k;

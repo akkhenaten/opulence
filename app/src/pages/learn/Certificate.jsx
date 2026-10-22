@@ -7,7 +7,7 @@ export default function Certificate() {
   const { id } = useParams();
   const { user } = useAuth();
   const q = useApi('academy.certificate', { id });
-  const back = user.role === 'officer' ? { to: '/officer/learn', label: 'Learn' } : { to: `/${user.role}/team/academy?tab=results`, label: 'Results' };
+  const back = user.role === 'officer' ? { to: '/officer/learn', label: 'Learn' } : { to: `/${user.role}/team/training?tab=results`, label: 'Results' };
   return (
     <Page title="Certificate" back={back} actions={<span className="no-print"><Button variant="secondary" icon={Printer} onClick={() => window.print()}>Print or save as PDF</Button></span>}>
       <Load q={q}>

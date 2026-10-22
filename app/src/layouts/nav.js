@@ -1,7 +1,7 @@
 import {
   BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
   Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText, Sparkles,
-  GraduationCap, BookOpenCheck, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban,
+  GraduationCap, BookOpenCheck, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck,
 } from 'lucide-react';
 
 // Sidebar sections per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
@@ -25,7 +25,8 @@ export const NAV = {
       { to: '/company/recruitment', label: 'Recruitment', icon: UserPlus },
       { to: '/company/people/contracts', label: 'Staff contracts', icon: FileSignature },
       { to: '/company/hr/time-off', label: 'Time off', icon: CalendarOff },
-      { to: '/company/team/academy', label: 'Academy', icon: GraduationCap, module: 'academy' },
+      { to: '/company/team/training', label: 'Training', icon: GraduationCap },
+      { to: '/company/people/compliance', label: 'Compliance', icon: ShieldCheck },
     ] },
     { title: 'Resources', items: [
       { to: '/company/team/toolbox', label: 'Toolbox', icon: BookOpenCheck, module: 'toolbox' },
@@ -62,7 +63,8 @@ export const NAV = {
     ] },
     { title: 'People', items: [
       { to: '/security/staff', label: 'Officers', icon: Users },
-      { to: '/security/team/academy', label: 'Academy', icon: GraduationCap, module: 'academy' },
+      { to: '/security/team/training', label: 'Training', icon: GraduationCap },
+      { to: '/security/people/compliance', label: 'Compliance', icon: ShieldCheck },
     ] },
     { title: 'Resources', items: [
       { to: '/security/team/toolbox', label: 'Toolbox', icon: BookOpenCheck, module: 'toolbox' },

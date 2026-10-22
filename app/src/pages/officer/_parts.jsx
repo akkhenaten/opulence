@@ -54,6 +54,7 @@ export const DOC_KINDS = [
   { value: 'id', label: 'Photo ID' },
   { value: 'poa', label: 'Proof of address' },
   { value: 'first_aid', label: 'First aid certificate' },
+  { value: 'cctv', label: 'CCTV certificate' },
   { value: 'training', label: 'Training certificate' },
   { value: 'other', label: 'Other' },
 ];

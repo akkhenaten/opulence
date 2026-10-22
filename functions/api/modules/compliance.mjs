@@ -5,9 +5,11 @@ import { one, q } from '../lib/db.mjs';
 import { fail, required, need } from '../lib/http.mjs';
 import { getObjectBytes, headObject } from '../lib/storage.mjs';
 import { extract, fileBlock, canRead, HAIKU } from '../lib/ai.mjs';
-import { notify, officerUser } from '../lib/notify.mjs';
+import { notify, officerUser, companyManagers, emailHtml, sendRawEmail } from '../lib/notify.mjs';
+import { getBrand } from '../lib/brand.mjs';
+import { downloadUrl } from '../lib/storage.mjs';
 import { fmtDate, fmtTime, londonDate } from '../lib/time.mjs';
-import { SIA_TYPES, DOC_LABEL } from '../lib/licences.mjs';
+import { SIA_TYPES, DOC_LABEL, TRAINING_KINDS } from '../lib/licences.mjs';
 import { audit } from '../lib/audit.mjs';
 import { venueScope } from '../lib/scope.mjs';
 import { getShift } from './rota.mjs';
@@ -90,11 +92,11 @@ export async function readDocuments(limit = 4) {
 const remind = (o, kind, what) => ({ kind: 'remind', label: `Remind ${o.first_name} to upload ${what}`, params: { doc_kind: kind, what }, default: true });
 const unassign = (shifts) => ({ kind: 'unassign', label: `Take them off ${shifts.length === 1 ? 'the at-risk shift' : `${shifts.length} at-risk shifts`} and find cover`, params: { assignment_ids: shifts.map((s) => s.assignment_id) }, default: false });
 const correct = (field, from, to, label) => ({ kind: 'correct', label, params: { field, from, to }, company_only: true, default: false });
-const remindTraining = (o, t) => ({ kind: 'remind', label: `Remind ${o.first_name} to complete "${t.title}"`, params: { course_id: t.course_id, what: `"${t.title}"` }, default: true });
+const remindTraining = (o, t, refresher = false) => ({ kind: 'remind', label: `Remind ${o.first_name} to ${refresher ? 'redo' : 'complete'} "${t.title}"`, params: { course_id: t.course_id, what: `"${t.title}"`, refresher }, default: true });
 const recheck = (d) => ({ kind: 'recheck', label: `Mark "${d.title}" for re-check`, params: { doc_id: d.id }, default: false });
 
 // Every issue for one officer. ctx: { today, roles: {code: role}, docs, shifts, openTasks }
-export function officerIssues(o, { today, roles, docs = [], shifts = [], openTasks = 0, training = [] }) {
+export function officerIssues(o, { today, roles, docs = [], shifts = [], openTasks = 0, training = [], certs = [] }) {
   const issues = [];
   const add = (i) => issues.push({ ...i, actions: (i.actions || []).map((a) => ({ ...a, id: `${i.key}|${a.kind}` })) });
   const near = (list) => (list.length && days(today, londonDate(list[0].starts_at)) <= 7 ? 'urgent' : 'soon');
@@ -224,13 +226,47 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
       add({ key: `training:${t.course_id}`, severity: 'advisory', sig: sig(t.due_date, cert.id), title: `Training certificate expired: ${t.title}`, detail: `Expired ${fmtDate(cert.expires_at)}.`, actions: [remindTraining(o, t)] });
     }
   }
+  // Outside certificates (first aid, CCTV, other courses) that are not a role requirement: refreshers coming up
+  const outside = new Map();
+  for (const d of docs.filter((x) => TRAINING_KINDS.includes(x.kind) && x.expiry && !required.has(x.kind))) {
+    const k = `${d.kind}:${String(d.title).trim().toLowerCase()}`;
+    if (!outside.has(k) || d.expiry > outside.get(k).expiry) outside.set(k, d);
+  }
+  for (const d of outside.values()) {
+    const left = days(today, d.expiry);
+    if (left > 60) continue;
+    add({
+      key: `refresher:${d.kind}:${sig(String(d.title).trim().toLowerCase())}`, severity: left <= 30 ? 'soon' : 'advisory', sig: sig(d.id, d.expiry),
+      title: left < 0 ? `${d.title} expired ${fmtDate(d.expiry)}` : `${d.title} expires in ${plural(left, 'day')} (${fmtDate(d.expiry)})`,
+      detail: `${cap(docLabel(d.kind))}${d.provider ? ` from ${d.provider}` : ''}. Book a refresher and upload the new certificate.`,
+      actions: [remind(o, d.kind, `a renewed ${docLabel(d.kind)}`)],
+    });
+  }
+  // Academy certificates running out (mandatory courses already overdue are covered above)
+  for (const c of certs) {
+    if (!c.expires_at || issues.some((i) => i.key === `training:${c.course_id}`)) continue;
+    const left = days(today, c.expires_at);
+    if (left > 60) continue;
+    add({
+      key: `refresher:course:${c.course_id}`, severity: left <= 30 ? 'soon' : 'advisory', sig: sig(c.id, c.expires_at),
+      title: left < 0 ? `Academy certificate expired: ${c.title}` : `Academy refresher due in ${plural(left, 'day')}: ${c.title}`,
+      detail: `Certificate ${left < 0 ? 'ran out' : 'runs out'} ${fmtDate(c.expires_at)}.`,
+      actions: [remindTraining(o, c, true)],
+    });
+  }
   return issues.sort((a, b) => RANK[b.severity] - RANK[a.severity]);
 }
+
+// Latest Academy certificate per officer and course (published courses only)
+export const latestCertificates = (officerId = null) => q(
+  `SELECT DISTINCT ON (c.officer_id, c.course_id) c.id, c.officer_id, c.course_id, c.issued_at, c.expires_at, co.title, co.mandatory
+     FROM certificates c JOIN courses co ON co.id = c.course_id AND co.status = 'published'
+    WHERE ($1::uuid IS NULL OR c.officer_id = $1) ORDER BY c.officer_id, c.course_id, c.issued_at DESC`, [officerId]);
 
 // Live issues for every active/onboarding officer (or one), without dismissed ones
 export async function computeIssues({ officerId = null } = {}) {
   const today = londonDate(new Date());
-  const [officers, roleRows, docs, shifts, tasks, dismissed, training] = await Promise.all([
+  const [officers, roleRows, docs, shifts, tasks, dismissed, training, certs] = await Promise.all([
     q("SELECT * FROM officers WHERE status IN ('active','onboarding') AND ($1::uuid IS NULL OR id = $1)", [officerId]),
     q('SELECT * FROM roles'),
     q("SELECT * FROM documents WHERE owner_type = 'officer' AND ($1::uuid IS NULL OR owner_id = $1)", [officerId]),
@@ -241,12 +277,13 @@ export async function computeIssues({ officerId = null } = {}) {
     q('SELECT officer_id, count(*)::int AS n FROM onboarding_tasks WHERE NOT done AND ($1::uuid IS NULL OR officer_id = $1) GROUP BY officer_id', [officerId]),
     q('SELECT * FROM compliance_dismissals WHERE ($1::uuid IS NULL OR officer_id = $1)', [officerId]),
     moduleOn('academy').then((on) => (on ? trainingStatus(officerId) : [])),
+    moduleOn('academy').then((on) => (on ? latestCertificates(officerId) : [])),
   ]);
   const roles = Object.fromEntries(roleRows.map((r) => [r.code, r]));
   return officers.map((o) => {
     const issues = officerIssues(o, {
       today, roles, docs: docs.filter((d) => d.owner_id === o.id), shifts: shifts.filter((s) => s.officer_id === o.id),
-      openTasks: tasks.find((t) => t.officer_id === o.id)?.n || 0, training: training.filter((t) => t.officer_id === o.id),
+      openTasks: tasks.find((t) => t.officer_id === o.id)?.n || 0, training: training.filter((t) => t.officer_id === o.id), certs: certs.filter((c) => c.officer_id === o.id),
     }).filter((i) => !dismissed.some((d) => d.officer_id === o.id && d.issue_key === i.key && d.sig === i.sig));
     return { officer: o, issues };
   }).filter((r) => r.issues.length);
@@ -320,8 +357,9 @@ export async function decideCompliance(it, b, user) {
   const reminders = [...new Set(picked.filter((a) => a.kind === 'remind' && !a.params.course_id).map((a) => a.params.what))];
   for (const a of picked.filter((x) => x.kind === 'remind' && x.params.course_id)) {
     await notify(await officerUser(o.id), {
-      kind: 'compliance', severity: 'warning', title: `Please complete your training: ${a.params.what.replace(/"/g, '')}`,
-      body: 'This course is mandatory. Open it in the app under Learn and pass the quiz to get your certificate.', link: `/officer/learn/academy/${a.params.course_id}`,
+      kind: 'compliance', severity: 'warning', title: `Please ${a.params.refresher ? 'redo' : 'complete'} your training: ${a.params.what.replace(/"/g, '')}`,
+      body: a.params.refresher ? 'Your certificate is running out. Open the course under Learn and pass the quiz again to renew it.' : 'This course is mandatory. Open it in the app under Learn and pass the quiz to get your certificate.',
+      link: `/officer/learn/academy/${a.params.course_id}`,
     });
     done.push(`Reminded ${o.first_name} to complete ${a.params.what}`);
   }
@@ -360,7 +398,114 @@ export async function decideCompliance(it, b, user) {
   return { done };
 }
 
+// ---------- Training records, refreshers and the overview screen ----------
+const SEV_ORDER = { urgent: 0, soon: 1, advisory: 2 };
+
+async function staffList() {
+  const rows = await q("SELECT id, first_name, last_name, photo_key, roles, status FROM officers WHERE status IN ('active','onboarding') ORDER BY first_name, last_name");
+  return Promise.all(rows.map(async ({ photo_key, ...o }) => ({ ...o, photo_url: await downloadUrl(photo_key) })));
+}
+
+// Outside certificates (newest first) and Academy certificates in one list per officer
+async function trainingRecords() {
+  const today = londonDate(new Date());
+  const [docs, certs, assigned] = await Promise.all([
+    q(`SELECT id, owner_id AS officer_id, kind, title, provider, issued_on, expiry, verified_at, s3_key IS NOT NULL AS has_file, created_at
+         FROM documents WHERE owner_type = 'officer' AND kind = ANY($1) ORDER BY created_at DESC`, [TRAINING_KINDS]),
+    moduleOn('academy').then((on) => (on ? latestCertificates() : [])),
+    moduleOn('academy').then((on) => (on ? q(`SELECT a.officer_id, a.course_id, a.due_date, co.title FROM course_assignments a JOIN courses co ON co.id = a.course_id AND co.status = 'published'`) : [])),
+  ]);
+  const left = (d) => (d ? days(today, d) : null);
+  const outside = docs.map((d) => ({ source: 'outside', id: d.id, officer_id: d.officer_id, kind: d.kind, title: d.title, provider: d.provider, issued_on: d.issued_on, expires_on: d.expiry, days_left: left(d.expiry), verified: !!d.verified_at, has_file: d.has_file }));
+  const academy = certs.map((c) => ({ source: 'academy', id: c.id, officer_id: c.officer_id, course_id: c.course_id, kind: 'academy', title: c.title, provider: 'Academy', issued_on: String(c.issued_at).slice(0, 10), expires_on: c.expires_at, days_left: left(c.expires_at), mandatory: c.mandatory }));
+  const todo = assigned.filter((a) => !certs.some((c) => c.officer_id === a.officer_id && c.course_id === a.course_id && (!c.expires_at || !a.due_date || c.expires_at > a.due_date)))
+    .map((a) => ({ officer_id: a.officer_id, course_id: a.course_id, title: a.title, due_date: a.due_date, overdue: !!a.due_date && a.due_date < today }));
+  return { outside, academy, todo };
+}
+
+// Keep only the newest record per officer and certificate name (a renewal replaces the old one)
+const newest = (list) => {
+  const m = new Map();
+  for (const r of list) {
+    const k = `${r.officer_id}:${r.course_id || `${r.kind}:${String(r.title).trim().toLowerCase()}`}`;
+    if (!m.has(k) || (r.expires_on || '9999') > (m.get(k).expires_on || '9999')) m.set(k, r);
+  }
+  return [...m.values()];
+};
+
 export const actions = {
+  // Every member of staff: Academy courses passed / to do and outside certificates
+  'academy.staffRecords': def(MGR, async () => {
+    const [staff, rec] = await Promise.all([staffList(), trainingRecords()]);
+    const certs = newest([...rec.academy, ...rec.outside]);
+    return staff.map((o) => {
+      const mine = certs.filter((c) => c.officer_id === o.id).sort((a, b) => (a.expires_on || '9999').localeCompare(b.expires_on || '9999'));
+      const todo = rec.todo.filter((t) => t.officer_id === o.id);
+      return {
+        officer: o, certificates: mine, todo,
+        expired: mine.filter((c) => c.days_left !== null && c.days_left < 0).length,
+        expiring: mine.filter((c) => c.days_left !== null && c.days_left >= 0 && c.days_left <= 60).length,
+        overdue: todo.filter((t) => t.overdue).length,
+      };
+    });
+  }),
+
+  // Certificates that have run out or run out within 60 days, from the Academy and from outside providers
+  'academy.refreshersDue': def(MGR, async (b) => {
+    const within = Math.min(Math.max(Number(b.days) || 60, 1), 365);
+    const [staff, rec] = await Promise.all([staffList(), trainingRecords()]);
+    const byId = new Map(staff.map((o) => [o.id, o]));
+    return newest([...rec.academy, ...rec.outside])
+      .filter((c) => byId.has(c.officer_id) && c.days_left !== null && c.days_left <= within)
+      .map((c) => ({ ...c, officer: byId.get(c.officer_id) }))
+      .sort((a, b) => a.days_left - b.days_left);
+  }),
+
+  // Nudge one person about a certificate that is running out
+  'academy.remindRefresher': def(MGR, async (b, { user }) => {
+    required(b, 'source', 'id');
+    const c = b.source === 'academy'
+      ? need(await one('SELECT c.officer_id, c.course_id, c.expires_at AS expires_on, co.title FROM certificates c JOIN courses co ON co.id = c.course_id WHERE c.id = $1', [b.id]), 'Certificate not found')
+      : need(await one("SELECT owner_id AS officer_id, kind, title, expiry AS expires_on FROM documents WHERE id = $1 AND owner_type = 'officer'", [b.id]), 'Certificate not found');
+    const ended = c.expires_on && c.expires_on < londonDate(new Date());
+    const when = c.expires_on ? `${ended ? 'ran out' : 'runs out'} ${fmtDate(c.expires_on)}` : 'needs renewing';
+    await notify(await officerUser(c.officer_id), {
+      kind: 'training', severity: 'warning', title: `Refresher due: ${c.title}`,
+      body: c.course_id ? `Your certificate ${when}. Open the course under Learn and pass the quiz again to renew it.` : `Your certificate ${when}. Book the refresher and upload the new certificate under Documents.`,
+      link: c.course_id ? `/officer/learn/academy/${c.course_id}` : '/officer/documents', email: true,
+    });
+    await audit(user, 'training.remind', 'officer', c.officer_id, { title: c.title, source: b.source });
+    return { ok: true };
+  }),
+
+  // Every open issue as one row, worst first, with the Ops AI card that carries the actions
+  'compliance.overview': def(MGR, async () => {
+    const [results, cards] = await Promise.all([
+      computeIssues(),
+      q("SELECT id, officer_id, reason FROM ops_items WHERE kind = 'compliance' AND status = 'pending'"),
+    ]);
+    const rows = [];
+    for (const { officer: o, issues } of results) {
+      const card = cards.find((c) => c.officer_id === o.id);
+      const photo = await downloadUrl(o.photo_key);
+      for (const i of issues) {
+        rows.push({
+          officer: { id: o.id, first_name: o.first_name, last_name: o.last_name, photo_url: photo, status: o.status },
+          key: i.key, severity: i.severity, title: i.title, detail: i.detail, area: area(i.key),
+          shift: i.shift ? { venue_name: i.shift.venue_name, starts_at: i.shift.starts_at } : null,
+          card_id: card?.id || null, advice: card?.reason || '',
+        });
+      }
+    }
+    rows.sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity] || (a.shift?.starts_at || '9').localeCompare(b.shift?.starts_at || '9'));
+    const { n: checked } = await one("SELECT count(*)::int AS n FROM officers WHERE status IN ('active','onboarding')");
+    const last = await one("SELECT created_at FROM ops_activity WHERE kind = 'compliance' ORDER BY created_at DESC LIMIT 1");
+    return { rows, checked, people: results.length, last_run: last?.created_at || null };
+  }),
+
+  // The weekly email, for checking what managers will receive
+  'compliance.digestPreview': def(CO, async () => buildDigest()),
+
   'ops.complianceRun': def(CO, async () => runCompliance({ manual: true })),
 
   // Dismiss one issue on a card; it only comes back if the data behind it changes
@@ -386,3 +531,37 @@ export const actions = {
     return { ok: true, remaining: rest.length };
   }),
 };
+
+// Which part of compliance an issue belongs to (filters on the Compliance screen)
+function area(key) {
+  if (/^(training|refresher)/.test(key) || /:(first_aid|cctv|training)$/.test(key)) return 'training';
+  if (/(sia|licence_role)/.test(key)) return 'licence';
+  if (/rtw/.test(key)) return 'rtw';
+  return 'documents';
+}
+
+// ---------- Weekly digest email to company managers ----------
+export async function buildDigest() {
+  const results = await computeIssues();
+  const all = results.flatMap(({ officer: o, issues }) => issues.map((i) => ({ ...i, name: `${o.first_name} ${o.last_name}` })))
+    .sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity]);
+  const count = (s) => all.filter((i) => i.severity === s).length;
+  const { name } = await getBrand();
+  const esc = (t) => String(t || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const tone = { urgent: '#DC2626', soon: '#D97706', advisory: '#6B7280' };
+  const title = all.length ? `Compliance this week: ${plural(results.length, 'person')} need attention` : 'Compliance this week: all clear';
+  const body = all.length
+    ? `<b style="color:${tone.urgent}">${count('urgent')} urgent</b> · <b style="color:${tone.soon}">${count('soon')} soon</b> · ${count('advisory')} to note</p>
+<table style="width:100%;border-collapse:collapse;margin:8px 0 4px">${all.slice(0, 10).map((i) => `<tr><td style="padding:8px 0;border-top:1px solid #E5E7EB;vertical-align:top;width:10px"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:${tone[i.severity]}"></span></td><td style="padding:8px 0 8px 8px;border-top:1px solid #E5E7EB;color:#0B1220;font-size:14px"><b>${esc(i.name)}</b><br><span style="color:#4B5563">${esc(i.title)}</span></td></tr>`).join('')}</table>
+<p style="color:#4B5563;line-height:1.5">${all.length > 10 ? `And ${plural(all.length - 10, 'more item')}. ` : ''}Open Compliance to see everything and approve the actions.`
+    : 'Nobody has an expired or missing licence, right to work, certificate or training this week.';
+  return { subject: `${name} — ${title}`, title, html: await emailHtml(title, body, '/company/people/compliance'), issues: all.length };
+}
+
+export async function sendDigest() {
+  const d = await buildDigest();
+  const users = await q("SELECT email FROM users WHERE id = ANY($1::uuid[]) AND status = 'active'", [await companyManagers()]);
+  await Promise.allSettled(users.map((u) => sendRawEmail(u.email, d.subject, d.html)));
+  await logActivity('compliance', `Weekly compliance email sent to ${plural(users.length, 'manager')}`);
+  return { sent: users.length, issues: d.issues };
+}
