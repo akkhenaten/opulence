@@ -10,6 +10,7 @@ import { opsMessage } from '../lib/threads.mjs';
 import { extendSeries } from './cover.mjs';
 import { banJobs } from './bans.mjs';
 import { applyAgreements } from './growth.mjs';
+import { payRunJobs } from './payruns.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in
 async function lateAlerts(s) {
@@ -130,6 +131,8 @@ export async function runJobs() {
   if (new Date().getUTCMinutes() < 5) result.bans = await banJobs().catch((e) => `error: ${e.message}`);
   // Signed pay rises start on their date once any goals they depend on are met, once an hour
   if (new Date().getUTCMinutes() < 5) result.agreements = await applyAgreements().catch((e) => `error: ${e.message}`);
+  // Pay review reminders and deadlines
+  result.payRuns = await payRunJobs().catch((e) => `error: ${e.message}`);
   console.log('[jobs]', JSON.stringify(result));
   return result;
 }

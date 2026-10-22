@@ -18,7 +18,7 @@ import { opsMessage, closeQuick, ensureThread, post, opsUser, syncMembers } from
 
 const ACTIVE = "('assigned','accepted')";
 const NO_CLOCK_IN = "NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')";
-const jobOn = (s, key) => (s.ops_jobs || {})[key] !== false;
+export const jobOn = (s, key) => (s.ops_jobs || {})[key] !== false;
 const when = (sh) => `${fmtDate(sh.starts_at)} ${fmtTime(sh.starts_at)}–${fmtTime(sh.ends_at)}`;
 const firstLast = (o) => `${o.first_name} ${o.last_name}`;
 
@@ -532,7 +532,7 @@ async function decideFeedback(it, b, user) {
 }
 
 // ---------- Manager chat ----------
-const CHAT_TOOLS = [
+export const CHAT_TOOLS = [
   { name: 'find_shifts', description: 'List shifts in a date range (London dates). Includes headcount, filled and assigned officers.',
     input_schema: { type: 'object', properties: { from: { type: 'string', description: 'YYYY-MM-DD' }, to: { type: 'string', description: 'YYYY-MM-DD inclusive' }, venue: { type: 'string', description: 'Venue name (partial ok)' }, unfilled_only: { type: 'boolean' } }, required: ['from', 'to'] } },
   { name: 'cover_candidates', description: 'Ranked eligible officers who could cover a shift, with reasons.',
@@ -566,7 +566,7 @@ async function findVenue(user, name) {
 }
 const dayStart = (d) => londonToUtc(d, '00:00');
 
-async function runTool(name, input, user, created) {
+export async function runTool(name, input, user, created) {
   const today = londonDate(new Date());
   switch (name) {
     case 'find_shifts': {

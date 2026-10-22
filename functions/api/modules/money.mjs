@@ -8,6 +8,7 @@ import { notify, officerUser, venueContacts } from '../lib/notify.mjs';
 import { fmtDate, fmtTime, londonDate, addDays } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { getSettings } from './settings.mjs';
+import { archivePdf, savedPdf, longDate } from '../lib/archive.mjs';
 import { ALL, CO, def } from './_def.mjs';
 
 // ---------- Rate resolution ----------
@@ -33,9 +34,10 @@ async function payFor(t, s, bh) {
 }
 
 const TS_SQL = `
-  SELECT t.*, a.officer_id, s.starts_at, s.ends_at, s.role, r.name AS role_name, s.venue_id, v.name AS venue_name, o.first_name, o.last_name
+  SELECT t.*, a.officer_id, ps.review_status AS ps_review, ps.held AS ps_held, pr.status AS pr_status, ps.pay_run_id AS ps_run, s.starts_at, s.ends_at, s.role, r.name AS role_name, s.venue_id, v.name AS venue_name, o.first_name, o.last_name
     FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
-    JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role JOIN officers o ON o.id = a.officer_id`;
+    JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role JOIN officers o ON o.id = a.officer_id
+    LEFT JOIN statements ps ON ps.id = t.statement_id LEFT JOIN pay_runs pr ON pr.id = ps.pay_run_id`;
 
 const periodWhere = `t.status = 'signed' AND (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $1 AND $2`;
 
@@ -63,6 +65,108 @@ export async function recalcInvoice(t, id) {
        vat = round(COALESCE((SELECT sum(amount) FROM invoice_lines WHERE invoice_id = $1), 0) * vat_rate / 100, 2),
        gross = COALESCE((SELECT sum(amount) FROM invoice_lines WHERE invoice_id = $1), 0) + round(COALESCE((SELECT sum(amount) FROM invoice_lines WHERE invoice_id = $1), 0) * vat_rate / 100, 2)
      WHERE id = $1`, [id]);
+}
+
+// ---------- PDFs ----------
+const statementSql = `SELECT st.*, o.first_name || ' ' || o.last_name AS officer_name, o.utr, o.email, r.run_date, r.status AS run_status
+  FROM statements st JOIN officers o ON o.id = st.officer_id LEFT JOIN pay_runs r ON r.id = st.pay_run_id WHERE st.id = $1`;
+
+async function loadStatement(id) {
+  const st = need(await one(statementSql, [id]));
+  st.lines = await q('SELECT * FROM statement_lines WHERE statement_id = $1 ORDER BY kind = \'hours\' DESC, work_date, description', [id]);
+  return st;
+}
+
+async function loadInvoice(id) {
+  const inv = need(await one(
+    `SELECT i.*, v.name AS venue_name, v.address AS venue_address, v.postcode, c.name AS client_name, c.billing_address, c.billing_email, c.vat_number AS client_vat,
+            ci.number AS credit_of_number
+       FROM invoices i JOIN venues v ON v.id = i.venue_id LEFT JOIN clients c ON c.id = v.client_id LEFT JOIN invoices ci ON ci.id = i.credit_of WHERE i.id = $1`, [id]));
+  inv.lines = await q('SELECT * FROM invoice_lines WHERE invoice_id = $1 ORDER BY work_date NULLS LAST, description', [id]);
+  return inv;
+}
+
+const statementFilename = (st, o) => `${o.first_name} ${o.last_name} — Pay statement — ${longDate(st.run_date || st.issued_at || st.period_end)}.pdf`;
+const invoiceFilename = (inv) => `${inv.venue_name} — ${inv.kind === 'credit' ? 'Credit note' : 'Invoice'} ${inv.number || 'draft'} — ${longDate(inv.issue_date || new Date())}.pdf`;
+
+export async function buildStatementPdf(st) {
+  const s = await getSettings();
+  const o = await one('SELECT * FROM officers WHERE id = $1', [st.officer_id]);
+  const d = await Doc.create(`Remittance ${st.number || 'draft'}`);
+  await d.header(s, 'Remittance statement', st.number || 'DRAFT');
+  d.meta(
+    [['Contractor', `${o.first_name} ${o.last_name}`], ['UTR', o.utr || 'Not provided'], ['Address', [o.address, o.postcode].filter(Boolean).join(', ')]],
+    [['Period', `${fmtDate(st.period_start)} - ${fmtDate(st.period_end)}`], ['Paid to', o.bank_account ? `${o.bank_sort_code} / ****${o.bank_account.slice(-4)}` : '-'], ['Status', st.status.toUpperCase()]],
+  );
+  d.section('Hours worked');
+  d.table(
+    [{ label: 'Shift', width: 0.58 }, { label: 'Hours', width: 0.12, align: 'right' }, { label: 'Rate', width: 0.14, align: 'right' }, { label: 'Amount', width: 0.16, align: 'right' }],
+    st.lines.filter((l) => l.kind === 'hours').map((l) => [l.description, Number(l.hours).toFixed(2), gbp(l.rate), gbp(l.amount)]),
+  );
+  const extras = st.lines.filter((l) => l.kind !== 'hours');
+  if (extras.length) {
+    d.section('Adjustments');
+    d.table([{ label: 'Item', width: 0.2 }, { label: 'Description', width: 0.64 }, { label: 'Amount', width: 0.16, align: 'right' }],
+      extras.map((l) => [l.kind, l.description, gbp(l.amount)]));
+  }
+  d.totals([['Total hours', Number(st.hours).toFixed(2)], ['Total payable', gbp(st.total), true]]);
+  d.space(10);
+  d.text('You are a self-employed contractor. No tax or National Insurance has been deducted. You are responsible for declaring this income to HMRC.', { size: 8.5, color: undefined });
+  d.footer(`${s.company_name} · Remittance statement ${st.number || 'draft'}`);
+  return { filename: statementFilename(st, o), pdf: await d.base64() };
+}
+
+export async function buildInvoicePdf(inv) {
+  const s = await getSettings();
+  const title = inv.kind === 'credit' ? 'Credit note' : 'Invoice';
+  const d = await Doc.create(`${title} ${inv.number || 'draft'}`);
+  await d.header(s, title, inv.number || 'DRAFT');
+  d.meta(
+    [['Bill to', inv.client_name || inv.venue_name], ['Address', inv.billing_address || [inv.venue_address, inv.postcode].filter(Boolean).join(', ')], ['Venue', inv.venue_name]],
+    [['Issue date', inv.issue_date ? fmtDate(inv.issue_date) : '-'], ['Due date', inv.due_date ? fmtDate(inv.due_date) : '-'],
+      ['Period', inv.period_start ? `${fmtDate(inv.period_start)} - ${fmtDate(inv.period_end)}` : '-'], ...(inv.credit_of_number ? [['Credit against', inv.credit_of_number]] : [])],
+  );
+  d.section('Services');
+  d.table(
+    [{ label: 'Description', width: 0.56 }, { label: 'Hours', width: 0.12, align: 'right' }, { label: 'Rate', width: 0.14, align: 'right' }, { label: 'Amount', width: 0.18, align: 'right' }],
+    inv.lines.map((l) => [l.description, l.hours != null ? Number(l.hours).toFixed(2) : '', l.rate != null ? gbp(l.rate) : '', gbp(l.amount)]),
+  );
+  d.totals([['Net', gbp(inv.net)], [`VAT @ ${Number(inv.vat_rate)}%`, gbp(inv.vat)], ['Total', gbp(inv.gross), true]]);
+  if (inv.notes) { d.section('Notes'); d.text(inv.notes, { size: 9 }); }
+  d.section('Payment');
+  d.text(`Bank: ${s.bank_name || '-'}   Sort code: ${s.bank_sort_code || '-'}   Account: ${s.bank_account || '-'}   Reference: ${inv.number || ''}`, { size: 9 });
+  d.footer([s.company_name, s.company_number && `Company no. ${s.company_number}`, s.vat_number && `VAT no. ${s.vat_number}`].filter(Boolean).join(' · '));
+  return { filename: invoiceFilename(inv), pdf: await d.base64() };
+}
+
+/** Save the issued statement's PDF to the officer's documents (once). Never throws. */
+export async function archiveStatement(id, userId = null) {
+  try {
+    const st = await loadStatement(id);
+    if (st.status === 'draft' || st.pdf_document_id) return st.pdf_document_id;
+    const out = await buildStatementPdf(st);
+    const doc = await archivePdf({ ownerType: 'officer', ownerId: st.officer_id, kind: 'pay_statement', filename: out.filename, bytes: out.pdf, number: st.number || '', userId });
+    await q('UPDATE statements SET pdf_document_id = $2 WHERE id = $1 AND pdf_document_id IS NULL', [id, doc.id]);
+    return doc.id;
+  } catch (e) {
+    console.error('[archive] statement', id, e);
+    return null;
+  }
+}
+
+/** Save the issued invoice / credit note PDF to the venue's documents (once). Never throws. */
+export async function archiveInvoice(id, userId = null) {
+  try {
+    const inv = await loadInvoice(id);
+    if (inv.status === 'draft' || inv.pdf_document_id) return inv.pdf_document_id;
+    const out = await buildInvoicePdf(inv);
+    const doc = await archivePdf({ ownerType: 'venue', ownerId: inv.venue_id, kind: 'invoice', filename: out.filename, bytes: out.pdf, number: inv.number || '', userId });
+    await q('UPDATE invoices SET pdf_document_id = $2 WHERE id = $1 AND pdf_document_id IS NULL', [id, doc.id]);
+    return doc.id;
+  } catch (e) {
+    console.error('[archive] invoice', id, e);
+    return null;
+  }
 }
 
 // ---------- Periods ----------
@@ -113,13 +217,19 @@ export const actions = {
     const s = await getSettings();
     const bh = await bankHolidays();
     const rows = await q(`${TS_SQL} WHERE ${periodWhere} AND t.statement_id IS NULL ORDER BY o.last_name, s.starts_at`, [b.start, b.end]);
+    if (!rows.length) return { created: 0, timesheets: 0, missing_rates: [], pay_run_id: null };
+    // One run per period: a second generate for the same period adds to the run while it is still open
+    let run = await one("SELECT * FROM pay_runs WHERE period_start = $1 AND period_end = $2 AND status IN ('draft','in_review') ORDER BY created_at DESC LIMIT 1", [b.start, b.end]);
+    run ||= await one('INSERT INTO pay_runs (period_start, period_end, run_date, created_by, created_via) VALUES ($1,$2,(now() AT TIME ZONE \'Europe/London\')::date,$3,$4) RETURNING *',
+      [b.start, b.end, user.id, b.via === 'ai' ? 'ai' : 'user']);
+    const pending = run.status === 'in_review' ? 'pending' : null;
     const byOfficer = {};
     for (const t of rows) (byOfficer[t.officer_id] ||= []).push(t);
     const missingRates = [];
     let created = 0;
     for (const [officerId, list] of Object.entries(byOfficer)) {
       await tx(async (t) => {
-        const st = await t.one('INSERT INTO statements (officer_id, period_start, period_end) VALUES ($1,$2,$3) RETURNING id', [officerId, b.start, b.end]);
+        const st = await t.one('INSERT INTO statements (officer_id, period_start, period_end, pay_run_id, review_status) VALUES ($1,$2,$3,$4,$5) RETURNING id', [officerId, b.start, b.end, run.id, pending]);
         for (const ts of list) {
           const p = await payFor(ts, s, bh);
           if (p.rate == null) missingRates.push(`${ts.first_name} ${ts.last_name} (${ts.role_name})`);
@@ -132,9 +242,9 @@ export const actions = {
       });
       created++;
     }
-    await audit(user, 'pay.generate', 'statement', null, { start: b.start, end: b.end, created });
+    await audit(user, 'pay.generate', 'pay_run', run.id, { start: b.start, end: b.end, created, via: b.via || 'user' });
     await reconcileAfter(b.start, b.end);
-    return { created, timesheets: rows.length, missing_rates: [...new Set(missingRates)] };
+    return { created, timesheets: rows.length, missing_rates: [...new Set(missingRates)], pay_run_id: run.id };
   }),
 
   'pay.list': def(ALL, async (b, { user }) => {
@@ -143,17 +253,20 @@ export const actions = {
     return q(
       `SELECT st.*, o.first_name || ' ' || o.last_name AS officer_name, o.bank_sort_code IS NOT NULL AND o.bank_sort_code <> '' AS has_bank
          FROM statements st JOIN officers o ON o.id = st.officer_id
-        WHERE ($1::uuid IS NULL OR st.officer_id = $1) AND ($2::text IS NULL OR st.status = $2) AND ($3::boolean OR st.status <> 'draft')
+        WHERE ($1::uuid IS NULL OR st.officer_id = $1) AND ($2::text IS NULL OR st.status = $2) AND ($3::boolean OR st.status <> 'draft' OR st.review_status IS NOT NULL)
+          AND ($5::uuid IS NULL OR st.pay_run_id = $5)
           AND ($4::date IS NULL OR st.period_start = $4)
         ORDER BY st.period_end DESC, officer_name LIMIT 500`,
-      [user.role === 'officer' ? user.officer_id : b.officer_id || null, b.status || null, user.role !== 'officer', b.period_start || null]);
+      [user.role === 'officer' ? user.officer_id : b.officer_id || null, b.status || null, user.role !== 'officer', b.period_start || null, b.pay_run_id || null]);
   }),
 
   'pay.get': def(['company', 'security', 'officer'], async (b, { user }) => {
-    const st = need(await one('SELECT st.*, o.first_name || \' \' || o.last_name AS officer_name, o.utr, o.email FROM statements st JOIN officers o ON o.id = st.officer_id WHERE st.id = $1', [b.id]));
-    if (user.role === 'officer' ? st.officer_id !== user.officer_id || st.status === 'draft' : !canSeePay(user)) fail(403, 'Forbidden');
-    const lines = await q('SELECT * FROM statement_lines WHERE statement_id = $1 ORDER BY kind = \'hours\' DESC, work_date, description', [b.id]);
-    return { ...st, lines };
+    const st = await loadStatement(b.id);
+    if (user.role === 'officer' ? st.officer_id !== user.officer_id || (st.status === 'draft' && !st.review_status) : !canSeePay(user)) fail(403, 'Forbidden');
+    const disputes = await q(
+      `SELECT d.*, u.name AS resolved_by_name FROM statement_disputes d LEFT JOIN users u ON u.id = d.resolved_by WHERE d.statement_id = $1 ORDER BY d.created_at`, [b.id]);
+    const run = st.pay_run_id ? await one('SELECT id, status, review_deadline, run_date FROM pay_runs WHERE id = $1', [st.pay_run_id]) : null;
+    return { ...st, disputes, run };
   }),
 
   'pay.addLine': def(CO, async (b, { user }) => {
@@ -197,50 +310,39 @@ export const actions = {
     required(b, 'ids');
     const rows = await q(
       `UPDATE statements SET status = 'issued', issued_at = now(), number = 'RS-' || to_char(period_end, 'YYMMDD') || '-' || upper(substr(id::text, 1, 4))
-        WHERE id = ANY($1::uuid[]) AND status = 'draft' RETURNING *`, [b.ids]);
+        WHERE id = ANY($1::uuid[]) AND status = 'draft' AND NOT held
+          AND (pay_run_id IS NULL OR (review_status IN ('approved','resolved') AND pay_run_id IN (SELECT id FROM pay_runs WHERE status IN ('reconciled','issued'))))
+        RETURNING *`, [b.ids]);
+    for (const st of rows) await archiveStatement(st.id, user.id);
     for (const st of rows) {
       await notify(await officerUser(st.officer_id), {
         kind: 'pay', title: 'Your remittance statement is ready', body: `${fmtDate(st.period_start)} – ${fmtDate(st.period_end)}: ${gbp(st.total)}`, link: `/officer/pay/${st.id}`, email: true,
       });
     }
-    await audit(user, 'pay.issue', 'statement', null, { ids: rows.map((r) => r.id) });
-    return { issued: rows.length };
+    await audit(user, 'pay.issue', 'statement', null, { ids: rows.map((r) => r.id), via: b.via });
+    return { issued: rows.length, skipped: b.ids.length - rows.length };
   }),
 
   'pay.markPaid': def(CO, async (b, { user }) => {
     required(b, 'ids');
     const rows = await q("UPDATE statements SET status = 'paid', paid_at = now() WHERE id = ANY($1::uuid[]) AND status = 'issued' RETURNING id, officer_id, total", [b.ids]);
     for (const st of rows) await notify(await officerUser(st.officer_id), { kind: 'pay', title: 'Payment sent', body: `${gbp(st.total)} is on its way to your bank.`, link: `/officer/pay/${st.id}` });
-    await audit(user, 'pay.mark_paid', 'statement', null, { ids: rows.map((r) => r.id) });
+    // A run is paid once every statement in it that was issued is paid
+    await q(`UPDATE pay_runs r SET status = 'paid', updated_at = now() WHERE r.status = 'issued'
+               AND r.id IN (SELECT pay_run_id FROM statements WHERE id = ANY($1::uuid[]))
+               AND NOT EXISTS (SELECT 1 FROM statements st WHERE st.pay_run_id = r.id AND st.status = 'issued')`, [rows.map((r) => r.id)]);
+    await audit(user, 'pay.mark_paid', 'statement', null, { ids: rows.map((r) => r.id), via: b.via });
     return { paid: rows.length };
   }),
 
+  // The saved copy once issued (identical bytes every time); drafts are built on the fly
   'pay.pdf': def(['company', 'security', 'officer'], async (b, ctx) => {
     const st = await actions['pay.get'].fn(b, ctx);
-    const s = await getSettings();
-    const o = await one('SELECT * FROM officers WHERE id = $1', [st.officer_id]);
-    const d = await Doc.create(`Remittance ${st.number || 'draft'}`);
-    await d.header(s, 'Remittance statement', st.number || 'DRAFT');
-    d.meta(
-      [['Contractor', `${o.first_name} ${o.last_name}`], ['UTR', o.utr || 'Not provided'], ['Address', [o.address, o.postcode].filter(Boolean).join(', ')]],
-      [['Period', `${fmtDate(st.period_start)} - ${fmtDate(st.period_end)}`], ['Paid to', o.bank_account ? `${o.bank_sort_code} / ****${o.bank_account.slice(-4)}` : '-'], ['Status', st.status.toUpperCase()]],
-    );
-    d.section('Hours worked');
-    d.table(
-      [{ label: 'Shift', width: 0.58 }, { label: 'Hours', width: 0.12, align: 'right' }, { label: 'Rate', width: 0.14, align: 'right' }, { label: 'Amount', width: 0.16, align: 'right' }],
-      st.lines.filter((l) => l.kind === 'hours').map((l) => [l.description, Number(l.hours).toFixed(2), gbp(l.rate), gbp(l.amount)]),
-    );
-    const extras = st.lines.filter((l) => l.kind !== 'hours');
-    if (extras.length) {
-      d.section('Adjustments');
-      d.table([{ label: 'Item', width: 0.2 }, { label: 'Description', width: 0.64 }, { label: 'Amount', width: 0.16, align: 'right' }],
-        extras.map((l) => [l.kind, l.description, gbp(l.amount)]));
+    if (st.status !== 'draft') {
+      const saved = await savedPdf(st.pdf_document_id || await archiveStatement(st.id));
+      if (saved) return saved;
     }
-    d.totals([['Total hours', Number(st.hours).toFixed(2)], ['Total payable', gbp(st.total), true]]);
-    d.space(10);
-    d.text('You are a self-employed contractor. No tax or National Insurance has been deducted. You are responsible for declaring this income to HMRC.', { size: 8.5, color: undefined });
-    d.footer(`${s.company_name} · Remittance statement ${st.number || 'draft'}`);
-    return { filename: `${st.number || 'statement'} - ${o.first_name} ${o.last_name}.pdf`, pdf: await d.base64() };
+    return buildStatementPdf(await loadStatement(st.id));
   }),
 
   // Bank payment CSV for a period (or chosen statements)
@@ -262,16 +364,23 @@ export const actions = {
     required(b, 'start', 'end');
     const s = await getSettings();
     const bh = await bankHolidays();
-    const rows = await q(
-      `${TS_SQL} WHERE ${periodWhere} AND t.invoice_id IS NULL AND ($3::uuid IS NULL OR s.venue_id = $3) ORDER BY v.name, s.starts_at`,
-      [b.start, b.end, b.venue_id || null]);
+    const all = await q(
+      `${TS_SQL}
+        WHERE ${periodWhere} AND t.invoice_id IS NULL AND ($3::uuid IS NULL OR s.venue_id = $3) AND ($4::uuid IS NULL OR ps.pay_run_id = $4)
+        ORDER BY v.name, s.starts_at`,
+      [b.start, b.end, b.venue_id || null, b.pay_run_id || null]);
+    const ok = (t) => t.pr_status && ['reconciled', 'issued', 'paid'].includes(t.pr_status) && ['approved', 'resolved'].includes(t.ps_review) && !t.ps_held;
+    const rows = all.filter(ok);
+    const skipped = all.length - rows.length;
     const byVenue = {};
     for (const t of rows) (byVenue[t.venue_id] ||= []).push(t);
     const missing = [];
     let created = 0;
     for (const [venueId, list] of Object.entries(byVenue)) {
       await tx(async (t) => {
-        const inv = await t.one('INSERT INTO invoices (venue_id, period_start, period_end, vat_rate) VALUES ($1,$2,$3,$4) RETURNING id', [venueId, b.start, b.end, s.vat_rate]);
+        const runs = [...new Set(list.map((x) => x.ps_run))];
+        const inv = await t.one('INSERT INTO invoices (venue_id, period_start, period_end, vat_rate, pay_run_id) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+          [venueId, b.start, b.end, s.vat_rate, runs.length === 1 ? runs[0] : null]);
         for (const ts of list) {
           const date = londonDate(ts.starts_at);
           const vr = await venueRate(venueId, ts.role, date);
@@ -289,9 +398,10 @@ export const actions = {
       });
       created++;
     }
-    await audit(user, 'invoice.generate', 'invoice', null, { start: b.start, end: b.end, created });
-    await reconcileAfter(b.start, b.end);
-    return { created, timesheets: rows.length, missing_rates: [...new Set(missing)] };
+    await audit(user, 'invoice.generate', 'invoice', null, { start: b.start, end: b.end, created, skipped, via: b.via });
+    if (created) await reconcileAfter(b.start, b.end);
+    // Skipped: signed hours not yet approved by the officer in a finalised pay run
+    return { created, timesheets: rows.length, skipped, missing_rates: [...new Set(missing)] };
   }),
 
   'invoices.list': def(['company', 'venue'], async (b, { user }) => {
@@ -304,15 +414,11 @@ export const actions = {
   }),
 
   'invoices.get': def(['company', 'venue'], async (b, { user }) => {
-    const inv = need(await one(
-      `SELECT i.*, v.name AS venue_name, v.address AS venue_address, v.postcode, c.name AS client_name, c.billing_address, c.billing_email, c.vat_number AS client_vat,
-              ci.number AS credit_of_number
-         FROM invoices i JOIN venues v ON v.id = i.venue_id LEFT JOIN clients c ON c.id = v.client_id LEFT JOIN invoices ci ON ci.id = i.credit_of WHERE i.id = $1`, [b.id]));
+    const inv = await loadInvoice(b.id);
     await assertVenue(user, inv.venue_id);
     if (user.role === 'venue' && ['draft', 'void'].includes(inv.status)) fail(404, 'Not found');
-    const lines = await q('SELECT * FROM invoice_lines WHERE invoice_id = $1 ORDER BY work_date NULLS LAST, description', [b.id]);
-    if (user.role === 'venue') for (const l of lines) delete l.pay_cost;
-    return { ...inv, lines };
+    if (user.role === 'venue') for (const l of inv.lines) delete l.pay_cost;
+    return inv;
   }),
 
   'invoices.addLine': def(CO, async (b, { user }) => {
@@ -388,8 +494,9 @@ export const actions = {
     await notify(await venueContacts(inv.venue_id), {
       kind: 'invoice', title: `Invoice ${inv.number}`, body: `${v.name} · ${gbp(inv.gross)} due ${fmtDate(inv.due_date)}`, link: `/venue/invoices/${inv.id}`, email: true,
     });
-    await audit(user, 'invoice.issue', 'invoice', inv.id, { number: inv.number, gross: inv.gross });
-    return inv;
+    const docId = await archiveInvoice(inv.id, user.id);
+    await audit(user, 'invoice.issue', 'invoice', inv.id, { number: inv.number, gross: inv.gross, via: b.via });
+    return { ...inv, pdf_document_id: docId };
   }),
 
   'invoices.markPaid': def(CO, async (b, { user }) => {
@@ -413,6 +520,7 @@ export const actions = {
       if (amount >= Number(orig.net) && orig.status !== 'paid') await t.q("UPDATE invoices SET status = 'void' WHERE id = $1", [orig.id]);
       return t.one('SELECT * FROM invoices WHERE id = $1', [c.id]);
     });
+    cn.pdf_document_id = await archiveInvoice(cn.id, user.id);
     await notify(await venueContacts(orig.venue_id), { kind: 'invoice', title: `Credit note ${cn.number}`, body: `${gbp(-cn.gross)} against ${orig.number}`, link: `/venue/invoices/${cn.id}`, email: true });
     await audit(user, 'invoice.credit', 'invoice', orig.id, { credit: cn.id, amount, reason: b.reason });
     return cn;
@@ -420,26 +528,11 @@ export const actions = {
 
   'invoices.pdf': def(['company', 'venue'], async (b, ctx) => {
     const inv = await actions['invoices.get'].fn(b, ctx);
-    const s = await getSettings();
-    const title = inv.kind === 'credit' ? 'Credit note' : 'Invoice';
-    const d = await Doc.create(`${title} ${inv.number || 'draft'}`);
-    await d.header(s, title, inv.number || 'DRAFT');
-    d.meta(
-      [['Bill to', inv.client_name || inv.venue_name], ['Address', inv.billing_address || [inv.venue_address, inv.postcode].filter(Boolean).join(', ')], ['Venue', inv.venue_name]],
-      [['Issue date', inv.issue_date ? fmtDate(inv.issue_date) : '-'], ['Due date', inv.due_date ? fmtDate(inv.due_date) : '-'],
-        ['Period', inv.period_start ? `${fmtDate(inv.period_start)} - ${fmtDate(inv.period_end)}` : '-'], ...(inv.credit_of_number ? [['Credit against', inv.credit_of_number]] : [])],
-    );
-    d.section('Services');
-    d.table(
-      [{ label: 'Description', width: 0.56 }, { label: 'Hours', width: 0.12, align: 'right' }, { label: 'Rate', width: 0.14, align: 'right' }, { label: 'Amount', width: 0.18, align: 'right' }],
-      inv.lines.map((l) => [l.description, l.hours != null ? Number(l.hours).toFixed(2) : '', l.rate != null ? gbp(l.rate) : '', gbp(l.amount)]),
-    );
-    d.totals([['Net', gbp(inv.net)], [`VAT @ ${Number(inv.vat_rate)}%`, gbp(inv.vat)], ['Total', gbp(inv.gross), true]]);
-    if (inv.notes) { d.section('Notes'); d.text(inv.notes, { size: 9 }); }
-    d.section('Payment');
-    d.text(`Bank: ${s.bank_name || '-'}   Sort code: ${s.bank_sort_code || '-'}   Account: ${s.bank_account || '-'}   Reference: ${inv.number || ''}`, { size: 9 });
-    d.footer([s.company_name, s.company_number && `Company no. ${s.company_number}`, s.vat_number && `VAT no. ${s.vat_number}`].filter(Boolean).join(' · '));
-    return { filename: `${inv.number || 'invoice-draft'}.pdf`, pdf: await d.base64() };
+    if (inv.status !== 'draft') {
+      const saved = await savedPdf(inv.pdf_document_id || await archiveInvoice(inv.id));
+      if (saved) return saved;
+    }
+    return buildInvoicePdf(inv);
   }),
 
   'invoices.exportCsv': def(CO, async (b) => {

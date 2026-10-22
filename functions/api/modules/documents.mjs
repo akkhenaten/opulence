@@ -5,6 +5,11 @@ import { assertVenue, assertOfficerAccess } from '../lib/scope.mjs';
 import { audit } from '../lib/audit.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
 import { tickOnboarding } from './hr.mjs';
+import { canSeePay } from '../lib/auth.mjs';
+
+// Saved invoices and pay statements are money documents
+const MONEY_KINDS = ['invoice', 'pay_statement'];
+const hidesMoney = (user) => user.role === 'security' && !canSeePay(user);
 
 const ONBOARD_FOR_KIND = { sia: 'sia', rtw: 'rtw', id: 'id', poa: 'poa' };
 
@@ -31,7 +36,9 @@ export const actions = {
     await assertOwner(user, b.owner_type, b.owner_id);
     const rows = await q(
       `SELECT d.*, u.name AS verified_by_name FROM documents d LEFT JOIN users u ON u.id = d.verified_by
-        WHERE owner_type = $1 AND owner_id IS NOT DISTINCT FROM $2 ORDER BY created_at DESC`, [b.owner_type, b.owner_id || null]);
+        WHERE owner_type = $1 AND owner_id IS NOT DISTINCT FROM $2 AND ($3::boolean OR d.kind <> ALL($4::text[]))
+          AND ($5::text IS NULL OR d.kind = $5) ORDER BY created_at DESC`,
+      [b.owner_type, b.owner_id || null, !hidesMoney(user), MONEY_KINDS, b.kind || null]);
     // The AI read is a manager's compliance aid
     return MGR.includes(user.role) ? rows : rows.map(({ ai_read, ai_read_key, ai_read_at, ...d }) => d);
   }),
@@ -39,7 +46,8 @@ export const actions = {
   'docs.create': def(ALL, async (b, { user }) => {
     required(b, 'owner_type', 'kind', 'title');
     await assertOwner(user, b.owner_type, b.owner_id, true);
-    if (b.s3_key && !b.s3_key.startsWith('docs/')) fail(400, 'Invalid file');
+    if (b.s3_key && (!b.s3_key.startsWith('docs/') || b.s3_key.startsWith('docs/archive/'))) fail(400, 'Invalid file');
+    if (MONEY_KINDS.includes(b.kind)) fail(400, 'That document type is created by the system');
     const d = await insert('documents', {
       owner_type: b.owner_type, owner_id: b.owner_id || null, kind: b.kind, title: b.title, number: b.number || '',
       expiry: b.expiry || null, s3_key: b.s3_key || null, mime: b.mime || null, uploaded_by: user.id,
@@ -53,6 +61,7 @@ export const actions = {
   'docs.url': def(ALL, async (b, { user }) => {
     const d = need(await one('SELECT * FROM documents WHERE id = $1', [b.id]));
     await assertOwner(user, d.owner_type, d.owner_id);
+    if (MONEY_KINDS.includes(d.kind) && hidesMoney(user)) fail(403, 'You do not have access to pay information');
     return { url: await downloadUrl(d.s3_key, d.title) };
   }),
 
@@ -69,6 +78,7 @@ export const actions = {
 
   'docs.delete': def(ALL, async (b, { user }) => {
     const d = need(await one('SELECT * FROM documents WHERE id = $1', [b.id]));
+    if (d.system) fail(400, 'Saved invoices and pay statements are kept for your records and cannot be deleted');
     await assertOwner(user, d.owner_type, d.owner_id, true);
     if (user.role === 'officer' && d.verified_at) fail(400, 'Verified documents can only be removed by the company');
     await q('DELETE FROM documents WHERE id = $1', [b.id]);
