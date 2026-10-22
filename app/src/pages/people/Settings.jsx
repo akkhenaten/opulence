@@ -4,7 +4,7 @@ import { Bell, Building2, ImageUp, Palette, CalendarDays, ChevronRight, Clock, F
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  ActionBar, Avatar, Button, cx, dayLabel, Empty, IconButton, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Row, Section, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm,
+  ActionBar, Avatar, Button, cx, dayLabel, Empty, IconButton, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Row, Section, Segmented, Select, Sheet, Table, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { Chips, CopyLink, DOC_KINDS, docKindLabel, SIA_TYPES } from './_parts.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
@@ -12,7 +12,7 @@ import { NOTIFY_KINDS } from '../officer/_notify.jsx';
 
 const TABS = [
   { value: 'company', label: 'Company details' }, { value: 'users', label: 'Users & access' }, { value: 'rules', label: 'Workforce rules' },
-  { value: 'templates', label: 'Templates' }, { value: 'notifications', label: 'Notifications' },
+  { value: 'templates', label: 'Templates' }, { value: 'notifications', label: 'Notifications' }, { value: 'demos', label: 'Demo requests' },
 ];
 // Older links used these tab names
 const OLD_TAB = { calendar: 'rules', contracts: 'templates', account: 'company' };
@@ -29,6 +29,7 @@ export default function Settings() {
       {tab === 'rules' && <RulesTab />}
       {tab === 'templates' && <TemplatesTab />}
       {tab === 'notifications' && <NotificationsTab />}
+      {tab === 'demos' && <DemosTab />}
     </Page>
   );
 }
@@ -543,6 +544,26 @@ function NotificationsTab() {
           </div>
           <p className="mt-3 text-caption text-faint">Applies to managers and officers who haven't chosen for themselves. Anyone can change their own under My account. Shifts, cover, pay and safety alerts always come through.</p>
         </Tile>
+      )}
+    </Load>
+  );
+}
+
+// "Request a private demo" submissions from the public landing page
+function DemosTab() {
+  const q = useApi('demo.list');
+  return (
+    <Load q={q}>
+      {(rows) => (
+        <Table rows={rows} empty="No demo requests yet" columns={[
+          { key: 'created_at', label: 'Received', render: (r) => relative(r.created_at) },
+          { key: 'name', label: 'Name', render: (r) => <span className="font-semibold">{r.name}</span> },
+          { key: 'company', label: 'Company' },
+          { key: 'email', label: 'Email', render: (r) => <a href={`mailto:${r.email}`} className="font-semibold text-blue">{r.email}</a> },
+          { key: 'phone', label: 'Phone', render: (r) => (r.phone ? <a href={`tel:${r.phone}`} className="text-blue">{r.phone}</a> : '—') },
+          { key: 'sites', label: 'Sites', render: (r) => r.sites || '—' },
+          { key: 'message', label: 'Message', render: (r) => <span className="whitespace-pre-line text-muted">{r.message || '—'}</span> },
+        ]} />
       )}
     </Load>
   );

@@ -1,4 +1,5 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { readFileSync } from 'node:fs';
+import { PDFDocument, PDFName, PDFString, StandardFonts, rgb } from 'pdf-lib';
 import QRCode from 'qrcode';
 import { hexToRgb, logoBytes } from './brand.mjs';
 
@@ -7,6 +8,10 @@ const INK = rgb(0.04, 0.07, 0.13);
 const MUTED = rgb(0.42, 0.45, 0.5);
 const LINE = rgb(0.9, 0.91, 0.92);
 const SOFT = rgb(0.95, 0.96, 0.97);
+
+// Orb Security lockup for the "Powered by" line, bundled with the function
+const ORB_LOGO = readFileSync(new URL('../assets/orb-lockup.png', import.meta.url));
+const ORB_URL = 'https://orbsolutions.co.uk/';
 
 // WinAnsi can't encode some characters; keep PDFs robust
 const clean = (s) => String(s ?? '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-').replace(/[^\x0A\x20-\x7E\xA3\xA0-\xFF]/g, '');
@@ -163,16 +168,32 @@ class Doc {
     }
   }
 
-  // Small platform credit on every page
-  credit() {
-    const t = 'Generated with Orb Security';
+  // Small "Powered by" line on every page: Orb Security logo + a clickable orbsolutions.co.uk link
+  async credit() {
+    const logo = await this.pdf.embedPng(ORB_LOGO);
+    const lh = 11;
+    const lw = (logo.width / logo.height) * lh;
+    const t = 'Powered by orbsolutions.co.uk';
+    const size = 6.5;
+    const tw = this.font.widthOfTextAtSize(t, size);
+    const total = lw + 6 + tw;
+    const x0 = (595.28 - total) / 2;
+    const y = 12;
     for (const p of this.pdf.getPages()) {
-      p.drawText(t, { x: 595.28 - 48 - this.font.widthOfTextAtSize(t, 6.5), y: 18, size: 6.5, font: this.font, color: MUTED });
+      p.drawImage(logo, { x: x0, y, width: lw, height: lh });
+      p.drawText(t, { x: x0 + lw + 6, y: y + 3, size, font: this.font, color: MUTED });
+      const link = this.pdf.context.register(this.pdf.context.obj({
+        Type: 'Annot', Subtype: 'Link', Rect: [x0, y - 2, x0 + total, y + lh + 2], Border: [0, 0, 0],
+        A: { Type: 'Action', S: 'URI', URI: PDFString.of(ORB_URL) },
+      }));
+      const annots = p.node.lookup(PDFName.of('Annots'));
+      if (annots) annots.push(link);
+      else p.node.set(PDFName.of('Annots'), this.pdf.context.obj([link]));
     }
   }
 
   async base64() {
-    this.credit();
+    await this.credit();
     return Buffer.from(await this.pdf.save()).toString('base64');
   }
 }

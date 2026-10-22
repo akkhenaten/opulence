@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Orb Security — rota, clocking, pay and incidents for manned guarding</title>
-  <meta name="description" content="Orb Security runs your manned-guarding operation: rotas and cover requests, GPS + QR clocking, timesheets, remittance statements, VAT invoices, incident reports and full HR.">
+  <title>Orb Security — security workforce management software</title>
+  <meta name="description" content="Bring your people, sites and daily security operations together. Orb Security gives security companies and venue teams a clearer view of what’s happening—and what needs their attention.">
   <meta name="theme-color" content="#F2F4F7">
   <link rel="icon" href="/app/icon.svg" type="image/svg+xml">
   <link rel="manifest" href="/app/manifest.webmanifest">
@@ -12,93 +12,203 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700&family=Manrope:wght@500;600&display=swap" rel="stylesheet">
   <style>
-    :root { --bg:#F2F4F7; --surface:#fff; --ink:#0B1220; --muted:#6B7280; --line:#E5E7EB; --blue:#0A6CFF; --soft:#E8F0FF; }
+    :root { --bg:#F2F4F7; --surface:#fff; --ink:#0B1220; --muted:#6B7280; --line:#E5E7EB; --blue:#0A6CFF; --soft:#E8F0FF; --red:#DC2626; }
     * { box-sizing: border-box; margin: 0; }
     body { background: var(--bg); color: var(--ink); font-family: Manrope, system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
-    h1, h2, .d { font-family: "Inter Tight", system-ui, sans-serif; letter-spacing: -0.03em; }
+    h1, h2, h3 { font-family: "Inter Tight", system-ui, sans-serif; letter-spacing: -0.03em; }
     .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
-    header { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
-    .logo { display: flex; align-items: center; gap: 10px; font: 700 19px "Inter Tight", sans-serif; }
-    .logo span { color: var(--muted); font-weight: 600; }
-    .btn { display: inline-flex; align-items: center; height: 44px; padding: 0 20px; border-radius: 14px; background: var(--blue); color: #fff; font-weight: 600; text-decoration: none; box-shadow: 0 6px 18px -8px rgba(10,108,255,.8); }
-    .btn.alt { background: var(--surface); color: var(--ink); box-shadow: none; border: 1px solid var(--line); }
-    .hero { padding: 56px 0 36px; max-width: 760px; }
-    .hero h1 { font-size: clamp(40px, 7vw, 68px); line-height: 1.02; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 0; }
+    header img { height: 34px; width: auto; display: block; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 22px; border-radius: 14px; border: 0; background: var(--blue); color: #fff; font: 600 16px Manrope, sans-serif; text-decoration: none; cursor: pointer; box-shadow: 0 6px 18px -8px rgba(10,108,255,.8); }
+    .btn:hover { filter: brightness(1.06); }
+    .btn.alt { height: 42px; background: var(--surface); color: var(--ink); box-shadow: none; border: 1px solid var(--line); font-size: 15px; }
+    .btn.light { background: #fff; color: var(--blue); box-shadow: none; }
+    .btn[disabled] { opacity: .6; cursor: default; }
+    .k { font: 600 13px Manrope, sans-serif; text-transform: uppercase; letter-spacing: .08em; color: var(--blue); }
+    .hero { padding: 64px 0 56px; max-width: 800px; }
+    .hero h1 { margin-top: 16px; font-size: clamp(40px, 7vw, 72px); line-height: 1.02; }
     .hero h1 em { font-style: normal; color: var(--blue); }
-    .hero p { margin-top: 18px; font-size: 18px; line-height: 1.55; color: var(--muted); max-width: 600px; }
-    .cta { display: flex; gap: 10px; margin-top: 28px; flex-wrap: wrap; }
-    .bento { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 24px 0 72px; }
-    .t { background: var(--surface); border-radius: 22px; padding: 24px; border: 1px solid rgba(0,0,0,.04); box-shadow: 0 1px 2px rgba(11,18,32,.04), 0 8px 24px -12px rgba(11,18,32,.1); }
-    .t h2 { font-size: 21px; margin-bottom: 6px; }
-    .t p { color: var(--muted); line-height: 1.5; font-size: 15px; }
-    .k { font: 600 12px Manrope, sans-serif; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 14px; }
-    .s2 { grid-column: span 2; } .r2 { grid-row: span 2; }
-    .blue { background: var(--blue); color: #fff; } .blue p, .blue .k { color: rgba(255,255,255,.75); }
-    .big { font: 700 56px/1 "Inter Tight", sans-serif; letter-spacing: -0.04em; margin: 4px 0 8px; }
-    .rows { margin-top: 16px; display: grid; gap: 8px; }
-    .row { display: flex; align-items: center; gap: 10px; background: var(--bg); border-radius: 14px; padding: 10px 12px; font-size: 14px; font-weight: 600; }
-    .row i { width: 9px; height: 9px; border-radius: 50%; background: #16A34A; flex: none; }
-    .row i.a { background: #D97706; } .row small { margin-left: auto; color: var(--muted); font-weight: 500; }
-    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
-    .chip { background: var(--soft); color: var(--blue); font-size: 13px; font-weight: 600; padding: 5px 10px; border-radius: 999px; }
-    footer { padding: 28px 0 40px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
-    @media (max-width: 860px) { .bento { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 560px) { .bento { grid-template-columns: 1fr; } .s2 { grid-column: auto; } .r2 { grid-row: auto; } }
+    .hero p { margin-top: 20px; font-size: 19px; line-height: 1.55; color: var(--muted); max-width: 620px; }
+    .hero .cta { margin-top: 30px; }
+    .hero small { display: block; margin-top: 16px; font-size: 14px; color: var(--muted); }
+    section.block { padding: 48px 0; }
+    .lead { max-width: 680px; }
+    .lead h2 { font-size: clamp(30px, 4.4vw, 44px); line-height: 1.08; }
+    .lead p { margin-top: 14px; font-size: 18px; line-height: 1.55; color: var(--muted); }
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 32px; }
+    .card { background: var(--surface); border-radius: 22px; padding: 26px; border: 1px solid rgba(0,0,0,.04); box-shadow: 0 1px 2px rgba(11,18,32,.04), 0 8px 24px -12px rgba(11,18,32,.1); }
+    .card .ic { width: 44px; height: 44px; border-radius: 14px; background: var(--soft); color: var(--blue); display: grid; place-items: center; margin-bottom: 18px; }
+    .card h3 { font-size: 21px; line-height: 1.2; }
+    .card p { margin-top: 8px; color: var(--muted); line-height: 1.5; font-size: 16px; }
+    .band { background: var(--blue); color: #fff; border-radius: 28px; padding: 48px; display: grid; grid-template-columns: 1.1fr 1fr; gap: 32px; align-items: center; }
+    .band h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.1; }
+    .band p { margin-top: 14px; font-size: 18px; line-height: 1.55; color: rgba(255,255,255,.82); }
+    .band svg { width: 100%; height: auto; max-width: 420px; justify-self: center; }
+    .close { text-align: center; padding: 72px 0 80px; }
+    .close .lead { margin: 0 auto; }
+    .close .btn { margin-top: 28px; }
+    footer { border-top: 1px solid var(--line); padding: 28px 0 40px; }
+    .foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
+    .powered { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); text-decoration: none; }
+    .powered img { height: 22px; width: auto; }
+    .powered b { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; font-weight: 600; }
+    [hidden] { display: none !important; }
+    dialog { margin: auto; border: 0; padding: 0; border-radius: 24px; width: min(480px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); box-shadow: 0 24px 64px -16px rgba(11,18,32,.4); }
+    dialog::backdrop { background: rgba(11,18,32,.45); backdrop-filter: blur(4px); }
+    .dlg { padding: 28px; }
+    .dlg-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .dlg h2 { font-size: 26px; }
+    .dlg .sub { margin-top: 6px; color: var(--muted); line-height: 1.5; }
+    .x { width: 40px; height: 40px; flex: none; border-radius: 12px; border: 0; background: var(--bg); font-size: 20px; cursor: pointer; color: var(--ink); }
+    form { display: grid; gap: 14px; margin-top: 22px; }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    label { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
+    label > span { font-weight: 600; } label span i { font-style: normal; color: var(--muted); }
+    input, select, textarea { font: 500 16px Manrope, sans-serif; color: var(--ink); background: var(--bg); border: 1px solid transparent; border-radius: 12px; padding: 0 14px; height: 46px; width: 100%; }
+    textarea { padding: 12px 14px; height: auto; resize: vertical; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--blue); background: #fff; }
+    .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .err { color: var(--red); font-size: 14px; font-weight: 600; }
+    .err:empty { display: none; }
+    form .btn { width: 100%; margin-top: 4px; }
+    .done { text-align: center; padding: 20px 0 8px; }
+    .done .ic { width: 56px; height: 56px; border-radius: 50%; background: var(--soft); color: var(--blue); display: grid; place-items: center; margin: 0 auto 16px; }
+    @media (max-width: 860px) { .cards { grid-template-columns: 1fr; } .band { grid-template-columns: 1fr; padding: 32px 24px; } }
+    @media (max-width: 480px) { .two { grid-template-columns: 1fr; } .hero { padding-top: 40px; } header img { height: 28px; } }
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <div class="logo">
-        <svg width="32" height="32" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="120" fill="#0A6CFF"/><circle cx="256" cy="256" r="132" fill="none" stroke="#fff" stroke-width="44"/><circle cx="256" cy="256" r="40" fill="#fff"/></svg>
-        Orb <span>Security</span>
-      </div>
+      <a href="/" aria-label="Orb Security home"><img src="/app/orb-lockup.png" alt="Orb Security"></a>
       <a class="btn alt" href="/app/login">Sign in</a>
     </header>
 
     <section class="hero">
-      <h1>Every door, every shift, <em>accounted for.</em></h1>
-      <p>Orb Security runs your manned-guarding operation in one place, from the venue's cover request to the officer's remittance and the client's VAT invoice.</p>
-      <div class="cta"><a class="btn" href="/app/login">Open Orb Security</a></div>
+      <div class="k">Security workforce management software</div>
+      <h1>Every shift covered. <em>Every site connected.</em></h1>
+      <p>Bring your people, sites and daily security operations together. Orb Security gives security companies and venue teams a clearer view of what’s happening—and what needs their attention.</p>
+      <div class="cta"><button class="btn" type="button" data-demo>Request a private demo</button></div>
+      <small>Built for manned guarding, door supervision and multi-site security operations.</small>
     </section>
 
-    <section class="bento">
-      <div class="t blue s2 r2">
-        <div class="k">Live on site</div>
-        <div class="big">GPS + QR</div>
-        <p>Officers clock in only at the venue: their phone location must be inside the geofence and they scan the venue's QR poster. Anything else goes to a supervisor as an exception.</p>
-        <div class="rows">
-          <div class="row" style="background:rgba(255,255,255,.14);color:#fff"><i></i>On shift · Door Supervisor<small style="color:rgba(255,255,255,.7)">21:00–03:00</small></div>
-          <div class="row" style="background:rgba(255,255,255,.14);color:#fff"><i class="a"></i>Late · not clocked in<small style="color:rgba(255,255,255,.7)">alert sent</small></div>
+    <section class="block">
+      <div class="lead">
+        <h2>Security operations move quickly. Stay ahead.</h2>
+        <p>Changing requirements. Multiple venues. Teams on the ground. Keep everyone connected with a more coordinated approach to running your security operation.</p>
+      </div>
+      <div class="cards">
+        <div class="card">
+          <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div>
+          <h3>Clarity across your sites</h3>
+          <p>See the bigger picture and focus attention where it matters.</p>
+        </div>
+        <div class="card">
+          <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a2 2 0 0 1 2-2h16"/><path d="M7 21l-4-4 4-4"/><path d="M21 13v2a2 2 0 0 1-2 2H3"/></svg></div>
+          <h3>Confidence in your coordination</h3>
+          <p>Keep teams and operational requirements aligned as plans change.</p>
+        </div>
+        <div class="card">
+          <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
+          <h3>Accountability throughout the operation</h3>
+          <p>Bring structure to everyday activity, communication and reporting.</p>
         </div>
       </div>
-      <div class="t s2">
-        <div class="k">Rota</div>
-        <h2>Venues request, you fill</h2>
-        <p>Cover requests become shifts. Assign directly or post open shifts, with SIA, right-to-work and clash checks built in.</p>
-      </div>
-      <div class="t">
-        <div class="k">Pay</div>
-        <h2>Remittances</h2>
-        <p>Night, weekend and bank-holiday rates worked out for self-employed officers, plus a bank CSV.</p>
-      </div>
-      <div class="t">
-        <div class="k">Billing</div>
-        <h2>VAT invoices</h2>
-        <p>Raised automatically from signed timesheets, with credit notes and margin per venue.</p>
-      </div>
-      <div class="t s2">
-        <div class="k">Incidents</div>
-        <h2>Structured, versioned reports</h2>
-        <p>Ejections, medical, use of force: witnesses, photos, police and ambulance references. Every edit is kept, and urgent incidents alert the venue straight away.</p>
-      </div>
-      <div class="t s2">
-        <div class="k">HR</div>
-        <h2>The full staff file</h2>
-        <div class="chips"><span class="chip">SIA licences</span><span class="chip">Right to work</span><span class="chip">Documents & expiry</span><span class="chip">Onboarding</span><span class="chip">E-signed contracts</span><span class="chip">Time off</span><span class="chip">Notes & warnings</span><span class="chip">Venue bans</span></div>
+    </section>
+
+    <section class="block">
+      <div class="band">
+        <div>
+          <h2>One connected operation. From management to the frontline.</h2>
+          <p>Orb Security brings security companies, venue teams and officers into a shared working environment, helping everyone stay informed and work together.</p>
+        </div>
+        <svg viewBox="0 0 400 300" role="img" aria-label="Security company, venue teams and officers connected">
+          <g stroke="rgba(255,255,255,.45)" stroke-width="2" stroke-dasharray="6 6" fill="none"><path d="M168 144 L102 194"/><path d="M232 144 L298 194"/><path d="M118 230 H282"/></g>
+          <g font-family="Manrope, sans-serif" font-size="15" font-weight="600" fill="#fff" text-anchor="middle">
+            <circle cx="200" cy="64" r="40" fill="#fff"/><circle cx="200" cy="64" r="22" fill="none" stroke="#0A6CFF" stroke-width="7"/><text x="200" y="130">Security company</text>
+            <circle cx="80" cy="222" r="34" fill="rgba(255,255,255,.18)"/><circle cx="80" cy="222" r="16" fill="#fff"/><text x="80" y="284">Venue teams</text>
+            <circle cx="320" cy="222" r="34" fill="rgba(255,255,255,.18)"/><circle cx="320" cy="222" r="16" fill="#fff"/><text x="320" y="284">Officers</text>
+          </g>
+        </svg>
       </div>
     </section>
+
+    <section class="close">
+      <div class="lead">
+        <h2>See what a clearer operation could look like.</h2>
+        <p>Discover how Orb Security could fit your team, your sites and the way you work.</p>
+      </div>
+      <button class="btn" type="button" data-demo>Request a private demo</button>
+    </section>
   </div>
-  <footer><div class="wrap">Orb Security · Company, security manager and venue portals, plus the officer app.</div></footer>
+
+  <footer>
+    <div class="wrap foot">
+      <a class="powered" href="https://orbsolutions.co.uk/" target="_blank" rel="noopener"><img src="/app/orb-lockup.png" alt="Orb Security">Powered by <b>orbsolutions.co.uk</b></a>
+      <span>© <span id="y">2026</span> Orb Security</span>
+    </div>
+  </footer>
+
+  <dialog id="demo" aria-labelledby="demo-title">
+    <div class="dlg">
+      <div class="dlg-top">
+        <div>
+          <h2 id="demo-title">Request a private demo</h2>
+          <p class="sub">Tell us a little about your operation and we’ll arrange a time that suits you.</p>
+        </div>
+        <button class="x" type="button" data-close aria-label="Close">×</button>
+      </div>
+      <form id="demo-form" novalidate>
+        <label>Your name <input name="name" autocomplete="name" required maxlength="200"></label>
+        <label>Company <input name="company" autocomplete="organization" required maxlength="200"></label>
+        <label>Work email <input name="email" type="email" autocomplete="email" required maxlength="200"></label>
+        <div class="two">
+          <label><span>Phone <i>(optional)</i></span><input name="phone" type="tel" autocomplete="tel" maxlength="40"></label>
+          <label><span>Number of sites <i>(optional)</i></span>
+            <select name="sites"><option value="">Choose</option><option>1</option><option>2–5</option><option>6–20</option><option>20+</option></select>
+          </label>
+        </div>
+        <label><span>Anything we should know? <i>(optional)</i></span><textarea name="message" rows="3" maxlength="2000"></textarea></label>
+        <div class="hp" aria-hidden="true"><label>Website <input name="website" tabindex="-1" autocomplete="off"></label></div>
+        <div class="err" role="alert"></div>
+        <button class="btn" type="submit">Send request</button>
+      </form>
+      <div class="done" hidden>
+        <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></div>
+        <h2>Thanks, we’ll be in touch shortly.</h2>
+        <p class="sub">We’ve received your request and will contact you to arrange your demo.</p>
+        <p style="margin-top:20px"><button class="btn alt" type="button" data-close>Close</button></p>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    (function () {
+      var API = 'https://hopedp5cvxdkhhpb47hfxszhwq0aqtnw.lambda-url.eu-central-1.on.aws/';
+      var dlg = document.getElementById('demo');
+      var form = document.getElementById('demo-form');
+      var err = form.querySelector('.err');
+      var btn = form.querySelector('button[type=submit]');
+      var done = dlg.querySelector('.done');
+      document.getElementById('y').textContent = new Date().getFullYear();
+      document.querySelectorAll('[data-demo]').forEach(function (b) {
+        b.addEventListener('click', function () { dlg.showModal(); form.elements.name.focus(); });
+      });
+      dlg.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function () { dlg.close(); }); });
+      dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var f = Object.fromEntries(new FormData(form));
+        if (!f.name.trim() || !f.company.trim() || !f.email.trim()) { err.textContent = 'Please add your name, company and work email.'; return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { err.textContent = 'Please check your email address.'; return; }
+        err.textContent = ''; btn.disabled = true; btn.textContent = 'Sending…';
+        fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ action: 'demo.request' }, f)) })
+          .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Something went wrong'); }); })
+          .then(function () { form.hidden = true; done.hidden = false; })
+          .catch(function (x) { err.textContent = x.message || 'Something went wrong. Please try again.'; })
+          .finally(function () { btn.disabled = false; btn.textContent = 'Send request'; });
+      });
+    })();
+  </script>
 </body>
 </html>

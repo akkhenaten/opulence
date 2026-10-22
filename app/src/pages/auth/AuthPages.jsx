@@ -4,7 +4,7 @@ import { AlertCircle } from 'lucide-react';
 import { api } from '../../api.js';
 import { HOME, useAuth } from '../../auth.jsx';
 import { Logo } from '../../layouts/Shell.jsx';
-import { Button, Input, Spinner, useForm } from '../../ui/index.jsx';
+import { Button, Input, PoweredBy, Spinner, useForm } from '../../ui/index.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
 
 function AuthCard({ title, subtitle, children, footer }) {
@@ -17,6 +17,7 @@ function AuthCard({ title, subtitle, children, footer }) {
         <div className="mt-6">{children}</div>
       </div>
       {footer && <div className="mt-5 text-subhead text-muted">{footer}</div>}
+      <PoweredBy className="mt-8" />
     </div>
   );
 }

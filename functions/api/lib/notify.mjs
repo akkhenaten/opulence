@@ -27,7 +27,7 @@ async function sendEmail(to, subject, html) {
   }
 }
 
-// Emails carry the company's own logo, name and colour, with a small "Sent via Orb Security" line
+// Emails carry the company's own logo, name and colour, with a small "Powered by orbsolutions.co.uk" line
 async function emailHtml(title, body, link) {
   const b = await getBrand();
   const url = link ? `${APP_URL()}/app${link}` : `${APP_URL()}/app`;
@@ -42,7 +42,7 @@ async function emailHtml(title, body, link) {
   <p style="color:#4B5563;line-height:1.5">${body || ''}</p>
   <a href="${url}" style="display:inline-block;margin-top:12px;background:${b.color};color:#fff;padding:10px 18px;border-radius:12px;text-decoration:none;font-weight:600">${label}</a>
   </div>
-  <div style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:12px">Sent via Orb Security</div></div>`;
+  <div style="text-align:center;margin-top:14px"><a href="https://orbsolutions.co.uk/" style="color:#9CA3AF;font-size:11px;text-decoration:none"><img src="${APP_URL()}/app/orb-lockup.png" alt="Orb Security" height="18" style="height:18px;vertical-align:middle;margin-right:6px">Powered by <span style="text-decoration:underline">orbsolutions.co.uk</span></a></div></div>`;
 }
 
 /**
