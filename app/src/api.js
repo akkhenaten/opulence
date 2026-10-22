@@ -5,6 +5,11 @@ const KEY = 'orb.token';
 export const getToken = () => localStorage.getItem(KEY);
 export const setToken = (t) => (t ? localStorage.setItem(KEY, t) : localStorage.removeItem(KEY));
 
+// A manager who also works shifts is on the "Manager" or "My shifts" side; the server ignores it for everyone else
+const SIDE = 'orb.side';
+export const getSide = () => (localStorage.getItem(SIDE) === 'officer' ? 'officer' : 'manager');
+export const setSide = (s) => (s === 'officer' ? localStorage.setItem(SIDE, s) : localStorage.removeItem(SIDE));
+
 export class ApiError extends Error {
   constructor(message, status, data) { super(message); this.status = status; this.data = data; }
 }
@@ -16,7 +21,7 @@ export async function api(action, body = {}) {
     res = await fetch(API_BASE, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ action, ...body }),
+      body: JSON.stringify({ action, ...body, ...(getSide() === 'officer' ? { _as: 'officer' } : {}) }),
     });
   } catch {
     throw new ApiError('No connection. Check your signal and try again.', 0);
@@ -26,6 +31,7 @@ export async function api(action, body = {}) {
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && token) {
     setToken(null);
+    setSide(null);
     window.dispatchEvent(new Event('orb:signed-out'));
   }
   if (!res.ok) throw new ApiError(data.error || 'Something went wrong', res.status, data);

@@ -9,6 +9,7 @@ import {
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 import { REVIEW_LABEL, RUN_LABEL } from './PayRuns.jsx';
+import { SELF_HINT, SelfPills } from '../manager/_parts.jsx';
 
 const KIND = { bonus: 'Bonus', expense: 'Expense', deduction: 'Deduction' };
 
@@ -32,7 +33,8 @@ export default function StatementDetail() {
         const extras = st.lines.filter((l) => l.kind !== 'hours');
         const shiftTotal = shiftLines.reduce((a, l) => a + Number(l.amount), 0);
         const extrasTotal = extras.reduce((a, l) => a + Number(l.amount), 0);
-        const editable = isCo && draft;
+        // Your own statement is changed by another company manager
+        const editable = isCo && draft && !st.self_locked;
         // Inside a pay run, statements are issued from the run once staff have checked them
         const inRun = !!st.run;
         const canIssue = isCo && draft && (!inRun || (['reconciled', 'issued'].includes(st.run.status) && !st.held && ['approved', 'resolved'].includes(st.review_status)));
@@ -107,7 +109,7 @@ export default function StatementDetail() {
               <Tile>
                 <div className="mb-4 flex items-center gap-3">
                   <Avatar name={st.officer_name} size={44} />
-                  <div className="min-w-0"><div className="truncate text-callout font-bold">{st.officer_name}</div><div className="truncate text-footnote text-muted">{st.email}</div></div>
+                  <div className="min-w-0"><div className="flex flex-wrap items-center gap-1.5"><span className="truncate text-callout font-bold">{st.officer_name}</span><SelfPills row={st} small /></div><div className="truncate text-footnote text-muted">{st.email}</div></div>
                 </div>
                 <KV items={[
                   ['UTR', st.utr || 'Not provided'],
@@ -162,6 +164,7 @@ export default function StatementDetail() {
                 <div className="flex justify-between border-t border-line pt-2 text-headline font-bold"><span>Total payable</span><span className="num">{money(st.total)}</span></div>
               </div>
               <p className="mt-3 text-caption text-faint">Self-employed contractor. No tax or National Insurance deducted.</p>
+              {isCo && draft && st.self_locked && <p className="mt-2 text-footnote text-muted">This is your own statement. {SELF_HINT}.</p>}
             </Tile>
 
             {editable && (

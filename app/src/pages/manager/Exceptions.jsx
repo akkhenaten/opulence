@@ -4,6 +4,7 @@ import {
   Avatar, Button, cx, dayLabel, Empty, Load, Page, Pill, range, relative, Tabs, time, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
+import { SELF_HINT, SelfPills } from './_parts.jsx';
 
 const KIND = { in: 'Clock-in', out: 'Clock-out', break_start: 'Break start', break_end: 'Break end' };
 
@@ -43,6 +44,7 @@ export default function Exceptions() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2">
                       <span className="truncate text-callout font-semibold">{e.officer_name}</span>
+                      <SelfPills row={e} small />
                       <span className="text-footnote text-muted">{KIND[e.kind] || e.kind} at <span className="num font-semibold text-ink">{time(e.ts)}</span></span>
                     </div>
                     <div className="truncate text-footnote text-muted">{e.venue_name} · {dayLabel(e.starts_at)} <span className="num">{range(e.starts_at, e.ends_at)}</span></div>
@@ -62,10 +64,10 @@ export default function Exceptions() {
                 {e.status === 'exception' ? (
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <span className="text-caption text-faint">{relative(e.ts)}</span>
-                    <div className="flex gap-2">
+                    {e.self_locked ? <span className="text-caption text-muted">{SELF_HINT}</span> : <div className="flex gap-2">
                       <Button size="sm" variant="secondary" icon={X} disabled={busyId === e.id} onClick={() => decide(e, false)}>Reject</Button>
                       <Button size="sm" icon={Check} busy={busyId === e.id} onClick={() => decide(e, true)}>Approve</Button>
-                    </div>
+                    </div>}
                   </div>
                 ) : (
                   <p className="mt-3 text-caption text-muted">{e.status === 'approved' ? 'Approved' : 'Rejected'}{e.decided_by_name ? ` by ${e.decided_by_name}` : ''}{e.decided_at ? `, ${relative(e.decided_at)}` : ''}</p>

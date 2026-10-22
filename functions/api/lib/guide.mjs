@@ -189,6 +189,17 @@ Officers are self-employed: statements show that no tax or NI has been deducted.
         body: `Record one-to-ones and goals on an officer's profile. Pay rise agreements can be sent for the officer to sign. Venues can rate the officers who worked their shifts, and ratings appear on the officer's profile.`,
       },
       {
+        id: 'dual', title: 'Managers who also work shifts',
+        body: `A company or security manager who also works on the door keeps one login. In Settings, then Users & access, open the manager and turn on Also works shifts. If they already had a second email for the officer app, choose Merge to move that staff record, with its shifts, pay and training, onto their manager login. The old officer login stops working. You can also link from People, then Staff: add or open a staff record with the manager's email and choose Link to their manager login.
+
+They then switch between Manager and My shifts at the top of the menu or in My account. The app opens My shifts when they are clocked in or due on shift within 2 hours, otherwise Manager.
+
+- Put them on the rota like any officer. Their shifts are marked You.
+- Nobody approves their own hours or pay. Their timesheets, clock exceptions, pay queries, pay lines and pay rate are locked for them and go to another manager: another company manager, or a security manager who covers that venue (pay is company managers only).
+- If they are the only manager who could approve, they can approve it themselves, and it is marked Self-approved on the timesheet, the pay statement and the audit log.
+- Turning Also works shifts off keeps the staff record and its history. It just has no login any more.`,
+      },
+      {
         id: 'bans', title: 'Bans',
         body: `Officers and venues can record people banned from a venue, with a photo and reason. The ban list is shown on the shift page so the team on the door can check it.`,
       },

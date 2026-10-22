@@ -1,8 +1,8 @@
-import { lazy, StrictMode, Suspense } from 'react';
+import { lazy, StrictMode, Suspense, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
 import './styles.css';
-import { AuthProvider, HOME, portalLink, useAuth } from './auth.jsx';
+import { AuthProvider, HOME, otherSide, portalLink, useAuth } from './auth.jsx';
 import Shell from './layouts/Shell.jsx';
 import { ConfirmProvider, Spinner, ToastProvider } from './ui/index.jsx';
 import { AcceptInvite, Forgot, Login, Reset } from './pages/auth/AuthPages.jsx';
@@ -79,8 +79,17 @@ function Guard({ role }) {
   const loc = useLocation();
   if (!ready) return <Spinner className="min-h-dvh" />;
   if (!user) return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
-  if (!role.includes(user.role)) return <Navigate to={HOME[user.role]} replace />;
+  if (!role.includes(user.role)) {
+    // A manager who also works shifts opening a page from their other side (a link, a bookmark): switch, don't bounce
+    if (role.includes(otherSide(user))) return <SwitchTo side={otherSide(user) === 'officer' ? 'officer' : 'manager'} />;
+    return <Navigate to={HOME[user.role]} replace />;
+  }
   return <Outlet />;
+}
+function SwitchTo({ side }) {
+  const { switchSide } = useAuth();
+  useEffect(() => { switchSide(side).catch(() => {}); }, [side, switchSide]);
+  return <Spinner className="min-h-dvh" />;
 }
 function Root() {
   const { user, ready } = useAuth();
@@ -101,7 +110,10 @@ function Open() {
   if (!user) return <Navigate to="/login" replace />;
   const to = sp.get('to') || '';
   if (SHORTCUTS[to]) return <Navigate to={SHORTCUTS[to][user.role] || HOME[user.role]} replace />;
-  return <Navigate to={portalLink(to, user.role).replace(/^\/app/, '') || HOME[user.role]} replace />;
+  // Someone on both sides: an officer link opens "My shifts", a manager link opens "Manager" (Guard switches)
+  const path = to.replace(/^\/app/, '');
+  const role = !user.dual ? user.role : /^\/officer(\/|$)/.test(path) ? 'officer' : /^\/(company|security)(\/|$)/.test(path) ? user.login_role || user.role : user.role;
+  return <Navigate to={portalLink(path, role) || HOME[user.role]} replace />;
 }
 function PublicOnly({ children }) {
   const { user, ready } = useAuth();

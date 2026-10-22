@@ -9,6 +9,7 @@ import {
   useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
+import { SELF_HINT, SelfPills } from '../manager/_parts.jsx';
 
 export const RUN_LABEL = { draft: 'Draft', in_review: 'With staff', reconciled: 'Finalised', issued: 'Issued', paid: 'Paid' };
 export const REVIEW_LABEL = { pending: 'Waiting', approved: 'Approved', disputed: 'Query', no_response: 'No response', resolved: 'Resolved' };
@@ -135,6 +136,7 @@ function Detail({ isCo }) {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-body font-semibold">{d.officer_name}</span>
+                            <SelfPills row={d} small />
                             <Pill status={d.status}>{d.status === 'open' ? 'Open' : 'Resolved'}</Pill>
                           </div>
                           <div className="text-footnote text-muted">{d.line_description} · {dateShort(d.created_at)}</div>
@@ -142,7 +144,8 @@ function Detail({ isCo }) {
                           {d.resolution && <p className="mt-1.5 rounded-xl bg-green-soft px-3 py-2 text-footnote"><b>{d.resolved_by_name || 'Office'}:</b> {d.resolution}</p>}
                           <div className="mt-2 flex flex-wrap gap-2">
                             {d.conversation_id && <Button size="sm" variant="secondary" icon={MessageSquare} to={`${base}/messages/${d.conversation_id}`}>Thread</Button>}
-                            {isCo && d.status === 'open' && <Button size="sm" icon={CheckIcon} onClick={() => setSheet({ kind: 'resolve', dispute: d })}>Resolve</Button>}
+                            {isCo && d.status === 'open' && d.self_locked && <span className="self-center text-caption text-muted">{SELF_HINT}</span>}
+                            {isCo && d.status === 'open' && !d.self_locked && <Button size="sm" icon={CheckIcon} onClick={() => setSheet({ kind: 'resolve', dispute: d })}>Resolve</Button>}
                           </div>
                         </div>
                       </div>
@@ -157,7 +160,7 @@ function Detail({ isCo }) {
                 <List>
                   {held.map((s) => (
                     <Row key={s.id} left={<Pause size={18} className="text-amber" />} title={s.officer_name} subtitle={`${money(s.total)} · did not respond`}
-                      right={isCo && <Button size="sm" variant="soft" busy={busy} onClick={() => release(s)}>Release</Button>} />
+                      right={isCo && !s.self_locked ? <Button size="sm" variant="soft" busy={busy} onClick={() => release(s)}>Release</Button> : <SelfPills row={s} small />} />
                   ))}
                 </List>
               </Section>
@@ -168,7 +171,7 @@ function Detail({ isCo }) {
                 <List>
                   {r.statements.map((s) => (
                     <Row key={s.id} to={`${base}/pay/${s.id}`} chevron left={<Avatar name={s.officer_name} size={36} />}
-                      title={s.officer_name} subtitle={`${s.number || 'Draft'} · ${hours(s.hours)} · ${money(s.total)}`}
+                      title={<span className="inline-flex flex-wrap items-center gap-1.5">{s.officer_name}<SelfPills row={s} small /></span>} subtitle={`${s.number || 'Draft'} · ${hours(s.hours)} · ${money(s.total)}`}
                       right={<div className="flex flex-col items-end gap-1">
                         {s.status !== 'draft' ? <Pill status={s.status} /> : s.held ? <Pill status="held">Held</Pill> : s.review_status ? <Pill status={s.review_status}>{REVIEW_LABEL[s.review_status]}</Pill> : <Pill status="draft">Not sent</Pill>}
                       </div>} />

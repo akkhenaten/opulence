@@ -5,7 +5,7 @@ import {
   ActionBar, addDays, Avatar, Button, cx, dayLabel, Empty, hours, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, range, relative, Sheet, Tabs, Textarea, titleCase, useAction, useApi, useForm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
-import { Check as Tick, fromLondonInput, londonIso, toLondonInput, useBase } from '../manager/_parts.jsx';
+import { Check as Tick, fromLondonInput, londonIso, SELF_HINT, SelfPills, toLondonInput, useBase } from '../manager/_parts.jsx';
 
 const FLAG_TONE = { late: 'amber', left_early: 'amber', exception: 'red', no_clock_out: 'red', manual: 'blue', edited: 'blue' };
 
@@ -39,7 +39,7 @@ export default function Timesheets() {
   ];
 
   const rows = q.data || [];
-  const actionable = (t) => !t.locked && ((isManager && t.status === 'pending') || (canSign && t.status === 'approved'));
+  const actionable = (t) => !t.locked && !t.self_locked && ((isManager && t.status === 'pending') || (canSign && t.status === 'approved'));
   const chosen = rows.filter((t) => sel.has(t.id));
   const toApprove = isManager ? chosen.filter((t) => t.status === 'pending') : [];
   const toSign = canSign ? chosen.filter((t) => t.status === 'approved') : [];
@@ -84,6 +84,7 @@ export default function Timesheets() {
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-muted">
                       <span>Rota <span className="num">{range(t.starts_at, t.ends_at)}</span></span>
                       {t.actual_start && <span>Actual <span className="num font-semibold text-ink">{range(t.actual_start, t.actual_end)}</span></span>}
+                      <SelfPills row={t} small />
                       {(t.flags || []).map((f) => <Pill key={f} tone={FLAG_TONE[f] || 'grey'} className="!py-0 !text-caption2">{titleCase(f)}</Pill>)}
                     </div>
                   </div>
@@ -115,7 +116,7 @@ function Detail({ t, isManager, canSign, canDispute, onClose, onDone, approve, s
   const [mode, setMode] = useState(null); // edit | dispute
   if (mode === 'edit') return <EditSheet t={t} onClose={() => setMode(null)} onDone={onDone} />;
   if (mode === 'dispute') return <DisputeSheet t={t} onClose={() => setMode(null)} onDone={onDone} />;
-  const footer = !t.locked && (
+  const footer = !t.locked && !t.self_locked && (
     <>
       {canDispute && ['approved', 'pending'].includes(t.status) && <Button variant="danger" icon={AlertTriangle} onClick={() => setMode('dispute')}>Query</Button>}
       {isManager && <Button variant="secondary" icon={PenLine} onClick={() => setMode('edit')}>{t.status === 'disputed' ? 'Correct' : 'Edit'}</Button>}
@@ -128,6 +129,7 @@ function Detail({ t, isManager, canSign, canDispute, onClose, onDone, approve, s
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-2">
           <Pill status={t.status} />{t.locked && <Pill tone="grey"><Lock size={14} />Locked</Pill>}
+          <SelfPills row={t} />
           {(t.flags || []).map((f) => <Pill key={f} tone={FLAG_TONE[f] || 'grey'}>{titleCase(f)}</Pill>)}
         </div>
         <div className="grid grid-cols-3 gap-3 rounded-2xl bg-bg/70 p-4">
@@ -144,6 +146,7 @@ function Detail({ t, isManager, canSign, canDispute, onClose, onDone, approve, s
           t.resolution && ['Resolution', t.resolution],
         ]} />
         {t.locked && <p className="text-footnote text-muted">This timesheet is on a pay statement or invoice and can't be changed.</p>}
+        {!t.locked && t.self_locked && <p className="text-footnote text-muted">{SELF_HINT}.</p>}
       </div>
     </Sheet>
   );

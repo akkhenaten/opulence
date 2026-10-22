@@ -73,6 +73,8 @@ export async function shiftsWithAssignments(where, params, user) {
   return rows.map((s) => {
     const filled = s.assignments.filter((a) => ['assigned', 'accepted'].includes(a.status)).length;
     const out = { ...s, filled };
+    // The signed-in manager's own shifts are marked "You" on the rota
+    if (user.self_officer_id) out.assignments = s.assignments.map((a) => ({ ...a, is_self: a.officer_id === user.self_officer_id }));
     if (venueView) out.assignments = s.assignments.filter((a) => ['assigned', 'accepted'].includes(a.status)).map(({ name, sia_number, clocked_in, clocked_out, status, is_lead }) => ({ name, sia_number, clocked_in, clocked_out, status, is_lead }));
     return out;
   });
@@ -239,7 +241,7 @@ export const actions = {
       `INSERT INTO shift_assignments (shift_id, officer_id, status) VALUES ($1,$2,'assigned')
        ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'assigned', responded_at = NULL RETURNING *`, [s.id, b.officer_id]);
     if (s.status === 'published') await notifyAssigned(a, s);
-    await audit(user, 'shift.assign', 'shift', s.id, { officer: b.officer_id, override: check.warnings });
+    await audit(user, 'shift.assign', 'shift', s.id, { officer: b.officer_id, override: check.warnings, ...(b.officer_id === user.self_officer_id ? { self: true } : {}) });
     return a;
   }),
 

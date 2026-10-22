@@ -6,6 +6,7 @@ import { audit } from '../lib/audit.mjs';
 import { downloadUrl } from '../lib/storage.mjs';
 import { CO, ALL, def } from './_def.mjs';
 import { getBrand } from '../lib/brand.mjs';
+import { seedOnboarding } from './hr.mjs';
 
 const ROLE_LABEL = { company: 'Company Manager', security: 'Security Manager', venue: 'Venue Manager', officer: 'Security Officer' };
 
@@ -42,7 +43,8 @@ export const actions = {
             COALESCE(array_agg(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS venues,
             COALESCE(array_agg(DISTINCT v.id) FILTER (WHERE v.id IS NOT NULL), '{}') AS venue_ids,
             CASE WHEN u.status = 'invited' THEN '/app/invite/' || u.invite_token END AS invite_link,
-            (SELECT o.id FROM officers o WHERE o.user_id = u.id LIMIT 1) AS officer_id
+            (SELECT o.id FROM officers o WHERE o.user_id = u.id LIMIT 1) AS officer_id,
+            (SELECT o.first_name || ' ' || o.last_name FROM officers o WHERE o.user_id = u.id LIMIT 1) AS officer_name
        FROM users u
        LEFT JOIN venue_contacts vc ON vc.user_id = u.id AND u.role = 'venue'
        LEFT JOIN security_venues sv ON sv.user_id = u.id AND u.role = 'security'
@@ -81,11 +83,16 @@ export const actions = {
         ? await t.one(`UPDATE users SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1 RETURNING *`, [b.id, ...keys.map((k) => fields[k])])
         : await t.one('SELECT * FROM users WHERE id = $1', [b.id]);
       if (!row) fail(404, 'User not found');
-      // An officer's staff record carries the same name and phone
-      if (row.role === 'officer' && (fields.name !== undefined || fields.phone !== undefined)) {
+      // A linked staff record (an officer, or a manager who also works shifts) carries the same name, phone and email
+      if (fields.name !== undefined || fields.phone !== undefined || fields.email !== undefined) {
         const cut = row.name.lastIndexOf(' ');
-        await t.q('UPDATE officers SET first_name = $2, last_name = $3, phone = $4 WHERE user_id = $1',
-          [row.id, cut > 0 ? row.name.slice(0, cut) : row.name, cut > 0 ? row.name.slice(cut + 1) : '', row.phone || '']);
+        await t.q('UPDATE officers SET first_name = $2, last_name = $3, phone = $4, email = $5 WHERE user_id = $1',
+          [row.id, cut > 0 ? row.name.slice(0, cut) : row.name, cut > 0 ? row.name.slice(cut + 1) : '', row.phone || '', row.email]);
+      }
+      // A disabled manager's staff record stays, without a login (it can be invited again as an officer)
+      if (fields.status === 'disabled' && row.role !== 'officer') {
+        const o = await t.one('UPDATE officers SET user_id = NULL WHERE user_id = $1 RETURNING id', [row.id]);
+        if (o) await audit(user, 'user.works_shifts', 'user', row.id, { on: false, officer_id: o.id, reason: 'disabled' });
       }
       await setVenues(t, row.id, row.role, b.venue_ids);
       return row;
@@ -107,6 +114,70 @@ export const actions = {
     const u = await one("SELECT * FROM users WHERE id = $1 AND status = 'invited'", [b.id]);
     if (!u) fail(404, 'No pending invite');
     return { invite_link: await sendInvite(u) };
+  }),
+
+  // A company or security manager who also works shifts: create or link their staff record (one login, two sides)
+  'users.setWorksShifts': def(CO, async (b, { user }) => {
+    required(b, 'id');
+    const u = await one("SELECT * FROM users WHERE id = $1 AND NOT system", [b.id]);
+    if (!u) fail(404, 'User not found');
+    if (!['company', 'security'].includes(u.role)) fail(400, 'Only company and security managers can also work shifts');
+    const linked = await one('SELECT id FROM officers WHERE user_id = $1', [u.id]);
+    if (!b.on) {
+      if (!linked) return { ok: true };
+      await q('UPDATE officers SET user_id = NULL WHERE id = $1', [linked.id]);
+      await audit(user, 'user.works_shifts', 'user', u.id, { on: false, officer_id: linked.id });
+      return { ok: true };
+    }
+    if (linked) return { ok: true, officer_id: linked.id };
+    const officerId = await tx(async (t) => {
+      if (b.officer_id) {
+        const o = await t.one('SELECT id, user_id FROM officers WHERE id = $1 FOR UPDATE', [b.officer_id]);
+        if (!o) fail(404, 'Staff record not found');
+        if (o.user_id) fail(409, 'That staff record already has its own login. Merge it instead.');
+        await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [o.id, u.id]);
+        return o.id;
+      }
+      // Same email or phone already on the staff list without a login: link that one rather than adding a duplicate
+      const same = await t.one('SELECT id FROM officers WHERE lower(email) = $1 AND user_id IS NULL LIMIT 1', [u.email]);
+      if (same) {
+        await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [same.id, u.id]);
+        return same.id;
+      }
+      const cut = u.name.lastIndexOf(' ');
+      const o = await t.one(
+        `INSERT INTO officers (first_name, last_name, email, phone, status, user_id) VALUES ($1,$2,$3,$4,'active',$5) RETURNING id`,
+        [cut > 0 ? u.name.slice(0, cut) : u.name, cut > 0 ? u.name.slice(cut + 1) : '', u.email, u.phone || '', u.id]);
+      await seedOnboarding(t, o.id);
+      return o.id;
+    });
+    await audit(user, 'user.works_shifts', 'user', u.id, { on: true, officer_id: officerId });
+    return { ok: true, officer_id: officerId };
+  }),
+
+  // Someone who had a second email just for the officer app: move their staff record onto the manager login
+  'users.mergeOfficerLogin': def(CO, async (b, { user }) => {
+    required(b, 'manager_id', 'officer_user_id');
+    const m = await one("SELECT * FROM users WHERE id = $1 AND role IN ('company','security') AND status IN ('active','invited') AND NOT system", [b.manager_id]);
+    if (!m) fail(404, 'Manager login not found');
+    const ou = await one("SELECT * FROM users WHERE id = $1 AND role = 'officer'", [b.officer_user_id]);
+    if (!ou) fail(404, 'Officer login not found');
+    if (await one('SELECT 1 FROM officers WHERE user_id = $1', [m.id])) fail(409, 'This manager already has a staff record');
+    const o = await one('SELECT id FROM officers WHERE user_id = $1', [ou.id]);
+    if (!o) fail(400, 'That officer login has no staff record');
+    await tx(async (t) => {
+      await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [o.id, m.id]);
+      await t.q("UPDATE users SET status = 'disabled', invite_token = NULL, reset_token = NULL, reset_expires = NULL WHERE id = $1", [ou.id]);
+      // Their inbox, conversations, phone notifications and saved toolbox cards come with them
+      await t.q('UPDATE notifications SET user_id = $2 WHERE user_id = $1', [ou.id, m.id]);
+      await t.q('UPDATE push_subscriptions SET user_id = $2 WHERE user_id = $1', [ou.id, m.id]);
+      await t.q('UPDATE conversation_members c SET user_id = $2 WHERE user_id = $1 AND NOT EXISTS (SELECT 1 FROM conversation_members x WHERE x.conversation_id = c.conversation_id AND x.user_id = $2)', [ou.id, m.id]);
+      await t.q('DELETE FROM conversation_members WHERE user_id = $1', [ou.id]);
+      await t.q('INSERT INTO toolbox_favourites (user_id, card_id) SELECT $2, card_id FROM toolbox_favourites WHERE user_id = $1 ON CONFLICT DO NOTHING', [ou.id, m.id]);
+      await t.q('DELETE FROM toolbox_favourites WHERE user_id = $1', [ou.id]);
+    });
+    await audit(user, 'user.merge_officer', 'user', m.id, { officer_user: ou.id, officer_email: ou.email, officer_id: o.id });
+    return { ok: true, officer_id: o.id };
   }),
 
   'users.managers': def(ALL, async () => q("SELECT id, name, role FROM users WHERE role IN ('company','security') AND status = 'active' ORDER BY name")),

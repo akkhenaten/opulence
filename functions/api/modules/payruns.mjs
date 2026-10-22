@@ -8,6 +8,7 @@ import { fmtDate, fmtDateTime } from '../lib/time.mjs';
 import { gbp, money } from '../lib/rates.mjs';
 import { audit } from '../lib/audit.mjs';
 import { actions as moneyActions, recalcStatement } from './money.mjs';
+import { guardSelf, markOwn, otherApprover } from '../lib/selfcheck.mjs';
 import { CO, MGR, def } from './_def.mjs';
 
 const requirePay = (user) => { if (!canSeePay(user)) fail(403, 'You do not have access to pay information'); };
@@ -53,17 +54,18 @@ export const actions = {
     required(b, 'id');
     const run = need(await runSummary(b.id), 'Pay run not found');
     const [statements, disputes, invoices] = await Promise.all([
-      q(`SELECT st.id, st.officer_id, st.number, st.status, st.review_status, st.reviewed_at, st.held, st.total, st.hours, st.pdf_document_id,
+      q(`SELECT st.id, st.officer_id, st.number, st.status, st.review_status, st.reviewed_at, st.held, st.total, st.hours, st.pdf_document_id, st.self_approved,
+                st.officer_id = $2 AS is_self,
                 o.first_name || ' ' || o.last_name AS officer_name,
                 (SELECT count(*)::int FROM statement_disputes d WHERE d.statement_id = st.id AND d.status = 'open') AS open_disputes
-           FROM statements st JOIN officers o ON o.id = st.officer_id WHERE st.pay_run_id = $1 ORDER BY o.last_name, o.first_name`, [b.id]),
-      q(`SELECT d.*, o.first_name || ' ' || o.last_name AS officer_name, st.total AS statement_total, u.name AS resolved_by_name
+           FROM statements st JOIN officers o ON o.id = st.officer_id WHERE st.pay_run_id = $1 ORDER BY o.last_name, o.first_name`, [b.id, user.self_officer_id]),
+      q(`SELECT d.*, st.officer_id, st.officer_id = $2 AS is_self, o.first_name || ' ' || o.last_name AS officer_name, st.total AS statement_total, u.name AS resolved_by_name
            FROM statement_disputes d JOIN statements st ON st.id = d.statement_id JOIN officers o ON o.id = st.officer_id
            LEFT JOIN users u ON u.id = d.resolved_by
-          WHERE st.pay_run_id = $1 ORDER BY d.status = 'open' DESC, d.created_at`, [b.id]),
+          WHERE st.pay_run_id = $1 ORDER BY d.status = 'open' DESC, d.created_at`, [b.id, user.self_officer_id]),
       q("SELECT id, number, status, gross, venue_id, (SELECT name FROM venues WHERE id = i.venue_id) AS venue_name FROM invoices i WHERE pay_run_id = $1 AND kind = 'invoice' ORDER BY created_at", [b.id]),
     ]);
-    return { ...run, statements, disputes, invoices };
+    return { ...run, statements: await markOwn(user, statements, { companyOnly: true }), disputes: await markOwn(user, disputes, { companyOnly: true }), invoices };
   }),
 
   // Officers see their statement and have until the deadline to approve it or query a line
@@ -134,6 +136,7 @@ export const actions = {
     const d = need(await one('SELECT d.*, st.officer_id, st.status AS st_status, st.pay_run_id FROM statement_disputes d JOIN statements st ON st.id = d.statement_id WHERE d.id = $1', [b.dispute_id]));
     if (d.status !== 'open') fail(400, 'This query is already resolved');
     if (d.st_status !== 'draft') fail(400, 'The statement has already been issued');
+    const self = await guardSelf(user, d.officer_id, { companyOnly: true, message: 'Another company manager needs to answer a query on your own pay' });
     const changes = [];
     await tx(async (t) => {
       // Correct the hours on a line (amount follows the line's rate)
@@ -155,6 +158,7 @@ export const actions = {
       await recalcStatement(t, d.statement_id);
       await t.q("UPDATE statement_disputes SET status = 'resolved', resolution = $2, resolved_by = $3, resolved_at = now(), updated_at = now() WHERE id = $1",
         [d.id, String(b.resolution).slice(0, 2000), user.id]);
+      if (self.selfApproved) await t.q('UPDATE statements SET self_approved = true WHERE id = $1', [d.statement_id]);
       const left = await t.one("SELECT count(*)::int AS n FROM statement_disputes WHERE statement_id = $1 AND status = 'open'", [d.statement_id]);
       if (!left.n) await t.q("UPDATE statements SET review_status = 'resolved' WHERE id = $1", [d.statement_id]);
       await touch(t, d.pay_run_id);
@@ -164,7 +168,7 @@ export const actions = {
       await post(d.conversation_id, user.id, { body: `${b.resolution}${changes.length ? `\n\nChanged: ${changes.join(', ')}. New total ${gbp(st.total)}.` : ''}` });
     }
     await tellOfficer(d.officer_id, { title: 'Your pay query is resolved', body: String(b.resolution).slice(0, 140), link: `/officer/pay/${d.statement_id}` });
-    await audit(user, 'pay_run.resolve_dispute', 'statement_dispute', d.id, { changes, via: b.via });
+    await audit(user, 'pay_run.resolve_dispute', 'statement_dispute', d.id, { changes, via: b.via, ...(self.selfApproved ? { self_approved: true } : {}) });
     return { ok: true, total: st.total, changes };
   }),
 
@@ -181,7 +185,20 @@ export const actions = {
     if (waiting.n && !['approve', 'hold'].includes(b.no_response)) {
       fail(400, `${waiting.n} ${waiting.n === 1 ? 'officer has' : 'officers have'} not responded. Choose to approve on their behalf or hold them back.`, { needs_choice: waiting.n });
     }
+    // Your own statement is never approved on your behalf by you while another company manager could do it
+    const own = user.self_officer_id && await one(
+      `SELECT id, review_status FROM statements WHERE pay_run_id = $1 AND officer_id = $2 AND status = 'draft'
+          AND (review_status IS NULL OR review_status IN ('pending','no_response'))`, [b.id, user.self_officer_id]);
+    const ownWouldApprove = own && (own.review_status === null || b.no_response === 'approve');
+    let selfStatement = null;
+    if (ownWouldApprove) {
+      if (await otherApprover(user, { companyOnly: true })) {
+        fail(403, 'Your own statement is in this pay run. Approve it yourself in My shifts → Pay, or ask another company manager to finalise.', { self: true });
+      }
+      selfStatement = own.id;
+    }
     const out = await tx(async (t) => {
+      if (selfStatement) await t.q('UPDATE statements SET self_approved = true WHERE id = $1', [selfStatement]);
       // Never sent for review: the manager is approving every statement
       const direct = await t.q("UPDATE statements SET review_status = 'approved', reviewed_at = now() WHERE pay_run_id = $1 AND status = 'draft' AND review_status IS NULL RETURNING id", [b.id]);
       const rows = await t.q(
@@ -198,7 +215,7 @@ export const actions = {
     } catch (e) {
       console.error('[payruns] reconcile failed', e);
     }
-    await audit(user, 'pay_run.finalise', 'pay_run', b.id, { no_response: b.no_response || null, affected: out.rows.length, direct: out.direct, via: b.via });
+    await audit(user, 'pay_run.finalise', 'pay_run', b.id, { no_response: b.no_response || null, affected: out.rows.length, direct: out.direct, via: b.via, ...(selfStatement ? { self_approved: selfStatement } : {}) });
     return { ok: true, held: b.no_response === 'hold' ? out.rows.length : 0, approved_on_behalf: b.no_response === 'approve' ? out.rows.length : 0, reconcile };
   }),
 
@@ -223,8 +240,10 @@ export const actions = {
   // A held statement goes out with the next issue once released
   'payRuns.release': def(CO, async (b, { user }) => {
     required(b, 'statement_id');
-    const st = need(await one("UPDATE statements SET held = false, review_status = 'approved', reviewed_at = now() WHERE id = $1 AND held AND status = 'draft' RETURNING id, pay_run_id", [b.statement_id]), 'Statement is not held');
-    await audit(user, 'pay_run.release', 'statement', st.id);
+    const cur = need(await one('SELECT officer_id FROM statements WHERE id = $1', [b.statement_id]), 'Statement not found');
+    const self = await guardSelf(user, cur.officer_id, { companyOnly: true, message: 'Another company manager needs to release your own statement' });
+    const st = need(await one("UPDATE statements SET held = false, review_status = 'approved', reviewed_at = now(), self_approved = self_approved OR $2 WHERE id = $1 AND held AND status = 'draft' RETURNING id, pay_run_id", [b.statement_id, !!self.selfApproved]), 'Statement is not held');
+    await audit(user, 'pay_run.release', 'statement', st.id, self.selfApproved ? { self_approved: true } : undefined);
     return { ok: true };
   }),
 

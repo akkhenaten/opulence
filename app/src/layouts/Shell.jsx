@@ -1,10 +1,11 @@
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { Bell, BellOff, BookOpen, ChevronRight, LogOut, MessagesSquare, MoreHorizontal, Newspaper } from 'lucide-react';
+import { Bell, BellOff, BookOpen, Briefcase, ChevronRight, LogOut, MessagesSquare, MoreHorizontal, Newspaper } from 'lucide-react';
 import { api } from '../api.js';
 import { portalLink, useAuth } from '../auth.jsx';
 import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, usePageHeader, useScrollMemory } from '../ui/index.jsx';
 import { NAV, ROLE_LABEL } from './nav.js';
+import { SideSwitch } from './SideSwitch.jsx';
 import { AccountSheet } from './AccountSheet.jsx';
 import AskOrb, { AskOrbButton } from '../ui/AskOrb.jsx';
 import { OfflineBanner, useUpdateToast } from '../ui/pwa.jsx';
@@ -105,6 +106,18 @@ function HeaderTitle() {
 // Count badge for a nav item (Ops AI inbox)
 const Badge = ({ n, className }) => (n > 0 ? <span className={cx('rounded-full bg-blue px-1.5 text-caption2 font-bold leading-[18px] text-white', className)}>{n > 99 ? '99+' : n}</span> : null);
 
+// On "My shifts", a manager who also works shifts gets back to the manager side in one tap
+function ManagerButton() {
+  const { switchSide } = useAuth();
+  const nav = useNavigate();
+  const [busy, setBusy] = useState(false);
+  const go = async () => {
+    setBusy(true);
+    try { const u = await switchSide('manager'); nav(`/${u.role}`, { replace: true }); } finally { setBusy(false); }
+  };
+  return <Button variant="secondary" size="sm" icon={Briefcase} disabled={busy} onClick={go}>Manager</Button>;
+}
+
 export default function Shell() {
   const { user, signOut } = useAuth();
   const isMgr = ['company', 'security'].includes(user.role);
@@ -193,6 +206,7 @@ export default function Shell() {
       {!isOfficer && (
         <aside className="sticky top-0 hidden h-dvh w-[260px] shrink-0 flex-col border-r border-line/70 bg-surface/70 px-3 py-5 backdrop-blur-xl lg:flex">
           <div className="px-3 pb-6"><Logo place="sidebar" /></div>
+          <SideSwitch full className="mb-4" />
           <nav className="flex-1 space-y-4 overflow-y-auto no-scrollbar">
             {groups.map((g, i) => (
               <div key={i}>
@@ -233,6 +247,7 @@ export default function Shell() {
                 </span>
               )}
               <NotificationBell />
+              {isOfficer && user.dual && <ManagerButton />}
               {isOfficer && <span className="hidden sm:block"><Button variant="secondary" size="sm" icon={LogOut} onClick={signOut}>Sign out</Button></span>}
             </div>
           </div>
@@ -265,6 +280,7 @@ export default function Shell() {
         </div>
       </nav>
       <Sheet open={more} onClose={() => setMore(false)} title="More">
+        <SideSwitch full className="mb-4" />
         <div className="grid grid-cols-3 gap-2">
           {extra.map((it) => (
             <NavLink key={it.to} to={it.to} className={cx('pressable flex flex-col items-center gap-2 rounded-2xl px-2 py-4 text-center text-footnote font-semibold', isActive(it) ? 'bg-blue-soft text-blue' : 'bg-bg')}>

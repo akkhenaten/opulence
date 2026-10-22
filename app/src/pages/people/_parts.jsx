@@ -137,6 +137,7 @@ export function cleanOfficer(v) {
 
 export function LoginPill({ o }) {
   if (!o.user_id) return <Pill tone="grey">No app login</Pill>;
+  if (o.login_role && o.login_role !== 'officer') return <Pill tone="blue">Manager login</Pill>;
   if (o.login_status === 'invited') return <Pill tone="amber">Invite pending</Pill>;
   if (o.login_status === 'disabled') return <Pill tone="grey">Login disabled</Pill>;
   return <Pill tone="blue">App active</Pill>;

@@ -9,7 +9,10 @@ import { fmtDate, fmtTime, londonDate, addDays } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { getSettings } from './settings.mjs';
 import { archivePdf, savedPdf, longDate } from '../lib/archive.mjs';
+import { guardSelf, markOwn } from '../lib/selfcheck.mjs';
 import { ALL, CO, def } from './_def.mjs';
+
+const OWN_PAY = 'Another company manager needs to change your own pay statement';
 
 // ---------- Rate resolution ----------
 export async function officerRate(officerId, role, venueId, date) {
@@ -258,12 +261,14 @@ export const actions = {
           AND ($5::uuid IS NULL OR st.pay_run_id = $5)
           AND ($4::date IS NULL OR st.period_start = $4)
         ORDER BY st.period_end DESC, officer_name LIMIT 500`,
-      [user.role === 'officer' ? user.officer_id : b.officer_id || null, b.status || null, user.role !== 'officer', b.period_start || null, b.pay_run_id || null]);
+      [user.role === 'officer' ? user.officer_id : b.officer_id || null, b.status || null, user.role !== 'officer', b.period_start || null, b.pay_run_id || null])
+      .then((rows) => markOwn(user, rows, { companyOnly: true }));
   }),
 
   'pay.get': def(['company', 'security', 'officer'], async (b, { user }) => {
     const st = await loadStatement(b.id);
     if (user.role === 'officer' ? st.officer_id !== user.officer_id || (st.status === 'draft' && !st.review_status) : !canSeePay(user)) fail(403, 'Forbidden');
+    Object.assign(st, (await markOwn(user, [{ officer_id: st.officer_id }], { companyOnly: true }))[0], { officer_id: st.officer_id });
     const disputes = await q(
       `SELECT d.*, u.name AS resolved_by_name FROM statement_disputes d LEFT JOIN users u ON u.id = d.resolved_by WHERE d.statement_id = $1 ORDER BY d.created_at`, [b.id]);
     const run = st.pay_run_id ? await one('SELECT id, status, review_deadline, run_date FROM pay_runs WHERE id = $1', [st.pay_run_id]) : null;
@@ -274,8 +279,9 @@ export const actions = {
     required(b, 'statement_id', 'kind', 'description', 'amount');
     if (!['bonus', 'expense', 'deduction'].includes(b.kind)) fail(400, 'Invalid line type');
     await tx(async (t) => {
-      const st = await t.one("SELECT status FROM statements WHERE id = $1 FOR UPDATE", [b.statement_id]);
+      const st = await t.one("SELECT status, officer_id FROM statements WHERE id = $1 FOR UPDATE", [b.statement_id]);
       if (!st || st.status !== 'draft') fail(400, 'Only draft statements can be changed');
+      if ((await guardSelf(user, st.officer_id, { companyOnly: true, message: OWN_PAY })).selfApproved) await t.q('UPDATE statements SET self_approved = true WHERE id = $1', [b.statement_id]);
       const amt = Math.abs(Number(b.amount)) * (b.kind === 'deduction' ? -1 : 1);
       await t.q('INSERT INTO statement_lines (statement_id, kind, description, amount) VALUES ($1,$2,$3,$4)', [b.statement_id, b.kind, b.description, money(amt)]);
       await recalcStatement(t, b.statement_id);
@@ -286,8 +292,9 @@ export const actions = {
 
   'pay.removeLine': def(CO, async (b, { user }) => {
     await tx(async (t) => {
-      const l = need(await t.one("SELECT l.*, st.status FROM statement_lines l JOIN statements st ON st.id = l.statement_id WHERE l.id = $1", [b.id]));
+      const l = need(await t.one("SELECT l.*, st.status, st.officer_id FROM statement_lines l JOIN statements st ON st.id = l.statement_id WHERE l.id = $1", [b.id]));
       if (l.status !== 'draft') fail(400, 'Only draft statements can be changed');
+      if ((await guardSelf(user, l.officer_id, { companyOnly: true, message: OWN_PAY })).selfApproved) await t.q('UPDATE statements SET self_approved = true WHERE id = $1', [l.statement_id]);
       if (l.timesheet_id) await t.q('UPDATE timesheets SET statement_id = NULL WHERE id = $1', [l.timesheet_id]);
       await t.q('DELETE FROM statement_lines WHERE id = $1', [b.id]);
       await recalcStatement(t, l.statement_id);

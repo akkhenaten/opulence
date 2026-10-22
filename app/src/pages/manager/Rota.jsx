@@ -7,6 +7,7 @@ import {
   addDays, Avatar, Button, cx, dateShort, dayLabel, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useToast,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
+import { useAuth } from '../../auth.jsx';
 import { WEEKDAYS, durationH, londonIso, londonParts, shiftTimes, useBase } from './_parts.jsx';
 
 const dayOf = (iso) => londonParts(iso).date;
@@ -131,7 +132,7 @@ function DayTag({ days, today }) {
 function useOfficerRows(rows) {
   return useMemo(() => {
     const m = new Map();
-    for (const s of rows) for (const a of s.assignments) if ([...ACTIVE, 'requested'].includes(a.status)) m.set(a.officer_id, a.name);
+    for (const s of rows) for (const a of s.assignments) if ([...ACTIVE, 'requested'].includes(a.status)) m.set(a.officer_id, a.is_self ? `${a.name} (You)` : a.name);
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => {
       const mine = rows.filter((s) => s.assignments.some((a) => a.officer_id === id && [...ACTIVE, 'requested'].includes(a.status)));
       const hours = mine.filter((s) => s.assignments.some((a) => a.officer_id === id && ACTIVE.includes(a.status))).reduce((n, s) => n + durationH(s.starts_at, s.ends_at), 0);
@@ -150,7 +151,7 @@ const orderVenues = (rows, venues) => {
 function ShiftCard({ s, onOpen, showVenue = true, compact }) {
   const short = isShort(s);
   const requested = s.assignments.filter((a) => a.status === 'requested').length;
-  const names = s.assignments.filter((a) => ACTIVE.includes(a.status)).map((a) => a.name);
+  const names = s.assignments.filter((a) => ACTIVE.includes(a.status)).map((a) => (a.is_self ? `${a.name} (You)` : a.name));
   return (
     <Pressable press onClick={() => onOpen(s)}
       className={cx('relative block w-full overflow-hidden rounded-2xl border bg-surface text-left shadow-tile transition hover:-translate-y-0.5 active:scale-[0.99]',
@@ -482,7 +483,7 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
                   <div key={a.id} className="flex items-center gap-3 px-4 py-3">
                     <Avatar name={a.name} size={36} />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 truncate text-body font-semibold">{a.name}{a.is_lead && <Pill tone="ink">Lead</Pill>}</div>
+                      <div className="flex items-center gap-1.5 truncate text-body font-semibold">{a.name}{a.is_self && <Pill tone="blue">You</Pill>}{a.is_lead && <Pill tone="ink">Lead</Pill>}</div>
                       <div className="truncate text-caption text-muted">
                         {a.clocked_in ? <>In <span className="num">{time(a.clocked_in)}</span>{a.clocked_out && <> · out <span className="num">{time(a.clocked_out)}</span></>}</> : a.sia_number ? `SIA ${a.sia_number}` : ''}
                       </div>
@@ -513,6 +514,7 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
 }
 
 function AssignSheet({ shift, onClose, onDone }) {
+  const { user } = useAuth();
   const q = useApi('shifts.candidates', { shift_id: shift.id });
   const [run] = useAction();
   const confirm = useConfirm();
@@ -543,7 +545,7 @@ function AssignSheet({ shift, onClose, onDone }) {
                   className={cx('flex w-full items-center gap-3 px-4 py-3 text-left transition', blocked ? 'opacity-60' : 'hover:bg-surface active:bg-surface')}>
                   <Avatar name={c.name} size={36} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-body font-semibold">{c.name}</div>
+                    <div className="flex items-center gap-1.5 truncate text-body font-semibold">{c.name}{c.id === user.self_officer_id && <Pill tone="blue">You</Pill>}</div>
                     {blocked ? <div className="text-caption text-red">{c.blocking.join(' · ')}</div>
                       : c.warnings.length ? <div className="text-caption text-amber">{c.warnings.join(' · ')}</div>
                         : <div className="text-caption text-green">Available</div>}

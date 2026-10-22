@@ -9,7 +9,10 @@ import { fmtDate, fmtDateTime, londonDate } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { getSettings } from './settings.mjs';
 import { officerRate } from './money.mjs';
+import { guardSelf } from '../lib/selfcheck.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
+
+const OWN_RATE = 'Another company manager needs to change your own pay rate';
 
 const GOAL_STATUS = ['open', 'met', 'missed', 'dropped'];
 const money = (n) => `£${Number(n).toFixed(2)}`;
@@ -181,6 +184,7 @@ export const actions = {
     required(b, 'officer_id', 'role', 'new_rate', 'effective_from');
     const rate = Number(b.new_rate);
     if (!(rate > 0 && rate < 1000)) fail(400, 'Enter the new hourly rate');
+    await guardSelf(user, b.officer_id, { companyOnly: true, message: OWN_RATE });
     const conds = (b.condition_goal_ids || []).filter(Boolean);
     if (conds.length) {
       const ok = await q('SELECT id FROM goals WHERE id = ANY($1::uuid[]) AND officer_id = $2', [conds, b.officer_id]);
@@ -201,6 +205,8 @@ export const actions = {
   }),
 
   'payAgreements.send': def(CO, async (b, { user }) => {
+    const cur = need(await one('SELECT officer_id FROM pay_agreements WHERE id = $1', [b.id]), 'Agreement not found or already sent');
+    await guardSelf(user, cur.officer_id, { companyOnly: true, message: OWN_RATE });
     const a = need(await one("UPDATE pay_agreements SET status = 'sent', updated_at = now() WHERE id = $1 AND status = 'draft' RETURNING *", [b.id]), 'Agreement not found or already sent');
     const [uid] = await officerUser(a.officer_id);
     if (!uid) fail(400, 'This officer has no login yet, so they cannot sign. Invite them first.');

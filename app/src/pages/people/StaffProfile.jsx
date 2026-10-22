@@ -44,7 +44,16 @@ function Profile({ o, reload, user, base }) {
   const forbid = (k) => setHidden((h) => (h.includes(k) ? h : [...h, k]));
 
   const invite = async () => {
-    const r = await run(() => api('officers.inviteLogin', { id: o.id }), 'Invite sent');
+    const r = await run(() => api('officers.inviteLogin', { id: o.id }), 'Invite sent').catch((e) => e);
+    // Their email already signs in as a manager: one login does both, no invite needed
+    if (r?.data?.can_link) {
+      if (await confirm({ title: `Link to ${r.data.user_name}'s manager login?`, body: `${r.data.user_name} keeps signing in as they do today and switches to "My shifts" for their own shifts, pay and training. Another manager approves their hours.`, confirm: 'Link' })) {
+        await run(() => api('officers.linkLogin', { id: o.id }), 'Linked to their manager login').catch(() => {});
+        reload();
+      }
+      return;
+    }
+    if (r instanceof Error) return;
     setLink(r.invite_link);
     reload();
   };

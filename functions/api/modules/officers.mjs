@@ -7,6 +7,7 @@ import { londonDate } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { createInvite, sendInvite } from './users.mjs';
 import { seedOnboarding } from './hr.mjs';
+import { guardSelf } from '../lib/selfcheck.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
 
 const NON_SIA = new Set(['steward']);
@@ -39,8 +40,9 @@ export function shapeOfficer(o, user) {
 }
 
 // One staff record per person: the same email or SIA licence number can't be added twice.
-// When the record has (or is getting) an app login, its email must not already sign in as someone else.
-async function assertNotDuplicate(db, { id = null, email, sia_number, login = false }) {
+// When the record has (or is getting) an app login, its email must not already sign in as someone else —
+// except a company or security manager without a staff record: they can be linked so one login does both.
+async function assertNotDuplicate(db, { id = null, email, sia_number, login = false, link = false }) {
   const e = (email || '').trim().toLowerCase();
   const sia = (sia_number || '').replace(/\s+/g, '');
   if (e || sia) {
@@ -51,9 +53,24 @@ async function assertNotDuplicate(db, { id = null, email, sia_number, login = fa
   }
   if (e && login) {
     const u = await db.one(
-      'SELECT u.role FROM users u WHERE u.email = $1 AND NOT EXISTS (SELECT 1 FROM officers o WHERE o.user_id = u.id AND o.id = $2)', [e, id]);
-    if (u) fail(409, u.role === 'officer' ? 'Another officer already signs in with this email' : 'This email already signs in as a manager or venue user');
+      'SELECT u.id, u.name, u.role FROM users u WHERE u.email = $1 AND NOT EXISTS (SELECT 1 FROM officers o WHERE o.user_id = u.id AND o.id = $2)', [e, id]);
+    if (!u) return null;
+    const linkable = await linkableManager(db, e);
+    if (linkable) {
+      if (link) return linkable;
+      fail(409, `${linkable.name} already signs in as a manager. Link this staff record to their login?`, { can_link: true, user_name: linkable.name });
+    }
+    fail(409, u.role === 'officer' ? 'Another officer already signs in with this email' : 'This email already signs in as a manager or venue user');
   }
+  return null;
+}
+
+// A company or security manager (active or invited) with no staff record yet
+export function linkableManager(db, email) {
+  return db.one(
+    `SELECT u.id, u.name, u.role FROM users u
+      WHERE u.email = lower($1) AND u.role IN ('company','security') AND u.status IN ('active','invited') AND NOT u.system
+        AND NOT EXISTS (SELECT 1 FROM officers o WHERE o.user_id = u.id)`, [(email || '').trim()]);
 }
 
 // Create an app login for a staff record and link it (used by "Invite to app" and when hiring)
@@ -61,6 +78,8 @@ export async function inviteOfficerLogin(id) {
   const o = need(await one('SELECT * FROM officers WHERE id = $1', [id]));
   if (o.user_id) fail(409, 'Officer already has a login');
   if (!o.email) fail(400, 'Add an email address first');
+  const m = await linkableManager({ one }, o.email);
+  if (m) fail(409, `${m.name} already signs in as a manager. Link this staff record to their login?`, { can_link: true, user_name: m.name });
   const u = await tx(async (t) => {
     const created = await createInvite(t, { email: o.email, name: `${o.first_name} ${o.last_name}`, role: 'officer', phone: o.phone });
     await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [o.id, created.id]);
@@ -72,7 +91,7 @@ export async function inviteOfficerLogin(id) {
 export const actions = {
   'officers.list': def(MGR, async (b, { user }) => {
     const rows = await q(
-      `SELECT o.*, u.status AS login_status, u.last_login FROM officers o LEFT JOIN users u ON u.id = o.user_id
+      `SELECT o.*, u.status AS login_status, u.last_login, u.role AS login_role FROM officers o LEFT JOIN users u ON u.id = o.user_id
         WHERE ($1::text IS NULL OR o.status = $1) AND ($2::text IS NULL OR $2 = ANY(o.roles))
           AND ($3::text IS NULL OR (o.first_name || ' ' || o.last_name || ' ' || o.email || ' ' || o.sia_number) ILIKE '%' || $3 || '%')
           AND ($4::uuid[] IS NULL OR o.status = 'active' OR EXISTS (SELECT 1 FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id WHERE a.officer_id = o.id AND s.venue_id = ANY($4)))
@@ -84,7 +103,7 @@ export const actions = {
     const id = b.id || user.officer_id;
     if (user.role === 'venue') fail(403, 'Forbidden');
     await assertOfficerAccess(user, id);
-    const o = need(await one('SELECT o.*, u.status AS login_status, u.last_login FROM officers o LEFT JOIN users u ON u.id = o.user_id WHERE o.id = $1', [id]));
+    const o = need(await one('SELECT o.*, u.status AS login_status, u.last_login, u.role AS login_role FROM officers o LEFT JOIN users u ON u.id = o.user_id WHERE o.id = $1', [id]));
     const [contacts, rates, bans, availability, offboarding] = await Promise.all([
       q('SELECT * FROM emergency_contacts WHERE officer_id = $1', [id]),
       canSeePay(user) || user.officer_id === id
@@ -129,33 +148,53 @@ export const actions = {
       return { id: b.id };
     }
     required(b, 'first_name', 'last_name');
-    await assertNotDuplicate({ one }, { email: f.email, sia_number: f.sia_number, login: !!(b.invite && f.email) });
+    // A manager's email without App access still offers the link (unless they chose to keep the record separate)
+    const manager = await assertNotDuplicate({ one }, { email: f.email, sia_number: f.sia_number, login: !!((b.invite || b.link_user) && f.email), link: !!b.link_user });
+    if (!manager && !b.invite && !b.keep_separate && f.email) {
+      const m = await linkableManager({ one }, f.email);
+      if (m) fail(409, `${m.name} already signs in as a manager. Link this staff record to their login?`, { can_link: true, user_name: m.name });
+    }
     const res = await tx(async (t) => {
       let userId = null;
       let invite = null;
-      if (b.invite && b.email) {
+      if (manager) userId = manager.id;
+      else if (b.invite && b.email) {
         const u = await createInvite(t, { email: b.email, name: `${b.first_name} ${b.last_name}`, role: 'officer', phone: b.phone || '' });
         userId = u.id;
         invite = u;
       }
-      const o = await insert('officers', { ...f, status: f.status || (b.invite ? 'applicant' : 'active'), user_id: userId }, t);
+      const o = await insert('officers', { ...f, status: f.status || (b.invite && !manager ? 'applicant' : 'active'), user_id: userId }, t);
       await seedOnboarding(t, o.id);
       return { o, invite };
     });
-    await audit(user, 'officer.create', 'officer', res.o.id);
+    await audit(user, 'officer.create', 'officer', res.o.id, manager ? { linked_user: manager.id } : undefined);
     return { id: res.o.id, invite_link: res.invite ? await sendInvite(res.invite) : null };
   }),
 
   // Give an existing officer record a login
   'officers.inviteLogin': def(CO, async (b) => ({ invite_link: await inviteOfficerLogin(b.id) })),
 
+  // Link a staff record to the manager login with the same email: one login, "Manager" and "My shifts"
+  'officers.linkLogin': def(CO, async (b, { user }) => {
+    required(b, 'id');
+    const o = need(await one('SELECT * FROM officers WHERE id = $1', [b.id]));
+    if (o.user_id) fail(409, 'This staff record already has a login');
+    const m = need(await linkableManager({ one }, o.email), 'No manager login without a staff record uses this email');
+    await q('UPDATE officers SET user_id = $2 WHERE id = $1', [o.id, m.id]);
+    await audit(user, 'user.works_shifts', 'user', m.id, { on: true, officer_id: o.id });
+    return { ok: true, user_name: m.name };
+  }),
+
   'officers.saveRate': def(CO, async (b, { user }) => {
     required(b, 'officer_id', 'role', 'rate');
+    await guardSelf(user, b.officer_id, { companyOnly: true, message: 'Another company manager needs to change your own pay rate' });
     const r = await insert('officer_rates', { ...pick(b, ['officer_id', 'role', 'rate', 'effective_from']), venue_id: b.venue_id || null });
     await audit(user, 'officer.rate', 'officer', b.officer_id, r);
     return r;
   }),
   'officers.deleteRate': def(CO, async (b, { user }) => {
+    const r = await one('SELECT officer_id FROM officer_rates WHERE id = $1', [b.id]);
+    if (r) await guardSelf(user, r.officer_id, { companyOnly: true, message: 'Another company manager needs to change your own pay rate' });
     await q('DELETE FROM officer_rates WHERE id = $1', [b.id]);
     await audit(user, 'officer.rate_delete', 'officer_rate', b.id);
     return { ok: true };

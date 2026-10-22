@@ -104,10 +104,14 @@ export function AddOfficerSheet({ open, onClose, roles, onDone, status = 'active
   const [run, busy] = useAction();
   const [result, setResult] = useState(null);
   const [dup, setDup] = useState(null);
-  const close = () => { onClose(); setTimeout(() => { setResult(null); setDup(null); form.setV(emptyOfficer(status)); }, 300); };
-  const save = async () => {
+  const [linkable, setLinkable] = useState(null);
+  const close = () => { onClose(); setTimeout(() => { setResult(null); setDup(null); setLinkable(null); form.setV(emptyOfficer(status)); }, 300); };
+  // extra: { link_user } links to the manager login with this email, { keep_separate } doesn't
+  const save = async (extra = {}) => {
     setDup(null);
-    const r = await run(() => api('officers.save', cleanOfficer(form.v)), `${form.v.first_name} added`).catch((e) => { setDup(e.data?.duplicate || null); });
+    setLinkable(null);
+    const r = await run(() => api('officers.save', { ...cleanOfficer(form.v), ...extra }), extra.link_user ? `${form.v.first_name} linked to their manager login` : `${form.v.first_name} added`)
+      .catch((e) => { setDup(e.data?.duplicate || null); setLinkable(e.data?.can_link ? e.data.user_name : null); });
     if (!r) return;
     onDone?.();
     if (r.invite_link) setResult(r);
@@ -117,7 +121,7 @@ export function AddOfficerSheet({ open, onClose, roles, onDone, status = 'active
     <Sheet open={open} onClose={close} title={result ? 'Staff member added' : title}
       footer={result
         ? <><Button variant="secondary" onClick={close}>Done</Button><Button onClick={() => { close(); nav(`${base}/staff/${result.id}`); }}>Open profile</Button></>
-        : <><Button variant="secondary" onClick={close}>Cancel</Button><Button busy={busy} disabled={!form.v.first_name || !form.v.last_name} onClick={save}>Save</Button></>}>
+        : <><Button variant="secondary" onClick={close}>Cancel</Button><Button busy={busy} disabled={!form.v.first_name || !form.v.last_name} onClick={() => save()}>Save</Button></>}>
       {result ? (
         <div className="space-y-4">
           <div className="flex items-center gap-3 rounded-2xl bg-green-soft p-4 text-green"><ShieldCheck size={20} /><span className="text-body font-semibold">Invite created. They can set a password with this link.</span></div>
@@ -131,6 +135,16 @@ export function AddOfficerSheet({ open, onClose, roles, onDone, status = 'active
               <Users size={20} className="shrink-0" />
               <span className="min-w-0 flex-1 text-subhead font-semibold">Already on your staff: {dup.name}{dup.status && dup.status !== 'active' ? ` (${dup.status})` : ''}</span>
               <Button size="sm" variant="secondary" onClick={() => { close(); nav(`${base}/staff/${dup.id}`); }}>Open</Button>
+            </div>
+          )}
+          {linkable && (
+            <div className="space-y-3 rounded-2xl bg-blue-soft p-4">
+              <p className="text-subhead font-semibold text-blue">{linkable} already signs in as a manager. Link this staff record to their login?</p>
+              <p className="text-footnote text-muted">One login does both: they switch to "My shifts" to clock in and see their own pay. No invite is sent, and another manager approves their hours.</p>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" busy={busy} onClick={() => save({ link_user: true })}>Link to their manager login</Button>
+                {!form.v.invite && <Button size="sm" variant="secondary" disabled={busy} onClick={() => save({ keep_separate: true })}>Keep separate</Button>}
+              </div>
             </div>
           )}
           <OfficerCoreFields form={form} roles={roles} statusOptions={statusOptions} />

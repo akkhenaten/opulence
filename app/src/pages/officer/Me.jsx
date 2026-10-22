@@ -12,6 +12,7 @@ import { StatePill, useModules } from '../learn/_parts.jsx';
 import { NotificationsSheet } from './_notify.jsx';
 import { InstallSheet, usePwa } from '../../ui/pwa.jsx';
 import { expiryText, expiryTone, NotLinked } from './_parts.jsx';
+import { SideSwitch } from '../../layouts/SideSwitch.jsx';
 
 const ICON_TONE = { blue: 'bg-blue text-white', green: 'bg-green text-white', amber: 'bg-amber text-white', red: 'bg-red text-white', grey: 'bg-faint text-white', ink: 'bg-ink text-white' };
 const Ico = ({ icon: I, tone = 'blue' }) => <span className={cx('grid h-8 w-8 place-items-center rounded-lg', ICON_TONE[tone])}><I size={18} /></span>;
@@ -35,6 +36,7 @@ export default function Me() {
 
   const account = (
     <Section title="Account">
+      {user.dual && <div className="mb-3"><SideSwitch full /></div>}
       <List>
         <Row left={<Ico icon={Bell} tone="amber" />} title="Notifications" subtitle="What to hear about, phone notifications" onClick={() => setNotes(true)} chevron />
         <Row left={<Ico icon={KeyRound} tone="grey" />} title="Change password" onClick={() => setPw(true)} chevron />

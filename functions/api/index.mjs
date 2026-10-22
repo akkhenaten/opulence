@@ -61,7 +61,7 @@ export async function handler(event) {
     const ip = (h['x-forwarded-for'] || '').split(',')[0].trim() || event.requestContext?.http?.sourceIp || '';
     let user = null;
     if (!entry.public) {
-      user = await userFromEvent(event);
+      user = await userFromEvent(event, body);
       if (!user) return json({ error: 'Please sign in again' }, 401);
       if (!entry.roles.includes(user.role)) return json({ error: 'You do not have access to this' }, 403);
       // An officer login not linked to a profile would turn "own records" filters into "all records"

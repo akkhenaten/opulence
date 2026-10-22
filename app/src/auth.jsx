@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { api, getToken, setToken } from './api.js';
+import { api, getToken, setSide, setToken } from './api.js';
 
 const AuthCtx = createContext(null);
 const DEFAULT_BRAND = { name: 'Orb Security', logo_url: null, color: '#0A6CFF' };
@@ -7,6 +7,8 @@ export const useAuth = () => useContext(AuthCtx);
 
 // Home path per role
 export const HOME = { company: '/company', security: '/security', venue: '/venue', officer: '/officer' };
+// The other side of a manager who also works shifts (null for everyone else)
+export const otherSide = (u) => (!u?.dual ? null : u.role === 'officer' ? u.login_role : 'officer');
 
 export function AuthProvider({ children }) {
   const [state, setState] = useState({ user: null, company: '', ready: !getToken() });
@@ -38,17 +40,34 @@ export function AuthProvider({ children }) {
 
   const signIn = useCallback(async (session) => {
     setToken(session.token);
-    setState((s) => ({ ...s, user: session.user, ready: true }));
+    setSide(null);
+    let { user } = session;
+    // A manager who also works shifts lands on "My shifts" when they are on shift or due on within 2 hours
+    if (user.dual) {
+      const { side } = await api('auth.landing').catch(() => ({ side: 'manager' }));
+      setSide(side);
+      if (side === 'officer') user = (await api('auth.me')).user;
+    }
+    setState((s) => ({ ...s, user, ready: true }));
     refresh();
-    return session.user;
+    return user;
   }, [refresh]);
+
+  // Switch between "Manager" and "My shifts"; returns the user as seen on the new side
+  const switchSide = useCallback(async (side) => {
+    setSide(side);
+    const { user, company_name } = await api('auth.me');
+    setState((s) => ({ ...s, user, company: company_name || s.company, ready: true }));
+    return user;
+  }, []);
 
   const signOut = useCallback(() => {
     setToken(null);
+    setSide(null);
     setState({ user: null, company: '', ready: true });
   }, []);
 
-  return <AuthCtx.Provider value={{ ...state, brand, signIn, signOut, refresh }}>{children}</AuthCtx.Provider>;
+  return <AuthCtx.Provider value={{ ...state, brand, signIn, signOut, refresh, switchSide }}>{children}</AuthCtx.Provider>;
 }
 
 // Notification links are written for company managers; map them into the viewer's portal

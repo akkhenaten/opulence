@@ -7,6 +7,7 @@ import { Avatar, Button, Input, List, Pill, Pressable, Row, Sheet, useAction, us
 import { NotificationsSheet } from '../pages/officer/_notify.jsx';
 import { compressImage } from '../pages/officer/_parts.jsx';
 import { ROLE_LABEL } from './nav.js';
+import { SideSwitch } from './SideSwitch.jsx';
 import { InstallSheet, usePwa } from '../ui/pwa.jsx';
 
 const TITLES = { password: 'Change password', details: 'My details' };
@@ -41,11 +42,13 @@ export function AccountSheet({ open, onClose }) {
                 <div className="truncate text-headline font-bold">{user.name}</div>
                 <div className="truncate text-subhead text-muted">{user.email}</div>
                 <div className="mt-1 flex items-center gap-2">
-                  <Pill tone="blue">{ROLE_LABEL[user.role]}</Pill>
+                  <Pill tone="blue">{ROLE_LABEL[user.login_role || user.role]}</Pill>
+                  {user.dual && <Pill tone="green">Works shifts</Pill>}
                   {user.photo_url && <Button variant="link-red" size="sm" disabled={photoBusy} onClick={() => setPhoto(async () => '', 'Photo removed')}>Remove photo</Button>}
                 </div>
               </div>
             </div>
+            {user.dual && <SideSwitch full />}
             <List>
               <Row left={<UserPen size={20} className="text-blue" />} title="My details" subtitle="Your name and phone number" chevron onClick={() => setView('details')} />
               <Row left={<KeyRound size={20} className="text-blue" />} title="Password" subtitle="Change the password you sign in with" chevron onClick={() => setView('password')} />

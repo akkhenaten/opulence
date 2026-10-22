@@ -1,10 +1,13 @@
 # API reference (auto-generated). POST JSON {action, ...fields} with Authorization: Bearer <token>
 
+A company or security manager with a linked staff record (`user.dual`) adds `_as: 'officer'` to act on the "My shifts" side (officer role, own record only). Without it they act as a manager, `officer_id` is null and `self_officer_id` is their record. Rows on approval lists carry `is_self`, `self_locked` (another manager must approve) and `self_approved`.
+
 ## auth.mjs
 - auth.needsBootstrap [public] fields: -
 - auth.bootstrap [public] fields: password, email, name, company_name
 - auth.login [public] fields: email, password
 - auth.me [ALL] fields: -
+- auth.landing [ALL] fields: - → {side: 'officer'|'manager'} (officer when clocked in or due on within 2 hours)
 - auth.inviteInfo [public] fields: token
 - auth.acceptInvite [public] fields: password, token
 - auth.requestReset [public] fields: email
@@ -86,7 +89,9 @@
 ## officers.mjs
 - officers.list [MGR] fields: status, role, q
 - officers.get [ALL] fields: id, venue_id, invite, email, first_name, last_name, phone
-- officers.inviteLogin [CO] fields: id
+- officers.inviteLogin [CO] fields: id (409 {can_link, user_name} when the email is a manager login)
+- officers.linkLogin [CO] fields: id
+- officers.save also takes link_user (link to the manager login with this email) and keep_separate
 - officers.saveRate [CO] fields: venue_id, officer_id
 - officers.deleteRate [CO] fields: id, officer_id, contacts
 - officers.saveBan [CO] fields: remove, officer_id, venue_id, reason, days
@@ -129,6 +134,8 @@
 - users.update [CO] fields: id, status, venue_ids
 - users.resetLink [CO] fields: id
 - users.resendInvite [CO] fields: id
+- users.setWorksShifts [CO] fields: id, on, officer_id
+- users.mergeOfficerLogin [CO] fields: manager_id, officer_user_id
 - users.managers [ALL] fields: -
 - audit.list [CO] fields: entity, entity_id, limit
 

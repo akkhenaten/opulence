@@ -1,20 +1,21 @@
 import { one, q, tx } from '../lib/db.mjs';
 import { fail, required } from '../lib/http.mjs';
-import { hashPassword, verifyPassword, signToken, randomToken, publicUser } from '../lib/auth.mjs';
+import { hashPassword, verifyPassword, signToken, randomToken, publicUser, resolveActing, ownOfficer } from '../lib/auth.mjs';
 import { sendRawEmail, emailHtml } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
 import { downloadUrl, checkOwnPhoto } from '../lib/storage.mjs';
 import { ALL, pub, def } from './_def.mjs';
 import { getBrand } from '../lib/brand.mjs';
 
-const loadUser = (userId) => one(
-  'SELECT u.*, o.id AS officer_id, COALESCE(o.photo_key, u.photo_key) AS photo_key FROM users u LEFT JOIN officers o ON o.user_id = u.id WHERE u.id = $1', [userId]);
+// A new session always starts on the manager side; the app picks "My shifts" with auth.landing
+const loadUser = async (userId, as) => resolveActing(await one(
+  'SELECT u.*, o.id AS officer_id, COALESCE(o.photo_key, u.photo_key) AS photo_key FROM users u LEFT JOIN officers o ON o.user_id = u.id WHERE u.id = $1', [userId]), as);
 // The signed-in person as the app sees them, with a short-lived link to their photo
 const me = async (u) => ({ ...publicUser(u), photo_url: await downloadUrl(u.photo_key) });
 
 const session = async (userId) => {
   const u = await loadUser(userId);
-  return { token: signToken({ sub: u.id, role: u.role }), user: await me(u) };
+  return { token: signToken({ sub: u.id, role: u.login_role }), user: await me(u) };
 };
 
 const checkPw = (pw) => { if (!pw || pw.length < 8) fail(400, 'Password must be at least 8 characters'); };
@@ -48,6 +49,23 @@ export const actions = {
     return { user: await me(user), company_name: brand.name, brand };
   }),
 
+  // A manager who also works shifts opens "My shifts" when they are clocked in or due on shift within 2 hours
+  'auth.landing': def(ALL, async (_b, { user }) => {
+    const oid = ownOfficer(user);
+    if (!user.dual || !oid) return { side: user.role === 'officer' ? 'officer' : 'manager' };
+    const due = await one(
+      `SELECT 1 FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
+        WHERE a.officer_id = $1 AND a.status IN ('assigned','accepted') AND s.status = 'published'
+          AND (
+            (s.starts_at BETWEEN now() - interval '30 minutes' AND now() + interval '2 hours')
+            OR EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected'
+                        AND NOT EXISTS (SELECT 1 FROM clock_events co WHERE co.assignment_id = a.id AND co.kind = 'out' AND co.status <> 'rejected'))
+          )
+          AND s.ends_at > now() - interval '2 hours'
+        LIMIT 1`, [oid]);
+    return { side: due ? 'officer' : 'manager' };
+  }),
+
   // Your own name, phone and photo. Email is the sign-in, so only the company manager changes it.
   // Officers' details live on their staff record too, so both stay in step.
   'auth.updateMe': def(ALL, async (b, { user }) => {
@@ -57,15 +75,16 @@ export const actions = {
     const photo = b.photo_key === undefined ? undefined : await checkOwnPhoto(user, b.photo_key, fail);
     await tx(async (t) => {
       await t.q('UPDATE users SET name = $2, phone = $3 WHERE id = $1', [user.id, name, phone]);
-      if (user.officer_id) {
+      const oid = ownOfficer(user);
+      if (oid) {
         const cut = name.lastIndexOf(' ');
         const [first, last] = cut > 0 ? [name.slice(0, cut), name.slice(cut + 1)] : [name, ''];
-        await t.q('UPDATE officers SET first_name = $2, last_name = $3, phone = $4 WHERE id = $1', [user.officer_id, first, last, phone]);
-        if (photo !== undefined) await t.q('UPDATE officers SET photo_key = $2 WHERE id = $1', [user.officer_id, photo]);
+        await t.q('UPDATE officers SET first_name = $2, last_name = $3, phone = $4 WHERE id = $1', [oid, first, last, phone]);
+        if (photo !== undefined) await t.q('UPDATE officers SET photo_key = $2 WHERE id = $1', [oid, photo]);
       } else if (photo !== undefined) await t.q('UPDATE users SET photo_key = $2 WHERE id = $1', [user.id, photo]);
     });
     await audit(user, 'user.self_update', 'user', user.id, Object.keys(b).filter((k) => ['name', 'phone', 'photo_key'].includes(k)));
-    return { user: await me(await loadUser(user.id)) };
+    return { user: await me(await loadUser(user.id, user.role === 'officer' ? 'officer' : undefined)) };
   }),
 
   'auth.inviteInfo': pub(async (b) => {

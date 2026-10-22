@@ -10,6 +10,7 @@ import { audit } from '../lib/audit.mjs';
 import { downloadUrl } from '../lib/storage.mjs';
 import { compliance } from './officers.mjs';
 import { getSettings } from './settings.mjs';
+import { guardSelf, markOwn } from '../lib/selfcheck.mjs';
 import { MGR, def } from './_def.mjs';
 
 const VALID = ['ok', 'approved', 'manual'];
@@ -138,22 +139,24 @@ export const actions = {
 
   'clock.exceptions': def(MGR, async (b, { user }) => {
     const scope = await venueScope(user);
-    return q(
-      `SELECT ce.*, o.first_name || ' ' || o.last_name AS officer_name, v.name AS venue_name, v.radius_m, s.starts_at, s.ends_at, u.name AS decided_by_name
+    const rows = await q(
+      `SELECT ce.*, a.officer_id, s.venue_id, o.first_name || ' ' || o.last_name AS officer_name, v.name AS venue_name, v.radius_m, s.starts_at, s.ends_at, u.name AS decided_by_name
          FROM clock_events ce JOIN shift_assignments a ON a.id = ce.assignment_id JOIN shifts s ON s.id = a.shift_id
          JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id LEFT JOIN users u ON u.id = ce.decided_by
         WHERE ($1::uuid[] IS NULL OR s.venue_id = ANY($1)) AND (CASE WHEN $2 THEN ce.status IN ('exception','approved','rejected') ELSE ce.status = 'exception' END)
         ORDER BY ce.ts DESC LIMIT 200`, [scope, !!b.include_decided]);
+    return markOwn(user, rows);
   }),
 
   'clock.decide': def(MGR, async (b, { user }) => {
     required(b, 'id', 'approve');
     const ev = need(await one(
-      `SELECT ce.*, s.venue_id FROM clock_events ce JOIN shift_assignments a ON a.id = ce.assignment_id JOIN shifts s ON s.id = a.shift_id WHERE ce.id = $1`, [b.id]));
+      `SELECT ce.*, s.venue_id, a.officer_id FROM clock_events ce JOIN shift_assignments a ON a.id = ce.assignment_id JOIN shifts s ON s.id = a.shift_id WHERE ce.id = $1`, [b.id]));
     await assertVenue(user, ev.venue_id);
-    await q('UPDATE clock_events SET status = $2, decided_by = $3, decided_at = now() WHERE id = $1', [b.id, b.approve ? 'approved' : 'rejected', user.id]);
+    const self = await guardSelf(user, ev.officer_id, { venueId: ev.venue_id });
+    await q('UPDATE clock_events SET status = $2, decided_by = $3, decided_at = now(), self_approved = $4 WHERE id = $1', [b.id, b.approve ? 'approved' : 'rejected', user.id, !!self.selfApproved]);
     await buildTimesheet(ev.assignment_id);
-    await audit(user, b.approve ? 'clock.approve' : 'clock.reject', 'clock_event', b.id);
+    await audit(user, b.approve ? 'clock.approve' : 'clock.reject', 'clock_event', b.id, self.selfApproved ? { self_approved: true } : undefined);
     return { ok: true };
   }),
 
@@ -163,11 +166,12 @@ export const actions = {
     if (new Date(b.end) <= new Date(b.start)) fail(400, 'End must be after start');
     const a = need(await one('SELECT a.*, s.venue_id FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id WHERE a.id = $1', [b.assignment_id]));
     await assertVenue(user, a.venue_id);
+    const self = await guardSelf(user, a.officer_id, { venueId: a.venue_id });
     const ts = await one('SELECT * FROM timesheets WHERE assignment_id = $1', [a.id]);
     if (ts && (ts.statement_id || ts.invoice_id)) fail(400, 'This timesheet is already on a statement or invoice');
     await q("UPDATE clock_events SET status = 'rejected', decided_by = $2, decided_at = now() WHERE assignment_id = $1 AND status <> 'rejected'", [a.id, user.id]);
-    await q("INSERT INTO clock_events (assignment_id, kind, ts, status, exception_reason, decided_by) VALUES ($1,'in',$2,'manual',$4,$5), ($1,'out',$3,'manual',$4,$5)",
-      [a.id, b.start, b.end, b.reason, user.id]);
+    await q("INSERT INTO clock_events (assignment_id, kind, ts, status, exception_reason, decided_by, self_approved) VALUES ($1,'in',$2,'manual',$4,$5,$6), ($1,'out',$3,'manual',$4,$5,$6)",
+      [a.id, b.start, b.end, b.reason, user.id, !!self.selfApproved]);
     if (a.status !== 'accepted') await q("UPDATE shift_assignments SET status = 'accepted' WHERE id = $1", [a.id]);
     const t = await buildTimesheet(a.id, { force: true });
     if (b.break_minutes != null) await q('UPDATE timesheets SET break_minutes = $2 WHERE id = $1', [t.id, b.break_minutes]);
@@ -175,7 +179,8 @@ export const actions = {
       const s = await getSettings();
       await q('UPDATE timesheets SET hours = $2 WHERE id = $1', [t.id, roundHours(t.actual_start, t.actual_end, b.break_minutes, s.rounding_minutes)]);
     }
-    await audit(user, 'clock.manual', 'assignment', a.id, { start: b.start, end: b.end, reason: b.reason });
+    if (self.selfApproved) await q('UPDATE timesheets SET self_approved = true WHERE id = $1', [t.id]);
+    await audit(user, 'clock.manual', 'assignment', a.id, { start: b.start, end: b.end, reason: b.reason, ...(self.selfApproved ? { self_approved: true } : {}) });
     return { ok: true };
   }),
 

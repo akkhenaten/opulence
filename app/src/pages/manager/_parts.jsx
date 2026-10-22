@@ -1,6 +1,6 @@
 // Helpers shared by the manager operations screens (rota, cover, live, timesheets)
 import { useAuth } from '../../auth.jsx';
-import { addDays, Check as UiCheck, cx } from '../../ui/index.jsx';
+import { addDays, Check as UiCheck, cx, Pill } from '../../ui/index.jsx';
 
 const TZ = 'Europe/London';
 const partsFmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
@@ -47,3 +47,15 @@ export { Chip } from '../../ui/index.jsx';
 export const Check = (p) => <UiCheck round {...p} />;
 
 export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+// A manager who also works shifts: their own rows are marked "You", and locked when another manager has to approve them
+export const SELF_HINT = 'Another manager needs to approve your own hours and pay';
+export function SelfPills({ row, small }) {
+  const k = small ? '!py-0 !text-caption2' : '';
+  return (
+    <>
+      {row.is_self && <Pill tone="ink" className={k}>You</Pill>}
+      {row.self_approved && <Pill tone="amber" className={k}>Self-approved</Pill>}
+    </>
+  );
+}

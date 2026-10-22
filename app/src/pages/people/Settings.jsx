@@ -321,13 +321,13 @@ function UsersTab({ openId }) {
                   <Row key={u.id} onClick={() => setEditing(u)} chevron
                     left={<Avatar name={u.name} src={u.photo_url} size={40} />}
                     title={<span>{u.name}{u.id === me.id && <span className="ml-1.5 text-caption font-semibold text-faint">You</span>}</span>}
-                    subtitle={[u.officer_id ? 'Staff record linked' : null, u.email, u.venues?.length ? u.venues.join(', ') : null, u.last_login ? `Seen ${relative(u.last_login)}` : null].filter(Boolean).join(' · ')}
+                    subtitle={[u.officer_id ? (u.role === 'officer' ? 'Staff record linked' : 'Also works shifts') : null, u.email, u.venues?.length ? u.venues.join(', ') : null, u.last_login ? `Seen ${relative(u.last_login)}` : null].filter(Boolean).join(' · ')}
                     right={<div className="flex flex-col items-end gap-1"><Pill tone="grey">{ROLE_LABEL[u.role]}</Pill>{u.status !== 'active' && <Pill status={u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : 'Disabled'}</Pill>}</div>} />
                 ))}
               </List>
             ) : <Empty title="No users" />}
             {inviting && <InviteSheet venues={venues.data || []} onClose={() => setInviting(false)} onDone={q.reload} />}
-            {editing && <UserSheet u={editing} me={me} venues={venues.data || []} onClose={() => setEditing(null)} onDone={q.reload} />}
+            {editing && <UserSheet u={editing} me={me} all={all} venues={venues.data || []} onClose={() => setEditing(null)} onDone={q.reload} />}
           </>
         );
       }}
@@ -371,7 +371,7 @@ const ROLE_HINT = {
   venue: 'Client contact. Requests cover, signs off timesheets and sees invoices for their venues.',
 };
 
-function UserSheet({ u, me, venues, onClose, onDone }) {
+function UserSheet({ u, me, all = [], venues, onClose, onDone }) {
   const { v, bind, set } = useForm({ name: u.name, email: u.email, phone: u.phone || '', can_see_pay: !!u.can_see_pay, venue_ids: u.venue_ids || [] });
   const [run, busy] = useAction();
   const confirm = useConfirm();
@@ -403,6 +403,7 @@ function UserSheet({ u, me, venues, onClose, onDone }) {
           : <Input label="Sign-in email" type="email" hint={v.email !== u.email ? 'They will sign in with the new email from now on' : undefined} {...bind('email')} />}
         {['security', 'venue'].includes(u.role) && <Chips label="Venues" options={venues.map((x) => ({ value: x.id, label: x.name }))} value={v.venue_ids} onChange={(x) => set('venue_ids', x)} />}
         {u.role === 'security' && <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.can_see_pay} onChange={(x) => set('can_see_pay', x)} label="Can see pay" hint="Officer rates and pay statements" /></div>}
+        {['company', 'security'].includes(u.role) && u.status !== 'disabled' && <WorksShifts u={u} all={all} onDone={() => { onDone(); onClose(); }} />}
         {u.officer_id && <Link to={`/company/staff/${u.officer_id}`} className="inline-flex items-center gap-1.5 text-subhead font-semibold text-blue"><Users size={16} />Staff profile<ChevronRight size={16} /></Link>}
         {link ? <CopyLink link={link} label={u.status === 'invited' ? 'Invite link' : 'Password reset link'} hint="Valid for 48 hours. Share it directly." /> : u.status === 'invited' && u.invite_link && <CopyLink link={u.invite_link} />}
         <div className="flex flex-wrap gap-2 border-t border-line pt-4">
@@ -413,6 +414,47 @@ function UserSheet({ u, me, venues, onClose, onDone }) {
         </div>
       </div>
     </Sheet>
+  );
+}
+
+// A company or security manager who also works shifts: one login, with a staff record behind it
+function WorksShifts({ u, all, onDone }) {
+  const { user: me, refresh } = useAuth();
+  const [run, busy] = useAction();
+  const confirm = useConfirm();
+  const [picking, setPicking] = useState(false);
+  const on = !!u.officer_id;
+  // Officer logins that look like the same person (same name), from before one login could do both
+  const norm = (n) => String(n || '').trim().toLowerCase();
+  const twins = all.filter((x) => x.role === 'officer' && x.status !== 'disabled' && x.officer_id && norm(x.name) === norm(u.name));
+  const done = async () => { if (u.id === me.id) await refresh(); onDone(); };
+  const flip = async (x) => {
+    if (x && twins.length) return setPicking(true);
+    if (!x && !(await confirm({ title: `Stop ${u.name} working shifts?`, body: 'Their staff record, shifts, hours and pay history stay. It just has no login any more, and the "My shifts" side disappears for them.', confirm: 'Turn off', danger: true }))) return;
+    await run(() => api('users.setWorksShifts', { id: u.id, on: x }), x ? 'They can now switch to My shifts' : 'Turned off').catch(() => null);
+    done();
+  };
+  const merge = async (t) => {
+    if (!(await confirm({ title: `Merge ${t.email} into ${u.email}?`, body: `${u.name} signs in with ${u.email} from now on and switches to "My shifts" for their own shifts, pay and training. The officer login ${t.email} is deactivated. Nothing in their history is lost.`, confirm: 'Merge' }))) return;
+    await run(() => api('users.mergeOfficerLogin', { manager_id: u.id, officer_user_id: t.id }), 'Logins merged').catch(() => null);
+    done();
+  };
+  const create = async () => { await run(() => api('users.setWorksShifts', { id: u.id, on: true }), 'They can now switch to My shifts').catch(() => null); done(); };
+  return (
+    <div className="rounded-2xl bg-bg px-4 py-2">
+      <Toggle checked={on} disabled={busy} onChange={flip} label="Also works shifts"
+        hint={on ? 'They switch between Manager and My shifts in the app. Someone else approves their own hours and pay.' : 'Give them a staff record on this login, so they can be rostered, clock in and get paid'} />
+      {!on && twins.length > 0 && !picking && (
+        <p className="pb-2 text-footnote text-muted">{twins.length === 1 ? `${twins[0].name} also has an officer login (${twins[0].email}).` : 'They may also have an officer login.'} <button type="button" className="font-semibold text-blue" onClick={() => setPicking(true)}>Merge it</button></p>
+      )}
+      {picking && (
+        <div className="space-y-2 pb-3 pt-1">
+          <p className="text-footnote text-muted">Keep their existing staff record and history by merging their officer login, or start a new staff record.</p>
+          {twins.map((t) => <Button key={t.id} variant="soft" className="w-full" disabled={busy} onClick={() => merge(t)}>Merge {t.email}</Button>)}
+          <Button variant="secondary" className="w-full" disabled={busy} onClick={create}>New staff record instead</Button>
+        </div>
+      )}
+    </div>
   );
 }
 
