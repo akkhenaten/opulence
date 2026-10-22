@@ -29,7 +29,7 @@ export function OverviewTab({ o, reload, isCo }) {
   const hasTax = 'ni_number' in o;
   const hasBank = 'bank_account' in o;
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <Tile title="Personal details" className="lg:col-span-2">
         <KV items={[
           ['Full name', o.name],
@@ -653,7 +653,7 @@ export function OnboardingTab({ o, reload, onForbidden }) {
       {(tasks) => {
         const done = tasks.filter((t) => t.done).length;
         return (
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Tile title="Progress" icon={ClipboardList}>
               <Stat value={`${tasks.length ? Math.round((done / tasks.length) * 100) : 0}%`} label={`${done} of ${tasks.length} steps done`} />
               <Progress className="mt-4" done={done} total={tasks.length} />
@@ -932,7 +932,7 @@ export function TrainingTab({ o, user, onForbidden }) {
   return (
     <TabLoad q={q}>
       {({ courses, certificates, outside = [] }) => (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Tile title="Courses" pad={false}>
             {courses.length ? (
               <List>

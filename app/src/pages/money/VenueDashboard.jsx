@@ -44,7 +44,6 @@ function Body({ d, name }) {
     <Page title={`${greeting()}${name ? `, ${name}` : ''}`} subtitle={multi ? `${d.venues.length} venues` : d.venues[0].name}
       actions={<><Button variant="secondary" icon={Star} onClick={() => setRate(true)}>Rate staff</Button><Button icon={Plus} to="/venue/cover">Request cover</Button></>}>
       <InstallCard className="mb-4" />
-      <FeedbackTile multi={multi} />
       <RateStaffSheet open={rate} onClose={() => setRate(false)} />
       <Bento>
         <Tile tone="blue" to="/venue/live" title="On site now" icon={Radio} className="col-span-2 lg:row-span-2">
@@ -82,8 +81,9 @@ function Body({ d, name }) {
           <Stat value={d.incidents.filter((i) => i.status !== 'closed').length} label="Open in recent reports" hint={`${d.incidents.length} recent`} />
         </Tile>
       </Bento>
+      <FeedbackTile multi={multi} className="mt-4" />
 
-      <div className="grid gap-x-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-4 lg:grid-cols-2">
         <Section title="Next 48 hours">
           {!d.shifts.length ? <Quiet icon={CalendarDays} text="No shifts booked in the next 48 hours." /> : (
             <List>
@@ -136,7 +136,7 @@ function Body({ d, name }) {
         </Section>
 
         <Section title={multi ? 'Your venues' : 'Your venue'}>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             {d.venues.map((v) => (
               <Tile key={v.id}>
                 <div className="flex items-start gap-3">

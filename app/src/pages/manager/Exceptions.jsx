@@ -35,7 +35,7 @@ export default function Exceptions() {
         const list = tab === 'decided' ? rows.filter((r) => r.status !== 'exception') : rows;
         if (!list.length) return <Empty icon={ShieldCheck} title={tab === 'open' ? 'All clear' : 'No decisions yet'} body={tab === 'open' ? 'No clock exceptions waiting for review.' : undefined} />;
         return (
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {list.map((e) => (
               <div key={e.id} className="rounded-tile border border-black/[0.04] bg-surface p-4 shadow-tile sm:p-5">
                 <div className="flex items-start gap-3">

@@ -65,7 +65,7 @@ export default function Staff() {
                 body={all.length ? 'Try a different filter or search.' : isCo ? 'Add your first officer to start building the rota.' : 'Officers will appear here once the company adds them.'}
                 action={isCo && !all.length && <Button icon={Plus} onClick={() => setAdding(true)}>Add officer</Button>} />
             ) : (
-              <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start">
                 {[rows.slice(0, half), rows.slice(half)].filter((c) => c.length).map((col, i) => (
                   <List key={i}>
                     {col.map((o) => (

@@ -60,7 +60,7 @@ function Board({ rows, filter, setFilter, onOpen, base }) {
       {!rows.length && <div className="mt-4"><Empty icon={Radio} title="Nobody due on site" body="Officers on published shifts from 2 hours ago to 12 hours ahead show here." /></div>}
       {rows.length > 0 && !shown.length && <div className="mt-4"><Empty title="Nobody in this view" /></div>}
 
-      <div className="grid gap-x-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-5 lg:grid-cols-2">
         {groups.map(([id, g]) => {
           const on = g.rows.filter((r) => ON.includes(r.state)).length;
           return (

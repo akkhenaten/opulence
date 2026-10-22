@@ -81,7 +81,7 @@ function Body({ d, sev, setSev, area, setArea, dismiss, busy, openCard, openStaf
         <Empty icon={ShieldCheck} title={d.rows.length ? 'Nothing matches these filters' : 'Everyone is compliant'}
           body={d.rows.length ? undefined : 'No expired, missing or unverified documents and no overdue training.'} />
       ) : (
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {groups.map((g) => {
             const name = `${g.officer.first_name} ${g.officer.last_name}`;
             return (

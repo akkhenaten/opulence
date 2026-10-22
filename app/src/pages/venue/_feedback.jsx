@@ -44,12 +44,12 @@ function ShiftRating({ s, multi, onDone }) {
   );
 }
 
-export function FeedbackTile({ multi }) {
+export function FeedbackTile({ multi, className = 'mb-4' }) {
   const q = useApi('feedback.pending', {});
   const list = q.data || [];
   if (!list.length) return null;
   return (
-    <Tile title="Rate your recent officers" icon={Star} className="mb-4">
+    <Tile title="Rate your recent officers" icon={Star} className={className}>
       <p className="-mt-1 mb-3 text-subhead text-muted">How did they do? It takes a few seconds and helps us send the right people.</p>
       <div className="space-y-3">{list.slice(0, 3).map((s) => <ShiftRating key={s.shift_id} s={s} multi={multi} onDone={q.reload} />)}</div>
     </Tile>

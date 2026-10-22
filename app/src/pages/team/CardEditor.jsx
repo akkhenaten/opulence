@@ -74,7 +74,7 @@ export default function CardEditor() {
           {f.status !== 'published' && <Button icon={Send} disabled={busy || !ok} onClick={publish}>Publish</Button>}
         </>
       )}>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Tile title="Edit">
           <fieldset disabled={!co} className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">

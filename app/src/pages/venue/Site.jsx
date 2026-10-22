@@ -28,7 +28,7 @@ function VenueView({ id }) {
   return (
     <Load q={q} skeleton="rows">
       {(v) => (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Tile tone="soft">
             <div className="flex items-start gap-4">
               {v.photo_url

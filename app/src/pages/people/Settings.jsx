@@ -118,7 +118,7 @@ function BrandingTile({ s, onSaved }) {
   return (
     <Tile title="Branding" icon={Palette} className="mb-4">
       <p className="mb-4 text-subhead text-muted">Your logo and colour go on incident reports, invoices, pay statements, agreements, QR posters, certificates and emails, and show in the app and on the sign-in page.</p>
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="space-y-4">
           <div>
             <div className="mb-1.5 text-footnote font-semibold text-muted">Logo</div>
@@ -223,7 +223,7 @@ function SettingsForm({ s, keys, onSaved, children }) {
 
 function CompanyFields({ b }) {
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Tile title="Company" icon={Building2} className="lg:col-span-2">
         <div className="grid gap-3 sm:grid-cols-2">
           <Input label="Company name" {...b('company_name')} />

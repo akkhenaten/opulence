@@ -104,7 +104,7 @@ function HoursSection({ q }) {
     <Section title="Hours worked">
       <Wait q={q}>
         {() => (!weeks.length ? <Empty icon={Clock} title="No hours in this period" /> : (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Tile title="By week (week starting)"><Columns items={weeks} format={fmt} /></Tile>
             <Tile title="By venue"><HBars items={venues} format={(n) => `${fmt(n)}h`} /></Tile>
           </div>
@@ -123,7 +123,7 @@ function IncidentsSection({ q }) {
           if (!total) return <Empty icon={ShieldAlert} title="No incidents in this period" />;
           const sev = Object.fromEntries(d.bySeverity.map((r) => [r.severity, num(r.n)]));
           return (
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <Tile title="Total" icon={ShieldAlert}>
                 <Stat value={total} label={total === 1 ? 'Incident reported' : 'Incidents reported'} />
                 <div className="mt-4 grid grid-cols-2 gap-2">

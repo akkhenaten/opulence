@@ -74,6 +74,13 @@ export const actions = {
     return u;
   }),
 
+  // Checked when the reset page opens, so an expired link says so before a new password is typed
+  'auth.resetInfo': pub(async (b) => {
+    const u = await one("SELECT 1 FROM users WHERE reset_token = $1 AND reset_expires > now() AND status = 'active'", [b.token || '-']);
+    if (!u) fail(404, 'This reset link has expired');
+    return { ok: true };
+  }),
+
   'auth.acceptInvite': pub(async (b) => {
     required(b, 'token', 'password');
     checkPw(b.password);

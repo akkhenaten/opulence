@@ -48,7 +48,7 @@ function Inbox({ onChange }) {
     <>
       <div className="mb-4"><Segmented value={view} onChange={setView} options={[{ value: 'pending', label: 'To approve' }, { value: 'decided', label: 'Decided' }]} /></div>
       <Load q={q}>{(items) => (items.length ? (
-        <div className="grid gap-3 lg:grid-cols-2">{items.map((it) => <ItemCard key={it.id} it={it} onDone={reload} />)}</div>
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">{items.map((it) => <ItemCard key={it.id} it={it} onDone={reload} />)}</div>
       ) : (
         <Empty icon={Sparkles} title={view === 'pending' ? 'All clear' : 'Nothing decided yet'}
           body={view === 'pending' ? 'Ops AI checks every 5 minutes for no-shows, gaps on the rota, venue requests, feedback and hours that don\'t match.' : undefined} />
@@ -362,7 +362,7 @@ function OpsSettings() {
   }, 'Saved');
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Tile title="What Ops AI does">
         <div className="divide-y divide-line">
           {JOBS.map((j) => <div key={j.k} className="py-2"><Toggle label={j.label} hint={j.hint} checked={v.ops_jobs?.[j.k] !== false} onChange={(c) => set('ops_jobs', { ...v.ops_jobs, [j.k]: c })} /></div>)}

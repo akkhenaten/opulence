@@ -208,7 +208,7 @@ function DetailsTab({ v, clients, isCo, onSaved }) {
   }), 'Venue saved').then(onSaved).catch(() => {});
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Tile title="Venue">
         <div className="space-y-4">
           <Input label="Name" {...f.bind('name')} />
@@ -383,7 +383,7 @@ function RateSheet({ venueId, roles, onClose, onSaved }) {
 
 function PeopleTab({ v, isCo }) {
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <div>
         <Section title="Venue managers" className="mt-0">
           {v.contacts.length ? (

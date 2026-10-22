@@ -44,7 +44,7 @@ function Statements() {
                 <div className="rounded-tile bg-surface px-6 py-12 text-center shadow-tile">
                   <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-soft text-blue"><FileText size={24} /></div>
                   <div className="text-callout font-semibold">No statements yet</div>
-                  <p className="mx-auto mt-1 max-w-sm text-subhead text-muted">Once your timesheets are approved and pay is run, your statements appear here.</p>
+                  <p className="mx-auto mt-1 max-w-sm text-subhead text-muted">Your statement appears here when the company runs pay. You'll be asked to check it before it's issued.</p>
                 </div>
               </div>
             );

@@ -127,8 +127,18 @@ export function Reset() {
   const { token } = useParams();
   const { signIn } = useAuth();
   const nav = useNavigate();
+  const [valid, setValid] = useState(undefined);
   const f = useForm({ password: '', confirm: '' });
   const { err, fieldErr, busy, submit } = useSubmit();
+  useEffect(() => { api('auth.resetInfo', { token }).then(() => setValid(true)).catch(() => setValid(false)); }, [token]);
+  if (valid === undefined) return <Spinner className="min-h-dvh" />;
+  if (!valid) {
+    return (
+      <AuthCard title="Link expired" subtitle="Password reset links work for 2 hours and only once. Request a new one below." footer={<Link to="/login" className="font-semibold text-blue">Go to sign in</Link>}>
+        <Button to="/forgot" size="lg" className="w-full">Send a new link</Button>
+      </AuthCard>
+    );
+  }
   return (
     <AuthCard title="Choose a new password">
       <form className="space-y-4" onSubmit={submit(async () => {
