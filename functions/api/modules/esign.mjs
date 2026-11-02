@@ -97,11 +97,11 @@ export const actions = {
   'esign.placeholders': def(CO, async () => PLACEHOLDERS),
 
   // Live preview while editing a template or sending: sample data unless an officer is chosen
-  'esign.preview': def(CO, async (b) => {
+  'esign.preview': def(CO, async (b, { user }) => {
     const category = CATEGORIES.includes(b.category) ? b.category : 'contract';
     const body = String(b.body || '').slice(0, 100000);
     const s = await getSettings();
-    const signer = await companySigner(b.signatory_id || null).catch(() => null);
+    const signer = await companySigner(b.signatory_id || null, user.id).catch(() => null);
     let values;
     if (b.officer_id) {
       const o = need(await one('SELECT * FROM officers WHERE id = $1', [b.officer_id]), 'Officer not found');

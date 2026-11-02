@@ -37,10 +37,10 @@ export async function markOpened(docType, row, { user, ip, event: ev }) {
   return { ...row, opened_at: r?.opened_at || row.opened_at };
 }
 
-/** The signature the company signs with: the chosen manager, else the default signatory. 400 with setup:true if none. */
-export async function companySigner(userId) {
+/** The signature the company signs with: the chosen manager, else the default signatory, else `fallbackId`. 400 with setup:true if none. */
+export async function companySigner(userId, fallbackId = null) {
   let id = userId;
-  if (!id) id = (await one('SELECT default_signatory_id FROM settings WHERE id = 1'))?.default_signatory_id;
+  if (!id) id = (await one('SELECT default_signatory_id FROM settings WHERE id = 1'))?.default_signatory_id || fallbackId;
   const s = id && await one(
     "SELECT s.user_id, s.name, s.title, s.png FROM user_signatures s JOIN users u ON u.id = s.user_id WHERE s.user_id = $1 AND u.role = 'company' AND u.status = 'active'", [id]);
   if (!s) fail(400, 'Add a saved company signature first (Settings → Your signature), or pick a manager who has one.', { setup: true });

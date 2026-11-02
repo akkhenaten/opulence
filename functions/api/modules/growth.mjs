@@ -248,7 +248,7 @@ export const actions = {
     await guardSelf(user, cur.officer_id, { companyOnly: true, message: OWN_RATE });
     const [uid] = await officerUser(cur.officer_id);
     if (!uid) fail(400, 'This officer has no login yet, so they cannot sign. Invite them first.');
-    const signer = await companySigner(b.signatory_id || null);
+    const signer = await companySigner(b.signatory_id || null, user.id);
     const draft = need(await one(`${agreementSql} WHERE a.id = $1 AND a.status = 'draft'`, [b.id]), 'Agreement not found or already sent');
     const { body, version } = await payBody(draft, signer);
     const a = need(await tx(async (t) => t.one(

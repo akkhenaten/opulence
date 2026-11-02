@@ -56,10 +56,10 @@ async function sendContract({ tpl, o, s, signer, values = {}, user, ip = null, u
 }
 
 // A new policy version: everyone on an older one is asked to sign again; their old signature stays on record as superseded
-async function resignPolicy(tpl, user, signatoryId) {
+async function resignPolicy(tpl, user, signer) {
   const old = await q("SELECT * FROM contracts WHERE template_id = $1 AND status IN ('sent','signed') AND template_version < $2", [tpl.id, tpl.version]);
   if (!old.length) return 0;
-  const [s, signer] = await Promise.all([getSettings(), companySigner(signatoryId || null)]);
+  const s = await getSettings();
   let n = 0;
   for (const c of old) {
     const o = await one('SELECT * FROM officers WHERE id = $1', [c.officer_id]);
@@ -214,6 +214,8 @@ export const actions = {
     if (cur.system && b.active === false) fail(400, 'The pay rise wording is always in use. Edit it instead of switching it off.');
     const changed = cur.title !== title || cur.body !== body;
     const version = changed ? cur.version + 1 : cur.version;
+    // Re-sending needs a company signature: check before anything is saved
+    const signer = changed && cur.category === 'policy' && b.resign ? await companySigner(b.signatory_id || null, user.id) : null;
     const t = await tx(async (t) => {
       const row = await t.one(
         'UPDATE contract_templates SET title = $2, body = $3, active = $4, version = $5, updated_at = now(), updated_by = $6 WHERE id = $1 RETURNING *',
@@ -223,7 +225,7 @@ export const actions = {
     });
     await audit(user, changed ? 'template.version' : 'template.update', 'contract_template', cur.id, { title, version, active: t.active });
     let resent = 0;
-    if (changed && cur.category === 'policy' && b.resign) resent = await resignPolicy(t, user, b.signatory_id);
+    if (signer) resent = await resignPolicy(t, user, signer);
     return { ...t, resent };
   }),
 
@@ -236,7 +238,7 @@ export const actions = {
     if (!ids.length) fail(400, 'Pick at least one officer');
     if (tpl.category !== 'policy' && ids.length > 1) fail(400, 'Contracts go to one officer at a time');
     if (ids.length > 500) ids = ids.slice(0, 500);
-    const [s, signer] = await Promise.all([getSettings(), companySigner(b.signatory_id || null)]);
+    const [s, signer] = await Promise.all([getSettings(), companySigner(b.signatory_id || null, user.id)]);
     const sent = [];
     for (const id of ids) {
       const o = need(await one('SELECT * FROM officers WHERE id = $1', [id]), 'Officer not found');
