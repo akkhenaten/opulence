@@ -5,7 +5,7 @@ import './styles.css';
 import { AuthProvider, HOME, otherSide, portalLink, useAuth } from './auth.jsx';
 import Shell from './layouts/Shell.jsx';
 import { ConfirmProvider, Spinner, ToastProvider } from './ui/index.jsx';
-import { AcceptInvite, Forgot, Login, Reset } from './pages/auth/AuthPages.jsx';
+import { AcceptInvite, Forgot, Login, Reset, Verify } from './pages/auth/AuthPages.jsx';
 
 const P = (f) => lazy(f);
 // Managers (company + security share most screens; components check role for extras)
@@ -160,6 +160,8 @@ function App() {
         <Route path="/forgot" element={<Forgot />} />
         <Route path="/reset/:token" element={<Reset />} />
         <Route path="/invite/:token" element={<AcceptInvite />} />
+        <Route path="/verify" element={<Verify />} />
+        <Route path="/verify/:ref" element={<Verify />} />
 
         <Route element={<Guard role={['company']} />}>
           <Route path="/company" element={<Shell />}>

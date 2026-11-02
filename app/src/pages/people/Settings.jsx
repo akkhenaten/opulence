@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Bell, Building2, ImageUp, MonitorSmartphone, Palette, CalendarDays, ChevronRight, Clock, FileSignature, KeyRound, Landmark, LayoutGrid, Percent, Plus, ReceiptText, Trash2, UserPlus, Users } from 'lucide-react';
+import { Bell, Building2, ImageUp, MonitorSmartphone, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Percent, Plus, ReceiptText, Trash2, UserPlus, Users } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -10,6 +10,7 @@ import { Chips, CopyLink, DOC_KINDS, docKindLabel, SIA_TYPES } from './_parts.js
 import { ROLE_LABEL } from '../../layouts/nav.js';
 import { NOTIFY_KINDS } from '../officer/_notify.jsx';
 import { previewStyle, restoreStyle, styleVars } from '../../ui/style.js';
+import { TemplatesTab } from './_esign.jsx';
 
 const TABS = [
   { value: 'company', label: 'Company details' }, { value: 'users', label: 'Users & access' }, { value: 'rules', label: 'Workforce rules' },
@@ -620,56 +621,6 @@ function RulesTab() {
     </>
   );
 }
-
-/* ---------------- Contract templates ---------------- */
-
-function TemplatesTab() {
-  const q = useApi('contracts.templates');
-  const [editing, setEditing] = useState(null);
-  return (
-    <Load q={q}>
-      {(rows) => (
-        <>
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-subhead text-muted">Templates for e-signature. Placeholders: {'{{company}}'}, {'{{officer}}'}, {'{{utr}}'}.</p>
-            <Button icon={Plus} onClick={() => setEditing({})}>New template</Button>
-          </div>
-          {rows.length ? (
-            <List>
-              {rows.map((t) => (
-                <Row key={t.id} onClick={() => setEditing(t)} chevron left={<FileSignature size={20} className="text-blue" />}
-                  title={t.title} subtitle={t.body.slice(0, 120)} right={t.active ? <Pill tone="green">Active</Pill> : <Pill tone="grey">Archived</Pill>} />
-              ))}
-            </List>
-          ) : <Empty icon={FileSignature} title="No templates" />}
-          {editing && <TemplateSheet t={editing} onClose={() => setEditing(null)} onDone={q.reload} />}
-        </>
-      )}
-    </Load>
-  );
-}
-
-function TemplateSheet({ t, onClose, onDone }) {
-  const { v, bind, set } = useForm({ title: t.title || '', body: t.body || '', active: t.active !== false });
-  const [run, busy] = useAction();
-  const save = async () => {
-    await run(() => api('contracts.saveTemplate', { id: t.id, ...v }), 'Template saved');
-    onDone();
-    onClose();
-  };
-  return (
-    <Sheet open onClose={onClose} title={t.id ? 'Edit template' : 'New template'} size="lg"
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!v.title || !v.body} onClick={save}>Save</Button></>}>
-      <div className="space-y-4">
-        <Input label="Title" {...bind('title')} />
-        <Textarea label="Agreement text" rows={16} hint="Changes apply to contracts sent from now on. Signed contracts are not changed." {...bind('body')} />
-        {t.id && <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.active} onChange={(x) => set('active', x)} label="Active" hint="Archived templates can't be sent" /></div>}
-      </div>
-    </Sheet>
-  );
-}
-
-/* ---------------- Notification defaults ---------------- */
 
 // What everyone gets unless they change it under My account → Notifications
 function NotificationsTab() {

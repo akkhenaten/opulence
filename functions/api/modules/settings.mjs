@@ -12,7 +12,7 @@ import { OPTIONAL_KINDS } from '../lib/notify.mjs';
 
 const FIELDS = ['company_name', 'company_address', 'company_email', 'company_phone', 'vat_number', 'vat_rate', 'company_number', 'bank_name',
   'bank_sort_code', 'bank_account', 'invoice_prefix', 'invoice_cycle', 'payment_terms_days', 'pay_period', 'grace_minutes', 'auto_signoff_days',
-  'rounding_minutes', 'night_start', 'night_end', 'pay_night_uplift', 'pay_weekend_uplift', 'pay_bh_uplift', 'gps_tolerance_m', 'brand_color', 'ui_style'];
+  'rounding_minutes', 'night_start', 'night_end', 'pay_night_uplift', 'pay_weekend_uplift', 'pay_bh_uplift', 'gps_tolerance_m', 'brand_color', 'ui_style', 'default_signatory_id'];
 export const UI_STYLES = ['classic', 'control'];
 const STYLE_NAMES = { classic: 'Classic', control: 'Control Room' };
 
@@ -64,6 +64,13 @@ export const actions = {
       if (f.brand_color && !readable(f.brand_color)) fail(400, 'Pick a darker colour so white text on it stays readable');
     }
     if ('ui_style' in f && !UI_STYLES.includes(f.ui_style)) fail(400, 'Unknown app style');
+    if ('default_signatory_id' in f) {
+      f.default_signatory_id = f.default_signatory_id || null;
+      if (f.default_signatory_id && !(await one(
+        "SELECT 1 FROM user_signatures s JOIN users u ON u.id = s.user_id WHERE s.user_id = $1 AND u.role = 'company' AND u.status = 'active'", [f.default_signatory_id]))) {
+        fail(400, 'That manager has not saved a signature yet');
+      }
+    }
     const before = 'ui_style' in f ? (await getSettings()).ui_style : null;
     if (b.modules) {
       if (typeof b.modules !== 'object' || Object.keys(b.modules).some((k) => !MODULES.includes(k))) fail(400, 'Unknown module');
@@ -87,6 +94,10 @@ export const actions = {
     if (keys.length) await q(`UPDATE settings SET ${keys.map((k, i) => `${k} = $${i + 1}`).join(', ')}, updated_at = now() WHERE id = 1`, keys.map((k) => f[k]));
     clearBrand();
     await audit(user, 'settings.update', 'settings', 1, f);
+    if ('default_signatory_id' in f) {
+      const who = f.default_signatory_id ? (await one('SELECT name FROM user_signatures WHERE user_id = $1', [f.default_signatory_id]))?.name : null;
+      await audit(user, 'settings.signatory', 'settings', 1, { to: f.default_signatory_id, summary: who ? `Documents are now countersigned by ${who}` : 'Default company signatory cleared' });
+    }
     if (before && before !== f.ui_style) await audit(user, 'settings.ui_style', 'settings', 1, { from: before, to: f.ui_style, summary: `App style changed to ${STYLE_NAMES[f.ui_style]}` });
     return getSettings();
   }),

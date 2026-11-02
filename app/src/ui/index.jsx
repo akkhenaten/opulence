@@ -579,7 +579,7 @@ export function ConfirmProvider({ children }) {
     <ConfirmCtx.Provider value={confirm}>
       {children}
       <Sheet open={shown} onClose={() => close(false)} title={st?.title} size="sm"
-        footer={<><Button variant="secondary" onClick={() => close(false)}>Cancel</Button><Button variant={st?.danger ? 'danger' : 'primary'} onClick={() => close(true)}>{st?.confirm || 'Confirm'}</Button></>}>
+        footer={<><Button variant="secondary" onClick={() => close(false)}>{st?.cancel || 'Cancel'}</Button><Button variant={st?.danger ? 'danger' : 'primary'} onClick={() => close(true)}>{st?.confirm || 'Confirm'}</Button></>}>
         {st?.body && <p className="text-body text-muted">{st.body}</p>}
       </Sheet>
     </ConfirmCtx.Provider>

@@ -2,8 +2,10 @@ import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, need } from '../lib/http.mjs';
 import { assertOfficerAccess } from '../lib/scope.mjs';
 import { notify, companyManagers, officerUser } from '../lib/notify.mjs';
-import { Doc } from '../lib/pdf.mjs';
-import { fmtDate, fmtDateTime } from '../lib/time.mjs';
+import { fmtDate } from '../lib/time.mjs';
+import { parse, fill, unknownPlaceholders } from '../lib/docmarkup.mjs';
+import { nextReference, event, events, markOpened, companySigner, signerColumns, uaOf, sealQuietly, pdfFor } from '../lib/esign.mjs';
+import { CATEGORIES, officerValues, typedValues, contractInput, companyOf } from './esign.mjs';
 import { audit } from '../lib/audit.mjs';
 import { getSettings } from './settings.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
@@ -31,6 +33,45 @@ export async function tickOnboarding(officerId, code) {
 }
 
 const ownOrManager = (user, officerId) => (user.role === 'officer' ? user.officer_id : officerId);
+
+const contractFile = (c, name) => `${c.title} - ${name} - ${c.reference}.pdf`;
+
+// Fill the template for one officer, snapshot the countersignature, number it and tell the officer
+async function sendContract({ tpl, o, s, signer, values = {}, user, ip = null, ua = null }) {
+  const body = fill(tpl.body, { ...officerValues(s, o, signer), ...values });
+  const c = await tx(async (t) => insert('contracts', {
+    officer_id: o.id, template_id: tpl.id, template_version: tpl.version, category: tpl.category, title: tpl.title, body,
+    reference: await nextReference(tpl.category, t), sent_at: new Date(), ...signerColumns(signer),
+  }, t));
+  await event('contract', c.id, 'sent', { user, ip, ua });
+  const uid = await officerUser(o.id);
+  if (uid.length) {
+    await notify(uid, {
+      kind: 'contract', title: tpl.category === 'policy' ? 'Policy to read and sign' : 'Contract ready to sign', body: `${tpl.title} · Ref ${c.reference}`,
+      link: `/officer/contracts/${c.id}`, email: true,
+    });
+    await event('contract', c.id, 'emailed', {});
+  }
+  return c;
+}
+
+// A new policy version: everyone on an older one is asked to sign again; their old signature stays on record as superseded
+async function resignPolicy(tpl, user, signatoryId) {
+  const old = await q("SELECT * FROM contracts WHERE template_id = $1 AND status IN ('sent','signed') AND template_version < $2", [tpl.id, tpl.version]);
+  if (!old.length) return 0;
+  const [s, signer] = await Promise.all([getSettings(), companySigner(signatoryId || null)]);
+  let n = 0;
+  for (const c of old) {
+    const o = await one('SELECT * FROM officers WHERE id = $1', [c.officer_id]);
+    if (!o || o.status === 'left') continue;
+    const next = await sendContract({ tpl, o, s, signer, user });
+    await q("UPDATE contracts SET status = 'superseded', superseded_by = $2, superseded_at = now() WHERE id = $1", [c.id, next.id]);
+    await event('contract', c.id, 'superseded', { user });
+    n++;
+  }
+  await audit(user, 'policy.resign', 'contract_template', tpl.id, { version: tpl.version, officers: n, summary: `${n} officers asked to sign version ${tpl.version} of "${tpl.title}"` });
+  return n;
+}
 
 export const actions = {
   // ---- Time off & absence ----
@@ -142,76 +183,125 @@ export const actions = {
     return { ok: true, invite_link };
   }),
 
-  // ---- Contracts / e-signing ----
-  'contracts.templates': def(CO, async () => q('SELECT * FROM contract_templates ORDER BY active DESC, created_at DESC')),
-  'contracts.saveTemplate': def(CO, async (b) => {
+  // ---- Contracts, policies / e-signing ----
+  'contracts.templates': def(CO, async () => q(
+    `SELECT t.*,
+            COALESCE((SELECT json_agg(json_build_object('version', v.version, 'title', v.title, 'body', v.body, 'created_at', v.created_at, 'created_by_name', u.name) ORDER BY v.version DESC)
+                        FROM contract_template_versions v LEFT JOIN users u ON u.id = v.created_by WHERE v.template_id = t.id), '[]') AS versions,
+            (SELECT count(*) FROM contracts c WHERE c.template_id = t.id AND c.status IN ('sent','signed'))::int AS asked,
+            (SELECT count(*) FROM contracts c WHERE c.template_id = t.id AND c.status = 'signed')::int AS signed,
+            (SELECT count(*) FROM contracts c WHERE c.template_id = t.id AND c.status IN ('sent','signed') AND c.template_version < t.version)::int AS on_older
+       FROM contract_templates t ORDER BY t.category, t.active DESC, t.created_at DESC`)),
+
+  // Changed wording makes a new version; a policy can ask everyone who signed an older one to sign again
+  'contracts.saveTemplate': def(CO, async (b, { user }) => {
     required(b, 'title', 'body');
-    if (b.id) return one('UPDATE contract_templates SET title = $2, body = $3, active = $4 WHERE id = $1 RETURNING *', [b.id, b.title, b.body, b.active !== false]);
-    return insert('contract_templates', { title: b.title, body: b.body });
+    const title = String(b.title).trim().slice(0, 200);
+    const body = String(b.body).slice(0, 100000);
+    const unknown = unknownPlaceholders(body);
+    if (unknown.length) fail(400, `Unknown placeholder {{${unknown[0]}}}. Pick one from the list.`, { unknown });
+    if (!b.id) {
+      const category = CATEGORIES.includes(b.category) && b.category !== 'pay_rise' ? b.category : 'contract';
+      const t = await tx(async (t) => {
+        const row = await insert('contract_templates', { title, body, category, updated_by: user.id }, t);
+        await t.q('INSERT INTO contract_template_versions (template_id, version, title, body, created_by) VALUES ($1,1,$2,$3,$4)', [row.id, title, body, user.id]);
+        return row;
+      });
+      await audit(user, 'template.create', 'contract_template', t.id, { title, category });
+      return { ...t, resent: 0 };
+    }
+    const cur = need(await one('SELECT * FROM contract_templates WHERE id = $1', [b.id]), 'Template not found');
+    if (cur.system && b.active === false) fail(400, 'The pay rise wording is always in use. Edit it instead of switching it off.');
+    const changed = cur.title !== title || cur.body !== body;
+    const version = changed ? cur.version + 1 : cur.version;
+    const t = await tx(async (t) => {
+      const row = await t.one(
+        'UPDATE contract_templates SET title = $2, body = $3, active = $4, version = $5, updated_at = now(), updated_by = $6 WHERE id = $1 RETURNING *',
+        [cur.id, title, body, b.active !== false, version, user.id]);
+      if (changed) await t.q('INSERT INTO contract_template_versions (template_id, version, title, body, created_by) VALUES ($1,$2,$3,$4,$5)', [cur.id, version, title, body, user.id]);
+      return row;
+    });
+    await audit(user, changed ? 'template.version' : 'template.update', 'contract_template', cur.id, { title, version, active: t.active });
+    let resent = 0;
+    if (changed && cur.category === 'policy' && b.resign) resent = await resignPolicy(t, user, b.signatory_id);
+    return { ...t, resent };
   }),
 
-  'contracts.send': def(CO, async (b, { user }) => {
-    required(b, 'officer_id', 'template_id');
-    const [tpl, o, s] = await Promise.all([
-      need(await one('SELECT * FROM contract_templates WHERE id = $1', [b.template_id])),
-      need(await one('SELECT * FROM officers WHERE id = $1', [b.officer_id])),
-      getSettings(),
-    ]);
-    const body = tpl.body.replaceAll('{{company}}', s.company_name).replaceAll('{{officer}}', `${o.first_name} ${o.last_name}`).replaceAll('{{utr}}', o.utr || '________');
-    const c = await insert('contracts', { officer_id: o.id, template_id: tpl.id, title: tpl.title, body });
-    await notify(await officerUser(o.id), { kind: 'contract', title: 'Contract ready to sign', body: tpl.title, link: `/officer/contracts/${c.id}`, email: true });
-    await audit(user, 'contract.send', 'officer', o.id, { contract: c.id });
-    return c;
+  'contracts.send': def(CO, async (b, { user, ip, event: ev }) => {
+    required(b, 'template_id');
+    const tpl = need(await one('SELECT * FROM contract_templates WHERE id = $1', [b.template_id]), 'Template not found');
+    if (tpl.category === 'pay_rise') fail(400, 'Pay rises are sent from the officer\'s Growth tab');
+    if (!tpl.active) fail(400, 'That template is switched off');
+    let ids = b.all_active ? (await q("SELECT id FROM officers WHERE status = 'active'")).map((r) => r.id) : [...new Set([b.officer_ids, b.officer_id].flat().filter(Boolean))];
+    if (!ids.length) fail(400, 'Pick at least one officer');
+    if (tpl.category !== 'policy' && ids.length > 1) fail(400, 'Contracts go to one officer at a time');
+    if (ids.length > 500) ids = ids.slice(0, 500);
+    const [s, signer] = await Promise.all([getSettings(), companySigner(b.signatory_id || null)]);
+    const sent = [];
+    for (const id of ids) {
+      const o = need(await one('SELECT * FROM officers WHERE id = $1', [id]), 'Officer not found');
+      sent.push(await sendContract({ tpl, o, s, signer, values: typedValues(b.values), user, ip, ua: uaOf(ev) }));
+    }
+    await audit(user, 'contract.send', tpl.category, tpl.id, { officers: ids.length, template: tpl.title, version: tpl.version, references: sent.map((c) => c.reference).slice(0, 20) });
+    return sent.length === 1 ? sent[0] : { sent: sent.length, contracts: sent.map((c) => ({ id: c.id, reference: c.reference, officer_id: c.officer_id })) };
   }),
 
   'contracts.list': def(['company', 'officer'], async (b, { user }) => {
+    const cols = `c.id, c.title, c.status, c.category, c.reference, c.template_id, c.template_version, c.signed_name, c.signed_at, c.created_at, c.sent_at,
+                  c.opened_at, c.last_reminded_at, c.company_name_signed, c.officer_id`;
     // Company-wide register when a manager asks without an officer
     if (user.role === 'company' && !b.officer_id) {
       return q(
-        `SELECT c.id, c.title, c.status, c.signed_name, c.signed_at, c.created_at, c.officer_id, o.first_name || ' ' || o.last_name AS officer_name
+        `SELECT ${cols}, o.first_name || ' ' || o.last_name AS officer_name, o.user_id IS NOT NULL AS has_login
            FROM contracts c JOIN officers o ON o.id = c.officer_id
-          WHERE ($1::text IS NULL OR c.status = $1) AND ($2::text IS NULL OR (o.first_name || ' ' || o.last_name || ' ' || c.title) ILIKE '%' || $2 || '%')
-          ORDER BY c.created_at DESC LIMIT 500`, [b.status || null, b.q?.trim() || null]);
+          WHERE ($1::text IS NULL OR c.status = $1) AND ($2::text IS NULL OR (o.first_name || ' ' || o.last_name || ' ' || c.title || ' ' || COALESCE(c.reference, '')) ILIKE '%' || $2 || '%')
+            AND ($3::text IS NULL OR c.category = $3)
+          ORDER BY c.created_at DESC LIMIT 500`, [b.status || null, b.q?.trim() || null, b.category || null]);
     }
-    return q('SELECT id, title, status, signed_name, signed_at, created_at FROM contracts WHERE officer_id = $1 ORDER BY created_at DESC', [ownOrManager(user, b.officer_id)]);
+    return q(`SELECT ${cols} FROM contracts c WHERE c.officer_id = $1 ORDER BY c.created_at DESC`, [ownOrManager(user, b.officer_id)]);
   }),
 
-  'contracts.get': def(['company', 'officer'], async (b, { user }) => {
-    const c = need(await one('SELECT * FROM contracts WHERE id = $1', [b.id]));
+  'contracts.get': def(['company', 'officer'], async (b, { user, ip, event: ev }) => {
+    let c = need(await one('SELECT * FROM contracts WHERE id = $1', [b.id]));
     if (user.role === 'officer' && c.officer_id !== user.officer_id) fail(403, 'Forbidden');
-    return c;
+    if (user.role === 'officer') c = await markOpened('contract', c, { user, ip, event: ev });
+    const officer = await one("SELECT first_name || ' ' || last_name AS name FROM officers WHERE id = $1", [c.officer_id]);
+    return {
+      ...c, officer_name: officer?.name, company: companyOf(c), blocks: parse(c.body), events: await events('contract', c.id),
+      ack: c.category === 'policy' ? 'I have read and understood this policy and agree to follow it.' : null,
+    };
   }),
 
-  'contracts.sign': def(['officer'], async (b, { user, ip }) => {
+  'contracts.sign': def(['officer'], async (b, { user, ip, event: ev }) => {
     required(b, 'id', 'signature', 'signed_name');
-    if (!String(b.signature).startsWith('data:image/png;base64,') || b.signature.length > 400000) fail(400, 'Invalid signature');
+    if (!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(String(b.signature)) || b.signature.length > 400000) fail(400, 'Invalid signature');
+    const name = String(b.signed_name).trim().slice(0, 120);
+    if (!name) fail(400, 'Type your full name');
+    const ua = uaOf(ev);
     const c = need(await one(
-      "UPDATE contracts SET status = 'signed', signature = $3, signed_name = $4, signed_at = now(), signed_ip = $5 WHERE id = $1 AND officer_id = $2 AND status = 'sent' RETURNING *",
-      [b.id, user.officer_id, b.signature, b.signed_name, ip]), 'Contract not found or already signed');
-    await tickOnboarding(user.officer_id, 'contract');
-    await notify(await companyManagers(), { kind: 'contract', title: 'Contract signed', body: `${b.signed_name} signed "${c.title}"`, link: `/company/staff/${user.officer_id}` });
-    await audit(user, 'contract.sign', 'contract', c.id, { ip });
-    return { ok: true };
+      "UPDATE contracts SET status = 'signed', signature = $3, signed_name = $4, signed_at = now(), signed_ip = $5, signed_ua = $6 WHERE id = $1 AND officer_id = $2 AND status = 'sent' RETURNING *",
+      [b.id, user.officer_id, b.signature, name, ip, ua]), 'Document not found or already signed');
+    await event('contract', c.id, 'signed', { user, name, ip, ua });
+    const out = await sealQuietly('contract', c, await contractInput(c), { userId: user.id, filename: contractFile(c, name) });
+    if (c.category !== 'policy') await tickOnboarding(user.officer_id, 'contract');
+    await notify(await companyManagers(), {
+      kind: 'contract', title: c.category === 'policy' ? 'Policy signed' : 'Contract signed', body: `${name} signed "${c.title}" (${c.reference})`, link: `/company/staff/${user.officer_id}`,
+    });
+    await audit(user, 'contract.sign', 'contract', c.id, { ip, reference: c.reference });
+    return { ok: true, reference: c.reference, filename: out?.filename };
   }),
 
   'contracts.void': def(CO, async (b, { user }) => {
-    await q("UPDATE contracts SET status = 'void' WHERE id = $1", [b.id]);
-    await audit(user, 'contract.void', 'contract', b.id);
+    const c = need(await one("UPDATE contracts SET status = 'void' WHERE id = $1 AND status = 'sent' RETURNING *", [b.id]), 'Only documents still waiting for a signature can be voided');
+    await event('contract', c.id, 'voided', { user });
+    await audit(user, 'contract.void', 'contract', c.id, { reference: c.reference });
     return { ok: true };
   }),
 
   'contracts.pdf': def(['company', 'officer'], async (b, { user }) => {
     const c = need(await one('SELECT c.*, o.first_name, o.last_name FROM contracts c JOIN officers o ON o.id = c.officer_id WHERE c.id = $1', [b.id]));
     if (user.role === 'officer' && c.officer_id !== user.officer_id) fail(403, 'Forbidden');
-    const s = await getSettings();
-    const d = await Doc.create(c.title);
-    await d.header(s, 'Agreement', c.title);
-    d.text(c.body, { size: 10, gap: 5 });
-    d.section('Signature');
-    if (c.signature) await d.image(c.signature, { width: 180 });
-    d.meta([['Signed by', c.signed_name || 'Not signed'], ['Signed at', c.signed_at ? fmtDateTime(c.signed_at) : '-']], [['IP address', c.signed_ip || '-'], ['Contractor', `${c.first_name} ${c.last_name}`]]);
-    d.footer(`${s.company_name} - electronically signed`);
-    return { filename: `${c.title} - ${c.first_name} ${c.last_name}.pdf`, pdf: await d.base64() };
+    return pdfFor('contract', c, () => contractInput(c), { userId: user.id, filename: contractFile(c, `${c.first_name} ${c.last_name}`) });
   }),
 
   // ---- Offboarding ----

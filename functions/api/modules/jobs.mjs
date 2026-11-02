@@ -11,6 +11,7 @@ import { extendSeries } from './cover.mjs';
 import { banJobs } from './bans.mjs';
 import { applyAgreements } from './growth.mjs';
 import { payRunJobs } from './payruns.mjs';
+import { esignReminders } from '../lib/esign.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in
 async function lateAlerts(s) {
@@ -131,6 +132,8 @@ export async function runJobs() {
   if (new Date().getUTCMinutes() < 5) result.bans = await banJobs().catch((e) => `error: ${e.message}`);
   // Signed pay rises start on their date once any goals they depend on are met, once an hour
   if (new Date().getUTCMinutes() < 5) result.agreements = await applyAgreements().catch((e) => `error: ${e.message}`);
+  // Unsigned contracts, policies and pay rises get a nudge after 3 and 7 days, once an hour
+  if (new Date().getUTCMinutes() < 5) result.esign = await esignReminders().catch((e) => `error: ${e.message}`);
   // Pay review reminders and deadlines
   result.payRuns = await payRunJobs().catch((e) => `error: ${e.message}`);
   console.log('[jobs]', JSON.stringify(result));

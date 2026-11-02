@@ -8,7 +8,7 @@ import { tickOnboarding } from './hr.mjs';
 import { canSeePay } from '../lib/auth.mjs';
 
 // Saved invoices and pay statements are money documents
-const MONEY_KINDS = ['invoice', 'pay_statement'];
+const MONEY_KINDS = ['invoice', 'pay_statement', 'pay_agreement'];
 const hidesMoney = (user) => user.role === 'security' && !canSeePay(user);
 
 const ONBOARD_FOR_KIND = { sia: 'sia', rtw: 'rtw', id: 'id', poa: 'poa' };
@@ -78,7 +78,7 @@ export const actions = {
 
   'docs.delete': def(ALL, async (b, { user }) => {
     const d = need(await one('SELECT * FROM documents WHERE id = $1', [b.id]));
-    if (d.system) fail(400, 'Saved invoices and pay statements are kept for your records and cannot be deleted');
+    if (d.system) fail(400, 'Saved invoices, pay statements and signed documents are kept for your records and cannot be deleted');
     await assertOwner(user, d.owner_type, d.owner_id, true);
     if (user.role === 'officer' && d.verified_at) fail(400, 'Verified documents can only be removed by the company');
     await q('DELETE FROM documents WHERE id = $1', [b.id]);

@@ -154,3 +154,72 @@ export function Reset() {
     </AuthCard>
   );
 }
+
+const VERIFY_STATUS = {
+  signed: ['Signed and sealed', 'bg-green-soft text-green'], sent: ['Awaiting signature', 'bg-amber-soft text-amber'],
+  void: ['Void', 'bg-red-soft text-red'], superseded: ['Replaced by a newer version', 'bg-fill text-muted'], draft: ['Not sent', 'bg-fill text-muted'],
+};
+
+/** Public check behind the QR code on a signed PDF: is this reference real, and is my copy the original? */
+export function Verify() {
+  const { ref: given } = useParams();
+  const navigate = useNavigate();
+  const [ref, setRef] = useState(given || '');
+  const [r, setR] = useState(null);
+  const [file, setFile] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const check = async (reference, sha256) => {
+    setBusy(true); setErr('');
+    try { setR(await api('esign.verify', { reference, sha256 })); } catch (x) { setErr(x.message); } finally { setBusy(false); }
+  };
+  useEffect(() => { if (given) { setRef(given); setFile(null); check(given); } }, [given]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hashFile = async (f) => {
+    if (!f) return;
+    setFile({ name: f.name });
+    const buf = await f.arrayBuffer();
+    const hex = [...new Uint8Array(await crypto.subtle.digest('SHA-256', buf))].map((b) => b.toString(16).padStart(2, '0')).join('');
+    check(r?.reference || ref, hex);
+  };
+  const [label, tone] = VERIFY_STATUS[r?.status] || [];
+  return (
+    <AuthCard title="Check a signed document" subtitle="Enter the reference printed on the document, or scan its QR code.">
+      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); const v = ref.trim().toUpperCase(); if (v) navigate(`/verify/${encodeURIComponent(v)}`); }}>
+        <Input className="flex-1" aria-label="Reference" placeholder="ORB-C-2026-0142" value={ref} onChange={(e) => setRef(e.target.value)} autoCapitalize="characters" spellCheck={false} />
+        <Button type="submit" variant="secondary" disabled={!ref.trim()}>Check</Button>
+      </form>
+      <div className="mt-5" aria-live="polite">
+        {busy && !r && <Spinner className="py-8" />}
+        <Err msg={err} />
+        {r && !r.found && <Err msg="No document has this reference. Check it was typed exactly as printed." />}
+        {r?.found && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-line p-4">
+              <span className={`inline-flex rounded-full px-2.5 py-1 text-footnote font-semibold ${tone}`}>{label}</span>
+              <div className="mt-2 text-headline font-bold">{r.title}</div>
+              <div className="text-subhead text-muted">{r.type} · <span className="num">{r.reference}</span></div>
+              <dl className="mt-3 space-y-1.5 text-subhead">
+                <div className="flex justify-between gap-3"><dt className="text-muted">Issued by</dt><dd className="text-right font-semibold">{r.company}{r.signatory ? ` (${r.signatory})` : ''}</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-muted">Officer</dt><dd className="text-right font-semibold">{r.officer}</dd></div>
+                {r.signed_at && <div className="flex justify-between gap-3"><dt className="text-muted">Signed</dt><dd className="text-right font-semibold">{new Date(r.signed_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/London' })}</dd></div>}
+              </dl>
+              {r.fingerprint && <p className="mt-3 break-all font-mono text-caption text-faint">Fingerprint {r.fingerprint}</p>}
+            </div>
+            {r.sealed && (
+              <div className="rounded-2xl bg-bg p-4">
+                <div className="text-subhead font-semibold">Is your copy the original?</div>
+                <p className="mt-0.5 text-footnote text-muted">Pick the PDF. It is checked on this device and is not uploaded.</p>
+                <label className="pressable mt-3 flex h-11 cursor-pointer items-center justify-center rounded-control border border-line bg-surface text-subhead font-semibold text-blue">
+                  {file ? 'Pick another PDF' : 'Choose PDF'}
+                  <input type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(e) => hashFile(e.target.files?.[0])} />
+                </label>
+                {file && r.match === true && <p role="status" className="mt-3 rounded-control bg-green-soft px-3.5 py-2.5 text-subhead font-semibold text-green">{file.name} is the original signed copy.</p>}
+                {file && r.match === false && <p role="alert" className="mt-3 rounded-control bg-red-soft px-3.5 py-2.5 text-subhead font-semibold text-red">{file.name} does not match. It has been changed, or it is a different document.</p>}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </AuthCard>
+  );
+}

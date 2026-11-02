@@ -4,8 +4,10 @@ import { fail, required, need } from '../lib/http.mjs';
 import { assertOfficerAccess } from '../lib/scope.mjs';
 import { canSeePay } from '../lib/auth.mjs';
 import { notify, companyManagers, officerUser } from '../lib/notify.mjs';
-import { Doc } from '../lib/pdf.mjs';
-import { fmtDate, fmtDateTime, londonDate } from '../lib/time.mjs';
+import { parse, fill } from '../lib/docmarkup.mjs';
+import { nextReference, event, events, markOpened, companySigner, uaOf, sealQuietly, pdfFor } from '../lib/esign.mjs';
+import { officerValues, companyOf, TYPE_LABEL } from './esign.mjs';
+import { fmtDate, londonDate } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { getSettings } from './settings.mjs';
 import { officerRate } from './money.mjs';
@@ -33,7 +35,44 @@ const agreementSql = `SELECT a.*, r.name AS role_name, v.name AS venue_name, o.f
 async function withConditions(rows) {
   const ids = [...new Set(rows.flatMap((a) => a.condition_goal_ids || []))];
   const goals = ids.length ? await q('SELECT id, title, status FROM goals WHERE id = ANY($1::uuid[])', [ids]) : [];
-  return rows.map((a) => ({ ...a, signature_png: undefined, conditions: (a.condition_goal_ids || []).map((id) => goals.find((g) => g.id === id)).filter(Boolean) }));
+  return rows.map((a) => ({ ...a, signature_png: undefined, company_signature: undefined, conditions: (a.condition_goal_ids || []).map((id) => goals.find((g) => g.id === id)).filter(Boolean) }));
+}
+
+const payFile = (a) => `${a.first_name} ${a.last_name} - Pay rise agreement - ${fmtDate(a.effective_from)}${a.reference ? ` - ${a.reference}` : ''}.pdf`;
+
+// The pay rise wording (an editable template) filled for this agreement
+async function payBody(a, signer) {
+  const [tpl, s, o, [full]] = await Promise.all([
+    one("SELECT * FROM contract_templates WHERE category = 'pay_rise' ORDER BY system DESC, created_at LIMIT 1"),
+    getSettings(), one('SELECT * FROM officers WHERE id = $1', [a.officer_id]), withConditions([a]),
+  ]);
+  const values = {
+    ...officerValues(s, o, signer), rate: money(a.new_rate), current_rate: a.current_rate != null ? money(a.current_rate) : '', role: a.role_name,
+    venue: a.venue_name || 'all venues', start_date: fmtDate(a.effective_from),
+    conditions: full.conditions.length ? ', once the goals listed are met. If they are met after that date, the new rate starts on the day they are met' : '',
+  };
+  return { body: fill(tpl?.body || '{{company}} agrees to pay {{officer}} {{rate}} per hour for {{role}} work at {{venue}} from {{start_date}}{{conditions}}.', values), version: tpl?.version || 1 };
+}
+
+// What renderSigned needs for a pay rise: the frozen wording, the terms panel and both signatures
+async function payInput(a) {
+  const [s, [full], o] = await Promise.all([getSettings(), withConditions([a]), one('SELECT email FROM officers WHERE id = $1', [a.officer_id])]);
+  return {
+    company: s,
+    doc: {
+      kind: 'pay_rise', typeLabel: TYPE_LABEL.pay_rise, title: 'Pay rise agreement', reference: a.reference, issuedAt: a.sent_at || a.created_at,
+      version: a.template_version, officerName: `${a.first_name} ${a.last_name}`, blocks: parse(a.body || (await payBody(a, null)).body),
+      terms: {
+        left: [['Role', a.role_name], ['Venue', a.venue_name || 'All venues'], ['Starts', fmtDate(a.effective_from)]],
+        right: [['Current rate', a.current_rate != null ? `${money(a.current_rate)}/h` : '-'], ['New rate', `${money(a.new_rate)}/h`, true]],
+        conditions: full.conditions.map((g) => ({ title: g.title, status: g.status })),
+      },
+    },
+    signers: {
+      company: companyOf(a),
+      officer: a.signed_at ? { name: a.signed_name, png: a.signature_png, at: a.signed_at, email: o?.email, ip: a.signed_ip, ua: a.signed_ua } : null,
+    },
+  };
 }
 
 async function agreement(user, id) {
@@ -204,60 +243,66 @@ export const actions = {
     return a;
   }),
 
-  'payAgreements.send': def(CO, async (b, { user }) => {
+  'payAgreements.send': def(CO, async (b, { user, ip, event: ev }) => {
     const cur = need(await one('SELECT officer_id FROM pay_agreements WHERE id = $1', [b.id]), 'Agreement not found or already sent');
     await guardSelf(user, cur.officer_id, { companyOnly: true, message: OWN_RATE });
-    const a = need(await one("UPDATE pay_agreements SET status = 'sent', updated_at = now() WHERE id = $1 AND status = 'draft' RETURNING *", [b.id]), 'Agreement not found or already sent');
-    const [uid] = await officerUser(a.officer_id);
+    const [uid] = await officerUser(cur.officer_id);
     if (!uid) fail(400, 'This officer has no login yet, so they cannot sign. Invite them first.');
-    await notify([uid], { kind: 'pay', title: 'Pay rise to sign', body: `${money(a.new_rate)}/h from ${fmtDate(a.effective_from)}. Read and sign it in the app.`, link: `/officer/agreements/${a.id}`, email: true });
-    await audit(user, 'agreement.send', 'officer', a.officer_id, { id: a.id });
-    return { ok: true };
+    const signer = await companySigner(b.signatory_id || null);
+    const draft = need(await one(`${agreementSql} WHERE a.id = $1 AND a.status = 'draft'`, [b.id]), 'Agreement not found or already sent');
+    const { body, version } = await payBody(draft, signer);
+    const a = need(await tx(async (t) => t.one(
+      `UPDATE pay_agreements SET status = 'sent', updated_at = now(), sent_at = now(), body = $2, template_version = $3, reference = $4,
+              signatory_user_id = $5, company_name_signed = $6, company_title_signed = $7, company_signature = $8, company_signed_at = now()
+        WHERE id = $1 AND status = 'draft' RETURNING *`,
+      [b.id, body, version, await nextReference('pay_rise', t), signer.user_id, signer.name, signer.title || '', signer.png])), 'Agreement not found or already sent');
+    await event('pay_agreement', a.id, 'sent', { user, ip, ua: uaOf(ev) });
+    await notify([uid], { kind: 'pay', title: 'Pay rise to sign', body: `${money(a.new_rate)}/h from ${fmtDate(a.effective_from)}. Read and sign it in the app. Ref ${a.reference}.`, link: `/officer/agreements/${a.id}`, email: true });
+    await event('pay_agreement', a.id, 'emailed', {});
+    await audit(user, 'agreement.send', 'officer', a.officer_id, { id: a.id, reference: a.reference });
+    return { ok: true, reference: a.reference };
   }),
 
   'payAgreements.void': def(CO, async (b, { user }) => {
     const a = need(await one("UPDATE pay_agreements SET status = 'void', updated_at = now() WHERE id = $1 AND status IN ('draft','sent','signed') RETURNING *", [b.id]), 'Agreement not found or already applied');
-    await audit(user, 'agreement.void', 'officer', a.officer_id, { id: a.id });
+    if (a.reference) await event('pay_agreement', a.id, 'voided', { user });
+    await audit(user, 'agreement.void', 'officer', a.officer_id, { id: a.id, reference: a.reference });
     return { ok: true };
   }),
 
-  'payAgreements.get': def(['company', 'officer'], async (b, { user }) => {
-    const [a] = await withConditions([await agreement(user, b.id)]);
-    return a;
+  'payAgreements.get': def(['company', 'officer'], async (b, { user, ip, event: ev }) => {
+    let raw = await agreement(user, b.id);
+    if (user.role === 'officer') raw = await markOpened('pay_agreement', raw, { user, ip, event: ev });
+    const [a] = await withConditions([raw]);
+    const input = raw.body ? await payInput(raw) : null;
+    return { ...a, signature: raw.signature_png || null, company: companyOf(raw), blocks: input?.doc.blocks || [], terms: input?.doc.terms || null, events: raw.reference ? await events('pay_agreement', a.id) : [] };
   }),
 
-  'payAgreements.sign': def(['officer'], async (b, { user, ip }) => {
+  'payAgreements.sign': def(['officer'], async (b, { user, ip, event: ev }) => {
     required(b, 'id', 'signature', 'signed_name');
-    if (!String(b.signature).startsWith('data:image/png;base64,') || b.signature.length > 400000) fail(400, 'Invalid signature');
-    const a = need(await one(
-      `UPDATE pay_agreements SET status = 'signed', signature_png = $3, signed_name = $4, signed_at = now(), signed_ip = $5, updated_at = now()
-        WHERE id = $1 AND officer_id = $2 AND status = 'sent' RETURNING *`, [b.id, user.officer_id, b.signature, String(b.signed_name).slice(0, 120), ip]), 'Agreement not found or already signed');
-    await notify(await companyManagers(), { kind: 'hr', title: 'Pay rise agreement signed', body: `${b.signed_name} signed: ${money(a.new_rate)}/h from ${fmtDate(a.effective_from)}`, link: `/company/staff/${a.officer_id}?tab=growth` });
-    await audit(user, 'agreement.sign', 'pay_agreement', a.id, { ip });
+    if (!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(String(b.signature)) || b.signature.length > 400000) fail(400, 'Invalid signature');
+    const name = String(b.signed_name).trim().slice(0, 120);
+    if (!name) fail(400, 'Type your full name');
+    const ua = uaOf(ev);
+    const signed = need(await one(
+      `UPDATE pay_agreements SET status = 'signed', signature_png = $3, signed_name = $4, signed_at = now(), signed_ip = $5, signed_ua = $6, updated_at = now()
+        WHERE id = $1 AND officer_id = $2 AND status = 'sent' RETURNING id`, [b.id, user.officer_id, b.signature, name, ip, ua]), 'Agreement not found or already signed');
+    await event('pay_agreement', signed.id, 'signed', { user, name, ip, ua });
+    const a = await one(`${agreementSql} WHERE a.id = $1`, [signed.id]);
+    const out = await sealQuietly('pay_agreement', a, await payInput(a), { userId: user.id, filename: payFile(a) });
+    await notify(await companyManagers(), { kind: 'hr', title: 'Pay rise agreement signed', body: `${name} signed: ${money(a.new_rate)}/h from ${fmtDate(a.effective_from)} (${a.reference})`, link: `/company/staff/${a.officer_id}?tab=growth` });
+    await audit(user, 'agreement.sign', 'pay_agreement', a.id, { ip, reference: a.reference });
     const applied = await applyAgreements();
-    return { ok: true, applied };
+    return { ok: true, applied, reference: a.reference, filename: out?.filename };
   }),
 
   'payAgreements.pdf': def(['company', 'officer'], async (b, { user }) => {
     const a = await agreement(user, b.id);
-    const [full] = await withConditions([a]);
-    const s = await getSettings();
-    const name = `${a.first_name} ${a.last_name}`;
-    const d = await Doc.create('Pay rise agreement');
-    await d.header(s, 'Pay rise agreement', name);
-    d.meta(
-      [['Role', a.role_name], ['Venue', a.venue_name || 'All venues'], ['Starts', fmtDate(a.effective_from)]],
-      [['Current rate', a.current_rate != null ? `${money(a.current_rate)}/h` : '-'], ['New rate', `${money(a.new_rate)}/h`], ['Status', a.status]],
-    );
-    d.text(`${s.company_name} agrees to pay ${name} ${money(a.new_rate)} per hour for ${a.role_name} work${a.venue_name ? ` at ${a.venue_name}` : ''} from ${fmtDate(a.effective_from)}${full.conditions.length ? ', once the goals below are met. If they are met after that date, the new rate starts on the day they are met' : ''}.`, { size: 10, gap: 6 });
-    if (full.conditions.length) {
-      d.section('Conditions');
-      for (const g of full.conditions) d.text(`• ${g.title} (${g.status})`, { size: 10 });
+    if (a.status === 'draft') {
+      // A draft has no reference or countersignature yet: show how it will read
+      const draft = { ...a, reference: 'DRAFT', ...(await payBody(a, null)) };
+      return pdfFor('pay_agreement', { ...draft, status: 'sent' }, () => payInput(draft), { userId: user.id, filename: payFile(a) });
     }
-    d.section('Signature');
-    if (a.signature_png) await d.image(a.signature_png, { width: 180 });
-    d.meta([['Signed by', a.signed_name || 'Not signed'], ['Signed at', a.signed_at ? fmtDateTime(a.signed_at) : '-']], [['IP address', a.signed_ip || '-']]);
-    d.footer(`${s.company_name} - electronically signed`);
-    return { filename: `${name} - Pay rise agreement - ${fmtDate(a.effective_from)}.pdf`, pdf: await d.base64() };
+    return pdfFor('pay_agreement', a, () => payInput(a), { userId: user.id, filename: payFile(a) });
   }),
 };

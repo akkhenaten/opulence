@@ -31,8 +31,9 @@ import * as payruns from './modules/payruns.mjs';
 import * as assistant from './modules/assistant.mjs';
 import * as demo from './modules/demo.mjs';
 import * as help from './modules/help.mjs';
+import * as esign from './modules/esign.mjs';
 
-const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, demo, help].map((m) => m.actions));
+const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, demo, help, esign].map((m) => m.actions));
 // Ask Orb runs real actions on confirm, through the same table and role checks
 assistant.useActions(ACTIONS);
 

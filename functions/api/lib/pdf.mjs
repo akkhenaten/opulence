@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { PDFDocument, PDFName, PDFString, StandardFonts, rgb } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import QRCode from 'qrcode';
 import { hexToRgb, logoBytes } from './brand.mjs';
 
@@ -16,13 +17,32 @@ const ORB_URL = 'https://orbsolutions.co.uk/';
 // WinAnsi can't encode some characters; keep PDFs robust
 const clean = (s) => String(s ?? '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-').replace(/[^\x0A\x20-\x7E\xA3\xA0-\xFF]/g, '');
 
+// IBM Plex Sans (SIL OFL) for documents that carry people's names: Latin, Greek and Cyrillic print as written
+const font = (f) => readFileSync(new URL(`../assets/fonts/IBMPlexSans-${f}.ttf`, import.meta.url));
+let plex = null;
+const plexFonts = () => (plex ||= { regular: font('Regular'), bold: font('SemiBold'), italic: font('Italic'), kit: fontkit.create(font('Regular')) });
+
 class Doc {
-  static async create(title) {
-    const d = new Doc();
+  // init: extra fields a subclass needs before its first page (e.g. the company for a running header)
+  static async create(title, { unicode = false, ...init } = {}) {
+    const d = Object.assign(new this(), init);
     d.pdf = await PDFDocument.create();
     d.pdf.setTitle(title);
-    d.font = await d.pdf.embedFont(StandardFonts.Helvetica);
-    d.bold = await d.pdf.embedFont(StandardFonts.HelveticaBold);
+    if (unicode) {
+      const f = plexFonts();
+      d.pdf.registerFontkit(fontkit);
+      d.font = await d.pdf.embedFont(f.regular, { subset: true });
+      d.bold = await d.pdf.embedFont(f.bold, { subset: true });
+      d.italic = await d.pdf.embedFont(f.italic, { subset: true });
+      // Characters the font has no glyph for print as '?', never break the document
+      d.clean = (str) => [...String(str ?? '').replace(/\t/g, ' ')].map((ch) => (ch === '\n' || f.kit.hasGlyphForCodePoint(ch.codePointAt(0)) ? ch : '?')).join('');
+    } else {
+      d.font = await d.pdf.embedFont(StandardFonts.Helvetica);
+      d.bold = await d.pdf.embedFont(StandardFonts.HelveticaBold);
+      d.italic = d.font;
+      d.clean = clean;
+    }
+    await d.prepare?.();
     d.addPage();
     return d;
   }
@@ -37,7 +57,7 @@ class Doc {
   ensure(h) { if (this.y - h < 56) this.addPage(); }
 
   text(str, { size = 10, font = this.font, color = INK, x = this.x, maxWidth = this.w, gap = 4 } = {}) {
-    for (const para of clean(str).split('\n')) {
+    for (const para of this.clean(str).split('\n')) {
       const words = para.split(' ');
       let line = '';
       const lines = [];
@@ -64,15 +84,15 @@ class Doc {
       const { width, height } = logo.scaleToFit(150, 36);
       this.page.drawImage(logo, { x: this.x, y: this.y - height + 4, width, height });
     } else {
-      let name = clean(company?.company_name || 'Orb Security');
+      let name = this.clean(company?.company_name || 'Orb Security');
       while (name.length > 3 && this.bold.widthOfTextAtSize(name, 13) > this.w * 0.5) name = name.slice(0, -1);
       this.page.drawText(name, { x: this.x, y: this.y - 14, size: 13, font: this.bold, color: INK });
     }
-    const t = clean(docTitle);
+    const t = this.clean(docTitle);
     this.page.drawText(t, { x: this.x + this.w - this.bold.widthOfTextAtSize(t, 18), y: this.y - 16, size: 18, font: this.bold, color: INK });
     this.y -= logo ? 40 : 26;
     if (subtitle) {
-      const s = clean(subtitle);
+      const s = this.clean(subtitle);
       this.page.drawText(s, { x: this.x + this.w - this.font.widthOfTextAtSize(s, 10), y: this.y - 8, size: 10, font: this.font, color: MUTED });
     }
     if (logo) this.text(company?.company_name || '', { size: 9, color: MUTED });
@@ -125,7 +145,7 @@ class Doc {
       let cx = this.x + 6;
       cols.forEach((c, i) => {
         const cw = c.width * this.w - 12;
-        let s = clean(cells[i]);
+        let s = this.clean(cells[i]);
         while (s && font.widthOfTextAtSize(s, 9) > cw) s = s.slice(0, -2);
         const tx = c.align === 'right' ? cx + cw - font.widthOfTextAtSize(s, 9) : cx;
         this.page.drawText(s, { x: tx, y: this.y - 9, size: 9, font, color });
@@ -146,9 +166,9 @@ class Doc {
       this.ensure(18);
       const font = strong ? this.bold : this.font;
       const size = strong ? 12 : 10;
-      const vx = this.x + this.w - font.widthOfTextAtSize(clean(v), size);
-      this.page.drawText(clean(k), { x: this.x + this.w - 220, y: this.y - size, size, font, color: strong ? INK : MUTED });
-      this.page.drawText(clean(v), { x: vx, y: this.y - size, size, font, color: INK });
+      const vx = this.x + this.w - font.widthOfTextAtSize(this.clean(v), size);
+      this.page.drawText(this.clean(k), { x: this.x + this.w - 220, y: this.y - size, size, font, color: strong ? INK : MUTED });
+      this.page.drawText(this.clean(v), { x: vx, y: this.y - size, size, font, color: INK });
       this.y -= size + 8;
     }
   }
@@ -164,7 +184,7 @@ class Doc {
 
   footer(text) {
     for (const p of this.pdf.getPages()) {
-      p.drawText(clean(text), { x: 48, y: 30, size: 7.5, font: this.font, color: MUTED });
+      p.drawText(this.clean(text), { x: 48, y: 30, size: 7.5, font: this.font, color: MUTED });
     }
   }
 
@@ -198,7 +218,7 @@ class Doc {
   }
 }
 
-export { Doc };
+export { Doc, INK, MUTED, LINE, SOFT, BLUE };
 
 export async function qrPng(text, width = 600) {
   return QRCode.toBuffer(text, { type: 'png', width, margin: 1, color: { dark: '#0B1220', light: '#FFFFFF' } });
