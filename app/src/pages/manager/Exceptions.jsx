@@ -38,7 +38,7 @@ export default function Exceptions() {
         return (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {list.map((e) => (
-              <div key={e.id} className="rounded-tile border border-black/[0.04] bg-surface p-4 shadow-tile sm:p-5">
+              <div key={e.id} className="rounded-tile border border-hairline bg-surface p-4 shadow-tile sm:p-5">
                 <div className="flex items-start gap-3">
                   <Avatar name={e.officer_name} size={42} />
                   <div className="min-w-0 flex-1">

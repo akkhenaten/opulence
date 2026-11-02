@@ -175,7 +175,7 @@ export function Tile({ title, icon: Icon, action, to, className, children, pad =
       {children}
     </>
   );
-  const cls = cx('rounded-tile border border-black/[0.04] shadow-tile min-w-0', tones[tone] || 'bg-surface', pad && 'p-5', to && 'pressable-card', className);
+  const cls = cx('rounded-tile border border-hairline shadow-tile min-w-0', tones[tone] || 'bg-surface', pad && 'p-[var(--pad-tile)]', to && 'pressable-card', className);
   return to ? <Link to={to} className={cx('block', cls)}>{body}</Link> : <section className={cls}>{body}</section>;
 }
 
@@ -193,7 +193,7 @@ export function Stat({ value, label, hint, tone }) {
 /* ---------- Controls ---------- */
 
 const BTN_V = {
-  primary: 'bg-blue text-white hover:bg-blue-ink shadow-[0_4px_14px_-6px_rgba(10,108,255,.7)]',
+  primary: 'bg-blue text-white hover:bg-blue-ink shadow-[0_4px_14px_-6px_color-mix(in_srgb,var(--accent-fill,var(--color-blue))_70%,transparent)]',
   secondary: 'bg-surface text-ink border border-line hover:bg-bg',
   soft: 'bg-blue-soft text-blue hover:bg-blue-press',
   ghost: 'text-blue hover:bg-blue-soft',
@@ -232,7 +232,7 @@ export function Button({ variant = 'primary', size = 'md', icon: Icon, iconRight
 const ICON_T = {
   ghost: 'text-muted hover:bg-black/5',
   soft: 'bg-fill text-ink hover:bg-fill-strong',
-  solid: 'bg-surface text-ink shadow-tile border border-black/[0.04] hover:bg-bg',
+  solid: 'bg-surface text-ink shadow-tile border border-hairline hover:bg-bg',
   dark: 'bg-white/15 text-white hover:bg-white/25',
   primary: 'bg-blue text-white hover:bg-blue/90',
 };
@@ -338,13 +338,13 @@ export function Segmented({ value, onChange, options, className, full }) {
   }, [value, options.length]);
   return (
     <div ref={wrap} className={cx(full ? 'flex w-full' : 'inline-flex', 'relative max-w-full overflow-x-auto rounded-xl bg-fill-strong p-[3px] no-scrollbar', className)} role="tablist">
-      {thumb && <span aria-hidden="true" className="absolute bottom-[3px] top-[3px] rounded-lg bg-white shadow-sm transition-[left,width] duration-[var(--dur-2)] ease-ios" style={{ left: thumb.left, width: thumb.width }} />}
+      {thumb && <span aria-hidden="true" className="absolute bottom-[3px] top-[3px] rounded-lg bg-raised shadow-sm transition-[left,width] duration-[var(--dur-2)] ease-ios" style={{ left: thumb.left, width: thumb.width }} />}
       {options.map((o) => {
         const v = typeof o === 'string' ? o : o.value;
         const l = typeof o === 'string' ? titleCase(o) : o.label;
         return (
           <button key={v} type="button" role="tab" aria-selected={value === v} onClick={() => onChange(v)}
-            className={cx(full && 'flex-1', 'relative min-h-9 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-footnote font-semibold transition-colors', value === v ? 'text-ink' : 'text-muted hover:text-ink', !thumb && value === v && 'bg-white shadow-sm')}>
+            className={cx(full && 'flex-1', 'relative min-h-9 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-footnote font-semibold transition-colors', value === v ? 'text-ink' : 'text-muted hover:text-ink', !thumb && value === v && 'bg-raised shadow-sm')}>
             {l}{o.count != null && o.count > 0 && <span className="ml-1.5 rounded-full bg-blue px-1.5 text-caption2 text-white">{o.count}</span>}
           </button>
         );
@@ -356,7 +356,7 @@ export function Segmented({ value, onChange, options, className, full }) {
 /* ---------- Lists ---------- */
 
 export const List = ({ children, className, inset }) => (
-  <div className={cx('overflow-hidden rounded-tile border border-black/[0.04] bg-surface shadow-tile divide-y divide-line', inset && 'border-0 shadow-none rounded-2xl bg-bg/60', className)}>{children}</div>
+  <div className={cx('overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile divide-y divide-line', inset && 'border-0 shadow-none rounded-2xl bg-bg/60', className)}>{children}</div>
 );
 export function Row({ title, subtitle, left, right, to, onClick, chevron, className }) {
   const Inner = (
@@ -395,7 +395,7 @@ export function KV({ items }) {
 export function Table({ columns, rows, onRow, empty = 'Nothing here yet', rowKey = 'id' }) {
   if (!rows?.length) return <Empty title={empty} />;
   return (
-    <div className="overflow-hidden rounded-tile border border-black/[0.04] bg-surface shadow-tile">
+    <div className="overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile">
       <table className="hidden w-full text-subhead md:table">
         <thead><tr className="border-b border-line text-left text-caption font-semibold uppercase tracking-wide text-faint">
           {columns.map((c) => <th key={c.key || c.label} className={cx('px-4 py-3 font-semibold', c.align === 'right' && 'text-right')}>{c.label}</th>)}
@@ -455,7 +455,7 @@ export const Spinner = ({ className }) => <div role="status" aria-label="Loading
 export const Skeleton = ({ className, style }) => <div aria-hidden="true" className={cx('skeleton rounded-lg', className)} style={style} />;
 export function SkeletonRows({ n = 5, className }) {
   return (
-    <div role="status" aria-label="Loading" className={cx('divide-y divide-line overflow-hidden rounded-tile border border-black/[0.04] bg-surface shadow-tile', className)}>
+    <div role="status" aria-label="Loading" className={cx('divide-y divide-line overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile', className)}>
       {Array.from({ length: n }, (_, i) => (
         <div key={i} className="flex items-center gap-3 px-4 py-3.5">
           <Skeleton className="h-9 w-9 rounded-full" />
@@ -634,7 +634,7 @@ export function Chip({ label, value, tone = 'grey', active, onClick }) {
   return (
     <Tag type={onClick ? 'button' : undefined} onClick={onClick} aria-pressed={onClick ? !!active : undefined}
       className={cx('inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-footnote font-semibold shadow-tile',
-        tones[tone], active ? 'border-blue ring-2 ring-blue/15' : 'border-black/[0.04]', onClick && 'pressable')}>
+        tones[tone], active ? 'border-blue ring-2 ring-blue/15' : 'border-hairline', onClick && 'pressable')}>
       <span className="num text-body font-bold">{value}</span>{label}
     </Tag>
   );
@@ -668,7 +668,7 @@ export function ActionBar({ show = true, children, className, tone = 'dark' }) {
   return <><div aria-hidden="true" className="h-20" />{createPortal(
     <div className="action-bar pointer-events-none fixed inset-x-0 z-40 flex justify-center [--px:1rem] safe-x">
       <div className={cx('pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full py-2 pl-5 pr-2 shadow-sheet backdrop-blur-xl',
-        tone === 'dark' ? 'bg-ink/95 text-white' : 'border border-black/[0.06] bg-surface/95 text-ink', closing ? 'anim-toast-out' : 'anim-bar-in', className)}>
+        tone === 'dark' ? 'bg-ink/95 text-white' : 'border border-hairline bg-surface/95 text-ink', closing ? 'anim-toast-out' : 'anim-bar-in', className)}>
         {children}
       </div>
     </div>,

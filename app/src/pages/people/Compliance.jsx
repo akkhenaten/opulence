@@ -139,7 +139,7 @@ function DigestPreview({ onClose }) {
       {!q.data ? <Spinner /> : (
         <>
           <p className="mb-2 text-footnote text-muted">Subject: {q.data.subject}. Sent to company managers after the weekly check (turn it off in Ops AI › Settings).</p>
-          <iframe title="Email preview" srcDoc={q.data.html} className="h-[560px] max-h-full w-full rounded-2xl border border-sep bg-white" />
+          <iframe title="Email preview" srcDoc={q.data.html} className="h-[560px] max-h-full w-full rounded-2xl border border-sep bg-paper" />
         </>
       )}
     </Sheet>

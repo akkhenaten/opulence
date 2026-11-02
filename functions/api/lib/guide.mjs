@@ -64,6 +64,15 @@ Open Settings, then Company details, and fill in your company name, address, com
 - Your logo and colour appear in the app, on the sign-in page, and on incident reports, invoices, pay statements, agreements, QR posters, certificates and emails.`,
       },
       {
+        id: 'style', title: 'Choosing the app style',
+        body: `In Settings, under Branding, App style lets you pick how the app looks for everyone in your company.
+
+- **Classic** is light and rounded, with an iPhone feel. It is the default.
+- **Control Room** is dark and compact, with sharper corners and numbers in a console font. It is easier on the eyes at night and fits more on screen. Buttons use your brand colour, or amber if you have not set one.
+
+Tap a style to preview the whole app, then Save to apply it for every manager, officer and venue user. Cancel goes back. Printouts, PDFs and emails always keep the light look. Every change is recorded in the audit log.`,
+      },
+      {
         id: 'modules', title: 'Choose which features you use',
         body: `In Settings you can switch optional parts of the app on or off for everyone, for example the Everyday feed, the Academy and the Toolbox. Switched-off features disappear from every menu.`,
       },

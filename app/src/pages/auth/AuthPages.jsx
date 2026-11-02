@@ -11,7 +11,7 @@ function AuthCard({ title, subtitle, children, footer }) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
       <div className="mb-8"><Logo place="auth" /></div>
-      <div className="w-full max-w-[400px] rounded-sheet border border-black/[0.04] bg-surface p-7 shadow-tile">
+      <div className="w-full max-w-[400px] rounded-sheet border border-hairline bg-surface p-7 shadow-tile">
         <h1 className="text-title2 font-bold">{title}</h1>
         {subtitle && <p className="mt-1 text-body text-muted">{subtitle}</p>}
         <div className="mt-6">{children}</div>

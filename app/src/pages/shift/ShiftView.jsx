@@ -289,7 +289,7 @@ function Entry({ e, me, signed, shiftId, onChanged }) {
   const canEdit = !signed && (me.can_curate || mine);
 
   return (
-    <div className={cx('rounded-tile border border-black/[0.04] bg-surface p-4 shadow-tile', e.state === 'removed' && 'opacity-60')}>
+    <div className={cx('rounded-tile border border-hairline bg-surface p-4 shadow-tile', e.state === 'removed' && 'opacity-60')}>
       <div className="flex items-center gap-2.5">
         <Avatar name={e.author_name} src={e.author_photo_url} size={28} />
         <div className="min-w-0 flex-1 truncate text-footnote"><span className="font-semibold">{e.author_name}</span> <span className="text-muted">· <span className="num">{time(e.created_at)}</span></span></div>

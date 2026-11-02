@@ -19,6 +19,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      try {
+        var o = JSON.parse(localStorage.getItem('orb.style') || 'null');
+        if (o && o.style === 'control') {
+          var r = document.documentElement;
+          r.dataset.style = 'control';
+          for (var k in o.vars || {}) r.style.setProperty(k, o.vars[k]);
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0E1116');
+          document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').setAttribute('content', 'black');
+        }
+      } catch (e) {}
+    </script>
     <title>Orb Security</title>
   </head>
   <body>

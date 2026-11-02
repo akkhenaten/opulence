@@ -155,7 +155,7 @@ function ShiftCard({ s, onOpen, showVenue = true, compact }) {
   return (
     <Pressable press onClick={() => onOpen(s)}
       className={cx('relative block w-full overflow-hidden rounded-2xl border bg-surface text-left shadow-tile transition hover:-translate-y-0.5 active:scale-[0.99]',
-        compact ? 'py-2 pl-2.5 pr-2' : 'p-3 pl-3.5', s.status === 'draft' ? 'border-dashed border-faint/60' : 'border-black/[0.04]')}>
+        compact ? 'py-2 pl-2.5 pr-2' : 'p-3 pl-3.5', s.status === 'draft' ? 'border-dashed border-faint/60' : 'border-hairline')}>
       {short && s.status === 'published' && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-red" />}
       <div className={cx('num whitespace-nowrap font-bold', compact ? 'text-footnote' : 'text-body')}>{range(s.starts_at, s.ends_at)}</div>
       {showVenue && <div className="mt-0.5 truncate text-subhead font-semibold">{s.venue_name}</div>}
@@ -231,11 +231,11 @@ function DayList({ rows, week, onOpen, onAdd }) {
           <div key={d} className={cx('min-w-0 rounded-tile p-2', d === today ? 'bg-blue-soft/60' : 'bg-fill/60')}>
             <div className="mb-2 flex items-center justify-between pl-1.5">
               <span className={cx('whitespace-nowrap text-caption font-semibold uppercase tracking-wide', d === today ? 'text-blue' : 'text-muted')}>{dayLabel(d)}</span>
-              <Pressable press onClick={() => onAdd(d)} aria-label={`Add shift ${dayLabel(d)}`} className="-m-1.5 grid h-10 w-10 place-items-center rounded-full text-blue transition hover:bg-white"><Plus size={16} /></Pressable>
+              <Pressable press onClick={() => onAdd(d)} aria-label={`Add shift ${dayLabel(d)}`} className="-m-1.5 grid h-10 w-10 place-items-center rounded-full text-blue transition hover:bg-surface"><Plus size={16} /></Pressable>
             </div>
             {byDay[d]?.length
               ? <div className="space-y-2">{byDay[d].map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} />)}</div>
-              : <div className="rounded-2xl border border-dashed border-black/10 px-3 py-3 text-footnote text-faint">No shifts</div>}
+              : <div className="rounded-2xl border border-dashed border-line px-3 py-3 text-footnote text-faint">No shifts</div>}
           </div>
         ))}
       </div>
@@ -248,7 +248,7 @@ function DayList({ rows, week, onOpen, onAdd }) {
 function GridFrame({ week, children }) {
   const today = isoDate();
   return (
-    <div className="hidden overflow-x-auto rounded-tile border border-black/[0.04] bg-surface shadow-tile md:block">
+    <div className="hidden overflow-x-auto rounded-tile border border-hairline bg-surface shadow-tile md:block">
       <div className="min-w-[860px]">
         <div className={cx('grid border-b border-line text-caption font-semibold uppercase tracking-wide text-faint', COLS)}>
           <div className={cx(STICKY, 'px-3 py-2.5')} />
@@ -320,7 +320,7 @@ function VenueAgenda({ rows, week, venues, onOpen, onAdd }) {
         const at = (d) => rows.filter((s) => s.venue_id === v.id && dayOf(s.starts_at) === d);
         const count = rows.filter((s) => s.venue_id === v.id).length;
         return (
-          <section key={v.id} className="overflow-hidden rounded-tile border border-black/[0.04] bg-surface shadow-tile">
+          <section key={v.id} className="overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile">
             <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4">
               <div className="min-w-0"><div className="truncate text-headline font-semibold">{v.name}</div><div className="text-footnote text-muted">{count ? `${count} shift${count > 1 ? 's' : ''} this week` : 'No shifts this week'}</div></div>
               <IconButton icon={Plus} label={`Add shift at ${v.name}`} onClick={() => onAdd(addDay, v.id)} />
@@ -362,7 +362,7 @@ function OfficerAgenda({ rows, onOpen }) {
         </section>
       )}
       {officers.map((o) => (
-        <section key={o.id} className="rounded-tile border border-black/[0.04] bg-surface p-4 shadow-tile">
+        <section key={o.id} className="rounded-tile border border-hairline bg-surface p-4 shadow-tile">
           <div className="mb-3 flex items-center gap-3">
             <Avatar name={o.name} size={36} />
             <div className="min-w-0"><div className="truncate text-callout font-semibold">{o.name}</div><div className="num text-footnote text-muted">{o.hours}h this week · {o.mine.length} shift{o.mine.length === 1 ? '' : 's'}</div></div>

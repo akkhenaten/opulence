@@ -2,16 +2,16 @@ import { rgb } from 'pdf-lib';
 import { one } from './db.mjs';
 import { getObjectBytes } from './storage.mjs';
 
-// The company's own branding: name, logo and one colour. Falls back to Orb Security's look.
+// The company's own branding: name, logo, one colour and the app style. Falls back to Orb Security's look.
 export const DEFAULT_COLOR = '#0A6CFF';
 
-export const brandOf = (s) => ({ name: s?.company_name || 'Orb Security', logo_url: s?.logo_url || null, color: s?.brand_color || DEFAULT_COLOR });
+export const brandOf = (s) => ({ name: s?.company_name || 'Orb Security', logo_url: s?.logo_url || null, color: s?.brand_color || DEFAULT_COLOR, style: s?.ui_style || 'classic' });
 
 let cached = null;
 let cachedAt = 0;
 export async function getBrand() {
   if (!cached || Date.now() - cachedAt > 60_000) {
-    cached = brandOf(await one('SELECT company_name, logo_url, brand_color FROM settings WHERE id = 1'));
+    cached = brandOf(await one('SELECT company_name, logo_url, brand_color, ui_style FROM settings WHERE id = 1'));
     cachedAt = Date.now();
   }
   return cached;

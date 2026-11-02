@@ -33,7 +33,7 @@ function VenueView({ id }) {
             <div className="flex items-start gap-4">
               {v.photo_url
                 ? <img src={v.photo_url} alt="" className="h-14 w-14 shrink-0 rounded-2xl object-cover" />
-                : <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white text-blue"><Building2 size={26} /></div>}
+                : <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-paper text-blue"><Building2 size={26} /></div>}
               <div className="min-w-0">
                 <div className="truncate text-title3 font-bold">{v.name}</div>
                 <div className="mt-1 flex items-start gap-1.5 text-subhead text-muted"><MapPin size={16} className="mt-0.5 shrink-0" /><span className="min-w-0">{[v.address, v.postcode].filter(Boolean).join(', ') || 'No address'}</span></div>

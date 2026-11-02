@@ -61,7 +61,7 @@ function Statements() {
               {checks.map((c) => (
                 <Tile key={c.id} to={`/officer/pay/${c.id}`} className="!bg-amber-soft">
                   <div className="flex items-start gap-3">
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-amber"><ClipboardCheck size={20} /></span>
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface text-amber"><ClipboardCheck size={20} /></span>
                     <div className="min-w-0 flex-1">
                       <div className="text-callout font-semibold">Please check your pay</div>
                       <div className="text-subhead">{dateShort(c.period_start)} – {date(c.period_end)} · <span className="num font-semibold">{money(c.total)}</span></div>

@@ -82,7 +82,7 @@ export function CopyLink({ link, label = 'Invite link', hint = 'Email may not be
   return (
     <div className="rounded-2xl bg-blue-soft p-4">
       <div className="mb-1 flex items-center gap-1.5 text-footnote font-semibold uppercase tracking-wide text-blue"><Link2 size={14} />{label}</div>
-      <div className="break-all rounded-xl bg-white px-3 py-2 font-mono text-caption text-ink select-all">{full}</div>
+      <div className="break-all rounded-xl bg-surface px-3 py-2 font-mono text-caption text-ink select-all">{full}</div>
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="text-caption text-muted">{hint}</span>
         <Button size="sm" icon={done ? Check : Copy} onClick={copy}>{done ? 'Copied' : 'Copy'}</Button>

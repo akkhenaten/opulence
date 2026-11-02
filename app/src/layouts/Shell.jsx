@@ -267,7 +267,7 @@ export default function Shell() {
             <NavLink key={it.to} to={it.to} end={it.end} onClick={tabTap(it)}
               className={({ isActive: on }) => cx('pressable flex min-h-[54px] flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-caption2 font-semibold', on ? 'text-blue' : 'text-faint')}>
               {it.primary
-                ? <span className={cx('-mt-5 grid h-14 w-14 place-items-center rounded-full bg-blue text-white shadow-[0_8px_20px_-6px_rgba(10,108,255,.8)] ring-4 ring-bg', isActive(it) && 'anim-pop')}><it.icon size={24} /></span>
+                ? <span className={cx('-mt-5 grid h-14 w-14 place-items-center rounded-full bg-blue text-white shadow-[0_8px_20px_-6px_color-mix(in_srgb,var(--accent-fill,var(--color-blue))_80%,transparent)] ring-4 ring-bg', isActive(it) && 'anim-pop')}><it.icon size={24} /></span>
                 : <span className={cx(isActive(it) && 'anim-pop')}><it.icon size={24} /></span>}
               <span className={cx(it.primary && 'mt-0.5')}>{it.short || it.label}</span>
             </NavLink>

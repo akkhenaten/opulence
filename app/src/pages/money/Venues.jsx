@@ -66,7 +66,7 @@ function VenueGrid({ rows, onAdd }) {
         <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-3 sm:gap-4">
           {list.map((v) => (
             <Link key={v.id} to={`${base}/venues/${v.id}`}
-              className="group block min-w-0 rounded-tile border border-black/[0.04] bg-surface p-5 shadow-tile transition hover:-translate-y-0.5 active:scale-[0.99]">
+              className="group block min-w-0 rounded-tile border border-hairline bg-surface p-5 shadow-tile transition hover:-translate-y-0.5 active:scale-[0.99]">
               <div className="flex items-start gap-3">
                 {v.photo_url
                   ? <img src={v.photo_url} alt="" className="h-12 w-12 shrink-0 rounded-2xl object-cover" />

@@ -327,7 +327,7 @@ function QrScanner({ onResult, onFail }) {
       <div className="pointer-events-none absolute inset-[14%]">
         {['left-0 top-0 border-l-4 border-t-4 rounded-tl-3xl', 'right-0 top-0 border-r-4 border-t-4 rounded-tr-3xl', 'left-0 bottom-0 border-l-4 border-b-4 rounded-bl-3xl', 'right-0 bottom-0 border-r-4 border-b-4 rounded-br-3xl']
           .map((c) => <span key={c} className={cx('absolute h-12 w-12 border-white', c)} />)}
-        {ready && <span className="absolute inset-x-3 top-1/2 h-0.5 animate-pulse rounded-full bg-blue shadow-[0_0_12px_2px_rgba(10,108,255,.8)]" />}
+        {ready && <span className="absolute inset-x-3 top-1/2 h-0.5 animate-pulse rounded-full bg-blue shadow-[0_0_12px_2px_color-mix(in_srgb,var(--accent-fill,var(--color-blue))_80%,transparent)]" />}
       </div>
     </div>
   );

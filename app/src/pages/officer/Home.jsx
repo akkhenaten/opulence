@@ -173,19 +173,19 @@ function Hero({ s, isCurrent, state, onAccept, busy }) {
         <div className="mt-5 rounded-2xl bg-white/12 p-3">
           <div className="text-subhead font-semibold">Can you work this shift?</div>
           <div className="mt-2 flex gap-2">
-            <Button className="flex-1 !bg-white !text-blue" busy={busy} onClick={() => onAccept(s)}>Confirm</Button>
+            <Button className="flex-1 !bg-on-accent !text-[var(--accent-fill,var(--color-blue))]" busy={busy} onClick={() => onAccept(s)}>Confirm</Button>
             <Button className="flex-1 !bg-white/15 !text-white !shadow-none" to="/officer/shifts">Options</Button>
           </div>
         </div>
       )}
       {live ? (
         <div className="mt-5 grid grid-cols-1 gap-2">
-          <Button size="lg" className="w-full !bg-white !text-blue !shadow-none" icon={state === 'on_break' ? Coffee : LogOut} to="/officer/clock">
+          <Button size="lg" className="w-full !bg-on-accent !text-[var(--accent-fill,var(--color-blue))] !shadow-none" icon={state === 'on_break' ? Coffee : LogOut} to="/officer/clock">
             {state === 'on_break' ? 'End break' : 'Clock out'}
           </Button>
         </div>
       ) : canClock ? (
-        <Button size="lg" className="mt-5 w-full !bg-white !text-blue !shadow-none" icon={LogIn} to="/officer/clock">Clock in</Button>
+        <Button size="lg" className="mt-5 w-full !bg-on-accent !text-[var(--accent-fill,var(--color-blue))] !shadow-none" icon={LogIn} to="/officer/clock">Clock in</Button>
       ) : isCurrent ? (
         <Button size="lg" className="mt-5 w-full !bg-white/15 !text-white !shadow-none" icon={LogIn} to="/officer/clock">Clock-in opens 30 min before</Button>
       ) : null}

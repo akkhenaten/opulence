@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { api, getToken, setSide, setToken } from './api.js';
+import { applyStyle } from './ui/style.js';
 
 const AuthCtx = createContext(null);
 const DEFAULT_BRAND = { name: 'Orb Security', logo_url: null, color: '#0A6CFF' };
@@ -30,6 +31,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => { document.title = brand.name; }, [brand.name]);
+  // The app style arrives with the brand; until then the style cached on this device stays painted
+  useEffect(() => { if (brand.style) applyStyle(brand.style, brand.color); }, [brand.style, brand.color]);
 
   useEffect(() => {
     refresh();
@@ -67,7 +70,7 @@ export function AuthProvider({ children }) {
     setState({ user: null, company: '', ready: true });
   }, []);
 
-  return <AuthCtx.Provider value={{ ...state, brand, signIn, signOut, refresh, switchSide }}>{children}</AuthCtx.Provider>;
+  return <AuthCtx.Provider value={{ ...state, brand, setBrand, signIn, signOut, refresh, switchSide }}>{children}</AuthCtx.Provider>;
 }
 
 // Notification links are written for company managers; map them into the viewer's portal

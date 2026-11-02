@@ -114,7 +114,7 @@ export function ShiftCard({ s, to, status, statusTone, children, className }) {
       {children}
     </>
   );
-  const cls = cx('block rounded-tile border border-black/[0.04] bg-surface p-4 shadow-tile', to && 'transition active:scale-[0.99]', className);
+  const cls = cx('block rounded-tile border border-hairline bg-surface p-4 shadow-tile', to && 'transition active:scale-[0.99]', className);
   return to ? <Link to={to} className={cls}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 

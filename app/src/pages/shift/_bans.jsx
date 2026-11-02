@@ -29,7 +29,7 @@ export function BanCard({ b, canConfirm, canManage, onChanged, onEdit }) {
     run(() => api('bans.revoke', { id: b.id }), 'Ban lifted').then(onChanged).catch(() => {});
   };
   return (
-    <div className="rounded-tile border border-black/[0.04] bg-surface p-4 shadow-tile">
+    <div className="rounded-tile border border-hairline bg-surface p-4 shadow-tile">
       <div className="flex items-start gap-3">
         {b.photo_url ? (
           <Pressable press onClick={() => setPhoto(true)} className="pressable h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-bg" aria-label="View photo">

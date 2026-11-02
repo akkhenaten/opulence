@@ -16,7 +16,7 @@ export default function Messages() {
   const inbox = useApi('messages.inbox', {}, { poll: 15000 });
   return (
     <div className="mx-auto w-full max-w-6xl lg:px-6 lg:pb-8">
-      <div className={cx('flex overflow-hidden bg-surface lg:rounded-tile lg:border lg:border-black/[0.04] lg:shadow-tile', FILL)}>
+      <div className={cx('flex overflow-hidden bg-surface lg:rounded-tile lg:border lg:border-hairline lg:shadow-tile', FILL)}>
         <aside className={cx('min-h-0 w-full flex-col lg:flex lg:w-[340px] lg:shrink-0 lg:border-r lg:border-line', id ? 'hidden' : 'flex')}>
           <Inbox q={inbox} current={id} />
         </aside>

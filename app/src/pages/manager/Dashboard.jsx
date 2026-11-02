@@ -24,7 +24,7 @@ const STATE_TONE = { late: 'amber', no_show: 'red', left_early: 'amber' };
 function CountTile({ to, icon: Icon, label, value, tone, hint }) {
   const hot = value > 0;
   return (
-    <Link to={to} className={cx('group flex min-h-[118px] flex-col justify-between rounded-tile border border-black/[0.04] bg-surface p-4 shadow-tile transition hover:-translate-y-0.5 active:scale-[0.99] sm:p-5')}>
+    <Link to={to} className={cx('group flex min-h-[118px] flex-col justify-between rounded-tile border border-hairline bg-surface p-4 shadow-tile transition hover:-translate-y-0.5 active:scale-[0.99] sm:p-5')}>
       <div className="flex items-center justify-between">
         <span className={cx('grid h-9 w-9 place-items-center rounded-xl', hot ? (tone === 'red' ? 'bg-red-soft text-red' : tone === 'amber' ? 'bg-amber-soft text-amber' : 'bg-blue-soft text-blue') : 'bg-bg text-faint')}>
           <Icon size={18} />

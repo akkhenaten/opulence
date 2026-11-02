@@ -181,7 +181,7 @@ export default function CourseEditor() {
       {allProg && (
         <div className="mb-4 rounded-2xl bg-blue-soft px-4 py-3 text-subhead text-blue">
           <div className="font-semibold">Adding visuals {allProg.n + 1} of {allProg.total}: {allProg.title}</div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-blue transition-all" style={{ width: `${(allProg.n / allProg.total) * 100}%` }} /></div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface"><div className="h-full rounded-full bg-blue transition-all" style={{ width: `${(allProg.n / allProg.total) * 100}%` }} /></div>
         </div>
       )}
       {co && !ready && c.status !== 'archived' && (

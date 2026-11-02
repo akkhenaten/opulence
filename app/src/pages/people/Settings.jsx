@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Bell, Building2, ImageUp, Palette, CalendarDays, ChevronRight, Clock, FileSignature, KeyRound, Landmark, LayoutGrid, Percent, Plus, ReceiptText, Trash2, UserPlus, Users } from 'lucide-react';
+import { Bell, Building2, ImageUp, MonitorSmartphone, Palette, CalendarDays, ChevronRight, Clock, FileSignature, KeyRound, Landmark, LayoutGrid, Percent, Plus, ReceiptText, Trash2, UserPlus, Users } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -9,6 +9,7 @@ import {
 import { Chips, CopyLink, DOC_KINDS, docKindLabel, SIA_TYPES } from './_parts.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
 import { NOTIFY_KINDS } from '../officer/_notify.jsx';
+import { previewStyle, restoreStyle, styleVars } from '../../ui/style.js';
 
 const TABS = [
   { value: 'company', label: 'Company details' }, { value: 'users', label: 'Users & access' }, { value: 'rules', label: 'Workforce rules' },
@@ -47,7 +48,7 @@ const RULE_KEYS = ['pay_period', 'rounding_minutes', 'grace_minutes', 'auto_sign
 
 function CompanyTab() {
   const q = useApi('settings.get');
-  return <Load q={q}>{(s) => <><BrandingTile s={s} onSaved={(d) => q.setData(d)} /><ModulesTile s={s} onSaved={(d) => q.setData(d)} /><SettingsForm s={s} keys={COMPANY_KEYS} onSaved={(d) => q.setData(d)}>{(b) => <CompanyFields b={b} />}</SettingsForm></>}</Load>;
+  return <Load q={q}>{(s) => <><BrandingTile s={s} onSaved={(d) => q.setData(d)} /><AppStyleTile s={s} onSaved={(d) => q.setData(d)} /><ModulesTile s={s} onSaved={(d) => q.setData(d)} /><SettingsForm s={s} keys={COMPANY_KEYS} onSaved={(d) => q.setData(d)}>{(b) => <CompanyFields b={b} />}</SettingsForm></>}</Load>;
 }
 
 const DEFAULT_COLOR = '#0A6CFF';
@@ -123,7 +124,7 @@ function BrandingTile({ s, onSaved }) {
           <div>
             <div className="mb-1.5 text-footnote font-semibold text-muted">Logo</div>
             <div className="flex items-center gap-3">
-              <div className="grid h-20 w-44 shrink-0 place-items-center rounded-xl border border-line bg-white p-2">
+              <div className="grid h-20 w-44 shrink-0 place-items-center rounded-xl border border-line bg-paper p-2">
                 {s.logo_url ? <img src={s.logo_url} alt="Company logo" className="max-h-full max-w-full object-contain" /> : <ImageUp size={24} className="text-faint" />}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -152,7 +153,7 @@ function BrandingTile({ s, onSaved }) {
         </div>
         <div className="space-y-3" aria-label="Preview">
           <div className="text-footnote font-semibold text-muted">Preview</div>
-          <div className="rounded-xl border border-line bg-white p-4 text-ink shadow-sm">
+          <div className="rounded-xl border border-line bg-paper p-4 text-ink shadow-sm">
             <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
               <div className="min-w-0">{mark}</div>
               <div className="text-right"><div className="text-headline font-bold">Incident report</div><div className="text-caption text-muted">INC-0042 · v1</div></div>
@@ -161,13 +162,78 @@ function BrandingTile({ s, onSaved }) {
             <div className="mt-1 h-2 w-4/5 rounded bg-line" /><div className="mt-1.5 h-2 w-3/5 rounded bg-line" />
             <div className="mt-3 text-right text-caption text-faint">Generated with Orb Security</div>
           </div>
-          <div className="rounded-xl border border-line bg-white p-4 text-ink shadow-sm" style={{ borderTop: `4px solid ${shown}` }}>
+          <div className="rounded-xl border border-line bg-paper p-4 text-ink shadow-sm" style={{ borderTop: `4px solid ${shown}` }}>
             {mark}
             <div className="mt-2 text-subhead font-bold">New incident at Riverside Mall</div>
             <span className="mt-2 inline-block rounded-lg px-3 py-1.5 text-footnote font-semibold text-white" style={{ background: shown }}>Open {name.length <= 24 ? name : 'the app'}</span>
           </div>
         </div>
       </div>
+    </Tile>
+  );
+}
+
+const APP_STYLES = [
+  { value: 'classic', label: 'Classic', hint: 'Light and airy, rounded cards. Easy on the eye in daylight.' },
+  { value: 'control', label: 'Control Room', hint: 'Dark, compact and sharp, numbers in a fixed-width font. Built for night shifts and the ops desk.' },
+];
+
+// A small shift card drawn in the given style, so each option always shows its own look
+function StylePreview({ style, color }) {
+  return (
+    <div data-style={style} style={styleVars(style, color)} className="rounded-tile bg-bg p-3 text-ink" aria-hidden>
+      <div className="rounded-tile border border-hairline bg-surface p-3 shadow-tile">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-subhead font-bold">Riverside Mall</span>
+          <span className="shrink-0 rounded-full bg-green-soft px-2 py-0.5 text-caption2 font-bold text-green">On shift</span>
+        </div>
+        <div className="num mt-1 text-footnote text-muted">18:00 – 02:00 · 8.0 h</div>
+        <div className="mt-3 flex items-center gap-2">
+          <span className="rounded-control bg-blue px-3 py-1.5 text-footnote font-semibold text-white">Clock out</span>
+          <span className="rounded-full bg-amber-soft px-2 py-0.5 text-caption2 font-bold text-amber">2 alerts</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Company-wide look of the app for everyone: picking one previews it here, saving applies it for all users
+function AppStyleTile({ s, onSaved }) {
+  const { setBrand } = useAuth();
+  const current = s.ui_style || 'classic';
+  const [pick, setPick] = useState(current);
+  const [run, busy] = useAction();
+  useEffect(() => restoreStyle, []);
+  const choose = (v) => { setPick(v); previewStyle(v); };
+  const cancel = () => { setPick(current); restoreStyle(); };
+  const save = async () => {
+    const d = await run(() => api('settings.update', { ui_style: pick }), 'App style saved').catch(() => null);
+    if (!d) return;
+    onSaved(d);
+    setBrand((b) => ({ ...b, style: d.ui_style }));
+  };
+  return (
+    <Tile title="App style" icon={MonitorSmartphone} className="mb-4">
+      <p className="mb-4 text-subhead text-muted">How the app looks for everyone in your company — managers, officers and venue staff. Printouts, PDFs and emails always stay in the classic light look.</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="App style">
+        {APP_STYLES.map((o) => (
+          <Pressable key={o.value} press role="radio" aria-checked={pick === o.value} onClick={() => choose(o.value)}
+            className={cx('rounded-tile border p-2 text-left transition', pick === o.value ? 'border-blue ring-2 ring-blue' : 'border-line')}>
+            <StylePreview style={o.value} color={s.brand_color} />
+            <div className="mt-2 px-1 pb-1">
+              <div className="text-subhead font-bold">{o.label}{o.value === current && <span className="ml-2 text-caption font-semibold text-muted">In use</span>}</div>
+              <div className="text-caption text-muted">{o.hint}</div>
+            </div>
+          </Pressable>
+        ))}
+      </div>
+      {pick !== current && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-footnote text-muted">Previewing on this screen only.</span>
+          <Button size="sm" busy={busy} onClick={save}>Use for everyone</Button>
+          <Button variant="secondary" size="sm" disabled={busy} onClick={cancel}>Cancel</Button>
+        </div>
+      )}
     </Tile>
   );
 }

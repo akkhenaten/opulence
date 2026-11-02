@@ -119,7 +119,7 @@ function RunTile({ onDone }) {
           <div className="font-semibold text-green">{result.created} draft statement{result.created === 1 ? '' : 's'} from {result.timesheets} timesheet{result.timesheets === 1 ? '' : 's'}</div>
           {result.pay_run_id && <Link to={`${base}/pay/runs/${result.pay_run_id}`} className="mt-1 inline-block text-footnote font-semibold text-blue">Open the pay run</Link>}
           {result.missing_rates?.length > 0 && (
-            <div className="mt-3 rounded-xl bg-white p-3">
+            <div className="mt-3 rounded-xl bg-surface p-3">
               <div className="flex items-center gap-1.5 font-semibold text-amber"><AlertTriangle size={16} />No pay rate set — paid at £0.00</div>
               <ul className="mt-1.5 space-y-0.5 text-footnote text-muted">{result.missing_rates.map((m) => <li key={m}>{m}</li>)}</ul>
               <p className="mt-2 text-caption text-faint">Add the officer's rate on their profile, delete the draft and run again — or add a bonus line.</p>

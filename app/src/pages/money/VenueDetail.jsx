@@ -36,7 +36,7 @@ export default function VenueDetail() {
               <div className="flex items-start gap-4">
                 {v.photo_url
                   ? <img src={v.photo_url} alt="" className="h-14 w-14 shrink-0 rounded-2xl object-cover" />
-                  : <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white text-blue"><Building2 size={26} /></div>}
+                  : <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-paper text-blue"><Building2 size={26} /></div>}
                 <div className="min-w-0">
                   <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Venue</div>
                   <div className="truncate text-title3 font-bold">{v.name}</div>
@@ -77,7 +77,7 @@ export default function VenueDetail() {
 
 const pinIcon = L.divIcon({
   className: '',
-  html: '<div style="width:22px;height:22px;border-radius:50%;background:#0A6CFF;border:3px solid #fff;box-shadow:0 0 0 2px rgba(10,108,255,.35),0 4px 10px rgba(11,18,32,.35)"></div>',
+  html: '<div style="width:22px;height:22px;border-radius:50%;background:var(--accent-fill,var(--color-blue));border:3px solid #fff;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent-fill,var(--color-blue)) 35%,transparent),0 4px 10px rgba(11,18,32,.35)"></div>',
   iconSize: [22, 22],
   iconAnchor: [11, 11],
 });
@@ -108,7 +108,8 @@ function GeoMap({ pos, radius, onPick, focus }) {
     }
     const ll = [pos.lat, pos.lng];
     if (!r.marker) {
-      r.circle = L.circle(ll, { radius, color: '#0A6CFF', weight: 2, fillColor: '#0A6CFF', fillOpacity: 0.12 }).addTo(r.map);
+      const accent = getComputedStyle(document.documentElement).getPropertyValue('--color-blue').trim() || '#0A6CFF';
+      r.circle = L.circle(ll, { radius, color: accent, weight: 2, fillColor: accent, fillOpacity: 0.12 }).addTo(r.map);
       r.marker = L.marker(ll, { icon: pinIcon, draggable: true, autoPan: true }).addTo(r.map);
       r.marker.on('drag', (e) => r.circle.setLatLng(e.target.getLatLng()));
       r.marker.on('dragend', (e) => { const p = e.target.getLatLng(); pick.current(p.lat, p.lng); });

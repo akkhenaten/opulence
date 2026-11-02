@@ -94,7 +94,7 @@ export function HourStrip({ data }) {
           return (
             <div key={h} className="flex flex-col items-center">
               <div className="grid h-9 w-full place-items-center rounded-lg text-caption2 font-semibold num"
-                style={{ background: n ? `rgba(10,108,255,${0.12 + 0.88 * (n / max)})` : '#F2F4F7', color: n / max > 0.5 ? '#fff' : '#0B1220' }}
+                style={{ background: n ? `color-mix(in srgb, var(--accent-fill, var(--color-blue)) ${Math.round(12 + 88 * (n / max))}%, transparent)` : 'var(--color-fill)', color: n / max > 0.5 ? 'var(--color-on-accent)' : 'var(--color-ink)' }}
                 title={`${String(h).padStart(2, '0')}:00 – ${n}`}>{n || ''}</div>
               <span className="mt-1 text-caption2 text-faint num">{String(h).padStart(2, '0')}</span>
             </div>

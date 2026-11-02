@@ -101,7 +101,7 @@ function Results() {
         <Button variant="secondary" icon={Download} onClick={csv}>Download CSV</Button>
         <Button icon={UserPlus} onClick={() => setAssign(true)}>Assign training</Button>
       </div>
-      <div className="overflow-x-auto rounded-tile border border-black/[0.04] bg-surface shadow-tile">
+      <div className="overflow-x-auto rounded-tile border border-hairline bg-surface shadow-tile">
         <table className="w-full min-w-[640px] text-footnote">
           <thead>
             <tr className="border-b border-line text-left">

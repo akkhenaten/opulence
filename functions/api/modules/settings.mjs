@@ -12,7 +12,9 @@ import { OPTIONAL_KINDS } from '../lib/notify.mjs';
 
 const FIELDS = ['company_name', 'company_address', 'company_email', 'company_phone', 'vat_number', 'vat_rate', 'company_number', 'bank_name',
   'bank_sort_code', 'bank_account', 'invoice_prefix', 'invoice_cycle', 'payment_terms_days', 'pay_period', 'grace_minutes', 'auto_signoff_days',
-  'rounding_minutes', 'night_start', 'night_end', 'pay_night_uplift', 'pay_weekend_uplift', 'pay_bh_uplift', 'gps_tolerance_m', 'brand_color'];
+  'rounding_minutes', 'night_start', 'night_end', 'pay_night_uplift', 'pay_weekend_uplift', 'pay_bh_uplift', 'gps_tolerance_m', 'brand_color', 'ui_style'];
+export const UI_STYLES = ['classic', 'control'];
+const STYLE_NAMES = { classic: 'Classic', control: 'Control Room' };
 
 // Public copies of the logo are served by the CDN (storage "media" alias) for emails and the app
 const publicUrl = (key) => `${(process.env.APP_URL || '').replace(/\/$/, '')}/${key}`;
@@ -23,7 +25,7 @@ export const actions = {
   'settings.get': def(ALL, async (_b, { user }) => {
     const s = await getSettings();
     if (user.role === 'company') return s;
-    return { company_name: s.company_name, grace_minutes: s.grace_minutes, pay_period: s.pay_period, modules: s.modules, logo_url: s.logo_url, brand_color: s.brand_color };
+    return { company_name: s.company_name, grace_minutes: s.grace_minutes, pay_period: s.pay_period, modules: s.modules, logo_url: s.logo_url, brand_color: s.brand_color, ui_style: s.ui_style };
   }),
 
   // Name, logo and colour for the sign-in page (no login needed)
@@ -61,6 +63,8 @@ export const actions = {
       if (f.brand_color && !/^#[0-9a-f]{6}$/.test(f.brand_color)) fail(400, 'Enter the colour as a hex code, like #0A6CFF');
       if (f.brand_color && !readable(f.brand_color)) fail(400, 'Pick a darker colour so white text on it stays readable');
     }
+    if ('ui_style' in f && !UI_STYLES.includes(f.ui_style)) fail(400, 'Unknown app style');
+    const before = 'ui_style' in f ? (await getSettings()).ui_style : null;
     if (b.modules) {
       if (typeof b.modules !== 'object' || Object.keys(b.modules).some((k) => !MODULES.includes(k))) fail(400, 'Unknown module');
       f.modules = { ...(await getSettings()).modules, ...Object.fromEntries(Object.entries(b.modules).map(([k, v]) => [k, !!v])) };
@@ -83,6 +87,7 @@ export const actions = {
     if (keys.length) await q(`UPDATE settings SET ${keys.map((k, i) => `${k} = $${i + 1}`).join(', ')}, updated_at = now() WHERE id = 1`, keys.map((k) => f[k]));
     clearBrand();
     await audit(user, 'settings.update', 'settings', 1, f);
+    if (before && before !== f.ui_style) await audit(user, 'settings.ui_style', 'settings', 1, { from: before, to: f.ui_style, summary: `App style changed to ${STYLE_NAMES[f.ui_style]}` });
     return getSettings();
   }),
 
