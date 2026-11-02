@@ -151,7 +151,7 @@ export function Page({ title, subtitle, actions, back, children, wide }) {
 export const PoweredBy = ({ className }) => (
   <div className={cx('flex justify-center', className)}>
     <a href="https://orbsolutions.co.uk/" target="_blank" rel="noopener" className="pressable inline-flex items-center gap-2 rounded-control px-2 py-1.5 text-caption text-faint hover:text-muted">
-      <img src="/app/orb-lockup.png" alt="Orb Security" className="h-5 w-auto" />
+      <img src="/app/orb-lockup.png" alt="Orb Security" className="brand-logo h-5 w-auto" />
       <span>Powered by <span className="font-semibold underline underline-offset-2">orbsolutions.co.uk</span></span>
     </a>
   </div>

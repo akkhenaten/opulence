@@ -25,7 +25,7 @@ export function Logo({ compact, faded, place = 'header' }) {
   if (brand.logo_url && !compact) {
     const size = LOGO_SIZE[place] || LOGO_SIZE.header;
     return <img src={brand.logo_url} alt={brand.name} onLoad={(e) => setWide(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight > 2)}
-      className={cx('w-auto min-w-0 shrink object-contain object-left', wide ? size.wide : size.square, fade)} />;
+      className={cx('brand-logo w-auto min-w-0 shrink object-contain object-left', wide ? size.wide : size.square, fade)} />;
   }
   const orb = brand.name === 'Orb Security';
   return (

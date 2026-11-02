@@ -252,6 +252,8 @@ html:not(.has-tabbar) .action-bar { bottom: calc(env(safe-area-inset-bottom) + 2
   [data-style="control"] [data-style="classic"] { font-family: var(--font-sans); background-color: var(--color-bg); }
   [data-style="control"] [data-style="classic"] .num { font-family: inherit; }
   [data-style="control"] .leaflet-container { background: #1E242D; }
+  /* Logos are drawn for light backgrounds: give them a light plate */
+  [data-style="control"] .brand-logo { background: #F2F4F7; padding: 3px 8px; border-radius: var(--radius-control); }
 }
 
 /* Printing a certificate: only the page content */
