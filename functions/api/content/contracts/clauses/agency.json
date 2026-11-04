@@ -1,0 +1,801 @@
+[
+  {
+    "id": "AGY.STATUS.WORKER",
+    "title": "Parties and status: agency worker on a contract for services",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "These terms are between **{{parties.company_name}}** of {{parties.company_address}} (\"the Company\", \"we\", \"us\") and **{{parties.worker_name}}** of {{parties.worker_address}} (\"you\"). The Company is an employment business. It supplies you to work temporarily for its clients (each a \"hirer\"), under the hirer's supervision and direction. These terms start on {{engagement.start}}.\n\nYou are engaged under a contract for services. You are an agency worker and a worker, not an employee of the Company or of any hirer. You are not employed by a hirer just because you appear on its rota or staff list.\n\nThese terms are the terms of engagement required by regulations 14 and 15 of the Conduct of Employment Agencies and Employment Businesses Regulations 2003. Together with Schedule 1 (Key particulars) and the assignment details we give you for each assignment, they are also your written statement of particulars under section 1 of the Employment Rights Act 1996.",
+        "sources": [
+          {
+            "title": "Conduct Regulations 2003, regulation 14 (agreement to terms with work-seekers)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/14"
+          },
+          {
+            "title": "Conduct Regulations 2003, regulation 15 (content of terms)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/15"
+          },
+          {
+            "title": "Employment Rights Act 1996, section 1",
+            "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1"
+          },
+          {
+            "title": "GOV.UK: Agency workers: what your agency must give you",
+            "url": "https://www.gov.uk/agency-workers-your-rights/basic-information-you-should-receive"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-2003",
+          "era1996-written-statement",
+          "awr-2010"
+        ]
+      },
+      "ni": {
+        "body": "These terms are between **{{parties.company_name}}** of {{parties.company_address}} (\"the Company\", \"we\", \"us\") and **{{parties.worker_name}}** of {{parties.worker_address}} (\"you\"). The Company is an employment business. It supplies you to work temporarily for its clients (each a \"hirer\"), under the hirer's supervision and direction. These terms start on {{engagement.start}}.\n\nYou are engaged under a contract for services. You are an agency worker and a worker, not an employee of the Company or of any hirer. You are not employed by a hirer just because you appear on its rota or staff list.\n\nThese terms are the terms of engagement required by regulations 14 and 15 of the Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005. Schedule 1 (Key particulars) and the assignment details we give you for each assignment form part of them.",
+        "sources": [
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+            "url": "https://www.legislation.gov.uk/nisr/2005/395/contents"
+          },
+          {
+            "title": "Agency Workers Regulations (Northern Ireland) 2011",
+            "url": "https://www.legislation.gov.uk/nisr/2011/350/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-ni-2005",
+          "awr-ni-2011"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.STATUS.EMPLOYEE",
+    "title": "Parties and status: agency worker employed by the employment business",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "These terms are between **{{parties.company_name}}** of {{parties.company_address}} (\"the Company\", \"we\", \"us\") and **{{parties.worker_name}}** of {{parties.worker_address}} (\"you\"). The Company is an employment business. It supplies you to work temporarily for its clients (each a \"hirer\"), under the hirer's supervision and direction. These terms start on {{engagement.start}}.\n\nYou are employed by the Company under a contract of service, both during assignments and between them. You are not an employee of any hirer, and you are not employed by a hirer just because you appear on its rota or staff list.\n\nThese terms are the terms of engagement required by regulations 14 and 15 of the Conduct of Employment Agencies and Employment Businesses Regulations 2003. Together with Schedule 1 (Key particulars) and the assignment details we give you for each assignment, they are also your written statement of employment particulars under section 1 of the Employment Rights Act 1996.",
+        "sources": [
+          {
+            "title": "Conduct Regulations 2003, regulation 14 (agreement to terms with work-seekers)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/14"
+          },
+          {
+            "title": "Conduct Regulations 2003, regulation 15 (content of terms)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/15"
+          },
+          {
+            "title": "Employment Rights Act 1996, section 1",
+            "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-2003",
+          "era1996-written-statement",
+          "awr-2010"
+        ]
+      },
+      "ni": {
+        "body": "These terms are between **{{parties.company_name}}** of {{parties.company_address}} (\"the Company\", \"we\", \"us\") and **{{parties.worker_name}}** of {{parties.worker_address}} (\"you\"). The Company is an employment business. It supplies you to work temporarily for its clients (each a \"hirer\"), under the hirer's supervision and direction. These terms start on {{engagement.start}}.\n\nYou are employed by the Company under a contract of service, both during assignments and between them. You are not an employee of any hirer, and you are not employed by a hirer just because you appear on its rota or staff list.\n\nThese terms are the terms of engagement required by regulations 14 and 15 of the Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005. Together with Schedule 1 (Key particulars) and the assignment details we give you for each assignment, they are also your written statement of particulars under Article 33 of the Employment Rights (Northern Ireland) Order 1996.",
+        "sources": [
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+            "url": "https://www.legislation.gov.uk/nisr/2005/395/contents"
+          },
+          {
+            "title": "Employment Rights (Northern Ireland) Order 1996",
+            "url": "https://www.legislation.gov.uk/nisi/1996/1919/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-ni-2005",
+          "ni-written-statement",
+          "awr-ni-2011"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.STATUS.UMBRELLA",
+    "title": "Parties and status: agency worker employed by an umbrella company",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "These terms are between **{{parties.company_name}}** of {{parties.company_address}} (\"the Company\", \"we\", \"us\") and **{{parties.worker_name}}** of {{parties.worker_address}} (\"you\"). The Company is an employment business. It supplies you to work temporarily for its clients (each a \"hirer\"), under the hirer's supervision and direction. These terms start on {{engagement.start}}.\n\nYou are employed by **{{umbrella.name}}** (\"the umbrella company\"), which pays your wages, holiday pay and any statutory payments, operates PAYE and gives you its own contract and written statement of particulars. You are not an employee of the Company or of any hirer, and you are not employed by a hirer just because you appear on its rota or staff list.\n\nThese terms are the terms of engagement required by regulations 14 and 15 of the Conduct of Employment Agencies and Employment Businesses Regulations 2003. They set out what the Company does for you as an employment business and your rights under the Agency Workers Regulations 2010.",
+        "sources": [
+          {
+            "title": "Conduct Regulations 2003, regulation 14 (agreement to terms with work-seekers)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/14"
+          },
+          {
+            "title": "Conduct Regulations 2003, regulation 15 (content of terms)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/15"
+          },
+          {
+            "title": "GOV.UK: Working through an umbrella company",
+            "url": "https://www.gov.uk/guidance/working-through-an-umbrella-company"
+          },
+          {
+            "title": "GOV.UK: Providing a Key Information Document for agency workers",
+            "url": "https://www.gov.uk/government/publications/providing-a-key-information-document-for-agency-workers-guidance-for-employment-businesses"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-2003",
+          "conduct-regs-kid",
+          "umbrella-paye-2026",
+          "era2025-umbrella-companies"
+        ]
+      },
+      "ni": {
+        "body": "These terms are between **{{parties.company_name}}** of {{parties.company_address}} (\"the Company\", \"we\", \"us\") and **{{parties.worker_name}}** of {{parties.worker_address}} (\"you\"). The Company is an employment business. It supplies you to work temporarily for its clients (each a \"hirer\"), under the hirer's supervision and direction. These terms start on {{engagement.start}}.\n\nYou are employed by **{{umbrella.name}}** (\"the umbrella company\"), which pays your wages, holiday pay and any statutory payments, operates PAYE and gives you its own contract and written statement of particulars. You are not an employee of the Company or of any hirer, and you are not employed by a hirer just because you appear on its rota or staff list.\n\nThese terms are the terms of engagement required by regulations 14 and 15 of the Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005. They set out what the Company does for you as an employment business and your rights under the Agency Workers Regulations (Northern Ireland) 2011.",
+        "sources": [
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+            "url": "https://www.legislation.gov.uk/nisr/2005/395/contents"
+          },
+          {
+            "title": "GOV.UK: Working through an umbrella company",
+            "url": "https://www.gov.uk/guidance/working-through-an-umbrella-company"
+          },
+          {
+            "title": "GOV.UK: PAYE changes for the umbrella company market",
+            "url": "https://www.gov.uk/government/publications/paye-changes-for-the-umbrella-company-market"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-ni-2005",
+          "umbrella-paye-2026"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.KID",
+    "title": "Key Information Document",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "Before you agreed to these terms, we gave you a Key Information Document under regulation 13A of the Conduct of Employment Agencies and Employment Businesses Regulations 2003. It explains the type of contract, the minimum rate of pay we expect to achieve for you, who pays you, the deductions and any fees, an example of your take-home pay, and your holiday entitlement and pay.\n\nThe Key Information Document is information, not part of these terms. If anything in it changes, we will give you an updated one within the time the law requires.",
+        "sources": [
+          {
+            "title": "GOV.UK: Providing a Key Information Document for agency workers",
+            "url": "https://www.gov.uk/government/publications/providing-a-key-information-document-for-agency-workers-guidance-for-employment-businesses"
+          },
+          {
+            "title": "GOV.UK: Agency workers: what your agency must give you",
+            "url": "https://www.gov.uk/agency-workers-your-rights/basic-information-you-should-receive"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-kid"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.ASSIGNMENTS",
+    "title": "Assignments",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "We will try to find you suitable assignments, but we do not have to offer you any, and you do not have to accept any you are offered. Between assignments you are not paid, unless these terms say otherwise.\n\nBefore you start each assignment we will tell you the hirer's identity and business, the start date and likely length of the assignment, the role, type of work, location and hours, any health and safety risks the hirer knows about and the steps taken to control them, the experience, training, qualifications or licences needed, and any expenses. If we tell you any of this verbally, we will confirm it in writing as regulation 21 of the Conduct of Employment Agencies and Employment Businesses Regulations 2003 requires.\n\nDuring an assignment the hirer supervises and directs your day-to-day work, and you must follow its reasonable instructions, site rules and assignment instructions as well as these terms. If you cannot attend a shift, or something on site worries you, tell us and the hirer as soon as you can.",
+        "sources": [
+          {
+            "title": "Conduct Regulations 2003, regulation 21 (information to work-seekers)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/21"
+          },
+          {
+            "title": "GOV.UK: Agency workers: what your agency must give you",
+            "url": "https://www.gov.uk/agency-workers-your-rights/basic-information-you-should-receive"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-2003"
+        ]
+      },
+      "ni": {
+        "body": "We will try to find you suitable assignments, but we do not have to offer you any, and you do not have to accept any you are offered. Between assignments you are not paid, unless these terms say otherwise.\n\nBefore you start each assignment we will tell you the hirer's identity and business, the start date and likely length of the assignment, the role, type of work, location and hours, any health and safety risks the hirer knows about and the steps taken to control them, the experience, training, qualifications or licences needed, and any expenses. If we tell you any of this verbally, we will confirm it in writing as regulation 21 of the Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005 requires.\n\nDuring an assignment the hirer supervises and directs your day-to-day work, and you must follow its reasonable instructions, site rules and assignment instructions as well as these terms. If you cannot attend a shift, or something on site worries you, tell us and the hirer as soon as you can.",
+        "sources": [
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+            "url": "https://www.legislation.gov.uk/nisr/2005/395/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-ni-2005"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.ASSIGNMENT.DETAILS",
+    "title": "Assignment particulars",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "Your first assignment is:\n\n- **Hirer:** {{assignment.hirer}}, whose business is {{assignment.hirer_business}};\n- **Role:** {{assignment.role}};\n- **Location:** {{assignment.location}};\n- **Starts:** {{assignment.start}}, expected to last {{assignment.duration}};\n- **Hours:** {{assignment.hours}};\n- **Health and safety risks and controls:** {{assignment.risks}};\n- **Experience, training, qualifications or licences needed:** {{assignment.requirements}};\n- **Expenses:** {{assignment.expenses}}.\n\nFor each later assignment we will give you the same details in writing. Those details form part of these terms for that assignment.",
+        "sources": [
+          {
+            "title": "Conduct Regulations 2003, regulation 21 (information to work-seekers)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/21"
+          },
+          {
+            "title": "GOV.UK: Agency workers: what your agency must give you",
+            "url": "https://www.gov.uk/agency-workers-your-rights/basic-information-you-should-receive"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-2003"
+        ]
+      },
+      "ni": {
+        "body": "Your first assignment is:\n\n- **Hirer:** {{assignment.hirer}}, whose business is {{assignment.hirer_business}};\n- **Role:** {{assignment.role}};\n- **Location:** {{assignment.location}};\n- **Starts:** {{assignment.start}}, expected to last {{assignment.duration}};\n- **Hours:** {{assignment.hours}};\n- **Health and safety risks and controls:** {{assignment.risks}};\n- **Experience, training, qualifications or licences needed:** {{assignment.requirements}};\n- **Expenses:** {{assignment.expenses}}.\n\nFor each later assignment we will give you the same details in writing, as regulation 21 of the Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005 requires. Those details form part of these terms for that assignment.",
+        "sources": [
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+            "url": "https://www.legislation.gov.uk/nisr/2005/395/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-ni-2005"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.PAY.COMPANY",
+    "title": "Pay: paid by the Company",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "Your {{pay.rate_type}} is {{pay.rate}} an hour, before deductions. The rate for each assignment is confirmed in the assignment details and is never less than the National Minimum Wage that applies to you.\n\nYou record your hours {{pay.timesheets}}. We pay you {{pay.frequency}}, on {{pay.day}}, for the hours you work. We pay you for work you have done whether or not the hirer pays us, and we will not hold back your pay because a timesheet is missing or the hirer has not signed it; we will check your hours with the hirer and pay you for the work you did.\n\nWe pay you directly through PAYE. We will not require you to work through an umbrella company or your own limited company. We will make these deductions from your pay: {{pay.deductions}}. Your payslip shows each one.",
+        "sources": [
+          {
+            "title": "Conduct Regulations 2003, regulation 15 (content of terms)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/15"
+          },
+          {
+            "title": "GOV.UK: Agency workers: pay",
+            "url": "https://www.gov.uk/agency-workers-your-rights/pay"
+          },
+          {
+            "title": "GOV.UK: National Minimum Wage and National Living Wage rates",
+            "url": "https://www.gov.uk/national-minimum-wage-rates"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-2003",
+          "nmw-2026",
+          "era2025-umbrella-companies"
+        ]
+      },
+      "ni": {
+        "body": "Your {{pay.rate_type}} is {{pay.rate}} an hour, before deductions. The rate for each assignment is confirmed in the assignment details and is never less than the National Minimum Wage that applies to you.\n\nYou record your hours {{pay.timesheets}}. We pay you {{pay.frequency}}, on {{pay.day}}, for the hours you work. We pay you for work you have done whether or not the hirer pays us, and we will not hold back your pay because a timesheet is missing or the hirer has not signed it; we will check your hours with the hirer and pay you for the work you did.\n\nWe pay you directly through PAYE. We will not require you to work through an umbrella company or your own limited company. We will make these deductions from your pay: {{pay.deductions}}. Your payslip shows each one.",
+        "sources": [
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+            "url": "https://www.legislation.gov.uk/nisr/2005/395/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          },
+          {
+            "title": "GOV.UK: National Minimum Wage and National Living Wage rates",
+            "url": "https://www.gov.uk/national-minimum-wage-rates"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-ni-2005",
+          "nmw-2026"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.PAY.UMBRELLA",
+    "title": "Pay: through an umbrella company",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "For each hour you work on an assignment the Company pays the umbrella company {{pay.rate}} (the assignment rate). The umbrella company then pays you {{pay.frequency}}, on {{pay.day}}, under its own contract with you, after these deductions: {{pay.deductions}}. Your payslip from the umbrella company shows each one.\n\nYou record your hours {{pay.timesheets}}. We pay the umbrella company for work you have done whether or not the hirer pays us, and we will not hold back payment because a timesheet is missing or the hirer has not signed it.\n\nIf you are not paid what you expected, tell us straight away. We check that the umbrella companies we use operate PAYE correctly.",
+        "sources": [
+          {
+            "title": "GOV.UK: Working through an umbrella company",
+            "url": "https://www.gov.uk/guidance/working-through-an-umbrella-company"
+          },
+          {
+            "title": "GOV.UK: PAYE changes for the umbrella company market",
+            "url": "https://www.gov.uk/government/publications/paye-changes-for-the-umbrella-company-market"
+          },
+          {
+            "title": "GOV.UK: Providing a Key Information Document for agency workers",
+            "url": "https://www.gov.uk/government/publications/providing-a-key-information-document-for-agency-workers-guidance-for-employment-businesses"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "umbrella-paye-2026",
+          "era2025-umbrella-companies",
+          "conduct-regs-kid"
+        ]
+      },
+      "ni": {
+        "body": "For each hour you work on an assignment the Company pays the umbrella company {{pay.rate}} (the assignment rate). The umbrella company then pays you {{pay.frequency}}, on {{pay.day}}, under its own contract with you, after these deductions: {{pay.deductions}}. Your payslip from the umbrella company shows each one.\n\nYou record your hours {{pay.timesheets}}. We pay the umbrella company for work you have done whether or not the hirer pays us, and we will not hold back payment because a timesheet is missing or the hirer has not signed it.\n\nIf you are not paid what you expected, tell us straight away. We check that the umbrella companies we use operate PAYE correctly.",
+        "sources": [
+          {
+            "title": "GOV.UK: Working through an umbrella company",
+            "url": "https://www.gov.uk/guidance/working-through-an-umbrella-company"
+          },
+          {
+            "title": "GOV.UK: PAYE changes for the umbrella company market",
+            "url": "https://www.gov.uk/government/publications/paye-changes-for-the-umbrella-company-market"
+          },
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+            "url": "https://www.legislation.gov.uk/nisr/2005/395/contents"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "umbrella-paye-2026"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.NO_FEES",
+    "title": "No fees and freedom to work elsewhere",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "We will not charge you a fee for finding or trying to find you work, as section 6 of the Employment Agencies Act 1973 and the Conduct of Employment Agencies and Employment Businesses Regulations 2003 provide. Using any optional service we offer is never a condition of finding you work.\n\nYou may work for others, and you may take up a direct job with a hirer. We will not penalise you, or threaten to, because you do. Any fee for that move is a matter between us and the hirer, and you never pay it.",
+        "sources": [
+          {
+            "title": "Employment Agencies Act 1973, section 6",
+            "url": "https://www.legislation.gov.uk/ukpga/1973/35/section/6"
+          },
+          {
+            "title": "GOV.UK: Agency workers: fees",
+            "url": "https://www.gov.uk/agency-workers-your-rights/fees"
+          },
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations 2003",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/contents"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-2003"
+        ]
+      },
+      "ni": {
+        "body": "We will not charge you a fee for finding or trying to find you work, as the Employment (Miscellaneous Provisions) (Northern Ireland) Order 1981 and the Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005 provide. Using any optional service we offer is never a condition of finding you work.\n\nYou may work for others, and you may take up a direct job with a hirer. We will not penalise you, or threaten to, because you do. Any fee for that move is a matter between us and the hirer, and you never pay it.",
+        "sources": [
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+            "url": "https://www.legislation.gov.uk/nisr/2005/395/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          },
+          {
+            "title": "nibusinessinfo: Employment agencies and employment businesses",
+            "url": "https://www.nibusinessinfo.co.uk/content/employment-agencies-and-employment-businesses"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-ni-2005"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.DAY_ONE",
+    "title": "Your rights from the first day of an assignment",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "From your first day on an assignment you have the right under regulations 12 and 13 of the Agency Workers Regulations 2010:\n\n- to use the hirer's shared facilities and amenities, such as a canteen, rest room, drinks facilities, car parking or transport between sites, on the same basis as the hirer's own staff, unless there is an objective reason not to; and\n- to be told about relevant job vacancies with the hirer, so that you have the same chance as its own staff to apply for a permanent job.\n\nIf you are refused either of these, tell us and we will raise it with the hirer.",
+        "sources": [
+          {
+            "title": "Agency Workers Regulations 2010",
+            "url": "https://www.legislation.gov.uk/uksi/2010/93/contents"
+          },
+          {
+            "title": "GOV.UK: Agency workers: equal treatment",
+            "url": "https://www.gov.uk/agency-workers-your-rights/your-rights-as-a-temporary-agency-worker"
+          },
+          {
+            "title": "Acas: Agency workers",
+            "url": "https://www.acas.org.uk/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "awr-2010"
+        ]
+      },
+      "ni": {
+        "body": "From your first day on an assignment you have the right under regulations 12 and 13 of the Agency Workers Regulations (Northern Ireland) 2011:\n\n- to use the hirer's shared facilities and amenities, such as a canteen, rest room, drinks facilities, car parking or transport between sites, on the same basis as the hirer's own staff, unless there is an objective reason not to; and\n- to be told about relevant job vacancies with the hirer, so that you have the same chance as its own staff to apply for a permanent job.\n\nIf you are refused either of these, tell us and we will raise it with the hirer.",
+        "sources": [
+          {
+            "title": "Agency Workers Regulations (Northern Ireland) 2011",
+            "url": "https://www.legislation.gov.uk/nisr/2011/350/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "awr-ni-2011"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.EQUAL",
+    "title": "Equal treatment after the qualifying period",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "After the statutory qualifying period of 12 continuous calendar weeks in the same role with the same hirer, you are entitled under the Agency Workers Regulations 2010 to the same basic working and employment conditions as if the hirer had recruited you directly into that role. These cover pay, working time, night work, rest breaks and rest periods, and annual leave.\n\nUnder the statutory rules some breaks pause the qualifying period rather than restart it, for example short gaps between assignments, sickness, holiday and some family leave, and some periods count towards it. A new role that is substantively different, or a gap longer than the statutory limit, starts a new qualifying period. We keep a record of your assignment weeks with each hirer.\n\nBefore each assignment, and when you complete the qualifying period, we ask the hirer for the information we need about its comparable directly recruited staff. You may ask us in writing for information about your basic working and employment conditions, and we will reply within the statutory time limit. After the qualifying period you are also entitled to paid time off for antenatal appointments.",
+        "sources": [
+          {
+            "title": "Agency Workers Regulations 2010, regulation 7 (qualifying period)",
+            "url": "https://www.legislation.gov.uk/uksi/2010/93/regulation/7"
+          },
+          {
+            "title": "GOV.UK: Agency workers: equal treatment",
+            "url": "https://www.gov.uk/agency-workers-your-rights/your-rights-as-a-temporary-agency-worker"
+          },
+          {
+            "title": "Acas: Agency workers",
+            "url": "https://www.acas.org.uk/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "awr-2010"
+        ]
+      },
+      "ni": {
+        "body": "After the statutory qualifying period of 12 continuous calendar weeks in the same role with the same hirer, you are entitled under the Agency Workers Regulations (Northern Ireland) 2011 to the same basic working and employment conditions as if the hirer had recruited you directly into that role. These cover pay, working time, night work, rest breaks and rest periods, and annual leave.\n\nUnder the statutory rules some breaks pause the qualifying period rather than restart it, for example short gaps between assignments, sickness, holiday and some family leave, and some periods count towards it. A new role that is substantively different, or a gap longer than the statutory limit, starts a new qualifying period. We keep a record of your assignment weeks with each hirer.\n\nBefore each assignment, and when you complete the qualifying period, we ask the hirer for the information we need about its comparable directly recruited staff. You may ask us in writing for information about your basic working and employment conditions, and we will reply within the statutory time limit. After the qualifying period you are also entitled to paid time off for antenatal appointments.",
+        "sources": [
+          {
+            "title": "Agency Workers Regulations (Northern Ireland) 2011",
+            "url": "https://www.legislation.gov.uk/nisr/2011/350/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "awr-ni-2011",
+          "ni-awr-pay-between-assignments"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.ENDING",
+    "title": "Ending an assignment or these terms",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "You or we may end an assignment, or these terms, at any time. You must give us {{notice.worker}} notice, and we will give you {{notice.company}} notice, or the statutory minimum notice in section 86 of the Employment Rights Act 1996 if you are our employee and that is longer. A hirer may also ask us to end an assignment early.\n\nThese terms continue between assignments until one of us ends them in writing. When they end, we will pay you everything you have earned, including any holiday pay due, and you must return any passes, keys, uniform or equipment.",
+        "sources": [
+          {
+            "title": "Conduct Regulations 2003, regulation 15 (content of terms)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/15"
+          },
+          {
+            "title": "Employment Rights Act 1996, section 86",
+            "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/86"
+          },
+          {
+            "title": "GOV.UK: Agency workers: your rights",
+            "url": "https://www.gov.uk/agency-workers-your-rights"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-2003"
+        ]
+      },
+      "ni": {
+        "body": "You or we may end an assignment, or these terms, at any time. You must give us {{notice.worker}} notice, and we will give you {{notice.company}} notice, or the statutory minimum notice in Article 118 of the Employment Rights (Northern Ireland) Order 1996 if you are our employee and that is longer. A hirer may also ask us to end an assignment early.\n\nThese terms continue between assignments until one of us ends them in writing. When they end, we will pay you everything you have earned, including any holiday pay due, and you must return any passes, keys, uniform or equipment.",
+        "sources": [
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+            "url": "https://www.legislation.gov.uk/nisr/2005/395/contents"
+          },
+          {
+            "title": "Employment Rights (Northern Ireland) Order 1996",
+            "url": "https://www.legislation.gov.uk/nisi/1996/1919/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-ni-2005"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.CONCERNS",
+    "title": "Concerns, discipline and grievances",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "If you have a concern about these terms, an assignment or how you are treated by us or by a hirer, raise it with {{grievance.raise_with}}, in writing if you can. Our disciplinary and grievance procedures are in {{discipline.where}}. They follow the Acas Code of Practice on Disciplinary and Grievance Procedures and do not form part of these terms.\n\nA hirer may ask us to remove you from an assignment. If that happens we will tell you why, as far as we can, and you may raise it with us.",
+        "sources": [
+          {
+            "title": "Acas Code of Practice on disciplinary and grievance procedures",
+            "url": "https://www.acas.org.uk/acas-code-of-practice-on-disciplinary-and-grievance-procedures"
+          },
+          {
+            "title": "Acas: Agency workers",
+            "url": "https://www.acas.org.uk/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      },
+      "ni": {
+        "body": "If you have a concern about these terms, an assignment or how you are treated by us or by a hirer, raise it with {{grievance.raise_with}}, in writing if you can. Our disciplinary and grievance procedures are in {{discipline.where}}. They follow the Labour Relations Agency Code of Practice on Disciplinary and Grievance Procedures and do not form part of these terms.\n\nA hirer may ask us to remove you from an assignment. If that happens we will tell you why, as far as we can, and you may raise it with us.",
+        "sources": [
+          {
+            "title": "Labour Relations Agency: Code of Practice on Disciplinary and Grievance Procedures",
+            "url": "https://www.lra.org.uk/resources/code-practice/code-practice-disciplinary-and-grievance-procedures"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "AGY.WHOLE",
+    "title": "Whole agreement",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "These terms, Schedule 1 and the assignment details for each assignment are the whole agreement between you and the Company. Hirers' site rules, assignment instructions and our policies do not form part of them unless these terms say so. If we agree a change to these terms, we will give you a new document recording the change and the date it takes effect, as the Conduct of Employment Agencies and Employment Businesses Regulations 2003 require.",
+        "sources": [
+          {
+            "title": "Conduct Regulations 2003, regulation 14 (agreement to terms with work-seekers)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/14"
+          },
+          {
+            "title": "GOV.UK: Agency workers: what your agency must give you",
+            "url": "https://www.gov.uk/agency-workers-your-rights/basic-information-you-should-receive"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-2003"
+        ]
+      },
+      "ni": {
+        "body": "These terms, Schedule 1 and the assignment details for each assignment are the whole agreement between you and the Company. Hirers' site rules, assignment instructions and our policies do not form part of them unless these terms say so. If we agree a change to these terms, we will give you a new document recording the change and the date it takes effect, as the Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005 require.",
+        "sources": [
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+            "url": "https://www.legislation.gov.uk/nisr/2005/395/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-ni-2005"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.HIRER.STATUS",
+    "title": "Agency worker on assignment with the Company (hirer)",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "This document is from **{{parties.company_name}}** of {{parties.company_address}} (\"the Company\", \"we\", \"us\") to **{{parties.worker_name}}** (\"you\"). You are supplied to us by **{{agency.name}}** (\"your agency\") to work on a temporary assignment as {{hirer.role}}, starting on {{hirer.start}}, at {{hirer.location}}. You report to {{hirer.reports_to}}.\n\n**This is not a contract of employment, and it does not make you our employee or worker.** Your terms of engagement are with your agency. Your agency (or an umbrella company it uses) pays you and deals with your tax, holiday pay and pension. Being on our rota, staff list or systems does not change that. If we ever offer you a direct job, it will be in a separate written contract.\n\nThis document explains the rights you have while you work with us under the Agency Workers Regulations 2010, and records the site rules you agree to follow while you are on assignment with us.",
+        "sources": [
+          {
+            "title": "Agency Workers Regulations 2010",
+            "url": "https://www.legislation.gov.uk/uksi/2010/93/contents"
+          },
+          {
+            "title": "GOV.UK: Agency workers: your rights",
+            "url": "https://www.gov.uk/agency-workers-your-rights"
+          },
+          {
+            "title": "Acas: Agency workers",
+            "url": "https://www.acas.org.uk/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "awr-2010"
+        ]
+      },
+      "ni": {
+        "body": "This document is from **{{parties.company_name}}** of {{parties.company_address}} (\"the Company\", \"we\", \"us\") to **{{parties.worker_name}}** (\"you\"). You are supplied to us by **{{agency.name}}** (\"your agency\") to work on a temporary assignment as {{hirer.role}}, starting on {{hirer.start}}, at {{hirer.location}}. You report to {{hirer.reports_to}}.\n\n**This is not a contract of employment, and it does not make you our employee or worker.** Your terms of engagement are with your agency. Your agency (or an umbrella company it uses) pays you and deals with your tax, holiday pay and pension. Being on our rota, staff list or systems does not change that. If we ever offer you a direct job, it will be in a separate written contract.\n\nThis document explains the rights you have while you work with us under the Agency Workers Regulations (Northern Ireland) 2011, and records the site rules you agree to follow while you are on assignment with us.",
+        "sources": [
+          {
+            "title": "Agency Workers Regulations (Northern Ireland) 2011",
+            "url": "https://www.legislation.gov.uk/nisr/2011/350/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "awr-ni-2011"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.HIRER.DAY_ONE",
+    "title": "Your rights from your first day with us",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "From your first day with us you may use these shared facilities on the same basis as our own staff: {{hirer.facilities}}.\n\nYou will also be told about relevant job vacancies with us, in the same way as our own staff: {{hirer.vacancies}}. These are your rights under regulations 12 and 13 of the Agency Workers Regulations 2010. If you think you are being refused either, tell {{grievance.raise_with}} or your agency.",
+        "sources": [
+          {
+            "title": "Agency Workers Regulations 2010",
+            "url": "https://www.legislation.gov.uk/uksi/2010/93/contents"
+          },
+          {
+            "title": "GOV.UK: Agency workers: equal treatment",
+            "url": "https://www.gov.uk/agency-workers-your-rights/your-rights-as-a-temporary-agency-worker"
+          },
+          {
+            "title": "Acas: Agency workers",
+            "url": "https://www.acas.org.uk/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "awr-2010"
+        ]
+      },
+      "ni": {
+        "body": "From your first day with us you may use these shared facilities on the same basis as our own staff: {{hirer.facilities}}.\n\nYou will also be told about relevant job vacancies with us, in the same way as our own staff: {{hirer.vacancies}}. These are your rights under regulations 12 and 13 of the Agency Workers Regulations (Northern Ireland) 2011. If you think you are being refused either, tell {{grievance.raise_with}} or your agency.",
+        "sources": [
+          {
+            "title": "Agency Workers Regulations (Northern Ireland) 2011",
+            "url": "https://www.legislation.gov.uk/nisr/2011/350/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "awr-ni-2011"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.HIRER.EQUAL",
+    "title": "Equal treatment after the qualifying period",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "After the statutory qualifying period of 12 continuous calendar weeks in the same role with us, you are entitled under the Agency Workers Regulations 2010 to the same basic pay and working conditions as if we had recruited you directly into that role. Some breaks pause the qualifying period rather than restart it. We keep a record of your assignment weeks with us.\n\nWe will give your agency accurate information about the pay and conditions of our comparable directly recruited staff, so that it can give you equal treatment when it is due. Questions about your pay go to your agency first.",
+        "sources": [
+          {
+            "title": "Agency Workers Regulations 2010, regulation 7 (qualifying period)",
+            "url": "https://www.legislation.gov.uk/uksi/2010/93/regulation/7"
+          },
+          {
+            "title": "GOV.UK: Agency workers: equal treatment",
+            "url": "https://www.gov.uk/agency-workers-your-rights/your-rights-as-a-temporary-agency-worker"
+          },
+          {
+            "title": "Acas: Agency workers",
+            "url": "https://www.acas.org.uk/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "awr-2010"
+        ]
+      },
+      "ni": {
+        "body": "After the statutory qualifying period of 12 continuous calendar weeks in the same role with us, you are entitled under the Agency Workers Regulations (Northern Ireland) 2011 to the same basic pay and working conditions as if we had recruited you directly into that role. Some breaks pause the qualifying period rather than restart it. We keep a record of your assignment weeks with us.\n\nWe will give your agency accurate information about the pay and conditions of our comparable directly recruited staff, so that it can give you equal treatment when it is due. Questions about your pay go to your agency first.",
+        "sources": [
+          {
+            "title": "Agency Workers Regulations (Northern Ireland) 2011",
+            "url": "https://www.legislation.gov.uk/nisr/2011/350/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "awr-ni-2011"
+        ]
+      }
+    }
+  },
+  {
+    "id": "AGY.HIRER.SITE",
+    "title": "Licence, site rules and confidentiality",
+    "subject": "agency",
+    "versions": {
+      "all": {
+        "body": "Where the work is licensable, you must hold a valid SIA licence for it and show it to us before your first shift and whenever we ask. Tell us and your agency straight away if it is suspended, revoked or expires. You must not do licensable work without one.\n\nWhile you work with us and afterwards, keep confidential any information about our clients, their sites and security arrangements, codes, keys and procedures that you learn on assignment. Return all keys, passes and documents when the assignment ends.\n\nNothing in this document stops you making a protected disclosure (whistleblowing), reporting a crime, or co-operating with the police, a regulator or a court.",
+        "sources": [
+          {
+            "title": "Private Security Industry Act 2001",
+            "url": "https://www.legislation.gov.uk/ukpga/2001/12/contents"
+          },
+          {
+            "title": "GOV.UK: Security Industry Authority",
+            "url": "https://www.gov.uk/government/organisations/security-industry-authority"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "sia-licensing"
+        ]
+      }
+    }
+  }
+]

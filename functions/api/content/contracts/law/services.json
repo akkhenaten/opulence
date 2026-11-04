@@ -1,0 +1,62 @@
+[
+  {
+    "id": "sia-hmrc-security-operatives",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "SIA guidance: learn how HMRC rules apply to the security operatives you deploy",
+    "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy",
+    "status": "in_force",
+    "effective_date": "2022-05-16",
+    "checked_on": "2026-11-04",
+    "summary": "SIA guidance for security businesses, last updated 11 August 2026. Check status for employment law and for tax separately, based on what actually happens. A right of substitution only counts if the operative can genuinely send someone else, find and pay them, and there is no veto. The right to control counts even if it is not used. Clothing, a phone, a torch or travel to work are not financial risk. Where operatives are supplied to a client and anyone supervises, directs or controls them, the agency rules make the business that contracts with the client responsible for PAYE. Approved contractors must treat everyone they deploy as employees or employees for tax purposes (ACS indicator 4.2.1)."
+  },
+  {
+    "id": "itepa-agency-rules",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "Agency rules for tax: ITEPA 2003 section 44 (supervision, direction or control)",
+    "url": "https://www.gov.uk/hmrc-internal-manuals/employment-status-manual/esm2037",
+    "status": "in_force",
+    "effective_date": "2014-04-06",
+    "checked_on": "2026-11-04",
+    "summary": "Where an individual personally provides services to a client under a contract between the client and an intermediary, and anyone has the right to supervise, direct or control how the work is done, the intermediary must operate PAYE and pay secondary Class 1 National Insurance. A right of substitution does not prevent this if the individual actually does the work. Mandatory procedures count as control even if they come from regulation (HMRC ESM2037). The rules do not apply if the intermediary holds clear evidence that nobody has that control."
+  },
+  {
+    "id": "itepa-ch8-intermediaries",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "Intermediaries legislation (IR35) for small clients: ITEPA 2003 Part 2 Chapter 8",
+    "url": "https://www.legislation.gov.uk/ukpga/2003/1/part/2/chapter/8",
+    "status": "in_force",
+    "effective_date": "2000-04-06",
+    "checked_on": "2026-11-04",
+    "summary": "Where the client is small and outside the public sector, the worker's own company decides whether the worker would be an employee of the client if engaged directly. If so, the company must account for a deemed employment payment. The client does not make a status determination, but must confirm its size if asked."
+  },
+  {
+    "id": "off-payroll-sds",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "Off-payroll working: status determination statements and the disagreement process (ITEPA 2003 ss.61NA and 61T)",
+    "url": "https://www.gov.uk/guidance/april-2021-changes-to-off-payroll-working-for-clients",
+    "status": "in_force",
+    "effective_date": "2021-04-06",
+    "checked_on": "2026-11-04",
+    "summary": "A medium or large client must take reasonable care in deciding status, and give a status determination statement with its conclusion and reasons to the worker and to the party it contracts with. Until it does, the client is liable for the tax and National Insurance. The worker or the deemed employer can disagree until the final payment. The client must reply within 45 days, either confirming the conclusion with reasons or issuing a new statement. If it misses the deadline, the liability passes to the client. Where the client contracts directly with the worker's company, the client is the deemed employer."
+  },
+  {
+    "id": "late-payment-1998",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "Late Payment of Commercial Debts (Interest) Act 1998",
+    "url": "https://www.gov.uk/late-commercial-payments-interest-debt-recovery",
+    "status": "in_force",
+    "effective_date": "1998-11-01",
+    "checked_on": "2026-11-04",
+    "summary": "In business-to-business contracts, including those with sole traders, a supplier can claim statutory interest and fixed compensation on late payments unless the contract gives a substantial remedy instead."
+  },
+  {
+    "id": "employment-status-services",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "Employment status: self-employed and contractor, worker or employee",
+    "url": "https://www.gov.uk/employment-status/selfemployed-contractor",
+    "status": "in_force",
+    "effective_date": null,
+    "checked_on": "2026-11-04",
+    "summary": "Status for employment rights depends on what actually happens: personal service, any genuine right to send a substitute, control, mutual obligations, financial risk and whether the person runs their own business. A self-employed label, invoices or a limited company do not settle it. Tax status is assessed separately, using HMRC's tests and the CEST tool. In Northern Ireland the Employment Rights (Northern Ireland) Order 1996 and the Labour Relations Agency's guidance apply."
+  }
+]

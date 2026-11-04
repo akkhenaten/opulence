@@ -1,0 +1,373 @@
+[
+  {
+    "id": "FT.REASON",
+    "title": "Fixed term: reason",
+    "subject": "fixed_term",
+    "versions": {
+      "all": {
+        "body": "This job is offered for a fixed term for the following reason: {{term.reason}}.",
+        "sources": [
+          {
+            "title": "GOV.UK: Fixed-term contracts",
+            "url": "https://www.gov.uk/fixed-term-contracts"
+          },
+          {
+            "title": "GOV.UK: Fixed-term contracts, employees' rights",
+            "url": "https://www.gov.uk/fixed-term-contracts/employees-rights"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "fte-regs-2002",
+          "fte-regs-ni-2002"
+        ]
+      }
+    }
+  },
+  {
+    "id": "FT.TERM.DATE",
+    "title": "Fixed term: end date",
+    "subject": "fixed_term",
+    "versions": {
+      "all": {
+        "body": "Your employment is for a fixed term. Unless it is extended or ended earlier as this contract allows, the fixed term ends on {{term.end_date}}.",
+        "sources": [
+          {
+            "title": "GOV.UK: Fixed-term contracts",
+            "url": "https://www.gov.uk/fixed-term-contracts"
+          },
+          {
+            "title": "Employment Rights Act 1996, section 1",
+            "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1"
+          },
+          {
+            "title": "Employment Rights (Northern Ireland) Order 1996, Article 33",
+            "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "FT.TERM.EVENT",
+    "title": "Fixed term: end event or task",
+    "subject": "fixed_term",
+    "versions": {
+      "all": {
+        "body": "Your employment is for a fixed term that ends when the following event happens or task is completed: {{term.event}}.\n\nWe will tell you in writing as soon as we reasonably can when we expect the event to happen, and we will confirm the date your employment will end. If it becomes clear that the event will not happen, we will discuss this with you and confirm the position in writing. Your employment continues until it ends in a way this contract allows.",
+        "sources": [
+          {
+            "title": "GOV.UK: Fixed-term contracts",
+            "url": "https://www.gov.uk/fixed-term-contracts"
+          },
+          {
+            "title": "Employment Rights Act 1996, section 1",
+            "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1"
+          },
+          {
+            "title": "Employment Rights (Northern Ireland) Order 1996, Article 33",
+            "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "FT.TERM.ESTIMATE",
+    "title": "Fixed term: expected end date",
+    "subject": "fixed_term",
+    "versions": {
+      "all": {
+        "body": "We currently expect the event to happen on or around {{term.end_estimate}}. That is an estimate, not the end date: your employment ends when the event happens, and we will confirm the actual date in writing.",
+        "sources": [
+          {
+            "title": "GOV.UK: Fixed-term contracts",
+            "url": "https://www.gov.uk/fixed-term-contracts"
+          },
+          {
+            "title": "Employment Rights Act 1996, section 1",
+            "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "FT.PREVIOUS",
+    "title": "Fixed term: earlier fixed-term service",
+    "subject": "fixed_term",
+    "versions": {
+      "all": {
+        "body": "This contract follows earlier fixed-term employment with us, which began on {{term.first_start}}. Where there has been no break that ends continuity, that earlier employment counts towards your continuous employment, including for the statutory rules on successive fixed-term contracts in the Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations 2002. Nothing in this contract treats it as a new start.",
+        "sources": [
+          {
+            "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations 2002, regulation 8",
+            "url": "https://www.legislation.gov.uk/uksi/2002/2034/regulation/8"
+          },
+          {
+            "title": "GOV.UK: Fixed-term contracts, renewing or ending a fixed-term contract",
+            "url": "https://www.gov.uk/fixed-term-contracts/renewing-or-ending-a-fixedterm-contract"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "fte-regs-2002"
+        ]
+      },
+      "ni": {
+        "body": "This contract follows earlier fixed-term employment with us, which began on {{term.first_start}}. Where there has been no break that ends continuity, that earlier employment counts towards your continuous employment, including for the statutory rules on successive fixed-term contracts in the Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations (Northern Ireland) 2002. Nothing in this contract treats it as a new start.",
+        "sources": [
+          {
+            "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations (Northern Ireland) 2002, regulation 8",
+            "url": "https://www.legislation.gov.uk/nisr/2002/298/regulation/8"
+          },
+          {
+            "title": "Employment Rights (Northern Ireland) Order 1996, Article 33",
+            "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "fte-regs-ni-2002"
+        ]
+      }
+    }
+  },
+  {
+    "id": "FT.EQUAL",
+    "title": "Fixed term: equal treatment and the four-year rule",
+    "subject": "fixed_term",
+    "versions": {
+      "all": {
+        "body": "Being on a fixed-term contract does not allow us to treat you less favourably than a comparable permanent employee, in your terms of employment or in any other way, unless the different treatment is objectively justified (Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations 2002, regulation 3). This covers, for example, pay, holiday, pension, training and the chance to apply for permanent jobs.\n\nWe will tell you about suitable permanent vacancies in the Company in the same way as we tell our permanent staff.\n\nIf you think you have been treated less favourably because you are on a fixed-term contract, you may ask us in writing for a written statement of the reasons, and we will reply within the statutory period of 21 days (regulation 5).\n\nIf this contract renews or follows an earlier fixed-term contract and you have been continuously employed on fixed-term contracts for the statutory period of four years or more, regulation 8 applies: you become a permanent employee unless continuing on a fixed term was objectively justified. You may ask us in writing for a statement confirming that you are permanent, or giving the reasons why you are not (regulation 9).",
+        "sources": [
+          {
+            "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations 2002, regulation 3",
+            "url": "https://www.legislation.gov.uk/uksi/2002/2034/regulation/3"
+          },
+          {
+            "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations 2002, regulation 5",
+            "url": "https://www.legislation.gov.uk/uksi/2002/2034/regulation/5"
+          },
+          {
+            "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations 2002, regulation 8",
+            "url": "https://www.legislation.gov.uk/uksi/2002/2034/regulation/8"
+          },
+          {
+            "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations 2002, regulation 9",
+            "url": "https://www.legislation.gov.uk/uksi/2002/2034/regulation/9"
+          },
+          {
+            "title": "GOV.UK: Fixed-term contracts, employees' rights",
+            "url": "https://www.gov.uk/fixed-term-contracts/employees-rights"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "fte-regs-2002"
+        ]
+      },
+      "ni": {
+        "body": "Being on a fixed-term contract does not allow us to treat you less favourably than a comparable permanent employee, in your terms of employment or in any other way, unless the different treatment is objectively justified (Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations (Northern Ireland) 2002, regulation 3). This covers, for example, pay, holiday, pension, training and the chance to apply for permanent jobs.\n\nWe will tell you about suitable permanent vacancies in the Company in the same way as we tell our permanent staff.\n\nIf you think you have been treated less favourably because you are on a fixed-term contract, you may ask us in writing for a written statement of the reasons, and we will reply within the statutory period of 21 days (regulation 5).\n\nIf this contract renews or follows an earlier fixed-term contract and you have been continuously employed on fixed-term contracts for the statutory period of four years or more, regulation 8 applies: you become a permanent employee unless continuing on a fixed term was objectively justified. You may ask us in writing for a statement confirming that you are permanent, or giving the reasons why you are not (regulation 9).",
+        "sources": [
+          {
+            "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations (Northern Ireland) 2002, regulation 3",
+            "url": "https://www.legislation.gov.uk/nisr/2002/298/regulation/3"
+          },
+          {
+            "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations (Northern Ireland) 2002, regulation 5",
+            "url": "https://www.legislation.gov.uk/nisr/2002/298/regulation/5"
+          },
+          {
+            "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations (Northern Ireland) 2002, regulation 8",
+            "url": "https://www.legislation.gov.uk/nisr/2002/298/regulation/8"
+          },
+          {
+            "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations (Northern Ireland) 2002, regulation 9",
+            "url": "https://www.legislation.gov.uk/nisr/2002/298/regulation/9"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "fte-regs-ni-2002"
+        ]
+      }
+    }
+  },
+  {
+    "id": "FT.EARLY.NOTICE",
+    "title": "Fixed term: ending early by notice",
+    "subject": "fixed_term",
+    "versions": {
+      "all": {
+        "body": "Either of us may end your employment before the fixed term ends by giving notice in writing under the notice terms below. Ending your employment early in this way is still a dismissal in law and does not affect your statutory rights, including the statutory minimum notice.",
+        "sources": [
+          {
+            "title": "GOV.UK: Fixed-term contracts, renewing or ending a fixed-term contract",
+            "url": "https://www.gov.uk/fixed-term-contracts/renewing-or-ending-a-fixedterm-contract"
+          },
+          {
+            "title": "Employment Rights Act 1996, section 86",
+            "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/86"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "fixed-term-expiry-dismissal"
+        ]
+      },
+      "ni": {
+        "body": "Either of us may end your employment before the fixed term ends by giving notice in writing under the notice terms below. Ending your employment early in this way is still a dismissal in law and does not affect your statutory rights, including the statutory minimum notice.",
+        "sources": [
+          {
+            "title": "Employment Rights (Northern Ireland) Order 1996, Article 118",
+            "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/118"
+          },
+          {
+            "title": "nidirect: Notice periods",
+            "url": "https://www.nidirect.gov.uk/articles/giving-or-getting-notice-your-job"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "fixed-term-expiry-dismissal-ni"
+        ]
+      }
+    }
+  },
+  {
+    "id": "FT.EARLY.NONE",
+    "title": "Fixed term: no early ending by notice",
+    "subject": "fixed_term",
+    "versions": {
+      "all": {
+        "body": "This contract does not give either of us a right to end your employment by notice before the fixed term ends, apart from any notice that applies during a probationary period. We may still end your employment without notice for gross misconduct, after following our disciplinary procedure. We may also agree in writing to end it early.\n\nIf you want to leave before the end of the term, please speak to the Company's {{term.review_by}} first.",
+        "sources": [
+          {
+            "title": "GOV.UK: Fixed-term contracts, renewing or ending a fixed-term contract",
+            "url": "https://www.gov.uk/fixed-term-contracts/renewing-or-ending-a-fixedterm-contract"
+          },
+          {
+            "title": "nidirect: Notice periods",
+            "url": "https://www.nidirect.gov.uk/articles/giving-or-getting-notice-your-job"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "FT.EXPIRY",
+    "title": "Fixed term: end-of-term review and expiry",
+    "subject": "fixed_term",
+    "versions": {
+      "all": {
+        "body": "Before the fixed term ends, the Company's {{term.review_by}} will review with you whether the work is continuing and whether an extension, a renewal or another suitable role is available. We will tell you our decision in writing at least {{term.review_notice}} before the end date. Where the term ends on an event, we will do so as soon as we reasonably can once we know when the event is expected.\n\nIf the fixed term is not extended or renewed, your employment ends at the end of the term. We will pay you everything due up to that date, including pay for holiday you have built up but not taken.\n\nWhen a fixed term ends without being renewed, the law treats that as a dismissal, including for unfair dismissal and redundancy purposes (Employment Rights Act 1996, sections 95 and 136). That does not by itself mean the dismissal is unfair or that a redundancy payment is due: that depends on the reason, the process we follow and your length of service. Reaching the end of the term does not take away any of your statutory rights. We will explain the reason to you, give you the chance to discuss it with us, and consider any suitable alternative work.\n\nIf you carry on working after the end of the term without a written extension, your employment continues on the terms of this contract, your continuous employment is unbroken, and you remain entitled to at least the statutory minimum notice to end it.",
+        "sources": [
+          {
+            "title": "Employment Rights Act 1996, section 95",
+            "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/95"
+          },
+          {
+            "title": "Employment Rights Act 1996, section 136",
+            "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/136"
+          },
+          {
+            "title": "GOV.UK: Fixed-term contracts, renewing or ending a fixed-term contract",
+            "url": "https://www.gov.uk/fixed-term-contracts/renewing-or-ending-a-fixedterm-contract"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "fixed-term-expiry-dismissal"
+        ]
+      },
+      "ni": {
+        "body": "Before the fixed term ends, the Company's {{term.review_by}} will review with you whether the work is continuing and whether an extension, a renewal or another suitable role is available. We will tell you our decision in writing at least {{term.review_notice}} before the end date. Where the term ends on an event, we will do so as soon as we reasonably can once we know when the event is expected.\n\nIf the fixed term is not extended or renewed, your employment ends at the end of the term. We will pay you everything due up to that date, including pay for holiday you have built up but not taken.\n\nWhen a fixed term ends without being renewed, the law treats that as a dismissal, including for unfair dismissal and redundancy purposes (Employment Rights (Northern Ireland) Order 1996, Articles 127 and 171). That does not by itself mean the dismissal is unfair or that a redundancy payment is due: that depends on the reason, the process we follow and your length of service. Reaching the end of the term does not take away any of your statutory rights. We will explain the reason to you, give you the chance to discuss it with us, and consider any suitable alternative work.\n\nIf you carry on working after the end of the term without a written extension, your employment continues on the terms of this contract, your continuous employment is unbroken, and you remain entitled to at least the statutory minimum notice to end it.",
+        "sources": [
+          {
+            "title": "Employment Rights (Northern Ireland) Order 1996, Article 127",
+            "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/127"
+          },
+          {
+            "title": "Employment Rights (Northern Ireland) Order 1996, Article 171",
+            "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/171"
+          },
+          {
+            "title": "nidirect: Notice periods",
+            "url": "https://www.nidirect.gov.uk/articles/giving-or-getting-notice-your-job"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "fixed-term-expiry-dismissal-ni"
+        ]
+      }
+    }
+  },
+  {
+    "id": "FT.RENEWAL",
+    "title": "Fixed term: extension and renewal",
+    "subject": "fixed_term",
+    "versions": {
+      "all": {
+        "body": "The fixed term can only be extended or renewed by agreement between us, recorded in writing and signed by you and by the Company's {{term.review_by}} before the current term ends. The written record will state the new end date or end event, why the extension is needed, and any change to your terms.\n\nAn extension or renewal continues your employment without a break. Your service under this contract and any earlier fixed-term contract counts towards your continuous employment, including for the statutory rules on successive fixed-term contracts.",
+        "sources": [
+          {
+            "title": "GOV.UK: Fixed-term contracts, renewing or ending a fixed-term contract",
+            "url": "https://www.gov.uk/fixed-term-contracts/renewing-or-ending-a-fixedterm-contract"
+          },
+          {
+            "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations 2002, regulation 8",
+            "url": "https://www.legislation.gov.uk/uksi/2002/2034/regulation/8"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "fte-regs-2002"
+        ]
+      },
+      "ni": {
+        "body": "The fixed term can only be extended or renewed by agreement between us, recorded in writing and signed by you and by the Company's {{term.review_by}} before the current term ends. The written record will state the new end date or end event, why the extension is needed, and any change to your terms.\n\nAn extension or renewal continues your employment without a break. Your service under this contract and any earlier fixed-term contract counts towards your continuous employment, including for the statutory rules on successive fixed-term contracts.",
+        "sources": [
+          {
+            "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations (Northern Ireland) 2002, regulation 8",
+            "url": "https://www.legislation.gov.uk/nisr/2002/298/regulation/8"
+          },
+          {
+            "title": "Employment Rights (Northern Ireland) Order 1996, Article 127",
+            "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/127"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "fte-regs-ni-2002"
+        ]
+      }
+    }
+  },
+  {
+    "id": "FT.EXTENSION.OPTION",
+    "title": "Fixed term: agreed extension arrangements",
+    "subject": "fixed_term",
+    "versions": {
+      "all": {
+        "body": "We have also agreed the following about possible extensions: {{term.extension_details}}. Any extension still has to be recorded in writing and signed as set out in this section.",
+        "sources": [
+          {
+            "title": "GOV.UK: Fixed-term contracts, renewing or ending a fixed-term contract",
+            "url": "https://www.gov.uk/fixed-term-contracts/renewing-or-ending-a-fixedterm-contract"
+          },
+          {
+            "title": "nidirect: Notice periods",
+            "url": "https://www.nidirect.gov.uk/articles/giving-or-getting-notice-your-job"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  }
+]

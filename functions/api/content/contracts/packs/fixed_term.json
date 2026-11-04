@@ -1,0 +1,1752 @@
+{
+  "id": "fixed_term",
+  "version": 1,
+  "title": "Fixed-term employment",
+  "summary": "An employee for a set period, a task or an event (for example event cover, a client contract or maternity cover), full-time or part-time.",
+  "party": "person",
+  "engagement_type": "employee",
+  "doc_title": "Fixed-term Contract of Employment",
+  "jurisdictions": [
+    "ew",
+    "sc",
+    "ni"
+  ],
+  "law": [
+    "fte-regs-2002",
+    "fte-regs-ni-2002",
+    "fixed-term-expiry-dismissal",
+    "fixed-term-expiry-dismissal-ni",
+    "era2025-unfair-dismissal-six-months",
+    "era2025-flexible-working",
+    "ni-good-jobs-bill"
+  ],
+  "decision": {
+    "hint": "An employee you control and pay through payroll, needed only until a known date, a task is finished or an event happens (if the need is open-ended, use the permanent pack)."
+  },
+  "sections": [
+    {
+      "id": "parties",
+      "title": "Parties"
+    },
+    {
+      "id": "term",
+      "title": "Fixed term"
+    },
+    {
+      "id": "start",
+      "title": "Start and probation"
+    },
+    {
+      "id": "job",
+      "title": "Job"
+    },
+    {
+      "id": "place",
+      "title": "Place of work"
+    },
+    {
+      "id": "hours",
+      "title": "Hours"
+    },
+    {
+      "id": "pay",
+      "title": "Pay and benefits"
+    },
+    {
+      "id": "holiday",
+      "title": "Holiday"
+    },
+    {
+      "id": "sickness",
+      "title": "Sickness and pension"
+    },
+    {
+      "id": "conduct",
+      "title": "Training, discipline and grievances"
+    },
+    {
+      "id": "ending",
+      "title": "Notice and restrictions"
+    },
+    {
+      "id": "other",
+      "title": "Other terms"
+    }
+  ],
+  "questions": [
+    {
+      "id": "parties.employer_name",
+      "label": "Employer",
+      "section": "parties",
+      "type": "text",
+      "prefill": "company.name",
+      "help": "The legal name of the employing company, exactly as registered."
+    },
+    {
+      "id": "parties.employer_address",
+      "label": "Employer address",
+      "section": "parties",
+      "type": "text",
+      "prefill": "company.address"
+    },
+    {
+      "id": "parties.employer_number",
+      "label": "Company number",
+      "section": "parties",
+      "type": "text",
+      "prefill": "company.number",
+      "required": false
+    },
+    {
+      "id": "parties.employee_name",
+      "label": "Employee",
+      "section": "parties",
+      "type": "text",
+      "prefill": "officer.name"
+    },
+    {
+      "id": "parties.employee_address",
+      "label": "Employee address",
+      "section": "parties",
+      "type": "text",
+      "prefill": "officer.address"
+    },
+    {
+      "id": "term.reason",
+      "label": "Reason for the fixed term",
+      "section": "term",
+      "type": "textarea",
+      "help": "Why the job is time-limited, for example \"to cover the security contract for the Riverside Festival\" or \"to cover a colleague's maternity leave\". Printed in the contract."
+    },
+    {
+      "id": "term.end_type",
+      "label": "How the fixed term ends",
+      "section": "term",
+      "type": "choice",
+      "schedule": false,
+      "options": [
+        {
+          "value": "date",
+          "label": "On a set end date"
+        },
+        {
+          "value": "event",
+          "label": "When an event happens or a task is finished"
+        }
+      ]
+    },
+    {
+      "id": "term.end_date",
+      "label": "End date",
+      "section": "term",
+      "type": "date",
+      "showIf": {
+        "q": "term.end_type",
+        "eq": "date"
+      }
+    },
+    {
+      "id": "term.event",
+      "label": "End event or task",
+      "section": "term",
+      "type": "textarea",
+      "help": "Describe it so anyone can tell when it has happened, for example \"the return to work of the colleague on maternity leave\" or \"the end of the Company's security contract at Riverside Retail Park\". Avoid vague events such as \"when no longer needed\".",
+      "showIf": {
+        "q": "term.end_type",
+        "eq": "event"
+      }
+    },
+    {
+      "id": "term.end_estimate",
+      "label": "Expected end date (estimate)",
+      "section": "term",
+      "type": "date",
+      "required": false,
+      "help": "Your best reasonable estimate of when the event will happen. It is printed as an estimate, not as the end date.",
+      "showIf": {
+        "q": "term.end_type",
+        "eq": "event"
+      }
+    },
+    {
+      "id": "term.early",
+      "label": "Ending early",
+      "section": "term",
+      "type": "choice",
+      "help": "Without an early-termination clause, ending the contract early can be a breach of contract.",
+      "options": [
+        {
+          "value": "notice",
+          "label": "Either side may end it early by notice",
+          "text": "either party may end it early by notice"
+        },
+        {
+          "value": "none",
+          "label": "No early ending by notice (except gross misconduct or agreement)",
+          "text": "no early ending by notice, except for gross misconduct or by agreement"
+        }
+      ]
+    },
+    {
+      "id": "term.review_by",
+      "label": "End-of-term review and extensions by",
+      "section": "term",
+      "type": "text",
+      "help": "A job title, for example \"Operations Manager\". This person reviews the term with the employee and signs any extension."
+    },
+    {
+      "id": "term.review_notice",
+      "label": "Decision on extension given at least",
+      "section": "term",
+      "type": "text",
+      "help": "How long before the end date the employee is told whether the term will be extended, for example \"four weeks\"."
+    },
+    {
+      "id": "term.extension_details",
+      "label": "Agreed extension arrangements",
+      "section": "term",
+      "type": "textarea",
+      "required": false,
+      "help": "Optional. For example \"the term may be extended if the client extends the event contract\". Leave blank if none."
+    },
+    {
+      "id": "term.previous",
+      "label": "Earlier fixed-term contracts with us",
+      "section": "term",
+      "type": "yesno",
+      "schedule": false,
+      "help": "Has this person had one or more earlier fixed-term contracts or extensions with the Company (or an associated employer) running up to this one?"
+    },
+    {
+      "id": "term.renewals",
+      "label": "Number of earlier fixed-term contracts or extensions",
+      "section": "term",
+      "type": "number",
+      "schedule": false,
+      "help": "Count each earlier contract and each extension. 2 or more means this is at least the third in a row.",
+      "showIf": {
+        "q": "term.previous",
+        "eq": "yes"
+      }
+    },
+    {
+      "id": "term.first_start",
+      "label": "First fixed-term contract began",
+      "section": "term",
+      "type": "date",
+      "showIf": {
+        "q": "term.previous",
+        "eq": "yes"
+      }
+    },
+    {
+      "id": "term.four_years",
+      "label": "Four years or more on fixed-term contracts",
+      "section": "term",
+      "type": "choice",
+      "schedule": false,
+      "particular": false,
+      "help": "By the start of this contract, will the employee have been continuously employed on fixed-term contracts for four years or more?",
+      "showIf": {
+        "q": "term.previous",
+        "eq": "yes"
+      },
+      "options": [
+        {
+          "value": "no",
+          "label": "No"
+        },
+        {
+          "value": "yes",
+          "label": "Yes"
+        },
+        {
+          "value": "unsure",
+          "label": "Not sure"
+        }
+      ]
+    },
+    {
+      "id": "term.justification",
+      "label": "Objective reason for another fixed term",
+      "section": "term",
+      "type": "textarea",
+      "schedule": false,
+      "particular": false,
+      "help": "Kept on file, not printed. Why a further fixed term (rather than permanent employment) is genuinely needed.",
+      "showIf": {
+        "q": "term.four_years",
+        "eq": "yes"
+      }
+    },
+    {
+      "id": "start.date",
+      "label": "Start date",
+      "section": "start",
+      "type": "date",
+      "prefill": "officer.start_date"
+    },
+    {
+      "id": "start.continuous",
+      "label": "Continuous employment",
+      "section": "start",
+      "type": "choice",
+      "help": "Earlier employment can count, for example earlier fixed-term contracts with no break, a TUPE transfer or a move from an associated employer.",
+      "options": [
+        {
+          "value": "new",
+          "label": "Starts with this job"
+        },
+        {
+          "value": "earlier",
+          "label": "Began on an earlier date"
+        }
+      ],
+      "schedule": false
+    },
+    {
+      "id": "start.continuous_date",
+      "label": "Continuous employment began",
+      "section": "start",
+      "type": "date",
+      "showIf": {
+        "q": "start.continuous",
+        "eq": "earlier"
+      }
+    },
+    {
+      "id": "probation.used",
+      "label": "Probationary period",
+      "section": "start",
+      "type": "yesno",
+      "schedule": false
+    },
+    {
+      "id": "probation.length",
+      "label": "Probation length",
+      "section": "start",
+      "type": "text",
+      "help": "For example \"three months\". Probation does not change statutory rights.",
+      "showIf": {
+        "q": "probation.used",
+        "eq": "yes"
+      }
+    },
+    {
+      "id": "probation.notice",
+      "label": "Notice during probation",
+      "section": "start",
+      "type": "text",
+      "help": "For example \"one week's\". The statutory minimum still applies if it is longer.",
+      "showIf": {
+        "q": "probation.used",
+        "eq": "yes"
+      }
+    },
+    {
+      "id": "job.title",
+      "label": "Job title",
+      "section": "job",
+      "type": "text",
+      "prefill": "officer.role"
+    },
+    {
+      "id": "job.duties",
+      "label": "Main duties",
+      "section": "job",
+      "type": "textarea",
+      "help": "A short description, for example \"access control, patrols and incident reporting at client sites\"."
+    },
+    {
+      "id": "job.reports_to",
+      "label": "Reports to",
+      "section": "job",
+      "type": "text",
+      "help": "A job title rather than a name, for example \"the Operations Manager\"."
+    },
+    {
+      "id": "job.licensable",
+      "label": "SIA-licensable role",
+      "section": "job",
+      "type": "yesno",
+      "schedule": false
+    },
+    {
+      "id": "job.licence",
+      "label": "SIA licence type",
+      "section": "job",
+      "type": "text",
+      "prefill": "officer.sia_type",
+      "showIf": {
+        "q": "job.licensable",
+        "eq": "yes"
+      }
+    },
+    {
+      "id": "place.type",
+      "label": "Where the work happens",
+      "section": "place",
+      "type": "choice",
+      "schedule": false,
+      "options": [
+        {
+          "value": "fixed",
+          "label": "One site"
+        },
+        {
+          "value": "various",
+          "label": "Client sites in an area"
+        }
+      ]
+    },
+    {
+      "id": "place.address",
+      "label": "Place of work",
+      "section": "place",
+      "type": "text",
+      "showIf": {
+        "q": "place.type",
+        "eq": "fixed"
+      }
+    },
+    {
+      "id": "place.area",
+      "label": "Area of work",
+      "section": "place",
+      "type": "text",
+      "help": "For example \"Greater Manchester and Cheshire\".",
+      "showIf": {
+        "q": "place.type",
+        "eq": "various"
+      }
+    },
+    {
+      "id": "place.abroad",
+      "label": "Work outside the UK for more than a month",
+      "section": "place",
+      "type": "yesno",
+      "schedule": false
+    },
+    {
+      "id": "place.abroad_details",
+      "label": "Work outside the UK",
+      "section": "place",
+      "type": "textarea",
+      "help": "Period, currency of pay, extra pay or benefits, and terms on return.",
+      "showIf": {
+        "q": "place.abroad",
+        "eq": "yes"
+      }
+    },
+    {
+      "id": "hours.pattern",
+      "label": "Working pattern",
+      "section": "hours",
+      "type": "choice",
+      "schedule": false,
+      "options": [
+        {
+          "value": "fixed",
+          "label": "Fixed days and times"
+        },
+        {
+          "value": "rota",
+          "label": "Guaranteed hours on a rota"
+        }
+      ]
+    },
+    {
+      "id": "hours.weekly",
+      "label": "Guaranteed hours a week",
+      "section": "hours",
+      "type": "number"
+    },
+    {
+      "id": "hours.days",
+      "label": "Days and times",
+      "section": "hours",
+      "type": "text",
+      "help": "For example \"Monday to Friday, 08:00 to 16:00\".",
+      "showIf": {
+        "q": "hours.pattern",
+        "eq": "fixed"
+      }
+    },
+    {
+      "id": "hours.rota_notice",
+      "label": "Rota published in advance",
+      "section": "hours",
+      "type": "text",
+      "help": "For example \"two weeks\".",
+      "showIf": {
+        "q": "hours.pattern",
+        "eq": "rota"
+      }
+    },
+    {
+      "id": "hours.cancellation",
+      "label": "Short-notice cancellation",
+      "section": "hours",
+      "type": "text",
+      "help": "What you pay when a rostered shift is cancelled or cut short at short notice, for example \"we will pay you for the hours of the shift as rostered\".",
+      "showIf": {
+        "q": "hours.pattern",
+        "eq": "rota"
+      }
+    },
+    {
+      "id": "hours.night",
+      "label": "Includes night work",
+      "section": "hours",
+      "type": "yesno"
+    },
+    {
+      "id": "overtime.basis",
+      "label": "Overtime",
+      "section": "hours",
+      "type": "choice",
+      "options": [
+        {
+          "value": "basic",
+          "label": "At the basic rate",
+          "text": "basic rate"
+        },
+        {
+          "value": "enhanced",
+          "label": "At an enhanced rate",
+          "text": "enhanced rate"
+        }
+      ]
+    },
+    {
+      "id": "overtime.rate",
+      "label": "Overtime rate",
+      "section": "hours",
+      "type": "text",
+      "help": "For example \"time and a quarter\" or \"£16.50 an hour\".",
+      "showIf": {
+        "q": "overtime.basis",
+        "eq": "enhanced"
+      }
+    },
+    {
+      "id": "pay.basis",
+      "label": "Pay basis",
+      "section": "pay",
+      "type": "choice",
+      "schedule": false,
+      "options": [
+        {
+          "value": "hourly",
+          "label": "Hourly rate"
+        },
+        {
+          "value": "salary",
+          "label": "Annual salary"
+        }
+      ]
+    },
+    {
+      "id": "pay.rate",
+      "label": "Hourly rate",
+      "section": "pay",
+      "type": "money",
+      "help": "Gross, before deductions.",
+      "showIf": {
+        "q": "pay.basis",
+        "eq": "hourly"
+      }
+    },
+    {
+      "id": "pay.salary",
+      "label": "Annual salary",
+      "section": "pay",
+      "type": "money",
+      "help": "Gross, before deductions.",
+      "showIf": {
+        "q": "pay.basis",
+        "eq": "salary"
+      }
+    },
+    {
+      "id": "pay.frequency",
+      "label": "Paid",
+      "section": "pay",
+      "type": "choice",
+      "options": [
+        {
+          "value": "weekly",
+          "label": "Weekly",
+          "text": "weekly"
+        },
+        {
+          "value": "fortnightly",
+          "label": "Every two weeks",
+          "text": "every two weeks"
+        },
+        {
+          "value": "four_weekly",
+          "label": "Every four weeks",
+          "text": "every four weeks"
+        },
+        {
+          "value": "monthly",
+          "label": "Monthly",
+          "text": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "pay.day",
+      "label": "Pay day",
+      "section": "pay",
+      "type": "text",
+      "help": "For example \"the last working day of the month\"."
+    },
+    {
+      "id": "benefits.vehicle",
+      "label": "Company vehicle",
+      "section": "pay",
+      "type": "yesno"
+    },
+    {
+      "id": "vehicle.details",
+      "label": "Vehicle",
+      "section": "pay",
+      "type": "text",
+      "help": "For example \"a marked patrol van\".",
+      "showIf": {
+        "q": "benefits.vehicle",
+        "eq": "yes"
+      }
+    },
+    {
+      "id": "vehicle.private_use",
+      "label": "Private use of the vehicle",
+      "section": "pay",
+      "type": "text",
+      "help": "For example \"not allowed\" or \"allowed within the UK\".",
+      "showIf": {
+        "q": "benefits.vehicle",
+        "eq": "yes"
+      }
+    },
+    {
+      "id": "benefits.other",
+      "label": "Other benefits",
+      "section": "pay",
+      "type": "textarea",
+      "required": false,
+      "help": "Leave blank if none."
+    },
+    {
+      "id": "holiday.basis",
+      "label": "Holiday",
+      "section": "holiday",
+      "type": "choice",
+      "schedule": false,
+      "options": [
+        {
+          "value": "statutory",
+          "label": "Statutory 5.6 weeks"
+        },
+        {
+          "value": "enhanced",
+          "label": "More than statutory"
+        }
+      ]
+    },
+    {
+      "id": "holiday.days",
+      "label": "Holiday days a year",
+      "section": "holiday",
+      "type": "number",
+      "help": "Including bank holidays. For a five-day week the statutory minimum is 28.",
+      "showIf": {
+        "q": "holiday.basis",
+        "eq": "enhanced"
+      }
+    },
+    {
+      "id": "holiday.year_start",
+      "label": "Holiday year starts",
+      "section": "holiday",
+      "type": "text",
+      "help": "For example \"1 January\"."
+    },
+    {
+      "id": "holiday.notice",
+      "label": "Notice for holiday requests",
+      "section": "holiday",
+      "type": "text",
+      "help": "For example \"four weeks\"."
+    },
+    {
+      "id": "sick.basis",
+      "label": "Sick pay",
+      "section": "sickness",
+      "type": "choice",
+      "schedule": false,
+      "options": [
+        {
+          "value": "ssp",
+          "label": "Statutory Sick Pay only"
+        },
+        {
+          "value": "company",
+          "label": "Company sick pay"
+        }
+      ]
+    },
+    {
+      "id": "sick.company_terms",
+      "label": "Company sick pay",
+      "section": "sickness",
+      "type": "textarea",
+      "showIf": {
+        "q": "sick.basis",
+        "eq": "company"
+      }
+    },
+    {
+      "id": "sick.notify",
+      "label": "Report sickness to",
+      "section": "sickness",
+      "type": "text",
+      "help": "For example \"the control room by phone\"."
+    },
+    {
+      "id": "pension.scheme",
+      "label": "Pension scheme",
+      "section": "sickness",
+      "type": "text",
+      "help": "For example \"NEST\"."
+    },
+    {
+      "id": "training.required",
+      "label": "Required training",
+      "section": "conduct",
+      "type": "textarea",
+      "help": "Training the employee must complete, for example \"induction, site familiarisation and annual first aid refresher\"."
+    },
+    {
+      "id": "discipline.where",
+      "label": "Disciplinary and grievance procedure",
+      "section": "conduct",
+      "type": "text",
+      "help": "Where it is kept, for example \"the staff handbook\"."
+    },
+    {
+      "id": "discipline.appeal_to",
+      "label": "Disciplinary appeals to",
+      "section": "conduct",
+      "type": "text",
+      "help": "A job title, for example \"a director\"."
+    },
+    {
+      "id": "grievance.raise_with",
+      "label": "Raise grievances with",
+      "section": "conduct",
+      "type": "text",
+      "help": "A job title, for example \"your line manager\"."
+    },
+    {
+      "id": "notice.basis",
+      "label": "Early-termination notice from the Company",
+      "section": "ending",
+      "type": "choice",
+      "schedule": false,
+      "options": [
+        {
+          "value": "statutory",
+          "label": "Statutory minimum"
+        },
+        {
+          "value": "enhanced",
+          "label": "Longer than statutory"
+        }
+      ],
+      "showIf": {
+        "q": "term.early",
+        "eq": "notice"
+      }
+    },
+    {
+      "id": "notice.employer",
+      "label": "Early-termination notice from the Company",
+      "section": "ending",
+      "type": "text",
+      "help": "For example \"one month's\".",
+      "showIf": {
+        "all": [
+          {
+            "q": "term.early",
+            "eq": "notice"
+          },
+          {
+            "q": "notice.basis",
+            "eq": "enhanced"
+          }
+        ]
+      }
+    },
+    {
+      "id": "notice.employee",
+      "label": "Early-termination notice from the employee",
+      "section": "ending",
+      "type": "text",
+      "help": "For example \"one week's\".",
+      "showIf": {
+        "q": "term.early",
+        "eq": "notice"
+      }
+    },
+    {
+      "id": "restrict.used",
+      "label": "Client non-solicitation",
+      "section": "ending",
+      "type": "yesno",
+      "schedule": false,
+      "help": "Only use this where the employee builds real relationships with clients."
+    },
+    {
+      "id": "restrict.period",
+      "label": "Non-solicitation period",
+      "section": "ending",
+      "type": "text",
+      "help": "Keep it short, for example \"six months\".",
+      "showIf": {
+        "q": "restrict.used",
+        "eq": "yes"
+      }
+    },
+    {
+      "id": "collective.exists",
+      "label": "Collective agreements",
+      "section": "other",
+      "type": "yesno",
+      "schedule": false
+    },
+    {
+      "id": "collective.agreements",
+      "label": "Collective agreements",
+      "section": "other",
+      "type": "textarea",
+      "showIf": {
+        "q": "collective.exists",
+        "eq": "yes"
+      }
+    }
+  ],
+  "clauses": [
+    {
+      "id": "parties",
+      "title": "Parties",
+      "slots": [
+        {
+          "slot": "parties",
+          "clauses": [
+            "EMP.PARTIES"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "start",
+      "title": "Start of employment",
+      "slots": [
+        {
+          "slot": "start.date",
+          "clauses": [
+            "EMP.START"
+          ]
+        },
+        {
+          "slot": "start.continuous",
+          "clauses": [
+            "EMP.CONTINUOUS.NEW",
+            "EMP.CONTINUOUS.EARLIER"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "start.continuous",
+                "eq": "earlier"
+              },
+              "clause": "EMP.CONTINUOUS.EARLIER"
+            }
+          ]
+        },
+        {
+          "slot": "start.probation",
+          "clauses": [
+            "EMP.PROBATION"
+          ],
+          "include": {
+            "q": "probation.used",
+            "eq": "yes"
+          },
+          "why": "Included because there is a probationary period"
+        }
+      ]
+    },
+    {
+      "id": "fixed_term",
+      "title": "Fixed term",
+      "slots": [
+        {
+          "slot": "term.reason",
+          "clauses": [
+            "FT.REASON"
+          ]
+        },
+        {
+          "slot": "term.duration",
+          "clauses": [
+            "FT.TERM.DATE",
+            "FT.TERM.EVENT"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "term.end_type",
+                "eq": "event"
+              },
+              "clause": "FT.TERM.EVENT"
+            }
+          ]
+        },
+        {
+          "slot": "term.estimate",
+          "clauses": [
+            "FT.TERM.ESTIMATE"
+          ],
+          "include": {
+            "all": [
+              {
+                "q": "term.end_type",
+                "eq": "event"
+              },
+              {
+                "q": "term.end_estimate"
+              }
+            ]
+          },
+          "why": "Included because an expected end date was given for the end event"
+        },
+        {
+          "slot": "term.previous",
+          "clauses": [
+            "FT.PREVIOUS"
+          ],
+          "include": {
+            "q": "term.previous",
+            "eq": "yes"
+          },
+          "why": "Included because this follows earlier fixed-term contracts"
+        },
+        {
+          "slot": "term.equal",
+          "clauses": [
+            "FT.EQUAL"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job",
+      "title": "Your job",
+      "slots": [
+        {
+          "slot": "job",
+          "clauses": [
+            "EMP.JOB"
+          ]
+        },
+        {
+          "slot": "job.licence",
+          "clauses": [
+            "SEC.LICENCE"
+          ],
+          "include": {
+            "q": "job.licensable",
+            "eq": "yes"
+          },
+          "why": "Included because the role is SIA-licensable"
+        },
+        {
+          "slot": "job.screening",
+          "clauses": [
+            "SEC.SCREENING"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "place",
+      "title": "Place of work",
+      "slots": [
+        {
+          "slot": "place",
+          "clauses": [
+            "EMP.PLACE.FIXED",
+            "EMP.PLACE.VARIOUS"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "place.type",
+                "eq": "various"
+              },
+              "clause": "EMP.PLACE.VARIOUS"
+            }
+          ]
+        },
+        {
+          "slot": "place.abroad",
+          "clauses": [
+            "EMP.ABROAD"
+          ],
+          "include": {
+            "q": "place.abroad",
+            "eq": "yes"
+          },
+          "why": "Included because the work is partly outside the UK"
+        }
+      ]
+    },
+    {
+      "id": "hours",
+      "title": "Hours of work",
+      "slots": [
+        {
+          "slot": "hours",
+          "clauses": [
+            "EMP.HOURS.FIXED",
+            "EMP.HOURS.ROTA"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "hours.pattern",
+                "eq": "rota"
+              },
+              "clause": "EMP.HOURS.ROTA"
+            }
+          ]
+        },
+        {
+          "slot": "hours.change",
+          "clauses": [
+            "EMP.HOURS.CHANGE"
+          ]
+        },
+        {
+          "slot": "hours.rest",
+          "clauses": [
+            "SEC.REST"
+          ]
+        },
+        {
+          "slot": "hours.night",
+          "clauses": [
+            "EMP.NIGHT"
+          ],
+          "include": {
+            "q": "hours.night",
+            "eq": "yes"
+          },
+          "why": "Included because the work includes night work"
+        },
+        {
+          "slot": "hours.overtime",
+          "clauses": [
+            "EMP.OVERTIME.BASIC",
+            "EMP.OVERTIME.ENHANCED"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "overtime.basis",
+                "eq": "enhanced"
+              },
+              "clause": "EMP.OVERTIME.ENHANCED"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pay",
+      "title": "Pay",
+      "slots": [
+        {
+          "slot": "pay",
+          "clauses": [
+            "EMP.PAY.HOURLY",
+            "EMP.PAY.SALARY"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "pay.basis",
+                "eq": "salary"
+              },
+              "clause": "EMP.PAY.SALARY"
+            }
+          ]
+        },
+        {
+          "slot": "pay.deductions",
+          "clauses": [
+            "EMP.DEDUCTIONS"
+          ]
+        },
+        {
+          "slot": "pay.benefits",
+          "clauses": [
+            "EMP.BENEFITS"
+          ],
+          "include": {
+            "q": "benefits.other"
+          },
+          "why": "Included because other benefits are listed"
+        }
+      ]
+    },
+    {
+      "id": "holiday",
+      "title": "Holiday",
+      "slots": [
+        {
+          "slot": "holiday",
+          "clauses": [
+            "EMP.HOLIDAY.STATUTORY",
+            "EMP.HOLIDAY.ENHANCED"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "holiday.basis",
+                "eq": "enhanced"
+              },
+              "clause": "EMP.HOLIDAY.ENHANCED"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sickness",
+      "title": "Sickness absence",
+      "slots": [
+        {
+          "slot": "sickness",
+          "clauses": [
+            "EMP.SICK.SSP",
+            "EMP.SICK.COMPANY"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "sick.basis",
+                "eq": "company"
+              },
+              "clause": "EMP.SICK.COMPANY"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "leave",
+      "title": "Pension and other leave",
+      "slots": [
+        {
+          "slot": "pension",
+          "clauses": [
+            "EMP.PENSION"
+          ]
+        },
+        {
+          "slot": "leave.family",
+          "clauses": [
+            "EMP.FAMILY"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "conduct",
+      "title": "Training and conduct",
+      "slots": [
+        {
+          "slot": "training",
+          "clauses": [
+            "EMP.TRAINING"
+          ]
+        },
+        {
+          "slot": "conduct",
+          "clauses": [
+            "SEC.CONDUCT"
+          ]
+        },
+        {
+          "slot": "conduct.harassment",
+          "clauses": [
+            "EMP.HARASSMENT"
+          ]
+        },
+        {
+          "slot": "conduct.uniform",
+          "clauses": [
+            "SEC.UNIFORM"
+          ]
+        },
+        {
+          "slot": "conduct.incidents",
+          "clauses": [
+            "SEC.INCIDENT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vehicle",
+      "title": "Company vehicle",
+      "required": false,
+      "include": {
+        "q": "benefits.vehicle",
+        "eq": "yes"
+      },
+      "slots": [
+        {
+          "slot": "vehicle",
+          "clauses": [
+            "VEH.COMPANY_VEHICLE"
+          ],
+          "why": "Included because a company vehicle is provided"
+        }
+      ]
+    },
+    {
+      "id": "discipline",
+      "title": "Discipline and grievances",
+      "slots": [
+        {
+          "slot": "discipline",
+          "clauses": [
+            "EMP.DISCIPLINE"
+          ]
+        },
+        {
+          "slot": "grievance",
+          "clauses": [
+            "EMP.GRIEVANCE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "term_end",
+      "title": "End of the fixed term and extensions",
+      "slots": [
+        {
+          "slot": "term.expiry",
+          "clauses": [
+            "FT.EXPIRY"
+          ]
+        },
+        {
+          "slot": "term.renewal",
+          "clauses": [
+            "FT.RENEWAL"
+          ]
+        },
+        {
+          "slot": "term.extension",
+          "clauses": [
+            "FT.EXTENSION.OPTION"
+          ],
+          "include": {
+            "q": "term.extension_details"
+          },
+          "why": "Included because extension arrangements were agreed"
+        }
+      ]
+    },
+    {
+      "id": "notice",
+      "title": "Ending your employment early",
+      "slots": [
+        {
+          "slot": "term.early",
+          "clauses": [
+            "FT.EARLY.NOTICE",
+            "FT.EARLY.NONE"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "term.early",
+                "eq": "none"
+              },
+              "clause": "FT.EARLY.NONE"
+            }
+          ]
+        },
+        {
+          "slot": "notice",
+          "clauses": [
+            "EMP.NOTICE.STATUTORY",
+            "EMP.NOTICE.ENHANCED"
+          ],
+          "include": {
+            "q": "term.early",
+            "eq": "notice"
+          },
+          "why": "Included because either side may end the fixed term early by notice",
+          "choose": [
+            {
+              "when": {
+                "q": "notice.basis",
+                "eq": "enhanced"
+              },
+              "clause": "EMP.NOTICE.ENHANCED"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "confidentiality",
+      "title": "Confidentiality and data",
+      "slots": [
+        {
+          "slot": "confidential",
+          "clauses": [
+            "SEC.CONFIDENTIAL"
+          ]
+        },
+        {
+          "slot": "data",
+          "clauses": [
+            "SEC.DATA"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "restrictions",
+      "title": "After your employment",
+      "required": false,
+      "slots": [
+        {
+          "slot": "restrict.nonsolicit",
+          "clauses": [
+            "EMP.RESTRICT.NONSOLICIT"
+          ],
+          "include": {
+            "q": "restrict.used",
+            "eq": "yes"
+          },
+          "why": "Included because a client non-solicitation restriction was chosen"
+        }
+      ]
+    },
+    {
+      "id": "general",
+      "title": "General",
+      "slots": [
+        {
+          "slot": "collective",
+          "clauses": [
+            "EMP.COLLECTIVE.NONE",
+            "EMP.COLLECTIVE.LISTED"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "collective.exists",
+                "eq": "yes"
+              },
+              "clause": "EMP.COLLECTIVE.LISTED"
+            }
+          ]
+        },
+        {
+          "slot": "changes",
+          "clauses": [
+            "EMP.CHANGES"
+          ]
+        },
+        {
+          "slot": "entire",
+          "clauses": [
+            "EMP.ENTIRE"
+          ]
+        },
+        {
+          "slot": "third_party",
+          "clauses": [
+            "GEN.THIRD_PARTY"
+          ]
+        },
+        {
+          "slot": "law.governing",
+          "clauses": [
+            "GEN.LAW.EW"
+          ]
+        }
+      ]
+    }
+  ],
+  "overrides": {
+    "sc": {
+      "law.governing": {
+        "clauses": [
+          "GEN.LAW.SC"
+        ]
+      }
+    },
+    "ni": {
+      "law.governing": {
+        "clauses": [
+          "GEN.LAW.NI"
+        ]
+      }
+    }
+  },
+  "rules": [
+    {
+      "id": "hours-cut-client-site",
+      "severity": "blocker",
+      "when": {
+        "wording": "(reduc|cut|lower|withdraw)\\w*\\s+(your\\s+)?(guaranteed\\s+|contracted\\s+)?(hours|shifts)[^.]{0,160}(client|customer|site|contract (ends|is lost|is not renewed))"
+      },
+      "message": "The wording lets the Company cut guaranteed hours because a client or site changes. Guaranteed hours can only change with the employee's written agreement. Offer other work, agree a change in writing, or follow a redundancy process instead.",
+      "jump": {
+        "slot": "hours.change"
+      },
+      "law": [
+        "era2025-fire-and-rehire"
+      ]
+    },
+    {
+      "id": "nmw-check",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "pay.basis",
+            "eq": "hourly"
+          },
+          {
+            "q": "pay.rate",
+            "lt": 12.71
+          }
+        ]
+      },
+      "message": "This rate is below the National Living Wage for workers aged 21 and over (£12.71 from 1 April 2026). Check the employee's age band, and remember that unpaid time and uniform costs count against it.",
+      "jump": {
+        "question": "pay.rate"
+      },
+      "law": [
+        "nmw-2026"
+      ]
+    },
+    {
+      "id": "holiday-below-statutory",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "holiday.basis",
+            "eq": "enhanced"
+          },
+          {
+            "q": "holiday.days",
+            "lt": 28
+          }
+        ]
+      },
+      "message": "Fewer than 28 days is only lawful if the employee works fewer than five days a week, because 5.6 weeks is the statutory minimum. Check the number for this working pattern.",
+      "jump": {
+        "question": "holiday.days"
+      }
+    },
+    {
+      "id": "hours-over-48",
+      "severity": "review",
+      "when": {
+        "q": "hours.weekly",
+        "gt": 48
+      },
+      "message": "These hours are above the 48-hour average. That needs a separate, voluntary opt-out signed by the employee. It must not be a condition of the job.",
+      "jump": {
+        "question": "hours.weekly"
+      },
+      "law": [
+        "wtr-security-special-case"
+      ]
+    },
+    {
+      "id": "restriction-review",
+      "severity": "review",
+      "when": {
+        "q": "restrict.used",
+        "eq": "yes"
+      },
+      "message": "Restrictions after employment are only enforceable if they protect a real business interest and go no further than needed. Keep the period short and the scope to clients the employee actually dealt with.",
+      "jump": {
+        "question": "restrict.period"
+      }
+    },
+    {
+      "id": "ni-written-statement-timing",
+      "severity": "note",
+      "when": {
+        "jurisdiction": "ni"
+      },
+      "message": "In Northern Ireland the written statement is due within two months of the start date. Sending it before the first day is still the best practice.",
+      "law": [
+        "ni-written-statement"
+      ]
+    },
+    {
+      "id": "ft-third-contract",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "term.previous",
+            "eq": "yes"
+          },
+          {
+            "q": "term.renewals",
+            "gte": 2
+          }
+        ]
+      },
+      "message": "This is at least the third fixed-term contract or extension in a row. Check that a fixed term is still genuinely needed and record why, add up the employee's total continuous service for the four-year rule, and consider offering a permanent contract instead. Repeated renewals can also make each non-renewal harder to justify as fair.",
+      "jump": {
+        "question": "term.renewals"
+      },
+      "law": [
+        "fte-regs-2002",
+        "fte-regs-ni-2002"
+      ]
+    },
+    {
+      "id": "ft-four-years",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "term.previous",
+            "eq": "yes"
+          },
+          {
+            "q": "term.four_years",
+            "eq": "yes"
+          }
+        ]
+      },
+      "message": "With four years or more on successive fixed-term contracts, a renewal normally makes the employee permanent by law unless another fixed term is objectively justified (or a collective or workforce agreement changes the rule). Use the permanent pack, or record the objective reason and have it checked before issuing another fixed term.",
+      "jump": {
+        "question": "term.justification"
+      },
+      "law": [
+        "fte-regs-2002",
+        "fte-regs-ni-2002"
+      ]
+    },
+    {
+      "id": "ft-four-years-unsure",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "term.previous",
+            "eq": "yes"
+          },
+          {
+            "q": "term.four_years",
+            "eq": "unsure"
+          }
+        ]
+      },
+      "message": "Work out the employee's continuous service on fixed-term contracts before sending. Short gaps do not always break continuity. If it is four years or more, the employee is likely already permanent unless another fixed term is objectively justified.",
+      "jump": {
+        "question": "term.four_years"
+      },
+      "law": [
+        "fte-regs-2002",
+        "fte-regs-ni-2002"
+      ]
+    },
+    {
+      "id": "ft-event-no-estimate",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "term.end_type",
+            "eq": "event"
+          },
+          {
+            "q": "term.end_estimate",
+            "empty": true
+          }
+        ]
+      },
+      "message": "The fixed term ends on an event with no expected date. Check that the event is objectively identifiable (anyone could tell when it has happened) and add a reasonable estimate of when it will happen, so the employee can plan and the end-of-term review starts on time. If the end cannot be identified, consider the permanent pack.",
+      "jump": {
+        "question": "term.end_estimate"
+      },
+      "law": [
+        "fte-regs-2002",
+        "fte-regs-ni-2002"
+      ]
+    },
+    {
+      "id": "ft-earlier-service",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "term.previous",
+            "eq": "yes"
+          },
+          {
+            "q": "start.continuous",
+            "eq": "new"
+          }
+        ]
+      },
+      "message": "This follows earlier fixed-term contracts, but continuous employment is set to start with this job. Earlier contracts with no break that ends continuity usually count. Check the date and choose \"Began on an earlier date\" if they do.",
+      "jump": {
+        "question": "start.continuous"
+      },
+      "law": [
+        "fte-regs-2002",
+        "fte-regs-ni-2002"
+      ]
+    },
+    {
+      "id": "ft-no-early-termination",
+      "severity": "note",
+      "when": {
+        "q": "term.early",
+        "eq": "none"
+      },
+      "message": "Without an early-termination clause, ending the contract early (other than for gross misconduct, during probation or by agreement) is likely to be a breach of contract, and the employee may claim pay for the rest of the term. Choose \"Either side may end it early by notice\" if the work could stop before the end.",
+      "jump": {
+        "question": "term.early"
+      },
+      "law": [
+        "fixed-term-expiry-dismissal",
+        "fixed-term-expiry-dismissal-ni"
+      ]
+    },
+    {
+      "id": "ft-expiry-is-dismissal",
+      "severity": "note",
+      "when": {
+        "q": "term.end_type"
+      },
+      "message": "When the term ends without renewal, the law treats it as a dismissal for unfair dismissal and redundancy purposes. Before the end date, meet the employee, explain the reason, consider other suitable work, and offer a right of appeal. A redundancy payment may be due depending on the reason and length of service. Do not ask the employee to waive these rights.",
+      "jump": {
+        "slot": "term.expiry"
+      },
+      "law": [
+        "fixed-term-expiry-dismissal",
+        "fixed-term-expiry-dismissal-ni"
+      ]
+    },
+    {
+      "id": "ft-expiry-removes-rights",
+      "severity": "blocker",
+      "when": {
+        "any": [
+          {
+            "wording": "(waive|waiver|give up|forgo|exclud\\w*|remov\\w*|lose|forfeit)\\w*[^.]{0,80}(right\\w*[^.]{0,30}(redundancy|unfair dismissal|notice|claim)|redundancy pay\\w*|unfair dismissal)"
+          },
+          {
+            "wording": "(expir\\w*|end\\w*|non-renewal)[^.]{0,80}(is not|will not be|shall not (be|constitute)|does not (count as|amount to|constitute))( a)? dismissal"
+          },
+          {
+            "wording": "(automatic\\w*|simply)[^.]{0,60}(end|expire|terminate)\\w*[^.]{0,80}(no|without( any)?) (notice|redundancy|dismissal|claim|rights)"
+          }
+        ]
+      },
+      "message": "The wording says or suggests that the end of the fixed term removes statutory rights, is not a dismissal, or rules out notice or redundancy. That is wrong in law and waivers of these rights are void. Remove it and use the standard end-of-term clause.",
+      "jump": {
+        "slot": "term.expiry"
+      },
+      "law": [
+        "fixed-term-expiry-dismissal",
+        "fixed-term-expiry-dismissal-ni"
+      ]
+    }
+  ],
+  "supporting": [
+    {
+      "title": "Staff handbook, including the disciplinary and grievance procedure",
+      "contractual": false
+    },
+    {
+      "title": "Privacy notice for staff",
+      "contractual": false
+    },
+    {
+      "title": "Anti-harassment policy",
+      "contractual": false
+    },
+    {
+      "title": "Health and safety policy",
+      "contractual": false
+    },
+    {
+      "title": "Assignment instructions for each site",
+      "contractual": false
+    },
+    {
+      "title": "End-of-term review letter (decision on extension or ending, with reasons)",
+      "contractual": false
+    },
+    {
+      "title": "Record of the objective reason for another fixed term (kept on file)",
+      "contractual": false,
+      "when": {
+        "all": [
+          {
+            "q": "term.previous",
+            "eq": "yes"
+          },
+          {
+            "q": "term.four_years",
+            "eq": "yes"
+          }
+        ]
+      }
+    },
+    {
+      "title": "Company vehicle policy",
+      "contractual": true,
+      "when": {
+        "q": "benefits.vehicle",
+        "eq": "yes"
+      }
+    },
+    {
+      "title": "48-hour opt-out agreement (separate and voluntary)",
+      "contractual": false,
+      "when": {
+        "q": "hours.weekly",
+        "gt": 48
+      }
+    }
+  ]
+}

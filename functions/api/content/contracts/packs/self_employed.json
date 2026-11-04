@@ -1,0 +1,1711 @@
+{
+  "id": "self_employed",
+  "version": 1,
+  "title": "Self-employed individual (services)",
+  "summary": "A genuinely independent individual supplying services as their own business, after a status assessment.",
+  "party": "person",
+  "engagement_type": "self_employed",
+  "doc_title": "Services Agreement",
+  "jurisdictions": [
+    "ew",
+    "sc",
+    "ni"
+  ],
+  "law": [
+    "sia-hmrc-security-operatives",
+    "itepa-agency-rules",
+    "employment-status-services"
+  ],
+  "decision": {
+    "hint": "An individual runs their own business: they decide how the work is done, can genuinely send someone else or carry real financial risk, and work for other customers."
+  },
+  "sections": [
+    {
+      "id": "parties",
+      "title": "Parties"
+    },
+    {
+      "id": "services",
+      "title": "Services and duration"
+    },
+    {
+      "id": "assignments",
+      "title": "Agreeing work"
+    },
+    {
+      "id": "delivery",
+      "title": "Delivery"
+    },
+    {
+      "id": "fees",
+      "title": "Fees, VAT and invoicing"
+    },
+    {
+      "id": "tax",
+      "title": "Status and tax"
+    },
+    {
+      "id": "equipment",
+      "title": "Equipment and insurance"
+    },
+    {
+      "id": "licensing",
+      "title": "Licensing and competence"
+    },
+    {
+      "id": "ending",
+      "title": "Liability and ending"
+    }
+  ],
+  "questions": [
+    {
+      "id": "parties.company_name",
+      "label": "Company",
+      "section": "parties",
+      "type": "text",
+      "prefill": "company.name",
+      "help": "The legal name of the Company, exactly as registered."
+    },
+    {
+      "id": "parties.company_address",
+      "label": "Company address",
+      "section": "parties",
+      "type": "text",
+      "prefill": "company.address"
+    },
+    {
+      "id": "parties.company_number",
+      "label": "Company number",
+      "section": "parties",
+      "type": "text",
+      "prefill": "company.number",
+      "required": false
+    },
+    {
+      "id": "parties.company_email",
+      "label": "Company email for notices",
+      "section": "parties",
+      "type": "text",
+      "help": "The address the Supplier sends formal notices to."
+    },
+    {
+      "id": "parties.supplier_name",
+      "label": "Supplier (the individual)",
+      "section": "parties",
+      "type": "text",
+      "prefill": "officer.name",
+      "help": "The full legal name of the self-employed individual. Add any trading name in brackets."
+    },
+    {
+      "id": "parties.supplier_address",
+      "label": "Supplier address",
+      "section": "parties",
+      "type": "text",
+      "prefill": "officer.address"
+    },
+    {
+      "id": "parties.supplier_email",
+      "label": "Supplier email for notices",
+      "section": "parties",
+      "type": "text",
+      "prefill": "officer.email"
+    },
+    {
+      "id": "company.acs",
+      "label": "Is the Company an SIA approved contractor?",
+      "section": "parties",
+      "type": "yesno",
+      "particular": false,
+      "schedule": false,
+      "help": "Approved contractors must deploy only employees or people treated as employees for tax (ACS indicator 4.2.1)."
+    },
+    {
+      "id": "services.description",
+      "label": "The Services",
+      "section": "services",
+      "type": "textarea",
+      "help": "What the Supplier will do. Be specific; this defines the scope."
+    },
+    {
+      "id": "services.deliverables",
+      "label": "Deliverables and standards",
+      "section": "services",
+      "type": "textarea",
+      "help": "The results and standards the Services must meet, for example reports, response times or service levels."
+    },
+    {
+      "id": "services.locations",
+      "label": "Where the Services are provided",
+      "section": "services",
+      "type": "text",
+      "help": "Sites, areas or \"remotely\"."
+    },
+    {
+      "id": "services.start",
+      "label": "Start date",
+      "section": "services",
+      "type": "date",
+      "prefill": "officer.start_date"
+    },
+    {
+      "id": "services.term",
+      "label": "Duration",
+      "section": "services",
+      "type": "choice",
+      "options": [
+        {
+          "value": "ongoing",
+          "label": "Until ended by notice",
+          "text": "until ended by notice"
+        },
+        {
+          "value": "fixed",
+          "label": "Fixed end date",
+          "text": "until a fixed end date"
+        }
+      ]
+    },
+    {
+      "id": "services.end_date",
+      "label": "End date",
+      "section": "services",
+      "type": "date",
+      "showIf": {
+        "q": "services.term",
+        "eq": "fixed"
+      }
+    },
+    {
+      "id": "assignments.model",
+      "label": "How work is agreed",
+      "section": "assignments",
+      "type": "choice",
+      "particular": false,
+      "schedule": false,
+      "help": "Pick what really happens. If there is a regular rota the Supplier is expected to cover, do not pick \"offered one at a time\".",
+      "options": [
+        {
+          "value": "offered",
+          "label": "Assignments offered one at a time, free to accept or decline"
+        },
+        {
+          "value": "programme",
+          "label": "An agreed programme or project"
+        }
+      ]
+    },
+    {
+      "id": "assignments.confirm_how",
+      "label": "How Assignments are confirmed",
+      "section": "assignments",
+      "type": "text",
+      "showIf": {
+        "q": "assignments.model",
+        "eq": "offered"
+      },
+      "help": "For example: \"by email\" or \"through the Company's scheduling app\"."
+    },
+    {
+      "id": "assignments.programme",
+      "label": "Agreed programme of work",
+      "section": "assignments",
+      "type": "textarea",
+      "showIf": {
+        "q": "assignments.model",
+        "eq": "programme"
+      }
+    },
+    {
+      "id": "assignments.commitments",
+      "label": "Commitments beyond agreed work",
+      "section": "assignments",
+      "type": "textarea",
+      "help": "Record what actually exists, for example \"none\" or \"the Company will offer first refusal on work at site X\". Do not overstate or understate it."
+    },
+    {
+      "id": "assignments.cancellation",
+      "label": "Cancellation terms",
+      "section": "assignments",
+      "type": "textarea",
+      "help": "What happens if either party cancels agreed work, including any cancellation fee and how much notice is needed."
+    },
+    {
+      "id": "delivery.contact",
+      "label": "Day-to-day contact at the Company",
+      "section": "delivery",
+      "type": "text",
+      "help": "Name or role."
+    },
+    {
+      "id": "fees.basis",
+      "label": "How fees are charged",
+      "section": "fees",
+      "type": "choice",
+      "options": [
+        {
+          "value": "assignment",
+          "label": "Per Assignment",
+          "text": "for each Assignment"
+        },
+        {
+          "value": "fixed",
+          "label": "Fixed fee for the Services",
+          "text": "as a fixed fee for the Services"
+        },
+        {
+          "value": "day",
+          "label": "Per day",
+          "text": "for each day of Services provided"
+        },
+        {
+          "value": "hour",
+          "label": "Per hour",
+          "text": "for each hour of Services provided"
+        }
+      ]
+    },
+    {
+      "id": "fees.rate",
+      "label": "Fee",
+      "section": "fees",
+      "type": "money",
+      "help": "Excluding VAT."
+    },
+    {
+      "id": "fees.invoice_frequency",
+      "label": "Invoicing",
+      "section": "fees",
+      "type": "choice",
+      "options": [
+        {
+          "value": "assignment",
+          "label": "After each Assignment",
+          "text": "after each Assignment"
+        },
+        {
+          "value": "weekly",
+          "label": "Weekly",
+          "text": "weekly in arrears"
+        },
+        {
+          "value": "monthly",
+          "label": "Monthly",
+          "text": "monthly in arrears"
+        }
+      ]
+    },
+    {
+      "id": "fees.payment_terms",
+      "label": "Payment terms",
+      "section": "fees",
+      "type": "text",
+      "help": "For example \"30 days\". Statutory late-payment interest applies if the Company pays late."
+    },
+    {
+      "id": "fees.expenses_basis",
+      "label": "Expenses",
+      "section": "fees",
+      "type": "choice",
+      "particular": false,
+      "schedule": false,
+      "options": [
+        {
+          "value": "none",
+          "label": "Included in the fees"
+        },
+        {
+          "value": "agreed",
+          "label": "Specific expenses repaid"
+        }
+      ]
+    },
+    {
+      "id": "fees.expenses",
+      "label": "Expenses the Company repays",
+      "section": "fees",
+      "type": "textarea",
+      "showIf": {
+        "q": "fees.expenses_basis",
+        "eq": "agreed"
+      }
+    },
+    {
+      "id": "vat.registered",
+      "label": "Is the Supplier VAT-registered?",
+      "section": "fees",
+      "type": "yesno"
+    },
+    {
+      "id": "vat.number",
+      "label": "Supplier VAT number",
+      "section": "fees",
+      "type": "text",
+      "showIf": {
+        "q": "vat.registered",
+        "eq": "yes"
+      }
+    },
+    {
+      "id": "status.assessed_by",
+      "label": "Status assessed by",
+      "section": "tax",
+      "type": "text",
+      "help": "Name and role of the person at the Company who carried out the status assessment."
+    },
+    {
+      "id": "status.assessed_on",
+      "label": "Date of status assessment",
+      "section": "tax",
+      "type": "date",
+      "prefill": "today"
+    },
+    {
+      "id": "equipment.supplier",
+      "label": "Equipment the Supplier provides",
+      "section": "equipment",
+      "type": "textarea",
+      "help": "What the Supplier really provides at its own cost."
+    },
+    {
+      "id": "equipment.company",
+      "label": "Equipment the Company or client provides",
+      "section": "equipment",
+      "type": "textarea",
+      "help": "For example keys, radios, body-worn cameras. Write \"nothing\" if none."
+    },
+    {
+      "id": "insurance.public_liability",
+      "label": "Public liability cover (each claim)",
+      "section": "equipment",
+      "type": "money"
+    },
+    {
+      "id": "insurance.pi_required",
+      "label": "Professional indemnity insurance required?",
+      "section": "equipment",
+      "type": "yesno",
+      "particular": false,
+      "schedule": false,
+      "help": "Usually needed for advice, design, consultancy or reports the Company relies on."
+    },
+    {
+      "id": "insurance.professional_indemnity",
+      "label": "Professional indemnity cover (each claim)",
+      "section": "equipment",
+      "type": "money",
+      "showIf": {
+        "q": "insurance.pi_required",
+        "eq": "yes"
+      }
+    },
+    {
+      "id": "insurance.other",
+      "label": "Other insurance required",
+      "section": "equipment",
+      "type": "text",
+      "required": false,
+      "help": "Optional, for example motor insurance for business use."
+    },
+    {
+      "id": "services.licensable",
+      "label": "Do the Services include SIA-licensable conduct?",
+      "section": "licensing",
+      "type": "yesno",
+      "particular": false,
+      "schedule": false
+    },
+    {
+      "id": "licence.type",
+      "label": "SIA licence type",
+      "section": "licensing",
+      "type": "text",
+      "showIf": {
+        "q": "services.licensable",
+        "eq": "yes"
+      },
+      "prefill": "officer.sia_type"
+    },
+    {
+      "id": "licence.number",
+      "label": "SIA licence number",
+      "section": "licensing",
+      "type": "text",
+      "showIf": {
+        "q": "services.licensable",
+        "eq": "yes"
+      },
+      "prefill": "officer.sia_number"
+    },
+    {
+      "id": "competence.requirements",
+      "label": "Qualifications and training required",
+      "section": "licensing",
+      "type": "textarea"
+    },
+    {
+      "id": "notice.period",
+      "label": "Notice to end the agreement",
+      "section": "ending",
+      "type": "text",
+      "help": "For example \"one week\". Applies to both parties."
+    },
+    {
+      "id": "liability.cap",
+      "label": "Limit on the Supplier's liability",
+      "section": "ending",
+      "type": "text",
+      "help": "An amount or a formula, for example the fees paid in the previous contract year. Take advice on what is reasonable."
+    }
+  ],
+  "assessment": {
+    "title": "Status assessment",
+    "intro": "Answer from what really happens on site, not from what the agreement says. Employment rights and tax are decided separately: someone can be self-employed for employment rights but still taxed through PAYE, for example under the agency rules.",
+    "questions": [
+      {
+        "id": "personal_service",
+        "label": "In practice, who does the work?",
+        "help": "Describe what really happens, not what a contract says. Clothing, a phone, a torch or travel to work do not make the Supplier a business.",
+        "options": [
+          {
+            "value": "personal",
+            "label": "The Supplier personally, every time"
+          },
+          {
+            "value": "business",
+            "label": "A business that decides who does the work and has its own staff or associates"
+          },
+          {
+            "value": "unclear",
+            "label": "Not clear yet"
+          }
+        ]
+      },
+      {
+        "id": "substitution",
+        "label": "If the Supplier cannot attend, can the Supplier genuinely send someone else?",
+        "help": "A substitution right only counts if the Supplier really chooses, engages and pays the replacement, and the Company has no veto beyond checking the replacement is licensed, screened and competent. If the Company always finds the cover, or approves people at its discretion, the answer is not \"real\".",
+        "options": [
+          {
+            "value": "real",
+            "label": "Yes: the Supplier chooses, engages and pays the replacement; the Company only checks licence, screening and competence"
+          },
+          {
+            "value": "limited",
+            "label": "Only someone the Company approves at its discretion"
+          },
+          {
+            "value": "no",
+            "label": "No: the Company finds the cover, or the work is simply not done"
+          },
+          {
+            "value": "unclear",
+            "label": "Not clear yet"
+          }
+        ]
+      },
+      {
+        "id": "control",
+        "label": "Who has the right to decide how, when and where the work is done?",
+        "help": "Count the right to control even if it is rarely used. Supervision, direction or control includes rotas, patrol routes, reporting routines and mandatory site procedures, even where those procedures come from regulation (HMRC ESM2037).",
+        "options": [
+          {
+            "value": "directed",
+            "label": "The Company or the client: they set times, tasks, routes or procedures and can tell the person how to work"
+          },
+          {
+            "value": "own_method",
+            "label": "The Supplier: only the result and the legal or site requirements are set"
+          },
+          {
+            "value": "unclear",
+            "label": "Not clear yet"
+          }
+        ]
+      },
+      {
+        "id": "financial_risk",
+        "label": "Does the Supplier carry real financial risk?",
+        "help": "For example: putting poor work right at its own cost, fixed prices that can make a loss, significant investment, or its own staff to pay. Paying for a uniform, phone, torch or travel to work is not financial risk.",
+        "options": [
+          {
+            "value": "yes",
+            "label": "Yes, real business risk"
+          },
+          {
+            "value": "no",
+            "label": "No: paid for time, with no real risk of loss"
+          },
+          {
+            "value": "unclear",
+            "label": "Not clear yet"
+          }
+        ]
+      },
+      {
+        "id": "equipment",
+        "label": "Who provides the equipment needed for the work?",
+        "options": [
+          {
+            "value": "supplier",
+            "label": "The Supplier provides its own significant equipment"
+          },
+          {
+            "value": "mixed",
+            "label": "Shared: the Supplier provides some significant items, the Company or client the rest"
+          },
+          {
+            "value": "company",
+            "label": "The Company or the client provides it (beyond basic clothing and a phone)"
+          }
+        ]
+      },
+      {
+        "id": "other_clients",
+        "label": "Does the Supplier actually work for other customers?",
+        "help": "Actual work for others in business, not just being free to.",
+        "options": [
+          {
+            "value": "yes",
+            "label": "Yes, in practice"
+          },
+          {
+            "value": "no",
+            "label": "No, or only in theory"
+          }
+        ]
+      },
+      {
+        "id": "mutual_obligation",
+        "label": "What happens in practice about offering and accepting work?",
+        "help": "Look at the pattern, not the wording. A regular rota that is expected to be filled is an ongoing obligation even if each shift is \"offered\".",
+        "options": [
+          {
+            "value": "none",
+            "label": "Each piece of work is genuinely offered and can be turned down without consequence"
+          },
+          {
+            "value": "ongoing",
+            "label": "There is a regular pattern, or work is expected to be offered and accepted"
+          },
+          {
+            "value": "unclear",
+            "label": "Not clear yet"
+          }
+        ]
+      },
+      {
+        "id": "integration",
+        "label": "Is the Supplier part of the Company's organisation?",
+        "help": "For example: wears the Company uniform as if staff, is on the Company rota, manages staff, or is treated like an employee.",
+        "options": [
+          {
+            "value": "no",
+            "label": "No, clearly an outside business"
+          },
+          {
+            "value": "yes",
+            "label": "Yes, treated much like staff"
+          }
+        ]
+      },
+      {
+        "id": "deployment",
+        "label": "Where is the work done?",
+        "help": "This decides whether the tax agency rules (ITEPA 2003 section 44) or the off-payroll working rules need checking.",
+        "options": [
+          {
+            "value": "client_sites",
+            "label": "Deployed to client sites under the Company's contracts with its clients"
+          },
+          {
+            "value": "company",
+            "label": "Works only for the Company itself (for example the Company's own premises or projects)"
+          }
+        ]
+      }
+    ],
+    "outcomes": {
+      "employment": [
+        {
+          "result": "unresolved",
+          "when": {
+            "any": [
+              {
+                "assessment": "personal_service",
+                "eq": "unclear"
+              },
+              {
+                "assessment": "substitution",
+                "eq": "unclear"
+              },
+              {
+                "assessment": "control",
+                "eq": "unclear"
+              },
+              {
+                "assessment": "financial_risk",
+                "eq": "unclear"
+              },
+              {
+                "assessment": "mutual_obligation",
+                "eq": "unclear"
+              }
+            ]
+          }
+        },
+        {
+          "result": "employee",
+          "when": {
+            "all": [
+              {
+                "any": [
+                  {
+                    "assessment": "substitution",
+                    "eq": "no"
+                  },
+                  {
+                    "assessment": "substitution",
+                    "eq": "limited"
+                  }
+                ]
+              },
+              {
+                "assessment": "control",
+                "eq": "directed"
+              },
+              {
+                "assessment": "mutual_obligation",
+                "eq": "ongoing"
+              },
+              {
+                "assessment": "integration",
+                "eq": "yes"
+              }
+            ]
+          }
+        },
+        {
+          "result": "worker",
+          "when": {
+            "all": [
+              {
+                "any": [
+                  {
+                    "assessment": "substitution",
+                    "eq": "no"
+                  },
+                  {
+                    "assessment": "substitution",
+                    "eq": "limited"
+                  }
+                ]
+              },
+              {
+                "any": [
+                  {
+                    "assessment": "control",
+                    "eq": "directed"
+                  },
+                  {
+                    "assessment": "financial_risk",
+                    "eq": "no"
+                  },
+                  {
+                    "assessment": "integration",
+                    "eq": "yes"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "result": "self_employed",
+          "when": {
+            "any": [
+              {
+                "all": [
+                  {
+                    "assessment": "substitution",
+                    "eq": "real"
+                  },
+                  {
+                    "assessment": "personal_service",
+                    "eq": "business"
+                  }
+                ]
+              },
+              {
+                "all": [
+                  {
+                    "assessment": "control",
+                    "eq": "own_method"
+                  },
+                  {
+                    "assessment": "financial_risk",
+                    "eq": "yes"
+                  },
+                  {
+                    "assessment": "other_clients",
+                    "eq": "yes"
+                  },
+                  {
+                    "assessment": "integration",
+                    "eq": "no"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "tax": [
+        {
+          "result": "unresolved",
+          "when": {
+            "any": [
+              {
+                "assessment": "personal_service",
+                "eq": "unclear"
+              },
+              {
+                "assessment": "substitution",
+                "eq": "unclear"
+              },
+              {
+                "assessment": "control",
+                "eq": "unclear"
+              },
+              {
+                "assessment": "financial_risk",
+                "eq": "unclear"
+              },
+              {
+                "assessment": "mutual_obligation",
+                "eq": "unclear"
+              }
+            ]
+          }
+        },
+        {
+          "result": "employed",
+          "when": {
+            "all": [
+              {
+                "assessment": "control",
+                "eq": "directed"
+              },
+              {
+                "assessment": "deployment",
+                "eq": "client_sites"
+              }
+            ]
+          }
+        },
+        {
+          "result": "employed",
+          "when": {
+            "all": [
+              {
+                "assessment": "control",
+                "eq": "directed"
+              },
+              {
+                "any": [
+                  {
+                    "assessment": "financial_risk",
+                    "eq": "no"
+                  },
+                  {
+                    "assessment": "mutual_obligation",
+                    "eq": "ongoing"
+                  },
+                  {
+                    "assessment": "integration",
+                    "eq": "yes"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "result": "self_employed",
+          "when": {
+            "all": [
+              {
+                "assessment": "control",
+                "eq": "own_method"
+              },
+              {
+                "assessment": "financial_risk",
+                "eq": "yes"
+              },
+              {
+                "any": [
+                  {
+                    "assessment": "substitution",
+                    "eq": "real"
+                  },
+                  {
+                    "assessment": "other_clients",
+                    "eq": "yes"
+                  }
+                ]
+              },
+              {
+                "any": [
+                  {
+                    "assessment": "equipment",
+                    "eq": "supplier"
+                  },
+                  {
+                    "assessment": "equipment",
+                    "eq": "mixed"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expects": {
+      "employment": [
+        "self_employed"
+      ],
+      "tax": [
+        "self_employed",
+        "employed"
+      ]
+    },
+    "mismatch": "If the Supplier is a worker or employee for employment rights, use the casual worker, fixed-term or permanent pack instead. Do not adjust the answers or wording to fit this pack."
+  },
+  "clauses": [
+    {
+      "id": "parties",
+      "title": "Parties and definitions",
+      "slots": [
+        {
+          "slot": "parties",
+          "clauses": [
+            "SE.PARTIES"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "services",
+      "title": "The Services",
+      "slots": [
+        {
+          "slot": "services",
+          "clauses": [
+            "SVC.SERVICES"
+          ]
+        },
+        {
+          "slot": "services.term",
+          "clauses": [
+            "SVC.TERM.ONGOING",
+            "SVC.TERM.FIXED"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "services.term",
+                "eq": "fixed"
+              },
+              "clause": "SVC.TERM.FIXED"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "assignments",
+      "title": "Agreeing work",
+      "slots": [
+        {
+          "slot": "assignments",
+          "clauses": [
+            "SVC.ASSIGNMENTS.OFFERED",
+            "SVC.ASSIGNMENTS.PROGRAMME"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "assignments.model",
+                "eq": "programme"
+              },
+              "clause": "SVC.ASSIGNMENTS.PROGRAMME"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "delivery",
+      "title": "Delivering the Services",
+      "slots": [
+        {
+          "slot": "delivery.method",
+          "clauses": [
+            "SVC.DELIVERY.REQUIREMENTS",
+            "SVC.DELIVERY.OWN_METHOD"
+          ],
+          "choose": [
+            {
+              "when": {
+                "assessment": "control",
+                "eq": "own_method"
+              },
+              "clause": "SVC.DELIVERY.OWN_METHOD"
+            }
+          ]
+        },
+        {
+          "slot": "delivery.rework",
+          "clauses": [
+            "SVC.REWORK"
+          ],
+          "include": {
+            "assessment": "financial_risk",
+            "eq": "yes"
+          },
+          "why": "Included because the assessment records that the Supplier carries real financial risk"
+        },
+        {
+          "slot": "delivery.instructions",
+          "clauses": [
+            "SEC.B2B.INSTRUCTIONS"
+          ]
+        },
+        {
+          "slot": "delivery.conduct",
+          "clauses": [
+            "SEC.B2B.CONDUCT"
+          ]
+        },
+        {
+          "slot": "delivery.fitness",
+          "clauses": [
+            "SE.FITNESS"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "personnel",
+      "title": "Who provides the Services",
+      "slots": [
+        {
+          "slot": "personnel",
+          "clauses": [
+            "SE.PERSONNEL.PERSONAL",
+            "SE.PERSONNEL.APPROVAL",
+            "SE.PERSONNEL.SUBSTITUTION"
+          ],
+          "choose": [
+            {
+              "when": {
+                "assessment": "substitution",
+                "eq": "real"
+              },
+              "clause": "SE.PERSONNEL.SUBSTITUTION"
+            },
+            {
+              "when": {
+                "assessment": "substitution",
+                "eq": "limited"
+              },
+              "clause": "SE.PERSONNEL.APPROVAL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fees",
+      "title": "Fees, invoicing and payment",
+      "slots": [
+        {
+          "slot": "fees",
+          "clauses": [
+            "SVC.FEES"
+          ]
+        },
+        {
+          "slot": "fees.expenses",
+          "clauses": [
+            "SVC.EXPENSES.NONE",
+            "SVC.EXPENSES.AGREED"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "fees.expenses_basis",
+                "eq": "agreed"
+              },
+              "clause": "SVC.EXPENSES.AGREED"
+            }
+          ]
+        },
+        {
+          "slot": "fees.vat",
+          "clauses": [
+            "SVC.VAT.REGISTERED",
+            "SVC.VAT.NOT_REGISTERED"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "vat.registered",
+                "ne": "yes"
+              },
+              "clause": "SVC.VAT.NOT_REGISTERED"
+            }
+          ]
+        },
+        {
+          "slot": "fees.invoice",
+          "clauses": [
+            "SVC.INVOICE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tax",
+      "title": "Status and tax",
+      "slots": [
+        {
+          "slot": "status",
+          "clauses": [
+            "SE.STATUS.ASSESSED",
+            "SE.STATUS.INDEPENDENT"
+          ],
+          "choose": [
+            {
+              "when": {
+                "all": [
+                  {
+                    "assessment": "control",
+                    "eq": "own_method"
+                  },
+                  {
+                    "assessment": "financial_risk",
+                    "eq": "yes"
+                  },
+                  {
+                    "assessment": "other_clients",
+                    "eq": "yes"
+                  },
+                  {
+                    "assessment": "integration",
+                    "eq": "no"
+                  }
+                ]
+              },
+              "clause": "SE.STATUS.INDEPENDENT"
+            }
+          ]
+        },
+        {
+          "slot": "tax.treatment",
+          "clauses": [
+            "SE.TAX.GROSS",
+            "SE.TAX.PAYE"
+          ],
+          "choose": [
+            {
+              "when": {
+                "any": [
+                  {
+                    "outcome": "tax",
+                    "eq": "employed"
+                  },
+                  {
+                    "all": [
+                      {
+                        "assessment": "control",
+                        "eq": "directed"
+                      },
+                      {
+                        "assessment": "deployment",
+                        "eq": "client_sites"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "clause": "SE.TAX.PAYE"
+            }
+          ]
+        },
+        {
+          "slot": "tax.reassess",
+          "clauses": [
+            "SVC.REASSESS"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "equipment",
+      "title": "Equipment and insurance",
+      "slots": [
+        {
+          "slot": "equipment",
+          "clauses": [
+            "SVC.EQUIPMENT.PROVISION"
+          ]
+        },
+        {
+          "slot": "equipment.security",
+          "clauses": [
+            "SEC.B2B.EQUIPMENT"
+          ]
+        },
+        {
+          "slot": "insurance",
+          "clauses": [
+            "SVC.INSURANCE"
+          ]
+        },
+        {
+          "slot": "insurance.pi",
+          "clauses": [
+            "SVC.INSURANCE.PI"
+          ],
+          "include": {
+            "q": "insurance.pi_required",
+            "eq": "yes"
+          },
+          "why": "Included because professional indemnity cover is required"
+        },
+        {
+          "slot": "insurance.other",
+          "clauses": [
+            "SVC.INSURANCE.OTHER"
+          ],
+          "include": {
+            "q": "insurance.other"
+          },
+          "why": "Included because other insurance is listed"
+        }
+      ]
+    },
+    {
+      "id": "licensing",
+      "title": "Licensing, screening and competence",
+      "slots": [
+        {
+          "slot": "licence.details",
+          "clauses": [
+            "SE.LICENCE.DETAILS"
+          ],
+          "include": {
+            "q": "services.licensable",
+            "eq": "yes"
+          },
+          "why": "Included because the Services are SIA-licensable"
+        },
+        {
+          "slot": "licence",
+          "clauses": [
+            "SEC.B2B.LICENCE"
+          ],
+          "include": {
+            "q": "services.licensable",
+            "eq": "yes"
+          },
+          "why": "Included because the Services are SIA-licensable"
+        },
+        {
+          "slot": "screening",
+          "clauses": [
+            "SEC.B2B.SCREENING"
+          ]
+        },
+        {
+          "slot": "training",
+          "clauses": [
+            "SEC.B2B.TRAINING"
+          ]
+        },
+        {
+          "slot": "competence",
+          "clauses": [
+            "SVC.COMPETENCE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "confidentiality",
+      "title": "Confidentiality and information",
+      "slots": [
+        {
+          "slot": "confidential",
+          "clauses": [
+            "SEC.B2B.CONFIDENTIAL"
+          ]
+        },
+        {
+          "slot": "data",
+          "clauses": [
+            "SEC.B2B.DATA"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ending",
+      "title": "Liability and ending this agreement",
+      "slots": [
+        {
+          "slot": "liability",
+          "clauses": [
+            "SVC.LIABILITY"
+          ]
+        },
+        {
+          "slot": "termination",
+          "clauses": [
+            "SVC.TERMINATION"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "general",
+      "title": "General",
+      "slots": [
+        {
+          "slot": "changes",
+          "clauses": [
+            "SEC.B2B.CHANGES"
+          ]
+        },
+        {
+          "slot": "entire",
+          "clauses": [
+            "SVC.ENTIRE"
+          ]
+        },
+        {
+          "slot": "third_party",
+          "clauses": [
+            "GEN.THIRD_PARTY"
+          ]
+        },
+        {
+          "slot": "law.governing",
+          "clauses": [
+            "GEN.LAW.EW"
+          ]
+        }
+      ]
+    }
+  ],
+  "overrides": {
+    "sc": {
+      "law.governing": {
+        "clauses": [
+          "GEN.LAW.SC"
+        ]
+      }
+    },
+    "ni": {
+      "law.governing": {
+        "clauses": [
+          "GEN.LAW.NI"
+        ]
+      }
+    }
+  },
+  "rules": [
+    {
+      "id": "sham-substitution",
+      "severity": "blocker",
+      "when": {
+        "all": [
+          {
+            "not": {
+              "assessment": "substitution",
+              "eq": "real"
+            }
+          },
+          {
+            "any": [
+              {
+                "clause": "SE.PERSONNEL.SUBSTITUTION"
+              },
+              {
+                "wording": "(right|free|entitled|may|can)\\b[^.]{0,80}\\b(send|provide|use|appoint)\\w*\\b[^.]{0,40}\\bsubstitut"
+              }
+            ]
+          }
+        ]
+      },
+      "message": "The wording gives the Supplier a right to send a substitute, but the status assessment does not record a real, workable substitution arrangement. Do not add a substitution right to make the engagement look independent. Use the wording that matches what happens (personal service, or replacements only with approval), or correct the assessment if a real right exists in practice.",
+      "jump": {
+        "slot": "personnel"
+      },
+      "law": [
+        "sia-hmrc-security-operatives",
+        "employment-status-services"
+      ]
+    },
+    {
+      "id": "sham-independence",
+      "severity": "blocker",
+      "when": {
+        "all": [
+          {
+            "not": {
+              "all": [
+                {
+                  "assessment": "control",
+                  "eq": "own_method"
+                },
+                {
+                  "assessment": "financial_risk",
+                  "eq": "yes"
+                },
+                {
+                  "assessment": "other_clients",
+                  "eq": "yes"
+                },
+                {
+                  "assessment": "integration",
+                  "eq": "no"
+                }
+              ]
+            }
+          },
+          {
+            "any": [
+              {
+                "clause": "SE.STATUS.INDEPENDENT"
+              },
+              {
+                "wording": "independent business|on (its|his|her|their) own account|in business on (its|his|her|their) own"
+              }
+            ]
+          }
+        ]
+      },
+      "message": "The wording describes the Supplier as an independent business, but the assessment does not show it: the Supplier must decide how the work is done, carry real financial risk, actually work for other customers and not be part of the Company. Use the neutral status clause instead, or correct the assessment if it is wrong.",
+      "jump": {
+        "slot": "status"
+      },
+      "law": [
+        "sia-hmrc-security-operatives",
+        "employment-status-services"
+      ]
+    },
+    {
+      "id": "sham-own-method",
+      "severity": "blocker",
+      "when": {
+        "all": [
+          {
+            "clause": "SVC.DELIVERY.OWN_METHOD"
+          },
+          {
+            "not": {
+              "assessment": "control",
+              "eq": "own_method"
+            }
+          }
+        ]
+      },
+      "message": "The wording says the Supplier decides how the work is done, but the assessment records that the Company or the client has that control. Use the \"Company requirements\" delivery wording, which reflects the real arrangement.",
+      "jump": {
+        "slot": "delivery.method"
+      },
+      "law": [
+        "itepa-agency-rules",
+        "sia-hmrc-security-operatives"
+      ]
+    },
+    {
+      "id": "assignments-vs-practice",
+      "severity": "blocker",
+      "when": {
+        "all": [
+          {
+            "q": "assignments.model",
+            "eq": "offered"
+          },
+          {
+            "assessment": "mutual_obligation",
+            "eq": "ongoing"
+          }
+        ]
+      },
+      "message": "The wording says each Assignment can be declined with no promise of work, but the assessment records a regular pattern or an expectation to offer and accept work. Record the real programme and commitments, or use the worker or employee route if that is what the arrangement is.",
+      "jump": {
+        "question": "assignments.model"
+      },
+      "law": [
+        "employment-status-services"
+      ]
+    },
+    {
+      "id": "assessment-unclear",
+      "severity": "review",
+      "when": {
+        "any": [
+          {
+            "assessment": "personal_service",
+            "eq": "unclear"
+          },
+          {
+            "assessment": "substitution",
+            "eq": "unclear"
+          },
+          {
+            "assessment": "control",
+            "eq": "unclear"
+          },
+          {
+            "assessment": "financial_risk",
+            "eq": "unclear"
+          },
+          {
+            "assessment": "mutual_obligation",
+            "eq": "unclear"
+          }
+        ]
+      },
+      "message": "Part of the status assessment is \"not clear yet\", so this route needs review. Find out what actually happens on site before relying on this agreement, and take advice if it stays unclear.",
+      "jump": {
+        "assessment": true
+      },
+      "law": [
+        "employment-status-services"
+      ]
+    },
+    {
+      "id": "assessment-unresolved",
+      "severity": "review",
+      "when": {
+        "any": [
+          {
+            "outcome": "employment",
+            "eq": "unresolved"
+          },
+          {
+            "outcome": "tax",
+            "eq": "unresolved"
+          }
+        ]
+      },
+      "message": "The status outcome is recorded as unresolved, so this route requires review. Do not send the agreement until the employment and tax status have been decided, with advice if needed.",
+      "jump": {
+        "assessment": true
+      },
+      "law": [
+        "employment-status-services"
+      ]
+    },
+    {
+      "id": "agency-rules",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "assessment": "control",
+            "eq": "directed"
+          },
+          {
+            "assessment": "deployment",
+            "eq": "client_sites"
+          }
+        ]
+      },
+      "message": "The Supplier is deployed to the Company's clients and someone has the right to supervise, direct or control the work. Under the agency rules (ITEPA 2003 section 44) the Company must then operate PAYE, whatever the agreement says about substitution. Check whether the Supplier is in fact a worker or employee for employment rights.",
+      "jump": {
+        "assessment": true
+      },
+      "law": [
+        "itepa-agency-rules",
+        "sia-hmrc-security-operatives"
+      ]
+    },
+    {
+      "id": "gross-but-employed",
+      "severity": "blocker",
+      "when": {
+        "all": [
+          {
+            "clause": "SE.TAX.GROSS"
+          },
+          {
+            "any": [
+              {
+                "outcome": "tax",
+                "eq": "employed"
+              },
+              {
+                "all": [
+                  {
+                    "assessment": "control",
+                    "eq": "directed"
+                  },
+                  {
+                    "assessment": "deployment",
+                    "eq": "client_sites"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "message": "This draft pays the fees without deductions, but the assessment shows the Supplier must be treated as employed for tax (for example under the agency rules). Use the PAYE tax clause instead.",
+      "jump": {
+        "slot": "tax.treatment"
+      },
+      "law": [
+        "itepa-agency-rules",
+        "sia-hmrc-security-operatives"
+      ]
+    },
+    {
+      "id": "acs-deployment",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "company.acs",
+            "eq": "yes"
+          },
+          {
+            "clause": "SE.TAX.GROSS"
+          }
+        ]
+      },
+      "message": "The Company is an SIA approved contractor, and this draft pays the Supplier without PAYE. The ACS requires everyone the Company deploys to be an employee or treated as an employee for tax. Pay through PAYE (or engage the person as staff), or confirm that this Supplier is not deployed under the scheme.",
+      "jump": {
+        "question": "company.acs"
+      },
+      "law": [
+        "sia-acs-workbook-2026",
+        "sia-acs-subcontracting"
+      ]
+    },
+    {
+      "id": "pay-basis-risk",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "fees.basis",
+            "in": [
+              "hour",
+              "day"
+            ]
+          },
+          {
+            "not": {
+              "assessment": "financial_risk",
+              "eq": "yes"
+            }
+          }
+        ]
+      },
+      "message": "Paying by the hour or day with no real financial risk is a sign of employment or worker status. Check that the status outcome reflects this, and that the National Minimum Wage would be met if the person is a worker.",
+      "jump": {
+        "question": "fees.basis"
+      },
+      "law": [
+        "employment-status-services"
+      ]
+    },
+    {
+      "id": "equipment-company",
+      "severity": "review",
+      "when": {
+        "assessment": "equipment",
+        "eq": "company"
+      },
+      "message": "The assessment records that the Company or client provides the equipment. Make sure the equipment answers list those items, so the agreement matches what happens, and check this against the status outcome.",
+      "jump": {
+        "question": "equipment.company"
+      },
+      "law": [
+        "sia-hmrc-security-operatives"
+      ]
+    },
+    {
+      "id": "security-hmrc-guidance",
+      "severity": "note",
+      "when": {
+        "q": "services.licensable",
+        "eq": "yes"
+      },
+      "message": "Read the SIA and HMRC guidance 'Learn how HMRC rules apply to the security operatives you deploy' and keep a record of how this engagement meets it.",
+      "jump": {
+        "assessment": true
+      },
+      "law": [
+        "sia-hmrc-security-operatives"
+      ]
+    },
+    {
+      "id": "ni-status",
+      "severity": "note",
+      "when": {
+        "jurisdiction": "ni"
+      },
+      "message": "In Northern Ireland, employment and worker rights come from the Employment Rights (Northern Ireland) Order 1996, and the Labour Relations Agency gives guidance. Tax status rules are UK-wide.",
+      "jump": {
+        "assessment": true
+      },
+      "law": [
+        "employment-status-services"
+      ]
+    }
+  ],
+  "supporting": [
+    {
+      "title": "Status assessment record (and reasons)",
+      "contractual": false
+    },
+    {
+      "title": "Written confirmation of each Assignment",
+      "contractual": true,
+      "when": {
+        "q": "assignments.model",
+        "eq": "offered"
+      }
+    },
+    {
+      "title": "Assignment instructions for each site",
+      "contractual": false
+    },
+    {
+      "title": "Insurance certificates",
+      "contractual": false
+    },
+    {
+      "title": "Privacy information for Supplier Personnel",
+      "contractual": false
+    },
+    {
+      "title": "Data processing terms, where the Supplier processes personal data for the Company",
+      "contractual": true
+    },
+    {
+      "title": "Evidence of the Supplier's Self Assessment registration (UTR)",
+      "contractual": false,
+      "when": {
+        "clause": "SE.TAX.GROSS"
+      }
+    }
+  ]
+}

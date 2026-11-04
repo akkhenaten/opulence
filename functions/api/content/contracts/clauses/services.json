@@ -1,0 +1,626 @@
+[
+  {
+    "id": "SE.PARTIES",
+    "title": "Parties and definitions (self-employed individual)",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "This agreement is between **{{parties.company_name}}** of {{parties.company_address}} (\"the Company\") and **{{parties.supplier_name}}** of {{parties.supplier_address}} (\"the Supplier\"), an individual engaged to provide services under this agreement.\n\nIn this agreement:\n\n- **the Services** means the services described in the next section and in Schedule 1;\n- **an Assignment** means a specific piece of the Services agreed under the section on agreeing work;\n- **Supplier Personnel** means the Supplier and any other person who provides the Services for the Supplier as this agreement permits;\n- **the client** means a customer of the Company at whose site, or for whom, the Services are provided.\n\nSchedule 1 (Key particulars) forms part of this agreement.",
+        "sources": [{ "title": "GOV.UK: Employment status: self-employed and contractor", "url": "https://www.gov.uk/employment-status/selfemployed-contractor" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "PSC.PARTIES",
+    "title": "Parties and definitions (personal service company)",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "This agreement is between **{{parties.company_name}}** of {{parties.company_address}} (\"the Company\") and **{{supplier.name}}**, a company registered in {{supplier.registered_in}} under number {{supplier.number}}, whose registered office is at {{supplier.address}} (\"the Supplier\").\n\nIn this agreement:\n\n- **the Operative** means {{operative.name}}, the individual whose services the Supplier provides;\n- **the Services** means the services described in the next section and in Schedule 1;\n- **an Assignment** means a specific piece of the Services agreed under the section on agreeing work;\n- **Supplier Personnel** means the Operative and any other person who provides the Services for the Supplier as this agreement permits;\n- **the client** means a customer of the Company at whose site, or for whom, the Services are provided.\n\n{{supplier.signatory}}, {{supplier.signatory_title}}, signs this agreement for the Supplier and confirms that they are authorised to do so. Schedule 1 (Key particulars) forms part of this agreement.",
+        "sources": [{ "title": "GOV.UK: Get information about a company (Companies House)", "url": "https://www.gov.uk/get-information-about-a-company" }, { "title": "GOV.UK: Understanding off-payroll working (IR35)", "url": "https://www.gov.uk/guidance/understanding-off-payroll-working-ir35" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "PSC.OPERATIVE",
+    "title": "The Operative",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier will provide the Services through the Operative, {{operative.name}}, in the role of {{operative.role}}. The Supplier confirms that the information it has given the Company about itself and the Operative, including who owns and controls the Supplier and the Operative's role in it, is accurate.\n\nThe Supplier must tell the Company in writing straight away if any of that information changes, including any change in the Operative's shareholding or directorship, because it may change who is responsible for tax under the off-payroll working rules.",
+        "sources": [{ "title": "GOV.UK: Understanding off-payroll working (IR35)", "url": "https://www.gov.uk/guidance/understanding-off-payroll-working-ir35" }, { "title": "Income Tax (Earnings and Pensions) Act 2003, Part 2 Chapter 10", "url": "https://www.legislation.gov.uk/ukpga/2003/1/part/2/chapter/10" }],
+        "checked_on": "2026-11-04",
+        "law": ["off-payroll-ch10"]
+      }
+    }
+  },
+  {
+    "id": "SVC.SERVICES",
+    "title": "The Services",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier will provide the following services (\"the Services\"): {{services.description}}.\n\nThe deliverables and the standards the Services must meet are: {{services.deliverables}}.\n\nThe Services are provided at or from: {{services.locations}}.",
+        "sources": [{ "title": "GOV.UK: Employment status: self-employed and contractor", "url": "https://www.gov.uk/employment-status/selfemployed-contractor" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SVC.TERM.ONGOING",
+    "title": "Duration: until ended by notice",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "This agreement starts on {{services.start}} and continues until either party ends it under the section on ending this agreement.",
+        "sources": [{ "title": "GOV.UK: Employment status: self-employed and contractor", "url": "https://www.gov.uk/employment-status/selfemployed-contractor" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SVC.TERM.FIXED",
+    "title": "Duration: fixed end date",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "This agreement starts on {{services.start}} and ends on {{services.end_date}}, unless it is ended earlier under the section on ending this agreement. It can only be extended by a written variation, and any extension triggers a review of the status assessment.",
+        "sources": [{ "title": "GOV.UK: Employment status: self-employed and contractor", "url": "https://www.gov.uk/employment-status/selfemployed-contractor" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SVC.ASSIGNMENTS.OFFERED",
+    "title": "Agreeing work: assignments offered one at a time",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Company may offer Assignments from time to time. It does not promise to offer any, and the Supplier may accept or decline any Assignment it is offered.\n\nAn Assignment is agreed only when the Company confirms it in writing {{assignments.confirm_how}}, setting out the site, the dates, the Services required and the fee. Once an Assignment is agreed, both parties must honour it, subject to the cancellation terms below.\n\nThe only commitments the parties have made to each other beyond agreed Assignments are: {{assignments.commitments}}.\n\nIf either party cancels an agreed Assignment: {{assignments.cancellation}}.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }, { "title": "GOV.UK: Employment status: worker", "url": "https://www.gov.uk/employment-status/worker" }],
+        "checked_on": "2026-11-04",
+        "law": ["employment-status-services"]
+      }
+    }
+  },
+  {
+    "id": "SVC.ASSIGNMENTS.PROGRAMME",
+    "title": "Agreeing work: an agreed programme of work",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier will provide the Services in line with this agreed programme of work: {{assignments.programme}}.\n\nThe commitments the parties have made to each other are only those recorded here: {{assignments.commitments}}. Any further work is agreed separately in writing.\n\nIf either party cancels or changes agreed work: {{assignments.cancellation}}.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }, { "title": "GOV.UK: Employment status: worker", "url": "https://www.gov.uk/employment-status/worker" }],
+        "checked_on": "2026-11-04",
+        "law": ["employment-status-services"]
+      }
+    }
+  },
+  {
+    "id": "SVC.DELIVERY.REQUIREMENTS",
+    "title": "Delivery: Company requirements",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Company sets out the Services and the outcomes it requires, together with the site requirements, including the assignment instructions, the client's site rules and any legal or regulatory procedures that apply. The Supplier must provide the Services with reasonable skill and care, to the standards in this agreement, and must follow those requirements.\n\nDay-to-day contact about the Services is with {{delivery.contact}}.",
+        "sources": [{ "title": "HMRC Employment Status Manual ESM2037: supervision, direction or control", "url": "https://www.gov.uk/hmrc-internal-manuals/employment-status-manual/esm2037" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SVC.DELIVERY.OWN_METHOD",
+    "title": "Delivery: Supplier decides the method",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Company specifies the result it requires, the site requirements and any legal or regulatory procedures that must be followed. Within those requirements, the Supplier decides how the Services are carried out, including the method, the order of the work and its own working arrangements. The Company does not supervise or direct how the Supplier carries out the Services.\n\nThe Supplier must provide the Services with reasonable skill and care, to the standards in this agreement.\n\nDay-to-day contact about the Services is with {{delivery.contact}}.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }, { "title": "HMRC Employment Status Manual ESM2037: supervision, direction or control", "url": "https://www.gov.uk/hmrc-internal-manuals/employment-status-manual/esm2037" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-hmrc-security-operatives"]
+      }
+    }
+  },
+  {
+    "id": "SVC.REWORK",
+    "title": "Putting work right at the Supplier's cost",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "If any of the Services do not meet the agreed standard, the Supplier must put them right at its own cost and in its own time, and the Company does not pay a further fee for that work.",
+        "sources": [{ "title": "GOV.UK: Employment status: self-employed and contractor", "url": "https://www.gov.uk/employment-status/selfemployed-contractor" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SE.FITNESS",
+    "title": "Fitness for work",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier must only provide the Services when fit and rested enough to do so safely, taking account of any other work the Supplier does. The Company may refuse to let anyone start or continue an Assignment if it reasonably believes they are not fit to work safely. The Company keeps its own duties for health and safety on site.",
+        "sources": [{ "title": "GOV.UK: Rest breaks at work", "url": "https://www.gov.uk/rest-breaks-work" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SE.PERSONNEL.PERSONAL",
+    "title": "Personnel: the Supplier works personally",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Company has engaged the Supplier because of the Supplier's own skills, licence and screening, and the Supplier will provide the Services personally. The Supplier may not send anyone else to provide the Services in the Supplier's place.\n\nIf the Supplier cannot attend agreed work, the Supplier must tell the Company as early as possible so that the Company can make other arrangements.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-hmrc-security-operatives"]
+      }
+    }
+  },
+  {
+    "id": "SE.PERSONNEL.APPROVAL",
+    "title": "Personnel: replacements only with the Company's approval",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier will normally provide the Services personally. If the Supplier cannot attend agreed work, the Supplier may propose another person to provide it instead. That person may only work on the Services if the Company approves them in writing beforehand, and the Company may refuse approval at its discretion.\n\nAny person the Company approves must meet the licensing, screening, training and other requirements of this agreement. Before they start, the parties will agree in writing who engages and pays them. The Supplier remains responsible for the Services they provide.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-hmrc-security-operatives"]
+      }
+    }
+  },
+  {
+    "id": "SE.PERSONNEL.SUBSTITUTION",
+    "title": "Personnel: right of substitution",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier does not have to provide the Services personally. The Supplier has the right to send a substitute of its own choice to provide any Assignment, or any part of it, without the Company's approval. The Company may only refuse a substitute who does not hold the SIA licence the work requires, has not passed the screening and right-to-work checks in this agreement, or lacks the training or competence the Services need.\n\nThe Supplier finds, engages and pays any substitute, gives the Company the substitute's name and licence details before they start, and remains responsible for the Services they provide. The Company does not pay the substitute, and does not pay the Supplier any more because a substitute is used.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }, { "title": "GOV.UK: Employment status: self-employed and contractor", "url": "https://www.gov.uk/employment-status/selfemployed-contractor" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-hmrc-security-operatives"]
+      }
+    }
+  },
+  {
+    "id": "PSC.PERSONNEL.NAMED",
+    "title": "Personnel: the named Operative only",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Company has agreed to this engagement because of the Operative's own skills, licence and screening. The Supplier will provide the Services only through the Operative and may not provide anyone else in the Operative's place.\n\nIf the Operative cannot attend agreed work, the Supplier must tell the Company as early as possible so that the Company can make other arrangements.\n\nA permanent change of Operative is a new engagement. It needs a written variation, a new status assessment and, where the off-payroll working rules require one, a new status determination statement before the new person starts.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }, { "title": "GOV.UK: Off-payroll working rules for clients", "url": "https://www.gov.uk/guidance/april-2021-changes-to-off-payroll-working-for-clients" }],
+        "checked_on": "2026-11-04",
+        "law": ["off-payroll-sds"]
+      }
+    }
+  },
+  {
+    "id": "PSC.PERSONNEL.APPROVAL",
+    "title": "Personnel: replacements only with the Company's approval",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier will normally provide the Services through the Operative. The Supplier may propose another person to provide agreed work, or to replace the Operative permanently. That person may only work on the Services if the Company approves them in writing beforehand, and the Company may refuse approval at its discretion.\n\nAny person the Company approves must meet the licensing, screening, training and other requirements of this agreement. The Supplier engages and pays them and remains responsible for the Services they provide.\n\nBefore any approved person starts, the Company will assess their status and, where the off-payroll working rules require it, give a status determination statement for them. A permanent replacement also needs a written variation.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }, { "title": "GOV.UK: Off-payroll working rules for clients", "url": "https://www.gov.uk/guidance/april-2021-changes-to-off-payroll-working-for-clients" }],
+        "checked_on": "2026-11-04",
+        "law": ["off-payroll-sds"]
+      }
+    }
+  },
+  {
+    "id": "PSC.PERSONNEL.SUBSTITUTION",
+    "title": "Personnel: right of substitution",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier does not have to provide the Services through the Operative. It has the right to send a substitute of its own choice to provide any Assignment, or any part of it, without the Company's approval. The Company may only refuse a substitute who does not hold the SIA licence the work requires, has not passed the screening and right-to-work checks in this agreement, or lacks the training or competence the Services need.\n\nThe Supplier finds, engages and pays any substitute, gives the Company the substitute's name and licence details before they start, and remains responsible for the Services they provide. The Company does not pay the substitute, and does not pay the Supplier any more because a substitute is used.\n\nWhere the off-payroll working rules require it, the Company will assess any individual who provides the Services and give a status determination statement for them.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }, { "title": "GOV.UK: Off-payroll working rules for clients", "url": "https://www.gov.uk/guidance/april-2021-changes-to-off-payroll-working-for-clients" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-hmrc-security-operatives", "off-payroll-sds"]
+      }
+    }
+  },
+  {
+    "id": "SVC.FEES",
+    "title": "Fees",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Company will pay the Supplier {{fees.rate}} {{fees.basis}} for Services properly provided. The fees are the whole payment for the Services and cover all the Supplier's costs, except any expenses this agreement says the Company will repay. Any deductions the law requires are made as set out in the section on tax.",
+        "sources": [{ "title": "GOV.UK: Invoicing and taking payment from customers", "url": "https://www.gov.uk/invoicing-and-taking-payment-from-customers" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SVC.EXPENSES.NONE",
+    "title": "Expenses: included in the fees",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The fees include all the Supplier's expenses, including travel to and from sites. The Company does not repay expenses.",
+        "sources": [{ "title": "GOV.UK: Invoicing and taking payment from customers", "url": "https://www.gov.uk/invoicing-and-taking-payment-from-customers" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SVC.EXPENSES.AGREED",
+    "title": "Expenses: repaid when agreed in advance",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Company will repay these expenses, if it has approved them in writing before they are incurred: {{fees.expenses}}. The Supplier must claim them on its invoice with receipts.",
+        "sources": [{ "title": "GOV.UK: Invoicing and taking payment from customers", "url": "https://www.gov.uk/invoicing-and-taking-payment-from-customers" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SVC.VAT.REGISTERED",
+    "title": "VAT: Supplier registered",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The fees do not include VAT. The Supplier is registered for VAT under number {{vat.number}} and will add VAT at the applicable rate to its invoices, which must be valid VAT invoices. The Supplier must tell the Company straight away if its registration is cancelled.",
+        "sources": [{ "title": "GOV.UK: VAT registration", "url": "https://www.gov.uk/vat-registration" }, { "title": "GOV.UK: Invoicing and taking payment from customers", "url": "https://www.gov.uk/invoicing-and-taking-payment-from-customers" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SVC.VAT.NOT_REGISTERED",
+    "title": "VAT: Supplier not registered",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier has told the Company that it is not registered for VAT, so no VAT is added to the fees. The Supplier must tell the Company straight away if it registers, and the parties will agree in writing how VAT applies to the fees from the date of registration.",
+        "sources": [{ "title": "GOV.UK: VAT registration", "url": "https://www.gov.uk/vat-registration" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SVC.INVOICE",
+    "title": "Invoicing and payment",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier will invoice the Company {{fees.invoice_frequency}} for Services provided. Each invoice must show the Supplier's name and address, the Services and dates it covers, the fee, any agreed expenses with receipts, and VAT where the Supplier is registered.\n\nThe Company will pay each valid invoice within {{fees.payment_terms}} of receiving it. If the Company disputes part of an invoice, it will pay the undisputed part on time and tell the Supplier the reason in writing, and the parties will try to resolve the dispute promptly.\n\nIf the Company pays late, the Supplier may claim interest and compensation under the Late Payment of Commercial Debts (Interest) Act 1998.",
+        "sources": [{ "title": "GOV.UK: Late commercial payments: charging interest and debt recovery", "url": "https://www.gov.uk/late-commercial-payments-interest-debt-recovery" }, { "title": "Late Payment of Commercial Debts (Interest) Act 1998", "url": "https://www.legislation.gov.uk/ukpga/1998/20/contents" }],
+        "checked_on": "2026-11-04",
+        "law": ["late-payment-1998"]
+      }
+    }
+  },
+  {
+    "id": "SE.STATUS.ASSESSED",
+    "title": "Status: assessed on what actually happens",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "Before this agreement was made, the Company assessed the Supplier's status for employment rights and for tax separately. It looked at what actually happens in practice: personal service, whether the Supplier can really send someone else, control, financial risk, equipment, work for other customers and the commitments between the parties. The assessment was made by {{status.assessed_by}} on {{status.assessed_on}}.\n\nThe labels the parties use, the fact that the Supplier sends invoices and the wording of this agreement do not on their own decide the Supplier's status. The assessment will be repeated whenever the way the work is done changes, as set out below.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }, { "title": "GOV.UK: Check employment status for tax", "url": "https://www.gov.uk/guidance/check-employment-status-for-tax" }, { "title": "nidirect: Employment status", "url": "https://www.nidirect.gov.uk/articles/employment-status" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-hmrc-security-operatives", "employment-status-services"]
+      }
+    }
+  },
+  {
+    "id": "SE.STATUS.INDEPENDENT",
+    "title": "Status: independent business (assessed)",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier provides the Services as an independent business on its own account. The Supplier is free to provide services to other customers, including competitors of the Company, as long as it meets its commitments under this agreement and keeps the Company's information confidential.\n\nBefore this agreement was made, the Company assessed the Supplier's status for employment rights and for tax separately, looking at what actually happens in practice. The assessment was made by {{status.assessed_by}} on {{status.assessed_on}}. The labels the parties use and the wording of this agreement do not on their own decide the Supplier's status, and the assessment will be repeated whenever the way the work is done changes, as set out below.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }, { "title": "GOV.UK: Employment status: self-employed and contractor", "url": "https://www.gov.uk/employment-status/selfemployed-contractor" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-hmrc-security-operatives", "employment-status-services"]
+      }
+    }
+  },
+  {
+    "id": "SE.TAX.GROSS",
+    "title": "Tax: fees paid without deduction",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "On the basis of the status assessment, the Company pays the fees without deducting income tax or National Insurance contributions.\n\nThe Supplier is responsible for being registered with HMRC as self-employed, for paying its own income tax and National Insurance contributions through Self Assessment, and for keeping proper business records. The Supplier must give the Company its Unique Taxpayer Reference on request.\n\nIf HMRC decides that tax or National Insurance contributions should be deducted from the fees, the Company will apply HMRC's decision from then on and the parties will review this agreement.",
+        "sources": [{ "title": "GOV.UK: Register for Self Assessment", "url": "https://www.gov.uk/register-for-self-assessment" }, { "title": "GOV.UK: Check employment status for tax", "url": "https://www.gov.uk/guidance/check-employment-status-for-tax" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-hmrc-security-operatives"]
+      }
+    }
+  },
+  {
+    "id": "SE.TAX.PAYE",
+    "title": "Tax: PAYE deducted from the fees",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The status assessment found that, for tax, the Supplier must be treated as employed by the Company for this engagement, for example because the agency rules in section 44 of the Income Tax (Earnings and Pensions) Act 2003 apply. The Company will therefore deduct income tax and employee National Insurance contributions from the fees through PAYE, and pay any employer National Insurance contributions itself. The Supplier must give the Company the information it needs to do this.\n\nThis treatment for tax does not on its own decide the Supplier's rights under employment law, which depend on how the work is actually done.",
+        "sources": [{ "title": "Income Tax (Earnings and Pensions) Act 2003, section 44", "url": "https://www.legislation.gov.uk/ukpga/2003/1/section/44" }, { "title": "HMRC Employment Status Manual ESM2037", "url": "https://www.gov.uk/hmrc-internal-manuals/employment-status-manual/esm2037" }],
+        "checked_on": "2026-11-04",
+        "law": ["itepa-agency-rules", "sia-hmrc-security-operatives"]
+      }
+    }
+  },
+  {
+    "id": "SVC.REASSESS",
+    "title": "Reassessing status when arrangements change",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The status assessment must be repeated, and this agreement reviewed, before a change takes effect or as soon as either party becomes aware of it, if:\n\n- the Services, duties or sites change significantly;\n- the Company or a client starts to supervise, direct or control how the work is done, or stops doing so;\n- the work settles into a regular pattern, or either party starts to expect work to be offered or accepted;\n- what happens in practice when Supplier Personnel cannot attend, or who provides the equipment, changes;\n- the Supplier stops working for other customers, or its business structure changes;\n- this agreement is extended or renewed.\n\nThe Supplier must tell the Company promptly about any change on its side. The Company is responsible for carrying out the reassessment and will tell the Supplier the outcome in writing.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }, { "title": "GOV.UK: Check employment status for tax", "url": "https://www.gov.uk/guidance/check-employment-status-for-tax" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-hmrc-security-operatives"]
+      }
+    }
+  },
+  {
+    "id": "PSC.STATUS.ASSESSED",
+    "title": "Status: assessed on what actually happens (personal service company)",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "Before this agreement was made, the Company assessed the Operative's status for employment rights and for tax separately. It looked at what actually happens in practice: personal service, whether the Supplier can really send someone else, control, financial risk, equipment, work for other customers and the commitments between the parties. The assessment was made by {{status.assessed_by}} on {{status.assessed_on}}.\n\nThe fact that the Services are provided through a company does not on its own make the Operative independent of the Company, and does not on its own remove any duty to deduct tax and National Insurance contributions. Nor do the labels the parties use or the wording of this agreement decide status. The assessment will be repeated whenever the way the work is done changes, as set out below.",
+        "sources": [{ "title": "GOV.UK: Understanding off-payroll working (IR35)", "url": "https://www.gov.uk/guidance/understanding-off-payroll-working-ir35" }, { "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }, { "title": "nidirect: Employment status", "url": "https://www.nidirect.gov.uk/articles/employment-status" }],
+        "checked_on": "2026-11-04",
+        "law": ["off-payroll-ch10", "employment-status-services"]
+      }
+    }
+  },
+  {
+    "id": "PSC.STATUS.INDEPENDENT",
+    "title": "Status: independent business (assessed, personal service company)",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier provides the Services as an independent business on its own account. It is free to provide services to other customers, including competitors of the Company, as long as it meets its commitments under this agreement and keeps the Company's information confidential.\n\nBefore this agreement was made, the Company assessed the Operative's status for employment rights and for tax separately, looking at what actually happens in practice. The assessment was made by {{status.assessed_by}} on {{status.assessed_on}}. The fact that the Services are provided through a company, the labels the parties use and the wording of this agreement do not on their own decide status, and the assessment will be repeated whenever the way the work is done changes, as set out below.",
+        "sources": [{ "title": "GOV.UK: Understanding off-payroll working (IR35)", "url": "https://www.gov.uk/guidance/understanding-off-payroll-working-ir35" }, { "title": "GOV.UK: Employment status: self-employed and contractor", "url": "https://www.gov.uk/employment-status/selfemployed-contractor" }],
+        "checked_on": "2026-11-04",
+        "law": ["off-payroll-ch10", "employment-status-services"]
+      }
+    }
+  },
+  {
+    "id": "PSC.OFFPAYROLL.OUTSIDE",
+    "title": "Off-payroll working: Company determines, rules do not apply",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Company is a medium or large client under the off-payroll working rules in Chapter 10 of Part 2 of the Income Tax (Earnings and Pensions) Act 2003, so it is responsible for deciding whether those rules apply to this engagement. It has taken reasonable care in deciding, and gave a status determination statement with its reasons to the Operative and the Supplier on {{offpayroll.sds_date}}. Its conclusion is that the rules do not apply.\n\nOn that basis the Company pays the fees to the Supplier without deducting income tax or National Insurance contributions. If the Company issues a new status determination statement, the tax treatment of the fees changes from the date that statement gives, and the parties will record the change in a written variation.\n\nThe person responsible at the Company for status determinations under this agreement is {{offpayroll.responsible}}.",
+        "sources": [{ "title": "GOV.UK: Off-payroll working rules for clients", "url": "https://www.gov.uk/guidance/april-2021-changes-to-off-payroll-working-for-clients" }, { "title": "Income Tax (Earnings and Pensions) Act 2003, Part 2 Chapter 10", "url": "https://www.legislation.gov.uk/ukpga/2003/1/part/2/chapter/10" }],
+        "checked_on": "2026-11-04",
+        "law": ["off-payroll-ch10", "off-payroll-sds"]
+      }
+    }
+  },
+  {
+    "id": "PSC.OFFPAYROLL.INSIDE",
+    "title": "Off-payroll working: Company determines, rules apply (Company is fee-payer)",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Company is a medium or large client under the off-payroll working rules in Chapter 10 of Part 2 of the Income Tax (Earnings and Pensions) Act 2003, so it is responsible for deciding whether those rules apply to this engagement. It has taken reasonable care in deciding, and gave a status determination statement with its reasons to the Operative and the Supplier on {{offpayroll.sds_date}}. Its conclusion is that the rules apply.\n\nThe Company contracts directly with the Supplier, so it is the deemed employer (the fee-payer). For each payment of fees it will work out the deemed direct payment to the Operative as the rules require, deduct income tax and employee National Insurance contributions from it through PAYE, and pay employer National Insurance contributions and any Apprenticeship Levy itself. It will pay the Supplier the balance of the fees, together with VAT on the full fee where the Supplier is registered. Student and postgraduate loan repayments are not deducted.\n\nThe Supplier must give the Company the information it needs to do this, including the Operative's National Insurance number, and tell it promptly of any change. Being treated as employed for tax under these rules does not on its own make the Operative an employee or worker of the Company under employment law.\n\nThe person responsible at the Company for status determinations under this agreement is {{offpayroll.responsible}}.",
+        "sources": [{ "title": "GOV.UK: Understanding off-payroll working (IR35)", "url": "https://www.gov.uk/guidance/understanding-off-payroll-working-ir35" }, { "title": "GOV.UK: Off-payroll working rules for clients", "url": "https://www.gov.uk/guidance/april-2021-changes-to-off-payroll-working-for-clients" }, { "title": "Income Tax (Earnings and Pensions) Act 2003, Part 2 Chapter 10", "url": "https://www.legislation.gov.uk/ukpga/2003/1/part/2/chapter/10" }],
+        "checked_on": "2026-11-04",
+        "law": ["off-payroll-ch10", "off-payroll-sds"]
+      }
+    }
+  },
+  {
+    "id": "PSC.OFFPAYROLL.PENDING",
+    "title": "Off-payroll working: determination still to be made",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Company is a medium or large client under the off-payroll working rules in Chapter 10 of Part 2 of the Income Tax (Earnings and Pensions) Act 2003, so it is responsible for deciding whether those rules apply to this engagement. It will take reasonable care in deciding, and will give a status determination statement with its reasons to the Operative and the Supplier before the Services start and before any fees are paid. The tax treatment of the fees will follow that statement and will be recorded in a written variation.\n\nThe person responsible at the Company for status determinations under this agreement is {{offpayroll.responsible}}.",
+        "sources": [{ "title": "GOV.UK: Off-payroll working rules for clients", "url": "https://www.gov.uk/guidance/april-2021-changes-to-off-payroll-working-for-clients" }, { "title": "Income Tax (Earnings and Pensions) Act 2003, Part 2 Chapter 10", "url": "https://www.legislation.gov.uk/ukpga/2003/1/part/2/chapter/10" }],
+        "checked_on": "2026-11-04",
+        "law": ["off-payroll-ch10", "off-payroll-sds"]
+      }
+    }
+  },
+  {
+    "id": "PSC.OFFPAYROLL.SMALL",
+    "title": "Off-payroll working: small client, the Supplier decides",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Company is a small client under the off-payroll working rules, so it does not decide the Operative's status for tax. The Supplier is responsible for deciding whether the intermediaries rules in Chapter 8 of Part 2 of the Income Tax (Earnings and Pensions) Act 2003 apply to this engagement and, if they do, for accounting to HMRC for the tax and National Insurance contributions due. The Company pays the fees without deduction.\n\nThe Company will confirm its size if the Supplier or the Operative asks. It will check its size before each tax year and tell the Supplier in writing as soon as it expects to stop being small. From the tax year in which the Company is no longer small, it will decide the Operative's status under Chapter 10 and give a status determination statement, and the tax terms of this agreement will be reviewed.\n\nThe person responsible for the status assessment under this agreement is {{offpayroll.responsible}}.",
+        "sources": [{ "title": "GOV.UK: Understanding off-payroll working (IR35)", "url": "https://www.gov.uk/guidance/understanding-off-payroll-working-ir35" }, { "title": "Income Tax (Earnings and Pensions) Act 2003, Part 2 Chapter 8", "url": "https://www.legislation.gov.uk/ukpga/2003/1/part/2/chapter/8" }],
+        "checked_on": "2026-11-04",
+        "law": ["itepa-ch8-intermediaries", "off-payroll-ch10"]
+      }
+    }
+  },
+  {
+    "id": "PSC.OFFPAYROLL.DISAGREE",
+    "title": "Off-payroll working: disagreeing with a status determination",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "If the Operative or the Supplier disagrees with the status determination statement, they may tell the Company in writing, with their reasons, at any time before the final payment of fees for this engagement. Representations go to {{offpayroll.disagreement_contact}}.\n\nThe Company will consider them and, within the statutory 45 days of receiving them, either confirm its conclusion with its reasons or give a new status determination statement stating the date from which the new conclusion applies. The existing statement continues to apply until then.",
+        "sources": [{ "title": "Income Tax (Earnings and Pensions) Act 2003, section 61T", "url": "https://www.legislation.gov.uk/ukpga/2003/1/section/61T" }, { "title": "GOV.UK: Off-payroll working rules for clients", "url": "https://www.gov.uk/guidance/april-2021-changes-to-off-payroll-working-for-clients" }],
+        "checked_on": "2026-11-04",
+        "law": ["off-payroll-sds"]
+      }
+    }
+  },
+  {
+    "id": "PSC.TAX.SUPPLIER",
+    "title": "The Supplier's own tax and payment responsibilities",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier is responsible for its own corporation tax, VAT and company filings, and for paying the Operative and any other Supplier Personnel, including operating PAYE on any salary it pays them. The Company is not responsible for the Supplier's taxes beyond the duties the off-payroll working rules place on it.\n\nThe Supplier must keep records that show how fees received under this agreement have been paid out, and must co-operate with any reasonable request from the Company or HMRC about the tax treatment of this engagement.",
+        "sources": [{ "title": "GOV.UK: Understanding off-payroll working (IR35)", "url": "https://www.gov.uk/guidance/understanding-off-payroll-working-ir35" }, { "title": "GOV.UK: VAT registration", "url": "https://www.gov.uk/vat-registration" }],
+        "checked_on": "2026-11-04",
+        "law": ["off-payroll-ch10"]
+      }
+    }
+  },
+  {
+    "id": "PSC.REASSESS",
+    "title": "Reassessing status when arrangements change (personal service company)",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The status assessment must be repeated, and this agreement reviewed, before a change takes effect or as soon as either party becomes aware of it, if:\n\n- the Services, duties or sites change significantly;\n- the Company or a client starts to supervise, direct or control how the work is done, or stops doing so;\n- the work settles into a regular pattern, or either party starts to expect work to be offered or accepted;\n- what happens in practice when the Operative cannot attend, or who provides the equipment, changes;\n- the Operative is replaced, or the Operative's ownership or control of the Supplier changes;\n- the Operative is placed with a client who directs the work, rather than working as part of the Company's own service;\n- the Company's size under the off-payroll working rules changes;\n- this agreement is extended or renewed.\n\nThe Supplier must tell the Company promptly about any change on its side. The person named in the section on tax is responsible for the reassessment, and the outcome will be given in writing, with a new status determination statement where the off-payroll working rules require one.",
+        "sources": [{ "title": "GOV.UK: Off-payroll working rules for clients", "url": "https://www.gov.uk/guidance/april-2021-changes-to-off-payroll-working-for-clients" }, { "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }],
+        "checked_on": "2026-11-04",
+        "law": ["off-payroll-sds", "sia-hmrc-security-operatives"]
+      }
+    }
+  },
+  {
+    "id": "SVC.EQUIPMENT.PROVISION",
+    "title": "Equipment actually provided",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier provides the following equipment for the Services at its own cost: {{equipment.supplier}}.\n\nThe Company or the client provides only the following: {{equipment.company}}.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-hmrc-security-operatives"]
+      }
+    }
+  },
+  {
+    "id": "SVC.INSURANCE",
+    "title": "Insurance: public liability",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier must hold public liability insurance with cover of at least {{insurance.public_liability}} for any one claim, with a reputable insurer, for as long as it provides the Services.\n\nThe Supplier must show the Company evidence of its insurance before starting and whenever asked, and must tell the Company straight away if any cover required by this agreement is cancelled, reduced or not renewed.",
+        "sources": [{ "title": "GOV.UK: Set up as a sole trader (insurance)", "url": "https://www.gov.uk/set-up-sole-trader" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SVC.INSURANCE.PI",
+    "title": "Insurance: professional indemnity",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier must also hold professional indemnity insurance with cover of at least {{insurance.professional_indemnity}} for any one claim while it provides the Services, and for as long afterwards as is needed to cover claims about them.",
+        "sources": [{ "title": "GOV.UK: Set up as a sole trader (insurance)", "url": "https://www.gov.uk/set-up-sole-trader" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SVC.INSURANCE.OTHER",
+    "title": "Insurance: other cover",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier must also hold the following insurance while it provides the Services: {{insurance.other}}.",
+        "sources": [{ "title": "GOV.UK: Set up as a sole trader (insurance)", "url": "https://www.gov.uk/set-up-sole-trader" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "PSC.INSURANCE.EL",
+    "title": "Insurance: employers' liability (personal service company)",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier must hold employers' liability insurance as the Employers' Liability (Compulsory Insurance) Act 1969 requires, covering the Operative and any other Supplier Personnel it employs, unless an exemption under that Act applies. The Supplier must tell the Company in writing which applies and show evidence of any cover when asked.",
+        "sources": [{ "title": "GOV.UK: Employers' liability insurance", "url": "https://www.gov.uk/employers-liability-insurance" }, { "title": "Employers' Liability (Compulsory Insurance) Act 1969", "url": "https://www.legislation.gov.uk/ukpga/1969/57/contents" }],
+        "checked_on": "2026-11-04",
+        "law": ["elci-1969"]
+      },
+      "ni": {
+        "body": "The Supplier must hold employer's liability insurance as the Employer's Liability (Defective Equipment and Compulsory Insurance) (Northern Ireland) Order 1972 requires, covering the Operative and any other Supplier Personnel it employs, unless an exemption under that Order applies. The Supplier must tell the Company in writing which applies and show evidence of any cover when asked.",
+        "sources": [{ "title": "Employer's Liability (Defective Equipment and Compulsory Insurance) (Northern Ireland) Order 1972", "url": "https://www.legislation.gov.uk/nisi/1972/963/contents" }],
+        "checked_on": "2026-11-04",
+        "law": ["elci-ni-1972"]
+      }
+    }
+  },
+  {
+    "id": "SE.LICENCE.DETAILS",
+    "title": "The Supplier's SIA licence",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Services include licensable conduct under the Private Security Industry Act 2001. The Supplier holds an SIA {{licence.type}} licence, number {{licence.number}}, and must keep it valid for as long as the Supplier provides licensable Services.",
+        "sources": [{ "title": "GOV.UK: Apply for an SIA licence", "url": "https://www.gov.uk/guidance/apply-for-an-sia-licence" }, { "title": "Private Security Industry Act 2001", "url": "https://www.legislation.gov.uk/ukpga/2001/12/contents" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-licensing"]
+      }
+    }
+  },
+  {
+    "id": "PSC.LICENCE.OPERATIVE",
+    "title": "The Operative's SIA licence",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Services include licensable conduct under the Private Security Industry Act 2001. The Operative holds an SIA {{licence.type}} licence, number {{licence.number}}, and the Supplier must make sure it stays valid for as long as the Operative provides licensable Services.",
+        "sources": [{ "title": "GOV.UK: Apply for an SIA licence", "url": "https://www.gov.uk/guidance/apply-for-an-sia-licence" }, { "title": "Private Security Industry Act 2001", "url": "https://www.legislation.gov.uk/ukpga/2001/12/contents" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-licensing"]
+      }
+    }
+  },
+  {
+    "id": "SVC.COMPETENCE",
+    "title": "Competence and qualifications",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "The Supplier must make sure that Supplier Personnel have the qualifications, training and experience the Services need, including: {{competence.requirements}}. The Supplier must show the Company evidence of them when asked.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SVC.LIABILITY",
+    "title": "Liability",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "Each party is responsible for loss or damage it causes through its own negligence or its breach of this agreement.\n\nThe Supplier's total liability to the Company under or in connection with this agreement in each contract year is limited to {{liability.cap}}. This limit does not apply to loss that the insurance this agreement requires covers, or would have covered if it had been in place, to breach of the confidentiality or data protection terms, or to deliberate wrongdoing.\n\nNothing in this agreement limits or excludes either party's liability for death or personal injury caused by negligence, for fraud, or for anything else the law does not allow to be limited or excluded.",
+        "sources": [{ "title": "Unfair Contract Terms Act 1977", "url": "https://www.legislation.gov.uk/ukpga/1977/50/contents" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SVC.TERMINATION",
+    "title": "Ending this agreement",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "Either party may end this agreement by giving the other {{notice.period}} written notice. Agreed work that falls within the notice period goes ahead unless the parties agree otherwise, or it is cancelled under the cancellation terms.\n\nEither party may end this agreement straight away by written notice if the other:\n\n- commits a serious breach of it, or a breach that it does not put right within a reasonable time after being asked to;\n- becomes insolvent, is made bankrupt or sequestrated, or stops trading.\n\nThe Company may also end this agreement, or any agreed work, straight away by written notice if a licence the Services need is suspended, revoked or expires, or if screening or right-to-work checks are not satisfactory.\n\nWhen this agreement ends, the Supplier must return all property and information of the Company and its clients, and the Company will pay for Services properly provided up to the end date. The terms on confidentiality, data protection, liability and tax continue after it ends.",
+        "sources": [{ "title": "GOV.UK: Late commercial payments: charging interest and debt recovery", "url": "https://www.gov.uk/late-commercial-payments-interest-debt-recovery" }, { "title": "GOV.UK: Apply for an SIA licence", "url": "https://www.gov.uk/guidance/apply-for-an-sia-licence" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-licensing"]
+      }
+    }
+  },
+  {
+    "id": "SVC.ENTIRE",
+    "title": "Whole agreement and notices",
+    "subject": "services",
+    "versions": {
+      "all": {
+        "body": "This agreement, including Schedule 1 and any documents it says form part of it, is the whole agreement between the parties about the Services and replaces any earlier agreement or arrangement about them. A signed agreement is kept as signed: any change is made by a written variation or a replacement agreement. The Company's policies and the assignment instructions do not form part of this agreement unless it says so.\n\nNotices under this agreement must be in writing and sent by email or post: to the Company at {{parties.company_email}}, and to the Supplier at {{parties.supplier_email}}.",
+        "sources": [{ "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy", "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  }
+]

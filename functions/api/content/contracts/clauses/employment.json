@@ -17,7 +17,7 @@
         "body": "This contract is between **{{parties.employer_name}}** of {{parties.employer_address}} (\"the Company\", \"we\", \"us\") and **{{parties.employee_name}}** of {{parties.employee_address}} (\"you\").\n\nIt is your contract of employment. It is also the written statement of particulars required by Article 33 of the Employment Rights (Northern Ireland) Order 1996. Schedule 1 (Key particulars) forms part of it.",
         "sources": [
           { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" },
-          { "title": "nidirect: Employment contracts and written statement", "url": "https://www.nidirect.gov.uk/articles/employment-contracts-and-written-statement" }
+          { "title": "nidirect: Employment contracts and written statement", "url": "https://www.nidirect.gov.uk/articles/written-statement-employment-particulars" }
         ],
         "checked_on": "2026-11-04",
         "law": ["ni-written-statement", "ni-good-jobs-bill"]
@@ -172,7 +172,7 @@
       },
       "ni": {
         "body": "Your work includes night work. Before you start night work, and at regular intervals while you do it, we will offer you a free health assessment.\n\nYour normal hours of night work will stay within the statutory limit for night workers in the Working Time Regulations (Northern Ireland) 2016. If a special case under those Regulations applies, you will receive equivalent compensatory rest.",
-        "sources": [{ "title": "Working Time Regulations (Northern Ireland) 2016", "url": "https://www.legislation.gov.uk/nisr/2016/49/contents" }, { "title": "nidirect: Working hours", "url": "https://www.nidirect.gov.uk/articles/working-hours" }],
+        "sources": [{ "title": "Working Time Regulations (Northern Ireland) 2016", "url": "https://www.legislation.gov.uk/nisr/2016/49/contents" }, { "title": "nidirect: Working hours", "url": "https://www.nidirect.gov.uk/articles/rest-breaks" }],
         "checked_on": "2026-11-04",
         "law": ["ni-wtr-2016", "wtr-security-special-case"]
       }
@@ -328,7 +328,7 @@
       },
       "ni": {
         "body": "If you are eligible, we will enrol you in our workplace pension scheme ({{pension.scheme}}) as required by the Pensions (No. 2) Act (Northern Ireland) 2008, and pay at least the minimum employer contributions the law requires. You may opt out or rejoin as the scheme rules allow. The scheme will send you its own information.",
-        "sources": [{ "title": "Pensions (No. 2) Act (Northern Ireland) 2008", "url": "https://www.legislation.gov.uk/nia/2008/13/contents" }, { "title": "nidirect: Workplace pensions", "url": "https://www.nidirect.gov.uk/articles/workplace-pensions" }],
+        "sources": [{ "title": "Pensions (No. 2) Act (Northern Ireland) 2008", "url": "https://www.legislation.gov.uk/nia/2008/13/contents" }, { "title": "nidirect: Workplace pensions", "url": "https://www.nidirect.gov.uk/articles/employers-workplace-pension-obligations" }],
         "checked_on": "2026-11-04",
         "law": ["pensions-auto-enrolment"]
       }
@@ -341,7 +341,7 @@
     "versions": {
       "all": {
         "body": "You may be entitled to statutory leave and pay for maternity, paternity, adoption, shared parental leave, parental bereavement and unpaid parental leave, and to time off for dependants and other statutory reasons. These are given in line with the law and our policies, which are available from your manager.",
-        "sources": [{ "title": "GOV.UK: Time off work", "url": "https://www.gov.uk/browse/working/time-off" }, { "title": "nidirect: Employment rights", "url": "https://www.nidirect.gov.uk/information-and-services/employment-rights" }],
+        "sources": [{ "title": "GOV.UK: Time off work", "url": "https://www.gov.uk/browse/working/time-off" }, { "title": "nidirect: Employment rights", "url": "https://www.nidirect.gov.uk/information-and-services/employment" }],
         "checked_on": "2026-11-04",
         "law": ["era2025-day-one-family-leave", "era2025-bereavement-leave"]
       }
@@ -413,7 +413,7 @@
       },
       "ni": {
         "body": "After any probationary period, we will give you the statutory minimum notice to end your employment: one week once you have worked for us for one month, rising to one week for each complete year of service, up to a maximum of twelve weeks (Employment Rights (Northern Ireland) Order 1996, Article 118). You must give us {{notice.employee}} notice in writing.\n\nWe may pay you instead of some or all of your notice. We may end your employment without notice for gross misconduct, after following our disciplinary procedure.",
-        "sources": [{ "title": "Employment Rights (Northern Ireland) Order 1996, Article 118", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/118" }, { "title": "nidirect: Notice periods", "url": "https://www.nidirect.gov.uk/articles/notice-periods" }],
+        "sources": [{ "title": "Employment Rights (Northern Ireland) Order 1996, Article 118", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/118" }, { "title": "nidirect: Notice periods", "url": "https://www.nidirect.gov.uk/articles/giving-or-getting-notice-your-job" }],
         "checked_on": "2026-11-04"
       }
     }
@@ -425,7 +425,7 @@
     "versions": {
       "all": {
         "body": "After any probationary period, we will give you {{notice.employer}} notice in writing to end your employment, or the statutory minimum notice if that is longer. You must give us {{notice.employee}} notice in writing.\n\nWe may pay you instead of some or all of your notice. We may end your employment without notice for gross misconduct, after following our disciplinary procedure.",
-        "sources": [{ "title": "GOV.UK: Notice periods", "url": "https://www.gov.uk/staff-redundant/notice-periods" }, { "title": "nidirect: Notice periods", "url": "https://www.nidirect.gov.uk/articles/notice-periods" }],
+        "sources": [{ "title": "GOV.UK: Notice periods", "url": "https://www.gov.uk/staff-redundant/notice-periods" }, { "title": "nidirect: Notice periods", "url": "https://www.nidirect.gov.uk/articles/giving-or-getting-notice-your-job" }],
         "checked_on": "2026-11-04"
       }
     }

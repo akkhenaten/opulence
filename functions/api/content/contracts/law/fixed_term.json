@@ -1,0 +1,42 @@
+[
+  {
+    "id": "fte-regs-2002",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations 2002",
+    "url": "https://www.legislation.gov.uk/uksi/2002/2034/contents",
+    "status": "in_force",
+    "effective_date": "2002-10-01",
+    "checked_on": "2026-11-04",
+    "summary": "Fixed-term employees must not be treated less favourably than comparable permanent employees unless objectively justified (reg 3), including being told about permanent vacancies; written statement of reasons (reg 5); after four years' continuous employment on successive fixed-term contracts a renewal takes effect as permanent unless objectively justified or a collective or workforce agreement modifies the rule (reg 8); written statement of permanent status (reg 9)."
+  },
+  {
+    "id": "fte-regs-ni-2002",
+    "jurisdictions": ["ni"],
+    "title": "Fixed-term Employees (Prevention of Less Favourable Treatment) Regulations (Northern Ireland) 2002",
+    "url": "https://www.legislation.gov.uk/nisr/2002/298/contents",
+    "status": "in_force",
+    "effective_date": "2002-10-01",
+    "checked_on": "2026-11-04",
+    "summary": "Northern Ireland equivalent: no less favourable treatment unless objectively justified (reg 3), written statement of reasons (reg 5), successive fixed-term contracts and the four-year rule (reg 8), written statement of variation (reg 9). Complaints go to an industrial tribunal."
+  },
+  {
+    "id": "fixed-term-expiry-dismissal",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Expiry of a limited-term contract without renewal is a dismissal (unfair dismissal and redundancy)",
+    "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/95",
+    "status": "in_force",
+    "effective_date": "2002-10-01",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 1996 s.95(1)(b) (unfair dismissal) and s.136(1)(b) (redundancy): a limited-term contract ending by its limiting event without renewal counts as a dismissal. Whether it is fair, or whether a redundancy payment is due, depends on the reason, the process and the length of service."
+  },
+  {
+    "id": "fixed-term-expiry-dismissal-ni",
+    "jurisdictions": ["ni"],
+    "title": "Expiry of a limited-term contract without renewal is a dismissal (Northern Ireland)",
+    "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/127",
+    "status": "in_force",
+    "effective_date": "2002-10-01",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights (Northern Ireland) Order 1996 Article 127(1)(b) (unfair dismissal) and Article 171(1)(b) (redundancy): a limited-term contract ending by its limiting event without renewal counts as a dismissal."
+  }
+]

@@ -6,7 +6,7 @@
     "versions": {
       "all": {
         "body": "Your role is licensable under the Private Security Industry Act 2001 and needs a valid SIA licence ({{job.licence}}). You must:\n\n- keep that licence valid throughout your employment and wear or display it on duty where the law requires;\n- tell us straight away if your licence is suspended, revoked or made subject to conditions, or if you are charged with or convicted of any offence;\n- apply to renew it in good time before it expires.\n\nYou must not carry out licensable work without a valid licence. If you lose your licence, we will consider whether other suitable work is available. If none is, your employment may end.",
-        "sources": [{ "title": "GOV.UK: SIA licensing", "url": "https://www.gov.uk/guidance/sia-licensing" }, { "title": "Private Security Industry Act 2001", "url": "https://www.legislation.gov.uk/ukpga/2001/12/contents" }],
+        "sources": [{ "title": "GOV.UK: SIA licensing", "url": "https://www.gov.uk/guidance/apply-for-an-sia-licence" }, { "title": "Private Security Industry Act 2001", "url": "https://www.legislation.gov.uk/ukpga/2001/12/contents" }],
         "checked_on": "2026-11-04",
         "law": ["sia-licensing"]
       }
@@ -19,7 +19,7 @@
     "versions": {
       "all": {
         "body": "Your employment depends on satisfactory security screening in line with BS 7858, and on proof of your right to work in the UK. You must give us accurate information for screening and tell us about any change that affects it.\n\nIf screening cannot be completed satisfactorily, or you no longer have the right to work in the UK, we may end your employment.",
-        "sources": [{ "title": "GOV.UK: Right to work checks: an employer's guide", "url": "https://www.gov.uk/government/publications/right-to-work-checks-employers-guide" }, { "title": "GOV.UK: SIA Approved Contractor Scheme", "url": "https://www.gov.uk/guidance/approved-contractor-scheme" }],
+        "sources": [{ "title": "GOV.UK: Right to work checks: an employer's guide", "url": "https://www.gov.uk/government/publications/right-to-work-checks-employers-guide" }, { "title": "GOV.UK: SIA Approved Contractor Scheme", "url": "https://www.gov.uk/guidance/learn-about-our-approved-contractor-scheme" }],
         "checked_on": "2026-11-04",
         "law": ["right-to-work", "sia-acs-subcontracting"]
       }
@@ -74,7 +74,7 @@
       },
       "ni": {
         "body": "You are entitled to rest breaks, daily rest and weekly rest under the Working Time Regulations (Northern Ireland) 2016. Security work that needs a permanent presence may be a special case where some of these rules apply differently. If so, you will receive equivalent compensatory rest.\n\nYou will not be required to work more than the statutory average weekly limit of 48 hours unless you choose to opt out in a separate written agreement. You may cancel an opt-out at any time by giving the notice it states.",
-        "sources": [{ "title": "Working Time Regulations (Northern Ireland) 2016", "url": "https://www.legislation.gov.uk/nisr/2016/49/contents" }, { "title": "nidirect: Working hours", "url": "https://www.nidirect.gov.uk/articles/working-hours" }],
+        "sources": [{ "title": "Working Time Regulations (Northern Ireland) 2016", "url": "https://www.legislation.gov.uk/nisr/2016/49/contents" }, { "title": "nidirect: Working hours", "url": "https://www.nidirect.gov.uk/articles/rest-breaks" }],
         "checked_on": "2026-11-04",
         "law": ["ni-wtr-2016", "wtr-security-special-case"]
       }
@@ -100,6 +100,535 @@
       "all": {
         "body": "We use your personal data, including licence, screening and right-to-work information, in line with UK data protection law and our privacy notice for staff. CCTV and body-worn video may record you while you are on duty.\n\nYou must only use personal data you see at work, including CCTV images, for the purpose of your duties and as we instruct.",
         "sources": [{ "title": "ICO: Employment practices and data protection", "url": "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/employment/" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SEC.INSTRUCTIONS",
+    "title": "Site and assignment instructions",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "For each site you work at, the Company will give you assignment instructions. They set out the duties, patrol and reporting routines, emergency procedures, the client's site rules and who to contact. You will be given them, or shown where to find them, before you start work at that site, and you must read and follow them.\n\nThe Company may update assignment instructions when a site's needs change. It will tell you about any update before your next shift at that site, or straight away if the change is urgent. If you are unsure what an instruction means, or think it is unsafe or unlawful, ask your supervisor or the control room before acting on it.\n\nAssignment instructions are working instructions, not contract terms. They cannot change your pay, hours, holiday or any other term of this contract. Those can only change as set out in the clause on changes to this contract.",
+        "sources": [
+          {
+            "title": "GOV.UK: SIA standards of behaviour for security operatives",
+            "url": "https://www.gov.uk/government/publications/standards-of-behaviour-for-security-operatives"
+          },
+          {
+            "title": "GOV.UK: SIA Approved Contractor Scheme",
+            "url": "https://www.gov.uk/guidance/learn-about-our-approved-contractor-scheme"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SEC.EQUIPMENT",
+    "title": "Equipment, keys and access",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "The Company or the client may issue you with equipment and access items, for example keys, access cards, alarm codes, radios, phones and body-worn cameras. Each item is recorded when it is issued to you, and you may be asked to sign for it.\n\nYou must:\n\n- use equipment only for your work and as you have been trained and instructed;\n- keep keys, cards and codes secure, never copy them or share them with anyone not authorised to have them, and never take them away from the site unless you are told to;\n- check equipment at the start of your shift and report any fault straight away;\n- report any loss, theft or damage to the control room or your supervisor straight away, so that locks, codes or access can be changed.\n\nAll equipment and access items remain the property of the Company or the client. You must return them when asked, when you stop working at the site and when your employment ends.\n\nThe Company will only deduct the cost of lost or damaged equipment from your pay as allowed by the clause on deductions from pay.",
+        "sources": [
+          {
+            "title": "GOV.UK: SIA standards of behaviour for security operatives",
+            "url": "https://www.gov.uk/government/publications/standards-of-behaviour-for-security-operatives"
+          },
+          {
+            "title": "GOV.UK: Calculating the minimum wage",
+            "url": "https://www.gov.uk/government/publications/calculating-the-minimum-wage"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SEC.TRAINING",
+    "title": "Training",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "You must complete the training the Company tells you is compulsory for your role. This includes induction, site familiarisation, health and safety training and any refresher training needed to keep your SIA licence or meet a client's requirements. The Company will keep a record of the training you complete.\n\nTime you spend on training the Company requires counts as working time. It is paid at your normal rate, and in any case so that your pay for the pay period is never below the National Minimum Wage, as the National Minimum Wage Regulations 2015 require.\n\nThe Company pays for training it requires you to do. The cost of obtaining or renewing your own SIA licence, including any licence-linked qualification, is paid as set out in your schedule or agreed with you in writing before the cost is incurred.\n\nThe Company will not ask you to repay any training cost unless you agreed to it in writing before the training started. Any repayment will never take your pay for a pay period below the National Minimum Wage.",
+        "sources": [
+          {
+            "title": "GOV.UK: Calculating the minimum wage (training and deductions)",
+            "url": "https://www.gov.uk/government/publications/calculating-the-minimum-wage"
+          },
+          {
+            "title": "National Minimum Wage Regulations 2015",
+            "url": "https://www.legislation.gov.uk/uksi/2015/621/contents"
+          },
+          {
+            "title": "GOV.UK: Apply for an SIA licence",
+            "url": "https://www.gov.uk/guidance/apply-for-an-sia-licence"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "nmw-2026",
+          "nmw-deductions"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SEC.DEDUCTIONS",
+    "title": "Deductions from pay",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "The Company will only make a deduction from your pay, or ask you to make a payment to it, where:\n\n- the law requires or allows it, for example income tax, National Insurance, pension contributions or a court order;\n- a written term of your contract allows it, and you were given a copy of that term or told about it in writing before the event that led to the deduction; or\n- you have agreed in writing to that deduction before the event that led to it.\n\nDeductions are made in line with Part II of the Employment Rights Act 1996. The Company will tell you about each deduction and the reason for it on your payslip or in writing.\n\nThe Company will check every deduction or payment linked to your work, including for uniform, equipment, training or licence costs, so that it does not take your pay for the pay period below the National Minimum Wage. Where that would happen, the deduction will be reduced or not made.\n\nIf you work in retail employment and a deduction is for cash shortages or stock deficiencies, it will not exceed the statutory limit of one-tenth of your gross wages on any pay day.",
+        "sources": [
+          {
+            "title": "Employment Rights Act 1996, Part II (protection of wages)",
+            "url": "https://www.legislation.gov.uk/ukpga/1996/18/part/II"
+          },
+          {
+            "title": "GOV.UK: Calculating the minimum wage (deductions and payments)",
+            "url": "https://www.gov.uk/government/publications/calculating-the-minimum-wage"
+          },
+          {
+            "title": "ACAS: Deductions from pay and wages",
+            "url": "https://www.acas.org.uk/deductions-from-pay-and-wages"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "deductions-gb",
+          "nmw-deductions"
+        ]
+      },
+      "ni": {
+        "body": "The Company will only make a deduction from your pay, or ask you to make a payment to it, where:\n\n- the law requires or allows it, for example income tax, National Insurance, pension contributions or a court order;\n- a written term of your contract allows it, and you were given a copy of that term or told about it in writing before the event that led to the deduction; or\n- you have agreed in writing to that deduction before the event that led to it.\n\nDeductions are made in line with Part IV of the Employment Rights (Northern Ireland) Order 1996. The Company will tell you about each deduction and the reason for it on your payslip or in writing.\n\nThe Company will check every deduction or payment linked to your work, including for uniform, equipment, training or licence costs, so that it does not take your pay for the pay period below the National Minimum Wage. Where that would happen, the deduction will be reduced or not made.\n\nIf you work in retail employment and a deduction is for cash shortages or stock deficiencies, it will not exceed the statutory limit of one-tenth of your gross wages on any pay day.",
+        "sources": [
+          {
+            "title": "Employment Rights (Northern Ireland) Order 1996, Part IV (protection of wages)",
+            "url": "https://www.legislation.gov.uk/nisi/1996/1919/part/IV"
+          },
+          {
+            "title": "nidirect: Pay deductions",
+            "url": "https://www.nidirect.gov.uk/articles/pay-deductions"
+          },
+          {
+            "title": "GOV.UK: Calculating the minimum wage (deductions and payments)",
+            "url": "https://www.gov.uk/government/publications/calculating-the-minimum-wage"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "deductions-ni",
+          "nmw-deductions"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SEC.HOLIDAY.IRREGULAR",
+    "title": "Holiday: irregular-hours and part-year work",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "You are an irregular-hours or part-year worker within the meaning of the Working Time Regulations 1998. For leave years starting on or after 1 April 2024, your statutory holiday builds up at the end of each pay period at the statutory rate of 12.07% of the hours you actually worked in that pay period, as regulations 15B to 15F of those Regulations set out. Holiday also builds up during sick leave and statutory family leave as those Regulations provide.\n\nThe statutory maximum you can build up in a leave year under these rules is 28 days. You may take holiday as it builds up, at times agreed with the Company. Holiday you have not taken cannot be replaced by a payment, except when your employment ends.\n\nUnless rolled-up holiday pay applies under a separate clause of this contract, you are paid for holiday when you take it, at the rate the Working Time Regulations 1998 require, which is based on your average pay over the statutory reference period.",
+        "sources": [
+          {
+            "title": "Working Time Regulations 1998, regulation 15B",
+            "url": "https://www.legislation.gov.uk/uksi/1998/1833/regulation/15B"
+          },
+          {
+            "title": "GOV.UK: Holiday pay and entitlement reforms from 1 January 2024",
+            "url": "https://www.gov.uk/government/publications/simplifying-holiday-entitlement-and-holiday-pay-calculations/holiday-pay-and-entitlement-reforms-from-1-january-2024"
+          },
+          {
+            "title": "GOV.UK: Holiday entitlement",
+            "url": "https://www.gov.uk/holiday-entitlement-rights"
+          },
+          {
+            "title": "GOV.UK: SIA approved contractors and rolled-up holiday pay",
+            "url": "https://www.gov.uk/guidance/sia-approved-contractors-and-rolled-up-holiday-pay"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "wtr-irregular-hours"
+        ]
+      },
+      "ni": {
+        "body": "You are entitled to the statutory minimum of 5.6 weeks' paid holiday in each leave year under the Working Time Regulations (Northern Ireland) 2016. Because your hours vary, that entitlement is worked out pro rata to the time you actually work, using the reference period the law sets for a worker with no normal working hours, so that you get paid time off for the hours you work. The Company will tell you in writing how much holiday you have built up when you ask.\n\nYou may take holiday at times agreed with the Company. Holiday you have not taken cannot be replaced by a payment, except when your employment ends.\n\nYou are paid for holiday when you take it, at the rate the Working Time Regulations (Northern Ireland) 2016 and the week's pay rules in the Employment Rights (Northern Ireland) Order 1996 require. Holiday pay is not rolled up into your hourly rate.",
+        "sources": [
+          {
+            "title": "Working Time Regulations (Northern Ireland) 2016",
+            "url": "https://www.legislation.gov.uk/nisr/2016/49/contents"
+          },
+          {
+            "title": "nidirect: Holiday entitlements",
+            "url": "https://www.nidirect.gov.uk/articles/holiday-entitlements"
+          },
+          {
+            "title": "Employment Rights (Northern Ireland) Order 1996",
+            "url": "https://www.legislation.gov.uk/nisi/1996/1919/contents"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "ni-wtr-2016",
+          "ni-holiday-irregular"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SEC.HOLIDAY.ROLLED",
+    "title": "Holiday pay: rolled-up holiday pay",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "This clause applies only because you are an irregular-hours or part-year worker within the meaning of the Working Time Regulations 1998. It does not apply to workers with regular hours.\n\nInstead of being paid when you take holiday, you receive rolled-up holiday pay with each payment of wages, at the statutory rate of 12.07% of your pay for work done in that pay period, worked out as regulation 16A of those Regulations requires. Rolled-up holiday pay is shown as a separate item on every payslip.\n\nYou must still take your holiday. When you take it, you are not paid again for that time, because you have already received holiday pay for it. The Company will explain how your rolled-up holiday pay is worked out, will encourage you to take your full holiday entitlement and will not discourage or disadvantage you for taking it.",
+        "sources": [
+          {
+            "title": "Working Time Regulations 1998, regulation 16A",
+            "url": "https://www.legislation.gov.uk/uksi/1998/1833/regulation/16A"
+          },
+          {
+            "title": "GOV.UK: Holiday pay and entitlement reforms from 1 January 2024",
+            "url": "https://www.gov.uk/government/publications/simplifying-holiday-entitlement-and-holiday-pay-calculations/holiday-pay-and-entitlement-reforms-from-1-january-2024"
+          },
+          {
+            "title": "GOV.UK: SIA approved contractors and rolled-up holiday pay",
+            "url": "https://www.gov.uk/guidance/sia-approved-contractors-and-rolled-up-holiday-pay"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "wtr-rolled-up-holiday",
+          "wtr-irregular-hours"
+        ]
+      },
+      "ni": {
+        "body": "Rolled-up holiday pay, where an amount for holiday is added to each payment of wages instead of being paid when holiday is taken, is not used under this contract. The Great Britain rules that allow it do not apply in Northern Ireland, and the Working Time Regulations (Northern Ireland) 2016 require holiday to be paid when it is taken.\n\nYou are paid for holiday when you take it, as set out in the holiday clause of this contract. No part of your hourly rate or other pay is holiday pay.",
+        "sources": [
+          {
+            "title": "Working Time Regulations (Northern Ireland) 2016",
+            "url": "https://www.legislation.gov.uk/nisr/2016/49/contents"
+          },
+          {
+            "title": "nidirect: Holiday entitlements",
+            "url": "https://www.nidirect.gov.uk/articles/holiday-entitlements"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "ni-wtr-2016",
+          "ni-holiday-irregular"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SEC.CHANGES",
+    "title": "Changes to this contract",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "Either you or the Company may propose a change to the terms of this contract. The Company will explain any change it proposes in writing, with the reason for it and the date it would take effect, and will give you a reasonable opportunity to ask questions and discuss it, with a companion or trade union representative if you wish.\n\nA change to your pay, hours, place of work, holiday, notice or any other core term only takes effect if you agree to it. The Company will not change those terms without your agreement. Agreed changes are recorded in a written variation, signed or accepted by you and the Company, and the Company will give you written notice of the change no later than the date it takes effect, as section 4 of the Employment Rights Act 1996 requires.\n\nUpdates to non-contractual policies, rotas and assignment instructions are not changes to this contract.",
+        "sources": [
+          {
+            "title": "GOV.UK: Employment contracts: changing a contract",
+            "url": "https://www.gov.uk/your-employment-contract-how-it-can-be-changed"
+          },
+          {
+            "title": "ACAS: Changing an employment contract",
+            "url": "https://www.acas.org.uk/changing-an-employment-contract"
+          },
+          {
+            "title": "Employment Rights Act 1996, section 4",
+            "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/4"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "era2025-fire-and-rehire"
+        ]
+      },
+      "ni": {
+        "body": "Either you or the Company may propose a change to the terms of this contract. The Company will explain any change it proposes in writing, with the reason for it and the date it would take effect, and will give you a reasonable opportunity to ask questions and discuss it, with a companion or trade union representative if you wish.\n\nA change to your pay, hours, place of work, holiday, notice or any other core term only takes effect if you agree to it. The Company will not change those terms without your agreement. Agreed changes are recorded in a written variation, signed or accepted by you and the Company, and the Company will give you written notice of the change as Article 36 of the Employment Rights (Northern Ireland) Order 1996 requires.\n\nUpdates to non-contractual policies, rotas and assignment instructions are not changes to this contract.",
+        "sources": [
+          {
+            "title": "nidirect: Changes to employment conditions",
+            "url": "https://www.nidirect.gov.uk/articles/changes-employment-conditions"
+          },
+          {
+            "title": "Labour Relations Agency",
+            "url": "https://www.lra.org.uk/"
+          },
+          {
+            "title": "Employment Rights (Northern Ireland) Order 1996",
+            "url": "https://www.legislation.gov.uk/nisi/1996/1919/contents"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SEC.B2B.LICENCE",
+    "title": "SIA licensing (Supplier Personnel)",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "The Supplier must make sure that every member of Supplier Personnel who carries out licensable conduct under the Private Security Industry Act 2001 holds a valid SIA licence of the right sector and type for the work, and wears or displays it where the law requires. Where the Supplier or anyone who manages or directs Supplier Personnel needs a licence of their own, the Supplier must make sure they hold it.\n\nBefore anyone is deployed, the Supplier must give the Company their name and SIA licence number, so that the Company can check the licence on the SIA's register of licence holders. The Company may check again at any time.\n\nThe Supplier must tell the Company straight away if any licence held by Supplier Personnel is suspended, revoked, made subject to conditions or due to expire, and must withdraw that person from licensable work until the matter is resolved. The Company may refuse or remove anyone whose licence it cannot verify.\n\nThe Supplier must not deploy anyone who does not hold a valid licence, and must tell the Company before any part of the work is subcontracted.",
+        "sources": [
+          {
+            "title": "GOV.UK: Apply for an SIA licence",
+            "url": "https://www.gov.uk/guidance/apply-for-an-sia-licence"
+          },
+          {
+            "title": "Private Security Industry Act 2001",
+            "url": "https://www.legislation.gov.uk/ukpga/2001/12/contents"
+          },
+          {
+            "title": "GOV.UK: SIA Approved Contractor Scheme",
+            "url": "https://www.gov.uk/guidance/learn-about-our-approved-contractor-scheme"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "sia-licensing",
+          "sia-acs-subcontracting"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SEC.B2B.SCREENING",
+    "title": "Screening and right to work (Supplier Personnel)",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "The Supplier is responsible for screening Supplier Personnel in line with BS 7858 before they are deployed, unless the Company has agreed in writing to carry out the screening itself. The party responsible for screening must keep the screening records and make them available to the other party, and to the client or the SIA where required, subject to data protection law.\n\nThe Supplier must check that every member of Supplier Personnel has the right to work in the UK before they are deployed, keep evidence of that check, and follow up any time-limited permission before it expires. The Company may ask to see the evidence. Where the Supplier is itself a self-employed individual, the Supplier must give the Company evidence of their own right to work and screening information.\n\nThe Supplier must tell the Company straight away about any change that affects a person's screening or right to work, and must not deploy anyone whose screening is incomplete or unsatisfactory, except as BS 7858 allows for provisional employment with the Company's written agreement.",
+        "sources": [
+          {
+            "title": "GOV.UK: Right to work checks: an employer's guide",
+            "url": "https://www.gov.uk/government/publications/right-to-work-checks-employers-guide"
+          },
+          {
+            "title": "GOV.UK: SIA Approved Contractor Scheme",
+            "url": "https://www.gov.uk/guidance/learn-about-our-approved-contractor-scheme"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "right-to-work",
+          "sia-acs-subcontracting"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SEC.B2B.INSTRUCTIONS",
+    "title": "Site and assignment instructions",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "The Company will give the Supplier the assignment instructions for each site, including the services required, reporting routines, emergency procedures, the client's site rules and contacts. The Supplier must make sure that all Supplier Personnel deployed to that site have read and understood them before their first shift there, and must keep a record that they have.\n\nThe Company may update assignment instructions when the client's needs or a site's risks change. It will send updates to the Supplier in writing, and straight away if the change is urgent. The Supplier must pass updates to the Supplier Personnel concerned before their next shift.\n\nAssignment instructions describe the services and site requirements. They do not change the commercial terms of this agreement, which can only change as set out in the clause on changes to this agreement.",
+        "sources": [
+          {
+            "title": "GOV.UK: SIA Approved Contractor Scheme",
+            "url": "https://www.gov.uk/guidance/learn-about-our-approved-contractor-scheme"
+          },
+          {
+            "title": "GOV.UK: SIA standards of behaviour for security operatives",
+            "url": "https://www.gov.uk/government/publications/standards-of-behaviour-for-security-operatives"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SEC.B2B.CONDUCT",
+    "title": "Conduct and incidents",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "The Supplier must make sure that Supplier Personnel behave professionally, follow the assignment instructions and the SIA's standards of behaviour, are fit for duty and not under the influence of alcohol or drugs, and only use force where it is lawful, necessary and reasonable.\n\nThe Supplier must make sure that Supplier Personnel report every incident, accident, near miss, ejection, use of force, complaint and safeguarding concern to the Company's control room or site supervisor straight away, and complete a written incident report before the end of the shift. The Supplier must tell the Company straight away about any serious incident, police involvement or complaint involving Supplier Personnel, and co-operate with any investigation by the Company, the client, the police or a regulator.\n\nThe Company may ask the Supplier to remove any member of Supplier Personnel from a site or from the services for a reasonable cause it explains in writing. The Supplier remains responsible for any disciplinary process for its own personnel.\n\nNothing in this agreement prevents anyone from making a protected disclosure, reporting a crime, or co-operating with the police, a regulator or a court.",
+        "sources": [
+          {
+            "title": "GOV.UK: SIA standards of behaviour for security operatives",
+            "url": "https://www.gov.uk/government/publications/standards-of-behaviour-for-security-operatives"
+          },
+          {
+            "title": "HSE: Reporting accidents and incidents at work (RIDDOR)",
+            "url": "https://www.hse.gov.uk/riddor/"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SEC.B2B.CONFIDENTIAL",
+    "title": "Confidentiality",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "The Supplier must keep confidential, and make sure Supplier Personnel keep confidential, all information it receives through the services, including:\n\n- information about the Company's clients, their sites, security arrangements, alarm codes, keys and procedures;\n- information about residents, visitors, customers and members of the public at those sites;\n- information about the Company's staff, rotas, rates, methods and business;\n- operational information such as incident reports, CCTV and body-worn video, patrol records and assignment instructions.\n\nThe Supplier may only use this information to provide the services, and may only share it with Supplier Personnel who need it for that purpose and are bound by the same duty. These duties continue after this agreement ends. On request, and when the agreement ends, the Supplier must return or securely destroy the information and confirm in writing that it has done so.\n\nThese duties do not apply to information that is already public through no fault of the Supplier, or that the law, a court or a regulator requires to be disclosed. Nothing in this agreement prevents anyone from making a protected disclosure or reporting a crime.",
+        "sources": [
+          {
+            "title": "GOV.UK: Whistleblowing for employees",
+            "url": "https://www.gov.uk/whistleblowing"
+          },
+          {
+            "title": "ICO: UK GDPR guidance and resources",
+            "url": "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SEC.B2B.EQUIPMENT",
+    "title": "Equipment, keys and access",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "The Supplier provides the uniform and equipment Supplier Personnel need for the services, except items the Company or the client agrees in writing to provide. Any item the Company or the client issues, such as keys, access cards, alarm codes, radios or body-worn cameras, is recorded when issued and remains the property of the Company or the client.\n\nThe Supplier must make sure that Supplier Personnel use issued items only for the services, keep keys, cards and codes secure, never copy or share them with anyone not authorised to have them, and report any fault, loss, theft or damage to the Company straight away so that locks, codes or access can be changed.\n\nThe Supplier must return all issued items when asked, when a person stops working on the services and when this agreement ends. Any charge the Supplier passes on to its own personnel for uniform or equipment is the Supplier's responsibility, and must comply with the law on deductions from wages and the National Minimum Wage where those apply.",
+        "sources": [
+          {
+            "title": "GOV.UK: Calculating the minimum wage (uniform and equipment)",
+            "url": "https://www.gov.uk/government/publications/calculating-the-minimum-wage"
+          },
+          {
+            "title": "GOV.UK: SIA standards of behaviour for security operatives",
+            "url": "https://www.gov.uk/government/publications/standards-of-behaviour-for-security-operatives"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "nmw-deductions"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SEC.B2B.WORKING_TIME",
+    "title": "Working time, rest and night work",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "The Supplier remains responsible for the working time, rest breaks, daily and weekly rest, night work limits and health assessments of Supplier Personnel under the Working Time Regulations 1998, including keeping the records those Regulations require. It must not offer a shift to anyone where working it would breach those rules.\n\nThere is no general exemption from rest rules for security work. Where security work needs a permanent presence and regulation 21 of those Regulations applies, some rules may be varied only if the person receives equivalent compensatory rest as regulation 24 requires. Any opt-out from the statutory average weekly limit must be a voluntary written agreement between the Supplier and the individual.\n\nBefore each deployment, the Supplier must tell the Company if a person has worked for anyone else in a way that would leave them without the rest the law requires. The Company keeps its own duties, including for health and safety on site, and may refuse a person who it reasonably believes is not fit or rested enough to work safely.",
+        "sources": [
+          {
+            "title": "Working Time Regulations 1998, regulations 21 and 24",
+            "url": "https://www.legislation.gov.uk/uksi/1998/1833/contents"
+          },
+          {
+            "title": "ACAS: Jobs with different working time rules",
+            "url": "https://www.acas.org.uk/working-time-rules/jobs-with-different-working-time-rules"
+          },
+          {
+            "title": "GOV.UK: Rest breaks at work",
+            "url": "https://www.gov.uk/rest-breaks-work"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "wtr-security-special-case"
+        ]
+      },
+      "ni": {
+        "body": "The Supplier remains responsible for the working time, rest breaks, daily and weekly rest, night work limits and health assessments of Supplier Personnel under the Working Time Regulations (Northern Ireland) 2016, including keeping the records those Regulations require. It must not offer a shift to anyone where working it would breach those rules.\n\nThere is no general exemption from rest rules for security work. Where security work needs a permanent presence and the special-case provisions of those Regulations apply, some rules may be varied only if the person receives equivalent compensatory rest. Any opt-out from the statutory average weekly limit must be a voluntary written agreement between the Supplier and the individual.\n\nBefore each deployment, the Supplier must tell the Company if a person has worked for anyone else in a way that would leave them without the rest the law requires. The Company keeps its own duties, including for health and safety on site, and may refuse a person who it reasonably believes is not fit or rested enough to work safely.",
+        "sources": [
+          {
+            "title": "Working Time Regulations (Northern Ireland) 2016",
+            "url": "https://www.legislation.gov.uk/nisr/2016/49/contents"
+          },
+          {
+            "title": "nidirect: Rest breaks (including special cases and compensatory rest)",
+            "url": "https://www.nidirect.gov.uk/articles/rest-breaks"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "ni-wtr-2016",
+          "wtr-security-special-case"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SEC.B2B.TRAINING",
+    "title": "Training",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "The Supplier is responsible for making sure that Supplier Personnel hold the qualifications needed for their SIA licence and have completed any other training the Company tells the Supplier in writing is compulsory for the services or a site, such as induction, health and safety or client-specific training. The Supplier must keep training records and show them to the Company on request.\n\nThe Company will provide site familiarisation and any client-specific training it requires, unless the parties agree otherwise in writing. Each party pays for the training it is responsible for under this clause, unless the parties agree otherwise in writing before the training takes place.\n\nWhere Supplier Personnel are the Supplier's workers, the Supplier is responsible for paying them for training time and for any training cost it recovers from them, in line with the National Minimum Wage and the law on deductions from wages.",
+        "sources": [
+          {
+            "title": "GOV.UK: Apply for an SIA licence",
+            "url": "https://www.gov.uk/guidance/apply-for-an-sia-licence"
+          },
+          {
+            "title": "GOV.UK: Calculating the minimum wage (training)",
+            "url": "https://www.gov.uk/government/publications/calculating-the-minimum-wage"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "nmw-deductions"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SEC.B2B.DATA",
+    "title": "Data protection",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "Each party must comply with the UK GDPR and the Data Protection Act 2018 when it handles personal data in connection with this agreement.\n\nEach party is a separate controller of the personal data it holds about its own staff and Supplier Personnel, including licence, screening, right-to-work and training records, and shares them with the other only as needed for the services and as its own privacy information explains. The Company will give the Supplier its privacy information for Supplier Personnel, and the Supplier must pass it on to them.\n\nWhere the Supplier or Supplier Personnel handle personal data on the Company's or the client's behalf, for example CCTV, body-worn video, visitor logs or incident reports, the Supplier acts as a processor. It must handle that data only on documented instructions, keep it secure and confidential, help the Company respond to requests from individuals, tell the Company without undue delay about any personal data breach, not use another processor without the Company's written permission, and return or delete the data when the services end. Where the law requires it, the parties will sign separate data processing terms, which take priority over this clause.",
+        "sources": [
+          {
+            "title": "ICO: Controllers and processors",
+            "url": "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/controllers-and-processors/"
+          },
+          {
+            "title": "ICO: Contracts and liabilities between controllers and processors",
+            "url": "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/accountability-and-governance/contracts-and-liabilities-between-controllers-and-processors-multi/"
+          },
+          {
+            "title": "Data Protection Act 2018",
+            "url": "https://www.legislation.gov.uk/ukpga/2018/12/contents"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "uk-gdpr"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SEC.B2B.CHANGES",
+    "title": "Changes to this agreement",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "Either party may propose a change to this agreement, including to the services, sites, rates or schedules. The party proposing the change must set it out in writing with the reason and the date it would take effect, and the other party must respond within a reasonable time.\n\nA change only takes effect when both parties have agreed it in a written variation signed or accepted by an authorised person for each party. Neither party may change the terms of this agreement on its own.\n\nUpdates to assignment instructions and the Company's operational policies notified under this agreement are not changes to its terms, but they cannot change the rates, the scope of the services or any other term of this agreement. Signed versions of this agreement and every variation are kept by both parties.",
+        "sources": [
+          {
+            "title": "GOV.UK: SIA Approved Contractor Scheme",
+            "url": "https://www.gov.uk/guidance/learn-about-our-approved-contractor-scheme"
+          },
+          {
+            "title": "GOV.UK: Learn how HMRC rules apply to the security operatives you deploy",
+            "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy"
+          }
+        ],
         "checked_on": "2026-11-04"
       }
     }

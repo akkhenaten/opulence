@@ -47,7 +47,7 @@
     "versions": {
       "all": {
         "body": "This contract is governed by the law of Northern Ireland. The courts and tribunals of Northern Ireland, including the industrial tribunals, deal with any dispute about it.",
-        "sources": [{ "title": "nidirect: Industrial tribunals", "url": "https://www.nidirect.gov.uk/articles/industrial-tribunals" }],
+        "sources": [{ "title": "nidirect: Early conciliation and tribunal claims", "url": "https://www.nidirect.gov.uk/articles/early-conciliation" }],
         "checked_on": "2026-11-04"
       }
     }

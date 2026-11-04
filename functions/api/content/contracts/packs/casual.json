@@ -1,0 +1,380 @@
+{
+  "id": "casual",
+  "version": 1,
+  "title": "Casual and zero-hours work",
+  "summary": "Work offered as and when it is needed, with or without a small number of guaranteed hours. Worker or employee wording follows the status assessment, not the lack of hours.",
+  "party": "person",
+  "engagement_type": "worker",
+  "doc_title": "Casual Work Agreement",
+  "jurisdictions": ["ew", "sc", "ni"],
+  "law": ["employment-status-casual", "era2025-guaranteed-hours", "era2025-shift-notice-cancellation", "ni-good-jobs-bill"],
+  "decision": { "hint": "There are no set hours: you offer work when you have it and they can say no. Whether they are a worker or an employee is decided in the status assessment, not by the lack of hours." },
+  "sections": [
+    { "id": "parties", "title": "Parties" },
+    { "id": "start", "title": "Start" },
+    { "id": "job", "title": "Role" },
+    { "id": "place", "title": "Assignment locations" },
+    { "id": "hours", "title": "Hours, offers and availability" },
+    { "id": "cancellation", "title": "Cancellations and changes" },
+    { "id": "pay", "title": "Pay and time recording" },
+    { "id": "holiday", "title": "Holiday" },
+    { "id": "sickness", "title": "Sickness and pension" },
+    { "id": "conduct", "title": "Training, discipline and grievances" },
+    { "id": "other_work", "title": "Work for others" },
+    { "id": "ending", "title": "Ending" },
+    { "id": "other", "title": "Other terms" }
+  ],
+  "assessment": {
+    "title": "Status assessment: worker or employee",
+    "intro": "Zero or low guaranteed hours do not decide status on their own. A casual member of staff can be a worker or an employee. Answer from how the work really happens, not from what you would like the contract to say. The recorded outcome decides whether worker or employee wording is used.",
+    "questions": [
+      { "id": "personal", "label": "Must they do the work themselves?", "help": "Can they send someone else in their place without your agreement, and does that actually happen?",
+        "options": [{ "value": "yes", "label": "Yes, they must do it personally" }, { "value": "no", "label": "No, they can send a substitute of their choice" }] },
+      { "id": "control", "label": "Who decides how the work is done once an assignment starts?", "help": "Site instructions, uniform, supervision, control room check calls.",
+        "options": [{ "value": "company", "label": "We do, through instructions and supervision" }, { "value": "them", "label": "They do, as an independent business" }] },
+      { "id": "obligation", "label": "In practice, can they turn work down?", "help": "Think about what really happens if they say no, not what the contract says.",
+        "options": [{ "value": "free", "label": "Yes, freely and without consequences" }, { "value": "expected", "label": "They are expected to take most shifts offered" }, { "value": "must", "label": "No, they must accept work offered" }] },
+      { "id": "offer_duty", "label": "Do you have to offer them work?", "help": "For example a promise of regular shifts, a fixed rota or a guaranteed minimum.",
+        "options": [{ "value": "no", "label": "No, only when we have work" }, { "value": "regular", "label": "We offer a regular pattern of shifts" }, { "value": "yes", "label": "Yes, we have agreed to provide work" }] },
+      { "id": "between", "label": "Do obligations continue between assignments?", "help": "For example they must stay available, keep to a rota, or you must keep offering work.",
+        "options": [{ "value": "no", "label": "No, nothing continues between assignments" }, { "value": "yes", "label": "Yes, obligations continue between assignments" }] }
+    ],
+    "outcomes": {
+      "employment": [
+        { "result": "self_employed", "when": { "any": [{ "assessment": "personal", "eq": "no" }, { "assessment": "control", "eq": "them" }] } },
+        { "result": "employee", "when": { "any": [
+          { "all": [{ "assessment": "obligation", "in": ["must", "expected"] }, { "assessment": "offer_duty", "in": ["regular", "yes"] }] },
+          { "all": [{ "assessment": "between", "eq": "yes" }, { "assessment": "obligation", "ne": "free" }] }
+        ] } },
+        { "result": "worker", "when": { "all": [] } }
+      ],
+      "tax": [
+        { "result": "self_employed", "when": { "any": [{ "assessment": "personal", "eq": "no" }, { "assessment": "control", "eq": "them" }] } },
+        { "result": "employed", "when": { "all": [] } }
+      ]
+    },
+    "expects": { "employment": ["worker", "employee"], "tax": ["employed"] },
+    "mismatch": "This pack is for casual workers and employees who do the work personally. Use the self-employed pack if the person genuinely runs their own business."
+  },
+  "questions": [
+    { "id": "parties.employer_name", "label": "Company", "section": "parties", "type": "text", "prefill": "company.name", "help": "The legal name of the company, exactly as registered." },
+    { "id": "parties.employer_address", "label": "Company address", "section": "parties", "type": "text", "prefill": "company.address" },
+    { "id": "parties.employer_number", "label": "Company number", "section": "parties", "type": "text", "prefill": "company.number", "required": false },
+    { "id": "parties.worker_name", "label": "Casual worker", "section": "parties", "type": "text", "prefill": "officer.name" },
+    { "id": "parties.worker_address", "label": "Casual worker address", "section": "parties", "type": "text", "prefill": "officer.address" },
+
+    { "id": "start.date", "label": "Agreement starts", "section": "start", "type": "date", "prefill": "officer.start_date", "help": "Send the agreement on or before this date: the written statement is due on day one." },
+    { "id": "start.continuous_date", "label": "Continuous employment began", "section": "start", "type": "date", "prefill": "officer.start_date", "help": "Only for casual employees. Use an earlier date if earlier work counts, for example after a TUPE transfer.", "showIf": { "outcome": "employment", "eq": "employee" } },
+
+    { "id": "job.title", "label": "Role", "section": "job", "type": "text", "prefill": "officer.role" },
+    { "id": "job.duties", "label": "Main duties", "section": "job", "type": "textarea", "help": "A short description, for example \"event stewarding, access control and patrols at client sites\"." },
+    { "id": "job.reports_to", "label": "Reports to", "section": "job", "type": "text", "help": "A job title rather than a name, for example \"the Scheduling Manager\"." },
+    { "id": "job.licensable", "label": "SIA-licensable work", "section": "job", "type": "yesno", "schedule": false },
+    { "id": "job.licence", "label": "SIA licence type", "section": "job", "type": "text", "prefill": "officer.sia_type", "showIf": { "q": "job.licensable", "eq": "yes" } },
+
+    { "id": "place.locations", "label": "Assignment locations", "section": "place", "type": "textarea", "help": "For example \"client sites and event venues in Greater Manchester and Cheshire\"." },
+
+    { "id": "hours.guaranteed", "label": "Guaranteed hours a week", "section": "hours", "type": "number", "help": "Enter 0 for a zero-hours arrangement. Status is decided in the assessment, not by this number." },
+    { "id": "offer.channel", "label": "How work is offered", "section": "hours", "type": "choice",
+      "options": [
+        { "value": "app", "label": "Staff app", "text": "through the Company's staff app" },
+        { "value": "sms", "label": "Text message", "text": "by text message" },
+        { "value": "phone", "label": "Phone call", "text": "by phone" },
+        { "value": "email", "label": "Email", "text": "by email" }
+      ] },
+    { "id": "offer.response", "label": "Time to accept an offer", "section": "hours", "type": "text", "help": "For example \"24 hours\" or \"two hours for same-day work\"." },
+    { "id": "availability.required", "label": "Availability", "section": "hours", "type": "choice", "schedule": false,
+      "options": [
+        { "value": "free", "label": "Free to accept or refuse any offer" },
+        { "value": "agreed", "label": "Available at agreed times" },
+        { "value": "unrestricted", "label": "Available whenever we need them" }
+      ] },
+    { "id": "availability.times", "label": "Agreed availability", "section": "hours", "type": "text", "help": "For example \"on Saturdays between 08:00 and 20:00\".", "showIf": { "q": "availability.required", "eq": "agreed" } },
+    { "id": "hours.night", "label": "Includes night work", "section": "hours", "type": "yesno" },
+
+    { "id": "shift.cancel_notice", "label": "Notice of cancellation", "section": "cancellation", "type": "text", "help": "How much notice you aim to give when you cancel or shorten an accepted assignment, for example \"48 hours\"." },
+    { "id": "shift.cancel_pay", "label": "Pay for late cancellation", "section": "cancellation", "type": "choice", "schedule": false,
+      "options": [
+        { "value": "full", "label": "Booked hours paid in full" },
+        { "value": "part", "label": "A set payment" },
+        { "value": "none", "label": "No payment" }
+      ] },
+    { "id": "shift.cancel_part", "label": "Late cancellation payment", "section": "cancellation", "type": "text", "help": "For example \"for half of the booked hours, with a minimum of four hours\".", "showIf": { "q": "shift.cancel_pay", "eq": "part" } },
+    { "id": "shift.worker_cancel", "label": "Notice to cancel an accepted assignment", "section": "cancellation", "type": "text", "help": "How much notice the worker should give, for example \"12 hours\"." },
+
+    { "id": "pay.rate", "label": "Hourly rate", "section": "pay", "type": "money", "help": "Gross, before deductions." },
+    { "id": "pay.frequency", "label": "Paid", "section": "pay", "type": "choice",
+      "options": [{ "value": "weekly", "label": "Weekly", "text": "weekly" }, { "value": "fortnightly", "label": "Every two weeks", "text": "every two weeks" }, { "value": "four_weekly", "label": "Every four weeks", "text": "every four weeks" }, { "value": "monthly", "label": "Monthly", "text": "monthly" }] },
+    { "id": "pay.day", "label": "Pay day", "section": "pay", "type": "text", "help": "For example \"Friday of the following week\"." },
+    { "id": "pay.enhancements", "label": "Enhanced rates or allowances", "section": "pay", "type": "textarea", "required": false, "help": "For example bank holiday or short-notice rates. Leave blank if none." },
+    { "id": "time.method", "label": "How time is recorded", "section": "pay", "type": "text", "help": "For example \"by booking on and off through the staff app\"." },
+    { "id": "deductions.charged", "label": "Charges or deductions from pay", "section": "pay", "type": "choice", "schedule": false, "help": "For example for uniform, licence fees, training or equipment.",
+      "options": [{ "value": "none", "label": "None" }, { "value": "agreed", "label": "Yes, with written agreement" }] },
+
+    { "id": "holiday.pattern", "label": "Working pattern for holiday", "section": "holiday", "type": "choice", "schedule": false, "help": "Irregular hours means the hours vary from one pay period to the next. Part-year means some weeks with no work at all.",
+      "options": [{ "value": "irregular", "label": "Irregular hours or part-year" }, { "value": "regular", "label": "Regular hours each week" }] },
+    { "id": "holiday.method", "label": "Holiday pay method", "section": "holiday", "type": "choice", "schedule": false, "jurisdictions": ["ew", "sc"], "help": "Rolled-up holiday pay is only lawful in Great Britain, and only for irregular-hours and part-year workers.",
+      "options": [{ "value": "accrue", "label": "Built up and paid when taken" }, { "value": "rolled", "label": "Rolled up into each payment" }],
+      "showIf": { "q": "holiday.pattern", "eq": "irregular" } },
+    { "id": "holiday.year_start", "label": "Holiday year starts", "section": "holiday", "type": "text", "help": "For example \"1 January\"." },
+    { "id": "holiday.notice", "label": "Notice for holiday requests", "section": "holiday", "type": "text", "help": "For example \"two weeks\"." },
+
+    { "id": "sick.notify", "label": "Report sickness and absence to", "section": "sickness", "type": "text", "help": "For example \"the control room by phone\"." },
+    { "id": "pension.scheme", "label": "Pension scheme", "section": "sickness", "type": "text", "help": "For example \"NEST\". Auto-enrolment applies to workers as well as employees." },
+
+    { "id": "training.required", "label": "Required training", "section": "conduct", "type": "textarea", "help": "For example \"induction and site familiarisation\". Required training time is paid." },
+    { "id": "discipline.where", "label": "Disciplinary and grievance procedure", "section": "conduct", "type": "text", "help": "Where it is kept, for example \"the staff handbook\"." },
+    { "id": "discipline.appeal_to", "label": "Disciplinary appeals to", "section": "conduct", "type": "text", "help": "A job title, for example \"a director\"." },
+    { "id": "grievance.raise_with", "label": "Raise concerns with", "section": "conduct", "type": "text", "help": "A job title, for example \"the Scheduling Manager\"." },
+
+    { "id": "exclusivity.terms", "label": "Work for other businesses", "section": "other_work", "type": "choice", "schedule": false, "help": "Banning or needing consent for other work is unenforceable in Great Britain for zero-hours and low-paid staff.",
+      "options": [{ "value": "free", "label": "Free to work for anyone else" }, { "value": "exclusive", "label": "Needs our consent for other security work" }] },
+    { "id": "earnings.low", "label": "Average weekly pay at or below the National Insurance lower earnings limit", "section": "other_work", "type": "yesno", "schedule": false, "jurisdictions": ["ew", "sc"],
+      "help": "Net average weekly wages. If yes, an exclusivity term is unenforceable even with guaranteed hours.",
+      "showIf": { "all": [{ "q": "exclusivity.terms", "eq": "exclusive" }, { "q": "hours.guaranteed", "gt": 0 }] } },
+
+    { "id": "ending.notice", "label": "Notice to end the agreement", "section": "ending", "type": "text", "help": "For example \"one week's\". For casual employees the statutory minimum applies if it is longer." },
+
+    { "id": "collective.exists", "label": "Collective agreements", "section": "other", "type": "yesno", "schedule": false },
+    { "id": "collective.agreements", "label": "Collective agreements", "section": "other", "type": "textarea", "showIf": { "q": "collective.exists", "eq": "yes" } }
+  ],
+  "clauses": [
+    { "id": "parties", "title": "Parties", "slots": [
+      { "slot": "parties", "clauses": ["CAS.PARTIES.WORKER", "CAS.PARTIES.EMPLOYEE"], "choose": [{ "when": { "outcome": "employment", "eq": "employee" }, "clause": "CAS.PARTIES.EMPLOYEE" }] }
+    ] },
+    { "id": "start", "title": "Start and between assignments", "slots": [
+      { "slot": "start.date", "clauses": ["CAS.START"] },
+      { "slot": "start.continuous", "clauses": ["CAS.CONTINUOUS"], "include": { "outcome": "employment", "eq": "employee" }, "why": "Included because the status assessment records a casual employee" },
+      { "slot": "between", "clauses": ["CAS.BETWEEN.WORKER", "CAS.BETWEEN.EMPLOYEE"], "choose": [{ "when": { "outcome": "employment", "eq": "employee" }, "clause": "CAS.BETWEEN.EMPLOYEE" }] }
+    ] },
+    { "id": "job", "title": "Your role", "slots": [
+      { "slot": "job", "clauses": ["CAS.JOB"] },
+      { "slot": "job.licence", "clauses": ["SEC.LICENCE"], "include": { "q": "job.licensable", "eq": "yes" }, "why": "Included because the work is SIA-licensable" },
+      { "slot": "job.screening", "clauses": ["SEC.SCREENING"] },
+      { "slot": "job.instructions", "clauses": ["SEC.INSTRUCTIONS"] }
+    ] },
+    { "id": "place", "title": "Where you work", "slots": [
+      { "slot": "place", "clauses": ["CAS.PLACE"] }
+    ] },
+    { "id": "hours", "title": "Hours, offers of work and availability", "slots": [
+      { "slot": "hours", "clauses": ["CAS.HOURS.ZERO", "CAS.HOURS.MINIMUM"], "choose": [{ "when": { "q": "hours.guaranteed", "gt": 0 }, "clause": "CAS.HOURS.MINIMUM" }] },
+      { "slot": "offers", "clauses": ["CAS.OFFERS"] },
+      { "slot": "availability", "clauses": ["CAS.AVAILABILITY.FREE", "CAS.AVAILABILITY.AGREED"], "include": { "q": "availability.required", "ne": "unrestricted" },
+        "choose": [{ "when": { "q": "availability.required", "eq": "agreed" }, "clause": "CAS.AVAILABILITY.AGREED" }] },
+      { "slot": "shift.accepted", "clauses": ["CAS.SHIFT.ACCEPTED"] },
+      { "slot": "hours.rest", "clauses": ["SEC.REST"] },
+      { "slot": "hours.night", "clauses": ["EMP.NIGHT"], "include": { "q": "hours.night", "eq": "yes" }, "why": "Included because the work includes night work" }
+    ] },
+    { "id": "cancellation", "title": "Cancellations and changes", "slots": [
+      { "slot": "cancellation", "clauses": ["CAS.CANCEL.PAID", "CAS.CANCEL.PART", "CAS.CANCEL.UNPAID"],
+        "choose": [{ "when": { "q": "shift.cancel_pay", "eq": "part" }, "clause": "CAS.CANCEL.PART" }, { "when": { "q": "shift.cancel_pay", "eq": "none" }, "clause": "CAS.CANCEL.UNPAID" }] }
+    ] },
+    { "id": "pay", "title": "Pay and recording time", "slots": [
+      { "slot": "time", "clauses": ["CAS.TIME"] },
+      { "slot": "pay", "clauses": ["CAS.PAY"] },
+      { "slot": "pay.enhancements", "clauses": ["CAS.PAY.ENHANCEMENTS"], "include": { "q": "pay.enhancements" }, "why": "Included because enhanced rates or allowances are listed" },
+      { "slot": "pay.deductions", "clauses": ["SEC.DEDUCTIONS"] }
+    ] },
+    { "id": "holiday", "title": "Holiday", "slots": [
+      { "slot": "holiday", "clauses": ["SEC.HOLIDAY.IRREGULAR", "SEC.HOLIDAY.ROLLED", "EMP.HOLIDAY.STATUTORY"],
+        "choose": [
+          { "when": { "all": [{ "q": "holiday.pattern", "eq": "irregular" }, { "q": "holiday.method", "eq": "rolled" }] }, "clause": "SEC.HOLIDAY.ROLLED" },
+          { "when": { "q": "holiday.pattern", "eq": "regular" }, "clause": "EMP.HOLIDAY.STATUTORY" }
+        ] },
+      { "slot": "holiday.booking", "clauses": ["CAS.HOLIDAY.BOOKING"], "include": { "q": "holiday.pattern", "ne": "regular" }, "why": "Included because holiday builds up with irregular or part-year hours" }
+    ] },
+    { "id": "sickness", "title": "Sickness, pension and other leave", "slots": [
+      { "slot": "sickness", "clauses": ["EMP.SICK.SSP"] },
+      { "slot": "pension", "clauses": ["EMP.PENSION"] },
+      { "slot": "leave", "clauses": ["CAS.LEAVE.WORKER", "EMP.FAMILY"], "choose": [{ "when": { "outcome": "employment", "eq": "employee" }, "clause": "EMP.FAMILY" }] }
+    ] },
+    { "id": "conduct", "title": "Training, conduct and equipment", "slots": [
+      { "slot": "training", "clauses": ["SEC.TRAINING"] },
+      { "slot": "conduct", "clauses": ["SEC.CONDUCT"] },
+      { "slot": "conduct.harassment", "clauses": ["EMP.HARASSMENT"] },
+      { "slot": "conduct.uniform", "clauses": ["SEC.UNIFORM"] },
+      { "slot": "conduct.equipment", "clauses": ["SEC.EQUIPMENT"] },
+      { "slot": "conduct.incidents", "clauses": ["SEC.INCIDENT"] }
+    ] },
+    { "id": "concerns", "title": "Discipline and concerns", "slots": [
+      { "slot": "concerns", "clauses": ["CAS.CONCERNS"] }
+    ] },
+    { "id": "other_work", "title": "Work for others", "slots": [
+      { "slot": "other_work", "clauses": ["CAS.OTHER_WORK.FREE", "CAS.OTHER_WORK.EXCLUSIVE"], "choose": [{ "when": { "q": "exclusivity.terms", "eq": "exclusive" }, "clause": "CAS.OTHER_WORK.EXCLUSIVE" }] }
+    ] },
+    { "id": "confidentiality", "title": "Confidentiality and data", "slots": [
+      { "slot": "confidential", "clauses": ["SEC.CONFIDENTIAL"] },
+      { "slot": "data", "clauses": ["SEC.DATA"] }
+    ] },
+    { "id": "ending", "title": "Ending this agreement", "slots": [
+      { "slot": "ending", "clauses": ["CAS.ENDING.WORKER", "CAS.ENDING.EMPLOYEE"], "choose": [{ "when": { "outcome": "employment", "eq": "employee" }, "clause": "CAS.ENDING.EMPLOYEE" }] }
+    ] },
+    { "id": "general", "title": "General", "slots": [
+      { "slot": "collective", "clauses": ["EMP.COLLECTIVE.NONE", "EMP.COLLECTIVE.LISTED"], "choose": [{ "when": { "q": "collective.exists", "eq": "yes" }, "clause": "EMP.COLLECTIVE.LISTED" }] },
+      { "slot": "changes", "clauses": ["SEC.CHANGES"] },
+      { "slot": "entire", "clauses": ["CAS.ENTIRE"] },
+      { "slot": "third_party", "clauses": ["GEN.THIRD_PARTY"] },
+      { "slot": "law.governing", "clauses": ["GEN.LAW.EW"] }
+    ] }
+  ],
+  "overrides": {
+    "sc": { "law.governing": { "clauses": ["GEN.LAW.SC"] } },
+    "ni": {
+      "law.governing": { "clauses": ["GEN.LAW.NI"] },
+      "holiday": { "clauses": ["SEC.HOLIDAY.IRREGULAR", "EMP.HOLIDAY.STATUTORY"], "choose": [{ "when": { "q": "holiday.pattern", "eq": "regular" }, "clause": "EMP.HOLIDAY.STATUTORY" }] }
+    }
+  },
+  "rules": [
+    {
+      "id": "zh-exclusivity", "severity": "blocker",
+      "when": { "all": [
+        { "jurisdiction": ["ew", "sc"] },
+        { "q": "hours.guaranteed", "lte": 0 },
+        { "any": [
+          { "q": "exclusivity.terms", "eq": "exclusive" },
+          { "wording": "must not (work|do any work|accept work|take work|be engaged)[^.]{0,80}(another|other|anyone else|any other)" }
+        ] }
+      ] },
+      "message": "With no guaranteed hours this is a zero-hours contract, and a term that stops the person working elsewhere, or needs your consent first, is unenforceable. Dismissing them or treating them badly for working elsewhere is automatically unfair. Choose \"Free to work for anyone else\" and remove any wording that restricts other work.",
+      "jump": { "question": "exclusivity.terms" }, "law": ["zh-exclusivity-ban", "zh-exclusivity-redress-2015"]
+    },
+    {
+      "id": "zh-exclusivity-low-earnings", "severity": "blocker",
+      "when": { "all": [
+        { "jurisdiction": ["ew", "sc"] },
+        { "q": "hours.guaranteed", "gt": 0 },
+        { "q": "earnings.low", "eq": "yes" },
+        { "q": "exclusivity.terms", "eq": "exclusive" }
+      ] },
+      "message": "Average weekly pay at or below the National Insurance lower earnings limit makes an exclusivity term unenforceable, even with guaranteed hours. Choose \"Free to work for anyone else\".",
+      "jump": { "question": "exclusivity.terms" }, "law": ["zh-exclusivity-low-income-2022", "zh-exclusivity-redress-2015"]
+    },
+    {
+      "id": "exclusivity-gb-check", "severity": "review",
+      "when": { "all": [
+        { "jurisdiction": ["ew", "sc"] },
+        { "q": "hours.guaranteed", "gt": 0 },
+        { "q": "earnings.low", "ne": "yes" },
+        { "q": "exclusivity.terms", "eq": "exclusive" }
+      ] },
+      "message": "An exclusivity term is only enforceable while average weekly pay stays above the National Insurance lower earnings limit, and it must still be reasonable as a restraint of trade. Check pay against the limit each time hours change, or let the person work elsewhere freely.",
+      "jump": { "question": "earnings.low" }, "law": ["zh-exclusivity-low-income-2022"]
+    },
+    {
+      "id": "exclusivity-ni", "severity": "review",
+      "when": { "all": [
+        { "jurisdiction": "ni" },
+        { "any": [
+          { "q": "exclusivity.terms", "eq": "exclusive" },
+          { "wording": "must not (work|do any work|accept work|take work|be engaged)[^.]{0,80}(another|other|anyone else|any other)" }
+        ] }
+      ] },
+      "message": "Northern Ireland has no statutory ban on exclusivity terms yet, but a term stopping a casual worker from working elsewhere, with no guarantee of work, is unlikely to survive the restraint-of-trade test, and the Good Jobs proposals would ban it. Let the person work elsewhere freely unless there is a specific reason that a lawyer has checked.",
+      "jump": { "question": "exclusivity.terms" }, "law": ["ni-zero-hours-position", "ni-good-jobs-bill"]
+    },
+    {
+      "id": "zh-unrestricted-availability", "severity": "blocker",
+      "when": { "all": [{ "q": "hours.guaranteed", "lte": 0 }, { "q": "availability.required", "eq": "unrestricted" }] },
+      "message": "No guaranteed hours cannot be combined with a duty to be available whenever you need them. It contradicts the casual basis, points towards employment status, and the person carries all the risk. Choose \"Free to accept or refuse any offer\", or agree set availability times, or guarantee hours.",
+      "jump": { "question": "availability.required" }, "law": ["employment-status-casual", "era2025-guaranteed-hours"]
+    },
+    {
+      "id": "zh-unrestricted-wording", "severity": "blocker",
+      "when": { "all": [
+        { "q": "hours.guaranteed", "lte": 0 },
+        { "wording": "available[^.]{0,40}(at all times|whenever (we|the company) (ask|asks|require|requires|need|needs)|on demand|24/7)" }
+      ] },
+      "message": "The wording asks for availability at all times or on demand while guaranteeing no hours. Remove it: with zero hours the person must be free to refuse work. Agree set availability times instead if you need cover.",
+      "jump": { "slot": "availability" }, "law": ["employment-status-casual"]
+    },
+    {
+      "id": "unrestricted-with-hours", "severity": "review",
+      "when": { "all": [{ "q": "hours.guaranteed", "gt": 0 }, { "q": "availability.required", "eq": "unrestricted" }] },
+      "message": "Requiring availability whenever you need it, beyond the guaranteed hours, is one-sided and suggests an employment relationship. Agree set availability times instead, or move to the permanent pack with a proper rota.",
+      "jump": { "question": "availability.required" }, "law": ["employment-status-casual"]
+    },
+    {
+      "id": "zh-agreed-availability", "severity": "review",
+      "when": { "all": [{ "q": "hours.guaranteed", "lte": 0 }, { "q": "availability.required", "eq": "agreed" }] },
+      "message": "Expecting the person to accept work at agreed times, with no guaranteed hours, creates obligations on their side only and may point to employee status. Check the status assessment reflects this, or consider guaranteeing some hours.",
+      "jump": { "assessment": true }, "law": ["employment-status-casual"]
+    },
+    {
+      "id": "assessment-contradiction", "severity": "blocker",
+      "when": { "all": [{ "assessment": "obligation", "in": ["must", "expected"] }, { "q": "availability.required", "eq": "free" }] },
+      "message": "The status assessment says the person must or is expected to accept work, but the agreement says they are free to refuse. The contract has to match what really happens. Change the practice, or correct the assessment and the availability answer.",
+      "jump": { "assessment": true }, "law": ["employment-status-casual"]
+    },
+    {
+      "id": "outcome-employee", "severity": "note",
+      "when": { "outcome": "employment", "eq": "employee" },
+      "message": "Casual employee wording is used: the contract continues between assignments, gaps count towards continuous employment, and statutory notice and employee rights apply.",
+      "jump": { "slot": "between" }, "law": ["employment-status-casual"]
+    },
+    {
+      "id": "nmw-check", "severity": "review",
+      "when": { "q": "pay.rate", "lt": 12.71 },
+      "message": "This rate is below the National Living Wage for workers aged 21 and over (£12.71 from 1 April 2026). Check the person's age band, and remember that unpaid time such as briefings and travel between sites, and uniform costs, count against it.",
+      "jump": { "question": "pay.rate" }, "law": ["nmw-2026"]
+    },
+    {
+      "id": "nmw-deductions", "severity": "review",
+      "when": { "q": "deductions.charged", "eq": "agreed" },
+      "message": "Charges for uniform, licence fees, training or equipment need the person's written agreement before the deduction, and must not take their pay for the pay reference period below the minimum wage. Check each charge against the hourly rate and the hours worked, or pay the cost yourself.",
+      "jump": { "question": "deductions.charged" }, "law": ["nmw-deductions", "deductions-gb", "deductions-ni"]
+    },
+    {
+      "id": "holiday-rolled-not-irregular", "severity": "blocker",
+      "when": { "all": [{ "clause": "SEC.HOLIDAY.ROLLED" }, { "q": "holiday.pattern", "ne": "irregular" }] },
+      "message": "Rolled-up holiday pay is only lawful for irregular-hours and part-year workers. Use the standard holiday clause for regular hours.",
+      "jump": { "slot": "holiday" }, "law": ["wtr-rolled-up-holiday"]
+    },
+    {
+      "id": "holiday-rolled-ni", "severity": "blocker",
+      "when": { "all": [{ "jurisdiction": "ni" }, { "clause": "SEC.HOLIDAY.ROLLED" }] },
+      "message": "Rolled-up holiday pay is not lawful in Northern Ireland. Holiday must be paid when it is taken. Use the irregular-hours holiday clause.",
+      "jump": { "slot": "holiday" }, "law": ["ni-holiday-irregular", "ni-wtr-2016"]
+    },
+    {
+      "id": "holiday-rolled-review", "severity": "review",
+      "when": { "all": [{ "jurisdiction": ["ew", "sc"] }, { "clause": "SEC.HOLIDAY.ROLLED" }] },
+      "message": "With rolled-up holiday pay, every payslip must show the holiday pay separately, and you must still let the person take their holiday. Check your payroll can do this before choosing it.",
+      "jump": { "question": "holiday.method" }, "law": ["wtr-rolled-up-holiday", "wtr-irregular-hours"]
+    },
+    {
+      "id": "holiday-regular-zero", "severity": "review",
+      "when": { "all": [{ "jurisdiction": ["ew", "sc"] }, { "q": "hours.guaranteed", "lte": 0 }, { "q": "holiday.pattern", "eq": "regular" }] },
+      "message": "With no guaranteed hours, the hours are usually irregular. Irregular-hours staff build up holiday as they work. Choose \"Irregular hours or part-year\" unless the hours really are the same every week.",
+      "jump": { "question": "holiday.pattern" }, "law": ["wtr-irregular-hours"]
+    },
+    {
+      "id": "written-statement-day-one", "severity": "note",
+      "when": { "jurisdiction": ["ew", "sc"] },
+      "message": "Workers and employees must have the written statement on or before their first day. Send this agreement before the first assignment starts.",
+      "jump": { "question": "start.date" }, "law": ["era1996-written-statement"]
+    },
+    {
+      "id": "ni-written-statement", "severity": "note",
+      "when": { "jurisdiction": "ni" },
+      "message": "In Northern Ireland the statutory written statement covers employees and is due within two months. Give this agreement before the first assignment anyway, so the terms are clear.",
+      "jump": { "question": "start.date" }, "law": ["ni-written-statement", "ni-good-jobs-bill"]
+    },
+    {
+      "id": "cancel-unpaid", "severity": "note",
+      "when": { "q": "shift.cancel_pay", "eq": "none" },
+      "message": "No payment for short-notice cancellations is allowed today, but planned reforms would require reasonable notice and payment for late cancellation. Consider paying for late cancellations now.",
+      "jump": { "question": "shift.cancel_pay" }, "law": ["era2025-shift-notice-cancellation", "ni-good-jobs-bill"]
+    }
+  ],
+  "supporting": [
+    { "title": "Assignment confirmation for each accepted assignment (forms part of the agreement for that assignment)", "contractual": true },
+    { "title": "Staff handbook, including the disciplinary and grievance procedure", "contractual": false },
+    { "title": "Privacy notice for staff", "contractual": false },
+    { "title": "Assignment instructions for each site", "contractual": false },
+    { "title": "Health and safety policy", "contractual": false },
+    { "title": "Anti-harassment policy", "contractual": false },
+    { "title": "Pension scheme information", "contractual": false },
+    { "title": "Written agreement to each deduction from pay", "contractual": true, "when": { "q": "deductions.charged", "eq": "agreed" } },
+    { "title": "48-hour opt-out agreement (separate and voluntary)", "contractual": false }
+  ]
+}

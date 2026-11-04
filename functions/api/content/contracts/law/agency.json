@@ -1,0 +1,32 @@
+[
+  {
+    "id": "conduct-regs-kid",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Key Information Document before agreeing terms with an agency worker (employment businesses)",
+    "url": "https://www.gov.uk/government/publications/providing-a-key-information-document-for-agency-workers-guidance-for-employment-businesses",
+    "status": "in_force",
+    "effective_date": "2020-04-06",
+    "checked_on": "2026-11-04",
+    "summary": "Conduct of Employment Agencies and Employment Businesses Regulations 2003, regulation 13A: an employment business must give every new work-seeker a Key Information Document before agreeing terms with them. It covers the type of contract, the minimum expected rate of pay, who pays them, deductions and fees, an example of take-home pay, and holiday entitlement and pay. GOV.UK publishes templates for PAYE, umbrella-company and personal-service-company workers. Since 7 April 2026 the Fair Work Agency enforces it in place of the Employment Agency Standards Inspectorate. It does not apply in Northern Ireland."
+  },
+  {
+    "id": "umbrella-paye-2026",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "PAYE in labour supply chains that include umbrella companies (joint and several liability)",
+    "url": "https://www.gov.uk/government/publications/paye-changes-for-the-umbrella-company-market",
+    "status": "in_force",
+    "effective_date": "2026-04-06",
+    "checked_on": "2026-11-04",
+    "summary": "Income Tax (Earnings and Pensions) Act 2003, Part 2 Chapter 11: for payments made on or after 6 April 2026, where an umbrella company employs a worker, the agency that contracts with the end client (or the end client, if there is no agency) is jointly and severally liable for PAYE income tax and Class 1 National Insurance the umbrella company fails to pay. Due diligence is not a defence. This is separate from the planned employment-agency regulation of umbrella companies under the Employment Rights Act 2025."
+  },
+  {
+    "id": "ni-awr-pay-between-assignments",
+    "jurisdictions": ["ni"],
+    "title": "Pay-between-assignments contracts (\"Swedish derogation\") still permitted in Northern Ireland",
+    "url": "https://www.legislation.gov.uk/nisr/2011/350/regulation/10",
+    "status": "in_force",
+    "effective_date": "2011-12-05",
+    "checked_on": "2026-11-04",
+    "summary": "Agency Workers Regulations (Northern Ireland) 2011, regulation 10: an agency worker employed on a permanent contract and paid between assignments may lose the right to equal pay after the 12-week qualifying period, if the strict contract and payment conditions are met. Great Britain abolished this on 6 April 2020. The Northern Ireland Good Jobs Employment Rights Bill proposes abolishing it and introducing a Key Information Document, but neither is law yet."
+  }
+]

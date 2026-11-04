@@ -15,7 +15,7 @@ export const PACK_LIST = jsonFiles(path.join(DIR, 'packs')).map(readJson);
 export const PACKS = Object.fromEntries(PACK_LIST.map((p) => [p.id, p]));
 export const CLAUSES = jsonFiles(path.join(DIR, 'clauses')).flatMap(readJson);
 export const CLAUSE_BY_ID = Object.fromEntries(CLAUSES.map((c) => [c.id, c]));
-export const LAW = readJson(path.join(DIR, 'law.json'));
+export const LAW = [readJson(path.join(DIR, 'law.json')), ...jsonFiles(path.join(DIR, 'law')).map(readJson)].flat();
 
 const sha = (v) => crypto.createHash('sha256').update(JSON.stringify(v)).digest('hex');
 export const seedHash = (v) => sha({ body: v.body, sources: v.sources || [] });
@@ -132,7 +132,7 @@ export function validateContent({ packs = PACK_LIST, clauses = CLAUSES, law = LA
   for (const c of clauses) {
     if (byId[c.id]) err(`clause ${c.id}`, 'duplicate id');
     byId[c.id] = c;
-    if (!/^[A-Z]+(\.[A-Z0-9_]+)+$/.test(c.id)) err(`clause ${c.id}`, 'id must be SUBJECT.TOPIC in upper case');
+    if (!/^[A-Z][A-Z0-9]*(\.[A-Z0-9_]+)+$/.test(c.id)) err(`clause ${c.id}`, 'id must be SUBJECT.TOPIC in upper case');
     if (!c.title) err(`clause ${c.id}`, 'no title');
     const vs = Object.entries(c.versions || {});
     if (!vs.length) err(`clause ${c.id}`, 'no versions');

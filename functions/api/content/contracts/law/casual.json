@@ -1,0 +1,52 @@
+[
+  {
+    "id": "zh-exclusivity-ban",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Exclusivity terms in zero-hours contracts are unenforceable (Employment Rights Act 1996, section 27A)",
+    "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/27A",
+    "status": "in_force",
+    "effective_date": "2015-05-26",
+    "checked_on": "2026-11-04",
+    "summary": "Any term of a zero-hours contract (employee or worker) that stops the individual doing work under another contract, or doing so without the employer's consent, is unenforceable. A zero-hours contract is one where work depends on the employer making it available and there is no certainty any work will be made available. Inserted by the Small Business, Enterprise and Employment Act 2015. Great Britain only."
+  },
+  {
+    "id": "zh-exclusivity-redress-2015",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Exclusivity Terms in Zero Hours Contracts (Redress) Regulations 2015",
+    "url": "https://www.legislation.gov.uk/uksi/2015/2021/contents/made",
+    "status": "in_force",
+    "effective_date": "2016-01-11",
+    "checked_on": "2026-11-04",
+    "summary": "Dismissing a zero-hours employee, or subjecting a zero-hours worker to a detriment, because they worked under another contract in breach of an exclusivity term is unlawful. The dismissal is automatically unfair and needs no qualifying period. Complaints go to an employment tribunal."
+  },
+  {
+    "id": "zh-exclusivity-low-income-2022",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Exclusivity ban extended to low-income workers (Exclusivity Terms for Zero Hours Workers (Unenforceability and Redress) Regulations 2022)",
+    "url": "https://www.legislation.gov.uk/uksi/2022/1145/made",
+    "status": "in_force",
+    "effective_date": "2022-12-05",
+    "checked_on": "2026-11-04",
+    "summary": "SI 2022/1145. Exclusivity terms are also unenforceable in a contract that is not zero-hours where the worker's net average weekly wages do not exceed the National Insurance lower earnings limit, with the same protection from dismissal and detriment. Extends to England, Wales and Scotland only."
+  },
+  {
+    "id": "ni-zero-hours-position",
+    "jurisdictions": ["ni"],
+    "title": "Zero-hours contracts in Northern Ireland: no statutory exclusivity ban yet",
+    "url": "https://www.lra.org.uk/starting-out/contracts-employment/types-contracts",
+    "status": "in_force",
+    "effective_date": null,
+    "checked_on": "2026-11-04",
+    "summary": "Northern Ireland has no equivalent of section 27A of the Employment Rights Act 1996. Section 18 of the Employment Act (Northern Ireland) 2016 lets the Department for the Economy make regulations on zero-hours contracts, but it has not used the power. A term stopping someone working elsewhere is still tested under the common law on restraint of trade. The Good Jobs proposals (see the separate item) would ban exclusivity terms for zero-hours and low-paid workers."
+  },
+  {
+    "id": "employment-status-casual",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "Employment status of casual and zero-hours staff",
+    "url": "https://www.gov.uk/employment-status/worker",
+    "status": "in_force",
+    "effective_date": null,
+    "checked_on": "2026-11-04",
+    "summary": "A zero-hours or casual contract does not decide status. Someone who must do the work personally under your control is at least a worker. They can also be an employee, either for each assignment or under an overall contract that continues between assignments. That depends on mutual obligations (to offer and accept work), control and what happens in practice, not on the label. The rights, continuity of employment and notice that follow depend on the answer. See also the Labour Relations Agency guidance for Northern Ireland."
+  }
+]

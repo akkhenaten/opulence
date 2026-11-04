@@ -1,0 +1,1166 @@
+{
+  "id": "subcontract",
+  "version": 1,
+  "title": "Security subcontract agreement",
+  "summary": "Another security business takes responsibility for delivering a defined service, managing and supervising its own people.",
+  "party": "organisation",
+  "engagement_type": "subcontractor",
+  "doc_title": "Security Services Subcontract",
+  "jurisdictions": [
+    "ew",
+    "sc",
+    "ni"
+  ],
+  "law": [
+    "sia-labour-or-subcontract",
+    "sia-acs-subcontracting",
+    "sia-acs-workbook-2026",
+    "tupe-2006",
+    "ni-spc-2006"
+  ],
+  "decision": {
+    "hint": "The other security business takes responsibility for delivering a defined service and manages and supervises its own people: if your supervisors will direct them, use the labour-provider agreement instead."
+  },
+  "sections": [
+    {
+      "id": "parties",
+      "title": "Parties and term"
+    },
+    {
+      "id": "services",
+      "title": "Services and sites"
+    },
+    {
+      "id": "management",
+      "title": "Management"
+    },
+    {
+      "id": "compliance",
+      "title": "Accreditation and subcontracting"
+    },
+    {
+      "id": "performance",
+      "title": "Performance and continuity"
+    },
+    {
+      "id": "rates",
+      "title": "Charges and invoicing"
+    },
+    {
+      "id": "insurance",
+      "title": "Insurance and liability"
+    },
+    {
+      "id": "ending",
+      "title": "Ending and disputes"
+    }
+  ],
+  "questions": [
+    {
+      "id": "parties.company_name",
+      "label": "The Company",
+      "section": "parties",
+      "type": "text",
+      "prefill": "company.name",
+      "help": "Your company's legal name, exactly as registered."
+    },
+    {
+      "id": "parties.company_address",
+      "label": "Company address",
+      "section": "parties",
+      "type": "text",
+      "prefill": "company.address",
+      "help": "Registered office or main business address."
+    },
+    {
+      "id": "parties.company_number",
+      "label": "Company number",
+      "section": "parties",
+      "type": "text",
+      "prefill": "company.number",
+      "required": false
+    },
+    {
+      "id": "parties.supplier_name",
+      "label": "The Supplier",
+      "section": "parties",
+      "type": "text",
+      "prefill": "organisation.name",
+      "help": "The other business's legal name, exactly as registered (or the sole trader's full name and trading name)."
+    },
+    {
+      "id": "parties.supplier_address",
+      "label": "Supplier address",
+      "section": "parties",
+      "type": "text",
+      "prefill": "organisation.address"
+    },
+    {
+      "id": "parties.supplier_number",
+      "label": "Supplier company number",
+      "section": "parties",
+      "type": "text",
+      "prefill": "organisation.number",
+      "required": false,
+      "help": "Leave blank for a sole trader or partnership."
+    },
+    {
+      "id": "parties.supplier_signatory",
+      "label": "Signing for the Supplier",
+      "section": "parties",
+      "type": "text",
+      "prefill": "organisation.signatory"
+    },
+    {
+      "id": "parties.supplier_signatory_title",
+      "label": "Signatory's position",
+      "section": "parties",
+      "type": "text",
+      "prefill": "organisation.signatory_title",
+      "help": "For example \"Director\"."
+    },
+    {
+      "id": "agreement.start",
+      "label": "Agreement starts",
+      "section": "parties",
+      "type": "date",
+      "prefill": "effective_date"
+    },
+    {
+      "id": "agreement.term",
+      "label": "Length of the agreement",
+      "section": "parties",
+      "type": "choice",
+      "schedule": false,
+      "options": [
+        {
+          "value": "rolling",
+          "label": "Continues until either party gives notice"
+        },
+        {
+          "value": "fixed",
+          "label": "Ends on a fixed date"
+        }
+      ]
+    },
+    {
+      "id": "agreement.end",
+      "label": "Agreement ends",
+      "section": "parties",
+      "type": "date",
+      "showIf": {
+        "q": "agreement.term",
+        "eq": "fixed"
+      }
+    },
+    {
+      "id": "services.description",
+      "label": "Services",
+      "section": "services",
+      "type": "textarea",
+      "help": "What the Supplier delivers, for example \"static guarding, access control and mobile patrols\". Attach a full specification if you have one."
+    },
+    {
+      "id": "services.exclusions",
+      "label": "Exclusions",
+      "section": "services",
+      "type": "textarea",
+      "help": "What is not included, for example \"key holding and alarm response\", or \"none\"."
+    },
+    {
+      "id": "services.sites",
+      "label": "Sites",
+      "section": "services",
+      "type": "textarea"
+    },
+    {
+      "id": "services.hours",
+      "label": "Operating hours",
+      "section": "services",
+      "type": "textarea",
+      "help": "For example \"24 hours a day, every day\" or the hours for each site."
+    },
+    {
+      "id": "services.coverage",
+      "label": "Required coverage",
+      "section": "services",
+      "type": "textarea",
+      "help": "Positions and numbers, for example \"one officer at reception and one patrolling officer during operating hours\"."
+    },
+    {
+      "id": "services.mobilisation_date",
+      "label": "Mobilisation date",
+      "section": "services",
+      "type": "date",
+      "help": "The date the Supplier must be ready to deliver the Services in full."
+    },
+    {
+      "id": "management.supervision_by",
+      "label": "Who directs and supervises the Supplier's people on shift?",
+      "section": "management",
+      "type": "choice",
+      "schedule": false,
+      "particular": false,
+      "help": "In a subcontract the Supplier manages and supervises its own people.",
+      "options": [
+        {
+          "value": "supplier",
+          "label": "The Supplier's own supervisors"
+        },
+        {
+          "value": "company",
+          "label": "Our supervisors, as part of our team"
+        }
+      ]
+    },
+    {
+      "id": "management.supervision",
+      "label": "Supplier's supervision arrangements",
+      "section": "management",
+      "type": "textarea",
+      "help": "For example \"a mobile supervisor visits each site at least once each shift and a duty manager is on call\"."
+    },
+    {
+      "id": "management.supplier_contact",
+      "label": "Supplier's contract manager",
+      "section": "management",
+      "type": "text"
+    },
+    {
+      "id": "management.company_contact",
+      "label": "Company's contact",
+      "section": "management",
+      "type": "text",
+      "help": "A job title, for example \"the Contracts Manager\"."
+    },
+    {
+      "id": "management.review_frequency",
+      "label": "Service reviews",
+      "section": "management",
+      "type": "text",
+      "help": "For example \"monthly\"."
+    },
+    {
+      "id": "acs.company",
+      "label": "Is your company an SIA approved contractor?",
+      "section": "compliance",
+      "type": "yesno",
+      "schedule": false,
+      "particular": false
+    },
+    {
+      "id": "acs.supplier",
+      "label": "Is the Supplier an SIA approved contractor for these services?",
+      "section": "compliance",
+      "type": "yesno",
+      "schedule": false,
+      "particular": false,
+      "showIf": {
+        "q": "acs.company",
+        "eq": "yes"
+      }
+    },
+    {
+      "id": "acs.permission",
+      "label": "Has the SIA agreed in writing to this subcontract?",
+      "section": "compliance",
+      "type": "yesno",
+      "schedule": false,
+      "particular": false,
+      "showIf": {
+        "all": [
+          {
+            "q": "acs.company",
+            "eq": "yes"
+          },
+          {
+            "q": "acs.supplier",
+            "eq": "no"
+          }
+        ]
+      }
+    },
+    {
+      "id": "further.allowed",
+      "label": "Can the Supplier subcontract further?",
+      "section": "compliance",
+      "type": "choice",
+      "schedule": false,
+      "options": [
+        {
+          "value": "none",
+          "label": "No"
+        },
+        {
+          "value": "approved",
+          "label": "Only with our written approval"
+        }
+      ]
+    },
+    {
+      "id": "performance.measures",
+      "label": "Performance measures",
+      "section": "performance",
+      "type": "textarea",
+      "help": "For example \"all shifts filled; patrols completed and logged; incident reports submitted before the end of the shift\"."
+    },
+    {
+      "id": "performance.reporting_frequency",
+      "label": "Performance reports",
+      "section": "performance",
+      "type": "text",
+      "help": "For example \"monthly\"."
+    },
+    {
+      "id": "performance.correction_period",
+      "label": "Time to provide a corrective plan",
+      "section": "performance",
+      "type": "text",
+      "help": "For example \"five working days\"."
+    },
+    {
+      "id": "continuity.notice",
+      "label": "Notice of a coverage gap",
+      "section": "performance",
+      "type": "text",
+      "help": "For example \"one hour\"."
+    },
+    {
+      "id": "charges.schedule",
+      "label": "Charges",
+      "section": "rates",
+      "type": "textarea",
+      "help": "The price of the Services, for example hourly charges per position or a monthly fee per site. Do not enter the operatives' wages here."
+    },
+    {
+      "id": "charges.lowest_hourly",
+      "label": "Lowest hourly charge (if charged by the hour)",
+      "section": "rates",
+      "type": "money",
+      "required": false,
+      "schedule": false,
+      "particular": false,
+      "help": "Used only to check the charges look realistic."
+    },
+    {
+      "id": "invoice.frequency",
+      "label": "Invoices sent",
+      "section": "rates",
+      "type": "choice",
+      "options": [
+        {
+          "value": "weekly",
+          "label": "Weekly",
+          "text": "weekly in arrears"
+        },
+        {
+          "value": "fortnightly",
+          "label": "Every two weeks",
+          "text": "every two weeks in arrears"
+        },
+        {
+          "value": "monthly",
+          "label": "Monthly",
+          "text": "monthly in arrears"
+        }
+      ]
+    },
+    {
+      "id": "invoice.payment_terms",
+      "label": "Payment terms",
+      "section": "rates",
+      "type": "text",
+      "help": "For example \"30 days of receipt of a valid invoice\". Agree this; it is not set for you."
+    },
+    {
+      "id": "invoice.dispute_period",
+      "label": "Time to dispute an invoice",
+      "section": "rates",
+      "type": "text",
+      "help": "For example \"10 working days\"."
+    },
+    {
+      "id": "insurance.employers_liability",
+      "label": "Employers' liability cover (each occurrence)",
+      "section": "insurance",
+      "type": "money",
+      "help": "The minimum the Supplier must hold. It must be at least the statutory minimum; many clients ask for more."
+    },
+    {
+      "id": "insurance.public_liability",
+      "label": "Public liability cover (each occurrence)",
+      "section": "insurance",
+      "type": "money",
+      "help": "Check what your own client contracts require and ask for at least that."
+    },
+    {
+      "id": "insurance.other_required",
+      "label": "Other insurance required",
+      "section": "insurance",
+      "type": "yesno",
+      "schedule": false,
+      "help": "For example professional indemnity, or cover a particular client requires."
+    },
+    {
+      "id": "insurance.other",
+      "label": "Other insurance",
+      "section": "insurance",
+      "type": "textarea",
+      "showIf": {
+        "q": "insurance.other_required",
+        "eq": "yes"
+      },
+      "help": "Type and minimum amount of each policy, for example \"professional indemnity insurance of not less than £1,000,000 for each claim\"."
+    },
+    {
+      "id": "liability.cap",
+      "label": "Limit on each party's liability",
+      "section": "insurance",
+      "type": "text",
+      "help": "For example \"the total charges paid or payable under this agreement in that contract year\". Take advice before agreeing a cap."
+    },
+    {
+      "id": "nonsolicit.used",
+      "label": "Non-solicitation of staff",
+      "section": "ending",
+      "type": "yesno",
+      "schedule": false,
+      "help": "Mutual promise not to poach each other's employees."
+    },
+    {
+      "id": "nonsolicit.period",
+      "label": "Non-solicitation period",
+      "section": "ending",
+      "type": "text",
+      "showIf": {
+        "q": "nonsolicit.used",
+        "eq": "yes"
+      },
+      "help": "Keep it short, for example \"six months\"."
+    },
+    {
+      "id": "exit.assistance_period",
+      "label": "Handover period before the end date",
+      "section": "ending",
+      "type": "text",
+      "help": "For example \"four weeks\"."
+    },
+    {
+      "id": "termination.notice",
+      "label": "Notice to end the agreement",
+      "section": "ending",
+      "type": "text",
+      "help": "For example \"one month's\"."
+    },
+    {
+      "id": "termination.remedy_period",
+      "label": "Time to put a breach right",
+      "section": "ending",
+      "type": "text",
+      "help": "For example \"14 days\"."
+    },
+    {
+      "id": "disputes.escalation_period",
+      "label": "Time for contacts to resolve a dispute",
+      "section": "ending",
+      "type": "text",
+      "help": "For example \"10 working days\"."
+    },
+    {
+      "id": "tupe.assessment",
+      "label": "Could TUPE apply?",
+      "section": "ending",
+      "type": "choice",
+      "schedule": false,
+      "particular": false,
+      "help": "A change of contractor for a security service is a classic service provision change. If this subcontract takes over work your own staff, or another contractor's staff, were doing, TUPE may apply now and again when it ends.",
+      "options": [
+        {
+          "value": "assessed_no",
+          "label": "Assessed: no transfer expected"
+        },
+        {
+          "value": "may_apply",
+          "label": "It may apply"
+        },
+        {
+          "value": "unsure",
+          "label": "Not yet assessed"
+        }
+      ]
+    }
+  ],
+  "clauses": [
+    {
+      "id": "parties",
+      "title": "Parties",
+      "slots": [
+        {
+          "slot": "parties",
+          "clauses": [
+            "B2B.PARTIES"
+          ]
+        },
+        {
+          "slot": "term",
+          "clauses": [
+            "B2B.TERM.ROLLING",
+            "B2B.TERM.FIXED"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "agreement.term",
+                "eq": "fixed"
+              },
+              "clause": "B2B.TERM.FIXED"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "services",
+      "title": "The Services",
+      "slots": [
+        {
+          "slot": "scope",
+          "clauses": [
+            "SUB.SCOPE"
+          ]
+        },
+        {
+          "slot": "sites",
+          "clauses": [
+            "SUB.SITES"
+          ]
+        },
+        {
+          "slot": "mobilisation",
+          "clauses": [
+            "SUB.MOBILISATION"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "management",
+      "title": "Service management and supervision",
+      "slots": [
+        {
+          "slot": "management",
+          "clauses": [
+            "SUB.MANAGEMENT"
+          ]
+        },
+        {
+          "slot": "assignment",
+          "clauses": [
+            "SUB.ASSIGNMENT"
+          ]
+        },
+        {
+          "slot": "conduct",
+          "clauses": [
+            "SEC.B2B.CONDUCT"
+          ]
+        },
+        {
+          "slot": "duties",
+          "clauses": [
+            "B2B.DUTIES"
+          ]
+        },
+        {
+          "slot": "working_time",
+          "clauses": [
+            "SEC.B2B.WORKING_TIME"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "compliance",
+      "title": "Licensing, screening and accreditation",
+      "slots": [
+        {
+          "slot": "licence",
+          "clauses": [
+            "SEC.B2B.LICENCE"
+          ]
+        },
+        {
+          "slot": "screening",
+          "clauses": [
+            "SEC.B2B.SCREENING"
+          ]
+        },
+        {
+          "slot": "training",
+          "clauses": [
+            "SEC.B2B.TRAINING"
+          ]
+        },
+        {
+          "slot": "acs",
+          "clauses": [
+            "SUB.ACS",
+            "SUB.ACS.PERMISSION"
+          ],
+          "include": {
+            "q": "acs.company",
+            "eq": "yes"
+          },
+          "choose": [
+            {
+              "when": {
+                "all": [
+                  {
+                    "q": "acs.supplier",
+                    "eq": "no"
+                  },
+                  {
+                    "q": "acs.permission",
+                    "eq": "yes"
+                  }
+                ]
+              },
+              "clause": "SUB.ACS.PERMISSION"
+            }
+          ],
+          "why": "Included because the Company is an SIA approved contractor"
+        }
+      ]
+    },
+    {
+      "id": "performance",
+      "title": "Performance and reporting",
+      "slots": [
+        {
+          "slot": "performance",
+          "clauses": [
+            "SUB.PERFORMANCE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "continuity",
+      "title": "Business continuity and service failure",
+      "slots": [
+        {
+          "slot": "continuity",
+          "clauses": [
+            "SUB.CONTINUITY"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "charges",
+      "title": "Charges and payment",
+      "slots": [
+        {
+          "slot": "charges",
+          "clauses": [
+            "SUB.CHARGES"
+          ]
+        },
+        {
+          "slot": "invoicing",
+          "clauses": [
+            "B2B.INVOICING"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "equipment",
+      "title": "Equipment, keys, access and information",
+      "slots": [
+        {
+          "slot": "equipment",
+          "clauses": [
+            "SEC.B2B.EQUIPMENT"
+          ]
+        },
+        {
+          "slot": "access",
+          "clauses": [
+            "SUB.ACCESS"
+          ]
+        },
+        {
+          "slot": "confidential",
+          "clauses": [
+            "SEC.B2B.CONFIDENTIAL"
+          ]
+        },
+        {
+          "slot": "data",
+          "clauses": [
+            "SEC.B2B.DATA"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "insurance",
+      "title": "Insurance, liability and indemnities",
+      "slots": [
+        {
+          "slot": "insurance",
+          "clauses": [
+            "B2B.INSURANCE"
+          ]
+        },
+        {
+          "slot": "insurance.other",
+          "clauses": [
+            "B2B.INSURANCE.OTHER"
+          ],
+          "include": {
+            "q": "insurance.other_required",
+            "eq": "yes"
+          },
+          "why": "Included because further insurance is required"
+        },
+        {
+          "slot": "liability",
+          "clauses": [
+            "B2B.LIABILITY"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "further",
+      "title": "Further subcontracting",
+      "slots": [
+        {
+          "slot": "further",
+          "clauses": [
+            "SUB.FURTHER.NONE",
+            "SUB.FURTHER.APPROVED"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "further.allowed",
+                "eq": "approved"
+              },
+              "clause": "SUB.FURTHER.APPROVED"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "termination",
+      "title": "Ending this agreement and handover",
+      "slots": [
+        {
+          "slot": "termination",
+          "clauses": [
+            "B2B.TERMINATION"
+          ]
+        },
+        {
+          "slot": "exit",
+          "clauses": [
+            "SUB.EXIT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "staff",
+      "title": "Workforce transfer and staff",
+      "slots": [
+        {
+          "slot": "tupe",
+          "clauses": [
+            "B2B.TUPE"
+          ]
+        },
+        {
+          "slot": "nonsolicit",
+          "clauses": [
+            "B2B.NONSOLICIT"
+          ],
+          "include": {
+            "q": "nonsolicit.used",
+            "eq": "yes"
+          },
+          "why": "Included because a staff non-solicitation promise was chosen"
+        }
+      ]
+    },
+    {
+      "id": "general",
+      "title": "General",
+      "slots": [
+        {
+          "slot": "disputes",
+          "clauses": [
+            "B2B.DISPUTES"
+          ]
+        },
+        {
+          "slot": "entire",
+          "clauses": [
+            "B2B.ENTIRE"
+          ]
+        },
+        {
+          "slot": "changes",
+          "clauses": [
+            "SEC.B2B.CHANGES"
+          ]
+        },
+        {
+          "slot": "third_party",
+          "clauses": [
+            "GEN.THIRD_PARTY"
+          ]
+        },
+        {
+          "slot": "law.governing",
+          "clauses": [
+            "GEN.LAW.EW"
+          ]
+        }
+      ]
+    }
+  ],
+  "overrides": {
+    "sc": {
+      "law.governing": {
+        "clauses": [
+          "GEN.LAW.SC"
+        ]
+      }
+    },
+    "ni": {
+      "law.governing": {
+        "clauses": [
+          "GEN.LAW.NI"
+        ]
+      }
+    }
+  },
+  "rules": [
+    {
+      "id": "looks-like-labour-supply",
+      "severity": "review",
+      "when": {
+        "q": "management.supervision_by",
+        "eq": "company"
+      },
+      "message": "If your supervisors will direct and supervise the Supplier's people as part of your team, this is labour supply, not a subcontract. Use the labour-provider agreement instead: you then become responsible for checking their screening and vetting, and the ACS subcontracting rule does not apply.",
+      "jump": {
+        "question": "management.supervision_by"
+      },
+      "law": [
+        "sia-labour-or-subcontract"
+      ]
+    },
+    {
+      "id": "acs-subcontract-not-approved",
+      "severity": "blocker",
+      "when": {
+        "all": [
+          {
+            "q": "acs.company",
+            "eq": "yes"
+          },
+          {
+            "q": "acs.supplier",
+            "eq": "no"
+          },
+          {
+            "q": "acs.permission",
+            "ne": "yes"
+          }
+        ]
+      },
+      "message": "As an SIA approved contractor you may only subcontract designated security services to another approved contractor, unless the SIA has agreed otherwise. Use an approved contractor, obtain and record the SIA's written agreement, or, if your supervisors will direct these people, use the labour-provider agreement instead.",
+      "jump": {
+        "question": "acs.supplier"
+      },
+      "law": [
+        "sia-acs-subcontracting",
+        "sia-acs-workbook-2026"
+      ]
+    },
+    {
+      "id": "acs-permission-record",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "acs.company",
+            "eq": "yes"
+          },
+          {
+            "q": "acs.supplier",
+            "eq": "no"
+          },
+          {
+            "q": "acs.permission",
+            "eq": "yes"
+          }
+        ]
+      },
+      "message": "Keep a copy of the SIA's written agreement with this contract and check any conditions it sets are reflected in the assignment instructions and performance measures.",
+      "jump": {
+        "slot": "acs"
+      },
+      "law": [
+        "sia-acs-subcontracting"
+      ]
+    },
+    {
+      "id": "acs-onward",
+      "severity": "note",
+      "when": {
+        "all": [
+          {
+            "q": "acs.company",
+            "eq": "yes"
+          },
+          {
+            "q": "further.allowed",
+            "eq": "approved"
+          }
+        ]
+      },
+      "message": "Under the Approved Contractor Scheme, an approved subcontractor may not pass work on to a business that is not approved without the SIA's approval and your client's agreement. Check this before approving any further subcontractor.",
+      "jump": {
+        "slot": "further"
+      },
+      "law": [
+        "sia-acs-workbook-2026"
+      ]
+    },
+    {
+      "id": "subcontract-screening",
+      "severity": "note",
+      "when": {
+        "jurisdiction": [
+          "ew",
+          "sc",
+          "ni"
+        ]
+      },
+      "message": "In a subcontract the Supplier screens and vets its own operatives, but you should still agree who supervises them on shift, and check licences on the SIA register and the Supplier's evidence before mobilisation.",
+      "jump": {
+        "slot": "screening"
+      },
+      "law": [
+        "sia-labour-or-subcontract"
+      ]
+    },
+    {
+      "id": "subcontract-charge-unrealistic",
+      "severity": "review",
+      "when": {
+        "q": "charges.lowest_hourly",
+        "lt": 12.71
+      },
+      "message": "An hourly charge below the National Living Wage (£12.71 an hour from 1 April 2026 for workers aged 21 and over) cannot cover lawful pay and on-costs. HMRC treats this as a warning sign of non-compliance in the supply chain. The charge does not set anyone's pay, but check the Supplier can pay lawfully.",
+      "jump": {
+        "question": "charges.lowest_hourly"
+      },
+      "law": [
+        "nmw-2026"
+      ]
+    },
+    {
+      "id": "subcontract-wage-link",
+      "severity": "blocker",
+      "when": {
+        "wording": "(pay|wages?|remuneration|earnings)[^.]{0,80}(percentage|proportion|share|%|fraction)[^.]{0,40}charge"
+      },
+      "message": "The wording links Supplier Personnel's pay to the charges. The charges are the price of the Services; the Supplier alone sets its people's pay, which must meet the minimum wage whatever the price. Remove the link.",
+      "jump": {
+        "slot": "charges"
+      },
+      "law": [
+        "nmw-2026"
+      ]
+    },
+    {
+      "id": "client-transparency",
+      "severity": "note",
+      "when": {
+        "jurisdiction": [
+          "ew",
+          "sc",
+          "ni"
+        ]
+      },
+      "message": "The SIA asks you to be open with your client about whether you use supplied labour or a subcontractor, and to make sure every operative deployed holds the right licence. Check your client contract allows the arrangement.",
+      "law": [
+        "sia-labour-or-subcontract"
+      ]
+    },
+    {
+      "id": "duties-stay",
+      "severity": "note",
+      "when": {
+        "jurisdiction": [
+          "ew",
+          "sc",
+          "ni"
+        ]
+      },
+      "message": "This agreement shares out practical tasks, but it does not remove your own legal duties: health and safety at sites you control, not scheduling people beyond working-time limits, and not using unlicensed operatives. Keep your own checks in place.",
+      "jump": {
+        "slot": "duties"
+      },
+      "law": [
+        "sia-licensing"
+      ]
+    },
+    {
+      "id": "insurance-el-minimum",
+      "severity": "review",
+      "when": {
+        "q": "insurance.employers_liability",
+        "lt": 5000000
+      },
+      "message": "Employers' liability cover below £5 million is under the statutory minimum for most employers. Ask for at least the statutory minimum, and check what your own client contracts require.",
+      "jump": {
+        "question": "insurance.employers_liability"
+      }
+    },
+    {
+      "id": "insurance-pl-check",
+      "severity": "review",
+      "when": {
+        "q": "insurance.public_liability",
+        "lt": 1000000
+      },
+      "message": "This public liability limit is low for security work. Check it is at least what your own client contracts require you to hold, because a gap would fall on you.",
+      "jump": {
+        "question": "insurance.public_liability"
+      }
+    },
+    {
+      "id": "tupe-assess",
+      "severity": "review",
+      "when": {
+        "q": "tupe.assessment",
+        "in": [
+          "may_apply",
+          "unsure"
+        ]
+      },
+      "message": "If TUPE may apply when this work starts, changes or ends, employees can transfer automatically along with their rights. Take advice before signing, plan the employee liability information (due at least 28 days before a transfer), and agree in writing who bears the cost.",
+      "jump": {
+        "question": "tupe.assessment"
+      },
+      "law": [
+        "tupe-2006"
+      ]
+    },
+    {
+      "id": "tupe-ni",
+      "severity": "note",
+      "when": {
+        "all": [
+          {
+            "jurisdiction": "ni"
+          },
+          {
+            "q": "tupe.assessment",
+            "in": [
+              "may_apply",
+              "unsure"
+            ]
+          }
+        ]
+      },
+      "message": "In Northern Ireland, service provision changes are covered by the Service Provision Change (Protection of Employment) Regulations (Northern Ireland) 2006, read with TUPE 2006, and claims go to an industrial tribunal.",
+      "jump": {
+        "question": "tupe.assessment"
+      },
+      "law": [
+        "ni-spc-2006"
+      ]
+    },
+    {
+      "id": "liability-cap-review",
+      "severity": "review",
+      "when": {
+        "q": "liability.cap"
+      },
+      "message": "A limit on liability is a commercial risk decision. Check it fits the size of the work and your own client contracts, and that it does not try to limit liability for death or personal injury caused by negligence, which the law does not allow.",
+      "jump": {
+        "question": "liability.cap"
+      }
+    }
+  ],
+  "supporting": [
+    {
+      "title": "Service specification",
+      "contractual": true
+    },
+    {
+      "title": "Approved assignment instructions for each site",
+      "contractual": true
+    },
+    {
+      "title": "Charges schedule",
+      "contractual": true
+    },
+    {
+      "title": "Performance measures and reporting schedule",
+      "contractual": true
+    },
+    {
+      "title": "Supplier's business continuity plan",
+      "contractual": false
+    },
+    {
+      "title": "Key and access register",
+      "contractual": false
+    },
+    {
+      "title": "Supplier evidence pack: insurance certificates, licences, screening and ACS certificate",
+      "contractual": false
+    },
+    {
+      "title": "SIA written agreement to subcontract to a non-approved contractor",
+      "contractual": false,
+      "when": {
+        "all": [
+          {
+            "q": "acs.company",
+            "eq": "yes"
+          },
+          {
+            "q": "acs.supplier",
+            "eq": "no"
+          }
+        ]
+      }
+    },
+    {
+      "title": "Employee liability information (if TUPE applies)",
+      "contractual": false,
+      "when": {
+        "q": "tupe.assessment",
+        "in": [
+          "may_apply",
+          "unsure"
+        ]
+      }
+    },
+    {
+      "title": "Data sharing arrangements",
+      "contractual": false
+    }
+  ]
+}

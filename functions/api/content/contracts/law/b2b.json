@@ -1,0 +1,106 @@
+[
+  {
+    "id": "sia-labour-or-subcontract",
+    "jurisdictions": [
+      "ew",
+      "sc",
+      "ni"
+    ],
+    "title": "SIA guidance: the difference between subcontracting and using supplied labour",
+    "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour",
+    "status": "in_force",
+    "effective_date": null,
+    "checked_on": "2026-11-04",
+    "summary": "Subcontracting: another business is responsible for delivering the contract and screens and vets its own operatives. Labour supply: you use another business's people to supplement your own staff, so you must make sure they have been screened and vetted (or do your own checks) and agree who manages them. Be open with your client about which model you use. Approved contractors may only subcontract to other approved contractors unless the SIA permits otherwise; the guidance sets no such rule for labour supply."
+  },
+  {
+    "id": "sia-acs-workbook-2026",
+    "jurisdictions": [
+      "ew",
+      "sc",
+      "ni"
+    ],
+    "title": "SIA ACS self-assessment workbook (2026 update): subcontracting and supplied labour",
+    "url": "https://www.gov.uk/government/publications/acs-self-assessment-workbook/2026-update-to-the-acs-self-assessment-workbook",
+    "status": "in_force",
+    "effective_date": null,
+    "checked_on": "2026-11-04",
+    "summary": "An approved contractor can only subcontract designated security services to another approved contractor, unless the SIA agrees otherwise, and approved subcontractors may not pass work on to non-ACS businesses without SIA approval and the customer's agreement. The rule does not apply where a business solely supplies labour that the approved contractor directs and supervises; labour suppliers need not be approved. Approved contractors must still carry out due diligence across a bought-in labour supply chain, and personal service companies are not allowed anywhere in it."
+  },
+  {
+    "id": "tupe-2006",
+    "jurisdictions": [
+      "ew",
+      "sc",
+      "ni"
+    ],
+    "title": "Transfer of Undertakings (Protection of Employment) Regulations 2006",
+    "url": "https://www.legislation.gov.uk/uksi/2006/246/contents",
+    "status": "in_force",
+    "effective_date": "2006-04-06",
+    "checked_on": "2026-11-04",
+    "summary": "Employees assigned to a business or service can transfer automatically to a new employer, including when a service moves between contractors (a service provision change, Great Britain). In Northern Ireland service provision changes are covered by separate regulations."
+  },
+  {
+    "id": "ni-spc-2006",
+    "jurisdictions": [
+      "ni"
+    ],
+    "title": "Service Provision Change (Protection of Employment) Regulations (Northern Ireland) 2006",
+    "url": "https://www.legislation.gov.uk/nisr/2006/177/contents",
+    "status": "in_force",
+    "effective_date": "2006-04-06",
+    "checked_on": "2026-11-04",
+    "summary": "Applies TUPE-style protection in Northern Ireland when a service is outsourced, brought back in house or moved to a new contractor. Read together with TUPE 2006."
+  },
+  {
+    "id": "hswa-1974",
+    "jurisdictions": [
+      "ew",
+      "sc"
+    ],
+    "title": "Health and Safety at Work etc. Act 1974",
+    "url": "https://www.legislation.gov.uk/ukpga/1974/37/contents",
+    "status": "in_force",
+    "effective_date": "1974-07-31",
+    "checked_on": "2026-11-04",
+    "summary": "Every employer and anyone controlling premises owes health and safety duties to people affected by their work, including workers supplied by another business. A contract cannot transfer these duties away."
+  },
+  {
+    "id": "hsw-ni-1978",
+    "jurisdictions": [
+      "ni"
+    ],
+    "title": "Health and Safety at Work (Northern Ireland) Order 1978",
+    "url": "https://www.legislation.gov.uk/nisi/1978/1039/contents",
+    "status": "in_force",
+    "effective_date": "1978-07-28",
+    "checked_on": "2026-11-04",
+    "summary": "The Northern Ireland equivalent of the Health and Safety at Work etc. Act 1974."
+  },
+  {
+    "id": "elci-1969",
+    "jurisdictions": [
+      "ew",
+      "sc"
+    ],
+    "title": "Employers' Liability (Compulsory Insurance) Act 1969",
+    "url": "https://www.gov.uk/employers-liability-insurance",
+    "status": "in_force",
+    "effective_date": "1972-01-01",
+    "checked_on": "2026-11-04",
+    "summary": "Most employers must hold employers' liability insurance with an authorised insurer, for at least the statutory minimum cover."
+  },
+  {
+    "id": "elci-ni-1972",
+    "jurisdictions": [
+      "ni"
+    ],
+    "title": "Employer's Liability (Defective Equipment and Compulsory Insurance) (Northern Ireland) Order 1972",
+    "url": "https://www.legislation.gov.uk/nisi/1972/963/contents",
+    "status": "in_force",
+    "effective_date": "1972-06-28",
+    "checked_on": "2026-11-04",
+    "summary": "The Northern Ireland requirement to hold employer's liability insurance, with the Employer's Liability (Compulsory Insurance) Regulations (Northern Ireland) 1999."
+  }
+]

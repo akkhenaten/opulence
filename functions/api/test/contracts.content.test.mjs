@@ -50,3 +50,19 @@ for (const j of ['ew', 'sc', 'ni']) {
     assert.ok(blocks.some((b) => b.type === 'heading' && b.number === '' && /Schedule 1/.test(b.runs[0].text)));
   });
 }
+
+test('every pack composes in every jurisdiction with sample answers: nothing left unfilled', () => {
+  assert.equal(Object.keys(PACKS).length, 8);
+  for (const pack of Object.values(PACKS)) {
+    for (const j of pack.jurisdictions) {
+      const out = compose({ pack, jurisdiction: j, answers: sampleAnswers(pack), library: seedLibraryShape('company'), law: LAW, effectiveDate: '2026-12-01' });
+      const at = `${pack.id}/${j}`;
+      assert.equal(out.outstanding.length, 0, `${at}: ${out.outstanding.map((o) => o.id).join(', ')}`);
+      assert.ok(!/\[to be confirmed/.test(out.body), at);
+      assert.ok(!/\{\{/.test(out.body), `${at}: unfilled variable`);
+      const law = { ew: 'England and Wales', sc: 'Scotland', ni: 'Northern Ireland' }[j];
+      assert.match(out.body, new RegExp(`law of ${law}`), at);
+      assert.ok(parse(out.body).some((b) => b.type === 'heading' && b.number === '1'), at);
+    }
+  }
+});

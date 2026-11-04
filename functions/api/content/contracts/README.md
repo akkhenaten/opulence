@@ -93,7 +93,7 @@ Pack `rules` run after the whole document is built.
 ### Prefill keys
 `company.name`, `company.address`, `company.number`, `today`, `effective_date`,
 `officer.name`, `officer.address`, `officer.email`, `officer.start_date`, `officer.role`, `officer.sia_type`, `officer.sia_number`,
-`org.name`, `org.number`, `org.address`, `org.signatory_name`, `org.signatory_title`, `org.email`.
+`organisation.name`, `organisation.number`, `organisation.address`, `organisation.signatory`, `organisation.signatory_title`.
 A prefilled value is shown to the manager as "prefilled" and only prints once confirmed.
 
 ## Clause

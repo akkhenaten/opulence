@@ -1,0 +1,2158 @@
+{
+  "id": "agency",
+  "version": 1,
+  "title": "Agency worker",
+  "summary": "An agency worker you supply to a client as an employment business, or one an agency supplies to you as the hirer.",
+  "party": "person",
+  "engagement_type": "agency_worker",
+  "doc_title": "Agency Worker Terms and Assignment Information",
+  "jurisdictions": [
+    "ew",
+    "sc",
+    "ni"
+  ],
+  "law": [
+    "awr-2010",
+    "awr-ni-2011",
+    "conduct-regs-2003",
+    "conduct-regs-ni-2005",
+    "era2025-guaranteed-hours",
+    "ni-good-jobs-bill"
+  ],
+  "decision": {
+    "hint": "The person works temporarily for a client under the client's direction, and an agency (you or someone else) finds the work and pays them."
+  },
+  "sections": [
+    {
+      "id": "role",
+      "title": "The Company's role"
+    },
+    {
+      "id": "parties",
+      "title": "Parties"
+    },
+    {
+      "id": "engagement",
+      "title": "Contract and payer"
+    },
+    {
+      "id": "assignment",
+      "title": "Assignment"
+    },
+    {
+      "id": "pay",
+      "title": "Pay and charges"
+    },
+    {
+      "id": "holiday",
+      "title": "Holiday, sickness and pension"
+    },
+    {
+      "id": "awr",
+      "title": "Equal treatment"
+    },
+    {
+      "id": "conduct",
+      "title": "Concerns and discipline"
+    },
+    {
+      "id": "ending",
+      "title": "Notice"
+    },
+    {
+      "id": "hirer",
+      "title": "Assignment with us (hirer)"
+    }
+  ],
+  "questions": [
+    {
+      "id": "role.company",
+      "label": "The Company's role",
+      "section": "role",
+      "type": "choice",
+      "schedule": false,
+      "particular": false,
+      "help": "Answer this first: the documents and wording depend on it. An employment business has the person on its books and supplies them to a client (the hirer), who directs the work. A hirer receives the person from someone else's agency.",
+      "options": [
+        {
+          "value": "employment_business",
+          "label": "We are the employment business supplying the worker to a hirer"
+        },
+        {
+          "value": "hirer",
+          "label": "We are the hirer: an agency supplies the worker to us"
+        },
+        {
+          "value": "unclear",
+          "label": "Not sure"
+        }
+      ]
+    },
+    {
+      "id": "role.hirer_directs",
+      "label": "The hirer supervises and directs the work day to day",
+      "section": "role",
+      "type": "yesno",
+      "schedule": false,
+      "particular": false,
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "help": "Answer \"no\" if your own supervisors and control room direct the work and you deliver a security service to the client. Then the person is not an agency worker."
+    },
+    {
+      "id": "role.direct_hire",
+      "label": "You want to employ this person directly",
+      "section": "role",
+      "type": "yesno",
+      "schedule": false,
+      "particular": false,
+      "showIf": {
+        "q": "role.company",
+        "eq": "hirer"
+      },
+      "help": "Answer \"yes\" only if the person is leaving the agency to join your own payroll. Appearing on your rota or staff list is not a reason to issue a contract of employment."
+    },
+    {
+      "id": "parties.company_name",
+      "label": "The Company",
+      "section": "parties",
+      "type": "text",
+      "prefill": "company.name",
+      "help": "The legal name of the company, exactly as registered."
+    },
+    {
+      "id": "parties.company_address",
+      "label": "Company address",
+      "section": "parties",
+      "type": "text",
+      "prefill": "company.address"
+    },
+    {
+      "id": "parties.company_number",
+      "label": "Company number",
+      "section": "parties",
+      "type": "text",
+      "prefill": "company.number",
+      "required": false
+    },
+    {
+      "id": "parties.worker_name",
+      "label": "Agency worker",
+      "section": "parties",
+      "type": "text",
+      "prefill": "officer.name"
+    },
+    {
+      "id": "parties.worker_address",
+      "label": "Agency worker's address",
+      "section": "parties",
+      "type": "text",
+      "prefill": "officer.address",
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      }
+    },
+    {
+      "id": "agency.name",
+      "label": "Agency (employment business)",
+      "section": "parties",
+      "type": "text",
+      "showIf": {
+        "q": "role.company",
+        "eq": "hirer"
+      },
+      "help": "The legal name of the agency that supplies the worker to you."
+    },
+    {
+      "id": "agency.address",
+      "label": "Agency address",
+      "section": "parties",
+      "type": "text",
+      "showIf": {
+        "q": "role.company",
+        "eq": "hirer"
+      },
+      "required": false
+    },
+    {
+      "id": "engagement.contract_type",
+      "label": "Type of contract",
+      "section": "engagement",
+      "type": "choice",
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "help": "Most agency workers are engaged on a contract for services. Choose a contract of service only if the Company employs the person, including between assignments.",
+      "options": [
+        {
+          "value": "worker",
+          "label": "Contract for services (agency worker)",
+          "text": "contract for services"
+        },
+        {
+          "value": "employee",
+          "label": "Contract of service (employed by the Company)",
+          "text": "contract of service"
+        }
+      ]
+    },
+    {
+      "id": "engagement.payer",
+      "label": "Paid by",
+      "section": "engagement",
+      "type": "choice",
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "options": [
+        {
+          "value": "company",
+          "label": "The Company, through PAYE",
+          "text": "the Company, through PAYE"
+        },
+        {
+          "value": "umbrella",
+          "label": "An umbrella company that employs the worker",
+          "text": "an umbrella company"
+        }
+      ]
+    },
+    {
+      "id": "umbrella.name",
+      "label": "Umbrella company",
+      "section": "engagement",
+      "type": "text",
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "umbrella"
+          }
+        ]
+      },
+      "help": "The umbrella company's legal name, as shown on the Key Information Document."
+    },
+    {
+      "id": "engagement.start",
+      "label": "Terms start",
+      "section": "engagement",
+      "type": "date",
+      "prefill": "officer.start_date",
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      }
+    },
+    {
+      "id": "engagement.kid_given",
+      "label": "Key Information Document given before these terms are agreed",
+      "section": "engagement",
+      "type": "yesno",
+      "schedule": false,
+      "particular": false,
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "jurisdictions": [
+        "ew",
+        "sc"
+      ],
+      "help": "Required in Great Britain before you agree terms. It is a separate document, built from the GOV.UK template that matches who pays the worker."
+    },
+    {
+      "id": "assignment.known",
+      "label": "First assignment already agreed",
+      "section": "assignment",
+      "type": "yesno",
+      "schedule": false,
+      "particular": false,
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      }
+    },
+    {
+      "id": "assignment.hirer",
+      "label": "Hirer",
+      "section": "assignment",
+      "type": "text",
+      "schedule": false,
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "assignment.known",
+            "eq": "yes"
+          }
+        ]
+      },
+      "help": "The client the worker is supplied to."
+    },
+    {
+      "id": "assignment.hirer_business",
+      "label": "Hirer's business",
+      "section": "assignment",
+      "type": "text",
+      "schedule": false,
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "assignment.known",
+            "eq": "yes"
+          }
+        ]
+      },
+      "help": "For example \"a shopping centre operator\"."
+    },
+    {
+      "id": "assignment.role",
+      "label": "Role on the assignment",
+      "section": "assignment",
+      "type": "text",
+      "schedule": false,
+      "prefill": "officer.role",
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "assignment.known",
+            "eq": "yes"
+          }
+        ]
+      }
+    },
+    {
+      "id": "assignment.location",
+      "label": "Assignment location",
+      "section": "assignment",
+      "type": "text",
+      "schedule": false,
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "assignment.known",
+            "eq": "yes"
+          }
+        ]
+      }
+    },
+    {
+      "id": "assignment.start",
+      "label": "Assignment starts",
+      "section": "assignment",
+      "type": "date",
+      "schedule": false,
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "assignment.known",
+            "eq": "yes"
+          }
+        ]
+      }
+    },
+    {
+      "id": "assignment.duration",
+      "label": "Likely length of the assignment",
+      "section": "assignment",
+      "type": "text",
+      "schedule": false,
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "assignment.known",
+            "eq": "yes"
+          }
+        ]
+      },
+      "help": "For example \"about eight weeks\" or \"ongoing, reviewed monthly\"."
+    },
+    {
+      "id": "assignment.hours",
+      "label": "Assignment hours",
+      "section": "assignment",
+      "type": "text",
+      "schedule": false,
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "assignment.known",
+            "eq": "yes"
+          }
+        ]
+      },
+      "help": "For example \"four 12-hour night shifts a week on a rota\"."
+    },
+    {
+      "id": "assignment.risks",
+      "label": "Health and safety risks and controls",
+      "section": "assignment",
+      "type": "textarea",
+      "schedule": false,
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "assignment.known",
+            "eq": "yes"
+          }
+        ]
+      },
+      "help": "The risks the hirer has told you about and the steps taken to control them."
+    },
+    {
+      "id": "assignment.requirements",
+      "label": "Experience, training, qualifications or licences needed",
+      "section": "assignment",
+      "type": "textarea",
+      "schedule": false,
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "assignment.known",
+            "eq": "yes"
+          }
+        ]
+      }
+    },
+    {
+      "id": "assignment.expenses",
+      "label": "Expenses",
+      "section": "assignment",
+      "type": "text",
+      "schedule": false,
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "assignment.known",
+            "eq": "yes"
+          }
+        ]
+      },
+      "help": "Expenses the worker can claim or must pay, or \"none\"."
+    },
+    {
+      "id": "job.licensable",
+      "label": "SIA-licensable work",
+      "section": "assignment",
+      "type": "yesno",
+      "schedule": false,
+      "particular": false,
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      }
+    },
+    {
+      "id": "job.licence",
+      "label": "SIA licence type",
+      "section": "assignment",
+      "type": "text",
+      "prefill": "officer.sia_type",
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "job.licensable",
+            "eq": "yes"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pay.rate_type",
+      "label": "Rate agreed",
+      "section": "pay",
+      "type": "choice",
+      "schedule": false,
+      "particular": false,
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "company"
+          }
+        ]
+      },
+      "help": "Regulation 15 lets you state either the rate itself or the minimum rate you reasonably expect to achieve.",
+      "options": [
+        {
+          "value": "agreed",
+          "label": "An agreed hourly rate",
+          "text": "rate of pay"
+        },
+        {
+          "value": "minimum",
+          "label": "The minimum rate we reasonably expect to achieve",
+          "text": "minimum expected rate of pay"
+        }
+      ]
+    },
+    {
+      "id": "pay.rate",
+      "label": "Hourly rate",
+      "section": "pay",
+      "type": "money",
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "help": "Gross, before deductions. Where an umbrella company pays the worker, this is the rate the Company pays the umbrella company for each hour worked."
+    },
+    {
+      "id": "charge.rate",
+      "label": "Charge rate to the hirer (per hour)",
+      "section": "pay",
+      "type": "money",
+      "required": false,
+      "schedule": false,
+      "particular": false,
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "help": "Agreed in the separate agency–hirer terms. It is not printed in the worker's terms."
+    },
+    {
+      "id": "pay.frequency",
+      "label": "Paid",
+      "section": "pay",
+      "type": "choice",
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "options": [
+        {
+          "value": "weekly",
+          "label": "Weekly",
+          "text": "weekly"
+        },
+        {
+          "value": "fortnightly",
+          "label": "Every two weeks",
+          "text": "every two weeks"
+        },
+        {
+          "value": "four_weekly",
+          "label": "Every four weeks",
+          "text": "every four weeks"
+        },
+        {
+          "value": "monthly",
+          "label": "Monthly",
+          "text": "monthly"
+        }
+      ]
+    },
+    {
+      "id": "pay.day",
+      "label": "Pay day",
+      "section": "pay",
+      "type": "text",
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "help": "For example \"Friday of the following week\"."
+    },
+    {
+      "id": "pay.timesheets",
+      "label": "How hours are recorded",
+      "section": "pay",
+      "type": "text",
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "help": "Completes the sentence \"You record your hours …\", for example \"on the app, approved each week by the hirer's site manager\"."
+    },
+    {
+      "id": "pay.deductions",
+      "label": "Deductions from pay",
+      "section": "pay",
+      "type": "textarea",
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "help": "For example \"income tax, employee National Insurance and pension contributions\". For an umbrella company, list every deduction it makes, as shown in the Key Information Document."
+    },
+    {
+      "id": "holiday.basis",
+      "label": "Holiday",
+      "section": "holiday",
+      "type": "choice",
+      "schedule": false,
+      "particular": false,
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "company"
+          }
+        ]
+      },
+      "help": "Most agency workers have irregular hours.",
+      "options": [
+        {
+          "value": "irregular",
+          "label": "Irregular hours: holiday builds up as hours are worked"
+        },
+        {
+          "value": "regular",
+          "label": "Regular hours: 5.6 weeks a year"
+        }
+      ]
+    },
+    {
+      "id": "holiday.rolled",
+      "label": "Rolled-up holiday pay",
+      "section": "holiday",
+      "type": "yesno",
+      "schedule": false,
+      "particular": false,
+      "jurisdictions": [
+        "ew",
+        "sc"
+      ],
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "company"
+          },
+          {
+            "q": "holiday.basis",
+            "eq": "irregular"
+          }
+        ]
+      },
+      "help": "Only for irregular-hours or part-year workers in Great Britain. Holiday pay is added to each payment and shown separately on the payslip."
+    },
+    {
+      "id": "holiday.year_start",
+      "label": "Holiday year starts",
+      "section": "holiday",
+      "type": "text",
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "company"
+          },
+          {
+            "q": "holiday.basis",
+            "eq": "regular"
+          }
+        ]
+      },
+      "help": "For example \"1 January\"."
+    },
+    {
+      "id": "holiday.notice",
+      "label": "Notice for holiday requests",
+      "section": "holiday",
+      "type": "text",
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "company"
+          },
+          {
+            "q": "holiday.basis",
+            "eq": "regular"
+          }
+        ]
+      },
+      "help": "For example \"two weeks\"."
+    },
+    {
+      "id": "sick.notify",
+      "label": "Report sickness to",
+      "section": "holiday",
+      "type": "text",
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "company"
+          }
+        ]
+      },
+      "help": "For example \"the Company's control room by phone, and the hirer's site manager\"."
+    },
+    {
+      "id": "pension.scheme",
+      "label": "Pension scheme",
+      "section": "holiday",
+      "type": "text",
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "company"
+          }
+        ]
+      },
+      "help": "For example \"NEST\"."
+    },
+    {
+      "id": "awr.weeks",
+      "label": "Qualifying weeks already completed with this hirer in this role",
+      "section": "awr",
+      "type": "number",
+      "schedule": false,
+      "particular": false,
+      "showIf": {
+        "any": [
+          {
+            "q": "role.company",
+            "eq": "hirer"
+          },
+          {
+            "all": [
+              {
+                "q": "role.company",
+                "eq": "employment_business"
+              },
+              {
+                "q": "assignment.known",
+                "eq": "yes"
+              }
+            ]
+          }
+        ]
+      },
+      "help": "Take this from the assignment history on the worker's profile. Count calendar weeks with any work for the same hirer in the same role. Enter 0 for a new placement."
+    },
+    {
+      "id": "awr.comparator",
+      "label": "Comparator information from the hirer",
+      "section": "awr",
+      "type": "textarea",
+      "required": false,
+      "schedule": false,
+      "particular": false,
+      "showIf": {
+        "all": [
+          {
+            "any": [
+              {
+                "q": "role.company",
+                "eq": "hirer"
+              },
+              {
+                "all": [
+                  {
+                    "q": "role.company",
+                    "eq": "employment_business"
+                  },
+                  {
+                    "q": "assignment.known",
+                    "eq": "yes"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "q": "awr.weeks",
+            "gte": 10
+          }
+        ]
+      },
+      "help": "Basic pay, hours, overtime, night work, breaks and holiday of a comparable directly recruited employee, or the hirer's pay scale for the role."
+    },
+    {
+      "id": "awr.equal_confirmed",
+      "label": "Pay and conditions match the hirer's directly recruited staff",
+      "section": "awr",
+      "type": "yesno",
+      "schedule": false,
+      "particular": false,
+      "showIf": {
+        "all": [
+          {
+            "any": [
+              {
+                "q": "role.company",
+                "eq": "hirer"
+              },
+              {
+                "all": [
+                  {
+                    "q": "role.company",
+                    "eq": "employment_business"
+                  },
+                  {
+                    "q": "assignment.known",
+                    "eq": "yes"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "q": "awr.weeks",
+            "gte": 12
+          }
+        ]
+      }
+    },
+    {
+      "id": "grievance.raise_with",
+      "label": "Raise concerns with",
+      "section": "conduct",
+      "type": "text",
+      "help": "A job title, for example \"the Company's account manager\"."
+    },
+    {
+      "id": "discipline.where",
+      "label": "Disciplinary and grievance procedure",
+      "section": "conduct",
+      "type": "text",
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "help": "Where it is kept, for example \"the agency worker handbook\"."
+    },
+    {
+      "id": "collective.exists",
+      "label": "Collective agreements",
+      "section": "conduct",
+      "type": "yesno",
+      "schedule": false,
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      }
+    },
+    {
+      "id": "collective.agreements",
+      "label": "Collective agreements",
+      "section": "conduct",
+      "type": "textarea",
+      "showIf": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "collective.exists",
+            "eq": "yes"
+          }
+        ]
+      }
+    },
+    {
+      "id": "notice.worker",
+      "label": "Notice from the worker",
+      "section": "ending",
+      "type": "text",
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "help": "For example \"one shift's\" or \"24 hours'\"."
+    },
+    {
+      "id": "notice.company",
+      "label": "Notice from the Company",
+      "section": "ending",
+      "type": "text",
+      "showIf": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "help": "For example \"one shift's\" or \"24 hours'\"."
+    },
+    {
+      "id": "hirer.role",
+      "label": "Role on assignment with us",
+      "section": "hirer",
+      "type": "text",
+      "prefill": "officer.role",
+      "showIf": {
+        "q": "role.company",
+        "eq": "hirer"
+      }
+    },
+    {
+      "id": "hirer.start",
+      "label": "Assignment with us starts",
+      "section": "hirer",
+      "type": "date",
+      "prefill": "officer.start_date",
+      "showIf": {
+        "q": "role.company",
+        "eq": "hirer"
+      }
+    },
+    {
+      "id": "hirer.location",
+      "label": "Where the worker will work",
+      "section": "hirer",
+      "type": "text",
+      "showIf": {
+        "q": "role.company",
+        "eq": "hirer"
+      }
+    },
+    {
+      "id": "hirer.reports_to",
+      "label": "Reports to",
+      "section": "hirer",
+      "type": "text",
+      "showIf": {
+        "q": "role.company",
+        "eq": "hirer"
+      },
+      "help": "A job title, for example \"the duty supervisor\"."
+    },
+    {
+      "id": "hirer.facilities",
+      "label": "Shared facilities available",
+      "section": "hirer",
+      "type": "textarea",
+      "showIf": {
+        "q": "role.company",
+        "eq": "hirer"
+      },
+      "help": "For example \"the staff rest room, kitchen, lockers and staff car park\"."
+    },
+    {
+      "id": "hirer.vacancies",
+      "label": "How vacancies are shared",
+      "section": "hirer",
+      "type": "text",
+      "showIf": {
+        "q": "role.company",
+        "eq": "hirer"
+      },
+      "help": "For example \"on the staff noticeboard and in the staff app\"."
+    }
+  ],
+  "clauses": [
+    {
+      "id": "parties",
+      "title": "Parties and status",
+      "include": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "slots": [
+        {
+          "slot": "parties",
+          "clauses": [
+            "AGY.STATUS.WORKER",
+            "AGY.STATUS.EMPLOYEE",
+            "AGY.STATUS.UMBRELLA"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "engagement.payer",
+                "eq": "umbrella"
+              },
+              "clause": "AGY.STATUS.UMBRELLA"
+            },
+            {
+              "when": {
+                "q": "engagement.contract_type",
+                "eq": "employee"
+              },
+              "clause": "AGY.STATUS.EMPLOYEE"
+            }
+          ]
+        },
+        {
+          "slot": "kid",
+          "clauses": [
+            "AGY.KID"
+          ],
+          "jurisdictions": [
+            "ew",
+            "sc"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "assignments",
+      "title": "Assignments",
+      "include": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "slots": [
+        {
+          "slot": "assignments",
+          "clauses": [
+            "AGY.ASSIGNMENTS"
+          ]
+        },
+        {
+          "slot": "assignment.details",
+          "clauses": [
+            "AGY.ASSIGNMENT.DETAILS"
+          ],
+          "include": {
+            "q": "assignment.known",
+            "eq": "yes"
+          },
+          "why": "Included because the first assignment is already agreed"
+        },
+        {
+          "slot": "job.licence",
+          "clauses": [
+            "SEC.LICENCE"
+          ],
+          "include": {
+            "q": "job.licensable",
+            "eq": "yes"
+          },
+          "why": "Included because the work is SIA-licensable"
+        },
+        {
+          "slot": "job.screening",
+          "clauses": [
+            "SEC.SCREENING"
+          ]
+        },
+        {
+          "slot": "job.instructions",
+          "clauses": [
+            "SEC.INSTRUCTIONS"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pay",
+      "title": "Pay",
+      "include": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "slots": [
+        {
+          "slot": "pay",
+          "clauses": [
+            "AGY.PAY.COMPANY",
+            "AGY.PAY.UMBRELLA"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "engagement.payer",
+                "eq": "umbrella"
+              },
+              "clause": "AGY.PAY.UMBRELLA"
+            }
+          ]
+        },
+        {
+          "slot": "pay.deductions",
+          "clauses": [
+            "SEC.DEDUCTIONS"
+          ],
+          "include": {
+            "q": "engagement.payer",
+            "eq": "company"
+          },
+          "why": "Included because the Company pays the worker"
+        },
+        {
+          "slot": "pay.fees",
+          "clauses": [
+            "AGY.NO_FEES"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "holiday",
+      "title": "Holiday, sickness and pension",
+      "include": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "company"
+          }
+        ]
+      },
+      "slots": [
+        {
+          "slot": "holiday",
+          "clauses": [
+            "SEC.HOLIDAY.IRREGULAR",
+            "EMP.HOLIDAY.STATUTORY"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "holiday.basis",
+                "eq": "regular"
+              },
+              "clause": "EMP.HOLIDAY.STATUTORY"
+            }
+          ]
+        },
+        {
+          "slot": "holiday.rolled",
+          "clauses": [
+            "SEC.HOLIDAY.ROLLED"
+          ],
+          "jurisdictions": [
+            "ew",
+            "sc"
+          ],
+          "include": {
+            "all": [
+              {
+                "q": "holiday.basis",
+                "eq": "irregular"
+              },
+              {
+                "q": "holiday.rolled",
+                "eq": "yes"
+              }
+            ]
+          },
+          "why": "Included because rolled-up holiday pay was chosen for an irregular-hours worker"
+        },
+        {
+          "slot": "sickness",
+          "clauses": [
+            "EMP.SICK.SSP"
+          ]
+        },
+        {
+          "slot": "pension",
+          "clauses": [
+            "EMP.PENSION"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "awr",
+      "title": "Your rights as an agency worker",
+      "include": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "slots": [
+        {
+          "slot": "awr.day_one",
+          "clauses": [
+            "AGY.DAY_ONE"
+          ]
+        },
+        {
+          "slot": "awr.equal",
+          "clauses": [
+            "AGY.EQUAL"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "conduct",
+      "title": "Working time, training and conduct",
+      "include": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "slots": [
+        {
+          "slot": "hours.rest",
+          "clauses": [
+            "SEC.REST"
+          ]
+        },
+        {
+          "slot": "training",
+          "clauses": [
+            "SEC.TRAINING"
+          ]
+        },
+        {
+          "slot": "conduct",
+          "clauses": [
+            "SEC.CONDUCT"
+          ]
+        },
+        {
+          "slot": "conduct.harassment",
+          "clauses": [
+            "EMP.HARASSMENT"
+          ]
+        },
+        {
+          "slot": "conduct.equipment",
+          "clauses": [
+            "SEC.EQUIPMENT"
+          ]
+        },
+        {
+          "slot": "conduct.incidents",
+          "clauses": [
+            "SEC.INCIDENT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "concerns",
+      "title": "Concerns and discipline",
+      "include": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "slots": [
+        {
+          "slot": "concerns",
+          "clauses": [
+            "AGY.CONCERNS"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ending",
+      "title": "Ending an assignment or these terms",
+      "include": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "slots": [
+        {
+          "slot": "ending",
+          "clauses": [
+            "AGY.ENDING"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "confidentiality",
+      "title": "Confidentiality and data",
+      "include": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "slots": [
+        {
+          "slot": "confidential",
+          "clauses": [
+            "SEC.CONFIDENTIAL"
+          ]
+        },
+        {
+          "slot": "data",
+          "clauses": [
+            "SEC.DATA"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "general",
+      "title": "General",
+      "include": {
+        "q": "role.company",
+        "eq": "employment_business"
+      },
+      "slots": [
+        {
+          "slot": "collective",
+          "clauses": [
+            "EMP.COLLECTIVE.NONE",
+            "EMP.COLLECTIVE.LISTED"
+          ],
+          "choose": [
+            {
+              "when": {
+                "q": "collective.exists",
+                "eq": "yes"
+              },
+              "clause": "EMP.COLLECTIVE.LISTED"
+            }
+          ]
+        },
+        {
+          "slot": "changes",
+          "clauses": [
+            "SEC.CHANGES"
+          ]
+        },
+        {
+          "slot": "entire",
+          "clauses": [
+            "AGY.WHOLE"
+          ]
+        },
+        {
+          "slot": "third_party",
+          "clauses": [
+            "GEN.THIRD_PARTY"
+          ]
+        },
+        {
+          "slot": "law.governing",
+          "clauses": [
+            "GEN.LAW.EW"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "h.status",
+      "title": "About this document",
+      "include": {
+        "q": "role.company",
+        "eq": "hirer"
+      },
+      "slots": [
+        {
+          "slot": "h.status",
+          "clauses": [
+            "AGY.HIRER.STATUS"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "h.rights",
+      "title": "Your rights while you work with us",
+      "include": {
+        "q": "role.company",
+        "eq": "hirer"
+      },
+      "slots": [
+        {
+          "slot": "h.day_one",
+          "clauses": [
+            "AGY.HIRER.DAY_ONE"
+          ]
+        },
+        {
+          "slot": "h.equal",
+          "clauses": [
+            "AGY.HIRER.EQUAL"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "h.site",
+      "title": "Working on our sites",
+      "include": {
+        "q": "role.company",
+        "eq": "hirer"
+      },
+      "slots": [
+        {
+          "slot": "h.conduct",
+          "clauses": [
+            "SEC.CONDUCT"
+          ]
+        },
+        {
+          "slot": "h.harassment",
+          "clauses": [
+            "EMP.HARASSMENT"
+          ]
+        },
+        {
+          "slot": "h.incidents",
+          "clauses": [
+            "SEC.INCIDENT"
+          ]
+        },
+        {
+          "slot": "h.site",
+          "clauses": [
+            "AGY.HIRER.SITE"
+          ]
+        },
+        {
+          "slot": "h.data",
+          "clauses": [
+            "SEC.DATA"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "h.general",
+      "title": "General",
+      "include": {
+        "q": "role.company",
+        "eq": "hirer"
+      },
+      "slots": [
+        {
+          "slot": "h.law.governing",
+          "clauses": [
+            "GEN.LAW.EW"
+          ]
+        }
+      ]
+    }
+  ],
+  "overrides": {
+    "sc": {
+      "law.governing": {
+        "clauses": [
+          "GEN.LAW.SC"
+        ]
+      },
+      "h.law.governing": {
+        "clauses": [
+          "GEN.LAW.SC"
+        ]
+      }
+    },
+    "ni": {
+      "law.governing": {
+        "clauses": [
+          "GEN.LAW.NI"
+        ]
+      },
+      "h.law.governing": {
+        "clauses": [
+          "GEN.LAW.NI"
+        ]
+      }
+    }
+  },
+  "rules": [
+    {
+      "id": "role-unclear",
+      "severity": "blocker",
+      "when": {
+        "q": "role.company",
+        "eq": "unclear"
+      },
+      "message": "Decide the Company's role before drafting. If the person is on your books and you supply them to a client who directs their work, you are the employment business. If another agency supplies them to you, you are the hirer and the agency issues their terms. If your own supervisors run the work at the client's site, the person is your own staff: use the casual worker or permanent pack instead.",
+      "jump": {
+        "question": "role.company"
+      },
+      "law": [
+        "conduct-regs-2003",
+        "awr-2010",
+        "awr-ni-2011"
+      ]
+    },
+    {
+      "id": "hirer-not-employment",
+      "severity": "review",
+      "when": {
+        "q": "role.company",
+        "eq": "hirer"
+      },
+      "message": "As the hirer you must not issue a contract of employment just because the agency worker is on your rota or staff list. Their terms of engagement, Key Information Document and pay come from the agency. This draft is only an information letter about their rights and your site rules. You are responsible for day-one access to facilities and vacancies, and you share liability for equal treatment, so give the agency comparator information promptly.",
+      "jump": {
+        "question": "role.company"
+      },
+      "law": [
+        "awr-2010",
+        "awr-ni-2011"
+      ]
+    },
+    {
+      "id": "hirer-direct-hire",
+      "severity": "blocker",
+      "when": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "hirer"
+          },
+          {
+            "q": "role.direct_hire",
+            "eq": "yes"
+          }
+        ]
+      },
+      "message": "This pack does not create a direct contract of employment. If the worker is genuinely moving onto your payroll, end the agency assignment as the agency's terms require, check any transfer fee in those terms, and then use the permanent, fixed-term or casual worker pack. Do not do this simply because the person appears on your roster.",
+      "jump": {
+        "question": "role.direct_hire"
+      },
+      "law": [
+        "conduct-regs-2003",
+        "conduct-regs-ni-2005"
+      ]
+    },
+    {
+      "id": "not-agency-supply",
+      "severity": "blocker",
+      "when": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "role.hirer_directs",
+            "eq": "no"
+          }
+        ]
+      },
+      "message": "If the Company's own supervisors and control room direct the work, the Company is delivering a security service, not supplying an agency worker. The person is then the Company's own employee or worker. Use the casual worker, fixed-term or permanent pack instead.",
+      "jump": {
+        "question": "role.hirer_directs"
+      },
+      "law": [
+        "awr-2010",
+        "awr-ni-2011"
+      ]
+    },
+    {
+      "id": "umbrella-employee-conflict",
+      "severity": "blocker",
+      "when": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "umbrella"
+          },
+          {
+            "q": "engagement.contract_type",
+            "eq": "employee"
+          }
+        ]
+      },
+      "message": "The worker cannot be employed by both the Company and an umbrella company. Choose who employs and pays them, and make the Key Information Document match.",
+      "jump": {
+        "question": "engagement.payer"
+      }
+    },
+    {
+      "id": "kid-missing",
+      "severity": "blocker",
+      "when": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "jurisdiction": [
+              "ew",
+              "sc"
+            ]
+          },
+          {
+            "q": "engagement.kid_given",
+            "eq": "no"
+          }
+        ]
+      },
+      "message": "In Great Britain the worker must receive a Key Information Document before these terms are agreed. Use the GOV.UK template for PAYE or umbrella-company workers, give it as a separate document, and only then send these terms.",
+      "jump": {
+        "question": "engagement.kid_given"
+      },
+      "law": [
+        "conduct-regs-kid"
+      ]
+    },
+    {
+      "id": "ni-no-kid",
+      "severity": "note",
+      "when": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "jurisdiction": "ni"
+          }
+        ]
+      },
+      "message": "Northern Ireland does not yet require a Key Information Document. Giving one is still good practice. The Good Jobs Employment Rights Bill proposes to make it a requirement.",
+      "law": [
+        "ni-good-jobs-bill",
+        "conduct-regs-ni-2005"
+      ]
+    },
+    {
+      "id": "ni-pay-between-assignments",
+      "severity": "note",
+      "when": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "jurisdiction": "ni"
+          }
+        ]
+      },
+      "message": "In Northern Ireland a pay-between-assignments contract can still remove the right to equal pay after 12 weeks, but only if strict conditions are met. This pack does not draft one. Take advice before relying on it. Great Britain abolished it in April 2020.",
+      "law": [
+        "ni-awr-pay-between-assignments",
+        "awr-ni-2011"
+      ]
+    },
+    {
+      "id": "employee-of-agency",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "company"
+          },
+          {
+            "q": "engagement.contract_type",
+            "eq": "employee"
+          }
+        ]
+      },
+      "message": "The worker will be the Company's employee between assignments too. Check they get the full employee particulars, statutory notice, family leave and redundancy rights. In Great Britain this no longer removes the right to equal pay after 12 weeks.",
+      "jump": {
+        "question": "engagement.contract_type"
+      },
+      "law": [
+        "awr-2010",
+        "era1996-written-statement",
+        "ni-written-statement"
+      ]
+    },
+    {
+      "id": "awr-week-tracking",
+      "severity": "note",
+      "when": {
+        "any": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "role.company",
+            "eq": "hirer"
+          }
+        ]
+      },
+      "message": "Assignment weeks are tracked on the worker's profile. Check the count before each new assignment and whenever the hirer, site or role changes. A gap of more than six weeks, or a substantively different role, restarts the 12-week qualifying period. Sickness, holiday and short breaks pause it. Avoiding the qualifying period by rotating assignments is unlawful.",
+      "jump": {
+        "question": "awr.weeks"
+      },
+      "law": [
+        "awr-2010",
+        "awr-ni-2011"
+      ]
+    },
+    {
+      "id": "awr-approaching",
+      "severity": "note",
+      "when": {
+        "all": [
+          {
+            "any": [
+              {
+                "q": "role.company",
+                "eq": "hirer"
+              },
+              {
+                "all": [
+                  {
+                    "q": "role.company",
+                    "eq": "employment_business"
+                  },
+                  {
+                    "q": "assignment.known",
+                    "eq": "yes"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "q": "awr.weeks",
+            "gte": 10
+          },
+          {
+            "q": "awr.weeks",
+            "lt": 12
+          }
+        ]
+      },
+      "message": "The worker is close to the 12-week qualifying period. Get the comparator information from the hirer now so that pay and conditions can change on time.",
+      "jump": {
+        "question": "awr.comparator"
+      },
+      "law": [
+        "awr-2010",
+        "awr-ni-2011"
+      ]
+    },
+    {
+      "id": "awr-comparator-missing",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "any": [
+              {
+                "q": "role.company",
+                "eq": "hirer"
+              },
+              {
+                "all": [
+                  {
+                    "q": "role.company",
+                    "eq": "employment_business"
+                  },
+                  {
+                    "q": "assignment.known",
+                    "eq": "yes"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "q": "awr.weeks",
+            "gte": 12
+          },
+          {
+            "q": "awr.comparator",
+            "empty": true
+          }
+        ]
+      },
+      "message": "The worker has completed the 12-week qualifying period, but no comparator information is recorded. The hirer must give it to the agency. Record the basic pay, hours, overtime, night work, breaks and holiday of a comparable directly recruited employee.",
+      "jump": {
+        "question": "awr.comparator"
+      },
+      "law": [
+        "awr-2010",
+        "awr-ni-2011"
+      ]
+    },
+    {
+      "id": "awr-equal-due",
+      "severity": "blocker",
+      "when": {
+        "all": [
+          {
+            "any": [
+              {
+                "q": "role.company",
+                "eq": "hirer"
+              },
+              {
+                "all": [
+                  {
+                    "q": "role.company",
+                    "eq": "employment_business"
+                  },
+                  {
+                    "q": "assignment.known",
+                    "eq": "yes"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "q": "awr.weeks",
+            "gte": 12
+          },
+          {
+            "q": "awr.equal_confirmed",
+            "eq": "no"
+          }
+        ]
+      },
+      "message": "After 12 weeks in the same role with the same hirer, the worker is entitled to the same basic pay and conditions as directly recruited staff. Raise the rate and conditions in the assignment details to match the comparator, or (as hirer) give the agency what it needs to do so, before the next pay period.",
+      "jump": {
+        "question": "awr.equal_confirmed"
+      },
+      "law": [
+        "awr-2010",
+        "awr-ni-2011"
+      ]
+    },
+    {
+      "id": "umbrella-review",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "umbrella"
+          }
+        ]
+      },
+      "message": "Since 6 April 2026 the Company is jointly liable for PAYE and National Insurance the umbrella company fails to pay. Check the umbrella company before using it, use the umbrella-company Key Information Document template, and make sure the deductions listed match it. Bringing umbrella companies into agency regulation is planned but not yet in force.",
+      "jump": {
+        "question": "umbrella.name"
+      },
+      "law": [
+        "umbrella-paye-2026",
+        "era2025-umbrella-companies",
+        "conduct-regs-kid"
+      ]
+    },
+    {
+      "id": "charge-rate-missing",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "charge.rate",
+            "empty": true
+          }
+        ]
+      },
+      "message": "No charge rate is recorded. Before you supply the worker, agree written terms with the hirer, including the charge rate and any transfer fee. Those agency–hirer terms are a separate contract and are not shown to the worker.",
+      "jump": {
+        "question": "charge.rate"
+      },
+      "law": [
+        "conduct-regs-2003",
+        "conduct-regs-ni-2005"
+      ]
+    },
+    {
+      "id": "nmw-check",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "company"
+          },
+          {
+            "q": "pay.rate",
+            "lt": 12.71
+          }
+        ]
+      },
+      "message": "This rate is below the National Living Wage for workers aged 21 and over (£12.71 from 1 April 2026). Check the worker's age band. Unpaid time such as briefings, and costs such as uniform, also count against it.",
+      "jump": {
+        "question": "pay.rate"
+      },
+      "law": [
+        "nmw-2026"
+      ]
+    },
+    {
+      "id": "rolled-up-review",
+      "severity": "review",
+      "when": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "company"
+          },
+          {
+            "jurisdiction": [
+              "ew",
+              "sc"
+            ]
+          },
+          {
+            "q": "holiday.basis",
+            "eq": "irregular"
+          },
+          {
+            "q": "holiday.rolled",
+            "eq": "yes"
+          }
+        ]
+      },
+      "message": "Rolled-up holiday pay is only lawful for irregular-hours and part-year workers. It must be shown separately on every payslip, and the worker must still be able to take their holiday. The Key Information Document must explain it.",
+      "jump": {
+        "question": "holiday.rolled"
+      },
+      "law": [
+        "wtr-rolled-up-holiday"
+      ]
+    },
+    {
+      "id": "licence-check",
+      "severity": "note",
+      "when": {
+        "any": [
+          {
+            "all": [
+              {
+                "q": "role.company",
+                "eq": "employment_business"
+              },
+              {
+                "q": "job.licensable",
+                "eq": "yes"
+              }
+            ]
+          },
+          {
+            "q": "role.company",
+            "eq": "hirer"
+          }
+        ]
+      },
+      "message": "Check the worker's SIA licence on the public register before the first shift and at each renewal. Supplying or using an unlicensed operative for licensable work is an offence. If you hold Approved Contractor status, follow the scheme's rules on labour supply.",
+      "law": [
+        "sia-licensing",
+        "sia-acs-subcontracting"
+      ]
+    },
+    {
+      "id": "withholding-pay",
+      "severity": "blocker",
+      "when": {
+        "wording": "(not|n't) (be )?pa(y|id)[^.]{0,80}(timesheet|hirer (has not|hasn't|does not|doesn't) pa)"
+      },
+      "message": "An employment business must not withhold pay because a timesheet is missing or because the hirer has not paid. Remove this wording. Check the hours with the hirer and pay for the work done.",
+      "jump": {
+        "slot": "pay"
+      },
+      "law": [
+        "conduct-regs-2003",
+        "conduct-regs-ni-2005"
+      ]
+    },
+    {
+      "id": "fees-to-worker",
+      "severity": "blocker",
+      "when": {
+        "wording": "you (must|will|shall|agree to) pay (us|the company)[^.]{0,60}(fee|charge|registration)"
+      },
+      "message": "Agencies and employment businesses must not charge workers a fee for finding them work, or make work depend on paying for extras. Remove this wording.",
+      "jump": {
+        "slot": "pay.fees"
+      },
+      "law": [
+        "conduct-regs-2003",
+        "conduct-regs-ni-2005"
+      ]
+    }
+  ],
+  "supporting": [
+    {
+      "title": "Key Information Document (given before these terms are agreed; not part of the contract)",
+      "contractual": false,
+      "when": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "jurisdiction": [
+              "ew",
+              "sc"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Assignment details for each later assignment (form part of these terms for that assignment)",
+      "contractual": true,
+      "when": {
+        "q": "role.company",
+        "eq": "employment_business"
+      }
+    },
+    {
+      "title": "Agency–hirer terms, including the charge rate (a separate contract between the Company and the hirer, not part of the worker's terms)",
+      "contractual": false,
+      "when": {
+        "q": "role.company",
+        "eq": "employment_business"
+      }
+    },
+    {
+      "title": "Comparator information from the hirer for equal treatment (record, not part of the contract)",
+      "contractual": false,
+      "when": {
+        "any": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "role.company",
+            "eq": "hirer"
+          }
+        ]
+      }
+    },
+    {
+      "title": "Umbrella company's contract of employment with the worker (a separate contract)",
+      "contractual": false,
+      "when": {
+        "all": [
+          {
+            "q": "role.company",
+            "eq": "employment_business"
+          },
+          {
+            "q": "engagement.payer",
+            "eq": "umbrella"
+          }
+        ]
+      }
+    },
+    {
+      "title": "Agency worker handbook, including the disciplinary and grievance procedure",
+      "contractual": false,
+      "when": {
+        "q": "role.company",
+        "eq": "employment_business"
+      }
+    },
+    {
+      "title": "Privacy notice",
+      "contractual": false
+    },
+    {
+      "title": "Hirer's site rules and assignment instructions",
+      "contractual": false
+    },
+    {
+      "title": "48-hour opt-out agreement (separate and voluntary, only if the worker chooses)",
+      "contractual": false,
+      "when": {
+        "q": "role.company",
+        "eq": "employment_business"
+      }
+    },
+    {
+      "title": "The agency's terms of engagement and Key Information Document (issued by the agency, not by the Company)",
+      "contractual": false,
+      "when": {
+        "q": "role.company",
+        "eq": "hirer"
+      }
+    },
+    {
+      "title": "The agency's terms of business with the Company (agency–hirer terms)",
+      "contractual": false,
+      "when": {
+        "q": "role.company",
+        "eq": "hirer"
+      }
+    }
+  ]
+}

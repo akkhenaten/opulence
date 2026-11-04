@@ -1,0 +1,486 @@
+[
+  {
+    "id": "CAS.PARTIES.WORKER",
+    "title": "Parties and status: casual worker",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "This agreement is between **{{parties.employer_name}}** of {{parties.employer_address}} (\"the Company\", \"we\", \"us\") and **{{parties.worker_name}}** of {{parties.worker_address}} (\"you\").\n\nIt sets out the terms on which we may offer you casual work, and the terms that apply to each assignment you accept. You agree to do the work personally. From how the work is expected to happen, we have assessed you as a worker, not an employee. Status depends on what happens in practice, not on the words used, so we will review it with you if the way you work changes.\n\nThis agreement is also the written statement of particulars required by section 1 of the Employment Rights Act 1996, which applies to workers as well as employees. Schedule 1 (Key particulars) forms part of it.",
+        "sources": [
+          { "title": "Employment Rights Act 1996, section 1", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" },
+          { "title": "GOV.UK: Employment status: worker", "url": "https://www.gov.uk/employment-status/worker" },
+          { "title": "GOV.UK: Written statement of employment particulars", "url": "https://www.gov.uk/employment-contracts-and-conditions/written-statement-of-employment-particulars" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["era1996-written-statement", "employment-status-casual"]
+      },
+      "ni": {
+        "body": "This agreement is between **{{parties.employer_name}}** of {{parties.employer_address}} (\"the Company\", \"we\", \"us\") and **{{parties.worker_name}}** of {{parties.worker_address}} (\"you\").\n\nIt sets out the terms on which we may offer you casual work, and the terms that apply to each assignment you accept. You agree to do the work personally. From how the work is expected to happen, we have assessed you as a worker, not an employee. Status depends on what happens in practice, not on the words used, so we will review it with you if the way you work changes.\n\nThe written statement duty in Article 33 of the Employment Rights (Northern Ireland) Order 1996 applies to employees. We give you the same information in this agreement before your first assignment. Schedule 1 (Key particulars) forms part of it.",
+        "sources": [
+          { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" },
+          { "title": "Labour Relations Agency: Types of contracts", "url": "https://www.lra.org.uk/starting-out/contracts-employment/types-contracts" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["ni-written-statement", "ni-good-jobs-bill", "employment-status-casual"]
+      }
+    }
+  },
+  {
+    "id": "CAS.PARTIES.EMPLOYEE",
+    "title": "Parties and status: casual employee",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "This contract is between **{{parties.employer_name}}** of {{parties.employer_address}} (\"the Company\", \"we\", \"us\") and **{{parties.worker_name}}** of {{parties.worker_address}} (\"you\").\n\nIt is your contract of employment. The amount of work you do varies, and work is offered and accepted as set out below, but you are an employee and this contract continues between assignments.\n\nIt is also the written statement of employment particulars required by section 1 of the Employment Rights Act 1996. Schedule 1 (Key particulars) forms part of it.",
+        "sources": [
+          { "title": "Employment Rights Act 1996, section 1", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" },
+          { "title": "GOV.UK: Employment status: employee", "url": "https://www.gov.uk/employment-status/employee" },
+          { "title": "Acas: Zero-hours contracts", "url": "https://www.acas.org.uk/zero-hours-contracts" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["era1996-written-statement", "employment-status-casual"]
+      },
+      "ni": {
+        "body": "This contract is between **{{parties.employer_name}}** of {{parties.employer_address}} (\"the Company\", \"we\", \"us\") and **{{parties.worker_name}}** of {{parties.worker_address}} (\"you\").\n\nIt is your contract of employment. The amount of work you do varies, and work is offered and accepted as set out below, but you are an employee and this contract continues between assignments.\n\nIt is also the written statement of particulars required by Article 33 of the Employment Rights (Northern Ireland) Order 1996. Schedule 1 (Key particulars) forms part of it.",
+        "sources": [
+          { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" },
+          { "title": "Labour Relations Agency: Types of contracts", "url": "https://www.lra.org.uk/starting-out/contracts-employment/types-contracts" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["ni-written-statement", "ni-good-jobs-bill", "employment-status-casual"]
+      }
+    }
+  },
+  {
+    "id": "CAS.START",
+    "title": "Start of this agreement",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "This agreement starts on {{start.date}}. It stays in place until either of us ends it as set out in the clause on ending this agreement.",
+        "sources": [
+          { "title": "Employment Rights Act 1996, section 1(3)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" },
+          { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "CAS.CONTINUOUS",
+    "title": "Continuous employment: casual employee",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "Your period of continuous employment began on {{start.continuous_date}}. Because this contract continues between assignments, weeks in which you do no work still count towards your continuous employment, as section 212 of the Employment Rights Act 1996 provides.",
+        "sources": [
+          { "title": "Employment Rights Act 1996, section 212", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/212" },
+          { "title": "Employment Rights Act 1996, section 1(3)(b)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }
+        ],
+        "checked_on": "2026-11-04"
+      },
+      "ni": {
+        "body": "Your period of continuous employment began on {{start.continuous_date}}. Because this contract continues between assignments, weeks in which you do no work still count towards your continuous employment, as the rules on continuous employment in the Employment Rights (Northern Ireland) Order 1996 provide.",
+        "sources": [
+          { "title": "Employment Rights (Northern Ireland) Order 1996", "url": "https://www.legislation.gov.uk/nisi/1996/1919/contents" },
+          { "title": "nidirect: Employment contracts and written statement", "url": "https://www.nidirect.gov.uk/articles/written-statement-employment-particulars" }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "CAS.BETWEEN.WORKER",
+    "title": "Between assignments: worker",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "Each assignment you accept is a separate engagement on the terms of this agreement. Apart from any guaranteed hours set out in this agreement, neither of us has to offer or accept work between assignments.\n\nBetween assignments, this agreement stays in place only so that the same terms apply to any later assignment, and so that the clauses on confidentiality, personal data and returning property continue to apply.",
+        "sources": [
+          { "title": "GOV.UK: Employment status: worker", "url": "https://www.gov.uk/employment-status/worker" },
+          { "title": "Acas: Zero-hours contracts", "url": "https://www.acas.org.uk/zero-hours-contracts" },
+          { "title": "Labour Relations Agency: Types of contracts", "url": "https://www.lra.org.uk/starting-out/contracts-employment/types-contracts" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["employment-status-casual"]
+      }
+    }
+  },
+  {
+    "id": "CAS.BETWEEN.EMPLOYEE",
+    "title": "Between assignments: employee",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "Your employment continues between assignments, including in weeks when you do no work. A gap between assignments does not end your employment. It only ends as set out in the clause on ending this contract.\n\nApart from any guaranteed hours set out in this contract, how work is offered and accepted is set out in the clauses on offers of work and availability. Your statutory rights as an employee continue to build up while this contract continues.",
+        "sources": [
+          { "title": "GOV.UK: Employment status: employee", "url": "https://www.gov.uk/employment-status/employee" },
+          { "title": "Acas: Zero-hours contracts", "url": "https://www.acas.org.uk/zero-hours-contracts" },
+          { "title": "Labour Relations Agency: Types of contracts", "url": "https://www.lra.org.uk/starting-out/contracts-employment/types-contracts" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["employment-status-casual"]
+      }
+    }
+  },
+  {
+    "id": "CAS.JOB",
+    "title": "Role and duties",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "Your role is **{{job.title}}**. On each assignment your main duties are: {{job.duties}}.\n\nYou report to {{job.reports_to}}, and on site to the supervisor or control room named in the assignment instructions. We will only offer you work that suits your skills, training and licence.",
+        "sources": [
+          { "title": "Employment Rights Act 1996, section 1(4)(f)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" },
+          { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "CAS.PLACE",
+    "title": "Assignment locations",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "Assignments may be at {{place.locations}}. Each offer of work tells you the site. The Company's address in this agreement is your base for records and correspondence.\n\nTime you spend travelling between sites during an assignment, at our request, is working time and is paid.",
+        "sources": [
+          { "title": "Employment Rights Act 1996, section 1(4)(h)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" },
+          { "title": "GOV.UK: Calculating the minimum wage (travel time)", "url": "https://www.gov.uk/government/publications/calculating-the-minimum-wage" }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "CAS.HOURS.ZERO",
+    "title": "Hours: no guaranteed hours",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "We do not guarantee you any hours of work. We offer work as and when it is available, and there may be weeks when we offer you none. Nothing in this agreement promises you a minimum amount of work or pay.",
+        "sources": [
+          { "title": "GOV.UK: Zero-hour contracts", "url": "https://www.gov.uk/contract-types-and-employer-responsibilities/zero-hour-contracts" },
+          { "title": "Employment Rights Act 1996, section 1(4)(c) and (da)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" },
+          { "title": "GOV.UK: Make Work Pay timeline", "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-guaranteed-hours", "ni-good-jobs-bill"]
+      }
+    }
+  },
+  {
+    "id": "CAS.HOURS.MINIMUM",
+    "title": "Hours: guaranteed minimum",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "We guarantee you {{hours.guaranteed}} hours of paid work in each week. If we offer you fewer hours than that in a week, we will still pay you for the guaranteed hours, unless you turned down or did not attend work we offered you within them.\n\nWork above the guaranteed hours is offered and accepted as set out in the clauses on offers of work and availability.",
+        "sources": [
+          { "title": "Employment Rights Act 1996, section 1(4)(c) and (da)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" },
+          { "title": "GOV.UK: Make Work Pay timeline", "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-guaranteed-hours", "ni-good-jobs-bill"]
+      }
+    }
+  },
+  {
+    "id": "CAS.OFFERS",
+    "title": "Offers of work",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "We offer work {{offer.channel}}, as far in advance as we reasonably can. Each offer tells you the site, the date, the start and finish times, the duties, the pay rate and any special requirements.\n\nIf you want the work, accept it {{offer.channel}} within {{offer.response}} of the offer. If you do not reply in that time, the offer lapses and we may offer the work to someone else. An assignment is agreed only when you have accepted the offer and we have confirmed it.\n\nWe keep a record of the offers we make you, and of each acceptance, confirmation and cancellation. You can ask to see your own record.",
+        "sources": [
+          { "title": "Acas: Zero-hours contracts", "url": "https://www.acas.org.uk/zero-hours-contracts" },
+          { "title": "GOV.UK: Zero-hour contracts", "url": "https://www.gov.uk/contract-types-and-employer-responsibilities/zero-hour-contracts" },
+          { "title": "Labour Relations Agency: Types of contracts", "url": "https://www.lra.org.uk/starting-out/contracts-employment/types-contracts" }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "CAS.AVAILABILITY.FREE",
+    "title": "Availability: free to accept or refuse work",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "You do not have to accept any work we offer, and you do not have to give a reason for turning work down. Turning down an offer will not be treated as misconduct and will not reduce the work we offer you in future.\n\nYou do not have to be available for work at any particular time.",
+        "sources": [
+          { "title": "Acas: Zero-hours contracts", "url": "https://www.acas.org.uk/zero-hours-contracts" },
+          { "title": "GOV.UK: Employment status: worker", "url": "https://www.gov.uk/employment-status/worker" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["employment-status-casual"]
+      }
+    }
+  },
+  {
+    "id": "CAS.AVAILABILITY.AGREED",
+    "title": "Availability: agreed times",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "You have agreed to be available for work {{availability.times}}. If we offer you work within those times, you should accept it unless you have a good reason not to, such as illness, caring responsibilities or other work you have already accepted.\n\nOutside those times you may turn down any offer without giving a reason, and doing so will not reduce the work we offer you in future. You may ask to change your agreed availability at any time, and we will consider your request reasonably and reply in writing.",
+        "sources": [
+          { "title": "Acas: Zero-hours contracts", "url": "https://www.acas.org.uk/zero-hours-contracts" },
+          { "title": "GOV.UK: Employment status: employee", "url": "https://www.gov.uk/employment-status/employee" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["employment-status-casual"]
+      }
+    }
+  },
+  {
+    "id": "CAS.SHIFT.ACCEPTED",
+    "title": "Once you accept an assignment",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "Once you have accepted an assignment you must:\n\n- arrive on time, fit for work and in uniform, with your SIA licence where the work is licensable;\n- book on and off duty as set out in the clause on recording time;\n- stay on duty for the whole assignment and not leave your post until you are properly relieved or the control room allows you to go;\n- follow the assignment instructions for the site.\n\nIf you can no longer work an assignment you have accepted, tell {{sick.notify}} as soon as you can, and at least {{shift.worker_cancel}} before it starts unless you are ill or there is an emergency. Failing to attend accepted assignments without good reason may be dealt with under our disciplinary rules.",
+        "sources": [
+          { "title": "GOV.UK: SIA standards of behaviour for security operatives", "url": "https://www.gov.uk/government/publications/standards-of-behaviour-for-security-operatives" },
+          { "title": "Acas: Zero-hours contracts", "url": "https://www.acas.org.uk/zero-hours-contracts" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["sia-licensing"]
+      }
+    }
+  },
+  {
+    "id": "CAS.CANCEL.PAID",
+    "title": "Cancellation and changes: booked hours paid",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "We may need to cancel or shorten an assignment you have accepted. We will tell you {{offer.channel}} as soon as we know, and we aim to give you at least {{shift.cancel_notice}} notice. If we cancel or shorten an accepted assignment with less notice than that, we will pay you for the hours of the assignment as booked.\n\nWe will not change the date or times of an accepted assignment without your agreement. If you do not agree to a change, the assignment is treated as cancelled by us.\n\nIf you have already arrived at the site when an assignment is cancelled or cut short, we will always pay you for the time you were required to be there.",
+        "sources": [
+          { "title": "Acas: Zero-hours contracts", "url": "https://www.acas.org.uk/zero-hours-contracts" },
+          { "title": "GOV.UK: Make Work Pay timeline", "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-shift-notice-cancellation", "ni-good-jobs-bill"]
+      }
+    }
+  },
+  {
+    "id": "CAS.CANCEL.PART",
+    "title": "Cancellation and changes: part payment",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "We may need to cancel or shorten an assignment you have accepted. We will tell you {{offer.channel}} as soon as we know, and we aim to give you at least {{shift.cancel_notice}} notice. If we cancel or shorten an accepted assignment with less notice than that, we will pay you {{shift.cancel_part}}.\n\nWe will not change the date or times of an accepted assignment without your agreement. If you do not agree to a change, the assignment is treated as cancelled by us.\n\nIf you have already arrived at the site when an assignment is cancelled or cut short, we will always pay you for the time you were required to be there.",
+        "sources": [
+          { "title": "Acas: Zero-hours contracts", "url": "https://www.acas.org.uk/zero-hours-contracts" },
+          { "title": "GOV.UK: Make Work Pay timeline", "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-shift-notice-cancellation", "ni-good-jobs-bill"]
+      }
+    }
+  },
+  {
+    "id": "CAS.CANCEL.UNPAID",
+    "title": "Cancellation and changes: no cancellation payment",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "We may need to cancel or shorten an assignment you have accepted. We will tell you {{offer.channel}} as soon as we know, and we aim to give you at least {{shift.cancel_notice}} notice. No cancellation payment is made for an assignment cancelled before you arrive at the site.\n\nWe will not change the date or times of an accepted assignment without your agreement. If you do not agree to a change, the assignment is treated as cancelled by us.\n\nIf you have already arrived at the site when an assignment is cancelled or cut short, we will always pay you for the time you were required to be there.",
+        "sources": [
+          { "title": "Acas: Zero-hours contracts", "url": "https://www.acas.org.uk/zero-hours-contracts" },
+          { "title": "GOV.UK: Make Work Pay timeline", "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-shift-notice-cancellation", "ni-good-jobs-bill"]
+      }
+    }
+  },
+  {
+    "id": "CAS.TIME",
+    "title": "Recording time",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "You must record your start and finish times {{time.method}}. Your pay is worked out from these records once they have been checked.\n\nWe pay you for all the time you are required to be at work, including briefings, handovers, training we require and travel between sites during an assignment. If a record of your time is wrong, tell us straight away so that it can be corrected before pay day.",
+        "sources": [
+          { "title": "GOV.UK: Calculating the minimum wage", "url": "https://www.gov.uk/government/publications/calculating-the-minimum-wage" },
+          { "title": "National Minimum Wage Regulations 2015, Part 5 (working time)", "url": "https://www.legislation.gov.uk/uksi/2015/621/part/5" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["nmw-2026"]
+      }
+    }
+  },
+  {
+    "id": "CAS.PAY",
+    "title": "Pay: hourly rate for casual work",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "We will pay you {{pay.rate}} for each hour you work, before tax and other deductions. You are paid {{pay.frequency}} in arrears by bank transfer, on {{pay.day}}, for the work you did in the pay period. You will receive an itemised payslip each time you are paid.\n\nYour pay will never be lower than the National Minimum Wage or National Living Wage that applies to you, worked out over each pay reference period as the National Minimum Wage Regulations 2015 require. Any change to your rate will be confirmed to you in writing before you accept work at the new rate.",
+        "sources": [
+          { "title": "GOV.UK: National Minimum Wage and National Living Wage rates", "url": "https://www.gov.uk/national-minimum-wage-rates" },
+          { "title": "GOV.UK: Payslips", "url": "https://www.gov.uk/payslips" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["nmw-2026"]
+      }
+    }
+  },
+  {
+    "id": "CAS.PAY.ENHANCEMENTS",
+    "title": "Pay: enhanced rates and allowances",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "These enhanced rates or allowances also apply: {{pay.enhancements}}.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(4)(a) and (b)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "CAS.HOLIDAY.BOOKING",
+    "title": "Holiday year and booking holiday",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "Your holiday year starts on {{holiday.year_start}}. Ask for holiday {{offer.channel}} at least {{holiday.notice}} in advance. We may refuse a request for operational reasons, or ask you to take holiday at particular times, by giving the notice the law requires.\n\nWhen this agreement ends, we will pay you for holiday you have built up but not taken, unless you have already been paid for it.",
+        "sources": [
+          { "title": "GOV.UK: Holiday entitlement", "url": "https://www.gov.uk/holiday-entitlement-rights" },
+          { "title": "nidirect: Holiday entitlements", "url": "https://www.nidirect.gov.uk/articles/holiday-entitlements" }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "CAS.LEAVE.WORKER",
+    "title": "Other leave and statutory payments: worker",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "Apart from holiday, there is no other paid leave under this agreement. Depending on your earnings and how long you have worked for us, you may qualify for statutory payments such as Statutory Maternity Pay, Statutory Paternity Pay, Statutory Adoption Pay, Statutory Shared Parental Pay and Statutory Parental Bereavement Pay. Ask us if you think one applies.",
+        "sources": [
+          { "title": "GOV.UK: Time off work", "url": "https://www.gov.uk/browse/working/time-off" },
+          { "title": "nidirect: Employment rights", "url": "https://www.nidirect.gov.uk/information-and-services/employment" }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "CAS.CONCERNS",
+    "title": "Discipline and grievances: casual work",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "Our disciplinary rules and grievance procedure are in {{discipline.where}}. They follow the Acas Code of Practice on Disciplinary and Grievance Procedures and do not form part of this agreement. If you disagree with a disciplinary decision, you may appeal in writing to {{discipline.appeal_to}}.\n\nIf you have a concern about your work, raise it with {{grievance.raise_with}}, in writing if you can. You may be accompanied at a disciplinary or grievance hearing, as section 10 of the Employment Relations Act 1999 provides.",
+        "sources": [
+          { "title": "Acas Code of Practice on disciplinary and grievance procedures", "url": "https://www.acas.org.uk/acas-code-of-practice-on-disciplinary-and-grievance-procedures" },
+          { "title": "Employment Relations Act 1999, section 10", "url": "https://www.legislation.gov.uk/ukpga/1999/26/section/10" }
+        ],
+        "checked_on": "2026-11-04"
+      },
+      "ni": {
+        "body": "Our disciplinary rules and grievance procedure are in {{discipline.where}}. They follow the Labour Relations Agency Code of Practice on Disciplinary and Grievance Procedures and do not form part of this agreement. If you disagree with a disciplinary decision, you may appeal in writing to {{discipline.appeal_to}}.\n\nIf you have a concern about your work, raise it with {{grievance.raise_with}}, in writing if you can. You may be accompanied at a disciplinary or grievance hearing, as the Employment Relations (Northern Ireland) Order 1999 provides.",
+        "sources": [
+          { "title": "Labour Relations Agency: Code of Practice on Disciplinary and Grievance Procedures", "url": "https://www.lra.org.uk/resources/code-practice/code-practice-disciplinary-and-grievance-procedures" },
+          { "title": "Employment Relations (Northern Ireland) Order 1999", "url": "https://www.legislation.gov.uk/nisi/1999/2790/contents" }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "CAS.OTHER_WORK.FREE",
+    "title": "Work for others: free to work elsewhere",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "You are free to work for other employers and businesses, including other security businesses, at any time. We will not treat you less favourably because you work elsewhere.\n\nPlease tell us if your other work could affect your rest breaks, rest periods or average weekly working time, so that we can meet our duties under the working time rules. Your duties of confidentiality under this agreement apply whoever else you work for.",
+        "sources": [
+          { "title": "Employment Rights Act 1996, section 27A", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/27A" },
+          { "title": "GOV.UK: Zero-hour contracts", "url": "https://www.gov.uk/contract-types-and-employer-responsibilities/zero-hour-contracts" },
+          { "title": "Labour Relations Agency: Types of contracts", "url": "https://www.lra.org.uk/starting-out/contracts-employment/types-contracts" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["zh-exclusivity-ban", "zh-exclusivity-low-income-2022", "ni-zero-hours-position"]
+      }
+    }
+  },
+  {
+    "id": "CAS.OTHER_WORK.EXCLUSIVE",
+    "title": "Work for others: consent needed for other security work",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "While this agreement continues, you must not work for another security business without our written consent. We will not refuse consent unreasonably, and we will give you our decision promptly. This does not stop you doing any other kind of work.\n\nThis clause does not apply, and will not be enforced, at any time when the law makes it unenforceable, for example while you have no guaranteed hours or your earnings are at or below the level the law protects.",
+        "sources": [
+          { "title": "Employment Rights Act 1996, section 27A", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/27A" },
+          { "title": "Exclusivity Terms for Zero Hours Workers (Unenforceability and Redress) Regulations 2022", "url": "https://www.legislation.gov.uk/uksi/2022/1145/made" },
+          { "title": "Labour Relations Agency: Types of contracts", "url": "https://www.lra.org.uk/starting-out/contracts-employment/types-contracts" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["zh-exclusivity-ban", "zh-exclusivity-redress-2015", "zh-exclusivity-low-income-2022", "ni-zero-hours-position", "ni-good-jobs-bill"]
+      }
+    }
+  },
+  {
+    "id": "CAS.ENDING.WORKER",
+    "title": "Ending this agreement: worker",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "Either of us may end this agreement by giving {{ending.notice}} notice in writing. Assignments you have already accepted that fall within the notice period still go ahead and are paid, unless we cancel them as set out in the clause on cancellation and changes.\n\nWe may end this agreement straight away, without notice, for gross misconduct after following our disciplinary procedure, or if you no longer hold a licence your work needs or no longer have the right to work in the UK.\n\nWhen this agreement ends, we will pay you for all work done and any holiday pay due, and you must return our property, uniform, keys, passes and documents.",
+        "sources": [
+          { "title": "Acas: Zero-hours contracts", "url": "https://www.acas.org.uk/zero-hours-contracts" },
+          { "title": "GOV.UK: Employment status: worker", "url": "https://www.gov.uk/employment-status/worker" }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "CAS.ENDING.EMPLOYEE",
+    "title": "Ending this contract: casual employee",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "Either of us may end this contract by giving notice in writing. You must give us {{ending.notice}} notice. We will give you {{ending.notice}} notice, or the statutory minimum notice in section 86 of the Employment Rights Act 1996 if that is longer: one week once you have been continuously employed for one month, rising to one week for each complete year of service, up to a maximum of twelve weeks.\n\nBecause this contract continues between assignments, it does not end just because no work has been offered or accepted for a while. We may pay you instead of some or all of your notice. We may end your employment without notice for gross misconduct, after following our disciplinary procedure.\n\nWhen your employment ends, we will pay you for all work done and any holiday pay due, and you must return our property, uniform, keys, passes and documents.",
+        "sources": [
+          { "title": "Employment Rights Act 1996, section 86", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/86" },
+          { "title": "GOV.UK: Notice periods", "url": "https://www.gov.uk/staff-redundant/notice-periods" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-unfair-dismissal-six-months"]
+      },
+      "ni": {
+        "body": "Either of us may end this contract by giving notice in writing. You must give us {{ending.notice}} notice. We will give you {{ending.notice}} notice, or the statutory minimum notice in Article 118 of the Employment Rights (Northern Ireland) Order 1996 if that is longer: one week once you have been continuously employed for one month, rising to one week for each complete year of service, up to a maximum of twelve weeks.\n\nBecause this contract continues between assignments, it does not end just because no work has been offered or accepted for a while. We may pay you instead of some or all of your notice. We may end your employment without notice for gross misconduct, after following our disciplinary procedure.\n\nWhen your employment ends, we will pay you for all work done and any holiday pay due, and you must return our property, uniform, keys, passes and documents.",
+        "sources": [
+          { "title": "Employment Rights (Northern Ireland) Order 1996, Article 118", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/118" },
+          { "title": "nidirect: Notice periods", "url": "https://www.nidirect.gov.uk/articles/giving-or-getting-notice-your-job" }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "CAS.ENTIRE",
+    "title": "Whole agreement: casual work",
+    "subject": "casual",
+    "versions": {
+      "all": {
+        "body": "This agreement, including Schedule 1 and any documents it says form part of it, is the whole agreement between you and us about casual work. It replaces any earlier agreement or arrangement about that work. The confirmation of each assignment you accept forms part of this agreement for that assignment. Our policies, procedures and assignment instructions do not form part of it unless it says so, and we may update them.\n\nThis agreement is meant to record what really happens. If the way you are offered or do work changes, tell us, and we will review this agreement with you.",
+        "sources": [
+          { "title": "Acas: Employment contracts", "url": "https://www.acas.org.uk/employment-contracts" },
+          { "title": "GOV.UK: Employment status", "url": "https://www.gov.uk/employment-status" }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  }
+]

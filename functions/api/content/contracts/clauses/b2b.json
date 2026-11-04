@@ -1,0 +1,1062 @@
+[
+  {
+    "id": "B2B.PARTIES",
+    "title": "Parties and defined terms",
+    "subject": "b2b",
+    "versions": {
+      "all": {
+        "body": "This agreement is between {{parties.company_name}} of {{parties.company_address}} (\"the Company\") and {{parties.supplier_name}} of {{parties.supplier_address}} (\"the Supplier\").\n\nIn this agreement:\n- \"Supplier Personnel\" means every individual the Supplier provides to carry out work under this agreement, whether the Supplier employs them, engages them on another basis or obtains them through a third party approved under this agreement.\n- \"Site\" means a location listed in this agreement or in an order or change the parties agree in writing.\n- \"End Client\" means the Company's customer at a Site.\n\nThe Supplier enters into this agreement as an independent business. Nothing in it makes the Supplier, or any of the Supplier Personnel, an employee of the Company, and nothing in it makes the parties partners or agents of each other.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          },
+          {
+            "title": "SIA: Learn how HMRC rules apply to the security operatives you deploy",
+            "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "B2B.TERM.ROLLING",
+    "title": "Term: continues until ended",
+    "subject": "b2b",
+    "versions": {
+      "all": {
+        "body": "This agreement starts on {{agreement.start}}. It continues until either party ends it under the termination clause.",
+        "sources": [
+          {
+            "title": "GOV.UK: Invoicing and taking payment from customers",
+            "url": "https://www.gov.uk/invoicing-and-taking-payment-from-customers"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "B2B.TERM.FIXED",
+    "title": "Term: fixed end date",
+    "subject": "b2b",
+    "versions": {
+      "all": {
+        "body": "This agreement starts on {{agreement.start}} and ends on {{agreement.end}}, unless it is ended earlier under the termination clause or the parties agree in writing to extend it.",
+        "sources": [
+          {
+            "title": "GOV.UK: Invoicing and taking payment from customers",
+            "url": "https://www.gov.uk/invoicing-and-taking-payment-from-customers"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "B2B.DUTIES",
+    "title": "Legal duties that stay with each party",
+    "subject": "b2b",
+    "versions": {
+      "all": {
+        "body": "This agreement allocates practical responsibilities between the parties. Allocating a task to one party does not remove or transfer a duty that the law places on the other. Each party remains responsible for its own legal obligations, whatever this agreement says.\n\nIn particular:\n- **Health and safety.** Each party keeps its own duties under the Health and Safety at Work etc. Act 1974 and the Management of Health and Safety at Work Regulations 1999 towards anyone affected by its activities, including Supplier Personnel working at a Site the Company controls or arranges. The parties will share the risk information each needs and co-operate and co-ordinate their arrangements.\n- **Working time.** The party that employs or pays an individual keeps its duties under the Working Time Regulations 1998. The party that sets or changes shift patterns will not knowingly schedule anyone in a way that breaches the limits or rest entitlements in those Regulations, and each party will give the other the hours records it needs to check this.\n- **Security licensing.** Under the Private Security Industry Act 2001 it is an offence to carry out licensable conduct without a valid SIA licence and to use or supply unlicensed operatives. Each party remains responsible for making sure that no one it deploys, or allows to work, carries out licensable activity without the right licence.\n- **Right to work.** Each party remains responsible for any right-to-work check the law requires it to make.",
+        "sources": [
+          {
+            "title": "Health and Safety at Work etc. Act 1974",
+            "url": "https://www.legislation.gov.uk/ukpga/1974/37/contents"
+          },
+          {
+            "title": "Management of Health and Safety at Work Regulations 1999",
+            "url": "https://www.legislation.gov.uk/uksi/1999/3242/contents"
+          },
+          {
+            "title": "Working Time Regulations 1998",
+            "url": "https://www.legislation.gov.uk/uksi/1998/1833/contents"
+          },
+          {
+            "title": "Private Security Industry Act 2001",
+            "url": "https://www.legislation.gov.uk/ukpga/2001/12/contents"
+          },
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "hswa-1974",
+          "sia-licensing"
+        ]
+      },
+      "ni": {
+        "body": "This agreement allocates practical responsibilities between the parties. Allocating a task to one party does not remove or transfer a duty that the law places on the other. Each party remains responsible for its own legal obligations, whatever this agreement says.\n\nIn particular:\n- **Health and safety.** Each party keeps its own duties under the Health and Safety at Work (Northern Ireland) Order 1978 and the regulations made under it towards anyone affected by its activities, including Supplier Personnel working at a Site the Company controls or arranges. The parties will share the risk information each needs and co-operate and co-ordinate their arrangements.\n- **Working time.** The party that employs or pays an individual keeps its duties under the Working Time Regulations (Northern Ireland) 2016. The party that sets or changes shift patterns will not knowingly schedule anyone in a way that breaches the limits or rest entitlements in those Regulations, and each party will give the other the hours records it needs to check this.\n- **Security licensing.** Under the Private Security Industry Act 2001, which applies in Northern Ireland, it is an offence to carry out licensable conduct without a valid SIA licence and to use or supply unlicensed operatives. Each party remains responsible for making sure that no one it deploys, or allows to work, carries out licensable activity without the right licence.\n- **Right to work.** Each party remains responsible for any right-to-work check the law requires it to make.",
+        "sources": [
+          {
+            "title": "Health and Safety at Work (Northern Ireland) Order 1978",
+            "url": "https://www.legislation.gov.uk/nisi/1978/1039/contents"
+          },
+          {
+            "title": "Working Time Regulations (Northern Ireland) 2016",
+            "url": "https://www.legislation.gov.uk/nisr/2016/49/contents"
+          },
+          {
+            "title": "Private Security Industry Act 2001",
+            "url": "https://www.legislation.gov.uk/ukpga/2001/12/contents"
+          },
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "hsw-ni-1978",
+          "ni-wtr-2016",
+          "sia-licensing"
+        ]
+      }
+    }
+  },
+  {
+    "id": "B2B.INVOICING",
+    "title": "Invoicing, payment and disputed amounts",
+    "subject": "b2b",
+    "versions": {
+      "all": {
+        "body": "The Supplier will invoice the Company {{invoice.frequency}}. Each invoice must show the Sites, dates and hours or services it covers, the charges applied and, where VAT is chargeable, VAT shown separately on a valid VAT invoice.\n\nThe Company will pay each valid and undisputed invoice within {{invoice.payment_terms}}.\n\nIf the Company disputes any part of an invoice, it will tell the Supplier in writing within {{invoice.dispute_period}} of receiving it, giving its reasons, and will pay the undisputed part on time. The parties will try to resolve the disputed part promptly under the disputes clause, and the Company will pay any amount agreed or found to be due within {{invoice.payment_terms}} of that agreement or decision.\n\nThe Late Payment of Commercial Debts (Interest) Act 1998 applies to late payment of any amount due.",
+        "sources": [
+          {
+            "title": "GOV.UK: Late commercial payments: charging interest and debt recovery",
+            "url": "https://www.gov.uk/late-commercial-payments-interest-debt-recovery"
+          },
+          {
+            "title": "Late Payment of Commercial Debts (Interest) Act 1998",
+            "url": "https://www.legislation.gov.uk/ukpga/1998/20/contents"
+          },
+          {
+            "title": "GOV.UK: Invoicing and taking payment from customers",
+            "url": "https://www.gov.uk/invoicing-and-taking-payment-from-customers"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "B2B.INSURANCE",
+    "title": "Insurance",
+    "subject": "b2b",
+    "versions": {
+      "all": {
+        "body": "The Supplier will hold, with reputable insurers, and keep in force for as long as this agreement lasts:\n- employers' liability insurance as required by the Employers' Liability (Compulsory Insurance) Act 1969, for not less than {{insurance.employers_liability}} for any one occurrence, and in any case not less than the statutory minimum;\n- public liability insurance for not less than {{insurance.public_liability}} for any one occurrence.\n\nThe Supplier will give the Company evidence of this cover before any work starts, on each renewal and whenever the Company reasonably asks. The Supplier will tell the Company promptly if any policy is cancelled, not renewed or materially changed.\n\nThe amounts of cover are minimums, not a limit on the Supplier's liability.",
+        "sources": [
+          {
+            "title": "GOV.UK: Employers' liability insurance",
+            "url": "https://www.gov.uk/employers-liability-insurance"
+          },
+          {
+            "title": "Employers' Liability (Compulsory Insurance) Act 1969",
+            "url": "https://www.legislation.gov.uk/ukpga/1969/57/contents"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "elci-1969"
+        ]
+      },
+      "ni": {
+        "body": "The Supplier will hold, with reputable insurers, and keep in force for as long as this agreement lasts:\n- employer's liability insurance as required by the Employer's Liability (Defective Equipment and Compulsory Insurance) (Northern Ireland) Order 1972, for not less than {{insurance.employers_liability}} for any one occurrence, and in any case not less than the statutory minimum;\n- public liability insurance for not less than {{insurance.public_liability}} for any one occurrence.\n\nThe Supplier will give the Company evidence of this cover before any work starts, on each renewal and whenever the Company reasonably asks. The Supplier will tell the Company promptly if any policy is cancelled, not renewed or materially changed.\n\nThe amounts of cover are minimums, not a limit on the Supplier's liability.",
+        "sources": [
+          {
+            "title": "Employer's Liability (Defective Equipment and Compulsory Insurance) (Northern Ireland) Order 1972",
+            "url": "https://www.legislation.gov.uk/nisi/1972/963/contents"
+          },
+          {
+            "title": "Employer's Liability (Compulsory Insurance) Regulations (Northern Ireland) 1999",
+            "url": "https://www.legislation.gov.uk/nisr/1999/448/contents"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "elci-ni-1972"
+        ]
+      }
+    }
+  },
+  {
+    "id": "B2B.INSURANCE.OTHER",
+    "title": "Insurance: further cover",
+    "subject": "b2b",
+    "versions": {
+      "all": {
+        "body": "The Supplier will also hold the following cover, on the same terms about evidence and notice: {{insurance.other}}.",
+        "sources": [
+          {
+            "title": "GOV.UK: Employers' liability insurance",
+            "url": "https://www.gov.uk/employers-liability-insurance"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "B2B.LIABILITY",
+    "title": "Liability and indemnity",
+    "subject": "b2b",
+    "versions": {
+      "all": {
+        "body": "Nothing in this agreement limits or excludes either party's liability for death or personal injury caused by its negligence, for fraud or fraudulent misrepresentation, or for anything else the law does not allow to be limited or excluded (see section 2 of the Unfair Contract Terms Act 1977).\n\nThe Supplier will indemnify the Company against losses, fines, penalties, claims and reasonable costs the Company suffers because of:\n- any claim by Supplier Personnel, or by HMRC or another authority, about the pay, tax, National Insurance contributions, holiday pay, pension contributions or other employment rights of Supplier Personnel, except to the extent the Company caused it;\n- the Supplier providing anyone who does not hold a valid SIA licence of the right type for the work, or who does not have the right to work in the UK;\n- the Supplier's breach of the data protection or confidentiality terms of this agreement.\n\nSubject to the first paragraph and the indemnity above, each party's total liability to the other arising out of or in connection with this agreement in any contract year is limited to {{liability.cap}}. Neither party is liable to the other for loss of profit or indirect or consequential loss.\n\nA party claiming under this clause must tell the other promptly about the claim, take reasonable steps to limit its loss, and not settle a third-party claim without consulting the other.",
+        "sources": [
+          {
+            "title": "Unfair Contract Terms Act 1977, section 2",
+            "url": "https://www.legislation.gov.uk/ukpga/1977/50/section/2"
+          },
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          },
+          {
+            "title": "SIA: Learn how HMRC rules apply to the security operatives you deploy",
+            "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      },
+      "sc": {
+        "body": "Nothing in this agreement limits or excludes either party's liability for death or personal injury caused by its breach of duty, for fraud or fraudulent misrepresentation, or for anything else the law does not allow to be limited or excluded (see section 16 of the Unfair Contract Terms Act 1977, which applies in Scotland).\n\nThe Supplier will indemnify the Company against losses, fines, penalties, claims and reasonable costs the Company suffers because of:\n- any claim by Supplier Personnel, or by HMRC or another authority, about the pay, tax, National Insurance contributions, holiday pay, pension contributions or other employment rights of Supplier Personnel, except to the extent the Company caused it;\n- the Supplier providing anyone who does not hold a valid SIA licence of the right type for the work, or who does not have the right to work in the UK;\n- the Supplier's breach of the data protection or confidentiality terms of this agreement.\n\nSubject to the first paragraph and the indemnity above, each party's total liability to the other arising out of or in connection with this agreement in any contract year is limited to {{liability.cap}}. Neither party is liable to the other for loss of profit or indirect or consequential loss.\n\nA party claiming under this clause must tell the other promptly about the claim, take reasonable steps to limit its loss, and not settle a third-party claim without consulting the other.",
+        "sources": [
+          {
+            "title": "Unfair Contract Terms Act 1977, section 16 (Scotland)",
+            "url": "https://www.legislation.gov.uk/ukpga/1977/50/section/16"
+          },
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          },
+          {
+            "title": "SIA: Learn how HMRC rules apply to the security operatives you deploy",
+            "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "B2B.TUPE",
+    "title": "Possible transfer of employees (TUPE)",
+    "subject": "b2b",
+    "versions": {
+      "all": {
+        "body": "The Transfer of Undertakings (Protection of Employment) Regulations 2006 (\"TUPE\") can transfer employees automatically to a new employer when a service starts, moves between contractors or ends. Whether TUPE applies depends on the facts at the time. This agreement does not assume that it will or will not apply.\n\nBefore this agreement starts, when the services or the Supplier Personnel change significantly, and when it is due to end, the parties will assess together whether TUPE may apply. Each party will give the other, promptly and accurately, the information it reasonably needs for that assessment, and the employee liability information TUPE requires a transferring employer to give.\n\nThe Supplier will not, without the Company's written agreement, make changes intended to alter which of its employees are assigned to the work covered by this agreement during the period before it ends. Any agreement about who bears the cost of a transfer must be made in writing and checked by a legal adviser.",
+        "sources": [
+          {
+            "title": "Transfer of Undertakings (Protection of Employment) Regulations 2006",
+            "url": "https://www.legislation.gov.uk/uksi/2006/246/contents"
+          },
+          {
+            "title": "Acas: TUPE (transfer of undertakings)",
+            "url": "https://www.acas.org.uk/tupe"
+          },
+          {
+            "title": "GOV.UK: Business transfers, takeovers and TUPE",
+            "url": "https://www.gov.uk/transfers-takeovers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "tupe-2006"
+        ]
+      },
+      "ni": {
+        "body": "In Northern Ireland, the Transfer of Undertakings (Protection of Employment) Regulations 2006 and the Service Provision Change (Protection of Employment) Regulations (Northern Ireland) 2006 (together \"TUPE\") can transfer employees automatically to a new employer when a service starts, moves between contractors or ends. Whether TUPE applies depends on the facts at the time. This agreement does not assume that it will or will not apply.\n\nBefore this agreement starts, when the services or the Supplier Personnel change significantly, and when it is due to end, the parties will assess together whether TUPE may apply. Each party will give the other, promptly and accurately, the information it reasonably needs for that assessment, and the employee liability information TUPE requires a transferring employer to give.\n\nThe Supplier will not, without the Company's written agreement, make changes intended to alter which of its employees are assigned to the work covered by this agreement during the period before it ends. Any agreement about who bears the cost of a transfer must be made in writing and checked by a legal adviser.",
+        "sources": [
+          {
+            "title": "Transfer of Undertakings (Protection of Employment) Regulations 2006",
+            "url": "https://www.legislation.gov.uk/uksi/2006/246/contents"
+          },
+          {
+            "title": "Service Provision Change (Protection of Employment) Regulations (Northern Ireland) 2006",
+            "url": "https://www.legislation.gov.uk/nisr/2006/177/contents"
+          },
+          {
+            "title": "nidirect: Employment protection during business transfers and takeovers",
+            "url": "https://www.nidirect.gov.uk/articles/employment-protection-during-business-transfers-and-takeovers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "tupe-2006",
+          "ni-spc-2006"
+        ]
+      }
+    }
+  },
+  {
+    "id": "B2B.NONSOLICIT",
+    "title": "Non-solicitation of staff",
+    "subject": "b2b",
+    "versions": {
+      "all": {
+        "body": "While this agreement lasts and for {{nonsolicit.period}} after it ends, neither party will actively solicit any employee of the other who was materially involved in the work under this agreement to leave that employment.\n\nThis does not stop either party responding to, or employing someone who applies through, a general advertisement or recruitment campaign not aimed at the other party's staff. It does not restrict any individual's freedom to choose where they work.",
+        "sources": [
+          {
+            "title": "Acas: Changing an employment contract",
+            "url": "https://www.acas.org.uk/changing-an-employment-contract"
+          },
+          {
+            "title": "GOV.UK: Invoicing and taking payment from customers",
+            "url": "https://www.gov.uk/invoicing-and-taking-payment-from-customers"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "B2B.TERMINATION",
+    "title": "Ending this agreement",
+    "subject": "b2b",
+    "versions": {
+      "all": {
+        "body": "Either party may end this agreement by giving the other at least {{termination.notice}} written notice.\n\nEither party may end this agreement immediately by written notice if the other:\n- commits a serious breach of it which cannot be put right, or which is not put right within {{termination.remedy_period}} of written notice asking for it to be put right;\n- becomes insolvent, enters administration, liquidation or any arrangement with its creditors, or stops trading.\n\nThe Company may also end this agreement immediately by written notice if the Supplier, or anyone it provides, acts in a way that puts the Company in breach of the law or of the SIA's requirements, or if the Supplier loses any licence, approval or registration this agreement requires it to hold.\n\nEnding this agreement does not affect rights and obligations that have already arisen, or any term intended to continue after it ends, including confidentiality, data protection, liability, insurance for claims already notified, payment of amounts due and return of property.",
+        "sources": [
+          {
+            "title": "GOV.UK: Invoicing and taking payment from customers",
+            "url": "https://www.gov.uk/invoicing-and-taking-payment-from-customers"
+          },
+          {
+            "title": "SIA: Apply for an SIA licence",
+            "url": "https://www.gov.uk/guidance/apply-for-an-sia-licence"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "B2B.DISPUTES",
+    "title": "Resolving disputes",
+    "subject": "b2b",
+    "versions": {
+      "all": {
+        "body": "If a dispute arises, either party may give the other written notice of it. The named contacts will meet, in person or remotely, to try to resolve it. If they cannot resolve it within {{disputes.escalation_period}} of the notice, it will be referred to a director or senior manager of each party.\n\nIf the dispute is still not resolved, the parties may agree to try mediation. Nothing in this clause stops either party applying to a court for urgent relief, or starting proceedings to protect its position.\n\nWhile a dispute is being resolved, each party will keep performing its obligations under this agreement, including paying undisputed amounts.",
+        "sources": [
+          {
+            "title": "GOV.UK: Late commercial payments: charging interest and debt recovery",
+            "url": "https://www.gov.uk/late-commercial-payments-interest-debt-recovery"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "B2B.ENTIRE",
+    "title": "Whole agreement",
+    "subject": "b2b",
+    "versions": {
+      "all": {
+        "body": "This agreement, its Schedules and the documents listed as forming part of it are the whole agreement between the parties about its subject matter. Policies and guidance that are not listed as forming part of it are not contractual.\n\nIf there is a conflict, the main terms of this agreement take priority over a Schedule, and a Schedule takes priority over any other document forming part of it. Terms printed on an order, invoice or timesheet do not apply unless both parties agree them in writing.\n\nEach party confirms it has not relied on any statement that is not set out in this agreement. This does not limit liability for fraud.",
+        "sources": [
+          {
+            "title": "Acas: Changing an employment contract",
+            "url": "https://www.acas.org.uk/changing-an-employment-contract"
+          },
+          {
+            "title": "GOV.UK: Invoicing and taking payment from customers",
+            "url": "https://www.gov.uk/invoicing-and-taking-payment-from-customers"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "LAB.NATURE",
+    "title": "Nature of the supply and management",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "The Supplier supplies Supplier Personnel to the Company to supplement the Company's own workforce. This is a supply of labour, not a subcontract: the Company remains responsible to the End Client for the security services at each Site, and the Supplier does not take responsibility for delivering those services.\n\nWhile on assignment, Supplier Personnel work under the direction and supervision of the Company. Day-to-day management at each Site is the responsibility of {{management.company_contact}}, or another person the Company names in writing. The Supplier's contact for this agreement is {{management.supplier_contact}}.\n\nThe Company will tell each End Client that it uses supplied labour at their Site where the End Client's contract or the SIA's guidance calls for it.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "sia-labour-or-subcontract"
+        ]
+      }
+    }
+  },
+  {
+    "id": "LAB.ORDERING",
+    "title": "Ordering shifts and changes",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "The Company will request Supplier Personnel by {{ordering.method}}. Each request will state the Site, dates, shift times, number of people, role, SIA licence category required, any additional training, experience or qualifications needed, and any known health and safety risks of the work and the steps taken to control them.\n\nThe Supplier will confirm or decline each request within {{ordering.response_time}}. A request becomes a binding order only when the Supplier confirms it. The Company is not obliged to place any minimum number of orders, and the Supplier is not obliged to accept any request.\n\nEither party may ask to change a confirmed order. A change takes effect when both parties confirm it in writing. The Company may cancel a confirmed shift by giving at least {{ordering.cancellation_notice}} notice. If the Company cancels with less notice, it will pay the Supplier {{ordering.cancellation_charge}}.\n\nCharges for cancelled shifts are between the Company and the Supplier. They do not decide what the Supplier pays any individual for a cancelled shift, which is the Supplier's responsibility under its own contracts and the law.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          },
+          {
+            "title": "Conduct Regulations 2003, regulation 18 (information to be obtained from a hirer)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/18"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "era2025-shift-notice-cancellation"
+        ]
+      },
+      "ni": {
+        "body": "The Company will request Supplier Personnel by {{ordering.method}}. Each request will state the Site, dates, shift times, number of people, role, SIA licence category required, any additional training, experience or qualifications needed, and any known health and safety risks of the work and the steps taken to control them.\n\nThe Supplier will confirm or decline each request within {{ordering.response_time}}. A request becomes a binding order only when the Supplier confirms it. The Company is not obliged to place any minimum number of orders, and the Supplier is not obliged to accept any request.\n\nEither party may ask to change a confirmed order. A change takes effect when both parties confirm it in writing. The Company may cancel a confirmed shift by giving at least {{ordering.cancellation_notice}} notice. If the Company cancels with less notice, it will pay the Supplier {{ordering.cancellation_charge}}.\n\nCharges for cancelled shifts are between the Company and the Supplier. They do not decide what the Supplier pays any individual for a cancelled shift, which is the Supplier's responsibility under its own contracts and the law.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          },
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+            "url": "https://www.legislation.gov.uk/nisr/2005/395/contents"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "LAB.REQUIREMENTS",
+    "title": "Roles, Sites and personnel requirements",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "The Supplier will supply Supplier Personnel for these roles: {{supply.roles}}, at these Sites: {{supply.sites}}.\n\nEach person supplied must:\n- hold a valid SIA licence of the following category for the work they will do: {{supply.licence_categories}};\n- have the competence, training and experience the Company asks for, including: {{supply.competence}};\n- have been screened and vetted, and have had their right to work in the UK checked, as set out in this agreement;\n- complete the Company's site induction before working their first shift at a Site.\n\nBefore anyone works their first shift, the Supplier will give the Company evidence of their identity, licence, right-to-work check, screening and training. The Company may also check any licence on the SIA's public register and carry out its own checks. The Company may refuse anyone for whom the evidence is missing or does not meet these requirements.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          },
+          {
+            "title": "SIA: Apply for an SIA licence",
+            "url": "https://www.gov.uk/guidance/apply-for-an-sia-licence"
+          },
+          {
+            "title": "Home Office: Right to work checks, an employer's guide",
+            "url": "https://www.gov.uk/government/publications/right-to-work-checks-employers-guide"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "sia-licensing",
+          "right-to-work"
+        ]
+      }
+    }
+  },
+  {
+    "id": "LAB.RESPONSIBILITIES",
+    "title": "Who is responsible for what",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "**The Supplier** is responsible for:\n- employing or engaging Supplier Personnel and setting their terms;\n- paying Supplier Personnel, including holiday pay, sick pay and any pension contributions, and deducting and paying tax and National Insurance contributions as the law requires;\n- the licence, right-to-work and screening checks before supply, and keeping them up to date;\n- the training and competence it has confirmed;\n- dealing with Supplier Personnel's grievances and discipline as their employer or engager, with the Company's co-operation.\n\n**The Company** is responsible for:\n- directing and supervising Supplier Personnel's work at each Site;\n- site induction, assignment instructions and Site-specific health and safety information;\n- recording hours worked and approving timesheets;\n- giving the Supplier the information it needs to meet its own legal duties, including those described in the agency workers clause.\n\nThis allocation does not change the duties each party keeps under the clause on legal duties.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          },
+          {
+            "title": "SIA: Learn how HMRC rules apply to the security operatives you deploy",
+            "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "LAB.RATES",
+    "title": "Charge rates and timesheets",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "The Company will pay the Supplier the charge rates set out here: {{rates.schedule}}. The following premiums apply: {{rates.premiums}}. VAT is added where it applies.\n\nThe charge rates are the price the Company pays the Supplier for the supply. They are not the pay of Supplier Personnel. The Supplier alone sets and pays the pay of Supplier Personnel, and it is never worked out from the charge rate. The Supplier must pay each person at least the National Minimum Wage or National Living Wage that applies to them, and any pay the agency workers clause requires, whatever the charge rate.\n\nA change to the charge rates must be agreed in writing. A change in the charge rate does not of itself change anyone's pay, and a change in anyone's pay does not of itself change the charge rate.\n\nSupplier Personnel's hours will be recorded on timesheets approved by {{timesheets.approver}}. The Company will approve or query each timesheet promptly. Charges are calculated only on approved hours. A query about hours is handled as a disputed amount under the invoicing clause, and the Supplier remains responsible for paying Supplier Personnel on time while it is resolved.",
+        "sources": [
+          {
+            "title": "GOV.UK: National Minimum Wage and National Living Wage rates",
+            "url": "https://www.gov.uk/national-minimum-wage-rates"
+          },
+          {
+            "title": "SIA: Learn how HMRC rules apply to the security operatives you deploy",
+            "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "nmw-2026"
+        ]
+      }
+    }
+  },
+  {
+    "id": "LAB.ATTENDANCE",
+    "title": "Attendance, replacement and unsuitable personnel",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "The Supplier will tell {{attendance.report_to}} as soon as it knows that a confirmed person will not attend or will be late, and at least {{attendance.absence_notice}} before the shift starts where possible.\n\nThe Supplier will use reasonable efforts to provide a suitable replacement within {{attendance.replacement_time}}. A replacement must meet the same requirements as the person replaced. If the Supplier cannot fill a confirmed shift, it will tell the Company straight away so that the Company can arrange cover. The Company does not pay for hours not worked.\n\nThe Company may ask the Supplier not to supply a particular person again, or to remove them from a Site, if it reasonably considers them unsuitable. It will give the Supplier its reasons in writing. The Company will not make such a request for a reason that would be unlawful discrimination. The Supplier remains responsible for that person's employment and pay.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          },
+          {
+            "title": "GOV.UK: Agency workers: your rights",
+            "url": "https://www.gov.uk/agency-workers-your-rights"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "LAB.TAX_ASSURANCE",
+    "title": "Employment and tax assurance",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "The Supplier confirms that it operates PAYE and deducts National Insurance contributions for Supplier Personnel whenever the law requires, including under the agency rules in Chapter 7 of Part 2 of the Income Tax (Earnings and Pensions) Act 2003 where Supplier Personnel work under the Company's supervision, direction or control.\n\nThe Supplier will not pay or engage Supplier Personnel through any umbrella company, personal service company, offshore arrangement or other intermediary unless the further supply chains clause allows it and the Company has approved that intermediary in writing.\n\nThe Supplier will give the Company, when asked, reasonable evidence that it is meeting these obligations, which may include confirmation of its PAYE registration, evidence of payment of Supplier Personnel at or above the legal minimum, its holiday pay and pension arrangements, and confirmation that it has no unresolved HMRC enforcement action relevant to this agreement.\n\nThe Company, or an auditor it appoints, may inspect the Supplier's records relevant to this agreement on giving at least {{assurance.audit_notice}} notice. The Supplier will co-operate, and will tell the Company promptly if it becomes aware of any failure to meet these obligations.",
+        "sources": [
+          {
+            "title": "SIA: Learn how HMRC rules apply to the security operatives you deploy",
+            "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy"
+          },
+          {
+            "title": "Income Tax (Earnings and Pensions) Act 2003, section 44 (agency workers)",
+            "url": "https://www.legislation.gov.uk/ukpga/2003/1/section/44"
+          },
+          {
+            "title": "GOV.UK: National Minimum Wage and National Living Wage rates",
+            "url": "https://www.gov.uk/national-minimum-wage-rates"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "era2025-umbrella-companies"
+        ]
+      }
+    }
+  },
+  {
+    "id": "LAB.AGENCY_WORKERS",
+    "title": "Agency workers: information and equal treatment",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "Where the Agency Workers Regulations 2010 apply, the Supplier is the temporary work agency and the Company is the hirer.\n\n**The Supplier** is responsible for giving Supplier Personnel the basic working and employment conditions they are entitled to, including equal treatment on pay, working time, rest and annual leave once they have completed the statutory qualifying period (12 weeks in the same role with the Company), and for tracking that qualifying period.\n\n**The Company** is responsible for:\n- giving Supplier Personnel the same access to collective facilities and amenities, and the same information about vacancies, as comparable workers it employs directly, from their first day;\n- giving the Supplier, promptly and in writing, accurate information about the basic working and employment conditions of comparable workers and any changes to them, and the information needed to track the qualifying period;\n- co-operating with any request for information from Supplier Personnel under the Regulations.\n\nIf equal treatment changes what the Supplier must pay Supplier Personnel, the Supplier may ask to review the charge rates under the charge rates clause. A review of the charge rates never reduces anyone's entitlement under the Regulations.",
+        "sources": [
+          {
+            "title": "Agency Workers Regulations 2010",
+            "url": "https://www.legislation.gov.uk/uksi/2010/93/contents"
+          },
+          {
+            "title": "GOV.UK: Agency workers: your rights",
+            "url": "https://www.gov.uk/agency-workers-your-rights"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "awr-2010",
+          "era2025-guaranteed-hours"
+        ]
+      },
+      "ni": {
+        "body": "Where the Agency Workers Regulations (Northern Ireland) 2011 apply, the Supplier is the temporary work agency and the Company is the hirer.\n\n**The Supplier** is responsible for giving Supplier Personnel the basic working and employment conditions they are entitled to, including equal treatment on pay, working time, rest and annual leave once they have completed the statutory qualifying period (12 weeks in the same role with the Company), and for tracking that qualifying period.\n\n**The Company** is responsible for:\n- giving Supplier Personnel the same access to collective facilities and amenities, and the same information about vacancies, as comparable workers it employs directly, from their first day;\n- giving the Supplier, promptly and in writing, accurate information about the basic working and employment conditions of comparable workers and any changes to them, and the information needed to track the qualifying period;\n- co-operating with any request for information from Supplier Personnel under the Regulations.\n\nIf equal treatment changes what the Supplier must pay Supplier Personnel, the Supplier may ask to review the charge rates under the charge rates clause. A review of the charge rates never reduces anyone's entitlement under the Regulations.",
+        "sources": [
+          {
+            "title": "Agency Workers Regulations (Northern Ireland) 2011",
+            "url": "https://www.legislation.gov.uk/nisr/2011/350/contents"
+          },
+          {
+            "title": "nidirect: Agency workers",
+            "url": "https://www.nidirect.gov.uk/articles/agency-workers"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "awr-ni-2011"
+        ]
+      }
+    }
+  },
+  {
+    "id": "LAB.CONDUCT_REGS",
+    "title": "Employment business obligations",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "The Supplier confirms that it acts as an employment business and will comply with the Employment Agencies Act 1973 and the Conduct of Employment Agencies and Employment Businesses Regulations 2003 (\"the Conduct Regulations\").\n\nThese terms are the terms agreed with the Company as hirer before the Supplier supplies anyone, as the Conduct Regulations require. The Company will give the Supplier the information about each assignment that the Conduct Regulations require a hirer to provide, through the ordering process in this agreement.\n\nBefore supplying anyone, the Supplier will confirm their identity, that they have the experience, training, qualifications and authorisations (including an SIA licence) the Company has said are needed, and that they are willing to work in the role. It will give the Company the information the Conduct Regulations require about each person supplied.",
+        "sources": [
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations 2003",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/contents"
+          },
+          {
+            "title": "Conduct Regulations 2003, regulation 18 (information to be obtained from a hirer)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/18"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-2003"
+        ]
+      },
+      "ni": {
+        "body": "The Supplier confirms that it acts as an employment business and will comply with the Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005 (\"the Conduct Regulations\") and the legislation they are made under.\n\nThese terms are the terms agreed with the Company as hirer before the Supplier supplies anyone, as the Conduct Regulations require. The Company will give the Supplier the information about each assignment that the Conduct Regulations require a hirer to provide, through the ordering process in this agreement.\n\nBefore supplying anyone, the Supplier will confirm their identity, that they have the experience, training, qualifications and authorisations (including an SIA licence) the Company has said are needed, and that they are willing to work in the role. It will give the Company the information the Conduct Regulations require about each person supplied.",
+        "sources": [
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+            "url": "https://www.legislation.gov.uk/nisr/2005/395/contents"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-ni-2005"
+        ]
+      }
+    }
+  },
+  {
+    "id": "LAB.TRANSFER",
+    "title": "Taking on Supplier Personnel directly",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "The Company may engage any of the Supplier Personnel directly, or through another business, at any time. The Supplier will not prevent or discourage any individual from doing so.\n\nIf the Company engages a person directly within {{transfer.period}} after their last assignment with the Company, the Supplier may charge a transfer fee of {{transfer.fee}}, but only if the Company has not chosen the alternative below.\n\nInstead of paying a transfer fee, the Company may choose, by telling the Supplier in writing before the engagement starts, to continue hiring the person through the Supplier for an extended period of {{transfer.extended_period}} at the current charge rates, after which no transfer fee is payable.\n\nThis clause is intended to comply with regulation 10 of the Conduct of Employment Agencies and Employment Businesses Regulations 2003, and any part of it that does not comply has no effect.",
+        "sources": [
+          {
+            "title": "Conduct Regulations 2003, regulation 10 (restriction on charges to hirers)",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/regulation/10"
+          },
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations 2003",
+            "url": "https://www.legislation.gov.uk/uksi/2003/3319/contents"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-2003"
+        ]
+      },
+      "ni": {
+        "body": "The Company may engage any of the Supplier Personnel directly, or through another business, at any time. The Supplier will not prevent or discourage any individual from doing so.\n\nIf the Company engages a person directly within {{transfer.period}} after their last assignment with the Company, the Supplier may charge a transfer fee of {{transfer.fee}}, but only if the Company has not chosen the alternative below.\n\nInstead of paying a transfer fee, the Company may choose, by telling the Supplier in writing before the engagement starts, to continue hiring the person through the Supplier for an extended period of {{transfer.extended_period}} at the current charge rates, after which no transfer fee is payable.\n\nThis clause is intended to comply with the restrictions on charges to hirers in the Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005, and any part of it that does not comply has no effect.",
+        "sources": [
+          {
+            "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+            "url": "https://www.legislation.gov.uk/nisr/2005/395/contents"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "conduct-regs-ni-2005"
+        ]
+      }
+    }
+  },
+  {
+    "id": "LAB.SAFETY",
+    "title": "Safety, welfare and incidents",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "Before anyone works their first shift at a Site, the Company will give them a site induction covering the Site's hazards, emergency procedures, welfare facilities and reporting lines, and any Site-specific protective equipment the work needs.\n\nThe Company will make sure that Supplier Personnel have access to the same welfare facilities at each Site as its own staff.\n\nSupplier Personnel will report incidents, accidents, near misses and safety concerns to the Company's control room or Site supervisor straight away, using the Company's incident reporting process. The Company will tell the Supplier promptly about any incident involving Supplier Personnel, and the Supplier will tell the Company about anything it learns that affects safety at a Site.\n\nThe parties will agree which of them makes any report required by law (for example to the enforcing authority under the reporting of injuries regulations), and will co-operate with each other's investigations. Either party may escalate a safety concern to the other's named contact at any time.",
+        "sources": [
+          {
+            "title": "Health and Safety at Work etc. Act 1974",
+            "url": "https://www.legislation.gov.uk/ukpga/1974/37/contents"
+          },
+          {
+            "title": "Management of Health and Safety at Work Regulations 1999",
+            "url": "https://www.legislation.gov.uk/uksi/1999/3242/contents"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "hswa-1974"
+        ]
+      },
+      "ni": {
+        "body": "Before anyone works their first shift at a Site, the Company will give them a site induction covering the Site's hazards, emergency procedures, welfare facilities and reporting lines, and any Site-specific protective equipment the work needs.\n\nThe Company will make sure that Supplier Personnel have access to the same welfare facilities at each Site as its own staff.\n\nSupplier Personnel will report incidents, accidents, near misses and safety concerns to the Company's control room or Site supervisor straight away, using the Company's incident reporting process. The Company will tell the Supplier promptly about any incident involving Supplier Personnel, and the Supplier will tell the Company about anything it learns that affects safety at a Site.\n\nThe parties will agree which of them makes any report required by law (for example to the Health and Safety Executive for Northern Ireland or the district council), and will co-operate with each other's investigations. Either party may escalate a safety concern to the other's named contact at any time.",
+        "sources": [
+          {
+            "title": "Health and Safety at Work (Northern Ireland) Order 1978",
+            "url": "https://www.legislation.gov.uk/nisi/1978/1039/contents"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "hsw-ni-1978"
+        ]
+      }
+    }
+  },
+  {
+    "id": "LAB.CHAINS.NONE",
+    "title": "Further supply chains: not allowed",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "The Supplier will supply only people it employs or engages directly. It will not obtain Supplier Personnel from, or pay them through, another agency, labour provider, umbrella company or other intermediary.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          },
+          {
+            "title": "SIA: Learn how HMRC rules apply to the security operatives you deploy",
+            "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "LAB.CHAINS.APPROVED",
+    "title": "Further supply chains: only with approval",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "The Supplier will not obtain Supplier Personnel from, or pay them through, another agency, labour provider, umbrella company or other intermediary unless the Company has approved that business in writing in advance.\n\nBefore asking for approval, the Supplier will tell the Company the name and registered details of the business, its role in the chain, and how Supplier Personnel will be engaged and paid. The Supplier remains fully responsible under this agreement for everyone supplied through an approved business, and will make sure that business meets the same licensing, screening, right-to-work, pay and tax requirements.\n\nThe Company may withdraw its approval on reasonable notice if it has concerns about compliance.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          },
+          {
+            "title": "SIA: Learn how HMRC rules apply to the security operatives you deploy",
+            "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "LAB.ENDING",
+    "title": "Ending the framework and existing orders",
+    "subject": "labour",
+    "versions": {
+      "all": {
+        "body": "When notice to end this agreement is given, the parties will agree in writing which confirmed orders will still be worked during the notice period. Unless they agree otherwise, confirmed orders for shifts before the end date will be worked and paid for under this agreement, and orders for shifts after it are cancelled without a cancellation charge.\n\nWhen this agreement ends, or when a person stops being supplied, the Supplier will make sure that all Company and End Client property, including identity badges, keys, access cards, uniforms and equipment, is returned promptly. The Supplier will send its final invoice within a reasonable time, and the invoicing clause applies to it.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          },
+          {
+            "title": "GOV.UK: Invoicing and taking payment from customers",
+            "url": "https://www.gov.uk/invoicing-and-taking-payment-from-customers"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SUB.SCOPE",
+    "title": "The services, exclusions and boundaries",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "The Supplier will provide the following security services (\"the Services\"): {{services.description}}.\n\nThe Services do not include: {{services.exclusions}}.\n\nThis is a subcontract for a defined service. The Supplier accepts responsibility for delivering the Services to the standard set out in this agreement. The Supplier decides how to resource the Services and directs, manages and supervises Supplier Personnel. The Company does not direct or supervise individual Supplier Personnel, except to give instructions needed for safety, security or an emergency at a Site, or to pass on the End Client's reasonable Site rules.\n\nThe Company will tell each End Client that the Services at their Site are subcontracted where the End Client's contract or the SIA's guidance calls for it.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "sia-labour-or-subcontract"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SUB.SITES",
+    "title": "Sites, operating hours and coverage",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "The Supplier will provide the Services at these Sites: {{services.sites}}.\n\nThe operating hours are: {{services.hours}}.\n\nThe required coverage is: {{services.coverage}}. The Supplier will make sure the required coverage is met during the operating hours, with every position filled by a suitably licensed and trained person.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SUB.MOBILISATION",
+    "title": "Mobilisation",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "The Supplier will be ready to deliver the Services in full from {{services.mobilisation_date}}. Before that date it will complete site surveys, inductions and familiarisation, confirm that every person to be deployed meets the requirements of this agreement, and give the Company the evidence the Company reasonably asks for.\n\nThe Supplier will tell the Company straight away if anything is likely to delay mobilisation, and what it is doing about it.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SUB.MANAGEMENT",
+    "title": "Service management and supervision",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "The Supplier is responsible for managing and supervising the Services and Supplier Personnel. Its supervision arrangements are: {{management.supervision}}.\n\nThe Supplier's contract manager is {{management.supplier_contact}}. The Company's contact is {{management.company_contact}}. Each party will tell the other promptly if its contact changes.\n\nThe contacts will review the Services together {{management.review_frequency}}, covering performance, incidents, staffing, health and safety, complaints and any changes needed.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SUB.ASSIGNMENT",
+    "title": "Assignment instructions and changes",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "The Company will give the Supplier the End Client's requirements for each Site. The Supplier will prepare assignment instructions for each Site that meet those requirements, and will not use them until the Company has approved them in writing. The approved assignment instructions form part of this agreement.\n\nThe Supplier will make sure every person it deploys has read and understood the current assignment instructions before working at the Site.\n\nEither party may propose a change to the Services, the assignment instructions, the coverage or the Sites. A proposed change, and any change to the charges it causes, takes effect only when both parties approve it in writing. In an emergency the Supplier will follow reasonable instructions from the Company or the End Client needed to protect people or property, and the parties will record the change in writing as soon as possible.",
+        "sources": [
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SUB.ACS",
+    "title": "SIA Approved Contractor Scheme",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "The Company is an SIA approved contractor. Under the SIA's Approved Contractor Scheme, an approved contractor may subcontract designated security services only to another approved contractor, unless the SIA has agreed otherwise.\n\nThe Supplier confirms that it holds SIA approved contractor status covering the Services. It will keep that status for as long as this agreement lasts, meet the scheme's requirements in delivering the Services, and tell the Company straight away if its approval is suspended, withdrawn, made subject to conditions or not renewed.",
+        "sources": [
+          {
+            "title": "SIA: ACS self-assessment workbook (2026 update)",
+            "url": "https://www.gov.uk/government/publications/acs-self-assessment-workbook/2026-update-to-the-acs-self-assessment-workbook"
+          },
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "sia-acs-subcontracting",
+          "sia-acs-workbook-2026"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SUB.ACS.PERMISSION",
+    "title": "SIA Approved Contractor Scheme: SIA permission",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "The Company is an SIA approved contractor. Under the SIA's Approved Contractor Scheme, an approved contractor may subcontract designated security services only to another approved contractor, unless the SIA has agreed otherwise. The Supplier is not an approved contractor, and the Company relies on the SIA's permission to subcontract the Services to it.\n\nThe Supplier will meet any conditions of that permission, give the Company the information it needs to show the SIA that the Services are managed to the scheme's standard, and tell the Company straight away about anything that could affect the permission.",
+        "sources": [
+          {
+            "title": "SIA: ACS self-assessment workbook (2026 update)",
+            "url": "https://www.gov.uk/government/publications/acs-self-assessment-workbook/2026-update-to-the-acs-self-assessment-workbook"
+          },
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "sia-acs-subcontracting",
+          "sia-acs-workbook-2026"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SUB.PERFORMANCE",
+    "title": "Performance, reporting and corrective action",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "The Supplier will deliver the Services to these performance measures: {{performance.measures}}.\n\nThe Supplier will report to the Company on performance against those measures {{performance.reporting_frequency}}, and straight away about any serious incident, complaint, missed shift or security breach.\n\nIf the Supplier fails to meet a performance measure, it will give the Company a written plan to put it right within {{performance.correction_period}}, and carry it out. Repeated or serious failure to meet the performance measures is a serious breach of this agreement.",
+        "sources": [
+          {
+            "title": "SIA: ACS self-assessment workbook (2026 update)",
+            "url": "https://www.gov.uk/government/publications/acs-self-assessment-workbook/2026-update-to-the-acs-self-assessment-workbook"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SUB.CONTINUITY",
+    "title": "Business continuity, absence and service failure",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "The Supplier will maintain a business continuity plan for the Services, covering staff absence, loss of systems and other disruption, and will give it to the Company on request.\n\nThe Supplier is responsible for covering absence from its own resources. It will tell the Company within {{continuity.notice}} of becoming aware that any part of the required coverage may not be met, and what it is doing about it.\n\nIf the Supplier does not provide any part of the Services, the Company does not pay for that part. If the failure continues after the Company has given the Supplier a reasonable opportunity to put it right, the Company may arrange cover from elsewhere and recover the reasonable extra cost from the Supplier.",
+        "sources": [
+          {
+            "title": "SIA: ACS self-assessment workbook (2026 update)",
+            "url": "https://www.gov.uk/government/publications/acs-self-assessment-workbook/2026-update-to-the-acs-self-assessment-workbook"
+          },
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SUB.CHARGES",
+    "title": "Charges and variations",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "The Company will pay the Supplier for the Services the charges set out here: {{charges.schedule}}. VAT is added where it applies.\n\nThe charges are the price of the Services. The Supplier alone sets and pays the pay of Supplier Personnel, which must be at least the National Minimum Wage or National Living Wage that applies to each person, whatever the charges.\n\nThe charges may only change by written agreement, including through an approved change to the Services.",
+        "sources": [
+          {
+            "title": "GOV.UK: National Minimum Wage and National Living Wage rates",
+            "url": "https://www.gov.uk/national-minimum-wage-rates"
+          },
+          {
+            "title": "SIA: Learn how HMRC rules apply to the security operatives you deploy",
+            "url": "https://www.gov.uk/guidance/learn-how-hmrc-rules-apply-to-the-security-operatives-you-deploy"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "nmw-2026"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SUB.ACCESS",
+    "title": "Keys, access and alarm codes",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "The Supplier will keep a register of all keys, access cards, fobs and alarm codes issued to it for the Services, record who holds each one, and give the register to the Company on request.\n\nThe Supplier will keep keys and codes secure, never mark keys with the Site address, and only give access to Supplier Personnel who need it for their duties. It will tell the Company straight away if a key, card or code is lost, stolen or may have been compromised, and will pay the reasonable cost of replacement or changing locks or codes where the loss was its fault.",
+        "sources": [
+          {
+            "title": "SIA: ACS self-assessment workbook (2026 update)",
+            "url": "https://www.gov.uk/government/publications/acs-self-assessment-workbook/2026-update-to-the-acs-self-assessment-workbook"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SUB.FURTHER.NONE",
+    "title": "Further subcontracting: not allowed",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "The Supplier will not subcontract or delegate any part of the Services, or use labour supplied by another business to deliver them, without the Company's prior written approval. The Company may refuse approval at its discretion.",
+        "sources": [
+          {
+            "title": "SIA: ACS self-assessment workbook (2026 update)",
+            "url": "https://www.gov.uk/government/publications/acs-self-assessment-workbook/2026-update-to-the-acs-self-assessment-workbook"
+          },
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "sia-acs-subcontracting",
+          "sia-acs-workbook-2026"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SUB.FURTHER.APPROVED",
+    "title": "Further subcontracting: only with approval",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "The Supplier may only subcontract part of the Services, or use labour supplied by another business, with the Company's prior written approval of that business. Before asking for approval, the Supplier will tell the Company who the business is, what it will do, and whether it is subcontracting or supplying labour.\n\nAny approved business must meet the same licensing, screening, right-to-work, pay and tax requirements as the Supplier and, where it takes on part of the Services as a subcontractor and the Approved Contractor Scheme requires it, hold approved contractor status. Where the Supplier is an approved contractor, it will not pass any part of the Services to a business that is not, unless the SIA and the End Client have agreed. The Supplier remains fully responsible for everything an approved business does or fails to do.",
+        "sources": [
+          {
+            "title": "SIA: ACS self-assessment workbook (2026 update)",
+            "url": "https://www.gov.uk/government/publications/acs-self-assessment-workbook/2026-update-to-the-acs-self-assessment-workbook"
+          },
+          {
+            "title": "SIA: Know the difference between sub-contracting and use of labour",
+            "url": "https://www.gov.uk/guidance/know-the-difference-between-sub-contracting-and-use-of-labour"
+          }
+        ],
+        "checked_on": "2026-11-04",
+        "law": [
+          "sia-acs-subcontracting",
+          "sia-acs-workbook-2026"
+        ]
+      }
+    }
+  },
+  {
+    "id": "SUB.EXIT",
+    "title": "Handover and return of property",
+    "subject": "subcontract",
+    "versions": {
+      "all": {
+        "body": "When this agreement or any Site is due to end, the Supplier will co-operate fully in an orderly handover to the Company or a replacement provider for a period of {{exit.assistance_period}} before the end date.\n\nDuring the handover the Supplier will give the Company up-to-date assignment instructions, key and access registers, incident logs, site records and any other information needed to continue the Services safely, subject to the data protection terms of this agreement.\n\nBy the end date the Supplier will return all keys, access cards, codes, equipment, documents and other property of the Company or the End Client, and confirm in writing that it has done so and has not kept any copies except where the law requires it.",
+        "sources": [
+          {
+            "title": "SIA: ACS self-assessment workbook (2026 update)",
+            "url": "https://www.gov.uk/government/publications/acs-self-assessment-workbook/2026-update-to-the-acs-self-assessment-workbook"
+          },
+          {
+            "title": "GOV.UK: Business transfers, takeovers and TUPE",
+            "url": "https://www.gov.uk/transfers-takeovers"
+          }
+        ],
+        "checked_on": "2026-11-04"
+      }
+    }
+  }
+]
