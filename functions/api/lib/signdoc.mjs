@@ -12,7 +12,7 @@ const PAGE_H = 841.89;
 const M = 56;
 const BOTTOM = 64;
 
-export const STATUS_WORD = { preview: 'PREVIEW - SAMPLE DATA', draft: 'DRAFT - PENDING LEGAL REVIEW', sent: 'NOT YET SIGNED', signed: 'SIGNED', void: 'VOID', superseded: 'SUPERSEDED' };
+export const STATUS_WORD = { preview: 'PREVIEW - SAMPLE DATA', proof: 'PREVIEW', draft: 'DRAFT - PENDING LEGAL REVIEW', sent: 'NOT YET SIGNED', signed: 'SIGNED', void: 'VOID', superseded: 'SUPERSEDED' };
 const WATERMARK = { preview: 'PREVIEW - SAMPLE DATA', draft: 'DRAFT - PENDING LEGAL REVIEW', sent: 'AWAITING SIGNATURE', void: 'VOID', superseded: 'SUPERSEDED' };
 
 const sha = (x) => crypto.createHash('sha256').update(x).digest('hex');
@@ -129,7 +129,7 @@ class SignDoc extends Doc {
  *        terms?: { left: [[k,v]], right: [[k,v]], conditions: [{ title, status }] }, ackLine?, legacy? }
  * signers: { company: { name, title, png, at } | null, officer: { name, png, at, email, ip, ua } | null }
  * events: [{ kind, at, actor_name, ip, ua }]
- * status: preview | draft | sent | signed | void | superseded
+ * status: preview | proof (real values, every clause legally reviewed) | draft | sent | signed | void | superseded
  * Returns { bytes, fingerprint }.
  */
 export async function renderSigned({ company, doc, signers = {}, events = [], status = 'sent', verifyUrl = '' }) {
@@ -299,7 +299,7 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
   s.addPage();
   const cp = s.page;
   cp.drawText('Signing certificate', { x: s.x, y: s.y - 20, size: 20, font: s.bold, color: INK });
-  const stateWord = { preview: 'Preview', draft: 'Draft', sent: 'Awaiting signature', signed: 'Completed', void: 'Void', superseded: 'Superseded' }[status];
+  const stateWord = { preview: 'Preview', proof: 'Preview', draft: 'Draft', sent: 'Awaiting signature', signed: 'Completed', void: 'Void', superseded: 'Superseded' }[status];
   cp.drawText(s.clean(`${doc.reference || 'No reference yet'}  ·  Status: ${stateWord}`), { x: s.x, y: s.y - 38, size: 10, font: s.font, color: MUTED });
   if (verifyUrl) {
     const qr = await s.pdf.embedPng(await qrPng(verifyUrl, 300));

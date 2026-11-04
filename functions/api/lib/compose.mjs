@@ -215,7 +215,8 @@ export function compose({ pack, jurisdiction, answers = {}, assessment = {}, sel
     .map((qn) => ({ id: qn.id, label: qn.label, section: qn.section || null, prefilled: !!answers[qn.id]?.source && !blank(answers[qn.id]?.value) }));
   for (const k of varsUsed(parts)) {
     if (!qById[k]) add({ id: `undeclared:${k}`, severity: 'blocker', message: `The wording uses {{${k}}}, which no question answers.`, jump: null });
-    else if (!visibleIds.has(k)) add({ id: `hidden:${k}`, severity: 'blocker', message: `The wording needs "${labels[k]}", but that question does not apply to this draft. Check the earlier answers.`, jump: { question: k } });
+    // Until the answer that decides it is given, the question is simply not asked yet
+    else if (!visibleIds.has(k) && !undecided(qById[k].showIf, values)) add({ id: `hidden:${k}`, severity: 'blocker', message: `The wording needs "${labels[k]}", but that question does not apply to this draft. Check the earlier answers.`, jump: { question: k } });
   }
   if (outstanding.length) {
     const pre = outstanding.filter((o) => o.prefilled).length;
@@ -267,7 +268,20 @@ export function compose({ pack, jurisdiction, answers = {}, assessment = {}, sel
   for (const f of findings) if (f.severity === 'review' && acks[f.id]) f.ack = acks[f.id];
   const ready = !findings.some((f) => f.severity === 'blocker') && findings.filter((f) => f.severity === 'review').every((f) => f.ack);
   const legal = manifest.length > 0 && manifest.every((m) => m.state === 'legal');
-  return { body, manifest, particulars, outstanding, findings, supporting, suggested, outcomes, ready, legal, placeholders: used.size };
+  return { body, manifest, particulars, outstanding, findings, supporting, suggested, outcomes, ready, legal, placeholders: used.size, visible: [...visibleIds] };
+}
+
+// A condition that refers to a question nobody has answered yet
+function undecided(rule, values) {
+  let open = false;
+  const walk = (r) => {
+    if (!r || typeof r !== 'object') return;
+    if (r.q && blank(values[r.q])) open = true;
+    (r.all || r.any || []).forEach(walk);
+    if (r.not) walk(r.not);
+  };
+  walk(rule);
+  return open;
 }
 
 function varsUsed(parts) {

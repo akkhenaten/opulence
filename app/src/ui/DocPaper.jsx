@@ -71,7 +71,7 @@ export const DocPaper = forwardRef(function DocPaper({ doc, signers = {}, status
     ['Between', `${brand.name} and ${doc.officerName || 'the officer'}`],
     ...(doc.version ? [['Version', `v${doc.version}`]] : []),
   ];
-  const watermark = preview ? 'Preview' : status === 'void' ? 'Void' : status === 'superseded' ? 'Replaced' : null;
+  const watermark = status === 'draft' ? 'Draft' : preview ? 'Preview' : status === 'void' ? 'Void' : status === 'superseded' ? 'Replaced' : null;
   return (
     <article className={cx('bg-paper relative overflow-hidden rounded-2xl border border-line text-ink shadow-tile', className)}>
       {watermark && (

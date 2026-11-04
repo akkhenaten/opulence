@@ -163,13 +163,13 @@ export function TemplatesTab() {
 }
 
 // Wrap the selection, or insert at the cursor, keeping focus in the textarea
-function edit(ta, set, fn) {
+export function edit(ta, set, fn) {
   const { selectionStart: a, selectionEnd: b, value } = ta;
   const [text, caret] = fn(value.slice(0, a), value.slice(a, b), value.slice(b));
   set(text);
   requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(caret, caret); });
 }
-const lineStart = (pre) => (pre && !pre.endsWith('\n') ? '\n' : '');
+export const lineStart = (pre) => (pre && !pre.endsWith('\n') ? '\n' : '');
 
 /** Lazy debounced preview: blocks for phones, the real PDF for wide screens */
 function usePreview(input, wide) {
@@ -194,7 +194,7 @@ function usePreview(input, wide) {
   return out;
 }
 
-const useWide = () => {
+export const useWide = () => {
   const m = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)');
   const [wide, setWide] = useState(!!m?.matches);
   useEffect(() => {

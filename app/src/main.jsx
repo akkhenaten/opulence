@@ -29,6 +29,7 @@ const Audit = P(() => import('./pages/people/Audit.jsx'));
 const Venues = P(() => import('./pages/money/Venues.jsx'));
 const Clients = P(() => import('./pages/money/Venues.jsx').then((m) => ({ default: m.Clients })));
 const StaffContracts = P(() => import('./pages/people/StaffContracts.jsx'));
+const ContractWorkspace = P(() => import('./pages/people/contracts/Workspace.jsx'));
 const EverydayRedirect = P(() => import('./pages/manager/Dashboard.jsx').then((m) => ({ default: m.EverydayRedirect })));
 const VenueDetail = P(() => import('./pages/money/VenueDetail.jsx'));
 const Pay = P(() => import('./pages/money/Pay.jsx'));
@@ -170,6 +171,7 @@ function App() {
             <Route path="recruitment" element={<Recruitment />} />
             <Route path="hr/time-off" element={<TimeOff />} />
             <Route path="people/contracts" element={<StaffContracts />} />
+            <Route path="people/contracts/draft/:id" element={<ContractWorkspace />} />
             <Route path="clients" element={<Clients />} />
             <Route path="venues" element={<Venues />} />
             <Route path="venues/:id" element={<VenueDetail />} />

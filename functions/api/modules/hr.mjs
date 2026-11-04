@@ -8,6 +8,7 @@ import { nextReference, event, events, markOpened, companySigner, signerColumns,
 import { CATEGORIES, officerValues, typedValues, contractInput, companyOf } from './esign.mjs';
 import { audit } from '../lib/audit.mjs';
 import { getSettings } from './settings.mjs';
+import { recordEngagement } from './contractsPack.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
 
 const ONBOARDING = [
@@ -286,6 +287,7 @@ export const actions = {
     await event('contract', c.id, 'signed', { user, name, ip, ua });
     const out = await sealQuietly('contract', c, await contractInput(c), { userId: user.id, filename: contractFile(c, name) });
     if (c.category !== 'policy') await tickOnboarding(user.officer_id, 'contract');
+    if (c.source !== 'template') await recordEngagement(c);
     await notify(await companyManagers(), {
       kind: 'contract', title: c.category === 'policy' ? 'Policy signed' : 'Contract signed', body: `${name} signed "${c.title}" (${c.reference})`, link: `/company/staff/${user.officer_id}`,
     });
