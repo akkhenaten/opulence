@@ -4,7 +4,8 @@ import { notify, managersFor, officerUser, companyManagers } from '../lib/notify
 import { fmtDate, fmtTime, londonDate, addDays } from '../lib/time.mjs';
 import { buildTimesheet } from './clock.mjs';
 import { getSettings } from './settings.mjs';
-import { runOpsJobs } from './ops.mjs';
+import { runOpsJobs, jobOn } from './ops.mjs';
+import { statusesFor, pairKey, OK } from '../lib/venuePack.mjs';
 import { learnJobs } from './academy.mjs';
 import { opsMessage } from '../lib/threads.mjs';
 import { extendSeries } from './cover.mjs';
@@ -15,16 +16,24 @@ import { esignReminders } from '../lib/esign.mjs';
 import { selfieJobs } from './clockProof.mjs';
 import { packReminders } from './venuePacks.mjs';
 
-// Late / no-show: published assignment, past grace, no valid clock-in
+// Late / no-show: published assignment, past grace, no valid clock-in.
+// Officers whose site pack isn't signed are left to the Ops AI pack check until they sign.
 async function lateAlerts(s) {
+  let due = await q(
+    `SELECT a.id, a.officer_id, s.venue_id FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
+      WHERE a.status IN ('assigned','accepted') AND s.status = 'published' AND NOT a.late_alerted
+        AND GREATEST(s.starts_at, a.created_at) + make_interval(mins => $1) < now() AND s.ends_at > now()
+        AND NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')`, [s.grace_minutes]);
+  if (due.length && jobOn(s, 'pack')) {
+    const st = await statusesFor(due);
+    due = due.filter((r) => OK.has(st.get(pairKey(r.officer_id, r.venue_id))?.status));
+  }
+  if (!due.length) return 0;
   const rows = await q(
     `UPDATE shift_assignments a SET late_alerted = true, chased_at = now()
        FROM shifts s, officers o, venues v
-      WHERE s.id = a.shift_id AND o.id = a.officer_id AND v.id = s.venue_id
-        AND a.status IN ('assigned','accepted') AND s.status = 'published' AND NOT a.late_alerted
-        AND GREATEST(s.starts_at, a.created_at) + make_interval(mins => $1) < now() AND s.ends_at > now()
-        AND NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')
-      RETURNING a.id, a.officer_id, s.venue_id, s.starts_at, v.name AS venue_name, o.first_name || ' ' || o.last_name AS officer_name`, [s.grace_minutes]);
+      WHERE s.id = a.shift_id AND o.id = a.officer_id AND v.id = s.venue_id AND a.id = ANY($1::uuid[]) AND NOT a.late_alerted
+      RETURNING a.id, a.officer_id, s.venue_id, s.starts_at, v.name AS venue_name, o.first_name || ' ' || o.last_name AS officer_name`, [due.map((r) => r.id)]);
   for (const r of rows) {
     await notify(await managersFor(r.venue_id), {
       kind: 'late', severity: 'warning', title: `${r.officer_name} not clocked in`, body: `${r.venue_name} · shift started ${fmtTime(r.starts_at)}`,

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { packStatus, REFRESHER_DAYS, livePack, venuePack } from '../lib/venuePack.mjs';
+import { packStatus, REFRESHER_DAYS, livePack, venuePack, packDue } from '../lib/venuePack.mjs';
 
 const now = new Date('2026-11-04T09:00:00Z');
 const daysAgo = (n) => new Date(now - n * 86400000);
@@ -52,4 +52,29 @@ test('Live shows signed, not signed or re-sign; a refresher counts as re-sign', 
 
 test('venue clients only see signed or not signed yet', () => {
   assert.deepEqual(['none', 'signed', 'resign', 'unsigned'].map(venuePack), ['none', 'signed', 'unsigned', 'unsigned']);
+});
+
+test('pack check: 20:00 shift chases at 19:45 and 20:00, tells managers at 20:15, cover at 20:30', () => {
+  const offsets = { chase1: -15, chase2: 0, escalate: 15, cover: 30 };
+  const startsAt = new Date('2026-11-04T20:00:00Z');
+  const at = (hhmm, done = {}) => packDue({ startsAt, now: new Date(`2026-11-04T${hhmm}:00Z`), offsets, done });
+  assert.deepEqual(at('19:40').due, []);
+  assert.deepEqual(at('19:45'), { due: ['chase1'], chase: 'chase1', escalate: false, cover: false });
+  assert.deepEqual(at('19:50', { chase1: true }).due, []);
+  assert.deepEqual(at('20:00', { chase1: true }), { due: ['chase2'], chase: 'chase2', escalate: false, cover: false });
+  assert.deepEqual(at('20:16', { chase1: true, chase2: true }), { due: ['escalate'], chase: null, escalate: true, cover: false });
+  assert.deepEqual(at('20:31', { chase1: true, chase2: true, escalate: true }), { due: ['cover'], chase: null, escalate: false, cover: true });
+});
+
+test('pack check: a late run records both chases but sends only the second', () => {
+  const offsets = { chase1: -15, chase2: 0, escalate: 15, cover: 30 };
+  const r = packDue({ startsAt: new Date('2026-11-04T20:00:00Z'), now: new Date('2026-11-04T20:05:00Z'), offsets });
+  assert.deepEqual(r, { due: ['chase1', 'chase2'], chase: 'chase2', escalate: false, cover: false });
+  const late = packDue({ startsAt: new Date('2026-11-04T20:00:00Z'), now: new Date('2026-11-04T20:40:00Z'), offsets });
+  assert.deepEqual(late, { due: ['chase1', 'chase2', 'escalate', 'cover'], chase: 'chase2', escalate: true, cover: true });
+});
+
+test('pack check follows the times set in Ops AI settings', () => {
+  const r = packDue({ startsAt: new Date('2026-11-04T20:00:00Z'), now: new Date('2026-11-04T19:35:00Z'), offsets: { chase1: -30, chase2: -10, escalate: 5, cover: 20 } });
+  assert.deepEqual(r.due, ['chase1']);
 });

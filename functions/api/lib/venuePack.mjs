@@ -35,6 +35,20 @@ export const livePack = (status) => ({ current: 'signed', resign: 'resign', refr
 /** Venue clients only see signed or not: a re-sign reads as not signed yet. */
 export const venuePack = (pack) => (pack === 'resign' ? 'unsigned' : pack);
 
+/** Ops AI pre-shift check, in order. Offsets are minutes from shift start (negative = before). */
+export const PACK_STEPS = ['chase1', 'chase2', 'escalate', 'cover'];
+
+/**
+ * Which pack-check steps are due and not done yet. When both chases are due at once
+ * (a late booking, a slow run) only the later message is worth sending.
+ * → { due: [steps to record], chase: 'chase1'|'chase2'|null, escalate, cover }
+ */
+export function packDue({ startsAt, now = new Date(), offsets, done = {} }) {
+  const mins = (new Date(now) - new Date(startsAt)) / 60000;
+  const due = PACK_STEPS.filter((k) => !done[k] && mins >= Number(offsets[k]));
+  return { due, chase: ['chase2', 'chase1'].find((k) => due.includes(k)) || null, escalate: due.includes('escalate'), cover: due.includes('cover') };
+}
+
 /** Published packs for many venues at once: Map venueId → ordered documents (instructions first). */
 export async function packsFor(venueIds, { body = false } = {}) {
   const ids = [...new Set(venueIds.filter(Boolean))];

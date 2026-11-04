@@ -330,6 +330,7 @@ function AskOrbMoved() {
 
 const JOBS = [
   { k: 'chase', label: 'Chase officers who haven\'t clocked in', hint: 'Asks them to reply, then escalates to you' },
+  { k: 'pack', label: 'Chase unsigned site packs before shifts', hint: 'Officers who can\'t clock in until they sign: chased, then you are told, then cover is prepared' },
   { k: 'cover', label: 'Find cover', hint: 'Shortlists free officers for gaps and no-shows' },
   { k: 'feedback', label: 'Ask venues for feedback', hint: 'After each shift, with one reminder' },
   { k: 'venue_requests', label: 'Venue request chat', hint: 'Venues ask for staff in plain words' },
@@ -340,6 +341,13 @@ const JOBS = [
   { k: 'compliance_digest', label: 'Weekly compliance email', hint: 'After the weekly check, the worst issues by email to company managers' },
   { k: 'incident_ai', label: 'AI on incident reports', hint: 'Drafts from officers\' notes and photos; evidence review for managers' },
 ];
+const PACK_TIMES = [
+  { k: 'ops_pack_chase1', label: 'First chase to the officer' },
+  { k: 'ops_pack_chase2', label: 'Second chase' },
+  { k: 'ops_pack_escalate', label: 'Tell managers' },
+  { k: 'ops_pack_cover', label: 'Prepare cover' },
+];
+const packHint = (m) => { const n = Number(m); return !Number.isFinite(n) || m === '' ? '' : n === 0 ? 'At the start time' : `${Math.abs(n)} min ${n < 0 ? 'before' : 'after'} the start`; };
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 function OpsSettings() {
@@ -358,6 +366,7 @@ function OpsSettings() {
     const r = await api('ops.settings.save', {
       ops_jobs: v.ops_jobs, ops_escalate_minutes: Number(v.ops_escalate_minutes), ops_offer_wait_minutes: Number(v.ops_offer_wait_minutes),
       ops_reconcile_dow: Number(v.ops_reconcile_dow), ops_compliance_dow: Number(v.ops_compliance_dow), ops_ai_cap_credits: Number(v.ops_ai_cap_credits),
+      ...Object.fromEntries(PACK_TIMES.map((t) => [t.k, Number(v[t.k])])),
     });
     q.setData(r);
   }, 'Saved');
@@ -378,6 +387,16 @@ function OpsSettings() {
             <Select label="Weekly compliance check" value={v.ops_compliance_dow} onChange={(e) => set('ops_compliance_dow', e.target.value)} options={DAYS.map((d, i) => ({ value: i + 1, label: d }))} />
           </div>
         </Tile>
+        {v.ops_jobs?.pack !== false && (
+          <Tile title="Unsigned site pack">
+            <p className="mb-3 text-footnote text-muted">Minutes from the shift start. Use a minus for before the start. Stops as soon as the officer signs.</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {PACK_TIMES.map((t) => (
+                <Input key={t.k} label={t.label} type="number" min="-240" max="240" step="1" value={v[t.k]} onChange={(e) => set(t.k, e.target.value)} hint={packHint(v[t.k])} />
+              ))}
+            </div>
+          </Tile>
+        )}
         <Tile title="AI usage this month">
           <div className="mb-2 flex items-baseline justify-between gap-2">
             <span className="num text-title2 font-bold">{Math.round(used).toLocaleString('en-GB')}</span>

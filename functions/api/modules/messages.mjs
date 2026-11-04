@@ -8,7 +8,7 @@ import { notify, companyManagers } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
 import { extract, HAIKU } from '../lib/ai.mjs';
 import { post, syncMembers, opsUser, opsMessage } from '../lib/threads.mjs';
-import { officerReply, offerRespond } from './ops.mjs';
+import { officerReply, offerRespond, packReply } from './ops.mjs';
 import { ALL, def } from './_def.mjs';
 
 const PAGE = 40;
@@ -71,7 +71,7 @@ const REPLY_TOOL = {
   input_schema: {
     type: 'object',
     properties: {
-      intent: { type: 'string', enum: ['on_my_way', 'cant_make_it', 'accept', 'decline', 'unclear'] },
+      intent: { type: 'string', enum: ['on_my_way', 'cant_make_it', 'signing_now', 'accept', 'decline', 'unclear'] },
       eta_min: { type: 'integer', description: 'Minutes until they arrive, if they said (e.g. "15 late" = 15, "half an hour" = 30).' },
       reason: { type: 'string', description: "Short reason if they can't make it." },
       question: { type: 'string', description: 'If unclear: one short, friendly question to ask back.' },
@@ -81,8 +81,11 @@ const REPLY_TOOL = {
 };
 
 export async function classifyReply(text, kind) {
-  const allowed = kind === 'chase' ? 'on_my_way or cant_make_it' : 'accept or decline';
-  const asked = kind === 'chase' ? 'Their shift has started and they have not clocked in. We asked if they are on their way.' : 'We offered them an extra cover shift and asked if they can take it.';
+  const allowed = { chase: 'on_my_way or cant_make_it', pack: 'signing_now or cant_make_it' }[kind] || 'accept or decline';
+  const asked = {
+    chase: 'Their shift has started and they have not clocked in. We asked if they are on their way.',
+    pack: "Their shift is about to start or has started, and they cannot clock in until they read and sign the venue's site pack. We asked them to sign it now (\"doing it now\", \"on it\" = signing_now).",
+  }[kind] || 'We offered them an extra cover shift and asked if they can take it.';
   const { input } = await extract({
     model: HAIKU, max_tokens: 300, tool: REPLY_TOOL, module: 'ops',
     system: `You read short replies from UK security staff. ${asked} Choose ${allowed}, or unclear if you cannot tell. Slang is common ("omw", "5 mins", "cant tonight sorry", "yeah go on").`,
@@ -97,6 +100,8 @@ async function answerQuick(user, msg, value, extra = {}) {
     if (kind === 'chase') {
       if (!['on_my_way', 'cant_make_it'].includes(value)) fail(400, 'Unknown reply');
       await officerReply({ assignment_id: ref, reply: value, eta_min: extra.eta_min, reason: extra.reason }, user);
+    } else if (kind === 'pack') {
+      await packReply({ assignment_id: ref, reply: value, reason: extra.reason }, user);
     } else if (kind === 'offer') {
       if (!['accept', 'decline'].includes(value)) fail(400, 'Unknown reply');
       await offerRespond({ offer_id: ref, accept: value === 'accept' }, user);

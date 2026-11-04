@@ -15,6 +15,7 @@ import { ALL, MGR, CO, def } from './_def.mjs';
 import { runCompliance, readDocuments, decideCompliance, computeIssues, sendDigest } from './compliance.mjs';
 import { evidenceScan } from './incidentAi.mjs';
 import { opsMessage, closeQuick, ensureThread, post, opsUser, syncMembers } from '../lib/threads.mjs';
+import { statusesFor, pairKey, packDue, OK } from '../lib/venuePack.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const NO_CLOCK_IN = "NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')";
@@ -109,21 +110,32 @@ export async function rankCover(shift, { exclude = [] } = {}) {
 }
 
 /** Creates a Cover card with the top picks. `replacing` = assignment of the officer who can't make it. */
-export async function proposeCover(shift, cause, { batch = 1, exclude = [], replacing = null, prefer = [] } = {}) {
+/** Officers who have signed this venue's pack first; the rest stay selectable but are labelled. */
+async function signedFirst(ranked, venueId) {
+  const st = await statusesFor(ranked.map((c) => ({ officer_id: c.officer_id, venue_id: venueId })));
+  const signed = (c) => OK.has(st.get(pairKey(c.officer_id, venueId))?.status);
+  return [
+    ...ranked.filter(signed).map((c) => ({ ...c, reason: `Site pack signed · ${c.reason}` })),
+    ...ranked.filter((c) => !signed(c)).map((c) => ({ ...c, needs_pack: true, reason: `${c.reason} · will need to sign the site pack first` })),
+  ];
+}
+
+export async function proposeCover(shift, cause, { batch = 1, exclude = [], replacing = null, prefer = [], note = '' } = {}) {
   const sh = shift.venue_name ? shift : await getShift(shift.id);
   const short = sh.headcount - (await filledCount(sh.id)) + (replacing ? 1 : 0);
   if (short <= 0) return null;
-  const ranked = await rankCover(sh, { exclude });
+  let ranked = await rankCover(sh, { exclude });
+  if (cause === 'pack') ranked = await signedFirst(ranked, sh.venue_id);
   const preferred = ranked.filter((c) => prefer.includes(c.officer_id));
   const ordered = [...preferred, ...ranked.filter((c) => !prefer.includes(c.officer_id))];
   const picks = ordered.slice(0, Math.max(3, short)).map((c) => c.officer_id);
-  const causeText = { 'no-show': 'Officer has not turned up', cant_make_it: 'Officer can\'t make it', unfilled: `${short} place${short > 1 ? 's' : ''} still unfilled`, next: 'No one accepted the last offers', manager: 'Requested in chat', new: 'New shift from a venue request' }[cause] || cause;
+  const causeText = { 'no-show': 'Officer has not turned up', cant_make_it: 'Officer can\'t make it', pack: 'Site pack not signed, so the officer can\'t clock in', unfilled: `${short} place${short > 1 ? 's' : ''} still unfilled`, next: 'No one accepted the last offers', manager: 'Requested in chat', new: 'New shift from a venue request' }[cause] || cause;
   const reason = ordered.length
-    ? `${causeText}. Top pick: ${ordered[0].name} — ${ordered[0].reason}.`
-    : `${causeText}. No eligible officers are free — consider agency cover or moving someone.`;
+    ? `${causeText}${note ? ` (${note})` : ''}. Top pick: ${ordered[0].name} — ${ordered[0].reason}.`
+    : `${causeText}${note ? ` (${note})` : ''}. No eligible officers are free — consider agency cover or moving someone.`;
   return createItem({
     kind: 'cover', title: `Cover ${sh.venue_name} · ${when(sh)}`, reason, venue_id: sh.venue_id, shift_id: sh.id,
-    severity: ['no-show', 'cant_make_it'].includes(cause) ? 'critical' : 'info',
+    severity: ['no-show', 'cant_make_it', 'pack'].includes(cause) ? 'critical' : 'info',
     payload: { shift_id: sh.id, cause, batch, short, replacing, officer_ids: picks, candidates: ordered.slice(0, 8) },
     dedupe: `cover:${sh.id}:${batch}${replacing ? `:${replacing}` : ''}`,
   });
@@ -275,8 +287,167 @@ async function escalate(a, s) {
   if (jobOn(s, 'cover')) await proposeCover(sh, a.reply === 'cant_make_it' ? 'cant_make_it' : 'no-show', { replacing: a.reply === 'cant_make_it' ? null : a.id });
 }
 
+// ---------- Site pack before the shift ----------
+// Officers who can't clock in because the venue pack isn't signed: chase them, then managers, then prepare cover.
+// The generic late chase leaves them alone while this runs (see lateAlerts).
+const PACK_COL = { chase1: 'pack_chase1_at', chase2: 'pack_chase2_at', escalate: 'pack_escalated_at', cover: 'pack_cover_at' };
+const packLink = (venueId) => `/officer/venue-pack/${venueId}`;
+export const packOffsets = (s) => ({ chase1: s.ops_pack_chase1, chase2: s.ops_pack_chase2, escalate: s.ops_pack_escalate, cover: s.ops_pack_cover });
+const claimStep = async (id, step) => !!(await one(`UPDATE shift_assignments SET ${PACK_COL[step]} = now() WHERE id = $1 AND ${PACK_COL[step]} IS NULL RETURNING id`, [id]));
+
+const PACK_TEXT = {
+  chase1: (a) => `Your shift at ${a.venue_name} starts at ${fmtTime(a.starts_at)}. Sign the site pack now or you won't be able to clock in.`,
+  chase2: (a) => `Your shift at ${a.venue_name} has started and you still can't clock in. Sign the site pack now.`,
+};
+
+async function packCheck(s) {
+  if (!jobOn(s, 'pack')) return 'off';
+  const offsets = packOffsets(s);
+  const settled = await packSettle();
+  const rows = await q(
+    `SELECT a.id, a.shift_id, a.officer_id, a.pack_chase1_at, a.pack_chase2_at, a.pack_escalated_at, a.pack_cover_at, a.pack_signing_at,
+            s.venue_id, s.starts_at, s.ends_at, v.name AS venue_name, o.first_name, o.last_name
+       FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id
+      WHERE a.status IN ${ACTIVE} AND s.status = 'published' AND s.ends_at > now() AND NOT a.late_alerted AND a.pack_settled_at IS NULL AND ${NO_CLOCK_IN}
+        AND s.starts_at + make_interval(mins => $1::int) <= now()
+        AND (a.pack_chase1_at IS NULL OR a.pack_chase2_at IS NULL OR a.pack_escalated_at IS NULL OR a.pack_cover_at IS NULL)
+      ORDER BY s.starts_at LIMIT 200`, [Math.min(...Object.values(offsets).map(Number))]);
+  if (!rows.length) return { steps: 0, settled };
+  const st = await statusesFor(rows);
+  let steps = 0;
+  for (const a of rows) {
+    if (OK.has(st.get(pairKey(a.officer_id, a.venue_id))?.status)) continue;
+    const due = packDue({ startsAt: a.starts_at, offsets, done: Object.fromEntries(Object.entries(PACK_COL).map(([k, col]) => [k, !!a[col]])) });
+    const name = firstLast(a);
+    const ref = { ref_type: 'assignment', ref_id: a.id, venue_id: a.venue_id };
+    let chased = false;
+    for (const k of ['chase1', 'chase2']) if (due.due.includes(k) && (await claimStep(a.id, k)) && k === due.chase) chased = true;
+    if (chased) {
+      const [uid] = await officerUser(a.officer_id);
+      await closeQuick(uid, { ref: `pack:${a.id}`, used: 'superseded' });
+      await opsMessage(uid, PACK_TEXT[due.chase](a), {
+        ref: `pack:${a.id}`, link: { label: 'Sign site pack', to: packLink(a.venue_id) },
+        options: [{ label: 'Signing now', value: 'signing_now' }, { label: "Can't make it", value: 'cant_make_it' }],
+      });
+      await logActivity('pack', `Chased ${name} to sign the ${a.venue_name} site pack (${due.chase === 'chase1' ? 'before' : 'at'} the ${fmtTime(a.starts_at)} start)`, ref);
+      steps++;
+    }
+    if (due.escalate && (await claimStep(a.id, 'escalate'))) {
+      const signing = a.pack_signing_at ? ` They said they were signing it at ${fmtTime(a.pack_signing_at)}.` : '';
+      await notifyManagers(a.venue_id, {
+        kind: 'late', severity: 'warning', title: `${name} can't clock in: site pack not signed`,
+        body: `${name} hasn't signed the ${a.venue_name} site pack and can't clock in – shift started ${fmtTime(a.starts_at)}.${signing}`,
+        link: 'live', dedupe: `pack-esc:${a.id}`, email: true,
+      });
+      await logActivity('pack', `Told managers ${name} still hasn't signed the ${a.venue_name} site pack (shift started ${fmtTime(a.starts_at)})`, ref);
+      steps++;
+    }
+    if (due.cover && jobOn(s, 'cover') && (await claimStep(a.id, 'cover'))) {
+      const note = a.pack_signing_at ? `${name} said they were signing it at ${fmtTime(a.pack_signing_at)}` : `${name} has not replied`;
+      await proposeCover({ id: a.shift_id }, 'pack', { replacing: a.id, note });
+      await logActivity('pack', `Prepared cover for ${name} at ${a.venue_name}: site pack still not signed`, ref);
+      steps++;
+    }
+  }
+  return { steps, settled };
+}
+
+/**
+ * Officers chased about the pack who have now signed. Their buttons close; if cover was already
+ * prepared, an unapproved card closes, unanswered offers are withdrawn and they keep the shift,
+ * or, when a replacement has already accepted, managers decide.
+ */
+async function packSettle() {
+  const rows = await q(
+    `SELECT a.id, a.shift_id, a.officer_id, a.status, a.pack_cover_at, s.venue_id, s.starts_at, s.ends_at, s.headcount, v.name AS venue_name, o.first_name, o.last_name
+       FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id
+      WHERE a.pack_settled_at IS NULL AND (a.pack_chase1_at IS NOT NULL OR a.pack_chase2_at IS NOT NULL OR a.pack_cover_at IS NOT NULL)
+        AND s.status = 'published' AND s.ends_at > now() LIMIT 200`);
+  if (!rows.length) return 0;
+  const st = await statusesFor(rows);
+  let n = 0;
+  for (const a of rows) {
+    if (!OK.has(st.get(pairKey(a.officer_id, a.venue_id))?.status)) continue;
+    if (!(await one('UPDATE shift_assignments SET pack_settled_at = now() WHERE id = $1 AND pack_settled_at IS NULL RETURNING id', [a.id]))) continue;
+    n++;
+    const [uid] = await officerUser(a.officer_id);
+    await closeQuick(uid, { ref: `pack:${a.id}`, used: 'signed' });
+    if (!a.pack_cover_at) continue;
+    const name = firstLast(a);
+    const ref = { ref_type: 'assignment', ref_id: a.id, venue_id: a.venue_id };
+    const note = `${name} has now signed the site pack`;
+    const items = await q("SELECT * FROM ops_items WHERE kind = 'cover' AND shift_id = $1 AND payload->>'replacing' = $2::text", [a.shift_id, a.id]);
+    const pending = items.filter((i) => i.status === 'pending');
+    if (pending.length) {
+      await q("UPDATE ops_items SET status = 'done', decided_at = now(), result = $2, reason = reason || $3 WHERE id = ANY($1::uuid[])",
+        [pending.map((i) => i.id), { closed: note }, ` ${note}.`]);
+    }
+    const stoodDown = a.status === 'cancelled' && items.some((i) => i.status !== 'pending' && i.status !== 'rejected' && i.decided_at);
+    if (!stoodDown) {
+      if (pending.length) await logActivity('pack', `${note}, so the cover card for ${a.venue_name} was closed`, ref);
+      continue;
+    }
+    // A manager approved cover and they were stood down. Has anyone taken the shift since?
+    const taken = await q(
+      `SELECT o.first_name, o.last_name FROM cover_offers c JOIN officers o ON o.id = c.officer_id
+        WHERE c.shift_id = $1 AND c.status = 'accepted' AND c.responded_at > $2`, [a.shift_id, a.pack_cover_at]);
+    const filled = await filledCount(a.shift_id);
+    if (taken.length || filled >= a.headcount) {
+      const who = taken.map(firstLast).join(', ') || 'a replacement';
+      await notifyManagers(a.venue_id, {
+        kind: 'ops', severity: 'warning', title: `${name} has signed, but ${who} is covering`,
+        body: `${a.venue_name} · ${when(a)}. Both officers can now work. Decide who stays on the rota.`, link: 'rota', dedupe: `pack-both:${a.id}`, email: true,
+      });
+      await opsMessage(uid, `Thanks for signing the ${a.venue_name} site pack. Someone else has already taken this shift, so the office will confirm whether you're still needed.`);
+      await logActivity('pack', `${note} after ${who} took the cover — managers asked to decide`, ref);
+      continue;
+    }
+    const withdrawn = await q(
+      "UPDATE cover_offers SET status = 'expired', responded_at = now() WHERE shift_id = $1 AND status = 'offered' AND item_id = ANY($2::uuid[]) RETURNING id, officer_id",
+      [a.shift_id, items.map((i) => i.id)]);
+    for (const x of withdrawn) {
+      const [xu] = await officerUser(x.officer_id);
+      await closeQuick(xu, { ref: `offer:${x.id}`, used: 'withdrawn' });
+      await opsMessage(xu, `The cover shift at ${a.venue_name} (${when(a)}) is no longer needed. Thanks for looking.`);
+    }
+    await q("UPDATE ops_items SET status = 'done' WHERE id = ANY($1::uuid[]) AND status = 'approved'", [items.map((i) => i.id)]);
+    await q("UPDATE shift_assignments SET status = 'accepted', escalated_at = NULL WHERE id = $1 AND status = 'cancelled'", [a.id]);
+    await opsMessage(uid, `Thanks for signing the ${a.venue_name} site pack. You're back on ${when(a)}. Clock in now.`);
+    await notifyManagers(a.venue_id, {
+      kind: 'ops', title: `${name} has signed and keeps the shift`, body: `${a.venue_name} · ${when(a)}. Cover offers were withdrawn${withdrawn.length ? ` (${withdrawn.length})` : ''}.`,
+      link: 'live', dedupe: `pack-back:${a.id}`,
+    });
+    await logActivity('pack', `${note}; no one had taken the cover, so offers were withdrawn and ${name} keeps the shift`, ref);
+  }
+  return n;
+}
+
+/** "Signing now" or "Can't make it" on a pack chase. */
+export async function packReply(b, user) {
+  required(b, 'assignment_id', 'reply');
+  if (!['signing_now', 'cant_make_it'].includes(b.reply)) fail(400, 'Unknown reply');
+  const a = need(await one(
+    `SELECT a.*, s.venue_id, s.starts_at, v.name AS venue_name, o.first_name, o.last_name FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
+       JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id
+      WHERE a.id = $1 AND a.officer_id = $2 AND a.status IN ${ACTIVE} AND s.status = 'published' AND s.ends_at > now()`, [b.assignment_id, user.officer_id]), 'Shift not found');
+  await closeQuick(user.id, { ref: `pack:${a.id}`, used: b.reply });
+  const name = firstLast(a);
+  if (b.reply === 'cant_make_it') {
+    // The pack's cover card, if any, gives way to the can't-make-it one
+    await q("UPDATE ops_items SET status = 'expired', result = $2 WHERE kind = 'cover' AND status = 'pending' AND payload->>'replacing' = $1::text",
+      [a.id, { closed: `${name} said they can't make it` }]);
+    return officerReply({ assignment_id: a.id, reply: 'cant_make_it', reason: b.reason }, user);
+  }
+  await q('UPDATE shift_assignments SET pack_signing_at = COALESCE(pack_signing_at, now()) WHERE id = $1', [a.id]);
+  await opsMessage(user.id, `Thanks. Clock-in at ${a.venue_name} unlocks as soon as the site pack is signed.`);
+  await logActivity('pack', `${name} replied "signing now" for the ${a.venue_name} site pack`, { ref_type: 'assignment', ref_id: a.id, venue_id: a.venue_id });
+  return { ok: true };
+}
+
 // ---------- Jobs ----------
 const JOBS = {
+  packCheck,
+
   async escalate(s) {
     if (!jobOn(s, 'chase')) return 'off';
     const rows = await q(
@@ -440,7 +611,10 @@ async function decideCover(it, b, user) {
     if (r) {
       const [uid] = await officerUser(r.officer_id);
       await closeQuick(uid, { ref: `chase:${it.payload.replacing}`, used: 'stood_down' });
-      await opsMessage(uid, `You've been stood down from ${sh.venue_name} · ${when(sh)} because we couldn't reach you. Reply here or call the office if this is wrong.`);
+      await closeQuick(uid, { ref: `pack:${it.payload.replacing}`, used: 'stood_down' });
+      await opsMessage(uid, it.payload.cause === 'pack'
+        ? `You've been stood down from ${sh.venue_name} · ${when(sh)} because the site pack wasn't signed. If you sign it now and no one has taken the shift yet, you'll keep it.`
+        : `You've been stood down from ${sh.venue_name} · ${when(sh)} because we couldn't reach you. Reply here or call the office if this is wrong.`);
     }
   }
   const batch = it.payload.batch || 1;
@@ -738,7 +912,7 @@ export async function offerRespond(b, user) {
   return { ok: true };
 }
 
-const OPS_SETTINGS = ['ops_jobs', 'ops_escalate_minutes', 'ops_offer_wait_minutes', 'ops_reconcile_dow', 'ops_compliance_dow', 'ops_ai_cap_credits'];
+const OPS_SETTINGS = ['ops_jobs', 'ops_escalate_minutes', 'ops_offer_wait_minutes', 'ops_reconcile_dow', 'ops_compliance_dow', 'ops_ai_cap_credits', 'ops_pack_chase1', 'ops_pack_chase2', 'ops_pack_escalate', 'ops_pack_cover'];
 
 export const actions = {
   'ops.inbox': def(MGR, async (b, { user }) => {
@@ -880,6 +1054,13 @@ Answer in short, plain British business English. Use the officers' and venues' n
     for (const k of ['ops_reconcile_dow', 'ops_compliance_dow']) if (f[k] != null && !(f[k] >= 1 && f[k] <= 7)) fail(400, 'Day must be 1–7');
     for (const k of ['ops_escalate_minutes', 'ops_offer_wait_minutes']) if (f[k] != null && !(f[k] >= 1 && f[k] <= 240)) fail(400, 'Minutes must be 1–240');
     if (f.ops_ai_cap_credits != null && !(Number(f.ops_ai_cap_credits) >= 0)) fail(400, 'Cap must be 0 or more');
+    const pk = ['ops_pack_chase1', 'ops_pack_chase2', 'ops_pack_escalate', 'ops_pack_cover'];
+    for (const k of pk) if (f[k] != null && !(Number.isInteger(Number(f[k])) && f[k] >= -240 && f[k] <= 240)) fail(400, 'Site pack times must be whole minutes between −240 and 240');
+    if (pk.some((k) => f[k] != null)) {
+      const cur = await getSettings();
+      const t = pk.map((k) => Number(f[k] ?? cur[k]));
+      if (t.some((x, i) => i && x < t[i - 1])) fail(400, 'Site pack times must run in order: first chase, second chase, tell managers, prepare cover');
+    }
     const keys = Object.keys(f);
     if (keys.length) await q(`UPDATE settings SET ${keys.map((k, i) => `${k} = $${i + 1}`).join(', ')}, updated_at = now() WHERE id = 1`, keys.map((k) => f[k]));
     await audit(user, 'ops.settings', 'settings', 1, f);

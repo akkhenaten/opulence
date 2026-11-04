@@ -206,14 +206,15 @@ function MessageList({ msgs, me, conv, onReplied }) {
   );
 }
 
-// Buttons under an Orb Ops question ("On my way" / "Can't make it", "Accept" / "Decline")
+// Buttons under an Orb Ops question ("On my way" / "Can't make it", "Accept" / "Decline"), plus an optional link ("Sign site pack")
 function QuickReplies({ m, onDone }) {
   const [run, busy] = useAction();
   const [picked, setPicked] = useState(null);
   return (
     <div className="mt-2 flex flex-wrap gap-2">
+      {m.quick.link && <Button size="sm" to={m.quick.link.to}>{m.quick.link.label}</Button>}
       {m.quick.options.map((o) => (
-        <Button key={o.value} size="sm" variant={o.value === 'accept' || o.value === 'on_my_way' ? 'primary' : 'secondary'} busy={busy && picked === o.value} disabled={busy}
+        <Button key={o.value} size="sm" variant={!m.quick.link && (o.value === 'accept' || o.value === 'on_my_way') ? 'primary' : 'secondary'} busy={busy && picked === o.value} disabled={busy}
           onClick={() => { setPicked(o.value); run(() => api('messages.reply', { message_id: m.id, value: o.value })).then(onDone).catch(onDone); }}>
           {o.label}
         </Button>
