@@ -136,6 +136,13 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
 @keyframes sheet-down { from { transform: none; } to { transform: translateY(100%); } }
 @keyframes modal-in { from { opacity: 0; transform: scale(.96) translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes modal-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(.97) translateY(4px); } }
+/* Orb voice: the mark breathes while listening, pulses while speaking, the ring turns while connecting */
+@keyframes orb-breathe { 0%, 100% { transform: scale(1); opacity: .35; } 50% { transform: scale(1.18); opacity: .1; } }
+@keyframes orb-speak { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+@keyframes orb-turn { to { transform: rotate(360deg); } }
+.orb-voice-halo { animation: orb-breathe 2.4s ease-in-out infinite; }
+.orb-voice-speaking { animation: orb-speak .7s ease-in-out infinite; }
+.orb-voice-turn { animation: orb-turn 1.2s linear infinite; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes pop { 0% { transform: scale(.86); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
@@ -173,7 +180,7 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
   *, *::before, *::after { transition-duration: 1ms !important; scroll-behavior: auto !important; }
   .bento > *, .page-in-right, .page-in-left, .page-fade, .anim-pop, .anim-sheet-in, .anim-toast-in, .anim-bar-in, .anim-fade-in { animation: fade var(--dur-1) both !important; }
   .anim-sheet-out, .anim-toast-out, .anim-fade-out { animation: fade-out var(--dur-1) both !important; }
-  .live-dot, .skeleton { animation: none !important; }
+  .live-dot, .skeleton, .orb-voice-halo, .orb-voice-speaking, .orb-voice-turn { animation: none !important; }
   .pressable:active, .pressable-card:active { transform: none; }
 }
 

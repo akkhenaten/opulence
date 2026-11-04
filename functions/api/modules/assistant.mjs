@@ -18,6 +18,7 @@ import { MGR, def } from './_def.mjs';
 let ACTIONS = {};
 /** index.mjs hands over the action table so Orb goes through the same code as the app. */
 export const useActions = (table) => { ACTIONS = table; };
+export const actionTable = () => ACTIONS;
 
 const MONEY = /^(pay|payRuns|invoices)\./;
 const range = (a, b) => `${fmtDate(a)} – ${fmtDate(b)}`;
@@ -78,7 +79,7 @@ const ORB_TOOLS = [
     required: ['action'] } },
 ];
 
-function toolsFor(user) {
+export function toolsFor(user) {
   const list = [
     ...ORB_TOOLS, ...CHAT_TOOLS.filter((t) => t.name !== 'propose_change'), ...SHARED_READ, ...MESSAGE_ACTION,
     ...(canSeePay(user) ? PAY_READ : []),
@@ -258,7 +259,7 @@ function describe(action, r) {
   }
 }
 
-const errorText = (e) => {
+export const errorText = (e) => {
   if (e instanceof HttpError) return e.message;
   if (e?.code === '23505') return 'That already exists';
   if (e?.code === '23503') {
@@ -294,7 +295,7 @@ async function runAction(input, turn) {
   if (tier === 'auto') {
     if (entry.prepare) body = entry.prepare(body);
     const res = await ACTIONS[name].fn(body, ctx);
-    await audit(user, name, 'assistant_message', turn.id, { via: 'orb', body });
+    await audit(user, name, 'assistant_message', turn.id, { via: 'orb', ...(turn.voice ? { voice: true } : {}), body });
     const undo = entry.undo?.(res, body) || null;
     turn.done.push({ title: entry.title, label, action: name, link: linkFor(user, entry, res, body),
       undo: undo && ACTIONS[undo.action]?.roles.includes(user.role) ? undo : null });
@@ -307,7 +308,7 @@ async function runAction(input, turn) {
   return { added_to_confirm_card: label, note: 'Nothing has changed yet; the person must tap Confirm.' };
 }
 
-async function callTool(name, input, turn, tools) {
+export async function callTool(name, input, turn, tools) {
   const { user } = turn;
   if (!tools.some((t) => t.name === name)) return { error: 'Not available to this person' };
   if (name === 'run_action') return runAction(input, turn);
@@ -363,7 +364,7 @@ ${page?.name ? `They are looking at: ${page.name}${page.id ? ` (id ${page.id})` 
 }
 
 // Prior turns as plain text; the tool calls of earlier turns are not replayed
-async function historyFor(convId) {
+export async function historyFor(convId) {
   const rows = await q("SELECT role, content, pending_action, action_status, done FROM assistant_messages WHERE conversation_id = $1 AND status = 'done' ORDER BY created_at DESC LIMIT 20", [convId]);
   return rows.reverse().map((m) => {
     let text = m.content?.text || '';
@@ -382,13 +383,13 @@ async function historyFor(convId) {
   }, []).filter((m, i) => !(i === 0 && m.role === 'assistant'));
 }
 
-async function ownConversation(user, id) {
+export async function ownConversation(user, id) {
   const c = need(await one('SELECT * FROM assistant_conversations WHERE id = $1', [id]), 'Chat not found');
   if (c.user_id !== user.id) fail(403, 'Forbidden');
   return c;
 }
 
-const shapeMessage = (m) => {
+export const shapeMessage = (m) => {
   // A reply still "working" after the function's limit was cut off
   const stale = m.status === 'working' && Date.now() - new Date(m.created_at).getTime() > 200000;
   const card = m.pending_action;
@@ -398,7 +399,7 @@ const shapeMessage = (m) => {
     result: m.content?.result || null, items: m.content?.items || [], progress: m.progress || [],
     done: (m.done || []).map((d) => ({ label: d.label, title: d.title, link: d.link, can_undo: !!d.undo && !d.undone, undone: !!d.undone })),
     pending_action: card ? { summary: card.summary, items: (card.items || [{ label: card.summary }]).map((i) => ({ label: i.label, title: i.title || null })) } : null,
-    results: m.action_result?.items || null, action_status: m.action_status, created_at: m.created_at,
+    results: m.action_result?.items || null, action_status: m.action_status, created_at: m.created_at, voice: !!m.voice,
   };
 };
 
@@ -534,7 +535,7 @@ export const actions = {
           const body = { ...step.body, ...(step.conversationFromPrevious ? { conversation_id: prev?.id } : {}) };
           prev = await entry.fn(body, ctx);
           said = describe(step.action, prev) || said;
-          await audit(user, step.action, 'assistant_message', m.id, { via: 'orb', body });
+          await audit(user, step.action, 'assistant_message', m.id, { via: 'orb', ...(ctx.voice ? { voice: true } : {}), body });
         }
         const first = item.steps?.[0];
         results.push({ label: item.label, status: 'done', text: said, link: first ? linkFor(user, CATALOG[first.action], prev, first.body) : null });

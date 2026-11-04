@@ -1,13 +1,14 @@
 // Orb: the managers' assistant. Knows the guide and live data, and acts through the app as the signed-in manager.
 // Small changes run straight away (Done, with Undo); everything else waits on a Confirm card.
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowUpRight, Check as CheckIcon, ChevronLeft, CircleSlash, History, Plus, Sparkles, Trash2, Undo2, X } from 'lucide-react';
+import { ArrowUpRight, AudioLines, Check as CheckIcon, ChevronLeft, CircleSlash, History, Mic, Plus, Sparkles, Trash2, Undo2, X } from 'lucide-react';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { Button, Check, cx, Empty, IconButton, Pill, Pressable, relative, useAction, useApi, useConfirm, useScrollLock } from './index.jsx';
 import { Composer, Suggestions } from './Chat.jsx';
 import OrbMark from './OrbMark.jsx';
+import { canRecord, MicButton, VoiceView } from './OrbVoice.jsx';
 
 const KEY = 'orb.askorb';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -68,6 +69,9 @@ export default function AskOrb({ open, onClose, onDot }) {
   openRef.current = open;
   const wide = useWide();
   const busy = !!turn;
+  const voice = useApi('assistant.voiceInfo', {}, { skip: !open });
+  const voiceOn = !!voice.data?.on;
+  const [reload, setReload] = useState(0);
   useScrollLock(open && !wide);
 
   useEffect(() => { if (open) onDot?.(false); }, [open, onDot]);
@@ -80,7 +84,7 @@ export default function AskOrb({ open, onClose, onDot }) {
     api('assistant.get', { id: convId }).then((c) => { if (live) { setMsgs(c.messages.filter((m) => m.status !== 'working')); setTitle(c.title); } }).catch(() => { if (live) setConvId(null); });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, convId]);
+  }, [open, convId, reload]);
   useEffect(() => { if (open) end.current?.scrollIntoView({ block: 'end' }); }, [msgs, turn, open, view]);
   useEffect(() => {
     if (!open) return undefined;
@@ -127,6 +131,11 @@ export default function AskOrb({ open, onClose, onDot }) {
   };
   const replace = (m) => setMsgs((list) => list.map((x) => (x.id === m.id ? m : x)));
   const newChat = () => { if (busy) return; setConvId(null); setMsgs([]); setTitle(''); setView('chat'); setErr(null); };
+  // Dictated words go into the box after anything already typed; the person still taps Send
+  const dictated = (t) => { setText((cur) => (cur.trim() ? `${cur.trimEnd()} ${t}` : t)); setTimeout(() => input.current?.focus(), 0); };
+  const voiceEnded = (id, note) => { setView('chat'); if (id) setConvId(id); setReload((n) => n + 1); setErr(note); };
+  // Stable, so cards keep their state while captions stream in
+  const VoiceMessage = useMemo(() => function VoiceMessage({ m, onChange, onCard }) { return <Bubble m={m} role={user.role} onChange={onChange} onSettled={onCard} />; }, [user.role]);
 
   if (!open) return null;
   return (
@@ -143,11 +152,17 @@ export default function AskOrb({ open, onClose, onDot }) {
             <div className="truncate text-caption text-muted">{view === 'chat' && title ? title : 'Your assistant'}</div>
           </div>
         </div>
-        <IconButton icon={Plus} label="New chat" onClick={newChat} disabled={busy} />
+        {voiceOn && view === 'chat' && (
+          <IconButton icon={AudioLines} label={canRecord() ? 'Talk to Orb' : 'No microphone on this device'} onClick={() => { setErr(null); setView('voice'); }} disabled={busy || !canRecord()} />
+        )}
+        {view !== 'voice' && <IconButton icon={Plus} label="New chat" onClick={newChat} disabled={busy} />}
         <IconButton icon={X} label="Close" onClick={onClose} />
       </header>
 
-      {view === 'history' ? <HistoryList current={convId} onPick={(id) => { if (!busy) { setConvId(id); setView('chat'); } }} onDeleted={(id) => { if (id === convId) newChat(); }} /> : (
+      {view === 'voice' ? (
+        <VoiceView conversationId={convId} page={pageContext(pathname)} Message={VoiceMessage}
+          onConversation={(id, t) => { setConvId(id); if (t) setTitle(t); }} onEnd={voiceEnded} />
+      ) : view === 'history' ? <HistoryList current={convId} onPick={(id) => { if (!busy) { setConvId(id); setView('chat'); } }} onDeleted={(id) => { if (id === convId) newChat(); }} /> : (
         <>
           <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
             {!msgs.length && !busy && (
@@ -174,7 +189,8 @@ export default function AskOrb({ open, onClose, onDot }) {
             {err && <div className="rounded-tile bg-red-soft px-4 py-2.5 text-subhead text-red">{err}</div>}
             <div ref={end} />
           </div>
-          <Composer value={text} onChange={setText} onSend={() => send()} busy={busy} placeholder="Ask Orb…" inputRef={input} />
+          <Composer value={text} onChange={setText} onSend={() => send()} busy={busy} placeholder="Ask Orb…" inputRef={input}
+            left={voiceOn ? <MicButton onText={dictated} disabled={busy} /> : null} />
         </>
       )}
     </section>
@@ -214,14 +230,21 @@ function Rich({ text, role }) {
   });
 }
 
-function Bubble({ m, role, onChange }) {
+function Bubble({ m, role, onChange, onSettled }) {
   const mine = m.role === 'user';
+  // A spoken line from a voice chat that only carried Done chips or a card has no text of its own
+  const bare = !mine && !String(m.text || '').trim();
   return (
     <div className={cx('flex', mine ? 'justify-end' : 'justify-start')}>
-      <div className={cx('max-w-[90%] rounded-tile px-4 py-2.5 text-body leading-relaxed', mine ? 'whitespace-pre-wrap bg-blue text-white' : 'bg-bg')}>
-        {mine ? m.text : <Rich text={m.text} role={role} />}
+      <div className={cx('max-w-[90%] rounded-tile px-4 py-2.5 text-body leading-relaxed', mine ? 'whitespace-pre-wrap bg-blue text-white' : 'bg-bg', bare && '[&>*:first-child]:mt-0')}>
+        {mine ? (
+          <>
+            {m.voice && <Mic size={13} className="-mt-0.5 mr-1 inline opacity-70" aria-label="Spoken" />}
+            {m.text}
+          </>
+        ) : !bare && <Rich text={m.text} role={role} />}
         {!mine && m.done?.length > 0 && <DoneList m={m} onChange={onChange} />}
-        {!mine && m.pending_action && <ActionCard m={m} onChange={onChange} />}
+        {!mine && m.pending_action && <ActionCard m={m} onChange={onChange} onSettled={onSettled} />}
         {!mine && m.items?.length > 0 && (
           <div className="mt-2"><Button size="sm" variant="soft" icon={Sparkles} to={`/${role}/ops`}>Open in Ops AI inbox ({m.items.length})</Button></div>
         )}
@@ -255,14 +278,14 @@ const STATUS = { confirmed: ['green', 'Done'], cancelled: ['grey', 'Cancelled'],
 const LINE = { done: ['text-green', CheckIcon], failed: ['text-red', X], skipped: ['text-faint', CircleSlash], not_run: ['text-faint', CircleSlash] };
 
 // The Confirm card: a checklist of changes; untick any line you don't want
-function ActionCard({ m, onChange }) {
+function ActionCard({ m, onChange, onSettled }) {
   const [run, busy] = useAction();
   const [err, setErr] = useState(null);
   const items = m.pending_action.items || [];
   const [skip, setSkip] = useState(() => new Set());
   const pending = m.action_status === 'pending';
   const go = (action) => run(() => api(action, { message_id: m.id, ...(action === 'assistant.confirm' ? { skip: [...skip] } : {}) })).then((r) => {
-    if (r.message) onChange(r.message);
+    if (r.message) { onChange(r.message); onSettled?.(r.message, action); }
     if (r.ok === false && !r.message) setErr(r.error);
   }).catch((e) => setErr(e.message));
   const st = STATUS[m.action_status];

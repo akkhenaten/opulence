@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ACTIONS } from '../index.mjs';
-import { CATALOG, BANNED, catalogFor, sanitize, searchCatalog, tierOf } from '../lib/orbCatalog.mjs';
+import { CATALOG, BANNED, catalogFor, needsTap, sanitize, searchCatalog, tierOf } from '../lib/orbCatalog.mjs';
+import { declarations, signContext, verifyContext, voiceTools } from '../modules/orbVoice.mjs';
 import { searchGuide } from '../modules/assistant.mjs';
 
 const company = { id: 'u1', role: 'company', name: 'Alex' };
@@ -84,4 +85,36 @@ test('the guide search finds how to send a policy', () => {
   const hits = searchGuide('company', 'Acme', 'send a policy to everyone');
   assert.ok(hits.length);
   assert.ok(hits.some((h) => /polic/i.test(`${h.section} ${h.body}`)));
+});
+
+test('a spoken yes cannot approve money or anything sent to people', () => {
+  for (const action of ['pay.generate', 'payRuns.issue', 'invoices.issue', 'payAgreements.send', 'messages.send', 'shifts.publish', 'contracts.send', 'everyday.create', 'users.invite']) {
+    assert.ok(needsTap({ action, body: {} }), action);
+  }
+  assert.ok(needsTap({ action: 'toolbox.setStatus', body: { status: 'published' } }));
+  for (const action of ['shifts.save', 'hrnotes.create', 'venues.save', 'shifts.cancel']) assert.equal(needsTap({ action, body: {} }), null, action);
+  assert.equal(needsTap({ action: 'toolbox.setStatus', body: { status: 'archived' } }), null);
+});
+
+test('voice tool calls only work with the secret minted for that person, chat and time', () => {
+  const c = { vsid: 'v1', uid: 'u1', cid: 'c1', exp: Date.now() + 60000 };
+  const secret = signContext(c);
+  assert.ok(verifyContext(c, secret));
+  assert.ok(!verifyContext({ ...c, uid: 'u2' }, secret));
+  assert.ok(!verifyContext({ ...c, cid: 'c2' }, secret));
+  assert.ok(!verifyContext(c, undefined));
+  assert.ok(!verifyContext(c, 'x'.repeat(secret.length)));
+  const old = { ...c, exp: Date.now() - 1 };
+  assert.ok(!verifyContext(old, signContext(old)));
+});
+
+test('voice tools are valid Gemini declarations, without money tools for a security manager', () => {
+  const decl = declarations(voiceTools(security));
+  const names = decl.map((d) => d.name);
+  assert.ok(names.includes('run_action') && names.includes('confirm_card'));
+  assert.ok(!names.some((n) => ['create_pay_run', 'issue_invoices', 'pay_preview'].includes(n)));
+  for (const d of decl) assert.equal(d.parameters.type, 'OBJECT', d.name);
+  assert.ok(declarations(voiceTools(company)).some((d) => d.name === 'create_pay_run'));
+  assert.ok(!JSON.stringify(decl).includes('cache_control'));
+  assert.ok(!/"type":"[a-z]/.test(JSON.stringify(decl)));
 });

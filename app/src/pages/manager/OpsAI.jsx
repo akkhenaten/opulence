@@ -335,6 +335,7 @@ const JOBS = [
   { k: 'venue_requests', label: 'Venue request chat', hint: 'Venues ask for staff in plain words' },
   { k: 'reconcile', label: 'Check hours against pay and invoices', hint: 'Weekly, and after each pay run or invoice run' },
   { k: 'chat', label: 'Ask Ops AI chat', hint: 'For managers' },
+  { k: 'orb_voice', label: 'Talk to Orb', hint: 'Managers can dictate or talk to Orb by voice' },
   { k: 'compliance', label: 'Compliance checks', hint: 'Licences, right to work and documents against the rota. Weekly' },
   { k: 'compliance_digest', label: 'Weekly compliance email', hint: 'After the weekly check, the worst issues by email to company managers' },
   { k: 'incident_ai', label: 'AI on incident reports', hint: 'Drafts from officers\' notes and photos; evidence review for managers' },
@@ -398,7 +399,7 @@ function OpsSettings() {
 }
 
 const AI_MODULES = [
-  { k: 'ops', label: 'Ops AI and incidents' }, { k: 'academy', label: 'Academy' }, { k: 'toolbox', label: 'Toolbox' }, { k: 'everyday', label: 'Everyday post checks' }, { k: 'orb', label: 'Orb assistant' },
+  { k: 'ops', label: 'Ops AI and incidents' }, { k: 'academy', label: 'Academy' }, { k: 'toolbox', label: 'Toolbox' }, { k: 'everyday', label: 'Everyday post checks' }, { k: 'orb', label: 'Orb assistant' }, { k: 'orb_voice', label: 'Orb voice' },
 ];
 
 // Credits used this month by each AI feature, with an optional cap per feature inside the overall cap

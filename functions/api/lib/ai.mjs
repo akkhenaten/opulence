@@ -26,7 +26,7 @@ async function priceFor(model) {
       prices = {};
     }
   }
-  if (model === IMAGE_MODEL) return prices[model] || {};
+  if (model === IMAGE_MODEL || /^gemini/.test(model)) return prices[model] || {};
   return prices[model] || { inputPrice: model === HAIKU ? 150 : 450, outputPrice: model === HAIKU ? 750 : 2250 };
 }
 
@@ -56,7 +56,7 @@ export async function checkCap(module = 'ops') {
   }
 }
 
-const MODULE_NAMES = { ops: 'Ops AI', academy: 'Academy', toolbox: 'Toolbox', everyday: 'Everyday', orb: 'Orb' };
+const MODULE_NAMES = { ops: 'Ops AI', academy: 'Academy', toolbox: 'Toolbox', everyday: 'Everyday', orb: 'Orb', orb_voice: 'Orb voice' };
 
 // system may be a string or an array of text blocks (so long, stable parts can carry cache_control)
 export async function claude({ model = SONNET, system, messages, tools, tool_choice, max_tokens = 1024, module = 'ops' }) {
@@ -87,10 +87,44 @@ export async function claude({ model = SONNET, system, messages, tools, tool_cho
   return data;
 }
 
-async function logUsage(module, credits) {
+export async function logUsage(module, credits) {
   await q('UPDATE settings SET ops_ai_used = ops_ai_used + $1 WHERE id = 1', [credits]);
   await q(`INSERT INTO ai_usage (month, module, credits) VALUES ($1, $2, $3)
     ON CONFLICT (month, module) DO UPDATE SET credits = ai_usage.credits + EXCLUDED.credits`, [monthKey(), module, credits]);
+}
+
+export const TRANSCRIBE_MODEL = 'gemini-3.5-transcribe';
+// Charged per clip when the proxy reports no token usage
+const CLIP_CREDITS = 600;
+
+/** Speech to text for one short clip at a (presigned) URL: returns { text, credits } */
+export async function transcribe({ url, vocabulary = [], module = 'orb_voice' }) {
+  await checkCap(module);
+  for (const model of [TRANSCRIBE_MODEL, 'gemini-flash-latest']) {
+    let data;
+    try {
+      const res = await fetch('https://proxy.openkbs.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENKBS_API_KEY}` },
+        body: JSON.stringify({ audio: url, model, language: 'en', mode: 'smart', vocabulary: vocabulary.slice(0, 150) }),
+        signal: AbortSignal.timeout(30000),
+      });
+      data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data.text !== 'string') {
+        console.error('[transcribe]', model, res.status, JSON.stringify(data).slice(0, 300));
+        continue;
+      }
+    } catch (e) {
+      console.error('[transcribe]', model, e.message);
+      continue;
+    }
+    const u = data.usage || {};
+    const credits = creditsFor({ input_tokens: u.input_tokens ?? u.prompt_tokens ?? u.promptTokenCount, output_tokens: u.output_tokens ?? u.completion_tokens ?? u.candidatesTokenCount },
+      await priceFor(model)) || CLIP_CREDITS;
+    await logUsage(module, credits);
+    return { text: data.text.trim(), credits };
+  }
+  throw new HttpError(502, 'Could not turn that into text — try again or type it');
 }
 
 export const IMAGE_MODEL = 'gemini-3-pro-image';

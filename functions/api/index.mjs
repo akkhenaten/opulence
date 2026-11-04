@@ -32,8 +32,9 @@ import * as assistant from './modules/assistant.mjs';
 import * as demo from './modules/demo.mjs';
 import * as help from './modules/help.mjs';
 import * as esign from './modules/esign.mjs';
+import * as orbVoice from './modules/orbVoice.mjs';
 
-export const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, demo, help, esign].map((m) => m.actions));
+export const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign].map((m) => m.actions));
 // Orb runs real actions on confirm, through the same table and role checks
 assistant.useActions(ACTIONS);
 
@@ -52,6 +53,16 @@ export async function handler(event) {
     return json({ error: 'Invalid JSON' }, 400);
   }
   if (body.action === 'health') return json({ ok: true, time: new Date().toISOString() });
+  // Tool calls from the Live voice relay, signed per session (see modules/orbVoice.mjs)
+  if (body.action === 'tool' && body.tool) {
+    try {
+      await migrate();
+      return json(await orbVoice.voiceTool(event, body));
+    } catch (e) {
+      console.error('[orb voice]', e);
+      return json({ status: 'error', message: 'Something went wrong' });
+    }
+  }
 
   const entry = ACTIONS[body.action];
   if (!entry) return json({ error: 'Unknown action' }, 404);

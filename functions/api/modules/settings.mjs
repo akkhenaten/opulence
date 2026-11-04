@@ -83,7 +83,7 @@ export const actions = {
     if (b.ai_module_caps) {
       const caps = {};
       for (const [k, v] of Object.entries(b.ai_module_caps)) {
-        if (![...MODULES, 'ops', 'orb'].includes(k)) fail(400, 'Unknown module');
+        if (![...MODULES, 'ops', 'orb', 'orb_voice'].includes(k)) fail(400, 'Unknown module');
         if (v === null || v === '') continue;
         if (!(Number(v) >= 0)) fail(400, 'A cap must be zero or more credits');
         caps[k] = Math.round(Number(v));

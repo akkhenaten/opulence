@@ -170,6 +170,20 @@ export function catalogFor(user, actions) {
   });
 }
 
+// Changes that reach people outside the app's managers: messages, posts, documents to sign, the published rota, invites
+const OUTWARD = /^(messages\.send|messages\.createGroup|everyday\.create|shifts\.publish|contracts\.send|esign\.remind|officers\.inviteLogin|users\.invite)$/;
+
+/** A Confirm card line a spoken "yes" cannot approve: money, or anything sent to people. Returns why, or null. */
+export function needsTap(step) {
+  const name = String(step?.action || '');
+  const body = step?.body || {};
+  if (PAY.test(name)) return 'pay or invoices';
+  if (OUTWARD.test(name)) return 'something sent to people';
+  if (name === 'onboarding.setStatus' && body.invite) return 'something sent to people';
+  if (name === 'toolbox.setStatus' && body.status === 'published') return 'something sent to people';
+  return null;
+}
+
 /** Tier after looking at the body: some auto actions need Confirm when they edit or publish. */
 export const tierOf = (def, body) => (def.tier === 'auto' && def.confirmWhen?.(body || {}) ? 'confirm' : def.tier);
 
