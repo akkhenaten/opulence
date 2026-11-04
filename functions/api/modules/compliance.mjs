@@ -16,6 +16,7 @@ import { getShift } from './rota.mjs';
 import { createItem, logActivity, proposeCover } from './ops.mjs';
 import { trainingStatus } from './academy.mjs';
 import { moduleOn } from '../lib/modules.mjs';
+import { lawAlerts } from '../lib/contractContent.mjs';
 import { CO, MGR, def } from './_def.mjs';
 
 const ACTIVE = "('assigned','accepted')";
@@ -153,6 +154,19 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
   }
   if (!o.rtw_verified) {
     add({ key: 'unverified:rtw', severity: shifts.length ? near(shifts) : 'soon', sig: sig(o.rtw_type), title: 'Right to work not verified', detail: shifts.length ? `Rostered on ${plural(shifts.length, 'shift')}.` : 'Check and verify on the profile.', shift: shifts[0], actions: [remind(o, 'rtw', 'right to work proof')] });
+  }
+
+  // A fixed-term contract coming to an end: extend it, replace it or let it end
+  if (o.contract_end) {
+    const left = days(today, o.contract_end);
+    const renewed = o.fixed_term_renewals || 0;
+    if (left <= 30) {
+      add({
+        key: 'contract_end', severity: left < 0 ? 'soon' : 'advisory', sig: sig(o.contract_end, o.engagement_contract_id),
+        title: left < 0 ? `Fixed-term contract ended ${fmtDate(o.contract_end)}` : `Fixed-term contract ends in ${plural(left, 'day')} (${fmtDate(o.contract_end)})`,
+        detail: `${renewed ? `Extended ${plural(renewed, 'time')} so far. ` : ''}Extend or replace it from their Contracts tab, or let it end.${renewed >= 3 ? ' After four years of successive fixed-term contracts an employee may count as permanent: take advice before extending again.' : ''}`,
+      });
+    }
   }
 
   // Licence type against the roles on the profile and the shifts rostered
@@ -543,7 +557,7 @@ function area(key) {
 
 // ---------- Weekly digest email to company managers ----------
 export async function buildDigest() {
-  const results = await computeIssues();
+  const [results, law] = await Promise.all([computeIssues(), lawAlerts(90).catch(() => [])]);
   const all = results.flatMap(({ officer: o, issues }) => issues.map((i) => ({ ...i, name: `${o.first_name} ${o.last_name}` })))
     .sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity]);
   const count = (s) => all.filter((i) => i.severity === s).length;
@@ -556,7 +570,8 @@ export async function buildDigest() {
 <table style="width:100%;border-collapse:collapse;margin:8px 0 4px">${all.slice(0, 10).map((i) => `<tr><td style="padding:8px 0;border-top:1px solid #E5E7EB;vertical-align:top;width:10px"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:${tone[i.severity]}"></span></td><td style="padding:8px 0 8px 8px;border-top:1px solid #E5E7EB;color:#0B1220;font-size:14px"><b>${esc(i.name)}</b><br><span style="color:#4B5563">${esc(i.title)}</span></td></tr>`).join('')}</table>
 <p style="color:#4B5563;line-height:1.5">${all.length > 10 ? `And ${plural(all.length - 10, 'more item')}. ` : ''}Open Compliance to see everything and approve the actions.`
     : 'Nobody has an expired or missing licence, right to work, certificate or training this week.';
-  return { subject: `${name} — ${title}`, title, html: await emailHtml(title, body, '/company/people/compliance'), issues: all.length };
+  const lawHtml = law.length ? `<p style="color:#0B1220;font-weight:600;margin:16px 0 4px">Law changes coming</p>${law.map((l) => `<p style="color:#4B5563;margin:4px 0;line-height:1.5"><a href="${esc(l.url)}" style="color:#0B1220">${esc(l.title)}</a>: from ${fmtDate(l.effective_date)}, touches ${plural(l.contracts, 'signed contract')}. Review the wording before then.</p>`).join('')}` : '';
+  return { subject: `${name} — ${title}`, title, html: await emailHtml(title, body + lawHtml, '/company/people/compliance'), issues: all.length, law: law.length };
 }
 
 export async function sendDigest() {

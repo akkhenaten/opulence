@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Award, BadgeCheck, CalendarOff, Check, ClipboardList, Clock, Eye, FileSignature, FileText, MessageSquare, Plus, ShieldOff, Star, Trash2, ScrollText, Upload, X,
 } from 'lucide-react';
@@ -9,6 +10,8 @@ import {
 import { DOC_KINDS, ExpiryPill, Progress, RTW_TYPES, SIA_TYPES, TIMEOFF_KINDS, WEEKDAYS, docKindLabel, openUrl } from './_parts.jsx';
 import { CertificateSheet } from '../team/_training.jsx';
 import { ContractView, DocPill, RemindButton, SendDocSheet } from './_esign.jsx';
+import StartSheet from './contracts/StartSheet.jsx';
+import { AMEND_KIND, ENGAGEMENT, JUR_SHORT } from './contracts/_shared.jsx';
 
 // useApi that reports 403 to the parent so the tab can be hidden
 function useTabApi(action, body, onForbidden, opts) {
@@ -679,9 +682,66 @@ export function OnboardingTab({ o, reload, onForbidden }) {
 
 /* ---------------- Contracts ---------------- */
 
+/** How the officer is engaged, from the contract in force, and the ways to change it */
+function EngagementCard({ o }) {
+  const q = useApi('contracts.engagement', { officer_id: o.id });
+  const nav = useNavigate();
+  const [run, busy] = useAction();
+  const [replacing, setReplacing] = useState(false);
+  const e = q.data;
+  if (!e?.engagement_type && !e?.amendments?.length) return null;
+  const c = e.contract;
+  const fromPack = c?.source === 'pack';
+  const open = (r) => nav(`/company/people/contracts/draft/${r.draft.id}`);
+  const amend = (kind) => run(() => api('contracts.amend', { id: c.id, kind })).then(open).catch(() => {});
+  const ends = e.contract_end ? Math.ceil((new Date(e.contract_end) - new Date()) / 864e5) : null;
+  const items = [
+    ['Engaged as', ENGAGEMENT[e.engagement_type] || titleCase(e.engagement_type || '-')],
+    ['Contract', c ? `${c.title} (${c.reference})` : '-'],
+    ...(e.pack_title ? [['Built from', `${e.pack_title}${c.jurisdiction ? ` · ${JUR_SHORT[c.jurisdiction]}` : ''}`]] : []),
+    ['Start', e.contract_start ? date(e.contract_start) : '-'],
+    ...(e.contract_end ? [['End', <span className={ends <= 30 ? 'font-semibold text-amber' : ''}>{date(e.contract_end)}{ends < 0 ? ' · ended' : ends <= 30 ? ` · in ${ends} days` : ''}</span>]] : []),
+    ...(e.fixed_term_renewals ? [['Renewals', `${e.fixed_term_renewals}${e.fixed_term_renewals >= 3 ? ' · after four years on fixed terms an employee is usually treated as permanent' : ''}`]] : []),
+  ];
+  return (
+    <Tile title="Current contract" icon={FileSignature} className="mb-4"
+      action={c && <div className="flex flex-wrap gap-1.5">
+        {fromPack && <Button size="sm" variant="soft" busy={busy} onClick={() => amend('variation')}>Vary</Button>}
+        {fromPack && e.contract_end && <Button size="sm" variant="soft" busy={busy} onClick={() => amend('extension')}>Extend</Button>}
+        <Button size="sm" variant="secondary" busy={busy} onClick={() => (fromPack ? amend('replacement') : setReplacing(true))}>Replace</Button>
+      </div>}>
+      <KV items={items} />
+      {e.agency && (
+        <div className="mt-3 rounded-2xl bg-bg p-3.5">
+          <div className="flex items-center justify-between gap-2 text-subhead font-semibold">
+            <span>Weeks worked toward equal treatment</span>
+            <span className="num">{Math.min(e.agency.weeks, e.agency.qualifying_weeks)} of {e.agency.qualifying_weeks}</span>
+          </div>
+          <Progress value={Math.min(e.agency.weeks, e.agency.qualifying_weeks)} max={e.agency.qualifying_weeks} className="mt-2" />
+          <p className="mt-1.5 text-caption text-muted">
+            {e.agency.weeks >= e.agency.qualifying_weeks ? 'Qualified: pay and basic conditions should now match a directly recruited officer. ' : ''}
+            Weeks with at least one clocked-in shift since the contract started. Breaks of more than six weeks, or a substantially different role, can reset the count; some absences pause it.
+          </p>
+        </div>
+      )}
+      {e.amendments?.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          {e.amendments.map((d) => (
+            <Link key={d.id} to={`/company/people/contracts/draft/${d.id}`} className="flex items-center gap-2 rounded-xl bg-blue-soft px-3 py-2 text-footnote">
+              <Pill tone="blue">{AMEND_KIND[d.amend_kind]}</Pill><span className="min-w-0 flex-1 truncate">{d.title}</span><span className="font-semibold text-blue">Continue</span>
+            </Link>
+          ))}
+        </div>
+      )}
+      {replacing && <StartSheet onClose={() => setReplacing(false)} amends={{ id: c.id, title: c.title, reference: c.reference, party: 'person' }} />}
+    </Tile>
+  );
+}
+
 export function ContractsTab({ o, onForbidden }) {
   const q = useTabApi('contracts.list', { officer_id: o.id }, onForbidden);
   const [sending, setSending] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [viewing, setViewing] = useState(null);
   const confirm = useConfirm();
   const [run] = useAction();
@@ -694,7 +754,11 @@ export function ContractsTab({ o, onForbidden }) {
     <TabLoad q={q}>
       {(rows) => (
         <>
-          <div className="mb-3 flex justify-end"><Button icon={FileSignature} onClick={() => setSending(true)}>Send for signature</Button></div>
+          <EngagementCard o={o} />
+          <div className="mb-3 flex flex-wrap justify-end gap-2">
+            <Button variant="secondary" icon={FileSignature} onClick={() => setSending(true)}>Send a template</Button>
+            <Button icon={Plus} onClick={() => setCreating(true)}>Create contract</Button>
+          </div>
           {rows.length ? (
             <List>
               {rows.map((c) => (
@@ -703,6 +767,7 @@ export function ContractsTab({ o, onForbidden }) {
             </List>
           ) : <Empty icon={FileSignature} title="No contracts or policies" body="Send a contract or policy for e-signature." />}
           {sending && <SendDocSheet o={o} onClose={() => setSending(false)} onDone={q.reload} />}
+          {creating && <StartSheet officer={{ id: o.id, name: `${o.first_name} ${o.last_name}`, sub: o.email }} onClose={() => setCreating(false)} />}
           {viewing && <ContractView id={viewing} onClose={() => setViewing(null)} />}
         </>
       )}
@@ -716,7 +781,8 @@ export function ContractRow({ c, who, onView, onVoid, onDone }) {
   const Icon = c.category === 'policy' ? ScrollText : FileSignature;
   const when = c.status === 'signed' ? `Signed by ${c.signed_name} · ${dateTime(c.signed_at)}`
     : c.status === 'sent' ? `Sent ${date(c.sent_at || c.created_at)}${c.opened_at ? ` · opened ${dateTime(c.opened_at)}` : ''}`
-      : `Sent ${date(c.sent_at || c.created_at)}`;
+      : c.status === 'signed_paper' ? `Signed on paper${c.signed_at ? ` · ${date(c.signed_at)}` : ''}`
+        : `Sent ${date(c.sent_at || c.created_at)}`;
   return (
     <div className="flex flex-wrap items-center gap-3 px-4 py-3">
       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><Icon size={18} /></div>

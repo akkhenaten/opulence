@@ -84,6 +84,37 @@ function SendSheet({ v, onClose, onSent }) {
   );
 }
 
+const AMEND = {
+  variation: 'Variation: only what changes is printed, the rest of the signed contract stays in force',
+  replacement: 'Replacement: once signed, this contract replaces',
+  extension: 'Extension: set the new end date; once signed, this contract replaces',
+};
+
+/** What this draft changes in the signed contract it amends */
+function AmendBanner({ amends, kind, changes }) {
+  const [open, setOpen] = useState(false);
+  const n = (changes?.values.length || 0) + (changes?.clauses.length || 0);
+  return (
+    <div className="border-b border-line bg-blue-soft py-2 text-footnote safe-x [--px:0.75rem] sm:[--px:1.25rem]">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="min-w-0 flex-1">
+          {AMEND[kind]}{kind !== 'variation' && <> {amends.title} (<span className="num">{amends.reference}</span>)</>}
+          {kind === 'variation' && <> · <span className="num">{amends.reference}</span></>}
+        </span>
+        <button type="button" className="font-semibold text-blue" onClick={() => setOpen((o) => !o)}>{n ? `${n} change${n === 1 ? '' : 's'}` : 'No changes yet'}</button>
+      </div>
+      {open && n > 0 && (
+        <ul className="mt-2 space-y-1">
+          {changes.values.map((c) => <li key={c.id}><b>{c.label}:</b> {c.now ?? 'removed'} <span className="text-muted">(was {c.was ?? 'not set'})</span></li>)}
+          {changes.clauses.map((c) => (
+            <li key={c.slot}><b>{(c.now || c.was).title || c.slot}:</b> {c.change === 'added' ? 'term added' : c.change === 'removed' ? 'term removed' : 'wording changed'}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function Workspace() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -209,6 +240,8 @@ export default function Workspace() {
         </div>
         <span className={cx('hidden text-caption sm:inline', save === 'error' ? 'text-red' : 'text-muted')} aria-live="polite">{saveWord}</span>
       </header>
+
+      {v.amends && <AmendBanner amends={v.amends} kind={draft.amend_kind} changes={result.changes} />}
 
       {!wide && (
         <div className="border-b border-line bg-surface py-2 safe-x [--px:0.75rem]">

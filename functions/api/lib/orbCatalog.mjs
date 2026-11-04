@@ -120,6 +120,15 @@ export const CATALOG = {
   'contracts.send': c('documents', 'Send a contract or policy for signature', 'template_id, officer_ids[] or all_active (policies), values?, signatory_id?', { link: () => 'people/contracts' }),
   'contracts.void': c('documents', 'Void an unsigned contract', 'id'),
   'esign.remind': a('documents', 'Send a signature reminder', 'type (contract|pay_agreement), id'),
+  'contracts.packs': r('documents', 'Contract packs (kinds of agreement) and how much of their wording is reviewed', ''),
+  'contracts.draft.list': r('documents', 'Contracts being drafted, not sent yet', 'officer_id?'),
+  'contracts.engagement': r('documents', "How an officer is engaged: contract in force, start and end, renewals, agency weeks", 'officer_id'),
+  'contracts.organisations': r('documents', 'Businesses contracts are made with (labour providers, subcontractors, agencies)', ''),
+  'contracts.law': r('documents', 'Employment law items the contract library tracks, with dates', ''),
+  'contracts.amend': c('documents', 'Start a variation, extension or replacement of a signed contract (opens a draft, sends nothing)', 'id (contract), kind (variation|extension|replacement)',
+    { link: (res) => res?.draft?.id && `people/contracts/draft/${res.draft.id}` }),
+  'contracts.draft.send': c('documents', 'Send a finished contract draft for signature', 'id (draft), signatory_id?', { link: () => 'people/contracts' }),
+  'contracts.link.resend': c('documents', 'Email a fresh signing link for a contract signed by link', 'id (contract), email?'),
   'incidents.types': r('incidents', 'Incident types', ''),
   'incidents.list': r('incidents', 'Incidents', 'status?, severity?, type?, venue_id?, officer_id?, from?, to?, search?'),
   'incidents.get': r('incidents', 'Incident report', 'id'),
@@ -157,7 +166,7 @@ export const CATALOG = {
 };
 
 /** Prefixes Orb must never touch, whatever the catalogue says. */
-export const BANNED = /^(auth\.|files\.|push\.|assistant\.|demo\.)|^users\.(resetLink|resendInvite|mergeOfficerLogin)$|^settings\.setLogo$|^esign\.mySignature|\.(pdf|exportCsv|qrPoster)$/;
+export const BANNED = /^(auth\.|files\.|push\.|assistant\.|demo\.|sign\.link\.|contracts\.ai\.)|^users\.(resetLink|resendInvite|mergeOfficerLogin)$|^settings\.setLogo$|^esign\.mySignature|\.(pdf|exportCsv|qrPoster)$/;
 const PAY = /^(pay|payRuns|payAgreements|invoices)\.|^reports\.(margin|hours|overdue)$/;
 
 /** Catalogue entries this person can use: the action's own roles, pay access, and the company-only money rule. */
@@ -171,7 +180,7 @@ export function catalogFor(user, actions) {
 }
 
 // Changes that reach people outside the app's managers: messages, posts, documents to sign, the published rota, invites
-const OUTWARD = /^(messages\.send|messages\.createGroup|everyday\.create|shifts\.publish|contracts\.send|esign\.remind|officers\.inviteLogin|users\.invite)$/;
+const OUTWARD = /^(messages\.send|messages\.createGroup|everyday\.create|shifts\.publish|contracts\.send|contracts\.draft\.send|contracts\.upload\.send|contracts\.link\.resend|esign\.remind|officers\.inviteLogin|users\.invite)$/;
 
 /** A Confirm card line a spoken "yes" cannot approve: money, or anything sent to people. Returns why, or null. */
 export function needsTap(step) {

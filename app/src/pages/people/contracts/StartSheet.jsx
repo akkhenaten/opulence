@@ -141,32 +141,35 @@ export function PartyPicker({ pack, value, onChange }) {
   );
 }
 
-export default function StartSheet({ onClose, officer }) {
+/** `amends`: a signed contract built outside the workspace, replaced by a new pack contract for the same party */
+export default function StartSheet({ onClose, officer, amends }) {
   const nav = useNavigate();
   const q = useApi('contracts.packs');
   const [packId, setPackId] = useState('');
   const [jur, setJur] = useState('');
-  const [party, setParty] = useState(officer || null);
+  const [party, setParty] = useState(officer || (amends ? { id: amends.id } : null));
   const [helper, setHelper] = useState(false);
   const [title, setTitle] = useState('');
   const [effective, setEffective] = useState('');
   const [run, busy] = useAction();
   const data = q.data;
-  const packs = data?.packs || [];
+  const packs = (data?.packs || []).filter((p) => !amends || p.party === amends.party);
   const pack = packs.find((p) => p.id === packId);
   const j = jur || data?.jurisdiction || 'ew';
   const pickPack = (id) => {
     const next = packs.find((p) => p.id === id);
-    if (pack && next && pack.party !== next.party) setParty(null);
+    if (!amends && pack && next && pack.party !== next.party) setParty(null);
     setPackId(id); setHelper(false);
   };
-  const create = () => run(() => api('contracts.draft.create', {
+  const create = () => run(() => (amends ? api('contracts.amend', {
+    id: amends.id, kind: 'replacement', pack_id: packId, jurisdiction: j, effective_date: effective || undefined,
+  }) : api('contracts.draft.create', {
     pack_id: packId, jurisdiction: j, officer_id: pack.party === 'organisation' ? undefined : party.id, organisation_id: pack.party === 'organisation' ? party.id : undefined,
     title: title.trim() || undefined, effective_date: effective || undefined,
-  })).then((d) => nav(`/company/people/contracts/draft/${d.draft.id}`)).catch(() => {});
+  }))).then((d) => nav(`/company/people/contracts/draft/${d.draft.id}`)).catch(() => {});
 
   return (
-    <Sheet open onClose={onClose} title="Create a contract" size="lg"
+    <Sheet open onClose={onClose} title={amends ? `Replace ${amends.reference || 'contract'}` : 'Create a contract'} size="lg"
       footer={<>
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
         <Button busy={busy} disabled={!pack || !party || !pack.jurisdictions?.[j]} onClick={create}>Start drafting</Button>
@@ -174,6 +177,7 @@ export default function StartSheet({ onClose, officer }) {
       <Load q={q}>
         {() => (
           <div className="space-y-5">
+            {amends && <p className="rounded-2xl bg-blue-soft p-3.5 text-footnote">The new contract replaces "{amends.title}". Once it is signed, the old one is marked Replaced and stays on record.</p>}
             <section>
               <div className="mb-2 flex items-center justify-between gap-2">
                 <h3 className="text-headline font-bold">What kind of agreement?</h3>
@@ -208,7 +212,7 @@ export default function StartSheet({ onClose, officer }) {
               {!jur && <p className="mt-1.5 text-caption text-faint">Suggested from your company address. Employment law differs in Scotland and Northern Ireland.</p>}
             </section>
 
-            {pack && (
+            {pack && !amends && (
               <section>
                 <h3 className="mb-2 text-headline font-bold">{pack.party === 'organisation' ? 'Which business?' : 'Who is it for?'}</h3>
                 <PartyPicker pack={pack} value={party} onChange={setParty} />
@@ -217,7 +221,7 @@ export default function StartSheet({ onClose, officer }) {
 
             {pack && (
               <section className="grid gap-3 sm:grid-cols-2">
-                <Input label="Title" hint="Optional" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} placeholder={`${pack.doc_title}${party ? ` - ${party.name}` : ''}`} />
+                {!amends && <Input label="Title" hint="Optional" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} placeholder={`${pack.doc_title}${party ? ` - ${party.name}` : ''}`} />}
                 <Input label="Takes effect" hint="Optional, used to check law coming into force later" type="date" value={effective} onChange={(e) => setEffective(e.target.value)} />
               </section>
             )}

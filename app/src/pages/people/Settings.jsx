@@ -11,10 +11,11 @@ import { ROLE_LABEL } from '../../layouts/nav.js';
 import { NOTIFY_KINDS } from '../officer/_notify.jsx';
 import { previewStyle, restoreStyle, styleVars } from '../../ui/style.js';
 import { TemplatesTab } from './_esign.jsx';
+import LibraryTab from './contracts/Library.jsx';
 
 const TABS = [
   { value: 'company', label: 'Company details' }, { value: 'users', label: 'Users & access' }, { value: 'rules', label: 'Workforce rules' },
-  { value: 'templates', label: 'Templates' }, { value: 'notifications', label: 'Notifications' }, { value: 'demos', label: 'Demo requests' },
+  { value: 'templates', label: 'Templates' }, { value: 'library', label: 'Contract library' }, { value: 'notifications', label: 'Notifications' }, { value: 'demos', label: 'Demo requests' },
 ];
 // Older links used these tab names
 const OLD_TAB = { calendar: 'rules', contracts: 'templates', account: 'company' };
@@ -30,6 +31,7 @@ export default function Settings() {
       {tab === 'users' && <UsersTab openId={sp.get('user')} />}
       {tab === 'rules' && <RulesTab />}
       {tab === 'templates' && <TemplatesTab />}
+      {tab === 'library' && <LibraryTab />}
       {tab === 'notifications' && <NotificationsTab />}
       {tab === 'demos' && <DemosTab />}
     </Page>

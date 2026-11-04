@@ -170,3 +170,34 @@ test('change comparison lists changed values and clauses', () => {
   assert.deepEqual(d.values, [{ id: 'pay.rate', label: 'Hourly rate', was: '£13', now: '£14' }]);
   assert.deepEqual(d.clauses.map((c) => `${c.slot}:${c.change}`).sort(), ['law:added', 'pay:changed', 'veh:removed']);
 });
+
+test('variation prints only what changes; extension needs a new end date', () => {
+  const pack = PACKS.fixed_term;
+  const base = { pack, jurisdiction: 'ew', library: seedLibraryShape('company'), law: LAW };
+  const answers = sampleAnswers(pack);
+  const signed = compose({ ...base, answers, effectiveDate: '2026-12-01' });
+  const before = { title: 'Fixed-term contract - Sam Example', reference: 'ORB-C-2026-0001', signed_at: '2026-12-01T10:00:00Z', manifest: signed.manifest, particulars: signed.particulars };
+  const rate = pack.questions.find((qn) => qn.type === 'money');
+
+  const same = compose({ ...base, answers, effectiveDate: '2027-01-01', amend: { kind: 'variation', before } });
+  assert.ok(same.findings.some((f) => f.id === 'amend:none' && f.severity === 'blocker'));
+
+  const changed = { ...answers, [rate.id]: { value: 17.25, confirmed: true } };
+  const v = compose({ ...base, answers: changed, effectiveDate: '2027-01-01', amend: { kind: 'variation', before } });
+  assert.deepEqual(v.changes.values.map((x) => x.id), [rate.id]);
+  assert.ok(!v.findings.some((f) => f.id.startsWith('amend:')));
+  assert.match(v.body, /ORB-C-2026-0001/);
+  assert.match(v.body, /£17\.25 \(previously £15\.50\)/);
+  assert.match(v.body, /1 January 2027/);
+  assert.ok(!/Schedule 1/.test(v.body), 'a variation does not repeat the whole agreement');
+  assert.ok(v.body.length < signed.body.length / 3);
+
+  const noDate = compose({ ...base, answers: changed, amend: { kind: 'variation', before } });
+  assert.ok(noDate.findings.some((f) => f.id === 'amend:effective'));
+
+  const ext = compose({ ...base, answers: changed, effectiveDate: '2027-01-01', amend: { kind: 'extension', before } });
+  assert.ok(ext.findings.some((f) => f.id === 'amend:end_date'));
+  assert.match(ext.body, /Schedule 1/, 'an extension is a whole agreement');
+  const ext2 = compose({ ...base, answers: { ...changed, 'term.end_date': { value: '2027-12-31', confirmed: true } }, effectiveDate: '2027-01-01', amend: { kind: 'extension', before } });
+  assert.ok(!ext2.findings.some((f) => f.id.startsWith('amend:')));
+});

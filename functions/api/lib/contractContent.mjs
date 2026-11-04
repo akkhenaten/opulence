@@ -242,3 +242,18 @@ export function validateContent({ packs = PACK_LIST, clauses = CLAUSES, law = LA
   }
   return errors;
 }
+
+/** Law items taking effect in the next `days` days that touch clauses in signed contracts. */
+export async function lawAlerts(days = 90) {
+  const items = await q(`SELECT id, title, url, status, effective_date FROM law_items
+                          WHERE effective_date IS NOT NULL AND effective_date >= current_date AND effective_date <= current_date + $1::int ORDER BY effective_date`, [days]);
+  if (!items.length) return [];
+  const rows = await q("SELECT pack_id, manifest FROM contracts WHERE status IN ('signed', 'signed_paper') AND source = 'pack'");
+  const count = {};
+  for (const r of rows) {
+    const ids = new Set(PACKS[r.pack_id]?.law || []);
+    for (const m of r.manifest || []) for (const v of Object.values(CLAUSE_BY_ID[m.clause]?.versions || {})) (v.law || []).forEach((x) => ids.add(x));
+    for (const id of ids) count[id] = (count[id] || 0) + 1;
+  }
+  return items.filter((i) => count[i.id]).map((i) => ({ ...i, contracts: count[i.id] }));
+}

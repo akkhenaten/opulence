@@ -2,15 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { FilePen, FilePlus2, FileSignature, FileUp, ScrollText, Search, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
-import { Button, dateTime, Empty, IconButton, List, Load, Page, Pill, Progress, Row, SearchInput, Segmented, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { Button, dateTime, Select, Empty, IconButton, List, Load, Page, Pill, Progress, Row, SearchInput, Segmented, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { ContractRow } from './_profileTabs.jsx';
 import { ContractView, SendDocSheet } from './_esign.jsx';
 import StartSheet from './contracts/StartSheet.jsx';
 import UploadSheet from './contracts/UploadSheet.jsx';
-import { JUR_SHORT } from './contracts/_shared.jsx';
+import { AMEND_KIND, JUR_SHORT } from './contracts/_shared.jsx';
 
 const FILTERS = [{ value: '', label: 'All' }, { value: 'sent', label: 'Awaiting' }, { value: 'signed', label: 'Signed' }, { value: 'void', label: 'Void' }];
-const KINDS = [{ value: '', label: 'Everything' }, { value: 'contract', label: 'Contracts' }, { value: 'policy', label: 'Policies' }];
+const KINDS = [{ value: '', label: 'Everything' }, { value: 'contract', label: 'Contracts' }, { value: 'org', label: 'Businesses' }, { value: 'policy', label: 'Policies' }];
+const SOURCES = [{ value: '', label: 'Any source' }, { value: 'pack', label: 'Built here' }, { value: 'upload', label: 'Uploaded' }, { value: 'template', label: 'From a template' }];
 
 /** Each policy: how many have signed its current version, and who still needs to */
 function PolicySummary({ rows }) {
@@ -71,7 +72,7 @@ function Drafts() {
             <div key={d.id} className="flex items-center pr-2">
               <Row className="min-w-0 flex-1" left={<FilePen size={18} className="text-blue" />} title={d.title} to={`/company/people/contracts/draft/${d.id}`}
                 subtitle={`${d.party_name} · ${d.pack_title} · ${JUR_SHORT[d.jurisdiction]} · edited ${dateTime(d.updated_at)}${d.created_by_name ? ` by ${d.created_by_name}` : ''}`}
-                right={d.amend_kind ? <Pill tone="blue">{d.amend_kind}</Pill> : null} />
+                right={d.amend_kind ? <Pill tone="blue">{AMEND_KIND[d.amend_kind]}</Pill> : null} />
               <IconButton icon={Trash2} label="Delete draft" onClick={() => remove(d)} />
             </div>
           ))}
@@ -85,10 +86,11 @@ function Drafts() {
 export default function StaffContracts() {
   const [status, setStatus] = useState('');
   const [category, setCategory] = useState('');
+  const [source, setSource] = useState('');
   const [text, setText] = useState('');
   const [search, setSearch] = useState('');
   useEffect(() => { const t = setTimeout(() => setSearch(text.trim()), 250); return () => clearTimeout(t); }, [text]);
-  const q = useApi('contracts.list', { status: status || undefined, category: category || undefined, q: search || undefined });
+  const q = useApi('contracts.list', { status: status || undefined, category: category === 'org' ? 'contract' : category || undefined, source: source || undefined, q: search || undefined });
   const [sending, setSending] = useState(false);
   const [creating, setCreating] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -115,21 +117,24 @@ export default function StaffContracts() {
         <SearchInput className="min-w-0 flex-1 basis-60" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search officers or contracts" />
         <Segmented value={category} onChange={setCategory} options={KINDS} />
         <Segmented value={status} onChange={setStatus} options={FILTERS} />
+        <Select className="w-44" value={source} onChange={(e) => setSource(e.target.value)} options={SOURCES} aria-label="Source" />
       </div>
       <Load q={q} skeleton="rows">
-        {(rows) => rows.length ? (
+        {(all) => { const rows = category === 'org' ? all.filter((c) => c.organisation_id) : all; return rows.length ? (
           <>
             {!status && !search && category !== 'contract' && <PolicySummary rows={rows} />}
             <List>
               {rows.map((c) => (
                 <ContractRow key={c.id} c={c} onView={() => setViewing(c.id)} onVoid={() => voidIt(c)} onDone={q.reload}
-                  who={<Link to={`/company/staff/${c.officer_id}?tab=contracts`} className="block truncate text-footnote font-semibold text-blue">{c.officer_name}</Link>} />
+                  who={c.officer_id
+                    ? <Link to={`/company/staff/${c.officer_id}?tab=contracts`} className="block truncate text-footnote font-semibold text-blue">{c.officer_name}</Link>
+                    : <div className="truncate text-footnote font-semibold">{c.organisation_name}</div>} />
               ))}
             </List>
           </>
-        ) : search || status || category
+        ) : search || status || category || source
           ? <Empty icon={Search} title="No matching contracts" />
-          : <Empty icon={FileSignature} title="Nothing sent yet" body="Send a contract or policy for e-signature. Templates live in Settings → Templates." />}
+          : <Empty icon={FileSignature} title="Nothing sent yet" body="Create a contract, upload one, or send a template for e-signature." />; }}
       </Load>
       </>}
       {creating && <StartSheet onClose={() => setCreating(false)} />}

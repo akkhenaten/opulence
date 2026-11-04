@@ -103,10 +103,14 @@ async function partyOf(d) {
 
 async function build(d, ctx = {}) {
   const pack = packOf(d.pack_id);
-  const [library, law] = await Promise.all([ctx.library || loadLibrary(), ctx.law || loadLaw()]);
+  const [library, law, before] = await Promise.all([
+    ctx.library || loadLibrary(), ctx.law || loadLaw(),
+    d.amends_contract_id && one('SELECT title, reference, signed_at, manifest, particulars FROM contracts WHERE id = $1', [d.amends_contract_id]),
+  ]);
   const r = compose({
     pack, jurisdiction: d.jurisdiction, answers: d.answers, assessment: d.assessment, selections: d.selections, bespoke: d.bespoke,
     acks: d.acks, library, law, effectiveDate: d.effective_date,
+    amend: before ? { kind: d.amend_kind, before: { ...before, manifest: before.manifest || [], particulars: before.particulars || [] } } : null,
   });
   return { pack, library, law, r };
 }
@@ -131,16 +135,17 @@ function slotChoices(pack, j, library) {
 
 async function view(d, ctx) {
   const { pack, library, r } = await build(d, ctx);
-  const party = await partyOf(d);
+  const [party, amends] = await Promise.all([partyOf(d),
+    d.amends_contract_id && one('SELECT id, title, reference, signed_at, status FROM contracts WHERE id = $1', [d.amends_contract_id])]);
   const { rules, ...packView } = pack;
   return {
-    draft: d, party, pack: packView, jurisdictions: JURISDICTIONS, states: STATES,
+    draft: d, party, amends: amends || null, pack: d.amend_kind === 'variation' ? { ...packView, doc_title: 'Contract variation' } : packView, jurisdictions: JURISDICTIONS, states: STATES,
     result: { ...r, blocks: parse(r.body) }, slots: slotChoices(pack, d.jurisdiction, library),
   };
 }
 
 const docFor = (d, pack, party, body, reference = 'DRAFT') => ({
-  kind: 'contract', typeLabel: pack.doc_title || 'Contract', title: d.title, reference, issuedAt: new Date(), version: null,
+  kind: 'contract', typeLabel: d.amend_kind === 'variation' ? 'Contract variation' : pack.doc_title || 'Contract', title: d.title, reference, issuedAt: new Date(), version: null,
   officerName: party?.name || 'Party', blocks: parse(body),
 });
 
@@ -235,8 +240,12 @@ export async function recordEngagement(c) {
       fixed_term_renewals = fixed_term_renewals + $5 WHERE id = $6`,
   [c.id, c.engagement_type, c.start_date, c.end_date, c.amend_kind === 'extension' ? 1 : 0, c.officer_id]);
   if (c.amends_id && c.amend_kind !== 'variation') {
-    await q("UPDATE contracts SET status = 'superseded' WHERE id = $1 AND status IN ('signed','signed_paper')", [c.amends_id]);
-    await event('contract', c.amends_id, 'superseded', {});
+    // The contract replaced, and every contract it only varied: a variation leaves the agreement before it in force
+    const gone = await q(`WITH RECURSIVE chain AS (
+        SELECT id, amends_id, amend_kind FROM contracts WHERE id = $1
+        UNION SELECT p.id, p.amends_id, p.amend_kind FROM contracts p JOIN chain ON p.id = chain.amends_id AND chain.amend_kind = 'variation')
+      UPDATE contracts SET status = 'superseded' WHERE id IN (SELECT id FROM chain) AND status IN ('signed','signed_paper') RETURNING id`, [c.amends_id]);
+    for (const g of gone) await event('contract', g.id, 'superseded', {});
   }
 }
 
@@ -616,6 +625,71 @@ export const actions = {
 
   'contracts.draft.get': def(CO, async (b) => view(await loadDraft(b.id))),
 
+  // The profile's current engagement: type, dates and extensions from the latest signed contract (record only),
+  // plus for agency workers the calendar weeks worked since the contract started
+  'contracts.engagement': def(CO, async (b) => {
+    required(b, 'officer_id');
+    const o = need(await one('SELECT id, engagement_type, engagement_contract_id, contract_start, contract_end, fixed_term_renewals FROM officers WHERE id = $1', [b.officer_id]), 'Officer not found');
+    const [c, open] = await Promise.all([
+      o.engagement_contract_id && one('SELECT id, title, reference, status, source, pack_id, jurisdiction, signed_at, start_date, end_date FROM contracts WHERE id = $1', [o.engagement_contract_id]),
+      q("SELECT id, title, amend_kind, amends_contract_id, updated_at FROM contract_drafts WHERE officer_id = $1 AND status = 'draft' AND amends_contract_id IS NOT NULL ORDER BY updated_at DESC", [o.id]),
+    ]);
+    let agency = null;
+    if (o.engagement_type === 'agency_worker') {
+      // A week counts when at least one shift that week was clocked in (UK weeks, Monday to Sunday)
+      const r = await one(`SELECT count(DISTINCT date_trunc('week', s.starts_at AT TIME ZONE 'Europe/London'))::int AS weeks
+                             FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
+                            WHERE a.officer_id = $1 AND s.starts_at < now() AND ($2::date IS NULL OR s.starts_at >= $2::date)
+                              AND EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')`,
+      [o.id, o.contract_start]);
+      agency = { weeks: r.weeks, qualifying_weeks: 12 };
+    }
+    return { ...o, contract: c || null, pack_title: c?.pack_id ? PACKS[c.pack_id]?.title || null : null, amendments: open, agency };
+  }),
+
+  // Change a signed contract: a variation lists only what changes; a replacement or extension is a whole new agreement
+  // that supersedes the old one when signed. Built in the workspace from the signed contract's answers.
+  'contracts.amend': def(CO, async (b, { user }) => {
+    required(b, 'id', 'kind');
+    const KIND = { variation: 'Variation', replacement: 'Replacement', extension: 'Extension' };
+    if (!KIND[b.kind]) fail(400, 'Pick a variation, replacement or extension');
+    const c = need(await one("SELECT * FROM contracts WHERE id = $1 AND status IN ('signed', 'signed_paper') AND category = 'contract'", [b.id]), 'Only a signed contract can be changed');
+    const open = await one("SELECT * FROM contract_drafts WHERE amends_contract_id = $1 AND status = 'draft' ORDER BY created_at DESC LIMIT 1", [c.id]);
+    if (open) return view(open);
+    const src = c.source === 'pack' && c.draft_id && await one('SELECT * FROM contract_drafts WHERE id = $1', [c.draft_id]);
+    if (!src) {
+      // Uploaded, template or paper contracts have no answers to start from: a new contract replaces them
+      if (b.kind !== 'replacement') fail(400, 'This contract was not built in the workspace, so it can only be replaced with a new one.', { needs_pack: true });
+      required(b, 'pack_id', 'jurisdiction');
+      const pack = packOf(b.pack_id);
+      if (!(pack.jurisdictions || J).includes(b.jurisdiction)) fail(400, 'This pack is not available for that jurisdiction');
+      const [s, o, org] = await Promise.all([getSettings(),
+        c.officer_id && one('SELECT * FROM officers WHERE id = $1', [c.officer_id]), c.organisation_id && one('SELECT * FROM organisations WHERE id = $1', [c.organisation_id])]);
+      if ((pack.party === 'organisation') !== !!org) fail(400, pack.party === 'organisation' ? 'This pack is for agreements with a business' : 'This pack is for agreements with a person');
+      const d = await insert('contract_drafts', {
+        pack_id: pack.id, pack_version: pack.version || 1, jurisdiction: b.jurisdiction, officer_id: c.officer_id, organisation_id: c.organisation_id,
+        title: c.title, effective_date: DATE.test(b.effective_date || '') ? b.effective_date : null, answers: JSON.stringify(prefill(pack, known(s, o, org))),
+        amends_contract_id: c.id, amend_kind: 'replacement', created_by: user.id,
+      });
+      await audit(user, 'contract.amend', 'contract', c.id, { kind: 'replacement', draft: d.id, reference: c.reference, summary: `Replacement started for ${c.reference}` });
+      return view(d);
+    }
+    const pack = packOf(src.pack_id);
+    if (b.kind === 'extension' && !(pack.questions || []).some((qn) => qn.id === 'term.end_date')) fail(400, 'Only a fixed-term contract can be extended');
+    const answers = { ...src.answers };
+    // An extension needs a new end date: the old one waits to be changed and confirmed
+    if (b.kind === 'extension' && answers['term.end_date']) answers['term.end_date'] = { ...answers['term.end_date'], confirmed: false };
+    const d = await insert('contract_drafts', {
+      pack_id: src.pack_id, pack_version: src.pack_version, jurisdiction: src.jurisdiction, officer_id: c.officer_id, organisation_id: c.organisation_id,
+      title: (() => { const base = c.title.replace(/^((Variation|Extension) - )+/, ''); return (b.kind === 'replacement' ? base : `${KIND[b.kind]} - ${base}`).slice(0, 200); })(),
+      effective_date: DATE.test(b.effective_date || '') ? b.effective_date : null, answers: JSON.stringify(answers),
+      selections: JSON.stringify(src.selections || {}), bespoke: JSON.stringify(src.bespoke || {}), assessment: JSON.stringify(src.assessment || {}),
+      amends_contract_id: c.id, amend_kind: b.kind, created_by: user.id,
+    });
+    await audit(user, 'contract.amend', 'contract', c.id, { kind: b.kind, draft: d.id, reference: c.reference, summary: `${KIND[b.kind]} started for ${c.reference}` });
+    return view(d);
+  }),
+
   'contracts.draft.list': def(CO, async (b) => {
     const rows = await q(
       `SELECT d.id, d.pack_id, d.jurisdiction, d.title, d.status, d.effective_date, d.updated_at, d.created_at, d.contract_id, d.amend_kind, d.officer_id, d.organisation_id,
@@ -718,7 +792,7 @@ export const actions = {
         officer_id: d.officer_id, organisation_id: d.organisation_id, category: 'contract', title: d.title, body: r.body, reference: await nextReference('contract', t),
         sent_at: new Date(), ...signerColumns(signer), source: 'pack', pack_id: d.pack_id, jurisdiction: d.jurisdiction, engagement_type: pack.engagement_type,
         draft_id: d.id, manifest: JSON.stringify(r.manifest), particulars: JSON.stringify(r.particulars), findings: JSON.stringify(r.findings),
-        supporting: JSON.stringify(r.supporting), changes: d.changes ? JSON.stringify(d.changes) : null,
+        supporting: JSON.stringify(r.supporting), changes: r.changes ? JSON.stringify(r.changes) : null,
         start_date: val('start.date') || d.effective_date, end_date: val('term.end_date'), amends_id: d.amends_contract_id, amend_kind: d.amend_kind,
         signer_kind: party.kind === 'officer' && party.has_login ? 'officer' : 'outside',
       }, t);
@@ -747,6 +821,7 @@ export const actions = {
       d = await loadDraft(b.id);
       ({ pack, r } = await build(d));
       body = r.body;
+      d = { ...d, changes: r.changes };
     }
     const [s, party] = await Promise.all([getSettings(), partyOf(d)]);
     const { bytes } = await renderSigned({ company: s, doc: docFor(d, pack, party, body, b.contract_id ? 'SNAPSHOT' : 'DRAFT'), signers: {}, events: [], status: r.legal ? 'proof' : 'draft', verifyUrl: '' });

@@ -7,6 +7,13 @@ import { Pill } from '../../../ui/index.jsx';
 export const JURISDICTIONS = { ew: 'England and Wales', sc: 'Scotland', ni: 'Northern Ireland' };
 export const JUR_SHORT = { ew: 'E&W', sc: 'Scotland', ni: 'NI' };
 
+// How someone is engaged, from the last contract they signed. A record only: pay and rotas do not change with it.
+export const AMEND_KIND = { variation: 'Variation', replacement: 'Replacement', extension: 'Extension' };
+export const ENGAGEMENT = {
+  employee: 'Employee', worker: 'Worker (casual)', agency_worker: 'Agency worker', self_employed: 'Self-employed contractor',
+  psc: 'Through a limited company', labour_provider: 'Labour provider', subcontractor: 'Subcontractor',
+};
+
 // Every piece of wording carries one of these; nothing is presented as legally approved unless a review was recorded
 export const STATE = {
   draft: { label: 'Research-based draft', tone: 'amber' },

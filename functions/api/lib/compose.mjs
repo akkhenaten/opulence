@@ -126,7 +126,7 @@ export function assessOutcomes(pack, answers = {}) {
  * library:    { clauseId: { title, group, versions: { all|ew|sc|ni: { version, body, state, origin, sources, law } } } }
  * law:        [{ id, title, url, status, effective_date, jurisdictions }]
  */
-export function compose({ pack, jurisdiction, answers = {}, assessment = {}, selections = {}, bespoke = {}, library = {}, law = [], effectiveDate = null, acks = {} }) {
+export function compose({ pack, jurisdiction, answers = {}, assessment = {}, selections = {}, bespoke = {}, library = {}, law = [], effectiveDate = null, acks = {}, amend = null }) {
   const j = jurisdiction;
   const qById = Object.fromEntries((pack.questions || []).map((qn) => [qn.id, qn]));
   const values = Object.fromEntries(Object.entries(answers).map(([k, a]) => [k, a?.value]));
@@ -148,6 +148,7 @@ export function compose({ pack, jurisdiction, answers = {}, assessment = {}, sel
   const add = (f) => { if (!findings.some((x) => x.id === f.id)) findings.push(f); };
   const manifest = [];
   const parts = [];
+  const texts = {};
   const lawIds = new Set(pack.law || []);
 
   for (const section of pack.clauses || []) {
@@ -179,6 +180,7 @@ export function compose({ pack, jurisdiction, answers = {}, assessment = {}, sel
         optional: !!slot.optional, alternatives: allowed.length, why: slot.why || null, ...(own ? { body: own } : {}),
       });
       bodies.push(body.trim());
+      texts[slot.slot] = body.trim();
       ctx.text = `${ctx.text || ''}\n${body}`;
     }
     if (!bodies.length) {
@@ -207,8 +209,11 @@ export function compose({ pack, jurisdiction, answers = {}, assessment = {}, sel
     parts.push(...forming.map((s) => `- ${s.title}`));
   }
 
+  // A variation prints only what changes; a replacement or extension is a whole new agreement
+  const changes = amend ? diff(amend.before, { particulars, manifest }) : null;
+  const doc = amend?.kind === 'variation' ? variationParts(amend.before, changes, texts, effectiveDate) : parts;
   const used = new Set();
-  const body = fillVars(parts.join('\n\n'), printed, labels).replace(/\[to be confirmed: [^\]]+\]/g, (m) => (used.add(m), m));
+  const body = fillVars(doc.join('\n\n'), printed, labels).replace(/\[to be confirmed: [^\]]+\]/g, (m) => (used.add(m), m));
 
   // ---- Findings
   const outstanding = visible.filter((qn) => qn.type !== 'note' && (qn.required !== false || varsUsed(parts).has(qn.id)) && !printed[qn.id])
@@ -247,6 +252,16 @@ export function compose({ pack, jurisdiction, answers = {}, assessment = {}, sel
     if (evalRule(r.when, ctx)) add({ id: `rule:${r.id}`, severity: r.severity, message: r.message, jump: r.jump || null, law: r.law || null, source: 'rule' });
   }
 
+  if (changes && !changes.values.length && !changes.clauses.length) {
+    add({ id: 'amend:none', severity: 'blocker', message: 'Nothing has changed from the signed contract yet. Change a value or a clause first.', jump: null });
+  }
+  if (amend?.kind === 'extension' && !changes.values.some((v) => v.id === 'term.end_date')) {
+    add({ id: 'amend:end_date', severity: 'blocker', message: 'Set the new end date for this extension.', jump: { question: 'term.end_date' } });
+  }
+  if (amend?.kind === 'variation' && !effectiveDate) {
+    add({ id: 'amend:effective', severity: 'blocker', message: 'Set the date this variation takes effect.', jump: null });
+  }
+
   const drafts = manifest.filter((m) => m.state === 'draft');
   if (drafts.length) add({ id: 'state:draft', severity: 'blocker', message: `${drafts.length} ${drafts.length === 1 ? 'clause is a' : 'clauses are'} Research-based draft. Approve the wording for use by your company before sending.`, jump: { clause: drafts[0].clause } });
   for (const m of manifest.filter((x) => x.origin === 'bespoke')) {
@@ -268,7 +283,30 @@ export function compose({ pack, jurisdiction, answers = {}, assessment = {}, sel
   for (const f of findings) if (f.severity === 'review' && acks[f.id]) f.ack = acks[f.id];
   const ready = !findings.some((f) => f.severity === 'blocker') && findings.filter((f) => f.severity === 'review').every((f) => f.ack);
   const legal = manifest.length > 0 && manifest.every((m) => m.state === 'legal');
-  return { body, manifest, particulars, outstanding, findings, supporting, suggested, outcomes, ready, legal, placeholders: used.size, visible: [...visibleIds] };
+  return { body, manifest, particulars, outstanding, findings, supporting, suggested, outcomes, ready, legal, placeholders: used.size, visible: [...visibleIds], changes };
+}
+
+// The body of a variation: what it varies, the changed particulars, then the new wording of each changed clause
+function variationParts(before, changes, texts, effectiveDate) {
+  const signed = before.signed_at ? ` signed on ${longDate(new Date(before.signed_at).toISOString())}` : '';
+  const out = [
+    '# About this variation',
+    `This document varies the agreement "${before.title}" (ref ${before.reference})${signed}. The changes below take effect on ${effectiveDate ? longDate(effectiveDate) : '[to be confirmed: Date the variation takes effect]'}.`,
+    'Everything in that agreement that is not changed here stays the same and continues to apply.',
+  ];
+  if (changes.values.length) {
+    out.push('# Changed particulars');
+    out.push(...changes.values.map((v) => `- **${v.label}:** ${v.now ?? 'no longer applies'}${v.was != null ? ` (previously ${v.was})` : ''}`));
+  }
+  const terms = changes.clauses;
+  if (terms.length) {
+    out.push('# Changed terms');
+    for (const t of terms) {
+      if (t.change === 'removed') out.push(`**${t.was.title}:** this term no longer applies.`);
+      else out.push(`**${t.now.title}:** ${t.change === 'added' ? 'this term is added' : 'this wording replaces the previous term'}.`, texts[t.slot] || '');
+    }
+  }
+  return out.filter(Boolean);
 }
 
 // A condition that refers to a question nobody has answered yet

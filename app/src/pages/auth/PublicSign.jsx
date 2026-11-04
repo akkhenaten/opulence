@@ -19,10 +19,10 @@ const STATE = {
 function Frame({ children }) {
   return (
     <div className="min-h-dvh bg-bg">
-      <header className="sticky top-0 z-30 flex h-14 items-center border-b border-hairline bg-surface/90 px-[var(--px)] pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+      <header className="sticky top-0 z-30 flex h-14 items-center border-b border-hairline bg-surface/90 pt-[env(safe-area-inset-top)] [--px:1rem] sm:[--px:1.5rem] safe-x backdrop-blur-xl">
         <Logo />
       </header>
-      <main className="mx-auto max-w-3xl px-[var(--px)] py-5 pb-28">{children}</main>
+      <main className="mx-auto max-w-3xl py-5 [--px:1rem] sm:[--px:1.5rem] safe-x pb-28">{children}</main>
       <PoweredBy className="pb-8" />
     </div>
   );
