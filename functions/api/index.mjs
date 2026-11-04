@@ -34,9 +34,11 @@ import * as demo from './modules/demo.mjs';
 import * as help from './modules/help.mjs';
 import * as esign from './modules/esign.mjs';
 import * as contractsPack from './modules/contractsPack.mjs';
+import * as contractsUpload from './modules/contractsUpload.mjs';
+import * as signLinks from './modules/signLinks.mjs';
 import * as orbVoice from './modules/orbVoice.mjs';
 
-export const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign, contractsPack].map((m) => m.actions));
+export const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign, contractsPack, contractsUpload, signLinks].map((m) => m.actions));
 // Orb runs real actions on confirm, through the same table and role checks
 assistant.useActions(ACTIONS);
 

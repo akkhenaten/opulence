@@ -12,6 +12,7 @@ import { nameSafe } from '../lib/archive.mjs';
 import { compose, slotsFor, varsIn, longDate, formatValue, JURISDICTIONS, STATES } from '../lib/compose.mjs';
 import { PACKS, PACK_LIST, loadLibrary, loadLaw } from '../lib/contractContent.mjs';
 import { nextReference, event, companySigner, signerColumns, uaOf } from '../lib/esign.mjs';
+import { issueLink } from '../lib/signLinks.mjs';
 import { getSettings } from './settings.mjs';
 import { claude, SONNET } from '../lib/ai.mjs';
 import { CO, def } from './_def.mjs';
@@ -280,7 +281,16 @@ async function contractFile(d, pack, party, r, s, agreementBytes) {
 
 // ---- Sending: freeze the composed agreement into a contract the party signs
 
-async function deliver(c, party, user) {
+/** Before anything is created: an officer without a login needs the manager's go-ahead for a link, and a link needs an email */
+export function checkReachable(party, b = {}) {
+  if (party.kind === 'officer' && party.has_login) return;
+  if (party.kind === 'officer' && !b.link) fail(400, `${party.name} has no login yet. Invite them, or send a signing link by email.`, { needs_link: true });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(party.email || '').trim())) {
+    fail(400, party.kind === 'organisation' ? `Add the email address of the person who signs for ${party.name} first.` : `${party.name} has no email address on their profile, so a signing link cannot be sent.`, { needs_email: true });
+  }
+}
+
+export async function deliver(c, party, user, b = {}) {
   if (party.kind === 'officer') {
     const uid = await officerUser(party.id);
     if (uid.length) {
@@ -288,8 +298,16 @@ async function deliver(c, party, user) {
       await event('contract', c.id, 'emailed', {});
       return { via: 'app' };
     }
+    if (!b.link) return { via: 'none' };
   }
-  return { via: 'none' };
+  // A business, or an officer with no login: a one-time link by email
+  const l = await issueLink(c, { user });
+  await event('contract', c.id, 'link', { user, name: l.email });
+  await audit(user, 'link.issue', 'contract', c.id, { reference: c.reference, email: l.email, emailed: l.emailed });
+  return {
+    via: 'link', email: l.email, emailed: l.emailed,
+    ...(l.emailed ? {} : { warning: l.error || 'The contract is ready, but the email could not be sent. Check the address, then use Resend link.' }),
+  };
 }
 
 
@@ -693,7 +711,7 @@ export const actions = {
     }
     const party = need(await partyOf(d), 'The person or business on this draft no longer exists');
     const signer = await companySigner(b.signatory_id || null, user.id);
-    if (party.kind === 'officer' && !party.has_login && !b.link) fail(400, `${party.name} has no login yet. Invite them, or send a signing link by email.`, { needs_link: true });
+    checkReachable(party, b);
     const val = (k) => d.answers[k]?.confirmed ? d.answers[k].value : null;
     const c = await tx(async (t) => {
       const row = await insert('contracts', {

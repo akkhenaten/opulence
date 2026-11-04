@@ -7,34 +7,38 @@ export const OPTIONAL_KINDS = ['mention', 'comment', 'reaction', 'announcement',
 
 const APP_URL = () => process.env.APP_URL || '';
 
+/** true when the mail service accepted the message */
 async function sendEmail(to, subject, html) {
   const projectId = process.env.OPENKBS_PROJECT_ID;
   const apiKey = process.env.OPENKBS_API_KEY;
-  if (!projectId || !apiKey || !to) return;
+  if (!projectId || !apiKey || !to) return false;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 3000);
   try {
-    await fetch(`https://project.openkbs.com/projects/${projectId}/email/send`, {
+    const r = await fetch(`https://project.openkbs.com/projects/${projectId}/email/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({ to, subject, html }),
       signal: ctrl.signal,
     });
+    if (!r.ok) console.warn('[email] not sent:', r.status, (await r.text()).slice(0, 200));
+    return r.ok;
   } catch (e) {
     console.warn('[email] not sent:', e.message);
+    return false;
   } finally {
     clearTimeout(timer);
   }
 }
 
 // Emails carry the company's own logo, name and colour, with a small "Powered by orbsolutions.co.uk" line
-async function emailHtml(title, body, link) {
+async function emailHtml(title, body, link, button = null) {
   const b = await getBrand();
   const url = link ? `${APP_URL()}/app${link}` : `${APP_URL()}/app`;
   const head = b.logo_url
     ? `<img src="${esc(b.logo_url)}" alt="${esc(b.name)}" height="36" style="display:block;height:36px;max-width:200px;object-fit:contain">`
     : `<div style="font-weight:700;color:#0B1220;font-size:15px">${esc(b.name)}</div>`;
-  const label = b.name.length <= 24 ? `Open ${esc(b.name)}` : 'Open the app';
+  const label = button ? esc(button) : b.name.length <= 24 ? `Open ${esc(b.name)}` : 'Open the app';
   return `<div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:520px;margin:auto;padding:24px;background:#F2F4F7">
   <div style="background:#fff;border-radius:18px;padding:24px;border:1px solid #E5E7EB;border-top:4px solid ${b.color}">
   ${head}

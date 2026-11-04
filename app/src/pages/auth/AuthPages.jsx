@@ -156,7 +156,7 @@ export function Reset() {
 }
 
 const VERIFY_STATUS = {
-  signed: ['Signed and sealed', 'bg-green-soft text-green'], sent: ['Awaiting signature', 'bg-amber-soft text-amber'],
+  signed: ['Signed and sealed', 'bg-green-soft text-green'], signed_paper: ['Signed on paper', 'bg-green-soft text-green'], sent: ['Awaiting signature', 'bg-amber-soft text-amber'],
   void: ['Void', 'bg-red-soft text-red'], superseded: ['Replaced by a newer version', 'bg-fill text-muted'], draft: ['Not sent', 'bg-fill text-muted'],
 };
 
@@ -200,7 +200,7 @@ export function Verify() {
               <div className="text-subhead text-muted">{r.type} · <span className="num">{r.reference}</span></div>
               <dl className="mt-3 space-y-1.5 text-subhead">
                 <div className="flex justify-between gap-3"><dt className="text-muted">Issued by</dt><dd className="text-right font-semibold">{r.company}{r.signatory ? ` (${r.signatory})` : ''}</dd></div>
-                <div className="flex justify-between gap-3"><dt className="text-muted">Officer</dt><dd className="text-right font-semibold">{r.officer}</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-muted">{r.party ? 'Signatory' : 'Officer'}</dt><dd className="text-right font-semibold">{r.officer}{r.party ? ` for ${r.party}` : ''}</dd></div>
                 {r.signed_at && <div className="flex justify-between gap-3"><dt className="text-muted">Signed</dt><dd className="text-right font-semibold">{new Date(r.signed_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/London' })}</dd></div>}
               </dl>
               {r.fingerprint && <p className="mt-3 break-all font-mono text-caption text-faint">Fingerprint {r.fingerprint}</p>}

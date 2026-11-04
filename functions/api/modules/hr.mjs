@@ -5,11 +5,12 @@ import { notify, companyManagers, officerUser } from '../lib/notify.mjs';
 import { fmtDate } from '../lib/time.mjs';
 import { parse, fill, unknownPlaceholders } from '../lib/docmarkup.mjs';
 import { nextReference, event, events, markOpened, companySigner, signerColumns, uaOf, sealQuietly, pdfFor } from '../lib/esign.mjs';
-import { CATEGORIES, officerValues, typedValues, contractInput, companyOf } from './esign.mjs';
+import { CATEGORIES, officerValues, typedValues, contractInput, companyOf, uploadSignaturePage } from './esign.mjs';
 import { audit } from '../lib/audit.mjs';
 import { getSettings } from './settings.mjs';
 import { recordEngagement } from './contractsPack.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
+import { downloadUrl } from '../lib/storage.mjs';
 
 const ONBOARDING = [
   ['profile', 'Personal details completed'],
@@ -43,6 +44,8 @@ async function sendContract({ tpl, o, s, signer, values = {}, user, ip = null, u
   const c = await tx(async (t) => insert('contracts', {
     officer_id: o.id, template_id: tpl.id, template_version: tpl.version, category: tpl.category, title: tpl.title, body,
     reference: await nextReference(tpl.category, t), sent_at: new Date(), ...signerColumns(signer),
+    // A saved upload: the same PDF goes out again, with a fresh signature page
+    ...(tpl.upload_key ? { source: 'upload', upload_key: tpl.upload_key, upload_sha256: tpl.upload_sha256, upload_pages: tpl.upload_pages, signer_kind: 'officer' } : {}),
   }, t));
   await event('contract', c.id, 'sent', { user, ip, ua });
   const uid = await officerUser(o.id);
@@ -250,16 +253,19 @@ export const actions = {
   }),
 
   'contracts.list': def(['company', 'officer'], async (b, { user }) => {
-    const cols = `c.id, c.title, c.status, c.category, c.reference, c.template_id, c.template_version, c.signed_name, c.signed_at, c.created_at, c.sent_at,
+    const cols = `c.id, c.title, c.status, c.category, c.source, c.reference, c.template_id, c.template_version, c.signed_name, c.signed_at, c.created_at, c.sent_at,
                   c.opened_at, c.last_reminded_at, c.company_name_signed, c.officer_id`;
     // Company-wide register when a manager asks without an officer
     if (user.role === 'company' && !b.officer_id) {
       return q(
-        `SELECT ${cols}, o.first_name || ' ' || o.last_name AS officer_name, o.user_id IS NOT NULL AS has_login
-           FROM contracts c JOIN officers o ON o.id = c.officer_id
-          WHERE ($1::text IS NULL OR c.status = $1) AND ($2::text IS NULL OR (o.first_name || ' ' || o.last_name || ' ' || c.title || ' ' || COALESCE(c.reference, '')) ILIKE '%' || $2 || '%')
-            AND ($3::text IS NULL OR c.category = $3)
-          ORDER BY c.created_at DESC LIMIT 500`, [b.status || null, b.q?.trim() || null, b.category || null]);
+        `SELECT ${cols}, c.organisation_id, c.pack_id, c.jurisdiction, c.engagement_type, c.signer_kind,
+                COALESCE(o.first_name || ' ' || o.last_name, g.name) AS officer_name, o.user_id IS NOT NULL AS has_login, g.name AS organisation_name
+           FROM contracts c LEFT JOIN officers o ON o.id = c.officer_id LEFT JOIN organisations g ON g.id = c.organisation_id
+          WHERE ($1::text IS NULL OR c.status = $1) AND ($2::text IS NULL OR (COALESCE(o.first_name || ' ' || o.last_name, g.name, '') || ' ' || c.title || ' ' || COALESCE(c.reference, '')) ILIKE '%' || $2 || '%')
+            AND ($3::text IS NULL OR c.category = $3) AND ($4::text IS NULL OR c.source = $4) AND ($5::text IS NULL OR c.pack_id = $5)
+            AND ($6::text IS NULL OR c.jurisdiction = $6) AND ($7::text IS NULL OR c.engagement_type = $7) AND ($8::uuid IS NULL OR c.organisation_id = $8)
+          ORDER BY c.created_at DESC LIMIT 500`,
+        [b.status || null, b.q?.trim() || null, b.category || null, b.source || null, b.pack_id || null, b.jurisdiction || null, b.engagement_type || null, b.organisation_id || null]);
     }
     return q(`SELECT ${cols} FROM contracts c WHERE c.officer_id = $1 ORDER BY c.created_at DESC`, [ownOrManager(user, b.officer_id)]);
   }),
@@ -268,9 +274,14 @@ export const actions = {
     let c = need(await one('SELECT * FROM contracts WHERE id = $1', [b.id]));
     if (user.role === 'officer' && c.officer_id !== user.officer_id) fail(403, 'Forbidden');
     if (user.role === 'officer') c = await markOpened('contract', c, { user, ip, event: ev });
-    const officer = await one("SELECT first_name || ' ' || last_name AS name FROM officers WHERE id = $1", [c.officer_id]);
+    const officer = c.officer_id
+      ? await one("SELECT first_name || ' ' || last_name AS name, user_id IS NOT NULL AS has_login FROM officers WHERE id = $1", [c.officer_id])
+      : await one('SELECT name, signatory_name, signatory_email FROM organisations WHERE id = $1', [c.organisation_id]);
     return {
-      ...c, officer_name: officer?.name, company: companyOf(c), blocks: parse(c.body), events: await events('contract', c.id),
+      ...c, officer_name: officer?.name, party: c.organisation_id ? officer : null, has_login: !!officer?.has_login, company: companyOf(c), events: await events('contract', c.id),
+      // An uploaded PDF is read as its own pages, then the signature page
+      blocks: parse(c.source === 'upload' && c.upload_key ? uploadSignaturePage(c) : c.body),
+      pdf_url: c.upload_key ? await downloadUrl(c.upload_key, `${c.title}.pdf`) : null,
       ack: c.category === 'policy' ? 'I have read and understood this policy and agree to follow it.' : null,
     };
   }),
@@ -303,9 +314,10 @@ export const actions = {
   }),
 
   'contracts.pdf': def(['company', 'officer'], async (b, { user }) => {
-    const c = need(await one('SELECT c.*, o.first_name, o.last_name FROM contracts c JOIN officers o ON o.id = c.officer_id WHERE c.id = $1', [b.id]));
+    const c = need(await one(`SELECT c.*, COALESCE(o.first_name || ' ' || o.last_name, g.name) AS party_name
+      FROM contracts c LEFT JOIN officers o ON o.id = c.officer_id LEFT JOIN organisations g ON g.id = c.organisation_id WHERE c.id = $1`, [b.id]));
     if (user.role === 'officer' && c.officer_id !== user.officer_id) fail(403, 'Forbidden');
-    return pdfFor('contract', c, () => contractInput(c), { userId: user.id, filename: contractFile(c, `${c.first_name} ${c.last_name}`) });
+    return pdfFor('contract', c, () => contractInput(c), { userId: user.id, filename: contractFile(c, c.signed_name || c.party_name) });
   }),
 
   // ---- Offboarding ----

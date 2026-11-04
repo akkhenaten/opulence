@@ -6,6 +6,9 @@ import { fail } from './http.mjs';
 import { notify, officerUser } from './notify.mjs';
 import { archivePdf, savedPdf, nameSafe } from './archive.mjs';
 import { renderSigned } from './signdoc.mjs';
+import { mergeUpload } from './uploadSeal.mjs';
+import { getObjectBytes } from './storage.mjs';
+import { issueLink, liveLink } from './signLinks.mjs';
 
 export const TABLE = { contract: 'contracts', pay_agreement: 'pay_agreements' };
 const PREFIX = { contract: 'C', policy: 'P', pay_rise: 'R' };
@@ -56,15 +59,22 @@ export const verifyUrl = (reference) => `${(process.env.APP_URL || '').replace(/
 
 const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 
+/** renderSigned, plus the original pages in front for an uploaded PDF (input.upload = { key }) */
+export async function renderDoc(input, status, reference, evs = []) {
+  const out = await renderSigned({ ...input, events: evs, status, verifyUrl: verifyUrl(reference) });
+  if (!input.upload?.key) return out;
+  return { ...out, bytes: await mergeUpload(await getObjectBytes(input.upload.key), out.bytes, { reference, status }) };
+}
+
 /**
  * Freeze a signed document: render with both signatures and the certificate, save it to the officer's documents,
  * and store the fingerprint and file hash. `input` is what renderSigned takes, without status/events/verifyUrl.
  */
 export async function seal(docType, row, input, { userId = null, filename } = {}) {
   const evs = [...(await events(docType, row.id)), { kind: 'sealed', at: new Date() }];
-  const { bytes, fingerprint } = await renderSigned({ ...input, events: evs, status: 'signed', verifyUrl: verifyUrl(row.reference) });
+  const { bytes, fingerprint } = await renderDoc(input, 'signed', row.reference, evs);
   const d = await archivePdf({
-    ownerType: 'officer', ownerId: row.officer_id, kind: ARCHIVE_KIND[input.doc.kind] || 'contract', filename, bytes,
+    ownerType: row.officer_id ? 'officer' : 'company', ownerId: row.officer_id || null, kind: ARCHIVE_KIND[input.doc.kind] || 'contract', filename, bytes,
     title: nameSafe(filename), number: row.reference || '', userId,
   });
   await q(`UPDATE ${TABLE[docType]} SET fingerprint = $2, pdf_sha256 = $3, pdf_document_id = $4, sealed_at = now() WHERE id = $1`,
@@ -94,7 +104,7 @@ export async function pdfFor(docType, row, build, { userId = null, filename }) {
   // Signed before certificates existed: sealed now, with a note saying so
   if (signed) return seal(docType, row, { ...input, doc: { ...input.doc, legacy: !row.company_signature } }, { userId, filename });
   const status = row.status === 'void' ? 'void' : row.status === 'superseded' ? 'superseded' : 'sent';
-  const { bytes } = await renderSigned({ ...input, events: await events(docType, row.id), status, verifyUrl: verifyUrl(row.reference) });
+  const { bytes } = await renderDoc(input, status, row.reference, await events(docType, row.id));
   return { filename: nameSafe(filename), pdf: Buffer.from(bytes).toString('base64') };
 }
 
@@ -103,9 +113,14 @@ const TITLE = (docType, r) => (docType === 'pay_agreement' ? 'Pay rise agreement
 
 /** Nudge the officer about one unsigned document. */
 export async function remind(docType, r, { user = null, auto = false } = {}) {
-  const uid = await officerUser(r.officer_id);
-  if (!uid.length) return false;
-  await notify(uid, {
+  const uid = r.officer_id ? await officerUser(r.officer_id) : [];
+  if (!uid.length) {
+    // Signing by email link: send a fresh link with the same deadline (the earlier email keeps working too)
+    const live = docType === 'contract' && await liveLink(r.id);
+    if (!live) return false;
+    const l = await issueLink(r, { user, email: live.email, expiresAt: live.expires_at, reminder: true });
+    if (!l.emailed) return false;
+  } else await notify(uid, {
     kind: docType === 'pay_agreement' ? 'pay' : 'contract', title: `Reminder: ${TITLE(docType, r)} is waiting for your signature`,
     body: `Ref ${r.reference}. Open it in the app to read and sign.`, link: LINKS[docType](r), email: true,
   });

@@ -1,6 +1,6 @@
 // Manager side of signed documents: your saved signature, the template editor with live preview,
 // the send sheet, status pills and the contract viewer
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
@@ -15,6 +15,8 @@ import {
 import { SignaturePad } from '../../ui/SignaturePad.jsx';
 import { DocPaper } from '../../ui/DocPaper.jsx';
 
+const PdfPages = lazy(() => import('../../ui/PdfPages.jsx'));
+
 export const SETUP_LINK = '/company/settings?tab=templates';
 const CATS = [
   { value: 'contract', label: 'Contracts', one: 'Contract', icon: FileSignature },
@@ -27,7 +29,7 @@ const CAT = Object.fromEntries(CATS.map((c) => [c.value, c]));
 export function docStatus(r) {
   if (r.status === 'sent') return r.opened_at ? ['Opened', 'blue'] : ['Awaiting', 'amber'];
   return {
-    signed: ['Signed', 'green'], applied: ['In effect', 'green'], void: ['Void', 'grey'], superseded: ['Replaced', 'grey'], draft: ['Draft', 'grey'],
+    signed: ['Signed', 'green'], applied: ['In effect', 'green'], void: ['Void', 'grey'], superseded: ['Replaced', 'grey'], draft: ['Draft', 'grey'], signed_paper: ['Signed on paper', 'green'],
   }[r.status] || [r.status, 'grey'];
 }
 export const DocPill = ({ r }) => { const [l, t] = docStatus(r); return <Pill tone={t}>{l}</Pill>; };
@@ -537,7 +539,37 @@ export function SendDocSheet({ o: given, onClose, onDone }) {
 
 /* ---------------- Viewer ---------------- */
 
-const EVENT = { sent: 'Sent', emailed: 'Emailed', opened: 'Opened', signed: 'Signed', sealed: 'Sealed', reminded: 'Reminder sent', voided: 'Voided', superseded: 'Replaced by a new version' };
+const EVENT = {
+  sent: 'Sent', emailed: 'Emailed', opened: 'Opened', signed: 'Signed', sealed: 'Sealed', reminded: 'Reminder sent', voided: 'Voided', superseded: 'Replaced by a new version',
+  link: 'Signing link emailed', filed: 'Filed as signed on paper',
+};
+
+/** Signing by email link: who it went to, and a fresh link (optionally to a corrected address) */
+function LinkPanel({ x, onDone }) {
+  const links = useApi('contracts.links', { id: x.id });
+  const [email, setEmail] = useState('');
+  const [run, busy] = useAction();
+  const last = links.data?.[0];
+  const resend = () => run(() => api('contracts.link.resend', { id: x.id, email: email.trim() || undefined }), (r) => `New signing link emailed to ${r.email}`)
+    .then(() => { setEmail(''); links.reload(); onDone(); }).catch(() => {});
+  return (
+    <div className="rounded-2xl bg-bg p-4">
+      <div className="mb-1 text-footnote font-semibold uppercase tracking-wide text-muted">Signing link</div>
+      {last ? (
+        <p className="text-footnote">
+          Sent to <span className="font-semibold">{last.email}</span> · {last.state === 'active' ? `works until ${date(last.expires_at)}` : last.state}
+        </p>
+      ) : <p className="text-footnote text-muted">No link sent yet.</p>}
+      {x.status === 'sent' && (
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+          <Input className="flex-1" label="Send to a different address (optional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={last?.email || x.party?.signatory_email || ''} />
+          <Button variant="secondary" icon={Send} busy={busy} onClick={resend}>Resend link</Button>
+        </div>
+      )}
+      {x.status === 'sent' && <p className="mt-2 text-caption text-muted">A new link replaces the old one, which stops working.</p>}
+    </div>
+  );
+}
 
 export function Timeline({ events }) {
   if (!events?.length) return null;
@@ -567,11 +599,14 @@ export function ContractView({ id, onClose }) {
       <Load q={q}>
         {(x) => (
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2"><DocPill r={x} />{x.template_version && <span className="text-footnote text-muted">Version {x.template_version}</span>}</div>
-            <DocPaper status={x.status} doc={{
+            <div className="flex flex-wrap items-center gap-2"><DocPill r={x} />{x.template_version && <span className="text-footnote text-muted">Version {x.template_version}</span>}
+              {x.party && <span className="text-footnote text-muted">{x.party.name}{x.party.signatory_name ? ` · signs: ${x.party.signatory_name}` : ''}</span>}</div>
+            {x.signer_kind === 'outside' && <LinkPanel x={x} onDone={q.reload} />}
+            {x.pdf_url && <Suspense fallback={<Spinner />}><PdfPages src={x.pdf_url} /></Suspense>}
+            {x.blocks.length > 0 && <DocPaper status={x.status} doc={{
               typeLabel: CAT[x.category]?.one || 'Contract', title: x.title, reference: x.reference, issuedAt: x.sent_at || x.created_at, version: x.template_version,
               officerName: x.officer_name, blocks: x.blocks, ack: x.ack,
-            }} signers={{ company: x.company, officer: x.signed_at ? { name: x.signed_name, png: x.signature, at: x.signed_at } : null }} />
+            }} signers={{ company: x.company, officer: x.signed_at ? { name: x.signed_name, png: x.signature, at: x.signed_at } : null }} />}
             <div className="rounded-2xl bg-bg p-4">
               <div className="mb-2 text-footnote font-semibold uppercase tracking-wide text-muted">Signing timeline</div>
               <Timeline events={x.events} />

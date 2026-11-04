@@ -6,7 +6,7 @@ import { api } from '../../../api.js';
 import { Button, cx, Input, List, Load, Row, SearchInput, Segmented, Select, Sheet, Textarea, useAction, useApi } from '../../../ui/index.jsx';
 import { JURISDICTIONS } from './_shared.jsx';
 
-const ORG_KINDS = [
+export const ORG_KINDS = [
   { value: 'labour_provider', label: 'Labour provider' }, { value: 'subcontractor', label: 'Security subcontractor' },
   { value: 'agency', label: 'Employment agency' }, { value: 'psc', label: 'Personal service company' }, { value: 'other', label: 'Other business' },
 ];
@@ -92,7 +92,7 @@ function OrgForm({ kind, onSaved, onCancel }) {
   );
 }
 
-function PartyPicker({ pack, value, onChange }) {
+export function PartyPicker({ pack, value, onChange }) {
   const [text, setText] = useState('');
   const [search, setSearch] = useState('');
   const [adding, setAdding] = useState(false);

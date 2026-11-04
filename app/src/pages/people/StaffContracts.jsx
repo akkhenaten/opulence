@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { FilePen, FilePlus2, FileSignature, ScrollText, Search, Trash2 } from 'lucide-react';
+import { FilePen, FilePlus2, FileSignature, FileUp, ScrollText, Search, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
 import { Button, dateTime, Empty, IconButton, List, Load, Page, Pill, Progress, Row, SearchInput, Segmented, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { ContractRow } from './_profileTabs.jsx';
 import { ContractView, SendDocSheet } from './_esign.jsx';
 import StartSheet from './contracts/StartSheet.jsx';
+import UploadSheet from './contracts/UploadSheet.jsx';
 import { JUR_SHORT } from './contracts/_shared.jsx';
 
 const FILTERS = [{ value: '', label: 'All' }, { value: 'sent', label: 'Awaiting' }, { value: 'signed', label: 'Signed' }, { value: 'void', label: 'Void' }];
@@ -90,6 +91,7 @@ export default function StaffContracts() {
   const q = useApi('contracts.list', { status: status || undefined, category: category || undefined, q: search || undefined });
   const [sending, setSending] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'drafts' ? 'drafts' : 'issued';
   const [viewing, setViewing] = useState(null);
@@ -104,6 +106,7 @@ export default function StaffContracts() {
     <Page title="Staff contracts" subtitle="Contracts and policies sent for signature, and where each one stands"
       actions={<>
         <Button variant="secondary" icon={FileSignature} onClick={() => setSending(true)}>Send a template</Button>
+        <Button variant="secondary" icon={FileUp} onClick={() => setUploading(true)}>Upload contract</Button>
         <Button icon={FilePlus2} onClick={() => setCreating(true)}>Create contract</Button>
       </>}>
       <Segmented className="mb-4" value={view} onChange={(x) => setParams(x === 'drafts' ? { view: x } : {}, { replace: true })} options={VIEWS} />
@@ -130,6 +133,7 @@ export default function StaffContracts() {
       </Load>
       </>}
       {creating && <StartSheet onClose={() => setCreating(false)} />}
+      {uploading && <UploadSheet onClose={() => setUploading(false)} onDone={q.reload} />}
       {sending && <SendDocSheet onClose={() => setSending(false)} onDone={q.reload} />}
       {viewing && <ContractView id={viewing} onClose={() => setViewing(null)} />}
     </Page>

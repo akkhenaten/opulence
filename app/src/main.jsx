@@ -30,6 +30,7 @@ const Venues = P(() => import('./pages/money/Venues.jsx'));
 const Clients = P(() => import('./pages/money/Venues.jsx').then((m) => ({ default: m.Clients })));
 const StaffContracts = P(() => import('./pages/people/StaffContracts.jsx'));
 const ContractWorkspace = P(() => import('./pages/people/contracts/Workspace.jsx'));
+const PublicSign = P(() => import('./pages/auth/PublicSign.jsx'));
 const EverydayRedirect = P(() => import('./pages/manager/Dashboard.jsx').then((m) => ({ default: m.EverydayRedirect })));
 const VenueDetail = P(() => import('./pages/money/VenueDetail.jsx'));
 const Pay = P(() => import('./pages/money/Pay.jsx'));
@@ -163,6 +164,7 @@ function App() {
         <Route path="/invite/:token" element={<AcceptInvite />} />
         <Route path="/verify" element={<Verify />} />
         <Route path="/verify/:ref" element={<Verify />} />
+        <Route path="/sign/:token" element={<PublicSign />} />
 
         <Route element={<Guard role={['company']} />}>
           <Route path="/company" element={<Shell />}>

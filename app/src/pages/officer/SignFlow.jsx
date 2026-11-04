@@ -1,12 +1,20 @@
 // Officer signing in three steps: read the whole document, sign, then download the signed copy.
 // Shared by contracts, policies and pay rises.
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, CheckCircle2, Download, Eraser, FileSignature, ShieldCheck } from 'lucide-react';
 import { downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { ActionBar, Button, cx, dateTime, Input, Progress, Toggle, useAction, useToast } from '../../ui/index.jsx';
 import { DocPaper } from '../../ui/DocPaper.jsx';
 import { SignaturePad } from '../../ui/SignaturePad.jsx';
+
+const PdfPages = lazy(() => import('../../ui/PdfPages.jsx'));
+
+/** An uploaded contract: its own pages exactly as uploaded, then the signature page */
+function Original({ url, onReady }) {
+  if (!url) return null;
+  return <Suspense fallback={<div className="skeleton mb-3 rounded-xl" style={{ aspectRatio: '0.707' }} />}><PdfPages src={url} onReady={onReady} className="mb-3" /></Suspense>;
+}
 
 const STEPS = ['Read', 'Sign', 'Done'];
 
@@ -63,15 +71,18 @@ function useReadProgress(paper, end, active) {
  *   { kind, status, doc, company, officer, reference }
  * sign(signature, name) → promise of the server reply; pdf: [action, body]
  */
-export default function SignFlow({ d, sign, pdf, onSigned }) {
+export default function SignFlow({ d, sign, pdf, onSigned, onDownload, doneNote, defaultName }) {
   const signed = !!d.officer?.at;
   const open = d.status === 'sent';
   const [step, setStep] = useState(signed ? 2 : 0);
   const paper = useRef(null);
   const end = useRef(null);
-  const [pct, read] = useReadProgress(paper, end, open && step === 0);
+  // With an uploaded PDF the end only counts once its pages are laid out
+  const [pages, setPages] = useState(0);
+  const [pct, seenEnd] = useReadProgress(paper, end, open && step === 0 && (!d.pdfUrl || pages > 0));
+  const read = seenEnd && (!d.pdfUrl || pages > 0);
   const [run, busy] = useAction();
-  const download = () => run(() => downloadAction(...pdf)).catch(() => {});
+  const download = () => run(() => (onDownload ? onDownload() : downloadAction(...pdf))).catch(() => {});
   useEffect(() => { window.scrollTo({ top: 0 }); }, [step]);
 
   // Withdrawn or replaced: the document is shown, but there is nothing to do
@@ -83,6 +94,7 @@ export default function SignFlow({ d, sign, pdf, onSigned }) {
             ? 'This version has been replaced by a newer one. Check your notifications for the new version to sign.'
             : 'The office withdrew this document. It no longer needs signing.'}
         </div>
+        <Original url={d.pdfUrl} />
         <DocPaper doc={d.doc} signers={{ company: d.company }} status={d.status} />
       </div>
     );
@@ -102,6 +114,7 @@ export default function SignFlow({ d, sign, pdf, onSigned }) {
             <Progress value={pct} max={100} className="mt-1.5" />
           </div>
           <div ref={paper}>
+            <Original url={d.pdfUrl} onReady={setPages} />
             <DocPaper ref={end} doc={d.doc} signers={{ company: d.company, officer: null }} />
           </div>
           <ActionBar tone="light">
@@ -111,7 +124,7 @@ export default function SignFlow({ d, sign, pdf, onSigned }) {
         </>
       )}
 
-      {step === 1 && <SignStep d={d} sign={sign} back={() => setStep(0)} done={() => { setStep(2); onSigned?.(); }} />}
+      {step === 1 && <SignStep d={d} sign={sign} defaultName={defaultName} back={() => setStep(0)} done={() => { setStep(2); onSigned?.(); }} />}
 
       {step === 2 && (
         <div className="space-y-4">
@@ -122,9 +135,10 @@ export default function SignFlow({ d, sign, pdf, onSigned }) {
             <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full bg-bg px-3.5 py-1.5 text-footnote">
               <ShieldCheck size={15} className="text-green" /><span className="text-muted">Reference</span><span className="num font-semibold">{d.reference}</span>
             </div>
-            <p className="mx-auto mt-3 max-w-sm text-footnote text-muted">A sealed copy with both signatures and a signing certificate is saved in your Documents.</p>
-            <Button size="lg" icon={Download} busy={busy} className="mt-4 w-full sm:w-auto" onClick={download}>Download signed PDF</Button>
+            <p className="mx-auto mt-3 max-w-sm text-footnote text-muted">{doneNote || 'A sealed copy with both signatures and a signing certificate is saved in your Documents.'}</p>
+            {(pdf || onDownload) && <Button size="lg" icon={Download} busy={busy} className="mt-4 w-full sm:w-auto" onClick={download}>Download signed PDF</Button>}
           </div>
+          <Original url={d.pdfUrl} />
           <DocPaper doc={d.doc} signers={{ company: d.company, officer: d.officer }} status={d.status} />
         </div>
       )}
@@ -132,10 +146,10 @@ export default function SignFlow({ d, sign, pdf, onSigned }) {
   );
 }
 
-function SignStep({ d, sign, back, done }) {
+function SignStep({ d, sign, back, done, defaultName }) {
   const { user } = useAuth();
   const toast = useToast();
-  const [name, setName] = useState(user.name || '');
+  const [name, setName] = useState(defaultName ?? user?.name ?? '');
   const [agree, setAgree] = useState(false);
   const [hasInk, setHasInk] = useState(false);
   const pad = useRef(null);

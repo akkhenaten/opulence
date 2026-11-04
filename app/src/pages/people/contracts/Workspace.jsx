@@ -38,20 +38,24 @@ function SendSheet({ v, onClose, onSent }) {
   const sig = signers.data;
   const signerId = signer || sig?.default_signatory_id || sig?.signatories[0]?.id || '';
   const row = sig?.signatories.find((s) => s.id === signerId);
-  const noLogin = party?.kind === 'officer' && !party.has_login;
-  const send = () => run(() => api('contracts.draft.send', { id: draft.id, signatory_id: signerId || null }), (x) => `Sent · ${x.reference}`).then(onSent).catch(() => {});
+  // A business, or an officer without a login, signs from a one-time link in their email
+  const byLink = party?.kind === 'organisation' || (party?.kind === 'officer' && !party.has_login);
+  const noEmail = byLink && !party?.email;
+  const send = () => run(() => api('contracts.draft.send', { id: draft.id, signatory_id: signerId || null, link: byLink || undefined }),
+    (x) => (x.via === 'link' ? (x.emailed ? `Signing link emailed to ${x.email} · ${x.reference}` : x.warning) : `Sent · ${x.reference}`)).then(onSent).catch(() => {});
   return (
     <Sheet open onClose={onClose} title="Approve and send" size="lg"
       footer={<>
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button icon={Send} busy={busy} disabled={!row || noLogin} onClick={send}>Send for signature</Button>
+        <Button icon={Send} busy={busy} disabled={!row || noEmail} onClick={send}>{byLink ? 'Email signing link' : 'Send for signature'}</Button>
       </>}>
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl bg-bg px-4 py-3 text-footnote">
             <div className="text-muted">To</div>
             <div className="text-subhead font-semibold">{party?.name}</div>
-            {noLogin && <p className="mt-1 text-amber">{party.name} has no app login yet. Invite them from their profile first; signing by email link comes with outside signers.</p>}
+            {byLink && party.email && <p className="mt-1 text-muted">{party.kind === 'organisation' ? `Signed by ${party.signatory || 'their signatory'} · ` : 'No app login, so they sign from a link · '}<span className="font-semibold text-ink">{party.email}</span></p>}
+            {noEmail && <p className="mt-1 text-amber">{party.kind === 'organisation' ? `Add the email address of the person who signs for ${party.name} first.` : `${party.name} has no email address on their profile, so a signing link cannot be sent.`}</p>}
           </div>
           <div>
             <div className="mb-1.5 text-footnote font-semibold text-muted">Signs for the company</div>
@@ -72,7 +76,9 @@ function SendSheet({ v, onClose, onSent }) {
         )}
         <DocPaper doc={{ typeLabel: pack.doc_title, title: draft.title, reference: 'Given when sent', issuedAt: new Date(), officerName: party?.name, blocks: result.blocks }}
           signers={{ company: row ? { name: row.name, title: row.title, png: row.png } : null }} />
-        <p className="text-footnote text-muted">{party?.name} gets a notification and an email, reads it on their phone and signs. Unsigned contracts get a reminder after 3 and 7 days.</p>
+        <p className="text-footnote text-muted">{byLink
+          ? 'They get an email with a one-time link that works for 14 days. They read and sign in the browser without an account, and can download the sealed copy for 30 days. A reminder goes after 3 and 7 days.'
+          : `${party?.name} gets a notification and an email, reads it on their phone and signs. Unsigned contracts get a reminder after 3 and 7 days.`}</p>
       </div>
     </Sheet>
   );

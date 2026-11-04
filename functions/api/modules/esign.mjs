@@ -35,19 +35,39 @@ export const companyOf = (c) => (c.company_signature
   ? { name: c.company_name_signed, title: c.company_title_signed, png: c.company_signature, at: c.company_signed_at } : null);
 
 /** What renderSigned needs for a contract or policy row. */
+/** The page signed under an uploaded PDF: it names the file it belongs to, and its hash goes into the fingerprint */
+export const uploadSignaturePage = (c) => [
+  '#! Signature page',
+  `This signature page forms part of "${c.title}", the ${c.upload_pages}-page document in front of it${c.reference ? ` (reference ${c.reference})` : ''}. Those pages are exactly the file uploaded by the Company; only the reference and page numbers in the margin were added.`,
+  `SHA-256 fingerprint of the uploaded file: ${c.upload_sha256}`,
+  'By signing below, both parties agree to that document. Nothing on this page changes its terms.',
+].join('\n\n');
+
+/** What renderSigned needs for a contract or policy row. */
 export async function contractInput(c, s = null) {
-  const [settings, o] = await Promise.all([s || getSettings(), one('SELECT first_name, last_name, email FROM officers WHERE id = $1', [c.officer_id])]);
+  const [settings, o, g, used] = await Promise.all([
+    s || getSettings(),
+    c.officer_id && one('SELECT first_name, last_name, email FROM officers WHERE id = $1', [c.officer_id]),
+    c.organisation_id && one('SELECT name, signatory_name, signatory_email FROM organisations WHERE id = $1', [c.organisation_id]),
+    // Signed by link: the address the link went to is the one that signed
+    c.signed_at && c.signer_kind === 'outside' && one('SELECT email FROM sign_links WHERE contract_id = $1 AND used_at IS NOT NULL ORDER BY used_at DESC LIMIT 1', [c.id]),
+  ]);
   const category = c.category || 'contract';
+  const pdf = c.source === 'upload' && c.upload_key;
   return {
     company: settings,
     doc: {
       kind: category, typeLabel: TYPE_LABEL[category], title: c.title, reference: c.reference, issuedAt: c.sent_at || c.created_at,
-      version: c.template_version, officerName: `${o.first_name} ${o.last_name}`, blocks: parse(c.body), ackLine: ACK[category],
+      version: c.template_version, officerName: o ? `${o.first_name} ${o.last_name}` : g?.signatory_name || g?.name,
+      blocks: parse(pdf ? uploadSignaturePage(c) : c.body), ackLine: ACK[category],
+      ...(g ? { partyLabel: g.name } : {}),
+      ...(pdf ? { attachment: { title: c.title, pages: c.upload_pages } } : {}),
     },
     signers: {
       company: companyOf(c),
-      officer: c.signed_at ? { name: c.signed_name, png: c.signature, at: c.signed_at, email: o.email, ip: c.signed_ip, ua: c.signed_ua } : null,
+      officer: c.signed_at ? { name: c.signed_name, png: c.signature, at: c.signed_at, email: used?.email || o?.email || g?.signatory_email, ip: c.signed_ip, ua: c.signed_ua } : null,
     },
+    ...(pdf ? { upload: { key: c.upload_key } } : {}),
   };
 }
 
@@ -150,8 +170,8 @@ export const actions = {
     const [s, c, a] = await Promise.all([
       one('SELECT company_name FROM settings WHERE id = 1'),
       one(`SELECT c.reference, c.category, c.title, c.status, c.signed_name, c.signed_at, c.company_name_signed, c.fingerprint, c.pdf_sha256, c.sealed_at,
-                  o.first_name || ' ' || o.last_name AS officer_name
-             FROM contracts c JOIN officers o ON o.id = c.officer_id WHERE c.reference = $1`, [ref]),
+                  COALESCE(o.first_name || ' ' || o.last_name, g.signatory_name, g.name) AS officer_name, g.name AS party
+             FROM contracts c LEFT JOIN officers o ON o.id = c.officer_id LEFT JOIN organisations g ON g.id = c.organisation_id WHERE c.reference = $1`, [ref]),
       one(`SELECT a.reference, 'pay_rise' AS category, 'Pay rise agreement' AS title, a.status, a.signed_name, a.signed_at, a.company_name_signed,
                   a.fingerprint, a.pdf_sha256, a.sealed_at, o.first_name || ' ' || o.last_name AS officer_name
              FROM pay_agreements a JOIN officers o ON o.id = a.officer_id WHERE a.reference = $1`, [ref]),
@@ -162,7 +182,7 @@ export const actions = {
     const sha = String(b.sha256 || '').toLowerCase();
     return {
       found: true, reference: d.reference, type: TYPE_LABEL[d.category] || 'Contract', title: d.title, status, company: s.company_name,
-      officer: shortName(d.signed_name || d.officer_name), signatory: d.company_name_signed ? shortName(d.company_name_signed) : null,
+      officer: shortName(d.signed_name || d.officer_name), party: d.party || null, signatory: d.company_name_signed ? shortName(d.company_name_signed) : null,
       signed_at: d.signed_at, sealed: !!d.sealed_at, fingerprint: d.fingerprint,
       match: sha && d.pdf_sha256 ? sha === d.pdf_sha256 : null,
     };

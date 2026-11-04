@@ -13,7 +13,7 @@ const M = 56;
 const BOTTOM = 64;
 
 export const STATUS_WORD = { preview: 'PREVIEW - SAMPLE DATA', proof: 'PREVIEW', draft: 'DRAFT - PENDING LEGAL REVIEW', sent: 'NOT YET SIGNED', signed: 'SIGNED', void: 'VOID', superseded: 'SUPERSEDED' };
-const WATERMARK = { preview: 'PREVIEW - SAMPLE DATA', draft: 'DRAFT - PENDING LEGAL REVIEW', sent: 'AWAITING SIGNATURE', void: 'VOID', superseded: 'SUPERSEDED' };
+export const WATERMARK = { preview: 'PREVIEW - SAMPLE DATA', draft: 'DRAFT - PENDING LEGAL REVIEW', sent: 'AWAITING SIGNATURE', void: 'VOID', superseded: 'SUPERSEDED' };
 
 const sha = (x) => crypto.createHash('sha256').update(x).digest('hex');
 
@@ -126,6 +126,7 @@ class SignDoc extends Doc {
 /**
  * Build a signed document.
  * doc: { kind: 'contract'|'policy'|'pay_rise', typeLabel, title, reference, issuedAt, version, officerName, blocks,
+ *        partyLabel? (a business signing: its name), partyRole? (certificate role), attachment? { title, pages },
  *        terms?: { left: [[k,v]], right: [[k,v]], conditions: [{ title, status }] }, ackLine?, legacy? }
  * signers: { company: { name, title, png, at } | null, officer: { name, png, at, email, ip, ua } | null }
  * events: [{ kind, at, actor_name, ip, ua }]
@@ -182,7 +183,7 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
     s.page.drawText(s.fit(v, s.bold, 10, colW - 10), { x: fx, y: s.y - 30, size: 10, font: s.bold, color: INK });
   });
   s.label('Between', s.x + 16, s.y - 46);
-  const between = `${company?.company_name || 'The company'}  and  ${doc.officerName || '-'}`;
+  const between = `${company?.company_name || 'The company'}  and  ${doc.partyLabel || doc.officerName || '-'}`;
   s.page.drawText(s.fit(between, s.font, 10, s.w - 80), { x: s.x + 70, y: s.y - 47, size: 10, font: s.font, color: INK });
   s.y -= factsH + 22;
 
@@ -274,7 +275,7 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
     const y0 = s.y;
     s.page.drawRectangle({ x, y: y0 - boxH, width: boxW, height: boxH, borderColor: LINE, borderWidth: 1 });
     s.page.drawRectangle({ x, y: y0 - 22, width: boxW, height: 22, color: SOFT });
-    s.label(heading, x + 12, y0 - 14.5, INK);
+    s.label(s.fit(heading.toUpperCase(), s.bold, 7, boxW - 24), x + 12, y0 - 14.5, INK);
     const lineY = y0 - 100;
     if (signer?.png) {
       try {
@@ -291,7 +292,7 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
     s.page.drawText(signer?.at ? `${fmtDateTime(signer.at)} UK time` : 'Date: ____________', { x: x + 12, y: lineY - 31, size: 8.5, font: s.font, color: MUTED });
   };
   await box(s.x, 'Signed for the company', signers.company, company?.company_name);
-  await box(s.x + boxW + 16, doc.kind === 'policy' ? 'Acknowledged by the officer' : 'Signed by the officer', signers.officer, doc.officerName);
+  await box(s.x + boxW + 16, doc.partyLabel ? `Signed for ${doc.partyLabel}` : doc.kind === 'policy' ? 'Acknowledged by the officer' : 'Signed by the officer', signers.officer, doc.officerName);
   s.y -= boxH + 10;
 
   // ---- Signing certificate (always the last page)
@@ -327,7 +328,7 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
   const pages = s.pdf.getPageCount();
   const used = Math.max(
     fact('Document fingerprint (SHA-256)', fp, s.x, s.w * 0.58),
-    fact('Document', `${doc.title}${doc.version ? ` · version ${doc.version}` : ''} · ${pages} pages`, s.x + s.w * 0.64, s.w * 0.36),
+    fact('Document', `${doc.title}${doc.version ? ` · version ${doc.version}` : ''} · ${pages + (doc.attachment?.pages || 0)} pages`, s.x + s.w * 0.64, s.w * 0.36),
   );
   s.y -= used + 30;
 
@@ -346,7 +347,7 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
   const co = signers.company;
   signerRow(co?.name || 'Not set', co?.title || 'Company signatory', `For ${company?.company_name || 'the company'}`, co?.at ? `Applied ${fmtDateTime(co.at)}` : doc.legacy ? 'Signed before company signatures' : 'Applied when sent', 'Saved signature');
   const of = signers.officer;
-  signerRow(of?.name || doc.officerName, doc.kind === 'policy' ? 'Officer · acknowledges' : 'Officer', of?.email || '', of?.at ? `Signed ${fmtDateTime(of.at)}` : 'Not signed yet', of?.at ? [of.ip && `IP ${of.ip}`, device(of.ua)].filter(Boolean).join(' · ') : '');
+  signerRow(of?.name || doc.officerName, doc.partyRole || (doc.partyLabel ? `For ${doc.partyLabel}` : doc.kind === 'policy' ? 'Officer · acknowledges' : 'Officer'), of?.email || '', of?.at ? `Signed ${fmtDateTime(of.at)}` : 'Not signed yet', of?.at ? [of.ip && `IP ${of.ip}`, device(of.ua)].filter(Boolean).join(' · ') : '');
 
   s.y -= 18;
   heading('Timeline (UK time)');
@@ -362,6 +363,8 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
       reminded: `Reminder sent to ${officerName}`,
       voided: `Voided${who ? ` by ${who}` : ''}`,
       superseded: 'Replaced by a newer version',
+      link: `Signing link emailed${who ? ` to ${who}` : ''}`,
+      filed: 'Filed as signed on paper',
     }[e.kind] || e.kind;
   };
   const timeline = [...events];
@@ -372,7 +375,7 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
     s.page.drawText(fmtDateTime(e.at), { x: s.x, y: s.y - 9.5, size: 9, font: s.font, color: MUTED });
     s.page.drawCircle({ x: s.x + 118, y: s.y - 6.5, size: 2.4, color: e.kind === 'signed' || e.kind === 'sealed' ? accent : MUTED });
     const detail = [e.ip && `IP ${e.ip}`, e.ua && device(e.ua)].filter(Boolean).join(' · ');
-    s.page.drawText(s.fit(say(e), s.font, 9.5, 200), { x: s.x + 130, y: s.y - 9.5, size: 9.5, font: s.font, color: INK });
+    s.page.drawText(s.fit(say(e), s.font, 9.5, detail ? 200 : s.w - 130), { x: s.x + 130, y: s.y - 9.5, size: 9.5, font: s.font, color: INK });
     if (detail) s.page.drawText(s.fit(detail, s.font, 8.5, 150), { x: s.x + s.w - s.font.widthOfTextAtSize(s.fit(detail, s.font, 8.5, 150), 8.5), y: s.y - 9.5, size: 8.5, font: s.font, color: MUTED });
     s.y -= 19;
   }
@@ -406,7 +409,9 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
     const left = `${doc.reference ? `Ref ${doc.reference}  ·  ` : ''}`;
     p.drawText(s.clean(left), { x: M, y: 31, size: 7.5, font: s.font, color: MUTED });
     p.drawText(word, { x: M + s.font.widthOfTextAtSize(s.clean(left), 7.5), y: 31, size: 7.5, font: s.bold, color: status === 'signed' ? accentText : status === 'void' ? rgb(0.75, 0.1, 0.1) : MUTED });
-    const pg = `Page ${i + 1} of ${all.length}`;
+    // An uploaded document's own pages come first, so these pages continue its numbering
+    const off = doc.attachment?.pages || 0;
+    const pg = `Page ${off + i + 1} of ${off + all.length}`;
     p.drawText(pg, { x: PAGE_W - M - s.font.widthOfTextAtSize(pg, 7.5), y: 31, size: 7.5, font: s.font, color: MUTED });
   });
 

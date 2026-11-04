@@ -6,14 +6,15 @@ import { Button, Load, Page, Pill, useAction, useApi } from '../../ui/index.jsx'
 import SignFlow from './SignFlow.jsx';
 
 const LABEL = { contract: 'Contract', policy: 'Policy' };
-export const STATUS = { sent: ['To sign', 'amber'], signed: ['Signed', 'green'], void: ['Withdrawn', 'grey'], superseded: ['Replaced', 'grey'] };
+export const STATUS = { sent: ['To sign', 'amber'], signed: ['Signed', 'green'], void: ['Withdrawn', 'grey'], superseded: ['Replaced', 'grey'], signed_paper: ['Signed on paper', 'green'] };
 
 export const contractFlow = (c) => ({
-  kind: c.category || 'contract', status: c.status, reference: c.reference, company: c.company,
+  kind: c.category || 'contract', status: c.status, reference: c.reference, company: c.company, pdfUrl: c.pdf_url || null,
   officer: c.signed_at ? { name: c.signed_name, png: c.signature, at: c.signed_at } : null,
   doc: {
     typeLabel: LABEL[c.category] || 'Contract', title: c.title, reference: c.reference, issuedAt: c.sent_at || c.created_at,
     version: c.template_version, officerName: c.officer_name, blocks: c.blocks, ack: c.ack,
+    attachment: c.upload_pages ? { title: c.title, pages: c.upload_pages } : null,
   },
 });
 
