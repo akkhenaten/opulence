@@ -9,10 +9,11 @@ import { parse } from '../lib/docmarkup.mjs';
 import { renderSigned } from '../lib/signdoc.mjs';
 import { Doc, MUTED } from '../lib/pdf.mjs';
 import { nameSafe } from '../lib/archive.mjs';
-import { compose, slotsFor, varsIn, longDate, JURISDICTIONS, STATES } from '../lib/compose.mjs';
+import { compose, slotsFor, varsIn, longDate, formatValue, JURISDICTIONS, STATES } from '../lib/compose.mjs';
 import { PACKS, PACK_LIST, loadLibrary, loadLaw } from '../lib/contractContent.mjs';
 import { nextReference, event, companySigner, signerColumns, uaOf } from '../lib/esign.mjs';
 import { getSettings } from './settings.mjs';
+import { claude, SONNET } from '../lib/ai.mjs';
 import { CO, def } from './_def.mjs';
 
 const J = Object.keys(JURISDICTIONS);
@@ -291,6 +292,136 @@ async function deliver(c, party, user) {
   return { via: 'none' };
 }
 
+
+// ---- Contracts AI: suggests changes as proposals; nothing changes until the manager applies one
+
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const digits = (t) => (String(t).match(/\d+(?:[.,]\d+)*/g) || []).map((x) => Number(x.replace(/,/g, '')));
+
+/** A typed value the AI proposes must be one the manager actually wrote: it may not invent pay, hours, dates or names */
+export function statedBy(qn, value, said) {
+  const text = said.toLowerCase();
+  if (['choice', 'yesno'].includes(qn.type)) return true;
+  if (qn.type === 'money' || qn.type === 'number') return digits(said).some((n) => Math.abs(n - Number(value)) < 0.005);
+  if (qn.type === 'date') {
+    const [y, m, d] = String(value).split('-').map(Number);
+    if (text.includes(String(value))) return true;
+    const dm = new RegExp(`\\b0?${d}(st|nd|rd|th)?\\s+(of\\s+)?(${MONTHS[m - 1]}|${MONTHS[m - 1].slice(0, 3)})\\b`).test(text)
+      || new RegExp(`\\b(${MONTHS[m - 1]}|${MONTHS[m - 1].slice(0, 3)})\\s+0?${d}(st|nd|rd|th)?\\b`).test(text);
+    const numeric = new RegExp(`\\b0?${d}[/.-]0?${m}[/.-](${y}|${String(y).slice(2)})\\b`).test(text);
+    return numeric || (dm && (!/\b20\d\d\b/.test(text) || text.includes(String(y))));
+  }
+  const v = String(value).toLowerCase().replace(/\s+/g, ' ').trim();
+  return v.length > 0 && text.replace(/\s+/g, ' ').includes(v);
+}
+
+const AI_TOOLS = [
+  {
+    name: 'propose_answer', description: 'Propose an answer to one of the Guide questions. Only a value the manager has written in this conversation, or one of the question\'s options.',
+    input_schema: { type: 'object', properties: { question: { type: 'string', description: 'Question id' }, value: { type: 'string' }, why: { type: 'string' } }, required: ['question', 'value', 'why'] },
+  },
+  {
+    name: 'propose_alternative', description: 'Propose switching a clause slot to another wording from its alternatives.',
+    input_schema: { type: 'object', properties: { slot: { type: 'string' }, clause: { type: 'string', description: 'Clause id from the slot\'s alternatives' }, why: { type: 'string' } }, required: ['slot', 'clause', 'why'] },
+  },
+  {
+    name: 'propose_toggle', description: 'Propose switching an optional clause on or off.',
+    input_schema: { type: 'object', properties: { slot: { type: 'string' }, on: { type: 'boolean' }, why: { type: 'string' } }, required: ['slot', 'on', 'why'] },
+  },
+  {
+    name: 'propose_wording', description: 'Propose new wording for a clause used in this document only. Plain English, the document\'s markup (## sub-heading, - bullet, **bold**), and {{question.id}} for any value the questions ask. Never type a value the questions provide.',
+    input_schema: { type: 'object', properties: { clause: { type: 'string', description: 'Clause id currently in the document' }, body: { type: 'string' }, why: { type: 'string' } }, required: ['clause', 'body', 'why'] },
+  },
+  {
+    name: 'point_to_question', description: 'Point the manager at a Guide question they need to answer themselves.',
+    input_schema: { type: 'object', properties: { question: { type: 'string' }, text: { type: 'string' } }, required: ['question', 'text'] },
+  },
+];
+
+function aiSystem(v, d) {
+  const { pack, party, result, slots } = v;
+  const visible = new Set(result.visible || []);
+  const qs = (pack.questions || []).filter((qn) => visible.has(qn.id) && qn.type !== 'note').map((qn) => {
+    const a = d.answers[qn.id];
+    const now = a?.confirmed ? JSON.stringify(a.value) : a ? `unconfirmed prefill ${JSON.stringify(a.value)}` : 'not answered';
+    return `- ${qn.id} (${qn.type}${qn.options ? `: ${qn.options.map((o) => o.value).join('|')}` : ''}) "${qn.label}" = ${now}`;
+  });
+  const bySlot = Object.fromEntries(result.manifest.map((m) => [m.slot, m]));
+  const sl = Object.entries(slots).map(([id, x]) => {
+    const m = bySlot[id];
+    return `- slot ${id}${x.optional ? ' (optional)' : ''}: ${m ? `uses ${m.clause} "${m.title}" [${m.origin}, ${m.state}]` : 'not included'}${x.clauses.length > 1 ? `; alternatives: ${x.clauses.map((c) => `${c.id} "${c.title}"`).join(', ')}` : ''}`;
+  });
+  const findings = result.findings.map((f) => `- [${f.severity}] ${f.message}`);
+  const rules = `You are Contracts AI inside a UK security company's contract workspace. The manager is drafting "${d.title}" (${pack.title}) with ${party?.name || 'the other party'}, under the law of ${JURISDICTIONS[d.jurisdiction]}.
+
+How you help:
+- Explain clauses, findings and the choices available in plain, short English. You are not a lawyer and this is not legal advice; say so when a question needs one.
+- Make changes only by calling the propose_* tools. The manager sees each proposal as a card and decides. Never say a change has been made.
+- Never invent a value. Pay, hours, dates, names, addresses and notice periods come from the manager. If they have not said it, use point_to_question.
+- Prefer an alternative from the library over new wording. Propose new wording only when no alternative fits; it is flagged for review.
+- Never claim wording is legally reviewed or compliant. Everything here is a draft pending legal review unless its state is "legal".
+- Always answer in words as well as any proposals. Plain text only: no markdown headings or bold; short dash lists are fine.
+- Keep the reply under 120 words unless the manager asks for detail.`;
+  const ctx = `Questions (id, type, label = current answer):\n${qs.join('\n')}\n\nClauses by slot:\n${sl.join('\n')}\n\nCurrent findings:\n${findings.join('\n') || '- none'}`;
+  return [{ type: 'text', text: rules }, { type: 'text', text: ctx }];
+}
+
+/** Turn the model's tool calls into proposals the manager can apply, dropping any that break the rules */
+function toProposals(uses, v, d, pack, said) {
+  const qById = Object.fromEntries((pack.questions || []).map((qn) => [qn.id, qn]));
+  const visible = new Set(v.result.visible || []);
+  const used = Object.fromEntries(v.result.manifest.map((m) => [m.clause, m]));
+  const out = [];
+  const rejected = [];
+  for (const u of uses) {
+    const x = u.input || {};
+    const id = `p_${Math.random().toString(36).slice(2, 10)}`;
+    try {
+      if (u.name === 'propose_answer' || u.name === 'point_to_question') {
+        const qn = qById[x.question];
+        if (!qn || !visible.has(qn.id)) throw new Error('That question is not part of this document');
+        if (u.name === 'point_to_question') { out.push({ id, kind: 'ask', question: qn.id, label: qn.label, why: String(x.text || '').slice(0, 400) }); continue; }
+        const value = cleanValue(qn, x.value);
+        if (value == null) throw new Error('Empty value');
+        if (!statedBy(qn, value, said)) {
+          rejected.push({ label: qn.label, reason: 'You have not given this value, so it was not filled in. Answer it in the Guide.' });
+          out.push({ id, kind: 'ask', question: qn.id, label: qn.label, why: 'Only you can give this value.' });
+          continue;
+        }
+        const was = d.answers[qn.id];
+        out.push({ id, kind: 'answer', label: qn.label, was: was?.confirmed ? formatValue(qn, was.value) : null, now: formatValue(qn, value), why: String(x.why || '').slice(0, 400), jump: { question: qn.id }, patch: { answers: { [qn.id]: { value, confirmed: true } } } });
+      } else if (u.name === 'propose_alternative') {
+        const slot = v.slots[x.slot];
+        const c = slot?.clauses.find((k) => k.id === x.clause);
+        if (!c) throw new Error('That wording is not an alternative for this clause');
+        const cur = v.result.manifest.find((m) => m.slot === x.slot);
+        if (cur?.clause === c.id) continue;
+        out.push({ id, kind: 'alternative', label: c.title, was: cur?.title || null, now: c.title, state: c.state, why: String(x.why || '').slice(0, 400), jump: { slot: x.slot }, patch: { selections: { [x.slot]: { clause: c.id } } } });
+      } else if (u.name === 'propose_toggle') {
+        const slot = v.slots[x.slot];
+        if (!slot?.optional) throw new Error('That clause cannot be switched off');
+        const on = !!x.on;
+        if (on === v.result.manifest.some((m) => m.slot === x.slot)) continue;
+        out.push({ id, kind: 'toggle', label: slot.clauses[0]?.title || x.slot, now: on, why: String(x.why || '').slice(0, 400), jump: { slot: x.slot }, patch: { selections: { [x.slot]: { on } } } });
+      } else if (u.name === 'propose_wording') {
+        const m = used[x.clause];
+        if (!m) throw new Error('That clause is not in this document');
+        const body = String(x.body || '').trim().slice(0, 8000);
+        if (!body) throw new Error('Empty wording');
+        checkVars(pack, body);
+        const was = d.bespoke?.[m.clause]?.body || v.slots[m.slot]?.clauses.find((k) => k.id === m.clause)?.body || '';
+        out.push({ id, kind: 'wording', label: m.title, was, now: body, why: String(x.why || '').slice(0, 400), jump: { slot: m.slot }, patch: { bespoke: { [m.clause]: { body } } } });
+      }
+    } catch (e) {
+      rejected.push({ label: x.question || x.slot || x.clause || u.name, reason: e.message });
+    }
+  }
+  return { proposals: out.slice(0, 8), rejected };
+}
+
+const CHAT_KEEP = 40;
+const setChat = (id, chat) => one('UPDATE contract_drafts SET chat = $2 WHERE id = $1 RETURNING chat', [id, JSON.stringify(chat.slice(-CHAT_KEEP))]);
+
 export const actions = {
   'contracts.packs': def(CO, async () => {
     const [library, s] = await Promise.all([loadLibrary(), getSettings()]);
@@ -482,7 +613,9 @@ export const actions = {
     const d = await loadDraft(b.id);
     if (d.status !== 'draft') fail(400, 'This draft has been sent. Amend the contract instead.');
     const pack = packOf(d.pack_id);
-    const saved = need(await saveDraft(d.id, applyPatch(d, pack, b, user)), 'Draft not found');
+    const patch = applyPatch(d, pack, b, user);
+    if (b.proposal_id) patch.chat = (d.chat || []).map((m) => (m.proposals ? { ...m, proposals: m.proposals.map((p) => (p.id === b.proposal_id ? { ...p, status: 'applied' } : p)) } : m));
+    const saved = need(await saveDraft(d.id, patch), 'Draft not found');
     if (b.proposal_id) await audit(user, 'ai.apply', 'contract_draft', d.id, { proposal: String(b.proposal_id).slice(0, 80), summary: 'Applied a Contracts AI suggestion' });
     return view(saved);
   }),
@@ -601,5 +734,47 @@ export const actions = {
     const { bytes } = await renderSigned({ company: s, doc: docFor(d, pack, party, body, b.contract_id ? 'SNAPSHOT' : 'DRAFT'), signers: {}, events: [], status: r.legal ? 'proof' : 'draft', verifyUrl: '' });
     const out = await contractFile(d, pack, party, r, s, bytes);
     return { filename: nameSafe(`${d.title} - contract file.pdf`), pdf: Buffer.from(out).toString('base64') };
+  }),
+
+  // ---- Contracts AI
+
+  'contracts.ai.chat': def(CO, async (b, { user }) => {
+    required(b, 'id', 'message');
+    const message = String(b.message).trim().slice(0, 2000);
+    if (!message) fail(400, 'Type a message');
+    const d = await loadDraft(b.id);
+    if (d.status !== 'draft') fail(400, 'This draft has been sent');
+    const v = await view(d);
+    const pack = packOf(d.pack_id);
+    const history = (d.chat || []).slice(-12);
+    // What the manager has said in this conversation: the only source for typed values
+    const said = [...history.filter((m) => m.role === 'user').map((m) => m.text), message].join('\n');
+    const messages = [...history.map((m) => ({ role: m.role, content: m.text || '…' })), { role: 'user', content: message }];
+    const ask = () => claude({ model: SONNET, module: 'contracts', system: aiSystem(v, d), messages, tools: AI_TOOLS, max_tokens: 2048 });
+    let r = await ask();
+    // An empty answer now and then: ask once more rather than show nothing
+    if (!(r.content || []).some((c) => (c.type === 'text' && c.text.trim()) || c.type === 'tool_use')) r = await ask();
+    const text = (r.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('\n').trim();
+    const { proposals, rejected } = toProposals((r.content || []).filter((c) => c.type === 'tool_use'), v, d, pack, said);
+    const reply = text || (proposals.length ? 'Here is what I suggest.' : 'I could not suggest a change for that.');
+    const at = new Date().toISOString();
+    const chat = await setChat(d.id, [...(d.chat || []), { role: 'user', text: message, by: user.name, at }, { role: 'assistant', text: reply, proposals, rejected, at }]);
+    await audit(user, 'ai.chat', 'contract_draft', d.id, { proposals: proposals.length, summary: 'Asked Contracts AI about a draft' });
+    return { chat: chat.chat };
+  }),
+
+  // Mark a proposal applied or dismissed, so the chat shows what happened to it
+  'contracts.ai.resolve': def(CO, async (b) => {
+    required(b, 'id', 'proposal_id');
+    const d = await loadDraft(b.id);
+    const status = b.status === 'applied' ? 'applied' : 'dismissed';
+    const chat = (d.chat || []).map((m) => (m.proposals ? { ...m, proposals: m.proposals.map((p) => (p.id === b.proposal_id ? { ...p, status } : p)) } : m));
+    return { chat: (await setChat(d.id, chat)).chat };
+  }),
+
+  'contracts.ai.clear': def(CO, async (b) => {
+    required(b, 'id');
+    await loadDraft(b.id);
+    return { chat: (await setChat(b.id, [])).chat };
   }),
 };

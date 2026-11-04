@@ -12,6 +12,7 @@ import { DocPaper } from '../../../ui/DocPaper.jsx';
 import { SETUP_LINK, useWide } from '../_esign.jsx';
 import Guide from './Guide.jsx';
 import ClauseList from './ClauseList.jsx';
+import AskAi from './AskAi.jsx';
 import ReviewList from './ReviewList.jsx';
 import ContractFile from './ContractFile.jsx';
 import { flash, JURISDICTIONS, SEVERITY, useDraftPdf } from './_shared.jsx';
@@ -136,6 +137,15 @@ export default function Workspace() {
   const onAck = useCallback((fid, a) => patch({ acks: { [fid]: a } }), [patch]);
   useEffect(() => () => { clearTimeout(timer.current); if (Object.keys(pending.current).length) api('contracts.draft.save', { id, ...pending.current }).catch(() => {}); }, [id]);
 
+  const onChat = useCallback((chat) => setV((x) => ({ ...x, draft: { ...x.draft, chat } })), []);
+  const applyProposal = useCallback(async (p) => {
+    try {
+      await flush();
+      take(await api('contracts.draft.save', { id, ...p.patch, proposal_id: p.id }));
+      toast('Applied');
+    } catch (e) { toast(e.message, 'error'); }
+  }, [id, flush, take, toast]);
+
   const close = async () => { await flush().catch(() => {}); nav(BACK); };
   useEffect(() => {
     const k = (e) => e.key === 'Escape' && !file && !sending && close();
@@ -173,9 +183,10 @@ export default function Workspace() {
   const saveWord = { saved: 'All changes saved', pending: 'Editing…', saving: 'Saving…', error: 'Not saved' }[save];
   const notReady = counts.blocker ? `${counts.blocker} blocker${counts.blocker === 1 ? '' : 's'} to clear` : counts.review ? `${counts.review} item${counts.review === 1 ? '' : 's'} to acknowledge` : null;
 
-  const leftPane = left === 'guide' || (!wide && tab === 'guide')
-    ? <Guide v={v} onAnswer={onAnswer} onPatch={patch} />
-    : <ClauseList v={v} onPatch={patch} onApproveAll={approveAll} approving={approving} />;
+  const pane = wide ? left : tab;
+  const leftPane = pane === 'guide' ? <Guide v={v} onAnswer={onAnswer} onPatch={patch} />
+    : pane === 'ai' ? <AskAi v={v} onChat={onChat} onApply={applyProposal} onJump={jump} />
+      : <ClauseList v={v} onPatch={patch} onApproveAll={approveAll} approving={approving} />;
   const review = <ReviewList findings={result.findings} onJump={jump} onAck={onAck} />;
   const paper = (
     <DocPaper preview={result.legal} status={result.legal ? undefined : 'draft'}
@@ -196,7 +207,7 @@ export default function Workspace() {
       {!wide && (
         <div className="border-b border-line bg-surface py-2 safe-x [--px:0.75rem]">
           <Segmented full value={tab} onChange={setTab} options={[
-            { value: 'guide', label: 'Guide' }, { value: 'clauses', label: 'Clauses' }, { value: 'preview', label: 'Preview' },
+            { value: 'guide', label: 'Guide' }, { value: 'clauses', label: 'Clauses' }, { value: 'ai', label: 'AI' }, { value: 'preview', label: 'Preview' },
             { value: 'review', label: counts.blocker + counts.review ? `Review · ${counts.blocker + counts.review}` : 'Review' },
           ]} />
         </div>
@@ -205,7 +216,7 @@ export default function Workspace() {
       {wide ? (
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="flex min-h-0 flex-col">
-            <div className="px-6 pt-4"><Segmented value={left} onChange={setLeft} options={[{ value: 'guide', label: 'Guide' }, { value: 'clauses', label: 'Clauses' }]} /></div>
+            <div className="px-6 pt-4"><Segmented value={left} onChange={setLeft} options={[{ value: 'guide', label: 'Guide' }, { value: 'clauses', label: 'Clauses' }, { value: 'ai', label: 'Ask AI' }]} /></div>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4">{leftPane}</div>
           </div>
           <div className="flex min-h-0 flex-col border-l border-line bg-fill-strong/40">
@@ -230,7 +241,7 @@ export default function Workspace() {
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto pt-4 safe-x [--px:1rem]">
-          {tab === 'guide' || tab === 'clauses' ? leftPane : tab === 'preview' ? <div className="pb-6">{paper}</div> : <div className="pb-6">{review}</div>}
+          {['guide', 'clauses', 'ai'].includes(tab) ? leftPane : tab === 'preview' ? <div className="pb-6">{paper}</div> : <div className="pb-6">{review}</div>}
         </div>
       )}
 
