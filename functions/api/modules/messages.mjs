@@ -47,6 +47,15 @@ async function canWrite(user, convId) {
 
 const cleanAttachments = (user, list) => cleanFiles(user, list, 'messages');
 
+const STAFF = ['company', 'security', 'officer'];
+// An Everyday post shared into a chat: only staff can share, and only a post they can see
+async function cleanShare(user, share) {
+  if (share.type !== 'post' || !share.id) fail(400, 'Unknown share');
+  if (!STAFF.includes(user.role)) fail(403, 'Only staff can share Everyday posts');
+  need(await one('SELECT id FROM posts WHERE id = $1 AND deleted_at IS NULL AND hidden_at IS NULL', [share.id]), 'That post has been removed');
+  return { type: 'post', id: share.id };
+}
+
 const EMOJI = { like: '👍', love: '❤️', laugh: '😂', wow: '😮', sad: '😢', clap: '👏' };
 const snippet = (r) => (r.deleted_at ? 'Message deleted' : preview(r.body, r.attachments).slice(0, 100));
 
@@ -55,11 +64,21 @@ async function shapeMessages(rows, viewer, people) {
   const ids = rows.map((r) => r.id);
   const replyIds = [...new Set(rows.map((r) => r.reply_to).filter(Boolean))];
   const confirmIds = rows.filter((r) => r.must_confirm && !r.deleted_at).map((r) => r.id);
-  const [reacts, replies, confirms] = await Promise.all([
+  const shareIds = [...new Set(rows.filter((r) => r.share?.type === 'post' && !r.deleted_at).map((r) => r.share.id))];
+  const [reacts, replies, confirms, shared] = await Promise.all([
     ids.length ? q('SELECT message_id, user_id, kind FROM message_reactions WHERE message_id = ANY($1::uuid[])', [ids]) : [],
     replyIds.length ? q('SELECT m.id, m.body, m.attachments, m.deleted_at, m.sender_id, u.name FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = ANY($1::uuid[])', [replyIds]) : [],
     confirmIds.length ? q('SELECT message_id, user_id, confirmed_at FROM message_confirms WHERE message_id = ANY($1::uuid[])', [confirmIds]) : [],
+    shareIds.length && STAFF.includes(viewer.role) ? q(`SELECT p.id, p.kind, p.body, p.photos->0->>'key' AS photo_key, p.video->>'poster_key' AS poster_key, p.deleted_at, p.hidden_at, u.name
+      FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = ANY($1::uuid[])`, [shareIds]) : [],
   ]);
+  const shareCard = async (s) => {
+    if (!STAFF.includes(viewer.role)) return { post_id: s.id, restricted: true };
+    const p = shared.find((x) => x.id === s.id);
+    if (!p || p.deleted_at || p.hidden_at) return { post_id: s.id, removed: true };
+    const thumb = p.photo_key || p.poster_key;
+    return { post_id: p.id, kind: p.kind, author: p.name, text: preview(p.body, []).slice(0, 140), thumb_url: thumb ? await downloadUrl(thumb) : null };
+  };
   const replyBy = new Map(replies.map((r) => [r.id, r]));
   return Promise.all(rows.map(async (r) => {
     const quoted = r.reply_to && replyBy.get(r.reply_to);
@@ -78,13 +97,14 @@ async function shapeMessages(rows, viewer, people) {
         voice: !quoted.deleted_at && (quoted.attachments || []).some(isAudio),
         photo: !quoted.deleted_at && (quoted.attachments || []).some((a) => /^image\//.test(a.mime || '')),
       } : null,
+      share: r.share && !r.deleted_at ? await shareCard(r.share) : null,
       confirm: r.must_confirm && !r.deleted_at ? confirmSummary(people, r, confirms.filter((c) => c.message_id === r.id), viewer) : null,
     };
   }));
 }
 
 const MSG_COLS = `m.id, m.conversation_id, m.body, m.attachments, m.quick, m.quick_used, m.edited_at, m.deleted_at, m.created_at, m.sender_id,
-  m.reply_to, m.mentions, m.must_confirm, m.pinned_at, m.transcript, m.transcript_status,
+  m.reply_to, m.mentions, m.must_confirm, m.pinned_at, m.transcript, m.transcript_status, m.share,
   json_build_object('id', u.id, 'name', u.name, 'role', u.role, 'system', u.system, 'photo_key', ${PHOTO}) AS sender`;
 const oneMessage = (id) => one(`SELECT ${MSG_COLS} FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = $1`, [id]);
 
@@ -292,7 +312,8 @@ export const actions = {
     const { c } = await canWrite(user, b.conversation_id);
     const body = String(b.body || '').trim();
     const attachments = await cleanAttachments(user, b.attachments);
-    if (!body && !attachments.length) fail(400, 'Write a message or add a photo');
+    const share = b.share ? await cleanShare(user, b.share) : null;
+    if (!body && !attachments.length && !share) fail(400, 'Write a message or add a photo');
     if (body.length > 4000) fail(400, 'Messages can be up to 4,000 characters');
     if (attachments.filter(isAudio).length > 1) fail(400, 'Send one voice message at a time');
     if (b.must_confirm && !canRequireConfirm(user, c)) fail(403, 'Only managers can ask people to confirm a message');
@@ -304,7 +325,7 @@ export const actions = {
     // unless they switched mention notices off
     const mentionOn = mentions.length ? (await q(
       "SELECT id FROM users WHERE id = ANY($1::uuid[]) AND COALESCE(notify_prefs->>'mention', (SELECT notify_defaults->>'mention' FROM settings WHERE id = 1)) IS DISTINCT FROM 'false'", [mentions])).map((r) => r.id) : [];
-    const m = await post(c.id, user.id, { body, attachments, replyTo, mentions, mustConfirm: !!b.must_confirm, skipPush: mentionOn });
+    const m = await post(c.id, user.id, { body, attachments, replyTo, mentions, mustConfirm: !!b.must_confirm, skipPush: mentionOn, share });
     if (mentions.length) {
       await notify(mentions, {
         kind: 'mention', title: `${user.name} mentioned you${c.title ? ` in ${c.title}` : ''}`, body: preview(body, attachments), link: `/messages/${c.id}?m=${m.id}`, dedupe: `mmention:${m.id}`,

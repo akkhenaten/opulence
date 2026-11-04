@@ -35,13 +35,13 @@ export const preview = (body, attachments) => (body || '').trim().slice(0, 120)
 
 /** Post a message; members other than the sender get a push (one per conversation until they read it).
  * skipPush: people who get their own notice instead (an @mention). */
-export async function post(convId, senderId, { body = '', attachments = [], quick = null, email = false, replyTo = null, mentions = [], mustConfirm = false, skipPush = [] } = {}) {
+export async function post(convId, senderId, { body = '', attachments = [], quick = null, email = false, replyTo = null, mentions = [], mustConfirm = false, skipPush = [], share = null } = {}) {
   const voice = (attachments || []).some((a) => /^audio\//.test(a.mime || ''));
   const m = await one(
-    `INSERT INTO messages (conversation_id, sender_id, body, attachments, quick, reply_to, mentions, must_confirm, transcript_status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    `INSERT INTO messages (conversation_id, sender_id, body, attachments, quick, reply_to, mentions, must_confirm, transcript_status, share)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
     [convId, senderId, String(body).slice(0, 4000), JSON.stringify(attachments || []), quick ? JSON.stringify(quick) : null,
-      replyTo, mentions || [], !!mustConfirm, voice ? 'pending' : null]);
+      replyTo, mentions || [], !!mustConfirm, voice ? 'pending' : null, share]);
   await q('UPDATE conversations SET last_message_at = now() WHERE id = $1', [convId]);
   await q('UPDATE conversation_members SET last_read_at = now() WHERE conversation_id = $1 AND user_id = $2', [convId, senderId]);
   const [c, sender, to] = await Promise.all([
@@ -57,7 +57,7 @@ export async function post(convId, senderId, { body = '', attachments = [], quic
     for (const r of pushTo) {
       const seen = await one('SELECT last_read_at FROM conversation_members WHERE conversation_id = $1 AND user_id = $2', [convId, r.user_id]);
       await notify([r.user_id], {
-        kind: 'message', title, body: preview(body, attachments), link: `/messages/${convId}`,
+        kind: 'message', title, body: share && !body ? 'Shared a post from Everyday' : preview(body, attachments), link: `/messages/${convId}`,
         severity: quick || mustConfirm ? 'warning' : 'info', email, dedupe: `msg:${convId}:${new Date(seen.last_read_at).getTime()}${quick || mustConfirm ? `:${m.id}` : ''}`,
       });
     }

@@ -242,7 +242,10 @@ Compliance checks licences, right to work, documents and training against the ro
       },
       {
         id: 'everyday', title: 'Everyday feed',
-        body: `Everyday is the team news feed: announcements, shout-outs and updates. Managers can post, pin and moderate. Officers can comment and react if you allow it.`,
+        body: `Everyday is the team news feed. Everyone on the team can post photos (crop, rotate and blur faces first), a short video, a link, a place or a venue, and tag colleagues. Use #topics to group posts. Comment and reply under a comment, react, save posts and share a post into a chat.
+Shout-outs thank a colleague with a badge, and the badges show on their profile. Anyone can ask a quick poll. Managers can create events with places to RSVP, and pin announcements; an announcement can ask people to confirm they have read it, and managers see who has seen and confirmed it and can remind the rest.
+Orb posts birthdays (only for people who opt in under My account), work anniversaries, welcomes for new starters and passed courses; switch each one off under Settings, Everyday.
+Use the filters for Announcements, Shout-outs, Events, Polls, My venues and Saved, or search posts and comments. Managers can hide, remove, or pause someone's posting, and Orb AI checks posts and comments and holds anything serious for review.`,
       },
       {
         id: 'alerts', title: 'Notifications',

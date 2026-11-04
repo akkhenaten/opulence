@@ -1,24 +1,50 @@
-// Realtime chat events over the platform MQTT service. Each person reads only their own channel (user:<id>) and
-// browsers never publish: every event comes from here, so nobody can fake a message or a "seen".
+// Realtime events over the platform MQTT service. Each person reads their own channel (user:<id>), and staff also read
+// the shared "feed" channel (Everyday hints only: which post changed, never its content). Browsers never publish:
+// every event comes from here, so nobody can fake a message or a "seen".
 import { q } from './db.mjs';
 
 const BASE = () => `https://project.openkbs.com/projects/${process.env.OPENKBS_PROJECT_ID}/mqtt`;
 const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENKBS_API_KEY}` });
 export const channelFor = (userId) => `user:${userId}`;
+export const FEED_CHANNEL = 'feed';
+const STAFF = ['company', 'security', 'officer'];
 
-/** A 15-minute token that can read this person's channel and nothing else. */
-export async function realtimeToken(user) {
-  if (!process.env.OPENKBS_PROJECT_ID || !process.env.OPENKBS_API_KEY) return null;
+async function tokenFor(user, channels) {
   const r = await fetch(`${BASE()}/token`, {
     method: 'POST', headers: headers(), signal: AbortSignal.timeout(5000),
-    body: JSON.stringify({ userId: String(user.id), subscribe: [channelFor(user.id)], publish: [], presence: false }),
+    body: JSON.stringify({ userId: String(user.id), subscribe: channels, publish: [], presence: false }),
   });
   if (!r.ok) {
     console.warn('[realtime] token refused:', r.status, (await r.text()).slice(0, 200));
     return null;
   }
-  const d = await r.json();
-  return { ...d, channel: channelFor(user.id) };
+  return r.json();
+}
+
+/** A 15-minute token that can read this person's channel (plus the shared feed channel for staff) and nothing else. */
+export async function realtimeToken(user) {
+  if (!process.env.OPENKBS_PROJECT_ID || !process.env.OPENKBS_API_KEY) return null;
+  const own = channelFor(user.id);
+  if (STAFF.includes(user.role)) {
+    const d = await tokenFor(user, [own, FEED_CHANNEL]);
+    if (d) return { ...d, channel: own, channels: [own, FEED_CHANNEL] };
+  }
+  const d = await tokenFor(user, [own]);
+  return d && { ...d, channel: own, channels: [own] };
+}
+
+/** An Everyday hint to everyone reading the feed channel. Best effort, like publishTo. */
+export async function publishFeed(event, data) {
+  if (!process.env.OPENKBS_PROJECT_ID || !process.env.OPENKBS_API_KEY) return;
+  try {
+    const r = await fetch(`${BASE()}/publish`, {
+      method: 'POST', headers: headers(), signal: AbortSignal.timeout(2000),
+      body: JSON.stringify({ channel: FEED_CHANNEL, event, data }),
+    });
+    if (!r.ok) console.warn('[realtime] feed publish', r.status);
+  } catch (e) {
+    console.warn('[realtime] feed publish', e.message);
+  }
 }
 
 /** Best effort: a slow or missing broker never fails the action, apps fall back to polling. */

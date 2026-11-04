@@ -9,6 +9,7 @@ import { clearBrand, getBrand, readable } from '../lib/brand.mjs';
 import { MODULES } from '../lib/modules.mjs';
 import { monthKey } from '../lib/ai.mjs';
 import { OPTIONAL_KINDS } from '../lib/notify.mjs';
+import { cleanEverydaySettings } from '../lib/feed.mjs';
 
 const FIELDS = ['company_name', 'company_address', 'company_email', 'company_phone', 'vat_number', 'vat_rate', 'company_number', 'bank_name',
   'bank_sort_code', 'bank_account', 'invoice_prefix', 'invoice_cycle', 'payment_terms_days', 'pay_period', 'grace_minutes', 'auto_signoff_days',
@@ -27,7 +28,7 @@ export const actions = {
   'settings.get': def(ALL, async (_b, { user }) => {
     const s = await getSettings();
     if (user.role === 'company') return forClient(s);
-    return { company_name: s.company_name, grace_minutes: s.grace_minutes, pay_period: s.pay_period, modules: s.modules, logo_url: s.logo_url, brand_color: s.brand_color, ui_style: s.ui_style };
+    return { company_name: s.company_name, grace_minutes: s.grace_minutes, pay_period: s.pay_period, modules: s.modules, logo_url: s.logo_url, brand_color: s.brand_color, ui_style: s.ui_style, everyday: s.everyday };
   }),
 
   // Name, logo and colour for the sign-in page (no login needed)
@@ -82,6 +83,7 @@ export const actions = {
       if (typeof b.notify_defaults !== 'object' || Object.keys(b.notify_defaults).some((k) => !OPTIONAL_KINDS.includes(k))) fail(400, 'Unknown alert type');
       f.notify_defaults = { ...(await getSettings()).notify_defaults, ...Object.fromEntries(Object.entries(b.notify_defaults).map(([k, v]) => [k, !!v])) };
     }
+    if (b.everyday) f.everyday = cleanEverydaySettings(b.everyday, (await getSettings()).everyday);
     if (b.ai_module_caps) {
       const caps = {};
       for (const [k, v] of Object.entries(b.ai_module_caps)) {

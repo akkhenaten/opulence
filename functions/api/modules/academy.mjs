@@ -1,5 +1,6 @@
 // Orb Academy: courses with lessons, quick checks and an end-of-course quiz.
 // AI drafts courses section by section; a company manager edits and publishes. Passing issues an in-house certificate.
+import { celebrate } from './everydayJobs.mjs';
 import { one, q, tx } from '../lib/db.mjs';
 import { fail, need, required } from '../lib/http.mjs';
 import { audit } from '../lib/audit.mjs';
@@ -288,6 +289,9 @@ async function issueCertificate(attempt, course, officerId) {
   await notify(await officerUser(officerId), {
     kind: 'training', title: `You passed ${course.title}`, body: `Score ${attempt.score}%. Your certificate ${cert.ref} is on your profile.`, link: `/officer/learn/certificates/${cert.id}`,
   });
+  // A congratulations post on Everyday (best effort, switchable in settings)
+  const who = await one('SELECT u.id, u.name FROM officers o JOIN users u ON u.id = o.user_id WHERE o.id = $1', [officerId]);
+  if (who) await celebrate({ type: 'qualification', user_id: who.id, name: who.name, course: course.title, key: `qualification:${cert.id}` });
   return cert;
 }
 

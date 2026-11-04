@@ -3,7 +3,7 @@ import { pushToUsers } from './webpush.mjs';
 import { esc, getBrand } from './brand.mjs';
 
 // Kinds a person can switch off in their notification settings; operational alerts always go
-export const OPTIONAL_KINDS = ['mention', 'comment', 'reaction', 'announcement', 'training'];
+export const OPTIONAL_KINDS = ['mention', 'comment', 'reaction', 'announcement', 'training', 'shoutout', 'tag', 'event', 'celebration'];
 
 const APP_URL = () => process.env.APP_URL || '';
 
