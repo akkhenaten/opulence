@@ -41,7 +41,7 @@ export async function deleteObject(key) {
 export async function headObject(key) {
   try {
     const r = await client().send(new HeadObjectCommand({ Bucket: process.env.STORAGE_BUCKET, Key: key }));
-    return { size: Number(r.ContentLength || 0), mime: r.ContentType || '' };
+    return { size: Number(r.ContentLength || 0), mime: r.ContentType || '', modified: r.LastModified ? new Date(r.LastModified) : null };
   } catch {
     return null;
   }

@@ -75,6 +75,11 @@ export const CATALOG = {
   'cover.decideChange': c('rota', "Approve or decline a venue's cover change", 'id, approve, reason?'),
   'clock.exceptions': r('rota', 'Clock-in exceptions to decide', 'include_decided?'),
   'clock.decide': c('rota', 'Accept or reject a clock-in exception', 'id, approve'),
+  'clock.proofReport': r('rota', 'How officers prove they are on site at clock-in (phone, location, venue code, selfie) per officer and venue', 'from? (YYYY-MM-DD), to?, venue_id?'),
+  'device.list': r('rota', 'Clock-in phones: pending new-phone requests, or one officer\'s registered phone', 'pending? (true), officer_id?'),
+  'device.decide': c('rota', 'Approve or reject an officer\'s new clock-in phone', 'id, approve'),
+  'device.revoke': c('rota', 'Remove an officer\'s registered clock-in phone', 'id'),
+  'venues.tags': r('venues', 'NFC tags at a venue', 'venue_id'),
   'clock.manual': c('rota', 'Record hours manually', 'assignment_id, start (ISO), end (ISO), reason, break_minutes?'),
   'timesheets.list': r('rota', 'Timesheets', 'status (pending|approved|signed|disputed)?, from?, to?, venue_id?, officer_id?'),
   'timesheets.missing': r('rota', 'Worked shifts with no timesheet yet', ''),
@@ -166,7 +171,7 @@ export const CATALOG = {
 };
 
 /** Prefixes Orb must never touch, whatever the catalogue says. */
-export const BANNED = /^(auth\.|files\.|push\.|assistant\.|demo\.|sign\.link\.|contracts\.ai\.)|^users\.(resetLink|resendInvite|mergeOfficerLogin)$|^settings\.setLogo$|^esign\.mySignature|\.(pdf|exportCsv|qrPoster)$/;
+export const BANNED = /^(auth\.|files\.|push\.|assistant\.|demo\.|sign\.link\.|contracts\.ai\.)|^users\.(resetLink|resendInvite|mergeOfficerLogin)$|^settings\.setLogo$|^clock\.(tagTap|nfcSetup|passkeyOptions)$|^device\.register|^officers\.faceConsent$|^esign\.mySignature|\.(pdf|exportCsv|qrPoster)$/;
 const PAY = /^(pay|payRuns|payAgreements|invoices)\.|^reports\.(margin|hours|overdue)$/;
 
 /** Catalogue entries this person can use: the action's own roles, pay access, and the company-only money rule. */

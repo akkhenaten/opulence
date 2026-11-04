@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { Award, Camera, MessageSquareText, Plus, Save, Trash2 } from 'lucide-react';
+import { Award, Camera, MessageSquareText, Plus, Save, Smartphone, Trash2 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Avatar, Button, date, Input, KV, List, Load, Page, Pill, Pressable, Row, Section, Tile, titleCase, useAction, useApi } from '../../ui/index.jsx';
+import { Avatar, Button, date, Input, KV, List, Load, Page, Pill, Pressable, Row, Section, Tile, titleCase, Toggle, useAction, useApi } from '../../ui/index.jsx';
 import { compressImage, NotLinked } from './_parts.jsx';
 
 const FIELDS = ['phone', 'address', 'postcode', 'dob', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account'];
@@ -148,6 +148,8 @@ function Editor({ o, reload, notes }) {
         </Tile>
       </Section>
 
+      <MyPhone />
+
       {o.rates?.length > 0 && (
         <Section title="My pay rates">
           <List>
@@ -176,5 +178,45 @@ function Editor({ o, reload, notes }) {
         </Section>
       )}
     </div>
+  );
+}
+
+// The phone this officer clocks in with, and their choice about the selfie face check
+function MyPhone() {
+  const q = useApi('device.mine');
+  const [run, busy] = useAction();
+  const setConsent = (on) => run(() => api('officers.faceConsent', { consent: on }), on ? 'Face check allowed' : 'Face check turned off').then(q.reload).catch(() => {});
+  return (
+    <Section title="Clock-in phone">
+      <Load q={q}>
+        {(d) => (
+          <Tile>
+            {!d.devices.length ? (
+              <p className="text-subhead text-muted">No phone registered yet. You'll be asked to register this phone the first time you clock in.</p>
+            ) : (
+              <div className="divide-y divide-line">
+                {d.devices.map((x) => (
+                  <div key={x.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-soft text-blue"><Smartphone size={18} /></span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-semibold">{x.label}</div>
+                      <div className="text-footnote text-muted">Registered {date(x.created_at)}{x.last_used_at ? ` · last used ${date(x.last_used_at)}` : ''}</div>
+                    </div>
+                    {x.status === 'pending' ? <Pill tone="amber">Waiting for approval</Pill> : <Pill tone="green">Active</Pill>}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-3 text-caption text-muted">Changed phone? Clock in on the new one and register it. A manager approves it before it replaces this one.</p>
+            {d.face_match_enabled && (
+              <div className="mt-3 rounded-xl bg-bg px-4 py-2">
+                <Toggle label="Compare my clock-in selfies with my profile photo" hint="Only flags a selfie for a manager to look at; it never stops you clocking in. Selfies are deleted after 90 days."
+                  checked={d.face_consent === 'given'} disabled={busy} onChange={setConsent} />
+              </div>
+            )}
+          </Tile>
+        )}
+      </Load>
+    </Section>
   );
 }

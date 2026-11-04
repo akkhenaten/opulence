@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
-  Building2, Crosshair, Download, Eye, FileText, LocateFixed, MapPin, Phone, Plus, QrCode, RefreshCw, Search, Trash2, Upload, Users,
+  Building2, Crosshair, Download, Eye, FileText, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, QrCode, RefreshCw, Search, Trash2, Upload, Users,
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
@@ -54,14 +54,14 @@ export default function VenueDetail() {
           </Bento>
 
           <Tabs value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })} tabs={[
-            { value: 'location', label: 'Location' }, { value: 'details', label: 'Details' }, { value: 'qr', label: 'QR code' },
+            { value: 'location', label: 'Location' }, { value: 'details', label: 'Details' }, { value: 'codes', label: 'Venue codes' },
             ...(isCo ? [{ value: 'rates', label: 'Charge rates' }] : []), { value: 'people', label: 'People' }, { value: 'documents', label: 'Documents', count: v.documents.length },
             { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Bans' },
           ]} />
 
           {tab === 'location' && <LocationTab v={v} onSaved={q.reload} />}
           {tab === 'details' && <DetailsTab v={v} clients={clients.data || []} isCo={isCo} onSaved={q.reload} />}
-          {tab === 'qr' && <QrTab v={v} />}
+          {(tab === 'codes' || tab === 'qr') && <QrTab v={v} />}
           {tab === 'rates' && isCo && <RatesTab venueId={v.id} />}
           {tab === 'people' && <PeopleTab v={v} isCo={isCo} />}
           {tab === 'documents' && <DocumentsTab venueId={v.id} />}
@@ -196,11 +196,17 @@ function LocationTab({ v, onSaved }) {
 
 /* ---------- Details ---------- */
 
+const PROOF_RULES = [
+  { value: 'any_one', label: 'Any 1 check (looser)' },
+  { value: 'two_of_three', label: '2 of 3 checks (recommended)' },
+  { value: 'all_three', label: 'All 3 checks (strictest)' },
+];
+
 function DetailsTab({ v, clients, isCo, onSaved }) {
   const [run, busy] = useAction();
   const f = useForm({
     client_id: v.client_id || '', name: v.name || '', address: v.address || '', postcode: v.postcode || '', phone: v.phone || '',
-    instructions: v.instructions || '', notes: v.notes || '', invoice_cycle: v.invoice_cycle || '', active: !!v.active,
+    instructions: v.instructions || '', notes: v.notes || '', invoice_cycle: v.invoice_cycle || '', proof_rule: v.proof_rule || 'two_of_three', active: !!v.active,
   });
   // Client and invoicing belong to the company manager; the server ignores them from anyone else
   const save = () => run(() => api('venues.save', {
@@ -225,6 +231,7 @@ function DetailsTab({ v, clients, isCo, onSaved }) {
         <div className="space-y-4">
           <Textarea label="Assignment instructions" rows={5} hint="Shown to officers before and during their shift" {...f.bind('instructions')} />
           <Textarea label="Internal notes" rows={3} hint="Only visible to your managers" {...f.bind('notes')} />
+          <Select label="Clock-in rule" hint="Officers always confirm with their registered phone, plus this many of: location, venue code (QR or NFC tag), selfie" options={PROOF_RULES} {...f.bind('proof_rule')} />
           {isCo && <Select label="Invoice cycle" placeholder="Company default" options={[{ value: 'weekly', label: 'Weekly' }, { value: 'fortnightly', label: 'Fortnightly' }, { value: 'monthly', label: 'Monthly' }]} {...f.bind('invoice_cycle')} />}
           <div className="rounded-xl bg-bg px-4 py-2">
             <Toggle label="Active" hint="Inactive venues are hidden from the rota" checked={f.v.active} onChange={(x) => f.set('active', x)} />
@@ -292,7 +299,83 @@ function QrTab({ v }) {
               </div>
             </div>}
       </Tile>
+      <NfcTags v={v} />
     </div>
+  );
+}
+
+// Secure NFC tags: each tap gives a one-time code, so a copied link or photo of the tag doesn't work
+function NfcTags({ v }) {
+  const q = useApi('venues.tags', { venue_id: v.id });
+  const confirm = useConfirm();
+  const toast = useToast();
+  const [run, busy] = useAction();
+  const [edit, setEdit] = useState(null);
+  const [now, setNow] = useState(Date.now());
+  const until = q.data?.pairing_until ? new Date(q.data.pairing_until).getTime() : 0;
+  const left = Math.max(0, Math.round((until - now) / 1000));
+
+  // While pairing, tick the countdown and pick up the new tag as soon as it is tapped
+  useEffect(() => {
+    if (!until) return undefined;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    const r = setInterval(() => q.reload(), 4000);
+    return () => { clearInterval(t); clearInterval(r); };
+  }, [until]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (until && left === 0) q.reload(); }, [left === 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pair = () => run(() => api('venues.tagPair', { venue_id: v.id }), 'Pairing on: tap the new tag with your phone').then(() => { setNow(Date.now()); q.reload(); }).catch(() => {});
+  const update = (t, patch, msg) => run(() => api('venues.tagUpdate', { id: t.id, ...patch }), msg).then(q.reload).catch(() => {});
+  const remove = async (t) => {
+    if (!(await confirm({ title: `Remove ${t.label}?`, body: 'The tag stops working for clock-in straight away. You can pair it again later.', confirm: 'Remove', danger: true }))) return;
+    run(() => api('venues.tagRemove', { id: t.id }), 'Tag removed').then(q.reload).catch(() => {});
+  };
+
+  return (
+    <Tile title="NFC tags" icon={Nfc} className="lg:col-span-2">
+      <Load q={q}>
+        {(d) => (
+          <>
+            {!d.nfc_ready && <p className="mb-3 rounded-xl bg-amber-soft px-3.5 py-2.5 text-subhead text-amber">NFC tags aren't set up for your company yet. A company manager can do this in Settings → Workforce rules → Clock-in proof.</p>}
+            {left > 0 ? (
+              <div className="mb-3 flex items-center gap-3 rounded-xl bg-blue-soft px-4 py-3">
+                <Nfc size={22} className="shrink-0 animate-pulse text-blue" />
+                <div className="min-w-0 flex-1 text-subhead"><b>Tap the new tag with your phone now.</b> It links to {v.name}. Pairing closes in <span className="num font-semibold">{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</span>.</div>
+              </div>
+            ) : (
+              <Button className="mb-3" icon={Plus} busy={busy} disabled={!d.nfc_ready} onClick={pair}>Pair a tag</Button>
+            )}
+            {!d.tags.length && <p className="text-subhead text-muted">No NFC tags yet. Stick a programmed tag by the officer entrance, then pair it here.</p>}
+            {d.tags.length > 0 && <List>
+              {d.tags.map((t) => (
+                <Row key={t.id} left={<span className="grid h-9 w-9 place-items-center rounded-full bg-blue-soft text-blue"><Nfc size={18} /></span>} title={t.label}
+                  subtitle={t.last_tap_at ? `Last tapped ${date(t.last_tap_at)} ${new Date(t.last_tap_at).toTimeString().slice(0, 5)}` : 'Not tapped yet'}
+                  right={(
+                    <span className="flex items-center gap-1">
+                      {t.status === 'paused' && <Pill tone="amber">Paused</Pill>}
+                      <IconButton icon={Pencil} label="Rename" onClick={() => setEdit(t)} />
+                      <IconButton icon={t.status === 'paused' ? Play : Pause} label={t.status === 'paused' ? 'Resume' : 'Pause'} disabled={busy}
+                        onClick={() => update(t, { status: t.status === 'paused' ? 'active' : 'paused' }, t.status === 'paused' ? 'Tag back on' : 'Tag paused')} />
+                      <IconButton icon={Trash2} label="Remove" disabled={busy} onClick={() => remove(t)} />
+                    </span>
+                  )} />
+              ))}
+            </List>}
+            <p className="mt-3 text-caption text-faint">Officers hold their phone against the tag to count it as the venue code. Pause a tag if it goes missing.</p>
+          </>
+        )}
+      </Load>
+      {edit && <TagName tag={edit} onClose={() => setEdit(null)} onSave={(label) => { if (!label.trim()) return toast('Enter a name', 'error'); update(edit, { label: label.trim() }, 'Tag renamed'); setEdit(null); return null; }} />}
+    </Tile>
+  );
+}
+
+function TagName({ tag, onClose, onSave }) {
+  const [label, setLabel] = useState(tag.label);
+  return (
+    <Sheet open onClose={onClose} title="Rename tag" size="sm" footer={<Button onClick={() => onSave(label)}>Save</Button>}>
+      <Input label="Name" hint="Where it is, e.g. Staff entrance" value={label} onChange={(e) => setLabel(e.target.value)} autoFocus />
+    </Sheet>
   );
 }
 

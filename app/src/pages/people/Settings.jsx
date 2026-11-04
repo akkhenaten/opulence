@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Bell, Building2, ImageUp, MonitorSmartphone, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Percent, Plus, ReceiptText, Trash2, UserPlus, Users } from 'lucide-react';
+import { Bell, Building2, ImageUp, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Percent, Plus, ReceiptText, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  ActionBar, Avatar, Button, cx, dayLabel, Empty, IconButton, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Row, Section, Segmented, Select, Sheet, Table, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm,
+  ActionBar, Avatar, Button, cx, dayLabel, Empty, IconButton, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Row, Section, Segmented, Select, Sheet, Table, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm, useToast,
 } from '../../ui/index.jsx';
 import { Chips, CopyLink, DOC_KINDS, docKindLabel, SIA_TYPES } from './_parts.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
@@ -352,6 +352,70 @@ function RuleFields({ b }) {
   );
 }
 
+// Clock-in proof: the face check switch and the company's secure NFC tag keys
+function ClockProofTile({ s, onSaved }) {
+  const [run] = useAction();
+  const confirm = useConfirm();
+  const [nfc, setNfc] = useState(null);
+  const [nfcRun, nfcBusy] = useAction();
+  const flipFace = async (on) => {
+    if (!on && !(await confirm({ title: 'Switch off the face check?', body: 'Officers still take selfies where a venue needs one, but they are no longer compared with profile photos.', confirm: 'Switch off', danger: true }))) return;
+    const d = await run(() => api('settings.update', { face_match_enabled: on }), on ? 'Face check on' : 'Face check off').catch(() => null);
+    if (d) onSaved(d);
+  };
+  const reveal = async () => {
+    if (!(await confirm({ title: 'Show the NFC tag keys?', body: 'Anyone with these keys can program tags that clock officers in. Only share them with the person or supplier programming your tags. This is recorded in the audit log.', confirm: 'Show keys' }))) return;
+    const d = await nfcRun(() => api('clock.nfcSetup')).catch(() => null);
+    if (d) { setNfc(d); if (!s.nfc_ready) onSaved({ ...s, nfc_ready: true }); }
+  };
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <Tile title="Selfies and face check" icon={ShieldCheck}>
+        <p className="mb-3 text-subhead text-muted">Officers always confirm clock-in with their registered phone, plus the venue's rule (set on each venue): location, venue code and selfie.</p>
+        <div className="rounded-xl bg-bg px-4 py-2">
+          <Toggle label="Compare selfies with profile photos" hint="AI flags a selfie that may not match for a manager to check. It never stops anyone clocking in. Officers can say no." checked={s.face_match_enabled !== false} onChange={flipFace} />
+        </div>
+        <p className="mt-3 text-caption text-faint">Selfies are deleted after 90 days, unless the clock-in is still waiting for a decision or the timesheet is disputed. Before switching the face check on, complete a data protection impact assessment.</p>
+      </Tile>
+      <Tile title="NFC tag setup" icon={Nfc}>
+        <p className="text-subhead text-muted">Secure NFC tags (NXP NTAG 424 DNA) give a new one-time code on every tap, so a copied link or a photo of the tag won't work.</p>
+        {!nfc ? (
+          <>
+            <Button className="mt-4" variant="soft" icon={KeyRound} busy={nfcBusy} onClick={reveal}>{s.nfc_ready ? 'Show tag keys' : 'Create tag keys'}</Button>
+            <p className="mt-2 text-caption text-faint">{s.nfc_ready ? 'Keys are set up. Tags can be paired on each venue\'s Venue codes tab.' : 'Not set up yet.'}</p>
+          </>
+        ) : (
+          <div className="mt-4 space-y-3">
+            <KeyField label="Tag web address (SDM/SUN URL)" value={nfc.url_template} />
+            <KeyField label="Meta read key (SDM meta read, AES-128)" value={nfc.meta_key} />
+            <KeyField label="File read key (SDM file read, AES-128)" value={nfc.file_key} />
+            <ol className="list-decimal space-y-1 pl-5 text-subhead text-muted">
+              <li>Program each tag with NXP TagXplorer or TagWriter, or send these details to your tag supplier.</li>
+              <li>Turn on Secure Dynamic Messaging with encrypted PICC data (UID + counter) and a CMAC, placed at {'{PICC}'} and {'{CMAC}'}.</li>
+              <li>Stick the tag at the officer entrance, open the venue, choose "Pair a tag" and tap it with your phone.</li>
+            </ol>
+            <Button variant="ghost" onClick={() => setNfc(null)}>Hide keys</Button>
+          </div>
+        )}
+      </Tile>
+    </div>
+  );
+}
+
+function KeyField({ label, value }) {
+  const toast = useToast();
+  const copy = () => navigator.clipboard.writeText(value).then(() => toast('Copied'), () => toast('Could not copy. Select it and copy it manually.', 'error'));
+  return (
+    <div>
+      <div className="mb-1 text-footnote font-semibold text-muted">{label}</div>
+      <div className="flex items-center gap-2">
+        <code className="min-w-0 flex-1 break-all rounded-xl bg-bg px-3 py-2 font-mono text-caption">{value}</code>
+        <Button size="sm" variant="secondary" onClick={copy}>Copy</Button>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- Users ---------------- */
 
 const USER_ROLES = ['company', 'security', 'venue'];
@@ -576,6 +640,9 @@ function RulesTab() {
     <>
     <Section title="Pay, timesheets and uplifts" className="mt-0">
       <Load q={settings}>{(s) => <SettingsForm s={s} keys={RULE_KEYS} onSaved={(d) => settings.setData(d)}>{(b) => <RuleFields b={b} />}</SettingsForm>}</Load>
+    </Section>
+    <Section title="Clock-in proof">
+      <Load q={settings}>{(s) => <ClockProofTile s={s} onSaved={(d) => settings.setData(d)} />}</Load>
     </Section>
     <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-5">
       <div className="min-w-0 lg:col-span-2">

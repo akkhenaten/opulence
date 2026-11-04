@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Award, BadgeCheck, CalendarOff, Check, ClipboardList, Clock, Eye, FileSignature, FileText, MessageSquare, Plus, ShieldOff, Star, Trash2, ScrollText, Upload, X,
+  Award, BadgeCheck, CalendarOff, Check, ClipboardList, Clock, Eye, FileSignature, FileText, MessageSquare, Plus, ShieldOff, Smartphone, Star, Trash2, ScrollText, Upload, X,
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
@@ -57,6 +57,7 @@ export function OverviewTab({ o, reload, isCo }) {
           </div>
         ) : <p className="px-5 pb-5 text-subhead text-faint">None on file</p>}
       </Tile>
+      <PhoneTile o={o} />
       {hasTax && (
         <Tile title="Tax">
           <KV items={[['NI number', o.ni_number], ['UTR', o.utr]]} />
@@ -69,6 +70,35 @@ export function OverviewTab({ o, reload, isCo }) {
       )}
       {editContacts && <ContactsSheet o={o} onClose={() => setEditContacts(false)} onDone={reload} />}
     </div>
+  );
+}
+
+// The officer's clock-in phone. Removing it makes them register a phone again, which a manager then approves.
+function PhoneTile({ o }) {
+  const q = useApi('device.list', { officer_id: o.id });
+  const confirm = useConfirm();
+  const [run, busy] = useAction();
+  if (q.error || !q.data) return null;
+  const revoke = async (d) => {
+    if (!(await confirm({ title: `Remove ${d.label}?`, body: `${o.name} can't use it to clock in any more. Their next clock-in asks them to register a phone, and a manager must approve it.`, confirm: 'Remove phone', danger: true }))) return;
+    run(() => api('device.revoke', { id: d.id }), 'Phone removed').then(q.reload).catch(() => {});
+  };
+  return (
+    <Tile title="Clock-in phone" icon={Smartphone}>
+      {!q.data.length ? <p className="text-subhead text-faint">No phone registered yet. It's registered on their first clock-in.</p> : (
+        <div className="divide-y divide-line">
+          {q.data.map((d) => (
+            <div key={d.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2"><span className="truncate font-semibold">{d.label}</span>{d.status === 'pending' ? <Pill tone="amber">Awaiting approval</Pill> : <Pill tone="green">Active</Pill>}</div>
+                <div className="text-footnote text-muted">Since {date(d.created_at)}{d.last_used_at ? ` · last used ${relative(d.last_used_at)}` : ''}</div>
+              </div>
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => revoke(d)}>Remove</Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Tile>
   );
 }
 

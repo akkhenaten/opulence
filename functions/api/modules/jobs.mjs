@@ -12,6 +12,7 @@ import { banJobs } from './bans.mjs';
 import { applyAgreements } from './growth.mjs';
 import { payRunJobs } from './payruns.mjs';
 import { esignReminders } from '../lib/esign.mjs';
+import { selfieJobs } from './clockProof.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in
 async function lateAlerts(s) {
@@ -134,6 +135,8 @@ export async function runJobs() {
   if (new Date().getUTCMinutes() < 5) result.agreements = await applyAgreements().catch((e) => `error: ${e.message}`);
   // Unsigned contracts, policies and pay rises get a nudge after 3 and 7 days, once an hour
   if (new Date().getUTCMinutes() < 5) result.esign = await esignReminders().catch((e) => `error: ${e.message}`);
+  // Clock-in selfies are deleted after 90 days (kept while an exception or dispute is open), once an hour
+  if (new Date().getUTCMinutes() < 5) result.selfies = await selfieJobs().catch((e) => `error: ${e.message}`);
   // Pay review reminders and deadlines
   result.payRuns = await payRunJobs().catch((e) => `error: ${e.message}`);
   console.log('[jobs]', JSON.stringify(result));

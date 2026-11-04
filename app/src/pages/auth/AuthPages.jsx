@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
-import { api } from '../../api.js';
+import { api, takeAfterLogin } from '../../api.js';
 import { HOME, useAuth } from '../../auth.jsx';
 import { Logo } from '../../layouts/Shell.jsx';
 import { Button, Input, PoweredBy, Spinner, useForm } from '../../ui/index.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
 
-function AuthCard({ title, subtitle, children, footer }) {
+export function AuthCard({ title, subtitle, children, footer }) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
       <div className="mb-8"><Logo place="auth" /></div>
@@ -49,7 +49,7 @@ export function Login() {
   if (setup) return <Bootstrap />;
   return (
     <AuthCard title="Sign in" subtitle={`Welcome back to ${brand.name}.`} footer={<Link to="/forgot" className="font-semibold text-blue">Forgot password?</Link>}>
-      <form className="space-y-4" onSubmit={submit(async () => { const u = await signIn(await api('auth.login', f.v)); nav(HOME[u.role], { replace: true }); })}>
+      <form className="space-y-4" onSubmit={submit(async () => { const u = await signIn(await api('auth.login', f.v)); nav(takeAfterLogin() || HOME[u.role], { replace: true }); })}>
         <Input label="Email" type="email" autoComplete="email" required {...f.bind('email')} />
         <Input label="Password" type="password" autoComplete="current-password" required {...f.bind('password')} />
         <Err msg={err} />

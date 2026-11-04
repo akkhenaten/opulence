@@ -10,6 +10,11 @@ const SIDE = 'orb.side';
 export const getSide = () => (localStorage.getItem(SIDE) === 'officer' ? 'officer' : 'manager');
 export const setSide = (s) => (s === 'officer' ? localStorage.setItem(SIDE, s) : localStorage.removeItem(SIDE));
 
+// A page that needs sign-in first (an NFC tag tap) comes back here after login
+const AFTER = 'orb.afterLogin';
+export const setAfterLogin = (path) => sessionStorage.setItem(AFTER, path);
+export const takeAfterLogin = () => { const p = sessionStorage.getItem(AFTER); sessionStorage.removeItem(AFTER); return p; };
+
 export class ApiError extends Error {
   constructor(message, status, data) { super(message); this.status = status; this.data = data; }
 }

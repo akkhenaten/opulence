@@ -12,6 +12,7 @@ import * as officers from './modules/officers.mjs';
 import * as hr from './modules/hr.mjs';
 import * as rota from './modules/rota.mjs';
 import * as clock from './modules/clock.mjs';
+import * as clockProof from './modules/clockProof.mjs';
 import * as timesheets from './modules/timesheets.mjs';
 import * as money from './modules/money.mjs';
 import * as incidents from './modules/incidents.mjs';
@@ -38,7 +39,7 @@ import * as contractsUpload from './modules/contractsUpload.mjs';
 import * as signLinks from './modules/signLinks.mjs';
 import * as orbVoice from './modules/orbVoice.mjs';
 
-export const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign, contractsPack, contractsUpload, signLinks].map((m) => m.actions));
+export const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, clockProof, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign, contractsPack, contractsUpload, signLinks].map((m) => m.actions));
 // Orb runs real actions on confirm, through the same table and role checks
 assistant.useActions(ACTIONS);
 

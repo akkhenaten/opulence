@@ -1,3 +1,4 @@
+import { RULES } from '../lib/proof.mjs';
 import { one, q, insert, update } from '../lib/db.mjs';
 import { fail, required, pick, need } from '../lib/http.mjs';
 import { canSeePay } from '../lib/auth.mjs';
@@ -9,7 +10,7 @@ import { audit } from '../lib/audit.mjs';
 import { CO, MGR, def } from './_def.mjs';
 import { getSettings } from './settings.mjs';
 
-const VENUE_FIELDS = ['client_id', 'name', 'address', 'postcode', 'lat', 'lng', 'radius_m', 'phone', 'instructions', 'notes', 'photo_key', 'invoice_cycle', 'active'];
+const VENUE_FIELDS = ['client_id', 'name', 'address', 'postcode', 'lat', 'lng', 'radius_m', 'phone', 'instructions', 'notes', 'photo_key', 'invoice_cycle', 'active', 'proof_rule'];
 
 export async function currentVenueRates(venueId, onDate = new Date().toISOString().slice(0, 10)) {
   return q(
@@ -54,6 +55,7 @@ export const actions = {
   'venues.save': def(MGR, async (b, { user }) => {
     const f = pick(b, VENUE_FIELDS);
     if (user.role !== 'company') { delete f.client_id; delete f.invoice_cycle; }
+    if (f.proof_rule !== undefined && !RULES[f.proof_rule]) fail(400, 'Unknown clock-in rule');
     if (b.id) await assertVenue(user, b.id);
     let v;
     if (b.id) v = await update('venues', b.id, f);

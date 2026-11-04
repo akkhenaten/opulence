@@ -6,6 +6,7 @@ import {
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { Chip, fromLondonInput, toLondonInput, useBase } from '../manager/_parts.jsx';
+import { ProofFlags, SelfieCompare } from '../manager/_proof.jsx';
 
 const ISSUE = ['late', 'no_show', 'left_early'];
 const ON = ['on_shift', 'on_break'];
@@ -94,6 +95,7 @@ function Board({ rows, filter, setFilter, onOpen, base }) {
 function Detail({ row, onClose, onDone, base }) {
   const [manual, setManual] = useState(false);
   const events = row.events || [];
+  const inEv = events.find((e) => e.kind === 'in' && e.status !== 'rejected');
   return (
     <Sheet open onClose={onClose} title={row.officer_name}
       footer={manual ? null : <>
@@ -120,6 +122,13 @@ function Detail({ row, onClose, onDone, base }) {
               </List>
             )}
           </div>
+          {inEv && (
+            <div>
+              <div className="mb-2 text-caption font-semibold uppercase tracking-wide text-faint">Clock-in checks</div>
+              <div className="flex flex-wrap gap-1.5"><ProofFlags e={{ ...inEv, selfie_url: row.selfie_url }} /></div>
+              {row.selfie_url && <div className="mt-3"><SelfieCompare e={{ ...inEv, selfie_url: row.selfie_url, profile_photo_url: row.photo_url, officer_name: row.officer_name }} /></div>}
+            </div>
+          )}
           {row.has_exception && <Button variant="secondary" to={`${base}/exceptions`} icon={TriangleAlert}>Review exception</Button>}
         </div>
       )}

@@ -46,6 +46,7 @@ const VenueCover = P(() => import('./pages/manager/VenueCover.jsx'));
 const OfficerHome = P(() => import('./pages/officer/Home.jsx'));
 const OfficerShifts = P(() => import('./pages/officer/Shifts.jsx'));
 const OfficerClock = P(() => import('./pages/officer/Clock.jsx'));
+const TagTap = P(() => import('./pages/officer/TagTap.jsx'));
 const OfficerPay = P(() => import('./pages/officer/Pay.jsx'));
 const OfficerMe = P(() => import('./pages/officer/Me.jsx'));
 const OfficerDocuments = P(() => import('./pages/officer/Documents.jsx'));
@@ -162,6 +163,7 @@ function App() {
         <Route path="/forgot" element={<Forgot />} />
         <Route path="/reset/:token" element={<Reset />} />
         <Route path="/invite/:token" element={<AcceptInvite />} />
+        <Route path="/t" element={<TagTap />} />
         <Route path="/verify" element={<Verify />} />
         <Route path="/verify/:ref" element={<Verify />} />
         <Route path="/sign/:token" element={<PublicSign />} />

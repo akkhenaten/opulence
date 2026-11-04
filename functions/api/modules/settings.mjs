@@ -12,7 +12,7 @@ import { OPTIONAL_KINDS } from '../lib/notify.mjs';
 
 const FIELDS = ['company_name', 'company_address', 'company_email', 'company_phone', 'vat_number', 'vat_rate', 'company_number', 'bank_name',
   'bank_sort_code', 'bank_account', 'invoice_prefix', 'invoice_cycle', 'payment_terms_days', 'pay_period', 'grace_minutes', 'auto_signoff_days',
-  'rounding_minutes', 'night_start', 'night_end', 'pay_night_uplift', 'pay_weekend_uplift', 'pay_bh_uplift', 'gps_tolerance_m', 'brand_color', 'ui_style', 'default_signatory_id'];
+  'rounding_minutes', 'night_start', 'night_end', 'pay_night_uplift', 'pay_weekend_uplift', 'pay_bh_uplift', 'gps_tolerance_m', 'brand_color', 'ui_style', 'default_signatory_id', 'face_match_enabled'];
 export const UI_STYLES = ['classic', 'control'];
 const STYLE_NAMES = { classic: 'Classic', control: 'Control Room' };
 
@@ -20,11 +20,13 @@ const STYLE_NAMES = { classic: 'Classic', control: 'Control Room' };
 const publicUrl = (key) => `${(process.env.APP_URL || '').replace(/\/$/, '')}/${key}`;
 
 export const getSettings = () => one('SELECT * FROM settings WHERE id = 1');
+// The NFC tag keys never leave the server except through clock.nfcSetup
+const forClient = ({ nfc_meta_key, nfc_file_key, ...s }) => ({ ...s, nfc_ready: !!(nfc_meta_key && nfc_file_key) });
 
 export const actions = {
   'settings.get': def(ALL, async (_b, { user }) => {
     const s = await getSettings();
-    if (user.role === 'company') return s;
+    if (user.role === 'company') return forClient(s);
     return { company_name: s.company_name, grace_minutes: s.grace_minutes, pay_period: s.pay_period, modules: s.modules, logo_url: s.logo_url, brand_color: s.brand_color, ui_style: s.ui_style };
   }),
 
@@ -53,7 +55,7 @@ export const actions = {
     await q('UPDATE settings SET logo_key = $1, logo_url = $2, updated_at = now() WHERE id = 1', [logo_key, logo_url]);
     clearBrand();
     await audit(user, 'settings.logo', 'settings', 1, { logo: logo_key ? 'set' : 'removed' });
-    return getSettings();
+    return forClient(await getSettings());
   }),
 
   'settings.update': def(CO, async (b, { user }) => {
@@ -83,7 +85,7 @@ export const actions = {
     if (b.ai_module_caps) {
       const caps = {};
       for (const [k, v] of Object.entries(b.ai_module_caps)) {
-        if (![...MODULES, 'ops', 'orb', 'orb_voice', 'contracts'].includes(k)) fail(400, 'Unknown module');
+        if (![...MODULES, 'ops', 'orb', 'orb_voice', 'contracts', 'clock_face'].includes(k)) fail(400, 'Unknown module');
         if (v === null || v === '') continue;
         if (!(Number(v) >= 0)) fail(400, 'A cap must be zero or more credits');
         caps[k] = Math.round(Number(v));
@@ -99,7 +101,7 @@ export const actions = {
       await audit(user, 'settings.signatory', 'settings', 1, { to: f.default_signatory_id, summary: who ? `Documents are now countersigned by ${who}` : 'Default company signatory cleared' });
     }
     if (before && before !== f.ui_style) await audit(user, 'settings.ui_style', 'settings', 1, { from: before, to: f.ui_style, summary: `App style changed to ${STYLE_NAMES[f.ui_style]}` });
-    return getSettings();
+    return forClient(await getSettings());
   }),
 
   // AI credits used this month, per module

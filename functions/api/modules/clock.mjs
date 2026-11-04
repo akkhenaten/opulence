@@ -12,6 +12,9 @@ import { compliance } from './officers.mjs';
 import { getSettings } from './settings.mjs';
 import { guardSelf, markOwn } from '../lib/selfcheck.mjs';
 import { MGR, def } from './_def.mjs';
+import { evaluate } from '../lib/proof.mjs';
+import { checkPhone, findTap, spendTap, checkSelfie, scoreSelfie } from './clockProof.mjs';
+import crypto from 'node:crypto';
 
 const VALID = ['ok', 'approved', 'manual'];
 const EARLY_MIN = 30;
@@ -46,6 +49,7 @@ export async function buildTimesheet(assignmentId, { force = false } = {}) {
   breakMin = Math.round(breakMin) || a.planned_break || 0;
   if (events.some((e) => e.status === 'exception' || e.status === 'approved')) flags.add('exception');
   if (events.some((e) => e.status === 'manual')) flags.add('manual');
+  for (const f of ['face_check', 'phone_not_verified']) if (events.some((e) => e.status !== 'rejected' && (e.flags || []).includes(f))) flags.add(f);
   if (new Date(start) - new Date(a.starts_at) > s.grace_minutes * 60000) flags.add('late');
   if (new Date(a.ends_at) - new Date(end) > 15 * 60000) flags.add('left_early');
   // Paid time starts at the scheduled start when the officer arrives early
@@ -63,7 +67,7 @@ export async function buildTimesheet(assignmentId, { force = false } = {}) {
 async function myAssignments(officerId) {
   return q(
     `SELECT a.id AS assignment_id, a.status AS assignment_status, s.id AS shift_id, s.starts_at, s.ends_at, s.role, s.break_minutes,
-            v.id AS venue_id, v.name AS venue_name, v.address, v.postcode, v.lat, v.lng, v.radius_m, v.instructions, r.name AS role_name,
+            v.id AS venue_id, v.name AS venue_name, v.address, v.postcode, v.lat, v.lng, v.radius_m, v.instructions, v.proof_rule, r.name AS role_name,
             COALESCE((SELECT json_agg(json_build_object('id', id, 'kind', kind, 'ts', ts, 'status', status) ORDER BY ts) FROM clock_events ce WHERE ce.assignment_id = a.id), '[]') AS events
        FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role
       WHERE a.officer_id = $1 AND a.status IN ('assigned','accepted') AND s.status = 'published'
@@ -84,7 +88,9 @@ export const actions = {
     const list = (await myAssignments(user.officer_id)).map((a) => ({ ...a, state: stateOf(a.events) }));
     const current = list.find((a) => a.state === 'on_shift' || a.state === 'on_break')
       || list.find((a) => a.state === 'not_started' && new Date(a.ends_at) > new Date());
-    return { current: current || null, today: list };
+    const o = await one('SELECT face_consent FROM officers WHERE id = $1', [user.officer_id]);
+    const s = await getSettings();
+    return { current: current || null, today: list, face_consent: o?.face_consent || null, face_match_enabled: !!s.face_match_enabled };
   }),
 
   'clock.punch': def(['officer'], async (b, { user }) => {
@@ -97,34 +103,79 @@ export const actions = {
 
     const s = await getSettings();
     const fence = insideFence({ lat: b.lat, lng: b.lng, accuracy: b.accuracy }, a, s.gps_tolerance_m);
-    let qrOk = true;
     const problems = [];
+    const flags = [];
+    const rec = { qr_ok: null, device_ok: null, device_id: null, venue_code: null, tag_id: null, selfie_key: null, face_result: null, face_note: null, proof_rule: null };
+    let proof = null;
+    let officer = null;
+    let tap = null;
+
+    // Clock-in and clock-out need the registered phone. A phone that fails is recorded as an exception, never a hard stop.
+    if (b.kind === 'in' || b.kind === 'out') {
+      const ph = await checkPhone(user, b.passkey);
+      Object.assign(rec, { device_ok: ph.device_ok, device_id: ph.device_id });
+      if (ph.flag) { flags.push(ph.flag); problems.push(ph.problem); }
+    }
+
     if (b.kind === 'in') {
-      const o = await one('SELECT * FROM officers WHERE id = $1', [user.officer_id]);
-      const c = compliance(o);
+      officer = await one('SELECT * FROM officers WHERE id = $1', [user.officer_id]);
+      const c = compliance(officer);
       if (!c.ok) fail(403, `You can't clock in: ${c.issues.join(', ')}. Contact the office.`);
       if (new Date(a.starts_at) - Date.now() > EARLY_MIN * 60000) fail(400, `Too early — clock-in opens ${EARLY_MIN} minutes before the shift (${fmtTime(new Date(new Date(a.starts_at) - EARLY_MIN * 60000))})`);
-      const qr = parseQr(b.qr);
-      const venue = await one('SELECT qr_version FROM venues WHERE id = $1', [a.venue_id]);
-      qrOk = !!qr && qr.venueId === a.venue_id && qr.version === venue.qr_version;
-      if (!qrOk) problems.push(b.qr ? (qr && qr.venueId !== a.venue_id ? 'QR code is for a different venue' : 'QR code not valid') : 'QR code not scanned');
+      const venue = await one('SELECT qr_version, proof_rule FROM venues WHERE id = $1', [a.venue_id]);
+      const notes = [];
+      // Venue code: the QR poster or a fresh tap on one of the venue's NFC tags
+      const qr = b.qr ? parseQr(b.qr) : null;
+      rec.qr_ok = !!qr && qr.venueId === a.venue_id && qr.version === venue.qr_version;
+      if (b.qr && !rec.qr_ok) notes.push(qr && qr.venueId !== a.venue_id ? 'QR code is for a different venue' : 'QR code not valid');
+      const t = await findTap(user, b.tap_id, a.venue_id);
+      if (t.ok) tap = t.tap;
+      else if (t.problem) notes.push(t.problem);
+      rec.venue_code = rec.qr_ok ? 'qr' : tap ? 'nfc' : null;
+      if (tap) rec.tag_id = tap.tag_id;
+      // Selfie
+      const sf = await checkSelfie(user, b.selfie_key);
+      if (sf.ok) rec.selfie_key = b.selfie_key;
+      else if (sf.problem) notes.push(sf.problem);
+      // Location
+      const geoNote = fence.distance == null ? 'Location unavailable' : !fence.ok ? `You are ${fence.distance}m from the venue (limit ${a.radius_m}m)` : null;
+      if (geoNote) notes.push(geoNote);
+
+      rec.proof_rule = venue.proof_rule;
+      proof = evaluate({ rule: venue.proof_rule, geo_ok: fence.ok, venue_code_ok: !!rec.venue_code, selfie_ok: !!rec.selfie_key });
+      if (!proof.met) {
+        const label = { location: 'location', venue_code: 'venue code', selfie: 'selfie' };
+        problems.push(...notes, `${proof.need === 3 ? 'All 3' : `${proof.need} of 3`} proofs needed (${proof.passed.map((x) => label[x]).join(', ') || 'none'} so far)`);
+        if (!b.exception_reason) fail(422, problems.join(' · '), { problems, missing: proof.missing, proof, flags, can_request_exception: true });
+        flags.push('rule_not_met');
+      }
     }
-    if (b.kind === 'in' || b.kind === 'out') {
+    if (b.kind === 'out') {
       if (fence.distance == null) problems.push('Location unavailable');
       else if (!fence.ok) problems.push(`You are ${fence.distance}m from the venue (limit ${a.radius_m}m)`);
     }
 
-    // Breaks never need checks. Clock-out outside the fence is recorded but flagged.
-    let status = 'ok';
-    if (problems.length) {
-      if (b.kind === 'in' && !b.exception_reason) fail(422, problems.join(' · '), { problems, can_request_exception: true });
-      status = 'exception';
+    // The face check runs once the clock-in is going ahead: a doubtful result sends it to a manager, it never stops the officer
+    if (rec.selfie_key) {
+      Object.assign(rec, await scoreSelfie(officer, rec.selfie_key, s));
+      if (rec.face_result === 'no_match' || rec.face_result === 'unsure') {
+        flags.push('face_check');
+        problems.push(rec.face_result === 'no_match' ? 'Selfie may not match the profile photo' : 'Selfie face check unsure');
+      }
     }
 
+    // Breaks never need checks. Clock-out problems are recorded but flagged.
+    const status = problems.length ? 'exception' : 'ok';
+    const evId = crypto.randomUUID();
+    if (tap && !(await spendTap(tap.id, evId))) fail(409, 'That NFC tap was already used. Tap the tag again.');
+
     const ev = await one(
-      `INSERT INTO clock_events (assignment_id, kind, lat, lng, accuracy, distance_m, qr_ok, geo_ok, status, exception_reason)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [a.assignment_id, b.kind, b.lat ?? null, b.lng ?? null, b.accuracy ?? null, fence.distance, qrOk, fence.ok, status, b.exception_reason || problems.join(' · ')]);
+      `INSERT INTO clock_events (id, assignment_id, kind, lat, lng, accuracy, distance_m, qr_ok, geo_ok, status, exception_reason,
+         device_ok, device_id, venue_code, tag_id, selfie_key, face_result, face_note, proof_rule, flags)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *`,
+      [evId, a.assignment_id, b.kind, b.lat ?? null, b.lng ?? null, b.accuracy ?? null, fence.distance, rec.qr_ok ?? true, fence.ok, status,
+        b.exception_reason || problems.join(' · ') || null,
+        rec.device_ok, rec.device_id, rec.venue_code, rec.tag_id, rec.selfie_key, rec.face_result, rec.face_note, rec.proof_rule, flags]);
     if (a.assignment_status === 'assigned') await q("UPDATE shift_assignments SET status = 'accepted', responded_at = now() WHERE id = $1", [a.assignment_id]);
 
     if (status === 'exception') {
@@ -134,18 +185,23 @@ export const actions = {
       });
     }
     if (b.kind === 'out') await buildTimesheet(a.assignment_id);
-    return { event: ev, state: stateOf([...a.events, ev]), problems };
+    const { selfie_key: _sk, face_note: _fn, face_result: _fr, ...shown } = ev;
+    return { event: shown, state: stateOf([...a.events, ev]), problems, flags, proof };
   }),
 
   'clock.exceptions': def(MGR, async (b, { user }) => {
     const scope = await venueScope(user);
     const rows = await q(
-      `SELECT ce.*, a.officer_id, s.venue_id, o.first_name || ' ' || o.last_name AS officer_name, v.name AS venue_name, v.radius_m, s.starts_at, s.ends_at, u.name AS decided_by_name
+      `SELECT ce.*, a.officer_id, s.venue_id, o.first_name || ' ' || o.last_name AS officer_name, v.name AS venue_name, v.radius_m, s.starts_at, s.ends_at, u.name AS decided_by_name, o.photo_key,
+              (SELECT label FROM venue_tags vt WHERE vt.id = ce.tag_id) AS tag_label
          FROM clock_events ce JOIN shift_assignments a ON a.id = ce.assignment_id JOIN shifts s ON s.id = a.shift_id
          JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id LEFT JOIN users u ON u.id = ce.decided_by
         WHERE ($1::uuid[] IS NULL OR s.venue_id = ANY($1)) AND (CASE WHEN $2 THEN ce.status IN ('exception','approved','rejected') ELSE ce.status = 'exception' END)
         ORDER BY ce.ts DESC LIMIT 200`, [scope, !!b.include_decided]);
-    return markOwn(user, rows);
+    const shaped = await Promise.all(rows.map(async ({ selfie_key, photo_key, ...r }) => ({
+      ...r, has_selfie: !!selfie_key, selfie_url: await downloadUrl(selfie_key), profile_photo_url: await downloadUrl(photo_key),
+    })));
+    return markOwn(user, shaped);
   }),
 
   'clock.decide': def(MGR, async (b, { user }) => {
@@ -191,7 +247,8 @@ export const actions = {
     const rows = await q(
       `SELECT a.id AS assignment_id, s.id AS shift_id, s.starts_at, s.ends_at, s.role, r.name AS role_name, v.id AS venue_id, v.name AS venue_name,
               o.id AS officer_id, o.first_name || ' ' || o.last_name AS officer_name, o.sia_number, o.phone, o.photo_key,
-              COALESCE((SELECT json_agg(json_build_object('kind', kind, 'ts', ts, 'status', status, 'geo_ok', geo_ok, 'distance_m', distance_m) ORDER BY ts)
+              COALESCE((SELECT json_agg(json_build_object('kind', kind, 'ts', ts, 'status', status, 'geo_ok', geo_ok, 'distance_m', distance_m, 'device_ok', device_ok,
+                   'venue_code', venue_code, 'face_result', face_result, 'flags', flags, 'selfie_key', selfie_key, 'qr_ok', qr_ok, 'proof_rule', proof_rule, 'face_note', face_note) ORDER BY ts)
                  FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.status <> 'rejected'), '[]') AS events
          FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id JOIN roles r ON r.code = s.role
         WHERE s.status = 'published' AND a.status IN ('assigned','accepted')
@@ -211,7 +268,10 @@ export const actions = {
       const out = { ...r, state, clocked_in: r.events.find((e) => e.kind === 'in')?.ts || null, has_exception: r.events.some((e) => e.status === 'exception') };
       const { photo_key, ...rest } = out;
       if (user.role === 'venue') { delete rest.phone; delete rest.events; }
-      return { ...rest, photo_url: await downloadUrl(photo_key) };
+      // Selfies are for managers only
+      const inEv = rest.events?.find((e) => e.kind === 'in' && e.selfie_key);
+      if (rest.events) rest.events = rest.events.map(({ selfie_key, ...e }) => e);
+      return { ...rest, photo_url: await downloadUrl(photo_key), selfie_url: inEv ? await downloadUrl(inEv.selfie_key) : null };
     }));
   }),
 };

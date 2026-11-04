@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, BarChart3, Clock, PoundSterling, ShieldAlert, TrendingUp } from 'lucide-react';
+import { AlertTriangle, BarChart3, Clock, Fingerprint, PoundSterling, ShieldAlert, TrendingUp } from 'lucide-react';
 import {
   Bento, Empty, ErrorBox, Input, List, Page, Pill, Row, Section, Segmented, Spinner, Stat, Table, Tile, date, dateShort, daysUntil, hours, money, money0, titleCase, useApi,
 } from '../../ui/index.jsx';
@@ -18,6 +18,7 @@ export default function Reports() {
   const hrs = useApi('reports.hours', body, { skip: !ok });
   const inc = useApi('reports.incidents', body, { skip: !ok });
   const overdue = useApi('reports.overdue');
+  const proof = useApi('clock.proofReport', body, { skip: !ok });
 
   return (
     <Page title="Reports" subtitle={ok ? `${date(range.from)} – ${date(range.to)}` : 'Choose a date range'} wide>
@@ -34,8 +35,38 @@ export default function Reports() {
       <MoneySection q={margin} overdue={overdue} hrs={hrs} />
       <HoursSection q={hrs} />
       <IncidentsSection q={inc} />
+      <ProofSection q={proof} />
       <OverdueSection q={overdue} />
     </Page>
+  );
+}
+
+// How officers proved they were on site when clocking in
+function ProofSection({ q }) {
+  const [by, setBy] = useState('officers');
+  const share = (n, d) => (d ? `${Math.round((n / d) * 100)}%` : '–');
+  return (
+    <Section title="Clock-in proof" action={<Segmented value={by} onChange={setBy} options={[{ value: 'officers', label: 'Officers' }, { value: 'venues', label: 'Venues' }]} />}>
+      <Wait q={q}>
+        {(d) => {
+          const rows = d[by];
+          if (!rows.length) return <Empty icon={Fingerprint} title="No clock-ins in this period" />;
+          return (
+            <Table rows={rows} columns={[
+              { key: 'name', label: by === 'officers' ? 'Officer' : 'Venue', render: (r) => <span className="font-semibold">{r.name}</span> },
+              { key: 'punches', label: 'Clock-ins', align: 'right' },
+              { key: 'phone_ok', label: 'Phone ok', align: 'right', render: (r) => <span className={r.phone_failed ? 'font-semibold text-amber' : ''}>{share(r.phone_ok, r.punches)}</span> },
+              { key: 'location_ok', label: 'Location', align: 'right', render: (r) => share(r.location_ok, r.punches) },
+              { key: 'qr', label: 'QR / NFC', align: 'right', render: (r) => <span className="num">{r.qr} / {r.nfc}</span> },
+              { key: 'selfies', label: 'Selfies', align: 'right' },
+              { key: 'exceptions', label: 'Exceptions', align: 'right', render: (r) => (r.exceptions ? <Pill tone="amber">{r.exceptions} · {share(r.exceptions, r.punches)}</Pill> : '0') },
+              { key: 'face_flags', label: 'Face flags', align: 'right', render: (r) => (r.face_flags ? <Pill tone="red">{r.face_flags}</Pill> : '0') },
+            ]} />
+          );
+        }}
+      </Wait>
+      <p className="mt-2 px-1 text-caption text-muted">Clock-ins before phone checks started count as "phone not checked". A high exception rate at one venue usually means a missing poster, a weak signal or a tag that needs replacing.</p>
+    </Section>
   );
 }
 
