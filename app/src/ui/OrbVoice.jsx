@@ -6,7 +6,21 @@ import { api, upload } from '../api.js';
 import { Button, cx, IconButton, useToast } from './index.jsx';
 import OrbMark from './OrbMark.jsx';
 
-const SDK = 'https://openkbs.com/sdk/live.esm.js';
+// The classic script, not the ES module: the module file has no CORS header, so browsers refuse to import it
+const SDK = 'https://openkbs.com/sdk/live.js';
+let sdk;
+const loadLive = () => {
+  sdk ||= new Promise((resolve, reject) => {
+    if (window.OpenKBS?.Live) { resolve(window.OpenKBS.Live); return; }
+    const el = document.createElement('script');
+    el.src = SDK;
+    el.async = true;
+    el.onload = () => (window.OpenKBS?.Live ? resolve(window.OpenKBS.Live) : reject(new Error('Voice could not load. Try again.')));
+    el.onerror = () => { sdk = null; el.remove(); reject(new Error('Voice could not load. Check your connection and try again.')); };
+    document.head.appendChild(el);
+  });
+  return sdk;
+};
 const MAX_CLIP_S = 60;
 const SILENCE_WARN_MS = 110000;
 const SILENCE_END_MS = 125000;
@@ -122,8 +136,8 @@ export function MicButton({ onText, disabled }) {
 
 const STATE_LABEL = { connecting: 'Connecting…', listening: 'Listening', speaking: 'Speaking', thinking: 'Working on it…', muted: 'Muted', closed: 'Ended' };
 
-// Captions arrive in pieces: a piece that extends the last line replaces it, otherwise it is added on
-const merge = (prev, text) => (text.startsWith(prev) ? text : prev.endsWith(text) ? prev : `${prev} ${text}`.replace(/\s+/g, ' '));
+// Captions arrive in pieces that carry their own spaces ("Let me check the ", "rota"); a piece that repeats the whole line so far replaces it
+const merge = (prev, text) => (prev && text.startsWith(prev) ? text : prev + text);
 
 /**
  * Hands-free conversation with Orb. Starts as soon as it is shown (from the Talk tap), saves the captions into the chat,
@@ -156,10 +170,10 @@ export function VoiceView({ conversationId, page, onConversation, onEnd, Message
   });
   const flush = async (all = false) => {
     for (const l of lines.current) if (all) l.open = false;
-    const todo = lines.current.filter((l) => !l.saved && !l.open);
+    const todo = lines.current.filter((l) => !l.saved && !l.open && l.text.trim());
     if (!todo.length || !cid.current) return;
     todo.forEach((l) => { l.saved = true; });
-    await api('assistant.voiceSave', { conversation_id: cid.current, lines: todo.map(({ role, text, at }) => ({ role, text, at })) }).catch(() => { todo.forEach((l) => { l.saved = false; }); });
+    await api('assistant.voiceSave', { conversation_id: cid.current, lines: todo.map(({ role, text, at }) => ({ role, text: text.trim(), at })) }).catch(() => { todo.forEach((l) => { l.saved = false; }); });
   };
   const say = (text) => { try { live.current?.sendText(text, { turnComplete: true }); } catch { /* closed */ } };
 
@@ -173,17 +187,22 @@ export function VoiceView({ conversationId, page, onConversation, onEnd, Message
     const cut = failed.current || (/error|fail|budget|fund|limit|credit/i.test(r) && !/user|client|stop/i.test(r));
     onEnd(cid.current, cut ? 'The connection was lost. Carry on by typing, or tap Talk to start again.' : null);
   };
-  const stop = () => { if (live.current) { try { live.current.stop(); } catch { finish(); } } else finish(); };
+  // The SDK does not always send 'closed' after stop(), so finish anyway shortly after
+  const stop = () => {
+    try { live.current?.stop(); } catch { /* already closed */ }
+    if (!live.current) finish(); else setTimeout(() => finish(), 2500);
+  };
 
   useEffect(() => {
     let dead = false;
     (async () => {
-      const [mod, r] = await Promise.all([import(/* @vite-ignore */ SDK), api('assistant.voiceSession', { conversation_id: conversationId || undefined, page })]);
+      const [Live, r] = await Promise.all([loadLive(), api('assistant.voiceSession', { conversation_id: conversationId || undefined, page })
+        // The chat was deleted meanwhile: talk in a new one
+        .catch((e) => (e.status === 404 && conversationId ? api('assistant.voiceSession', { page }) : Promise.reject(e)))]);
       if (dead) return;
       cid.current = r.conversation_id;
       maxMs.current = r.max_ms || maxMs.current;
       onConversation?.(r.conversation_id, r.title);
-      const Live = mod.Live || mod.default?.Live || window.OpenKBS?.Live;
       const l = new Live({ session: r.session });
       live.current = l;
       const heard = () => { lastHeard.current = Date.now(); };
@@ -201,14 +220,15 @@ export function VoiceView({ conversationId, page, onConversation, onEnd, Message
       l.on('voice_activity', heard);
       l.on('transcript_interim', ({ text }) => { heard(); setInterim(text || ''); });
       l.on('transcript', ({ role, text }) => {
-        if (!text?.trim()) return;
+        if (!text) return;
         heard();
         const who = role === 'user' ? 'user' : 'assistant';
         const last = lines.current[lines.current.length - 1];
-        if (last && last.role === who && last.open) last.text = merge(last.text, text.trim());
+        if (last && last.role === who && last.open) last.text = merge(last.text, text);
         else {
+          if (!text.trim()) return;
           if (last) last.open = false;
-          lines.current.push({ role: who, text: text.trim(), at: Date.now(), saved: false, open: true });
+          lines.current.push({ role: who, text: text.trimStart(), at: Date.now(), saved: false, open: true });
         }
         if (who === 'user') setInterim('');
         show();
@@ -235,6 +255,8 @@ export function VoiceView({ conversationId, page, onConversation, onEnd, Message
       setPhase('error');
       ended.current = true; // stay on the error until they go back
       try { live.current?.stop(); } catch { /* not started */ }
+      // A brand-new chat that never got going is not worth keeping in history
+      if (!conversationId && cid.current && !lines.current.length) { api('assistant.delete', { id: cid.current }).catch(() => {}); cid.current = null; }
     });
     const hide = () => { if (document.visibilityState === 'hidden') stop(); };
     document.addEventListener('visibilitychange', hide);
@@ -274,7 +296,7 @@ export function VoiceView({ conversationId, page, onConversation, onEnd, Message
   };
   const onChange = (m) => setTimeline((t) => t.map((x) => (x.kind === 'msg' && x.message.id === m.id ? { ...x, message: m } : x)));
 
-  const shown = muted ? 'muted' : phase === 'connecting' ? 'connecting' : thinking ? 'thinking' : ls;
+  const shown = phase === 'error' ? 'error' : muted ? 'muted' : phase === 'connecting' ? 'connecting' : thinking ? 'thinking' : ls;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 flex-col items-center gap-2 border-b border-line px-4 pb-4 pt-6">
