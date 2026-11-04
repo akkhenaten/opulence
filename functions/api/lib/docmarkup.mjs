@@ -1,5 +1,6 @@
 // Template wording for signed documents: placeholders and a small formatting language.
 //   # Heading        numbered clause heading (1, 2, …); paragraphs under it become 1.1, 1.2, …
+//   #! Heading       unnumbered heading (schedules, appendices); paragraphs under it stay unnumbered
 //   3. Text          a paragraph that already carries its own number keeps it
 //   - item           bullet
 //   **bold**         bold run
@@ -59,6 +60,7 @@ export function parse(body) {
   const blocks = [];
   let heading = 0;
   let sub = 0;
+  let unnumbered = false;
   let buf = [];
   const flush = () => {
     if (!buf.length) return;
@@ -67,15 +69,22 @@ export function parse(body) {
     if (!text) return;
     const m = text.match(MANUAL);
     if (m) blocks.push({ type: 'clause', number: m[1] || m[2], runs: runs(text.slice(m[0].length)) });
-    else if (heading) blocks.push({ type: 'clause', number: `${heading}.${++sub}`, runs: runs(text) });
+    else if (heading && !unnumbered) blocks.push({ type: 'clause', number: `${heading}.${++sub}`, runs: runs(text) });
     else blocks.push({ type: 'para', runs: runs(text) });
   };
   for (const raw of String(body || '').replace(/\r\n?/g, '\n').split('\n')) {
     const line = raw.trim();
     if (!line) { flush(); continue; }
     if (/^-{3}\s*page\s*-{3}$/i.test(line)) { flush(); blocks.push({ type: 'break' }); continue; }
+    if (/^#!\s+/.test(line)) {
+      flush();
+      unnumbered = true;
+      blocks.push({ type: 'heading', number: '', runs: runs(line.replace(/^#!\s+/, '')) });
+      continue;
+    }
     if (/^#{1,3}\s+/.test(line)) {
       flush();
+      unnumbered = false;
       heading += 1;
       sub = 0;
       blocks.push({ type: 'heading', number: String(heading), runs: runs(line.replace(/^#{1,3}\s+/, '')) });

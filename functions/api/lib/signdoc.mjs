@@ -12,8 +12,8 @@ const PAGE_H = 841.89;
 const M = 56;
 const BOTTOM = 64;
 
-export const STATUS_WORD = { preview: 'PREVIEW - SAMPLE DATA', sent: 'NOT YET SIGNED', signed: 'SIGNED', void: 'VOID', superseded: 'SUPERSEDED' };
-const WATERMARK = { preview: 'PREVIEW - SAMPLE DATA', sent: 'AWAITING SIGNATURE', void: 'VOID', superseded: 'SUPERSEDED' };
+export const STATUS_WORD = { preview: 'PREVIEW - SAMPLE DATA', draft: 'DRAFT - PENDING LEGAL REVIEW', sent: 'NOT YET SIGNED', signed: 'SIGNED', void: 'VOID', superseded: 'SUPERSEDED' };
+const WATERMARK = { preview: 'PREVIEW - SAMPLE DATA', draft: 'DRAFT - PENDING LEGAL REVIEW', sent: 'AWAITING SIGNATURE', void: 'VOID', superseded: 'SUPERSEDED' };
 
 const sha = (x) => crypto.createHash('sha256').update(x).digest('hex');
 
@@ -129,7 +129,7 @@ class SignDoc extends Doc {
  *        terms?: { left: [[k,v]], right: [[k,v]], conditions: [{ title, status }] }, ackLine?, legacy? }
  * signers: { company: { name, title, png, at } | null, officer: { name, png, at, email, ip, ua } | null }
  * events: [{ kind, at, actor_name, ip, ua }]
- * status: preview | sent | signed | void | superseded
+ * status: preview | draft | sent | signed | void | superseded
  * Returns { bytes, fingerprint }.
  */
 export async function renderSigned({ company, doc, signers = {}, events = [], status = 'sent', verifyUrl = '' }) {
@@ -230,10 +230,11 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
       s.y -= 6;
       // Keep the heading with at least two lines of what follows
       s.ensure(16 + LEAD * 2);
-      const num = `${b.number}.`;
-      s.page.drawText(num, { x: s.x, y: s.y - 11.5, size: 11.5, font: s.bold, color: accentText });
-      const lines = s.wrap(b.runs.map((r) => ({ ...r, bold: true })), 11.5, s.w - 28, s.bold);
-      s.drawLines(lines, { x: s.x + 28, size: 11.5, lead: 16 });
+      // Schedules and appendices are unnumbered
+      const ind = b.number ? 28 : 0;
+      if (b.number) s.page.drawText(`${b.number}.`, { x: s.x, y: s.y - 11.5, size: 11.5, font: s.bold, color: accentText });
+      const lines = s.wrap(b.runs.map((r) => ({ ...r, bold: true })), 11.5, s.w - ind, s.bold);
+      s.drawLines(lines, { x: s.x + ind, size: 11.5, lead: 16 });
       s.y -= 4;
       return;
     }
@@ -298,7 +299,7 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
   s.addPage();
   const cp = s.page;
   cp.drawText('Signing certificate', { x: s.x, y: s.y - 20, size: 20, font: s.bold, color: INK });
-  const stateWord = { preview: 'Preview', sent: 'Awaiting signature', signed: 'Completed', void: 'Void', superseded: 'Superseded' }[status];
+  const stateWord = { preview: 'Preview', draft: 'Draft', sent: 'Awaiting signature', signed: 'Completed', void: 'Void', superseded: 'Superseded' }[status];
   cp.drawText(s.clean(`${doc.reference || 'No reference yet'}  ·  Status: ${stateWord}`), { x: s.x, y: s.y - 38, size: 10, font: s.font, color: MUTED });
   if (verifyUrl) {
     const qr = await s.pdf.embedPng(await qrPng(verifyUrl, 300));
@@ -391,7 +392,7 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
   const word = STATUS_WORD[status] || '';
   all.forEach((p, i) => {
     if (mark) {
-      const size = mark.length > 16 ? 50 : 72;
+      const size = mark.length > 24 ? 40 : mark.length > 16 ? 50 : 72;
       const tw = s.bold.widthOfTextAtSize(mark, size);
       const a = Math.PI / 4;
       const cx = PAGE_W / 2;

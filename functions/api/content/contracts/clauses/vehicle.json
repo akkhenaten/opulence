@@ -1,0 +1,14 @@
+[
+  {
+    "id": "VEH.COMPANY_VEHICLE",
+    "title": "Company vehicle",
+    "subject": "vehicle",
+    "versions": {
+      "all": {
+        "body": "We provide a vehicle for your work: {{vehicle.details}}. You must hold a full, valid UK driving licence, show it to us when asked, and tell us straight away about any endorsement, disqualification or medical condition that affects your driving.\n\nYou must use the vehicle in line with our vehicle policy, which forms part of this contract. Private use: {{vehicle.private_use}}. Private use may be a taxable benefit.\n\nYou are responsible for parking and traffic fines incurred while you are driving the vehicle.",
+        "sources": [{ "title": "GOV.UK: Expenses and benefits: company cars", "url": "https://www.gov.uk/expenses-and-benefits-company-cars" }, { "title": "HSE: Driving and riding safely for work", "url": "https://www.hse.gov.uk/roadsafety/" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  }
+]

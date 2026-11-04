@@ -1,5 +1,6 @@
 import { CORS, json, HttpError } from './lib/http.mjs';
-import { migrate } from './lib/db.mjs';
+import { migrate as migrateDb } from './lib/db.mjs';
+import { seedLibrary } from './lib/contractContent.mjs';
 import { userFromEvent } from './lib/auth.mjs';
 import { runJobs } from './modules/jobs.mjs';
 import * as auth from './modules/auth.mjs';
@@ -37,6 +38,12 @@ import * as orbVoice from './modules/orbVoice.mjs';
 export const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign].map((m) => m.actions));
 // Orb runs real actions on confirm, through the same table and role checks
 assistant.useActions(ACTIONS);
+
+// Schema first, then the seeded contract library; a seeding problem is logged and retried, never blocks the app
+async function migrate() {
+  await migrateDb();
+  await seedLibrary().catch((e) => console.error('[contracts] seed failed:', e.message));
+}
 
 export async function handler(event) {
   if (event.source === 'schedule') {

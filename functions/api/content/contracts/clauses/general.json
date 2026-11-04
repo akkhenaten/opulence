@@ -1,0 +1,55 @@
+[
+  {
+    "id": "GEN.THIRD_PARTY",
+    "title": "Rights of third parties",
+    "subject": "general",
+    "versions": {
+      "all": {
+        "body": "Only the parties to this contract may enforce its terms. No one else has any right to enforce any of them under the Contracts (Rights of Third Parties) Act 1999.",
+        "sources": [{ "title": "Contracts (Rights of Third Parties) Act 1999", "url": "https://www.legislation.gov.uk/ukpga/1999/31/contents" }],
+        "checked_on": "2026-11-04"
+      },
+      "sc": {
+        "body": "Only the parties to this contract may enforce its terms. Nothing in it creates a third-party right under the Contract (Third Party Rights) (Scotland) Act 2017.",
+        "sources": [{ "title": "Contract (Third Party Rights) (Scotland) Act 2017", "url": "https://www.legislation.gov.uk/asp/2017/5/contents" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "GEN.LAW.EW",
+    "title": "Governing law: England and Wales",
+    "subject": "general",
+    "versions": {
+      "all": {
+        "body": "This contract is governed by the law of England and Wales. The courts and tribunals of England and Wales deal with any dispute about it.",
+        "sources": [{ "title": "GOV.UK: Employment tribunals", "url": "https://www.gov.uk/employment-tribunals" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "GEN.LAW.SC",
+    "title": "Governing law: Scotland",
+    "subject": "general",
+    "versions": {
+      "all": {
+        "body": "This contract is governed by the law of Scotland. The Scottish courts and tribunals deal with any dispute about it.",
+        "sources": [{ "title": "GOV.UK: Employment tribunals", "url": "https://www.gov.uk/employment-tribunals" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "GEN.LAW.NI",
+    "title": "Governing law: Northern Ireland",
+    "subject": "general",
+    "versions": {
+      "all": {
+        "body": "This contract is governed by the law of Northern Ireland. The courts and tribunals of Northern Ireland, including the industrial tribunals, deal with any dispute about it.",
+        "sources": [{ "title": "nidirect: Industrial tribunals", "url": "https://www.nidirect.gov.uk/articles/industrial-tribunals" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  }
+]

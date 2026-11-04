@@ -1,0 +1,282 @@
+[
+  {
+    "id": "era1996-written-statement",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Written statement of particulars on or before day one (employees and workers)",
+    "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1",
+    "status": "in_force",
+    "effective_date": "2020-04-06",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 1996 sections 1 to 7B: employees and workers must receive a written statement of the main particulars on or before their first day."
+  },
+  {
+    "id": "ni-written-statement",
+    "jurisdictions": ["ni"],
+    "title": "Written statement of particulars within two months (Northern Ireland)",
+    "url": "https://www.nibusinessinfo.co.uk/content/employment-contract",
+    "status": "in_force",
+    "effective_date": "1997-01-01",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights (Northern Ireland) Order 1996, Article 33: employees employed for one month or more must receive a written statement within two months of starting. Giving it on day one is good practice."
+  },
+  {
+    "id": "ni-good-jobs-bill",
+    "jurisdictions": ["ni"],
+    "title": "Northern Ireland Good Jobs Employment Rights Bill (day-one statements, banded hours, shift notice)",
+    "url": "https://www.economy-ni.gov.uk/topics/good-jobs",
+    "status": "announced",
+    "effective_date": null,
+    "checked_on": "2026-11-04",
+    "summary": "Proposed by the Department for the Economy and not yet introduced to the Assembly. It would bring day-one written statements for employees and workers, a right to request banded hours, reasonable notice of shifts and pay for short-notice cancellations. None of this is law yet."
+  },
+  {
+    "id": "era2025-ssp-day-one",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Statutory Sick Pay from the first day of sickness, without the lower earnings limit",
+    "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update",
+    "status": "in_force",
+    "effective_date": "2026-04-06",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 2025: the waiting days and the lower earnings limit were removed. SSP is the lower of the flat rate or 80% of average weekly earnings."
+  },
+  {
+    "id": "era2025-day-one-family-leave",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Day-one paternity leave and unpaid parental leave",
+    "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update",
+    "status": "in_force",
+    "effective_date": "2026-04-06",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 2025: paternity leave and unpaid parental leave no longer need a qualifying period of service."
+  },
+  {
+    "id": "era2025-tribunal-six-months",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Employment tribunal time limit extended from 3 to 6 months",
+    "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update",
+    "status": "in_force",
+    "effective_date": "2026-10-01",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 2025: most tribunal claims can be brought within six months. For breach-of-contract claims in Scotland the change applies from 9 November 2026."
+  },
+  {
+    "id": "era2025-harassment-all-reasonable-steps",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Duty to take all reasonable steps to prevent sexual harassment, including by third parties",
+    "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update",
+    "status": "in_force",
+    "effective_date": "2026-10-30",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 2025: employers must take all reasonable steps to prevent sexual harassment of their staff and must not permit harassment by third parties such as customers and the public. This matters on client sites and licensed premises."
+  },
+  {
+    "id": "era2025-unfair-dismissal-six-months",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Unfair dismissal qualifying period reduced to 6 months; compensatory award cap removed",
+    "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update",
+    "status": "not_commenced",
+    "effective_date": "2027-01-01",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 2025: applies to dismissals on or after 1 January 2027. In practice it covers people engaged from 1 July 2026. Probation periods do not change the statutory right."
+  },
+  {
+    "id": "era2025-union-right-statement",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Duty to tell workers they have the right to join a trade union",
+    "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update",
+    "status": "not_commenced",
+    "effective_date": "2027-01-01",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 2025: employers must give workers a statement of their right to join a trade union. The form and timing are set by regulations."
+  },
+  {
+    "id": "era2025-fire-and-rehire",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Restrictions on dismissal for refusing a variation of contract (fire and rehire)",
+    "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update",
+    "status": "not_commenced",
+    "effective_date": "2027-03-01",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 2025: from March 2027 (exact day to be confirmed), dismissing someone for refusing certain changes to their contract will be automatically unfair, apart from narrow exceptions. Variation clauses cannot be relied on to impose those changes."
+  },
+  {
+    "id": "era2025-bereavement-leave",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Bereavement leave, including pregnancy loss",
+    "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update",
+    "status": "not_commenced",
+    "effective_date": "2027-04-01",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 2025: a day-one right to unpaid bereavement leave is planned for April 2027 (exact day to be confirmed)."
+  },
+  {
+    "id": "era2025-flexible-working",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Flexible working: requests may only be refused where reasonable",
+    "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update",
+    "status": "not_commenced",
+    "effective_date": "2027-10-01",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 2025: planned for October 2027."
+  },
+  {
+    "id": "era2025-guaranteed-hours",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Right to be offered guaranteed hours (zero-hours, low-hours and agency workers)",
+    "url": "https://www.gov.uk/government/consultations/make-work-pay-ending-one-sided-flexibility-reforms-of-zero-hours-and-similar-contracts",
+    "status": "not_commenced",
+    "effective_date": null,
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 2025: employers will have to offer guaranteed hours that reflect the hours regularly worked over a reference period. The government prefers a 12-week reference period in its consultation. The start date is to be confirmed after the consultation."
+  },
+  {
+    "id": "era2025-shift-notice-cancellation",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Reasonable notice of shifts and payment for short-notice cancellation or change",
+    "url": "https://www.gov.uk/government/consultations/make-work-pay-ending-one-sided-flexibility-reforms-of-zero-hours-and-similar-contracts",
+    "status": "not_commenced",
+    "effective_date": null,
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 2025: workers will have a right to reasonable notice of shifts and to payment when a shift is cancelled, moved or cut short at short notice. The notice periods and payment amounts will be set in regulations, and the start date is to be confirmed."
+  },
+  {
+    "id": "era2025-umbrella-companies",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Umbrella companies brought into employment agency regulation",
+    "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update",
+    "status": "not_commenced",
+    "effective_date": "2027-12-01",
+    "checked_on": "2026-11-04",
+    "summary": "Employment Rights Act 2025: planned for December 2027."
+  },
+  {
+    "id": "wtr-rolled-up-holiday",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Rolled-up holiday pay allowed for irregular-hours and part-year workers",
+    "url": "https://www.gov.uk/government/publications/calculating-holiday-entitlement-for-part-year-and-irregular-hours-workers",
+    "status": "in_force",
+    "effective_date": "2024-04-01",
+    "checked_on": "2026-11-04",
+    "summary": "Working Time (Amendment) Regulations 2023: for leave years starting on or after 1 April 2024, holiday for irregular-hours and part-year workers accrues at 12.07% of hours worked, and holiday pay may be rolled up at 12.07% of pay, shown separately on the payslip. This applies in Great Britain only."
+  },
+  {
+    "id": "ni-wtr-2016",
+    "jurisdictions": ["ni"],
+    "title": "Working Time Regulations (Northern Ireland) 2016",
+    "url": "https://www.legislation.gov.uk/nisr/2016/49/contents",
+    "status": "in_force",
+    "effective_date": "2016-02-29",
+    "checked_on": "2026-11-04",
+    "summary": "These give 5.6 weeks' paid holiday and set the rules on rest breaks and the 48-hour week. The Great Britain 2023 changes, including rolled-up holiday pay, do not apply in Northern Ireland."
+  },
+  {
+    "id": "wtr-security-special-case",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "Security and surveillance: special case for rest rules, with compensatory rest",
+    "url": "https://www.legislation.gov.uk/uksi/1998/1833/regulation/21",
+    "status": "in_force",
+    "effective_date": "1998-10-01",
+    "checked_on": "2026-11-04",
+    "summary": "Working Time Regulations 1998 regulation 21(b) (NI: 2016 Regulations): where security work needs a permanent presence to protect property or people, some night-work and rest rules may not apply. Regulation 24 still requires equivalent compensatory rest. There is no blanket exemption for security staff."
+  },
+  {
+    "id": "nmw-2026",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "National Minimum Wage and National Living Wage rates from 1 April 2026",
+    "url": "https://www.gov.uk/national-minimum-wage-rates",
+    "status": "in_force",
+    "effective_date": "2026-04-01",
+    "checked_on": "2026-11-04",
+    "summary": "The National Living Wage for those aged 21 and over is £12.71 an hour. Deductions for uniform or equipment, and unpaid time such as briefings or travel between sites, can take pay below the minimum."
+  },
+  {
+    "id": "sia-licensing",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "Private Security Industry Act 2001: front-line licensing",
+    "url": "https://www.gov.uk/guidance/sia-licensing",
+    "status": "in_force",
+    "effective_date": "2004-03-01",
+    "checked_on": "2026-11-04",
+    "summary": "It is an offence to carry out licensable security work without a valid SIA licence, and to supply unlicensed operatives. Northern Ireland has been covered since 2009."
+  },
+  {
+    "id": "sia-acs-subcontracting",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "SIA Approved Contractor Scheme: subcontracting and labour supply",
+    "url": "https://www.gov.uk/guidance/approved-contractor-scheme",
+    "status": "in_force",
+    "effective_date": null,
+    "checked_on": "2026-11-04",
+    "summary": "Approved contractors must manage subcontractors against the ACS standard. The SIA treats supplying labour (individuals working under your control) differently from subcontracting a service. Check the current ACS standard and the SIA's guidance before relying on either model."
+  },
+  {
+    "id": "awr-2010",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Agency Workers Regulations 2010: equal treatment after 12 weeks",
+    "url": "https://www.legislation.gov.uk/uksi/2010/93/contents",
+    "status": "in_force",
+    "effective_date": "2011-10-01",
+    "checked_on": "2026-11-04",
+    "summary": "After 12 calendar weeks in the same role with the same hirer, agency workers are entitled to the same basic pay and working conditions as comparable directly recruited staff. Day-one rights apply to facilities and job vacancies."
+  },
+  {
+    "id": "awr-ni-2011",
+    "jurisdictions": ["ni"],
+    "title": "Agency Workers Regulations (Northern Ireland) 2011",
+    "url": "https://www.legislation.gov.uk/nisr/2011/350/contents",
+    "status": "in_force",
+    "effective_date": "2012-02-05",
+    "checked_on": "2026-11-04",
+    "summary": "These mirror the Great Britain 12-week qualifying period for equal treatment."
+  },
+  {
+    "id": "conduct-regs-2003",
+    "jurisdictions": ["ew", "sc"],
+    "title": "Conduct of Employment Agencies and Employment Businesses Regulations 2003",
+    "url": "https://www.legislation.gov.uk/uksi/2003/3319/contents",
+    "status": "in_force",
+    "effective_date": "2004-04-06",
+    "checked_on": "2026-11-04",
+    "summary": "The terms an employment business must agree with work-seekers and hirers before supplying them, the key information document, and the restrictions on fees and transfer fees."
+  },
+  {
+    "id": "conduct-regs-ni-2005",
+    "jurisdictions": ["ni"],
+    "title": "Conduct of Employment Agencies and Employment Businesses Regulations (Northern Ireland) 2005",
+    "url": "https://www.legislation.gov.uk/nisr/2005/162/contents",
+    "status": "in_force",
+    "effective_date": "2005-06-30",
+    "checked_on": "2026-11-04",
+    "summary": "The Northern Ireland equivalent of the 2003 Regulations."
+  },
+  {
+    "id": "off-payroll-ch10",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "Off-payroll working rules (IR35), ITEPA 2003 Chapter 10",
+    "url": "https://www.gov.uk/guidance/understanding-off-payroll-working-ir35",
+    "status": "in_force",
+    "effective_date": "2021-04-06",
+    "checked_on": "2026-11-04",
+    "summary": "Where the client is a medium or large organisation, it must decide the worker's status and issue a status determination statement with reasons. For small clients, the personal service company decides. Its tax status is separate from employment rights."
+  },
+  {
+    "id": "right-to-work",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "Right to work checks (Immigration, Asylum and Nationality Act 2006)",
+    "url": "https://www.gov.uk/government/publications/right-to-work-checks-employers-guide",
+    "status": "in_force",
+    "effective_date": "2008-02-29",
+    "checked_on": "2026-11-04",
+    "summary": "Check the right to work before employment starts and follow up on time-limited permission. The rules apply across the UK."
+  },
+  {
+    "id": "pensions-auto-enrolment",
+    "jurisdictions": ["ew", "sc", "ni"],
+    "title": "Workplace pension automatic enrolment",
+    "url": "https://www.thepensionsregulator.gov.uk/en/employers",
+    "status": "in_force",
+    "effective_date": "2012-10-01",
+    "checked_on": "2026-11-04",
+    "summary": "This is governed by the Pensions Act 2008 in Great Britain and the Pensions (No. 2) Act (Northern Ireland) 2008. Eligible jobholders must be enrolled and the minimum contributions paid."
+  }
+]

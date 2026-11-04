@@ -1,0 +1,496 @@
+[
+  {
+    "id": "EMP.PARTIES",
+    "title": "Parties and status of this document",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "This contract is between **{{parties.employer_name}}** of {{parties.employer_address}} (\"the Company\", \"we\", \"us\") and **{{parties.employee_name}}** of {{parties.employee_address}} (\"you\").\n\nIt is your contract of employment. It is also the written statement of employment particulars required by section 1 of the Employment Rights Act 1996. Schedule 1 (Key particulars) forms part of it.",
+        "sources": [
+          { "title": "Employment Rights Act 1996, section 1", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" },
+          { "title": "GOV.UK: Written statement of employment particulars", "url": "https://www.gov.uk/employment-contracts-and-conditions/written-statement-of-employment-particulars" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["era1996-written-statement"]
+      },
+      "ni": {
+        "body": "This contract is between **{{parties.employer_name}}** of {{parties.employer_address}} (\"the Company\", \"we\", \"us\") and **{{parties.employee_name}}** of {{parties.employee_address}} (\"you\").\n\nIt is your contract of employment. It is also the written statement of particulars required by Article 33 of the Employment Rights (Northern Ireland) Order 1996. Schedule 1 (Key particulars) forms part of it.",
+        "sources": [
+          { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" },
+          { "title": "nidirect: Employment contracts and written statement", "url": "https://www.nidirect.gov.uk/articles/employment-contracts-and-written-statement" }
+        ],
+        "checked_on": "2026-11-04",
+        "law": ["ni-written-statement", "ni-good-jobs-bill"]
+      }
+    }
+  },
+  {
+    "id": "EMP.START",
+    "title": "Start date",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "Your employment starts on {{start.date}}.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(3)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }, { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.CONTINUOUS.NEW",
+    "title": "Continuous employment: starts with this job",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "No previous employment counts towards your period of continuous employment, which begins on your start date.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(3)(b)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }, { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.CONTINUOUS.EARLIER",
+    "title": "Continuous employment: earlier date",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "Earlier employment counts towards your period of continuous employment, which began on {{start.continuous_date}}.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(3)(b)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }, { "title": "GOV.UK: TUPE and transfers of employment", "url": "https://www.gov.uk/transfers-takeovers" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.PROBATION",
+    "title": "Probationary period",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "The first {{probation.length}} of your employment is a probationary period. During it we will review your performance and conduct with you. We may extend it once by telling you in writing before it ends and explaining why.\n\nDuring the probationary period either of us may end your employment by giving {{probation.notice}} notice in writing, or the statutory minimum notice if that is longer.\n\nThe probationary period does not reduce any of your statutory rights.",
+        "sources": [{ "title": "Acas: Probation periods", "url": "https://www.acas.org.uk/probation-periods" }, { "title": "GOV.UK: Written statement of employment particulars", "url": "https://www.gov.uk/employment-contracts-and-conditions/written-statement-of-employment-particulars" }],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-unfair-dismissal-six-months"]
+      }
+    }
+  },
+  {
+    "id": "EMP.JOB",
+    "title": "Job title and duties",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "You are employed as **{{job.title}}**. Your main duties are: {{job.duties}}.\n\nYou report to {{job.reports_to}}. We may ask you to carry out other reasonable duties that suit your skills, training and licence.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(4)(f)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }, { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.PLACE.FIXED",
+    "title": "Place of work: one site",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "Your normal place of work is {{place.address}}.\n\nWe may ask you to work at another site within reasonable travelling distance for a short time, for example to cover absence. We will give you as much notice as we reasonably can, and we will pay any extra travel costs in line with our expenses policy.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(4)(h)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }, { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.PLACE.VARIOUS",
+    "title": "Place of work: client sites",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "You will work at client sites and other locations within {{place.area}}. Each shift's details tell you where you are working. The Company's address in this contract is your base for records and correspondence.\n\nTime you spend travelling between sites during a shift is working time and is paid. We will pay travel costs between sites during a shift in line with our expenses policy.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(4)(h)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }, { "title": "GOV.UK: Calculating the minimum wage (travel time)", "url": "https://www.gov.uk/government/publications/calculating-the-minimum-wage" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.ABROAD",
+    "title": "Work outside the UK",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "You will be required to work outside the United Kingdom. The period, the currency you will be paid in, any extra pay or benefits, and the terms that apply when you return are: {{place.abroad_details}}.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(4)(k)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }, { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.HOURS.FIXED",
+    "title": "Hours: fixed pattern",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "Your normal working hours are {{hours.weekly}} hours a week, worked as follows: {{hours.days}}.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(4)(c) and (da)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }, { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.HOURS.ROTA",
+    "title": "Hours: guaranteed hours on a rota",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "You are guaranteed {{hours.weekly}} hours of work a week, averaged over each pay period. Your shifts are set by rota and may include days, nights, weekends and bank holidays.\n\nWe will publish the rota at least {{hours.rota_notice}} in advance. If we cancel or shorten a rostered shift with less notice than that, {{hours.cancellation}}.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(4)(c) and (da)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }, { "title": "GOV.UK: Make Work Pay timeline", "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update" }],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-shift-notice-cancellation"]
+      }
+    }
+  },
+  {
+    "id": "EMP.HOURS.CHANGE",
+    "title": "Changes to hours",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "We will not change your guaranteed weekly hours or your working pattern without your written agreement. Individual shift times may change only in line with this contract.",
+        "sources": [{ "title": "Acas: Changing an employment contract", "url": "https://www.acas.org.uk/changing-an-employment-contract" }],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-fire-and-rehire"]
+      }
+    }
+  },
+  {
+    "id": "EMP.NIGHT",
+    "title": "Night work",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "Your work includes night work. Before you start night work, and at regular intervals while you do it, we will offer you a free health assessment.\n\nYour normal hours of night work will stay within the statutory limit for night workers in the Working Time Regulations 1998. If a special case under those Regulations applies, you will receive equivalent compensatory rest.",
+        "sources": [{ "title": "GOV.UK: Night working hours", "url": "https://www.gov.uk/night-working-hours" }, { "title": "Working Time Regulations 1998, regulations 6, 7 and 21", "url": "https://www.legislation.gov.uk/uksi/1998/1833/contents" }],
+        "checked_on": "2026-11-04",
+        "law": ["wtr-security-special-case"]
+      },
+      "ni": {
+        "body": "Your work includes night work. Before you start night work, and at regular intervals while you do it, we will offer you a free health assessment.\n\nYour normal hours of night work will stay within the statutory limit for night workers in the Working Time Regulations (Northern Ireland) 2016. If a special case under those Regulations applies, you will receive equivalent compensatory rest.",
+        "sources": [{ "title": "Working Time Regulations (Northern Ireland) 2016", "url": "https://www.legislation.gov.uk/nisr/2016/49/contents" }, { "title": "nidirect: Working hours", "url": "https://www.nidirect.gov.uk/articles/working-hours" }],
+        "checked_on": "2026-11-04",
+        "law": ["ni-wtr-2016", "wtr-security-special-case"]
+      }
+    }
+  },
+  {
+    "id": "EMP.OVERTIME.BASIC",
+    "title": "Overtime at the basic rate",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "Overtime is voluntary unless we agree otherwise with you in writing. Hours you work beyond your normal hours at our request are paid at your basic hourly rate. If you are salaried, that is your annual salary divided by the number of hours you are contracted to work in a year.",
+        "sources": [{ "title": "GOV.UK: Overtime: your rights", "url": "https://www.gov.uk/overtime-your-rights" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.OVERTIME.ENHANCED",
+    "title": "Overtime at an enhanced rate",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "Overtime is voluntary unless we agree otherwise with you in writing. Hours you work beyond your normal hours at our request are paid at {{overtime.rate}}.",
+        "sources": [{ "title": "GOV.UK: Overtime: your rights", "url": "https://www.gov.uk/overtime-your-rights" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.PAY.HOURLY",
+    "title": "Pay: hourly rate",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "We will pay you {{pay.rate}} for each hour you work, before tax and other deductions. You are paid {{pay.frequency}} in arrears by bank transfer, on {{pay.day}}. You will receive an itemised payslip each time you are paid.\n\nWe review pay rates at least once a year. Your rate will never be lower than the National Minimum Wage or National Living Wage that applies to you.",
+        "sources": [{ "title": "GOV.UK: National Minimum Wage and National Living Wage rates", "url": "https://www.gov.uk/national-minimum-wage-rates" }, { "title": "GOV.UK: Payslips", "url": "https://www.gov.uk/payslips" }],
+        "checked_on": "2026-11-04",
+        "law": ["nmw-2026"]
+      }
+    }
+  },
+  {
+    "id": "EMP.PAY.SALARY",
+    "title": "Pay: annual salary",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "Your salary is {{pay.salary}} a year, before tax and other deductions. It is paid {{pay.frequency}} in arrears by bank transfer, on {{pay.day}}. You will receive an itemised payslip each time you are paid.\n\nWe review salaries at least once a year. Your pay for the hours you work will never be lower than the National Minimum Wage or National Living Wage that applies to you.",
+        "sources": [{ "title": "GOV.UK: National Minimum Wage and National Living Wage rates", "url": "https://www.gov.uk/national-minimum-wage-rates" }, { "title": "GOV.UK: Payslips", "url": "https://www.gov.uk/payslips" }],
+        "checked_on": "2026-11-04",
+        "law": ["nmw-2026"]
+      }
+    }
+  },
+  {
+    "id": "EMP.BENEFITS",
+    "title": "Other benefits",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "You are also entitled to these benefits: {{benefits.other}}.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(4)(da)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.DEDUCTIONS",
+    "title": "Deductions from pay",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "We will only deduct money from your pay where the law requires or allows it, or where you have agreed in writing before the deduction is made. You agree that we may recover any overpayment of wages or expenses from your pay.\n\nWe will not make you pay for your uniform, your SIA licence or equipment we require you to use, through deductions or otherwise, if that would take your pay below the National Minimum Wage for the hours you worked.",
+        "sources": [{ "title": "GOV.UK: Deductions from your pay", "url": "https://www.gov.uk/understanding-your-pay/deductions-from-your-pay" }, { "title": "Employment Rights Act 1996, section 13", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/13" }, { "title": "Employment Rights (Northern Ireland) Order 1996, Article 45", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/45" }],
+        "checked_on": "2026-11-04",
+        "law": ["nmw-2026"]
+      }
+    }
+  },
+  {
+    "id": "EMP.HOLIDAY.STATUTORY",
+    "title": "Holiday: statutory entitlement",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "Your holiday year starts on {{holiday.year_start}}. You are entitled to the statutory minimum of 5.6 weeks' paid holiday in each holiday year, worked out pro rata if you work part of a year. Bank and public holidays count towards this entitlement. If you work on one, you take the time off on another day.\n\nAsk for holiday at least {{holiday.notice}} in advance. We may refuse a request for operational reasons, or ask you to take holiday at particular times, by giving the notice the law requires.\n\nYour holiday pay is based on your normal pay, including regular overtime and allowances, as the law requires. You may not carry holiday into the next holiday year unless the law allows it, for example where sickness or family leave stopped you taking it.\n\nWhen your employment ends we will pay you for holiday you have built up but not taken. If you have taken more than you built up, we will deduct the difference from your final pay.",
+        "sources": [{ "title": "GOV.UK: Holiday entitlement", "url": "https://www.gov.uk/holiday-entitlement-rights" }, { "title": "Working Time Regulations 1998", "url": "https://www.legislation.gov.uk/uksi/1998/1833/contents" }],
+        "checked_on": "2026-11-04",
+        "law": ["wtr-rolled-up-holiday"]
+      },
+      "ni": {
+        "body": "Your holiday year starts on {{holiday.year_start}}. You are entitled to the statutory minimum of 5.6 weeks' paid holiday in each holiday year under the Working Time Regulations (Northern Ireland) 2016, worked out pro rata if you work part of a year. Bank and public holidays in Northern Ireland count towards this entitlement. If you work on one, you take the time off on another day.\n\nAsk for holiday at least {{holiday.notice}} in advance. We may refuse a request for operational reasons, or ask you to take holiday at particular times, by giving the notice the law requires.\n\nYour holiday pay is based on your normal pay, including regular overtime and allowances, as the law requires. You may not carry holiday into the next holiday year unless the law allows it, for example where sickness or family leave stopped you taking it.\n\nWhen your employment ends we will pay you for holiday you have built up but not taken. If you have taken more than you built up, we will deduct the difference from your final pay.",
+        "sources": [{ "title": "nidirect: Holiday entitlements", "url": "https://www.nidirect.gov.uk/articles/holiday-entitlements" }, { "title": "Working Time Regulations (Northern Ireland) 2016", "url": "https://www.legislation.gov.uk/nisr/2016/49/contents" }],
+        "checked_on": "2026-11-04",
+        "law": ["ni-wtr-2016"]
+      }
+    }
+  },
+  {
+    "id": "EMP.HOLIDAY.ENHANCED",
+    "title": "Holiday: enhanced entitlement",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "Your holiday year starts on {{holiday.year_start}}. You are entitled to {{holiday.days}} days' paid holiday in each holiday year, including bank and public holidays, worked out pro rata if you work part of a year. This is never less than the statutory minimum.\n\nAsk for holiday at least {{holiday.notice}} in advance. We may refuse a request for operational reasons, or ask you to take holiday at particular times, by giving the notice the law requires.\n\nYour holiday pay is based on your normal pay, including regular overtime and allowances, as the law requires for the statutory part of your holiday. Holiday above the statutory minimum that you have not taken by the end of the holiday year is lost unless we agree otherwise in writing.\n\nWhen your employment ends we will pay you for holiday you have built up but not taken. If you have taken more than you built up, we will deduct the difference from your final pay.",
+        "sources": [{ "title": "GOV.UK: Holiday entitlement", "url": "https://www.gov.uk/holiday-entitlement-rights" }, { "title": "nidirect: Holiday entitlements", "url": "https://www.nidirect.gov.uk/articles/holiday-entitlements" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.SICK.SSP",
+    "title": "Sickness: Statutory Sick Pay only",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "If you cannot work because you are ill or injured, tell {{sick.notify}} as early as you can, and before your shift starts. For short absences you complete a self-certificate when you return. For longer absences, beyond the statutory self-certification period, you must give us a fit note.\n\nYou will receive Statutory Sick Pay when you qualify for it. There is no further company sick pay.",
+        "sources": [{ "title": "GOV.UK: Statutory Sick Pay", "url": "https://www.gov.uk/statutory-sick-pay" }, { "title": "GOV.UK: Make Work Pay timeline", "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update" }],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-ssp-day-one"]
+      },
+      "ni": {
+        "body": "If you cannot work because you are ill or injured, tell {{sick.notify}} as early as you can, and before your shift starts. For short absences you complete a self-certificate when you return. For longer absences, beyond the statutory self-certification period, you must give us a fit note.\n\nYou will receive Statutory Sick Pay when you qualify for it under the rules that apply in Northern Ireland. There is no further company sick pay.",
+        "sources": [{ "title": "nidirect: Statutory Sick Pay", "url": "https://www.nidirect.gov.uk/articles/statutory-sick-pay" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.SICK.COMPANY",
+    "title": "Sickness: company sick pay",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "If you cannot work because you are ill or injured, tell {{sick.notify}} as early as you can, and before your shift starts. For short absences you complete a self-certificate when you return. For longer absences, beyond the statutory self-certification period, you must give us a fit note.\n\nYou will receive company sick pay as follows: {{sick.company_terms}}. Company sick pay includes any Statutory Sick Pay you are entitled to, and you will always receive at least Statutory Sick Pay when you qualify for it.",
+        "sources": [{ "title": "GOV.UK: Statutory Sick Pay", "url": "https://www.gov.uk/statutory-sick-pay" }, { "title": "nidirect: Statutory Sick Pay", "url": "https://www.nidirect.gov.uk/articles/statutory-sick-pay" }],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-ssp-day-one"]
+      }
+    }
+  },
+  {
+    "id": "EMP.PENSION",
+    "title": "Pension",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "If you are eligible, we will enrol you in our workplace pension scheme ({{pension.scheme}}) as required by the Pensions Act 2008, and pay at least the minimum employer contributions the law requires. You may opt out or rejoin as the scheme rules allow. The scheme will send you its own information.",
+        "sources": [{ "title": "GOV.UK: Workplace pensions", "url": "https://www.gov.uk/workplace-pensions" }, { "title": "Pensions Act 2008", "url": "https://www.legislation.gov.uk/ukpga/2008/30/contents" }],
+        "checked_on": "2026-11-04",
+        "law": ["pensions-auto-enrolment"]
+      },
+      "ni": {
+        "body": "If you are eligible, we will enrol you in our workplace pension scheme ({{pension.scheme}}) as required by the Pensions (No. 2) Act (Northern Ireland) 2008, and pay at least the minimum employer contributions the law requires. You may opt out or rejoin as the scheme rules allow. The scheme will send you its own information.",
+        "sources": [{ "title": "Pensions (No. 2) Act (Northern Ireland) 2008", "url": "https://www.legislation.gov.uk/nia/2008/13/contents" }, { "title": "nidirect: Workplace pensions", "url": "https://www.nidirect.gov.uk/articles/workplace-pensions" }],
+        "checked_on": "2026-11-04",
+        "law": ["pensions-auto-enrolment"]
+      }
+    }
+  },
+  {
+    "id": "EMP.FAMILY",
+    "title": "Family leave and other time off",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "You may be entitled to statutory leave and pay for maternity, paternity, adoption, shared parental leave, parental bereavement and unpaid parental leave, and to time off for dependants and other statutory reasons. These are given in line with the law and our policies, which are available from your manager.",
+        "sources": [{ "title": "GOV.UK: Time off work", "url": "https://www.gov.uk/browse/working/time-off" }, { "title": "nidirect: Employment rights", "url": "https://www.nidirect.gov.uk/information-and-services/employment-rights" }],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-day-one-family-leave", "era2025-bereavement-leave"]
+      }
+    }
+  },
+  {
+    "id": "EMP.TRAINING",
+    "title": "Training",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "You must complete the training we require for your role: {{training.required}}. We pay for this training and the time you spend on it is working time. Any other training is voluntary.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(4)(l)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.HARASSMENT",
+    "title": "Harassment",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "We do not tolerate harassment, including sexual harassment, by anyone: colleagues, managers, clients, customers or members of the public. We take all reasonable steps to prevent it. Report any incident to {{grievance.raise_with}} or through the incident procedure, and we will support you.",
+        "sources": [{ "title": "GOV.UK: Make Work Pay timeline", "url": "https://www.gov.uk/government/publications/implementing-the-plan-to-make-work-pay-and-employment-rights-act/plan-to-make-work-pay-and-employment-rights-act-timeline-update" }, { "title": "GOV.UK: Workplace bullying and harassment", "url": "https://www.gov.uk/workplace-bullying-and-harassment" }],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-harassment-all-reasonable-steps"]
+      }
+    }
+  },
+  {
+    "id": "EMP.DISCIPLINE",
+    "title": "Disciplinary rules",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "Our disciplinary rules and procedure are in {{discipline.where}}. They follow the Acas Code of Practice on Disciplinary and Grievance Procedures and do not form part of this contract.\n\nIf you disagree with a disciplinary decision, you may appeal in writing to {{discipline.appeal_to}}.",
+        "sources": [{ "title": "Acas Code of Practice on disciplinary and grievance procedures", "url": "https://www.acas.org.uk/acas-code-of-practice-on-disciplinary-and-grievance-procedures" }],
+        "checked_on": "2026-11-04"
+      },
+      "ni": {
+        "body": "Our disciplinary rules and procedure are in {{discipline.where}}. They follow the Labour Relations Agency Code of Practice on Disciplinary and Grievance Procedures and do not form part of this contract.\n\nIf you disagree with a disciplinary decision, you may appeal in writing to {{discipline.appeal_to}}.",
+        "sources": [{ "title": "Labour Relations Agency: Code of Practice on Disciplinary and Grievance Procedures", "url": "https://www.lra.org.uk/resources/code-practice/code-practice-disciplinary-and-grievance-procedures" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.GRIEVANCE",
+    "title": "Grievances",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "If you have a grievance about your employment, raise it with {{grievance.raise_with}}, in writing if you can. The grievance procedure is in {{discipline.where}}. It does not form part of this contract.",
+        "sources": [{ "title": "Acas Code of Practice on disciplinary and grievance procedures", "url": "https://www.acas.org.uk/acas-code-of-practice-on-disciplinary-and-grievance-procedures" }, { "title": "Labour Relations Agency: Code of Practice on Disciplinary and Grievance Procedures", "url": "https://www.lra.org.uk/resources/code-practice/code-practice-disciplinary-and-grievance-procedures" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.NOTICE.STATUTORY",
+    "title": "Notice: statutory minimum",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "After any probationary period, we will give you the statutory minimum notice to end your employment: one week once you have worked for us for one month, rising to one week for each complete year of service, up to a maximum of twelve weeks (Employment Rights Act 1996, section 86). You must give us {{notice.employee}} notice in writing.\n\nWe may pay you instead of some or all of your notice. We may end your employment without notice for gross misconduct, after following our disciplinary procedure.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 86", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/86" }, { "title": "GOV.UK: Notice periods", "url": "https://www.gov.uk/staff-redundant/notice-periods" }],
+        "checked_on": "2026-11-04"
+      },
+      "ni": {
+        "body": "After any probationary period, we will give you the statutory minimum notice to end your employment: one week once you have worked for us for one month, rising to one week for each complete year of service, up to a maximum of twelve weeks (Employment Rights (Northern Ireland) Order 1996, Article 118). You must give us {{notice.employee}} notice in writing.\n\nWe may pay you instead of some or all of your notice. We may end your employment without notice for gross misconduct, after following our disciplinary procedure.",
+        "sources": [{ "title": "Employment Rights (Northern Ireland) Order 1996, Article 118", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/118" }, { "title": "nidirect: Notice periods", "url": "https://www.nidirect.gov.uk/articles/notice-periods" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.NOTICE.ENHANCED",
+    "title": "Notice: longer than statutory",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "After any probationary period, we will give you {{notice.employer}} notice in writing to end your employment, or the statutory minimum notice if that is longer. You must give us {{notice.employee}} notice in writing.\n\nWe may pay you instead of some or all of your notice. We may end your employment without notice for gross misconduct, after following our disciplinary procedure.",
+        "sources": [{ "title": "GOV.UK: Notice periods", "url": "https://www.gov.uk/staff-redundant/notice-periods" }, { "title": "nidirect: Notice periods", "url": "https://www.nidirect.gov.uk/articles/notice-periods" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.RESTRICT.NONSOLICIT",
+    "title": "Client non-solicitation",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "For {{restrict.period}} after your employment ends you must not, without our written consent, solicit or deal with any client of the Company that you worked for or had material dealings with in the final year of your employment, in order to provide security services to that client in competition with us.\n\nThis restriction protects our client relationships. It does not stop you working in the security industry.",
+        "sources": [{ "title": "Acas: Employment contracts", "url": "https://www.acas.org.uk/employment-contracts" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "EMP.COLLECTIVE.NONE",
+    "title": "Collective agreements: none",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "No collective agreement directly affects your terms and conditions of employment.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(4)(j)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }, { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" }],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-union-right-statement"]
+      }
+    }
+  },
+  {
+    "id": "EMP.COLLECTIVE.LISTED",
+    "title": "Collective agreements: listed",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "These collective agreements directly affect your terms and conditions of employment: {{collective.agreements}}.",
+        "sources": [{ "title": "Employment Rights Act 1996, section 1(4)(j)", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/1" }, { "title": "Employment Rights (Northern Ireland) Order 1996, Article 33", "url": "https://www.legislation.gov.uk/nisi/1996/1919/article/33" }],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-union-right-statement"]
+      }
+    }
+  },
+  {
+    "id": "EMP.CHANGES",
+    "title": "Changes to this contract",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "Changes to this contract need your written agreement, except changes the law requires. We will not use our policies to change your pay, hours, holiday, place of work or other core terms. We will tell you in writing about any change to your particulars as early as we can, and in any event within the time the law requires.",
+        "sources": [{ "title": "Acas: Changing an employment contract", "url": "https://www.acas.org.uk/changing-an-employment-contract" }, { "title": "Employment Rights Act 1996, section 4", "url": "https://www.legislation.gov.uk/ukpga/1996/18/section/4" }],
+        "checked_on": "2026-11-04",
+        "law": ["era2025-fire-and-rehire"]
+      }
+    }
+  },
+  {
+    "id": "EMP.ENTIRE",
+    "title": "Whole agreement",
+    "subject": "employment",
+    "versions": {
+      "all": {
+        "body": "This contract, including Schedule 1 and any documents it says form part of it, is the whole agreement between you and us about your employment. It replaces any earlier agreement or arrangement. Our policies and procedures do not form part of this contract unless it says so, and we may update them.",
+        "sources": [{ "title": "Acas: Employment contracts", "url": "https://www.acas.org.uk/employment-contracts" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  }
+]

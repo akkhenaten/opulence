@@ -1,0 +1,224 @@
+{
+  "id": "permanent",
+  "version": 1,
+  "title": "Permanent employment",
+  "summary": "An employee on an open-ended contract, full-time or part-time, with guaranteed hours.",
+  "party": "person",
+  "engagement_type": "employee",
+  "doc_title": "Contract of Employment",
+  "jurisdictions": ["ew", "sc", "ni"],
+  "law": ["era2025-unfair-dismissal-six-months", "era2025-flexible-working", "ni-good-jobs-bill"],
+  "decision": { "hint": "You control when, where and how the work is done, you guarantee hours, and there is no end date." },
+  "sections": [
+    { "id": "parties", "title": "Parties" },
+    { "id": "start", "title": "Start and probation" },
+    { "id": "job", "title": "Job" },
+    { "id": "place", "title": "Place of work" },
+    { "id": "hours", "title": "Hours" },
+    { "id": "pay", "title": "Pay and benefits" },
+    { "id": "holiday", "title": "Holiday" },
+    { "id": "sickness", "title": "Sickness and pension" },
+    { "id": "conduct", "title": "Training, discipline and grievances" },
+    { "id": "ending", "title": "Notice and restrictions" },
+    { "id": "other", "title": "Other terms" }
+  ],
+  "questions": [
+    { "id": "parties.employer_name", "label": "Employer", "section": "parties", "type": "text", "prefill": "company.name", "help": "The legal name of the employing company, exactly as registered." },
+    { "id": "parties.employer_address", "label": "Employer address", "section": "parties", "type": "text", "prefill": "company.address" },
+    { "id": "parties.employer_number", "label": "Company number", "section": "parties", "type": "text", "prefill": "company.number", "required": false },
+    { "id": "parties.employee_name", "label": "Employee", "section": "parties", "type": "text", "prefill": "officer.name" },
+    { "id": "parties.employee_address", "label": "Employee address", "section": "parties", "type": "text", "prefill": "officer.address" },
+
+    { "id": "start.date", "label": "Start date", "section": "start", "type": "date", "prefill": "officer.start_date" },
+    { "id": "start.continuous", "label": "Continuous employment", "section": "start", "type": "choice", "help": "Earlier employment can count, for example after a TUPE transfer or a move from an associated employer.",
+      "options": [{ "value": "new", "label": "Starts with this job" }, { "value": "earlier", "label": "Began on an earlier date" }], "schedule": false },
+    { "id": "start.continuous_date", "label": "Continuous employment began", "section": "start", "type": "date", "showIf": { "q": "start.continuous", "eq": "earlier" } },
+    { "id": "probation.used", "label": "Probationary period", "section": "start", "type": "yesno", "schedule": false },
+    { "id": "probation.length", "label": "Probation length", "section": "start", "type": "text", "help": "For example \"three months\". Probation does not change statutory rights.", "showIf": { "q": "probation.used", "eq": "yes" } },
+    { "id": "probation.notice", "label": "Notice during probation", "section": "start", "type": "text", "help": "For example \"one week's\". The statutory minimum still applies if it is longer.", "showIf": { "q": "probation.used", "eq": "yes" } },
+
+    { "id": "job.title", "label": "Job title", "section": "job", "type": "text", "prefill": "officer.role" },
+    { "id": "job.duties", "label": "Main duties", "section": "job", "type": "textarea", "help": "A short description, for example \"access control, patrols and incident reporting at client sites\"." },
+    { "id": "job.reports_to", "label": "Reports to", "section": "job", "type": "text", "help": "A job title rather than a name, for example \"the Operations Manager\"." },
+    { "id": "job.licensable", "label": "SIA-licensable role", "section": "job", "type": "yesno", "schedule": false },
+    { "id": "job.licence", "label": "SIA licence type", "section": "job", "type": "text", "prefill": "officer.sia_type", "showIf": { "q": "job.licensable", "eq": "yes" } },
+
+    { "id": "place.type", "label": "Where the work happens", "section": "place", "type": "choice", "schedule": false,
+      "options": [{ "value": "fixed", "label": "One site" }, { "value": "various", "label": "Client sites in an area" }] },
+    { "id": "place.address", "label": "Place of work", "section": "place", "type": "text", "showIf": { "q": "place.type", "eq": "fixed" } },
+    { "id": "place.area", "label": "Area of work", "section": "place", "type": "text", "help": "For example \"Greater Manchester and Cheshire\".", "showIf": { "q": "place.type", "eq": "various" } },
+    { "id": "place.abroad", "label": "Work outside the UK for more than a month", "section": "place", "type": "yesno", "schedule": false },
+    { "id": "place.abroad_details", "label": "Work outside the UK", "section": "place", "type": "textarea", "help": "Period, currency of pay, extra pay or benefits, and terms on return.", "showIf": { "q": "place.abroad", "eq": "yes" } },
+
+    { "id": "hours.pattern", "label": "Working pattern", "section": "hours", "type": "choice", "schedule": false,
+      "options": [{ "value": "fixed", "label": "Fixed days and times" }, { "value": "rota", "label": "Guaranteed hours on a rota" }] },
+    { "id": "hours.weekly", "label": "Guaranteed hours a week", "section": "hours", "type": "number" },
+    { "id": "hours.days", "label": "Days and times", "section": "hours", "type": "text", "help": "For example \"Monday to Friday, 08:00 to 16:00\".", "showIf": { "q": "hours.pattern", "eq": "fixed" } },
+    { "id": "hours.rota_notice", "label": "Rota published in advance", "section": "hours", "type": "text", "help": "For example \"two weeks\".", "showIf": { "q": "hours.pattern", "eq": "rota" } },
+    { "id": "hours.cancellation", "label": "Short-notice cancellation", "section": "hours", "type": "text", "help": "What you pay when a rostered shift is cancelled or cut short at short notice, for example \"we will pay you for the hours of the shift as rostered\".", "showIf": { "q": "hours.pattern", "eq": "rota" } },
+    { "id": "hours.night", "label": "Includes night work", "section": "hours", "type": "yesno" },
+    { "id": "overtime.basis", "label": "Overtime", "section": "hours", "type": "choice",
+      "options": [{ "value": "basic", "label": "At the basic rate", "text": "basic rate" }, { "value": "enhanced", "label": "At an enhanced rate", "text": "enhanced rate" }] },
+    { "id": "overtime.rate", "label": "Overtime rate", "section": "hours", "type": "text", "help": "For example \"time and a quarter\" or \"£16.50 an hour\".", "showIf": { "q": "overtime.basis", "eq": "enhanced" } },
+
+    { "id": "pay.basis", "label": "Pay basis", "section": "pay", "type": "choice", "schedule": false,
+      "options": [{ "value": "hourly", "label": "Hourly rate" }, { "value": "salary", "label": "Annual salary" }] },
+    { "id": "pay.rate", "label": "Hourly rate", "section": "pay", "type": "money", "help": "Gross, before deductions.", "showIf": { "q": "pay.basis", "eq": "hourly" } },
+    { "id": "pay.salary", "label": "Annual salary", "section": "pay", "type": "money", "help": "Gross, before deductions.", "showIf": { "q": "pay.basis", "eq": "salary" } },
+    { "id": "pay.frequency", "label": "Paid", "section": "pay", "type": "choice",
+      "options": [{ "value": "weekly", "label": "Weekly", "text": "weekly" }, { "value": "fortnightly", "label": "Every two weeks", "text": "every two weeks" }, { "value": "four_weekly", "label": "Every four weeks", "text": "every four weeks" }, { "value": "monthly", "label": "Monthly", "text": "monthly" }] },
+    { "id": "pay.day", "label": "Pay day", "section": "pay", "type": "text", "help": "For example \"the last working day of the month\"." },
+    { "id": "benefits.vehicle", "label": "Company vehicle", "section": "pay", "type": "yesno" },
+    { "id": "vehicle.details", "label": "Vehicle", "section": "pay", "type": "text", "help": "For example \"a marked patrol van\".", "showIf": { "q": "benefits.vehicle", "eq": "yes" } },
+    { "id": "vehicle.private_use", "label": "Private use of the vehicle", "section": "pay", "type": "text", "help": "For example \"not allowed\" or \"allowed within the UK\".", "showIf": { "q": "benefits.vehicle", "eq": "yes" } },
+    { "id": "benefits.other", "label": "Other benefits", "section": "pay", "type": "textarea", "required": false, "help": "Leave blank if none." },
+
+    { "id": "holiday.basis", "label": "Holiday", "section": "holiday", "type": "choice", "schedule": false,
+      "options": [{ "value": "statutory", "label": "Statutory 5.6 weeks" }, { "value": "enhanced", "label": "More than statutory" }] },
+    { "id": "holiday.days", "label": "Holiday days a year", "section": "holiday", "type": "number", "help": "Including bank holidays. For a five-day week the statutory minimum is 28.", "showIf": { "q": "holiday.basis", "eq": "enhanced" } },
+    { "id": "holiday.year_start", "label": "Holiday year starts", "section": "holiday", "type": "text", "help": "For example \"1 January\"." },
+    { "id": "holiday.notice", "label": "Notice for holiday requests", "section": "holiday", "type": "text", "help": "For example \"four weeks\"." },
+
+    { "id": "sick.basis", "label": "Sick pay", "section": "sickness", "type": "choice", "schedule": false,
+      "options": [{ "value": "ssp", "label": "Statutory Sick Pay only" }, { "value": "company", "label": "Company sick pay" }] },
+    { "id": "sick.company_terms", "label": "Company sick pay", "section": "sickness", "type": "textarea", "showIf": { "q": "sick.basis", "eq": "company" } },
+    { "id": "sick.notify", "label": "Report sickness to", "section": "sickness", "type": "text", "help": "For example \"the control room by phone\"." },
+    { "id": "pension.scheme", "label": "Pension scheme", "section": "sickness", "type": "text", "help": "For example \"NEST\"." },
+
+    { "id": "training.required", "label": "Required training", "section": "conduct", "type": "textarea", "help": "Training the employee must complete, for example \"induction, site familiarisation and annual first aid refresher\"." },
+    { "id": "discipline.where", "label": "Disciplinary and grievance procedure", "section": "conduct", "type": "text", "help": "Where it is kept, for example \"the staff handbook\"." },
+    { "id": "discipline.appeal_to", "label": "Disciplinary appeals to", "section": "conduct", "type": "text", "help": "A job title, for example \"a director\"." },
+    { "id": "grievance.raise_with", "label": "Raise grievances with", "section": "conduct", "type": "text", "help": "A job title, for example \"your line manager\"." },
+
+    { "id": "notice.basis", "label": "Notice from the Company", "section": "ending", "type": "choice", "schedule": false,
+      "options": [{ "value": "statutory", "label": "Statutory minimum" }, { "value": "enhanced", "label": "Longer than statutory" }] },
+    { "id": "notice.employer", "label": "Notice from the Company", "section": "ending", "type": "text", "help": "For example \"one month's\".", "showIf": { "q": "notice.basis", "eq": "enhanced" } },
+    { "id": "notice.employee", "label": "Notice from the employee", "section": "ending", "type": "text", "help": "For example \"one week's\"." },
+    { "id": "restrict.used", "label": "Client non-solicitation", "section": "ending", "type": "yesno", "schedule": false, "help": "Only use this where the employee builds real relationships with clients." },
+    { "id": "restrict.period", "label": "Non-solicitation period", "section": "ending", "type": "text", "help": "Keep it short, for example \"six months\".", "showIf": { "q": "restrict.used", "eq": "yes" } },
+
+    { "id": "collective.exists", "label": "Collective agreements", "section": "other", "type": "yesno", "schedule": false },
+    { "id": "collective.agreements", "label": "Collective agreements", "section": "other", "type": "textarea", "showIf": { "q": "collective.exists", "eq": "yes" } }
+  ],
+  "clauses": [
+    { "id": "parties", "title": "Parties", "slots": [{ "slot": "parties", "clauses": ["EMP.PARTIES"] }] },
+    { "id": "start", "title": "Start of employment", "slots": [
+      { "slot": "start.date", "clauses": ["EMP.START"] },
+      { "slot": "start.continuous", "clauses": ["EMP.CONTINUOUS.NEW", "EMP.CONTINUOUS.EARLIER"], "choose": [{ "when": { "q": "start.continuous", "eq": "earlier" }, "clause": "EMP.CONTINUOUS.EARLIER" }] },
+      { "slot": "start.probation", "clauses": ["EMP.PROBATION"], "include": { "q": "probation.used", "eq": "yes" }, "why": "Included because there is a probationary period" }
+    ] },
+    { "id": "job", "title": "Your job", "slots": [
+      { "slot": "job", "clauses": ["EMP.JOB"] },
+      { "slot": "job.licence", "clauses": ["SEC.LICENCE"], "include": { "q": "job.licensable", "eq": "yes" }, "why": "Included because the role is SIA-licensable" },
+      { "slot": "job.screening", "clauses": ["SEC.SCREENING"] }
+    ] },
+    { "id": "place", "title": "Place of work", "slots": [
+      { "slot": "place", "clauses": ["EMP.PLACE.FIXED", "EMP.PLACE.VARIOUS"], "choose": [{ "when": { "q": "place.type", "eq": "various" }, "clause": "EMP.PLACE.VARIOUS" }] },
+      { "slot": "place.abroad", "clauses": ["EMP.ABROAD"], "include": { "q": "place.abroad", "eq": "yes" }, "why": "Included because the work is partly outside the UK" }
+    ] },
+    { "id": "hours", "title": "Hours of work", "slots": [
+      { "slot": "hours", "clauses": ["EMP.HOURS.FIXED", "EMP.HOURS.ROTA"], "choose": [{ "when": { "q": "hours.pattern", "eq": "rota" }, "clause": "EMP.HOURS.ROTA" }] },
+      { "slot": "hours.change", "clauses": ["EMP.HOURS.CHANGE"] },
+      { "slot": "hours.rest", "clauses": ["SEC.REST"] },
+      { "slot": "hours.night", "clauses": ["EMP.NIGHT"], "include": { "q": "hours.night", "eq": "yes" }, "why": "Included because the work includes night work" },
+      { "slot": "hours.overtime", "clauses": ["EMP.OVERTIME.BASIC", "EMP.OVERTIME.ENHANCED"], "choose": [{ "when": { "q": "overtime.basis", "eq": "enhanced" }, "clause": "EMP.OVERTIME.ENHANCED" }] }
+    ] },
+    { "id": "pay", "title": "Pay", "slots": [
+      { "slot": "pay", "clauses": ["EMP.PAY.HOURLY", "EMP.PAY.SALARY"], "choose": [{ "when": { "q": "pay.basis", "eq": "salary" }, "clause": "EMP.PAY.SALARY" }] },
+      { "slot": "pay.deductions", "clauses": ["EMP.DEDUCTIONS"] },
+      { "slot": "pay.benefits", "clauses": ["EMP.BENEFITS"], "include": { "q": "benefits.other" }, "why": "Included because other benefits are listed" }
+    ] },
+    { "id": "holiday", "title": "Holiday", "slots": [
+      { "slot": "holiday", "clauses": ["EMP.HOLIDAY.STATUTORY", "EMP.HOLIDAY.ENHANCED"], "choose": [{ "when": { "q": "holiday.basis", "eq": "enhanced" }, "clause": "EMP.HOLIDAY.ENHANCED" }] }
+    ] },
+    { "id": "sickness", "title": "Sickness absence", "slots": [
+      { "slot": "sickness", "clauses": ["EMP.SICK.SSP", "EMP.SICK.COMPANY"], "choose": [{ "when": { "q": "sick.basis", "eq": "company" }, "clause": "EMP.SICK.COMPANY" }] }
+    ] },
+    { "id": "leave", "title": "Pension and other leave", "slots": [
+      { "slot": "pension", "clauses": ["EMP.PENSION"] },
+      { "slot": "leave.family", "clauses": ["EMP.FAMILY"] }
+    ] },
+    { "id": "conduct", "title": "Training and conduct", "slots": [
+      { "slot": "training", "clauses": ["EMP.TRAINING"] },
+      { "slot": "conduct", "clauses": ["SEC.CONDUCT"] },
+      { "slot": "conduct.harassment", "clauses": ["EMP.HARASSMENT"] },
+      { "slot": "conduct.uniform", "clauses": ["SEC.UNIFORM"] },
+      { "slot": "conduct.incidents", "clauses": ["SEC.INCIDENT"] }
+    ] },
+    { "id": "vehicle", "title": "Company vehicle", "required": false, "include": { "q": "benefits.vehicle", "eq": "yes" }, "slots": [
+      { "slot": "vehicle", "clauses": ["VEH.COMPANY_VEHICLE"], "why": "Included because a company vehicle is provided" }
+    ] },
+    { "id": "discipline", "title": "Discipline and grievances", "slots": [
+      { "slot": "discipline", "clauses": ["EMP.DISCIPLINE"] },
+      { "slot": "grievance", "clauses": ["EMP.GRIEVANCE"] }
+    ] },
+    { "id": "notice", "title": "Ending your employment", "slots": [
+      { "slot": "notice", "clauses": ["EMP.NOTICE.STATUTORY", "EMP.NOTICE.ENHANCED"], "choose": [{ "when": { "q": "notice.basis", "eq": "enhanced" }, "clause": "EMP.NOTICE.ENHANCED" }] }
+    ] },
+    { "id": "confidentiality", "title": "Confidentiality and data", "slots": [
+      { "slot": "confidential", "clauses": ["SEC.CONFIDENTIAL"] },
+      { "slot": "data", "clauses": ["SEC.DATA"] }
+    ] },
+    { "id": "restrictions", "title": "After your employment", "required": false, "slots": [
+      { "slot": "restrict.nonsolicit", "clauses": ["EMP.RESTRICT.NONSOLICIT"], "include": { "q": "restrict.used", "eq": "yes" }, "why": "Included because a client non-solicitation restriction was chosen" }
+    ] },
+    { "id": "general", "title": "General", "slots": [
+      { "slot": "collective", "clauses": ["EMP.COLLECTIVE.NONE", "EMP.COLLECTIVE.LISTED"], "choose": [{ "when": { "q": "collective.exists", "eq": "yes" }, "clause": "EMP.COLLECTIVE.LISTED" }] },
+      { "slot": "changes", "clauses": ["EMP.CHANGES"] },
+      { "slot": "entire", "clauses": ["EMP.ENTIRE"] },
+      { "slot": "third_party", "clauses": ["GEN.THIRD_PARTY"] },
+      { "slot": "law.governing", "clauses": ["GEN.LAW.EW"] }
+    ] }
+  ],
+  "overrides": {
+    "sc": { "law.governing": { "clauses": ["GEN.LAW.SC"] } },
+    "ni": { "law.governing": { "clauses": ["GEN.LAW.NI"] } }
+  },
+  "rules": [
+    {
+      "id": "hours-cut-client-site", "severity": "blocker",
+      "when": { "wording": "(reduc|cut|lower|withdraw)\\w*\\s+(your\\s+)?(guaranteed\\s+|contracted\\s+)?(hours|shifts)[^.]{0,160}(client|customer|site|contract (ends|is lost|is not renewed))" },
+      "message": "The wording lets the Company cut guaranteed hours because a client or site changes. Guaranteed hours can only change with the employee's written agreement. Offer other work, agree a change in writing, or follow a redundancy process instead.",
+      "jump": { "slot": "hours.change" }, "law": ["era2025-fire-and-rehire"]
+    },
+    {
+      "id": "nmw-check", "severity": "review",
+      "when": { "all": [{ "q": "pay.basis", "eq": "hourly" }, { "q": "pay.rate", "lt": 12.71 }] },
+      "message": "This rate is below the National Living Wage for workers aged 21 and over (£12.71 from 1 April 2026). Check the employee's age band, and remember that unpaid time and uniform costs count against it.",
+      "jump": { "question": "pay.rate" }, "law": ["nmw-2026"]
+    },
+    {
+      "id": "holiday-below-statutory", "severity": "review",
+      "when": { "all": [{ "q": "holiday.basis", "eq": "enhanced" }, { "q": "holiday.days", "lt": 28 }] },
+      "message": "Fewer than 28 days is only lawful if the employee works fewer than five days a week, because 5.6 weeks is the statutory minimum. Check the number for this working pattern.",
+      "jump": { "question": "holiday.days" }
+    },
+    {
+      "id": "hours-over-48", "severity": "review",
+      "when": { "q": "hours.weekly", "gt": 48 },
+      "message": "These hours are above the 48-hour average. That needs a separate, voluntary opt-out signed by the employee. It must not be a condition of the job.",
+      "jump": { "question": "hours.weekly" }, "law": ["wtr-security-special-case"]
+    },
+    {
+      "id": "restriction-review", "severity": "review",
+      "when": { "q": "restrict.used", "eq": "yes" },
+      "message": "Restrictions after employment are only enforceable if they protect a real business interest and go no further than needed. Keep the period short and the scope to clients the employee actually dealt with.",
+      "jump": { "question": "restrict.period" }
+    },
+    {
+      "id": "ni-written-statement-timing", "severity": "note",
+      "when": { "jurisdiction": "ni" },
+      "message": "In Northern Ireland the written statement is due within two months of the start date. Sending it before the first day is still the best practice.",
+      "law": ["ni-written-statement"]
+    }
+  ],
+  "supporting": [
+    { "title": "Staff handbook, including the disciplinary and grievance procedure", "contractual": false },
+    { "title": "Privacy notice for staff", "contractual": false },
+    { "title": "Anti-harassment policy", "contractual": false },
+    { "title": "Health and safety policy", "contractual": false },
+    { "title": "Assignment instructions for each site", "contractual": false },
+    { "title": "Company vehicle policy", "contractual": true, "when": { "q": "benefits.vehicle", "eq": "yes" } },
+    { "title": "48-hour opt-out agreement (separate and voluntary)", "contractual": false, "when": { "q": "hours.weekly", "gt": 48 } }
+  ]
+}

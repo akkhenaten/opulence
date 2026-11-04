@@ -1,0 +1,107 @@
+[
+  {
+    "id": "SEC.LICENCE",
+    "title": "SIA licence",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "Your role is licensable under the Private Security Industry Act 2001 and needs a valid SIA licence ({{job.licence}}). You must:\n\n- keep that licence valid throughout your employment and wear or display it on duty where the law requires;\n- tell us straight away if your licence is suspended, revoked or made subject to conditions, or if you are charged with or convicted of any offence;\n- apply to renew it in good time before it expires.\n\nYou must not carry out licensable work without a valid licence. If you lose your licence, we will consider whether other suitable work is available. If none is, your employment may end.",
+        "sources": [{ "title": "GOV.UK: SIA licensing", "url": "https://www.gov.uk/guidance/sia-licensing" }, { "title": "Private Security Industry Act 2001", "url": "https://www.legislation.gov.uk/ukpga/2001/12/contents" }],
+        "checked_on": "2026-11-04",
+        "law": ["sia-licensing"]
+      }
+    }
+  },
+  {
+    "id": "SEC.SCREENING",
+    "title": "Screening and right to work",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "Your employment depends on satisfactory security screening in line with BS 7858, and on proof of your right to work in the UK. You must give us accurate information for screening and tell us about any change that affects it.\n\nIf screening cannot be completed satisfactorily, or you no longer have the right to work in the UK, we may end your employment.",
+        "sources": [{ "title": "GOV.UK: Right to work checks: an employer's guide", "url": "https://www.gov.uk/government/publications/right-to-work-checks-employers-guide" }, { "title": "GOV.UK: SIA Approved Contractor Scheme", "url": "https://www.gov.uk/guidance/approved-contractor-scheme" }],
+        "checked_on": "2026-11-04",
+        "law": ["right-to-work", "sia-acs-subcontracting"]
+      }
+    }
+  },
+  {
+    "id": "SEC.CONDUCT",
+    "title": "Conduct on duty",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "On duty you must follow the assignment instructions for each site, the client's site rules we tell you about, our reasonable instructions and the SIA's standards of behaviour.\n\nYou must not be under the influence of alcohol or drugs while working, and you must not accept gifts, payments or hospitality from clients, customers or the public without our permission.\n\nYou may only use force where it is lawful, necessary and reasonable, and you must report any use of force straight away.",
+        "sources": [{ "title": "GOV.UK: SIA standards of behaviour for security operatives", "url": "https://www.gov.uk/government/publications/standards-of-behaviour-for-security-operatives" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SEC.UNIFORM",
+    "title": "Uniform and equipment",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "We provide the uniform and equipment you need for your work, free of charge. You must wear the uniform on duty and keep it and the equipment in good condition. They remain our property, and you must return them when your employment ends.",
+        "sources": [{ "title": "GOV.UK: Calculating the minimum wage (uniform costs)", "url": "https://www.gov.uk/government/publications/calculating-the-minimum-wage" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SEC.INCIDENT",
+    "title": "Incidents and reports",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "Report every incident, accident, near miss, ejection or use of force to the control room or your supervisor straight away, and complete an incident report before your shift ends.\n\nRecords you make at work, including notebooks, reports and body-worn video, belong to us and to the client and may be used as evidence.",
+        "sources": [{ "title": "HSE: Reporting accidents and incidents at work (RIDDOR)", "url": "https://www.hse.gov.uk/riddor/" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SEC.REST",
+    "title": "Working time and rest",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "You are entitled to rest breaks, daily rest and weekly rest under the Working Time Regulations 1998. Security work that needs a permanent presence may be a special case where some of these rules apply differently. If so, you will receive equivalent compensatory rest.\n\nYou will not be required to work more than the statutory average weekly limit of 48 hours unless you choose to opt out in a separate written agreement. You may cancel an opt-out at any time by giving the notice it states.",
+        "sources": [{ "title": "GOV.UK: Rest breaks at work", "url": "https://www.gov.uk/rest-breaks-work" }, { "title": "GOV.UK: Maximum weekly working hours", "url": "https://www.gov.uk/maximum-weekly-working-hours" }, { "title": "Working Time Regulations 1998, regulations 21 and 24", "url": "https://www.legislation.gov.uk/uksi/1998/1833/contents" }],
+        "checked_on": "2026-11-04",
+        "law": ["wtr-security-special-case"]
+      },
+      "ni": {
+        "body": "You are entitled to rest breaks, daily rest and weekly rest under the Working Time Regulations (Northern Ireland) 2016. Security work that needs a permanent presence may be a special case where some of these rules apply differently. If so, you will receive equivalent compensatory rest.\n\nYou will not be required to work more than the statutory average weekly limit of 48 hours unless you choose to opt out in a separate written agreement. You may cancel an opt-out at any time by giving the notice it states.",
+        "sources": [{ "title": "Working Time Regulations (Northern Ireland) 2016", "url": "https://www.legislation.gov.uk/nisr/2016/49/contents" }, { "title": "nidirect: Working hours", "url": "https://www.nidirect.gov.uk/articles/working-hours" }],
+        "checked_on": "2026-11-04",
+        "law": ["ni-wtr-2016", "wtr-security-special-case"]
+      }
+    }
+  },
+  {
+    "id": "SEC.CONFIDENTIAL",
+    "title": "Confidentiality",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "During and after your employment you must keep confidential any information about our clients, their sites and security arrangements, alarm codes, keys, rotas, procedures and business that you learn through your work. You must return all keys, passes, codes and documents when asked and when your employment ends.\n\nNothing in this contract stops you making a protected disclosure (whistleblowing), reporting a crime, or co-operating with the police, a regulator or a court.",
+        "sources": [{ "title": "GOV.UK: Whistleblowing for employees", "url": "https://www.gov.uk/whistleblowing" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  },
+  {
+    "id": "SEC.DATA",
+    "title": "Personal data and CCTV",
+    "subject": "security",
+    "versions": {
+      "all": {
+        "body": "We use your personal data, including licence, screening and right-to-work information, in line with UK data protection law and our privacy notice for staff. CCTV and body-worn video may record you while you are on duty.\n\nYou must only use personal data you see at work, including CCTV images, for the purpose of your duties and as we instruct.",
+        "sources": [{ "title": "ICO: Employment practices and data protection", "url": "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/employment/" }],
+        "checked_on": "2026-11-04"
+      }
+    }
+  }
+]
