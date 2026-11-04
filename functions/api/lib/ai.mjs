@@ -56,8 +56,9 @@ export async function checkCap(module = 'ops') {
   }
 }
 
-const MODULE_NAMES = { ops: 'Ops AI', academy: 'Academy', toolbox: 'Toolbox', everyday: 'Everyday' };
+const MODULE_NAMES = { ops: 'Ops AI', academy: 'Academy', toolbox: 'Toolbox', everyday: 'Everyday', orb: 'Orb' };
 
+// system may be a string or an array of text blocks (so long, stable parts can carry cache_control)
 export async function claude({ model = SONNET, system, messages, tools, tool_choice, max_tokens = 1024, module = 'ops' }) {
   await checkCap(module);
   const ctrl = new AbortController();

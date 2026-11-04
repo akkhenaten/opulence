@@ -24,9 +24,11 @@ export function useScrollLock(on) {
       savedY = window.scrollY;
       if (isIOS) Object.assign(b, { position: 'fixed', top: `-${savedY}px`, left: '0', right: '0' });
       b.overflow = 'hidden';
+      document.documentElement.classList.add('scroll-locked');
     }
     return () => {
       if (--locks > 0) return;
+      document.documentElement.classList.remove('scroll-locked');
       Object.assign(b, { position: '', top: '', left: '', right: '', overflow: '' });
       if (isIOS) window.scrollTo(0, savedY);
     };

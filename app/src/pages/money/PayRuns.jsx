@@ -98,7 +98,7 @@ function Detail({ isCo }) {
         };
 
         return (
-          <Page title={periodOf(r)} subtitle={`Pay run${r.created_via === 'ai' ? ' · started by Ask Orb' : ''}${r.created_by_name ? ` · ${r.created_by_name}` : ''}`}
+          <Page title={periodOf(r)} subtitle={`Pay run${r.created_via === 'ai' ? ' · started by Orb' : ''}${r.created_by_name ? ` · ${r.created_by_name}` : ''}`}
             back={{ to: `${base}/pay`, label: 'Pay runs' }}
             actions={isCo && <>
               {r.status === 'draft' && <Button variant="secondary" icon={Send} onClick={() => setSheet({ kind: 'review' })}>Send for review</Button>}

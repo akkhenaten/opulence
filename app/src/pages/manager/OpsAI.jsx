@@ -28,7 +28,7 @@ export default function OpsAI() {
   ];
   return (
     <Page title="Ops AI" subtitle="Your operations assistant. It prepares the work — you approve it."
-      actions={<Button variant="secondary" icon={Sparkles} onClick={() => window.dispatchEvent(new Event('orb:askorb'))}>Ask Orb</Button>}>
+      actions={<Button variant="secondary" icon={Sparkles} onClick={() => window.dispatchEvent(new Event('orb:askorb'))}>Orb</Button>}>
       <Tabs value={tab} onChange={(v) => setSp(v === 'inbox' ? {} : { tab: v }, { replace: true })} tabs={tabs} />
       {tab === 'inbox' && <Inbox onChange={count.reload} />}
       {tab === 'activity' && <Activity />}
@@ -317,12 +317,12 @@ function Activity() {
   );
 }
 
-/* ---------- Chat (moved to Ask Orb) ---------- */
+/* ---------- Chat (moved to Orb) ---------- */
 
 function AskOrbMoved() {
   return (
-    <Empty icon={Sparkles} title="Chat has moved to Ask Orb" body="Ask Orb is on every page (the sparkle button at the top). It can look things up and prepare changes for you to confirm."
-      action={<Button icon={Sparkles} onClick={() => window.dispatchEvent(new Event('orb:askorb'))}>Open Ask Orb</Button>} />
+    <Empty icon={Sparkles} title="Chat has moved to Orb" body="Orb is the round button at the bottom right of every page. It knows how the app works, looks things up, does small things straight away and asks you to confirm anything bigger."
+      action={<Button icon={Sparkles} onClick={() => window.dispatchEvent(new Event('orb:askorb'))}>Open Orb</Button>} />
   );
 }
 
@@ -398,7 +398,7 @@ function OpsSettings() {
 }
 
 const AI_MODULES = [
-  { k: 'ops', label: 'Ops AI and incidents' }, { k: 'academy', label: 'Academy' }, { k: 'toolbox', label: 'Toolbox' }, { k: 'everyday', label: 'Everyday post checks' },
+  { k: 'ops', label: 'Ops AI and incidents' }, { k: 'academy', label: 'Academy' }, { k: 'toolbox', label: 'Toolbox' }, { k: 'everyday', label: 'Everyday post checks' }, { k: 'orb', label: 'Orb assistant' },
 ];
 
 // Credits used this month by each AI feature, with an optional cap per feature inside the overall cap

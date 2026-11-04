@@ -190,6 +190,17 @@ Officers are self-employed: statements show that no tax or NI has been deducted.
         body: `Each officer's profile holds their details, SIA licence, right to work, documents, contracts, training and history. Documents have expiry dates and the app warns you and the officer before they run out. Send staff contracts and agreements from Staff contracts for officers to read and sign in the app.`,
       },
       {
+        id: 'esign', title: 'Contracts, policies and e-signatures',
+        body: `Company managers send contracts, policies and pay rise agreements for officers to read and sign in the app. Each signed document becomes a branded PDF with a signing certificate, saved to the officer's documents.
+
+1. Write or edit templates in Settings, then Templates. Use New template for a contract or New policy for a policy. Each save keeps the earlier version.
+2. Draw your signature once under Your signature, and pick the Default company signatory who countersigns.
+3. Open People, then Staff contracts, and tap Send for signature. Pick the template, the officers (a policy can go to every active officer at once), check the details and send.
+4. Officers are notified and sign on their phone. Staff contracts shows who has signed and who is still awaiting. Tap Remind to nudge anyone who hasn't signed.
+
+An unsigned contract can be voided. When a policy is updated, officers on an older version show on the template so you can send the new one.`,
+      },
+      {
         id: 'timeoff', title: 'Time off and holiday allowances', image: 'timeoff.png',
         body: `Officers request holidays and mark unavailability in their app. Requests appear in Time off under To decide. Use Add for officer to record sickness or time off on their behalf. Holiday allowances and the holiday year are set in Settings, and each officer's balance is shown on their profile.`,
       },
@@ -247,8 +258,13 @@ Compliance checks licences, right to work, documents and training against the ro
         body: `Ops AI is your AI operations manager. It watches the rota, clocking, incidents and compliance, and suggests what to do next, for example filling an unfilled shift or chasing an expiring licence. Nothing changes until you approve it. The number on Ops AI shows items waiting for you.`,
       },
       {
-        id: 'ask', title: 'Ask Orb',
-        body: `Tap the sparkle button in the top bar to ask questions in plain English, for example "Who is working at Harbour Arena on Saturday?" or "How many hours did Marcus work last week?".`,
+        id: 'ask', title: 'Orb, your assistant',
+        body: `Tap the round Orb button at the bottom right of any page to ask in plain English or to get something done, for example "Who is working at Harbour Arena on Saturday?", "Add a draft door shift there on Friday 21:00 to 03:00" or "How do I send a policy to everyone?".
+
+- Orb knows this guide and looks up live data. It only sees and does what you can.
+- Small, internal changes such as draft shifts, HR notes, onboarding ticks, assigning training and reminders happen straight away. They show as Done, with Undo where possible.
+- Anything involving money, anything sent to people, deleting, bans, HR outcomes, settings and logins goes on a Confirm card. Untick any line you don't want, then tap Confirm.
+- Everything Orb does is in the activity log, marked as done by Orb, under your name. Previous chats are under the clock icon.`,
       },
       {
         id: 'photos', title: 'Incident photo checks and AI drafts',

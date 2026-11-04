@@ -7,7 +7,9 @@ import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, Skel
 import { NAV, ROLE_LABEL } from './nav.js';
 import { SideSwitch } from './SideSwitch.jsx';
 import { AccountSheet } from './AccountSheet.jsx';
-import AskOrb, { AskOrbButton } from '../ui/AskOrb.jsx';
+import AskOrb from '../ui/AskOrb.jsx';
+import OrbFab from '../ui/OrbFab.jsx';
+import OrbMark from '../ui/OrbMark.jsx';
 import { OfflineBanner, useUpdateToast } from '../ui/pwa.jsx';
 
 // The company's logo, or its name next to the mark in the brand colour.
@@ -30,7 +32,7 @@ export function Logo({ compact, faded, place = 'header' }) {
   const orb = brand.name === 'Orb Security';
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      <svg viewBox="0 0 512 512" className="h-8 w-8 shrink-0" aria-hidden><rect width="512" height="512" rx="120" fill={brand.color} /><circle cx="256" cy="256" r="132" fill="none" stroke="#fff" strokeWidth="44" /><circle cx="256" cy="256" r="40" fill="#fff" /></svg>
+      <OrbMark color={brand.color} />
       {!compact && (orb
         ? <span className={cx('display text-title3 font-bold tracking-tight', fade)}>Orb <span className="text-muted font-semibold">Security</span></span>
         : <span className={cx('display max-w-[180px] truncate text-headline font-bold tracking-tight', fade)}>{brand.name}</span>)}
@@ -133,7 +135,8 @@ export default function Shell() {
   const [more, setMore] = useState(false);
   const [account, setAccount] = useState(false);
   const [ask, setAsk] = useState(false);
-  // Other pages open Ask Orb with this event (e.g. the Ops AI page)
+  const [orbDot, setOrbDot] = useState(false);
+  // Other pages open Orb with this event (e.g. the Ops AI page)
   useEffect(() => {
     const o = () => setAsk(true);
     window.addEventListener('orb:askorb', o);
@@ -239,7 +242,6 @@ export default function Shell() {
             <HeaderTitle />
             <div className={cx('flex min-w-0', !isOfficer && 'lg:invisible')}><Logo faded={header.collapsed && !!header.title} /></div>
             <div className="flex items-center gap-2">
-              {isMgr && <AskOrbButton onClick={() => setAsk((v) => !v)} />}
               {feedOn && <EverydayButton to={isOfficer ? '/officer/everyday' : `/${user.role}?tab=everyday`} unread={badges.everyday} />}
               {user.role !== 'venue' && (
                 <span className={cx(!isOfficer && 'lg:hidden')}>
@@ -295,7 +297,8 @@ export default function Shell() {
         </Pressable>
       </Sheet>
       {!isOfficer && <AccountSheet open={account} onClose={() => setAccount(false)} />}
-      {isMgr && <AskOrb open={ask} onClose={() => setAsk(false)} />}
+      {isMgr && <OrbFab onClick={() => setAsk(true)} hidden={ask} dot={orbDot} />}
+      {isMgr && <AskOrb open={ask} onClose={() => setAsk(false)} onDot={setOrbDot} />}
     </div>
   );
 }

@@ -108,6 +108,18 @@ body {
 .action-bar { bottom: calc(var(--tabbar-h) + 12px); }
 html:not(.has-tabbar) .action-bar { bottom: calc(env(safe-area-inset-bottom) + 24px); }
 @media (min-width: 1024px) { html.has-sidebar .action-bar { left: 260px; } }
+/* Orb floating button: docks above the tab bar, and above an action bar when one is showing */
+.orb-fab {
+  bottom: calc(var(--tabbar-h) + 16px);
+  background: radial-gradient(circle at 30% 25%, #3d8bff, #0a6cff 55%, #0753c4);
+  box-shadow: 0 10px 24px -8px rgb(10 108 255 / .65), 0 2px 6px rgb(0 0 0 / .18);
+  transition: transform var(--dur-1) var(--ease-ios), opacity var(--dur-2), visibility var(--dur-2), bottom var(--dur-2) var(--ease-ios);
+}
+html:not(.has-tabbar) .orb-fab { bottom: calc(env(safe-area-inset-bottom) + 24px); }
+body:has(.action-bar) .orb-fab { bottom: calc(var(--tabbar-h) + 84px); }
+html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-area-inset-bottom) + 96px); }
+.orb-fab-hidden, html.scroll-locked .orb-fab { opacity: 0; visibility: hidden; transform: scale(.6); pointer-events: none; }
+@media print { .orb-fab { display: none; } }
 .sticky-below-header { top: calc(var(--header-h) + env(safe-area-inset-top)); }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
