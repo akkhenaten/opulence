@@ -76,6 +76,13 @@ export function voiceTools(user) {
   return [...toolsFor(user), ...VOICE_TOOLS].map(({ cache_control: _c, ...t }) => t);
 }
 
+/** Estimated app credits for a talk of this length. Each turn re-reads the whole talk so far, so later minutes
+ * cost more: platform credits ≈ m + 0.1·m², which matches the platform's ~20 credits for a 10-minute talk. */
+export function voiceCredits(seconds) {
+  const m = Math.max(0, Number(seconds) || 0) / 60;
+  return Math.round((m + 0.1 * m * m) * 1000);
+}
+
 export const declarations = (tools) => tools.map((t) => ({ name: t.name, description: t.description.slice(0, 600), parameters: geminiSchema(t.input_schema) }));
 
 function voicePrompt(user, page, companyName) {
@@ -262,12 +269,12 @@ export const actions = {
     const conv = await ownConversation(user, b.conversation_id);
     const seconds = Math.min(Math.max(Math.round(Number(b.seconds) || 0), 0), VOICE_MS / 1000 + 60);
     // The relay reports project credits; the app's budget counts them per 1K like token prices (x1000).
-    // No figure: about 2 credits a minute. A misreported one can't drain the budget: at most 10 a minute.
-    const minutes = Math.max(1, Math.ceil(seconds / 60));
+    // It only reports when it closes the talk itself, so after End we estimate. A misreported figure can't drain the budget: at most 10 a minute.
     const reported = Number(b.credits);
-    const credits = Math.min(reported > 0 ? reported * 1000 : minutes * 2000, minutes * 10000);
+    const estimated = !(reported > 0);
+    const credits = Math.min(estimated ? voiceCredits(seconds) : reported * 1000, Math.max(1, seconds / 60) * 10000);
     if (credits) await logUsage('orb_voice', Math.round(credits * 100) / 100);
-    await audit(user, 'orb.voice_session', 'assistant_conversation', conv.id, { via: 'orb', voice: true, seconds, credits });
+    await audit(user, 'orb.voice_session', 'assistant_conversation', conv.id, { via: 'orb', voice: true, seconds, credits: Math.round(credits), estimated });
     return { ok: true };
   }),
 };

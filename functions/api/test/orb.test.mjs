@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ACTIONS } from '../index.mjs';
 import { CATALOG, BANNED, catalogFor, needsTap, sanitize, searchCatalog, tierOf } from '../lib/orbCatalog.mjs';
-import { declarations, signContext, verifyContext, voiceTools } from '../modules/orbVoice.mjs';
+import { declarations, signContext, verifyContext, voiceCredits, voiceTools } from '../modules/orbVoice.mjs';
 import { searchGuide } from '../modules/assistant.mjs';
 
 const company = { id: 'u1', role: 'company', name: 'Alex' };
@@ -117,4 +117,12 @@ test('voice tools are valid Gemini declarations, without money tools for a secur
   assert.ok(declarations(voiceTools(company)).some((d) => d.name === 'create_pay_run'));
   assert.ok(!JSON.stringify(decl).includes('cache_control'));
   assert.ok(!/"type":"[a-z]/.test(JSON.stringify(decl)));
+});
+
+test('voice estimate follows talk length', () => {
+  assert.equal(voiceCredits(0), 0);
+  assert.ok(Math.abs(voiceCredits(13) - 222) < 5);
+  assert.equal(voiceCredits(600), 20000);
+  const minute = (n) => voiceCredits(n * 60) - voiceCredits((n - 1) * 60);
+  assert.ok(minute(10) > minute(1));
 });
