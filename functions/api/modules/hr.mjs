@@ -36,7 +36,8 @@ export async function tickOnboarding(officerId, code) {
 
 const ownOrManager = (user, officerId) => (user.role === 'officer' ? user.officer_id : officerId);
 
-const contractFile = (c, name) => `${c.title} - ${name} - ${c.reference}.pdf`;
+// Pack contracts already carry the name in their title
+const contractFile = (c, name) => `${c.title}${name && !c.title.includes(name) ? ` - ${name}` : ''} - ${c.reference}.pdf`;
 
 // Fill the template for one officer, snapshot the countersignature, number it and tell the officer
 async function sendContract({ tpl, o, s, signer, values = {}, user, ip = null, ua = null }) {

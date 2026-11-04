@@ -16,7 +16,7 @@ import { CO, def, pub } from './_def.mjs';
 
 const PNG = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
 const OPENS_PER_HOUR = 20;
-const fileName = (c, name) => `${c.title} - ${name} - ${c.reference}.pdf`;
+const fileName = (c, name) => `${c.title}${name && !c.title.includes(name) ? ` - ${name}` : ''} - ${c.reference}.pdf`;
 
 const MESSAGE = {
   invalid: 'This signing link is not valid. Check you opened the whole link from the email.',
