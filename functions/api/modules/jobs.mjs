@@ -15,6 +15,7 @@ import { payRunJobs } from './payruns.mjs';
 import { esignReminders } from '../lib/esign.mjs';
 import { selfieJobs } from './clockProof.mjs';
 import { packReminders } from './venuePacks.mjs';
+import { transcriptSweep } from './messages.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in.
 // Officers whose site pack isn't signed are left to the Ops AI pack check until they sign.
@@ -149,6 +150,8 @@ export async function runJobs() {
   if (new Date().getUTCMinutes() < 5) result.selfies = await selfieJobs().catch((e) => `error: ${e.message}`);
   // Venue pack notices: on booking (catch-up), the day before and 2 hours before, while it is not signed
   result.packs = await packReminders().catch((e) => `error: ${e.message}`);
+  // Voice notes the app didn't get transcribed
+  result.voiceNotes = await transcriptSweep().catch((e) => `error: ${e.message}`);
   // Pay review reminders and deadlines
   result.payRuns = await payRunJobs().catch((e) => `error: ${e.message}`);
   console.log('[jobs]', JSON.stringify(result));

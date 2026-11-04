@@ -2,6 +2,7 @@ import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { Bell, BellOff, BookOpen, Briefcase, ChevronRight, LogOut, MessagesSquare, MoreHorizontal, Newspaper } from 'lucide-react';
 import { api } from '../api.js';
+import { startRealtime, useRealtime, useRealtimeConnected } from '../realtime.js';
 import { portalLink, useAuth } from '../auth.jsx';
 import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, usePageHeader, useScrollMemory } from '../ui/index.jsx';
 import { NAV, ROLE_LABEL } from './nav.js';
@@ -129,7 +130,9 @@ export default function Shell() {
   const on = (m) => modules[m] !== false;
   const feedOn = user.role !== 'venue' && settings.data && on('everyday');
   const feed = useApi('everyday.unread', {}, { poll: 60000, skip: !feedOn });
-  const msgs = useApi('messages.unread', {}, { poll: 30000 });
+  const live = useRealtimeConnected();
+  const msgs = useApi('messages.unread', {}, { poll: live ? 120000 : 30000 });
+  useEffect(() => startRealtime(user.id), [user.id]);
   const badges = { ops: opsCount.data?.n || 0, everyday: feed.data?.unread || 0, messages: msgs.data?.unread || 0 };
   const loc = useLocation();
   const [more, setMore] = useState(false);
@@ -158,6 +161,7 @@ export default function Shell() {
     window.addEventListener('orb:messages', r);
     return () => window.removeEventListener('orb:messages', r);
   }, []);
+  useRealtime(['msg', 'read'], () => reloadMsgs.current());
   // Opening the feed clears the badge
   const onFeed = /\/everyday$/.test(loc.pathname) || /[?&]tab=everyday/.test(loc.search);
   useEffect(() => { if (feedOn && onFeed) setTimeout(feed.reload, 1500); }, [onFeed, feedOn]);

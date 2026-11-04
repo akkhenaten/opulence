@@ -16,18 +16,24 @@ export function Suggestions({ items, onPick }) {
 
 // Message box with a round send button. Enter sends, Shift+Enter adds a line
 // `left` adds a control before the box (e.g. attach a photo); `ready` lets it send without text (photo only)
-export function Composer({ value, onChange, onSend, busy, placeholder, left, ready, enterSends = true, inputRef }) {
+// `right` replaces the send button while there is nothing to send (e.g. record a voice message); `above` sits over the row
+export function Composer({ value, onChange, onSend, busy, placeholder, left, right, above, ready, enterSends = true, inputRef, onKeyDown, onSelect }) {
   // Grows with the text up to max-h-32, then scrolls
   const box = useRef(null);
   useEffect(() => { const el = box.current; if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight + 2}px`; } }, [value]);
   const setRef = (el) => { box.current = el; if (inputRef) inputRef.current = el; };
   return (
-    <form className="flex items-end gap-2 border-t border-line p-3" onSubmit={(e) => { e.preventDefault(); onSend(); }}>
-      {left}
-      <textarea ref={setRef} rows={1} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} enterKeyHint="send"
-        onKeyDown={(e) => { if (enterSends && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }}
-        className="max-h-32 min-h-[44px] min-w-0 flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-2.5 text-callout outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
-      <IconButton type="submit" icon={ArrowUp} label="Send" tone="primary" className="!h-11 !w-11 disabled:opacity-40" disabled={busy || !(ready || value.trim())} />
+    <form className="border-t border-line p-3" onSubmit={(e) => { e.preventDefault(); onSend(); }}>
+      {above}
+      <div className="flex items-end gap-2">
+        {left}
+        <textarea ref={setRef} rows={1} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} enterKeyHint="send"
+          onKeyDown={(e) => { onKeyDown?.(e); if (e.defaultPrevented) return; if (enterSends && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }}
+          onSelect={onSelect}
+          className="max-h-32 min-h-[44px] min-w-0 flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-2.5 text-callout outline-none focus:border-blue focus:ring-4 focus:ring-blue/10" />
+        {right && !busy && !(ready || value.trim()) ? right
+          : <IconButton type="submit" icon={ArrowUp} label="Send" tone="primary" className="!h-11 !w-11 disabled:opacity-40" disabled={busy || !(ready || value.trim())} />}
+      </div>
     </form>
   );
 }

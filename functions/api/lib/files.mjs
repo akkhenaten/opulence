@@ -10,7 +10,11 @@ export async function cleanFiles(user, list, folder, max = 6) {
     const h = await headObject(a.key);
     if (!h) fail(400, 'Upload the file first');
     if (h.size > 15 * 1024 * 1024) fail(400, 'Files must be under 15 MB');
-    out.push({ key: a.key, name: String(a.name || 'file').slice(0, 120), mime: h.mime || a.mime || '' });
+    const mime = h.mime || a.mime || '';
+    const f = { key: a.key, name: String(a.name || 'file').slice(0, 120), mime };
+    // Voice notes keep their length for the player
+    if (/^audio\//.test(mime) && Number(a.duration) > 0) f.duration = Math.min(Math.round(Number(a.duration)), 600);
+    out.push(f);
   }
   return out;
 }

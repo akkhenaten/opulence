@@ -6,7 +6,7 @@
   "storage": {
     "cloudfront": "media"
   },
-  "mqtt": false,
+  "mqtt": true,
   "functions": [
     {
       "name": "api",

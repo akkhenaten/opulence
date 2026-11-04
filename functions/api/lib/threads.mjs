@@ -1,6 +1,7 @@
 // Conversations shared by Messages, cover requests, shifts and Orb Ops
 import { one, q } from './db.mjs';
 import { notify } from './notify.mjs';
+import { publishConv } from './realtime.mjs';
 
 let opsUserId = null;
 /** The "Orb Ops" system sender — has no password and can never sign in. */
@@ -29,13 +30,18 @@ export async function ensureThread(kind, refId, memberIds = [], title = '', crea
   return c;
 }
 
-const preview = (body, attachments) => (body || '').trim().slice(0, 120) || (attachments?.length ? 'Sent a photo' : '');
+export const preview = (body, attachments) => (body || '').trim().slice(0, 120)
+  || (attachments?.some((a) => /^audio\//.test(a.mime || '')) ? 'Voice message' : attachments?.length ? 'Sent a photo' : '');
 
-/** Post a message; members other than the sender get a push (one per conversation until they read it). */
-export async function post(convId, senderId, { body = '', attachments = [], quick = null, email = false } = {}) {
+/** Post a message; members other than the sender get a push (one per conversation until they read it).
+ * skipPush: people who get their own notice instead (an @mention). */
+export async function post(convId, senderId, { body = '', attachments = [], quick = null, email = false, replyTo = null, mentions = [], mustConfirm = false, skipPush = [] } = {}) {
+  const voice = (attachments || []).some((a) => /^audio\//.test(a.mime || ''));
   const m = await one(
-    'INSERT INTO messages (conversation_id, sender_id, body, attachments, quick) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-    [convId, senderId, String(body).slice(0, 4000), JSON.stringify(attachments || []), quick ? JSON.stringify(quick) : null]);
+    `INSERT INTO messages (conversation_id, sender_id, body, attachments, quick, reply_to, mentions, must_confirm, transcript_status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    [convId, senderId, String(body).slice(0, 4000), JSON.stringify(attachments || []), quick ? JSON.stringify(quick) : null,
+      replyTo, mentions || [], !!mustConfirm, voice ? 'pending' : null]);
   await q('UPDATE conversations SET last_message_at = now() WHERE id = $1', [convId]);
   await q('UPDATE conversation_members SET last_read_at = now() WHERE conversation_id = $1 AND user_id = $2', [convId, senderId]);
   const [c, sender, to] = await Promise.all([
@@ -44,17 +50,19 @@ export async function post(convId, senderId, { body = '', attachments = [], quic
     q(`SELECT m.user_id FROM conversation_members m JOIN users u ON u.id = m.user_id
         WHERE m.conversation_id = $1 AND m.user_id <> $2 AND m.left_at IS NULL AND NOT m.muted AND u.status = 'active'`, [convId, senderId]),
   ]);
-  if (to.length) {
+  const pushTo = to.filter((r) => !skipPush.includes(r.user_id));
+  if (pushTo.length) {
     // Dedupe per unread stretch: the key changes once they have read past it
     const title = c.kind === 'direct' ? sender.name : `${sender.name}${c.title ? ` · ${c.title}` : ''}`;
-    for (const r of to) {
+    for (const r of pushTo) {
       const seen = await one('SELECT last_read_at FROM conversation_members WHERE conversation_id = $1 AND user_id = $2', [convId, r.user_id]);
       await notify([r.user_id], {
         kind: 'message', title, body: preview(body, attachments), link: `/messages/${convId}`,
-        severity: quick ? 'warning' : 'info', email, dedupe: `msg:${convId}:${new Date(seen.last_read_at).getTime()}${quick ? `:${m.id}` : ''}`,
+        severity: quick || mustConfirm ? 'warning' : 'info', email, dedupe: `msg:${convId}:${new Date(seen.last_read_at).getTime()}${quick || mustConfirm ? `:${m.id}` : ''}`,
       });
     }
   }
+  await publishConv(convId, 'msg', { id: m.id });
   return m;
 }
 

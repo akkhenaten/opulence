@@ -6,8 +6,11 @@ import { downloadUrl } from '../lib/storage.mjs';
 import { cleanFiles } from '../lib/files.mjs';
 import { notify, companyManagers } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
-import { extract, HAIKU } from '../lib/ai.mjs';
-import { post, syncMembers, opsUser, opsMessage } from '../lib/threads.mjs';
+import { extract, HAIKU, transcribe } from '../lib/ai.mjs';
+import { londonDate } from '../lib/time.mjs';
+import { post, preview, syncMembers, opsUser, opsMessage } from '../lib/threads.mjs';
+import { publishConv, realtimeToken } from '../lib/realtime.mjs';
+import { REACTION_KINDS, PIN_MAX, MANAGER_ROLES, mentionable, cleanMentions, canPin, canRequireConfirm, confirmSummary, reactionSummary, isAudio } from '../lib/chat.mjs';
 import { officerReply, offerRespond, packReply } from './ops.mjs';
 import { ALL, def } from './_def.mjs';
 
@@ -44,18 +47,90 @@ async function canWrite(user, convId) {
 
 const cleanAttachments = (user, list) => cleanFiles(user, list, 'messages');
 
-async function shapeMessages(rows) {
-  return Promise.all(rows.map(async (r) => ({
-    ...r,
-    sender: await sign(r.sender),
-    body: r.deleted_at ? '' : r.body,
-    attachments: r.deleted_at ? [] : await Promise.all((r.attachments || []).map(async (a) => ({ name: a.name, mime: a.mime, url: await downloadUrl(a.key, a.name) }))),
-    quick: r.quick && !r.quick_used ? r.quick : null,
-  })));
+const EMOJI = { like: '👍', love: '❤️', laugh: '😂', wow: '😮', sad: '😢', clap: '👏' };
+const snippet = (r) => (r.deleted_at ? 'Message deleted' : preview(r.body, r.attachments).slice(0, 100));
+
+/** Messages as the viewer sees them: reactions, the quoted message, "Must confirm" progress. One query per extra, not per row. */
+async function shapeMessages(rows, viewer, people) {
+  const ids = rows.map((r) => r.id);
+  const replyIds = [...new Set(rows.map((r) => r.reply_to).filter(Boolean))];
+  const confirmIds = rows.filter((r) => r.must_confirm && !r.deleted_at).map((r) => r.id);
+  const [reacts, replies, confirms] = await Promise.all([
+    ids.length ? q('SELECT message_id, user_id, kind FROM message_reactions WHERE message_id = ANY($1::uuid[])', [ids]) : [],
+    replyIds.length ? q('SELECT m.id, m.body, m.attachments, m.deleted_at, m.sender_id, u.name FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = ANY($1::uuid[])', [replyIds]) : [],
+    confirmIds.length ? q('SELECT message_id, user_id, confirmed_at FROM message_confirms WHERE message_id = ANY($1::uuid[])', [confirmIds]) : [],
+  ]);
+  const replyBy = new Map(replies.map((r) => [r.id, r]));
+  return Promise.all(rows.map(async (r) => {
+    const quoted = r.reply_to && replyBy.get(r.reply_to);
+    return {
+      ...r,
+      search: undefined,
+      sender: await sign(r.sender),
+      body: r.deleted_at ? '' : r.body,
+      transcript: r.deleted_at ? null : r.transcript,
+      attachments: r.deleted_at ? [] : await Promise.all((r.attachments || []).map(async (a) => ({ name: a.name, mime: a.mime, duration: a.duration, url: await downloadUrl(a.key, a.name) }))),
+      quick: r.quick && !r.quick_used ? r.quick : null,
+      pinned: !!r.pinned_at && !r.deleted_at,
+      reactions: r.deleted_at ? [] : reactionSummary(reacts.filter((x) => x.message_id === r.id), viewer.id),
+      reply: quoted ? {
+        id: quoted.id, name: quoted.name, mine: quoted.sender_id === viewer.id, text: snippet(quoted), deleted: !!quoted.deleted_at,
+        voice: !quoted.deleted_at && (quoted.attachments || []).some(isAudio),
+        photo: !quoted.deleted_at && (quoted.attachments || []).some((a) => /^image\//.test(a.mime || '')),
+      } : null,
+      confirm: r.must_confirm && !r.deleted_at ? confirmSummary(people, r, confirms.filter((c) => c.message_id === r.id), viewer) : null,
+    };
+  }));
 }
 
 const MSG_COLS = `m.id, m.conversation_id, m.body, m.attachments, m.quick, m.quick_used, m.edited_at, m.deleted_at, m.created_at, m.sender_id,
+  m.reply_to, m.mentions, m.must_confirm, m.pinned_at, m.transcript, m.transcript_status,
   json_build_object('id', u.id, 'name', u.name, 'role', u.role, 'system', u.system, 'photo_key', ${PHOTO}) AS sender`;
+const oneMessage = (id) => one(`SELECT ${MSG_COLS} FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = $1`, [id]);
+
+const titleOf = (c, others) => c.title || (c.kind === 'direct' ? others[0]?.name : others.map((p) => p.name.split(' ')[0]).join(', ')) || KIND_LABEL[c.kind];
+
+/** A message the person can act on (member of its conversation, not deleted). */
+async function liveMessage(user, id) {
+  const msg = need(await one('SELECT * FROM messages WHERE id = $1 AND deleted_at IS NULL', [id]), 'Message not found');
+  const { c, m } = await canWrite(user, msg.conversation_id);
+  return { msg, c, m };
+}
+
+// Voice notes: the vocabulary helps the transcriber spell people and places
+const TERMS = ['SIA', 'door supervisor', 'steward', 'CCTV', 'rota', 'clock-in', 'ejection', 'incident report', 'radio'];
+async function transcribeVoice(msg) {
+  const a = (msg.attachments || []).find(isAudio);
+  if (!a) return null;
+  const names = await q(
+    `(SELECT u.name AS w FROM conversation_members cm JOIN users u ON u.id = cm.user_id WHERE cm.conversation_id = $1 AND NOT u.system)
+     UNION (SELECT name FROM venues WHERE active ORDER BY name LIMIT 60)`, [msg.conversation_id]);
+  const { text } = await transcribe({ url: await downloadUrl(a.key, a.name), vocabulary: [...TERMS, ...names.map((r) => r.w).filter(Boolean)], module: 'messages' });
+  return text;
+}
+
+/** Turn one voice note into text; `last` marks it failed instead of leaving it for the retry job. */
+export async function runTranscript(id, { last = false } = {}) {
+  const msg = await one(
+    "UPDATE messages SET transcript_status = 'working' WHERE id = $1 AND transcript_status IN ('pending','retry') AND deleted_at IS NULL RETURNING *", [id]);
+  if (!msg) return null;
+  let text = null;
+  try { text = await transcribeVoice(msg); } catch (e) { console.warn('[voice note]', e.message); }
+  await q('UPDATE messages SET transcript = $2, transcript_status = $3 WHERE id = $1',
+    [id, text, text != null ? 'done' : last ? 'failed' : 'retry']);
+  if (text != null) await publishConv(msg.conversation_id, 'upd', { id });
+  return text;
+}
+
+/** Retry voice notes the app didn't get transcribed (closed too soon, a failed first try). Runs in the 5-minute jobs. */
+export async function transcriptSweep() {
+  await q("UPDATE messages SET transcript_status = 'failed' WHERE transcript_status = 'working' AND created_at < now() - interval '15 minutes'");
+  const rows = await q(
+    `SELECT id FROM messages WHERE transcript_status IN ('pending','retry') AND deleted_at IS NULL
+        AND created_at < now() - interval '2 minutes' AND created_at > now() - interval '1 day' ORDER BY created_at LIMIT 5`);
+  for (const r of rows) await runTranscript(r.id, { last: true });
+  return rows.length;
+}
 
 async function members(convId) {
   const rows = await q(
@@ -136,7 +211,7 @@ export const actions = {
     const rows = await q(
       `SELECT c.id, c.kind, c.title, c.ref_id, c.last_message_at, cm.muted,
               (SELECT count(*)::int FROM messages m WHERE m.conversation_id = c.id AND m.created_at > cm.last_read_at AND m.sender_id <> $1 AND m.deleted_at IS NULL) AS unread,
-              (SELECT json_build_object('body', CASE WHEN m.deleted_at IS NULL THEN m.body ELSE 'Message deleted' END, 'photos', jsonb_array_length(m.attachments), 'sender_id', m.sender_id, 'sender', u.name, 'at', m.created_at)
+              (SELECT json_build_object('body', CASE WHEN m.deleted_at IS NULL THEN m.body ELSE 'Message deleted' END, 'photos', jsonb_array_length(m.attachments), 'voice', m.deleted_at IS NULL AND m.transcript_status IS NOT NULL, 'sender_id', m.sender_id, 'sender', u.name, 'at', m.created_at)
                  FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last,
               (SELECT json_agg(json_build_object('id', u.id, 'name', u.name, 'role', u.role, 'system', u.system, 'photo_key', ${PHOTO}) ORDER BY u.name)
                  FROM conversation_members x JOIN users u ON u.id = x.user_id WHERE x.conversation_id = c.id AND x.left_at IS NULL AND x.user_id <> $1) AS others
@@ -158,26 +233,56 @@ export const actions = {
     return { unread: r.n };
   }),
 
+  // Newest page, an older page (before), or the stretch around one message (around: id) for jumping to a search hit or a quote
   'messages.thread': def(ALL, async (b, { user }) => {
     required(b, 'id');
     const { c, m, oversight } = await canRead(user, b.id);
-    const rows = await q(
-      `SELECT ${MSG_COLS} FROM messages m JOIN users u ON u.id = m.sender_id
-        WHERE m.conversation_id = $1 AND ($2::timestamptz IS NULL OR m.created_at < $2) ORDER BY m.created_at DESC LIMIT ${PAGE + 1}`, [c.id, b.before || null]);
-    const more = rows.length > PAGE;
-    const list = await shapeMessages(rows.slice(0, PAGE).reverse());
+    let rows, more, newer = false;
+    if (b.around) {
+      const at = need(await one('SELECT created_at FROM messages WHERE id = $1 AND conversation_id = $2', [b.around, c.id]), 'Message not found').created_at;
+      const half = PAGE / 2;
+      const [before, after] = await Promise.all([
+        q(`SELECT ${MSG_COLS} FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.conversation_id = $1 AND m.created_at <= $2 ORDER BY m.created_at DESC LIMIT ${half + 1}`, [c.id, at]),
+        q(`SELECT ${MSG_COLS} FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.conversation_id = $1 AND m.created_at > $2 ORDER BY m.created_at LIMIT ${half + 1}`, [c.id, at]),
+      ]);
+      more = before.length > half;
+      newer = after.length > half;
+      rows = [...after.slice(0, half).reverse(), ...before.slice(0, half)];
+    } else {
+      rows = await q(
+        `SELECT ${MSG_COLS} FROM messages m JOIN users u ON u.id = m.sender_id
+          WHERE m.conversation_id = $1 AND ($2::timestamptz IS NULL OR m.created_at < $2) ORDER BY m.created_at DESC LIMIT ${PAGE + 1}`, [c.id, b.before || null]);
+      more = rows.length > PAGE;
+      rows = rows.slice(0, PAGE);
+    }
     const people = await members(c.id);
+    const list = await shapeMessages(rows.reverse(), user, people);
     const others = people.filter((p) => p.id !== user.id);
-    const title = c.title || (c.kind === 'direct' ? others[0]?.name : others.map((p) => p.name.split(' ')[0]).join(', ')) || KIND_LABEL[c.kind];
+    const pinned = await q(
+      `SELECT m.id, m.body, m.attachments, m.deleted_at, m.created_at, u.name FROM messages m JOIN users u ON u.id = m.sender_id
+        WHERE m.conversation_id = $1 AND m.pinned_at IS NOT NULL AND m.deleted_at IS NULL ORDER BY m.pinned_at DESC LIMIT ${PIN_MAX}`, [c.id]);
+    // "Must confirm" messages this person still has to confirm stay at the top until they do
+    const toConfirm = m ? await q(
+      `SELECT m.id, m.body, m.attachments, m.deleted_at, m.created_at, u.name FROM messages m JOIN users u ON u.id = m.sender_id
+        WHERE m.conversation_id = $1 AND m.must_confirm AND m.deleted_at IS NULL AND m.sender_id <> $2
+          AND NOT EXISTS (SELECT 1 FROM message_confirms x WHERE x.message_id = m.id AND x.user_id = $2)
+        ORDER BY m.created_at DESC LIMIT 5`, [c.id, user.id]) : [];
+    const brief = (r, extra) => ({ id: r.id, name: r.name, text: snippet(r), at: r.created_at, ...extra });
     return {
-      conversation: { ...c, title, label: KIND_LABEL[c.kind] || null, muted: !!m?.muted, member: !!m, oversight: !!oversight, can_add: c.kind === 'group' && !!m, can_leave: c.kind === 'group' && !!m },
-      members: people, messages: list, more,
+      conversation: {
+        ...c, title: titleOf(c, others), label: KIND_LABEL[c.kind] || null, muted: !!m?.muted, member: !!m, oversight: !!oversight,
+        can_add: c.kind === 'group' && !!m, can_leave: c.kind === 'group' && !!m,
+        can_pin: canPin(user, c, !!m), can_confirm: !!m && canRequireConfirm(user, c), can_mention: mentionable(c.kind),
+      },
+      members: people, messages: list, more, newer,
+      pinned: [...toConfirm.map((r) => brief(r, { confirm: true })), ...pinned.map((r) => brief(r, {}))],
     };
   }),
 
   'messages.read': def(ALL, async (b, { user }) => {
     required(b, 'id');
-    await q('UPDATE conversation_members SET last_read_at = now() WHERE conversation_id = $1 AND user_id = $2', [b.id, user.id]);
+    const r = await one('UPDATE conversation_members SET last_read_at = now() WHERE conversation_id = $1 AND user_id = $2 AND left_at IS NULL RETURNING last_read_at', [b.id, user.id]);
+    if (r) await publishConv(b.id, 'read', { u: user.id, at: r.last_read_at });
     await q("UPDATE notifications SET read_at = now() WHERE user_id = $1 AND kind = 'message' AND link = $2 AND read_at IS NULL", [user.id, `/messages/${b.id}`]).catch(() => {});
     return { ok: true };
   }),
@@ -189,9 +294,24 @@ export const actions = {
     const attachments = await cleanAttachments(user, b.attachments);
     if (!body && !attachments.length) fail(400, 'Write a message or add a photo');
     if (body.length > 4000) fail(400, 'Messages can be up to 4,000 characters');
-    const m = await post(c.id, user.id, { body, attachments });
+    if (attachments.filter(isAudio).length > 1) fail(400, 'Send one voice message at a time');
+    if (b.must_confirm && !canRequireConfirm(user, c)) fail(403, 'Only managers can ask people to confirm a message');
+    let replyTo = null;
+    if (b.reply_to) replyTo = need(await one('SELECT id FROM messages WHERE id = $1 AND conversation_id = $2', [b.reply_to, c.id]), 'The message you replied to is gone').id;
+    const people = await members(c.id);
+    const mentions = mentionable(c.kind) ? cleanMentions(body, b.mentions, people, user.id) : [];
+    // A mention gets its own notice (even in a muted chat), so they don't also get the plain message push,
+    // unless they switched mention notices off
+    const mentionOn = mentions.length ? (await q(
+      "SELECT id FROM users WHERE id = ANY($1::uuid[]) AND COALESCE(notify_prefs->>'mention', (SELECT notify_defaults->>'mention' FROM settings WHERE id = 1)) IS DISTINCT FROM 'false'", [mentions])).map((r) => r.id) : [];
+    const m = await post(c.id, user.id, { body, attachments, replyTo, mentions, mustConfirm: !!b.must_confirm, skipPush: mentionOn });
+    if (mentions.length) {
+      await notify(mentions, {
+        kind: 'mention', title: `${user.name} mentioned you${c.title ? ` in ${c.title}` : ''}`, body: preview(body, attachments), link: `/messages/${c.id}?m=${m.id}`, dedupe: `mmention:${m.id}`,
+      });
+    }
     if (c.kind === 'ops' && body) await handleOpsText(user, c, body);
-    const [row] = await shapeMessages([await one(`SELECT ${MSG_COLS} FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = $1`, [m.id])]);
+    const [row] = await shapeMessages([await oneMessage(m.id)], user, people);
     return row;
   }),
 
@@ -215,14 +335,16 @@ export const actions = {
     const body = String(b.body).trim();
     if (!body) fail(400, 'Write a message');
     await q('UPDATE messages SET body = $2, edited_at = now() WHERE id = $1', [m.id, body.slice(0, 4000)]);
+    await publishConv(m.conversation_id, 'upd', { id: m.id });
     return { ok: true };
   }),
 
   'messages.delete': def(ALL, async (b, { user }) => {
     required(b, 'id');
     const m = need(await one('SELECT * FROM messages WHERE id = $1 AND sender_id = $2 AND deleted_at IS NULL', [b.id, user.id]), 'Message not found');
-    await q('UPDATE messages SET deleted_at = now() WHERE id = $1', [m.id]);
+    await q('UPDATE messages SET deleted_at = now(), pinned_at = NULL WHERE id = $1', [m.id]);
     await audit(user, 'messages.delete', 'message', m.id);
+    await publishConv(m.conversation_id, 'upd', { id: m.id });
     return { ok: true };
   }),
 
@@ -308,6 +430,139 @@ export const actions = {
     await audit(user, 'messages.report', 'message', m.id);
     return { ok: true };
   }),
+
+  // ---------- Reactions, typing, pins, "Must confirm", voice notes, search, realtime ----------
+  'messages.react': def(ALL, async (b, { user }) => {
+    required(b, 'id');
+    const { msg, c } = await liveMessage(user, b.id);
+    if (!b.kind) {
+      await q('DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2', [msg.id, user.id]);
+    } else {
+      if (!REACTION_KINDS.includes(b.kind)) fail(400, 'Unknown reaction');
+      await q(`INSERT INTO message_reactions (message_id, user_id, kind) VALUES ($1,$2,$3)
+        ON CONFLICT (message_id, user_id) DO UPDATE SET kind = EXCLUDED.kind, created_at = now()`, [msg.id, user.id, b.kind]);
+      // One notice per message per day, never in a chat the author muted, never to Orb Ops
+      const author = await one(
+        `SELECT cm.muted, u.system FROM conversation_members cm JOIN users u ON u.id = cm.user_id
+          WHERE cm.conversation_id = $1 AND cm.user_id = $2 AND cm.left_at IS NULL`, [c.id, msg.sender_id]);
+      if (msg.sender_id !== user.id && author && !author.muted && !author.system) {
+        await notify([msg.sender_id], {
+          kind: 'reaction', title: `${user.name} reacted ${EMOJI[b.kind]} to your message`, body: preview(msg.body, msg.attachments),
+          link: `/messages/${c.id}?m=${msg.id}`, dedupe: `mreact:${msg.id}:${londonDate(new Date())}`,
+        });
+      }
+    }
+    await publishConv(c.id, 'upd', { id: msg.id });
+    return { ok: true };
+  }),
+
+  'messages.reactions': def(ALL, async (b, { user }) => {
+    required(b, 'id');
+    const msg = need(await one('SELECT conversation_id FROM messages WHERE id = $1', [b.id]), 'Message not found');
+    await canRead(user, msg.conversation_id);
+    const rows = await q(`SELECT r.kind, u.id, u.name, u.role, ${PHOTO} AS photo_key FROM message_reactions r JOIN users u ON u.id = r.user_id
+      WHERE r.message_id = $1 ORDER BY r.created_at DESC`, [b.id]);
+    return Promise.all(rows.map(sign));
+  }),
+
+  // The app calls this at most every few seconds while someone types; it is only relayed, never stored
+  'messages.typing': def(ALL, async (b, { user }) => {
+    required(b, 'id');
+    const { c } = await canWrite(user, b.id);
+    if (c.kind !== 'ops') await publishConv(c.id, 'typing', { u: user.id, name: user.name.split(' ')[0] }, { except: user.id });
+    return { ok: true };
+  }),
+
+  'messages.pin': def(ALL, async (b, { user }) => {
+    required(b, 'id');
+    const { msg, c, m } = await liveMessage(user, b.id);
+    if (!canPin(user, c, !!m)) fail(403, c.kind === 'group' ? 'Only managers and whoever started the group can pin messages' : 'Only managers can pin messages');
+    if (b.pinned === false) {
+      await q('UPDATE messages SET pinned_at = NULL, pinned_by = NULL WHERE id = $1', [msg.id]);
+    } else if (!msg.pinned_at) {
+      const n = await one('SELECT count(*)::int AS n FROM messages WHERE conversation_id = $1 AND pinned_at IS NOT NULL AND deleted_at IS NULL', [c.id]);
+      if (n.n >= PIN_MAX) fail(400, `Up to ${PIN_MAX} messages can be pinned. Unpin one first.`);
+      await q('UPDATE messages SET pinned_at = now(), pinned_by = $2 WHERE id = $1', [msg.id, user.id]);
+    }
+    await publishConv(c.id, 'upd', { id: msg.id });
+    return { ok: true };
+  }),
+
+  // "Got it" on a message a manager asked everyone to confirm
+  'messages.confirm': def(ALL, async (b, { user }) => {
+    required(b, 'id');
+    const { msg, c } = await liveMessage(user, b.id);
+    if (!msg.must_confirm) fail(400, 'This message doesn\'t need confirming');
+    if (msg.sender_id === user.id) fail(400, 'You sent this message');
+    const r = await one('INSERT INTO message_confirms (message_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING confirmed_at', [msg.id, user.id]);
+    if (r) {
+      await audit(user, 'messages.confirm', 'message', msg.id);
+      await publishConv(c.id, 'upd', { id: msg.id });
+    }
+    return { ok: true };
+  }),
+
+  // Remind only the people who haven't confirmed yet (once an hour at most)
+  'messages.confirmChase': def(ALL, async (b, { user }) => {
+    required(b, 'id');
+    const msg = need(await one('SELECT m.*, u.name AS sender_name FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = $1 AND m.deleted_at IS NULL', [b.id]), 'Message not found');
+    const { c } = await canRead(user, msg.conversation_id);
+    if (!msg.must_confirm) fail(400, 'This message doesn\'t need confirming');
+    if (msg.sender_id !== user.id && !MANAGER_ROLES.includes(user.role)) fail(403, 'Only the sender or a manager can chase');
+    const people = await members(c.id);
+    const done = new Set((await q('SELECT user_id FROM message_confirms WHERE message_id = $1', [msg.id])).map((r) => r.user_id));
+    const outstanding = people.filter((p) => p.id !== msg.sender_id && !p.system && !done.has(p.id)).map((p) => p.id);
+    if (!outstanding.length) return { sent: 0 };
+    await notify(outstanding, {
+      kind: 'message', severity: 'warning', title: `Please confirm ${msg.sender_name.split(' ')[0]}'s message`, body: preview(msg.body, msg.attachments),
+      link: `/messages/${c.id}?m=${msg.id}`, dedupe: `mconfirm:${msg.id}:${new Date().toISOString().slice(0, 13)}`,
+    });
+    await audit(user, 'messages.confirm_chase', 'message', msg.id, { people: outstanding.length });
+    return { sent: outstanding.length };
+  }),
+
+  // The app calls this right after sending a voice note; the jobs pick up any it missed
+  'messages.transcribe': def(ALL, async (b, { user }) => {
+    required(b, 'id');
+    const msg = need(await one('SELECT id, sender_id FROM messages WHERE id = $1', [b.id]), 'Message not found');
+    if (msg.sender_id !== user.id) fail(403, 'Only the sender can do this');
+    return { transcript: await runTranscript(msg.id) };
+  }),
+
+  // Search the chats the person is in (from when they joined): text and voice note transcripts
+  'messages.search': def(ALL, async (b, { user }) => {
+    const text = String(b.q || '').trim().slice(0, 100);
+    if (text.length < 2) return { results: [] };
+    const like = `%${text.replace(/[\\%_]/g, (x) => `\\${x}`)}%`;
+    const rows = await q(
+      `SELECT m.id, m.conversation_id, m.body, m.transcript, m.attachments, m.created_at, m.sender_id, u.name AS sender
+         FROM messages m JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = $1 AND cm.left_at IS NULL
+         JOIN users u ON u.id = m.sender_id
+        WHERE m.deleted_at IS NULL AND m.created_at >= cm.joined_at AND ($3::uuid IS NULL OR m.conversation_id = $3)
+          AND (m.search @@ websearch_to_tsquery('english', $2) OR m.body ILIKE $4 OR m.transcript ILIKE $4)
+        ORDER BY m.created_at DESC LIMIT 50`, [user.id, text, b.conversation_id || null, like]);
+    const convIds = [...new Set(rows.map((r) => r.conversation_id))];
+    const convs = convIds.length ? await q(
+      `SELECT c.id, c.kind, c.title,
+              (SELECT json_agg(json_build_object('id', u.id, 'name', u.name) ORDER BY u.name) FROM conversation_members x JOIN users u ON u.id = x.user_id
+                WHERE x.conversation_id = c.id AND x.left_at IS NULL AND x.user_id <> $2) AS others
+         FROM conversations c WHERE c.id = ANY($1::uuid[])`, [convIds, user.id]) : [];
+    const byId = new Map(convs.map((c) => [c.id, { id: c.id, kind: c.kind, title: titleOf(c, c.others || []) }]));
+    const around = (s) => {
+      const i = s.toLowerCase().indexOf(text.toLowerCase());
+      return i > 60 ? `…${s.slice(i - 40, i + 100)}` : s.slice(0, 140);
+    };
+    return {
+      results: rows.map((r) => {
+        const inBody = r.body && r.body.toLowerCase().includes(text.toLowerCase());
+        const src = r.body && (inBody || !r.transcript) ? r.body : r.transcript || preview(r.body, r.attachments);
+        return { id: r.id, conversation: byId.get(r.conversation_id), sender: r.sender, mine: r.sender_id === user.id, at: r.created_at, text: around(src), voice: !inBody && !!r.transcript };
+      }),
+    };
+  }),
+
+  // Realtime: a short-lived token that can only read the person's own channel
+  'messages.realtime': def(ALL, async (_b, { user }) => ({ token: await realtimeToken(user).catch((e) => { console.warn('[realtime]', e.message); return null; }) })),
 
   // For people who are not in Orb Ops conversations (e.g. venue staff), confirm the system user exists
   'messages.opsId': def(ALL, async () => ({ id: await opsUser() })),

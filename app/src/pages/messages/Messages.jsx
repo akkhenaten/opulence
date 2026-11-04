@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { BellOff, Camera, SquarePen } from 'lucide-react';
+import { BellOff, Camera, Mic, SquarePen } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { cx, Empty, IconButton, Load, Pressable, SearchInput, useApi } from '../../ui/index.jsx';
+import { api } from '../../api.js';
+import { useRealtime, useRealtimeConnected } from '../../realtime.js';
 import NewMessage from './NewMessage.jsx';
 import Thread, { NoThread } from './Thread.jsx';
 import { ConvAvatar, useBase, whenLabel } from './_parts.jsx';
@@ -13,7 +15,9 @@ const FILL = 'h-[calc(100dvh-56px-var(--tabbar-h)-env(safe-area-inset-top))] lg:
 /** Inbox on the left, the open conversation on the right (wide screens); one or the other on phones. */
 export default function Messages() {
   const { id } = useParams();
-  const inbox = useApi('messages.inbox', {}, { poll: 15000 });
+  const live = useRealtimeConnected();
+  const inbox = useApi('messages.inbox', {}, { poll: live ? 60000 : 15000 });
+  useRealtime(['msg', 'read'], () => inbox.reload());
   return (
     <div className="mx-auto w-full max-w-6xl lg:px-6 lg:pb-8">
       <div className={cx('flex overflow-hidden bg-surface lg:rounded-tile lg:border lg:border-hairline lg:shadow-tile', FILL)}>
@@ -37,6 +41,14 @@ function Inbox({ q, current }) {
     const s = search.trim().toLowerCase();
     return (q.data || []).filter((c) => !s || `${c.title} ${c.label || ''} ${c.last?.body || ''}`.toLowerCase().includes(s));
   }, [q.data, search]);
+  // Words inside messages too, across every conversation
+  const [found, setFound] = useState(null);
+  useEffect(() => {
+    const s = search.trim();
+    if (s.length < 2) { setFound(null); return undefined; }
+    const t = setTimeout(() => api('messages.search', { q: s }).then((r) => setFound(r.results)).catch(() => setFound([])), 300);
+    return () => clearTimeout(t);
+  }, [search]);
   return (
     <>
       <div className="px-4 pb-3 pt-4">
@@ -61,8 +73,8 @@ function Inbox({ q, current }) {
                   </div>
                   <div className="mt-0.5 flex items-center gap-2">
                     <span className={cx('line-clamp-2 min-w-0 flex-1 text-footnote', c.unread ? 'text-ink' : 'text-muted')}>
-                      {c.last?.photos > 0 && <Camera size={14} className="mr-1 inline -translate-y-px" />}
-                      {preview || (c.last?.photos ? 'Photo' : '')}
+                      {c.last?.voice ? <Mic size={14} className="mr-1 inline -translate-y-px" /> : c.last?.photos > 0 && <Camera size={14} className="mr-1 inline -translate-y-px" />}
+                      {preview || (c.last?.voice ? 'Voice message' : c.last?.photos ? 'Photo' : '')}
                     </span>
                     {c.muted && <BellOff size={14} className="shrink-0 text-faint" />}
                     {c.unread > 0 && <span className="min-w-[20px] shrink-0 rounded-full bg-blue px-1.5 text-center text-caption2 font-bold leading-5 text-white">{c.unread}</span>}
@@ -71,8 +83,24 @@ function Inbox({ q, current }) {
                 </div>
               </Pressable>
             );
-          }) : <Empty title={search ? 'No matches' : 'No messages yet'} body={search ? 'Try another word.' : 'Start a conversation with anyone in the company.'} />)}
+          }) : !found?.length && <Empty title={search ? 'No matches' : 'No messages yet'} body={search ? 'Try another word.' : 'Start a conversation with anyone in the company.'} />)}
         </Load>
+        {found?.length > 0 && (
+          <>
+            <h2 className="px-4 pb-1 pt-4 text-footnote font-semibold uppercase tracking-wide text-muted">In messages</h2>
+            {found.map((r) => (
+              <Pressable key={r.id} to={`${base}/${r.conversation.id}?m=${r.id}`} className="block px-4 py-2.5">
+                <div className="flex items-baseline gap-2">
+                  <span className="min-w-0 flex-1 truncate text-body font-semibold">{r.conversation.title}</span>
+                  <span className="shrink-0 text-caption text-faint">{whenLabel(r.at)}</span>
+                </div>
+                <div className="line-clamp-2 text-footnote text-muted">
+                  {r.voice && <Mic size={13} className="mr-1 inline -translate-y-px" />}{r.mine ? 'You' : r.sender?.split(' ')[0]}: {r.text}
+                </div>
+              </Pressable>
+            ))}
+          </>
+        )}
       </div>
       <NewMessage open={compose} onClose={() => setCompose(false)} />
     </>
