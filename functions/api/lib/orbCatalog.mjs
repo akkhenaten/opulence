@@ -13,7 +13,7 @@ const staff = (id) => id && `staff/${id}`;
 
 export const CATALOG = {
   // People & onboarding
-  'officers.list': r('people', 'List officers', 'status (applicant|onboarding|active|inactive|left)?, role?, q?'),
+  'officers.list': r('people', 'List officers', 'status (applicant|onboarding|active|suspended|left)?, role?, q?'),
   'officers.get': r('people', 'Officer profile', 'id'),
   'officers.save': c('people', 'Add or update an officer', `id? (omit to add), first_name, last_name, email, phone, dob, address, postcode, ni_number, utr, bank_name, bank_sort_code, bank_account,
     sia_number, sia_type, sia_expiry, rtw_type, rtw_expiry, rtw_verified, status, roles[], max_weekly_hours, start_date, notes, invite (true sends a login invite)`,
@@ -33,9 +33,11 @@ export const CATALOG = {
   'compliance.overview': r('compliance', 'Compliance issues (SIA, right to work, documents)', 'severity?'),
   'ops.dismissIssue': c('compliance', 'Dismiss a compliance issue', 'id, key, reason'),
   'timeoff.list': r('people', 'Time-off requests', 'officer_id?, status?, from?, to?'),
-  'timeoff.decide': c('people', 'Approve or decline time off', 'id, status (approved|declined)'),
+  'timeoff.decide': c('people', 'Approve or decline time off', 'id, status (approved|rejected)'),
   'hrnotes.list': r('people', 'HR notes', 'officer_id, kind?'),
-  'hrnotes.create': a('people', 'Add an HR note', 'officer_id, kind (note|praise|concern|warning), title, body, level?, visible_to_officer?', {
+  'hrnotes.create': a('people', 'Add an HR note', 'officer_id, kind (note|commendation|training|venue_feedback|warning|review), title, body, level?, visible_to_officer?', {
+    // Warnings and reviews are HR outcomes, and a note the officer can see notifies them: those wait for Confirm
+    confirmWhen: (b) => ['warning', 'review'].includes(b.kind) || !!b.visible_to_officer,
     link: (_r, b) => staff(b.officer_id), undo: (res) => res?.id && { action: 'hrnotes.delete', body: { id: res.id } } }),
   'growth.officer': r('people', "Officer's 1:1s, goals and pay rises", 'officer_id'),
   'oneToOnes.save': a('people', 'Record a 1:1', 'officer_id, held_on, notes, rating?, shared_with_officer?', { link: (_r, b) => staff(b.officer_id),
@@ -56,10 +58,10 @@ export const CATALOG = {
   'shifts.get': r('rota', 'Shift details', 'id'),
   'shifts.candidates': r('rota', 'Ranked officers who could work a shift', 'shift_id'),
   'shifts.pendingRequests': r('rota', 'Officers asking for open shifts', ''),
-  'shifts.save': e('rota', 'Create or edit a shift', 'auto', 'id?, venue_id, role, starts_at (ISO), ends_at (ISO), break_minutes?, headcount?, open?, notes? — new shifts are saved as drafts', {
+  'shifts.save': e('rota', 'Create or edit a shift', 'auto', 'id?, venue_id, role (code from roles.list, e.g. door), starts_at (ISO), ends_at (ISO), break_minutes?, headcount?, open?, notes? — new shifts are saved as drafts', {
     confirmWhen: (b) => !!b.id || (b.status && b.status !== 'draft'), link: (res, b) => (res?.id || b.id) && `shifts/${res?.id || b.id}`,
     undo: (res, b) => !b.id && res?.id && { action: 'shifts.delete', body: { id: res.id } }, prepare: (b) => (b.id ? b : { ...b, status: 'draft' }) }),
-  'shifts.bulkCreate': e('rota', 'Create draft shifts on several dates', 'auto', 'venue_id, role, start_time (HH:MM), end_time, dates[], headcount?, break_minutes?, open?, notes?', {
+  'shifts.bulkCreate': e('rota', 'Create draft shifts on several dates', 'auto', 'venue_id, role (code from roles.list, e.g. door), start_time (HH:MM), end_time, dates[], headcount?, break_minutes?, open?, notes?', {
     confirmWhen: (b) => b.status && b.status !== 'draft', prepare: (b) => ({ ...b, status: 'draft' }), link: () => 'rota' }),
   'shifts.publish': c('rota', 'Publish shifts and notify officers', 'ids[]', { link: () => 'rota' }),
   'shifts.copyWeek': c('rota', 'Copy a week of shifts', 'from_week (Monday YYYY-MM-DD), to_week, venue_id?', { link: () => 'rota' }),
@@ -83,7 +85,7 @@ export const CATALOG = {
   'shiftlog.list': r('rota', 'Shift logs', 'venue_id?, status?, from?, to?'),
   'ops.inbox': r('rota', 'Ops AI inbox (suggestions waiting)', 'status?'),
   'ops.activity': r('rota', 'Ops AI activity', ''),
-  'ops.decide': c('rota', 'Accept or reject an Ops AI suggestion', 'id, decision (accept|reject), reason?'),
+  'ops.decide': c('rota', 'Accept or reject an Ops AI suggestion', 'id, decision (approve|reject), reason?'),
   'venues.list': r('venues', 'Venues', 'include_inactive?'),
   'venues.get': r('venues', 'Venue details', 'id'),
   'venues.rates': r('venues', 'Venue charge rates', 'venue_id'),
@@ -122,7 +124,7 @@ export const CATALOG = {
   'incidents.list': r('incidents', 'Incidents', 'status?, severity?, type?, venue_id?, officer_id?, from?, to?, search?'),
   'incidents.get': r('incidents', 'Incident report', 'id'),
   'incidents.aiReview': a('incidents', 'Check an incident report for gaps (draft only)', 'id', { link: (_r, b) => `incidents/${b.id}` }),
-  'incidents.review': c('incidents', 'Review an incident (approve or return)', 'id, decision (approved|returned), comment?', { link: (_r, b) => `incidents/${b.id}` }),
+  'incidents.review': c('incidents', 'Review an incident (approve or return)', 'id, decision (close|changes_requested|reopen), comment (needed for changes_requested), comment?', { link: (_r, b) => `incidents/${b.id}` }),
 
   // Academy, toolbox & feed
   'academy.courses': r('academy', 'Academy courses', ''),
@@ -130,7 +132,7 @@ export const CATALOG = {
   'academy.officer': r('academy', "Officer's training record", 'officer_id'),
   'academy.staffRecords': r('academy', 'Training records', ''),
   'academy.refreshersDue': r('academy', 'Refreshers due', 'days?'),
-  'academy.assign': a('academy', 'Assign a course', 'course_id, target (officers|role|all), ids[]?, due_date?', { link: () => 'team/training',
+  'academy.assign': a('academy', 'Assign a course', 'course_id, target (officers|role|venue|all), ids[]?, due_date?', { link: () => 'team/training',
     undo: (_r, b) => b.target === 'officers' && b.ids?.length === 1 && { action: 'academy.unassign', body: { course_id: b.course_id, officer_id: b.ids[0] } } }),
   'academy.remindRefresher': a('academy', 'Remind about a refresher', 'source, id'),
   'toolbox.list': r('toolbox', 'Toolbox cards', 'drafts?'),

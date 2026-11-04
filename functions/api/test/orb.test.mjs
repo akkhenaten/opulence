@@ -55,6 +55,14 @@ test('new draft shifts run straight away; edits and published shifts need Confir
   assert.equal(tierOf(CATALOG['shifts.publish'], {}), 'confirm');
 });
 
+test('plain HR notes run straight away; warnings, reviews and notes the officer sees need Confirm', () => {
+  const h = CATALOG['hrnotes.create'];
+  assert.equal(tierOf(h, { kind: 'note' }), 'auto');
+  assert.equal(tierOf(h, { kind: 'warning' }), 'confirm');
+  assert.equal(tierOf(h, { kind: 'review' }), 'confirm');
+  assert.equal(tierOf(h, { kind: 'commendation', visible_to_officer: true }), 'confirm');
+});
+
 test('sanitize drops secrets and trims bulk', () => {
   const out = sanitize({ name: 'A', password_hash: 'x', token: 't', signature_png: 'p', api_key: 'k', nested: { reset_token: 'r', ok: 1 },
     list: Array.from({ length: 60 }, (_, i) => i), long: 'x'.repeat(3000) });

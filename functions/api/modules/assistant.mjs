@@ -261,8 +261,13 @@ function describe(action, r) {
 const errorText = (e) => {
   if (e instanceof HttpError) return e.message;
   if (e?.code === '23505') return 'That already exists';
-  if (e?.code === '23503') return 'It is still in use or refers to something missing';
+  if (e?.code === '23503') {
+    const k = /Key \((\w+)\)=\(([^)]*)\) is not present/.exec(e.detail || '');
+    return k ? `No ${k[1].replace(/_id$/, '').replace(/_/g, ' ')} "${k[2]}" exists: look it up first` : 'It is still in use or refers to something missing';
+  }
   if (e?.code === '22P02') return 'Invalid value: check the ids, dates and formats';
+  if (e?.code === '23514') return `Not an allowed value (${String(e.constraint || '').replace(/_check$/, '').replace(/_/g, ' ')}): check the options in find_actions`;
+  if (e?.code === '23502') return `${e.column || 'A required field'} is missing`;
   console.error('[orb]', e);
   return 'Something went wrong';
 };
@@ -460,6 +465,7 @@ export const actions = {
             out = await callTool(u.name, u.input || {}, turn, tools);
           } catch (e) {
             out = { error: errorText(e) };
+            console.warn('[orb] tool failed', u.name, u.input?.action || '', out.error);
           }
           results.push({ type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(out ?? null).slice(0, 12000) });
         }

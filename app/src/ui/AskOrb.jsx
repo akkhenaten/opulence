@@ -190,8 +190,11 @@ function Inline({ text, role }) {
   while ((m = re.exec(text))) {
     if (m.index > last) out.push(text.slice(last, m.index));
     if (m[3]) out.push(<strong key={m.index}>{m[3]}</strong>);
-    else if (m[2].startsWith(`/${role}`) && !m[2].startsWith('//')) out.push(<Link key={m.index} to={m[2]} className="font-semibold text-blue underline-offset-2 hover:underline">{m[1]}</Link>);
-    else out.push(m[1]);
+    else if (m[2].startsWith('/') && !m[2].startsWith('//')) {
+      // App paths only; "/settings" is read as this person's own area
+      const to = m[2] === `/${role}` || m[2].startsWith(`/${role}/`) ? m[2] : `/${role}${m[2]}`;
+      out.push(<Link key={m.index} to={to} className="font-semibold text-blue underline-offset-2 hover:underline">{m[1]}</Link>);
+    } else out.push(m[1]);
     last = m.index + m[0].length;
   }
   if (last < text.length) out.push(text.slice(last));
