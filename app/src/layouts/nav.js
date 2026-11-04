@@ -1,7 +1,7 @@
 import {
   BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
   Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText, Sparkles,
-  GraduationCap, BookOpenCheck, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck,
+  GraduationCap, BookOpenCheck, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck,
 } from 'lucide-react';
 
 // Sidebar sections per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
@@ -34,6 +34,7 @@ export const NAV = {
     { title: 'Clients & sites', items: [
       { to: '/company/clients', label: 'Clients', icon: Briefcase },
       { to: '/company/venues', label: 'Venues', icon: Building2 },
+      { to: '/company/people/procedures', label: 'Site packs', icon: BookText },
     ] },
     { title: 'Finance', items: [
       { to: '/company/pay', label: 'Pay runs', icon: Banknote },
@@ -71,6 +72,7 @@ export const NAV = {
     ] },
     { title: 'Sites', items: [
       { to: '/security/venues', label: 'Venues', icon: Building2 },
+      { to: '/security/people/procedures', label: 'Site packs', icon: BookText },
     ] },
     { title: 'Finance', items: [
       { to: '/security/pay', label: 'Pay runs', icon: Banknote, perm: 'can_see_pay' },

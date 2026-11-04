@@ -9,6 +9,7 @@ import {
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { WEEKDAYS, durationH, londonIso, londonParts, shiftTimes, useBase } from './_parts.jsx';
+import { PackPill } from '../shared/PackPaper.jsx';
 
 const dayOf = (iso) => londonParts(iso).date;
 const ACTIVE = ['assigned', 'accepted'];
@@ -483,7 +484,7 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
                   <div key={a.id} className="flex items-center gap-3 px-4 py-3">
                     <Avatar name={a.name} size={36} />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 truncate text-body font-semibold">{a.name}{a.is_self && <Pill tone="blue">You</Pill>}{a.is_lead && <Pill tone="ink">Lead</Pill>}</div>
+                      <div className="flex items-center gap-1.5 truncate text-body font-semibold">{a.name}{a.is_self && <Pill tone="blue">You</Pill>}{a.is_lead && <Pill tone="ink">Lead</Pill>}{a.pack && <PackPill status={a.pack} />}</div>
                       <div className="truncate text-caption text-muted">
                         {a.clocked_in ? <>In <span className="num">{time(a.clocked_in)}</span>{a.clocked_out && <> · out <span className="num">{time(a.clocked_out)}</span></>}</> : a.sia_number ? `SIA ${a.sia_number}` : ''}
                       </div>
@@ -549,6 +550,7 @@ function AssignSheet({ shift, onClose, onDone }) {
                     {blocked ? <div className="text-caption text-red">{c.blocking.join(' · ')}</div>
                       : c.warnings.length ? <div className="text-caption text-amber">{c.warnings.join(' · ')}</div>
                         : <div className="text-caption text-green">Available</div>}
+                    {!blocked && c.notes?.length > 0 && <div className="text-caption text-muted">{c.notes.join(' · ')}</div>}
                   </div>
                   {busyId === c.id ? <span className="text-footnote text-muted">Assigning…</span> : !blocked && <Plus size={18} className="text-blue" />}
                 </Pressable>

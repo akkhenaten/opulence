@@ -291,8 +291,9 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
     s.page.drawText(s.fit(signer?.title ? `${name}, ${signer.title}` : name, s.bold, 10, boxW - 24), { x: x + 12, y: lineY - 16, size: 10, font: s.bold, color: INK });
     s.page.drawText(signer?.at ? `${fmtDateTime(signer.at)} UK time` : 'Date: ____________', { x: x + 12, y: lineY - 31, size: 8.5, font: s.font, color: MUTED });
   };
-  await box(s.x, 'Signed for the company', signers.company, company?.company_name);
-  await box(s.x + boxW + 16, doc.partyLabel ? `Signed for ${doc.partyLabel}` : doc.kind === 'policy' ? 'Acknowledged by the officer' : 'Signed by the officer', signers.officer, doc.officerName);
+  // A venue pack is the officer's acknowledgement alone: no company box
+  if (!doc.officerOnly) await box(s.x, 'Signed for the company', signers.company, company?.company_name);
+  await box(doc.officerOnly ? s.x : s.x + boxW + 16, doc.partyLabel ? `Signed for ${doc.partyLabel}` : doc.kind === 'policy' || doc.officerOnly ? 'Acknowledged by the officer' : 'Signed by the officer', signers.officer, doc.officerName);
   s.y -= boxH + 10;
 
   // ---- Signing certificate (always the last page)
@@ -345,9 +346,9 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
     s.y -= 36;
   };
   const co = signers.company;
-  signerRow(co?.name || 'Not set', co?.title || 'Company signatory', `For ${company?.company_name || 'the company'}`, co?.at ? `Applied ${fmtDateTime(co.at)}` : doc.legacy ? 'Signed before company signatures' : 'Applied when sent', 'Saved signature');
+  if (!doc.officerOnly) signerRow(co?.name || 'Not set', co?.title || 'Company signatory', `For ${company?.company_name || 'the company'}`, co?.at ? `Applied ${fmtDateTime(co.at)}` : doc.legacy ? 'Signed before company signatures' : 'Applied when sent', 'Saved signature');
   const of = signers.officer;
-  signerRow(of?.name || doc.officerName, doc.partyRole || (doc.partyLabel ? `For ${doc.partyLabel}` : doc.kind === 'policy' ? 'Officer · acknowledges' : 'Officer'), of?.email || '', of?.at ? `Signed ${fmtDateTime(of.at)}` : 'Not signed yet', of?.at ? [of.ip && `IP ${of.ip}`, device(of.ua)].filter(Boolean).join(' · ') : '');
+  signerRow(of?.name || doc.officerName, doc.partyRole || (doc.partyLabel ? `For ${doc.partyLabel}` : doc.kind === 'policy' || doc.officerOnly ? 'Officer · acknowledges' : 'Officer'), of?.email || '', of?.at ? `Signed ${fmtDateTime(of.at)}` : 'Not signed yet', of?.at ? [of.ip && `IP ${of.ip}`, device(of.ua)].filter(Boolean).join(' · ') : '');
 
   s.y -= 18;
   heading('Timeline (UK time)');

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Building2, MapPin, Phone } from 'lucide-react';
 import { Avatar, Empty, List, Load, Page, Row, Section, Segmented, Tile, useApi } from '../../ui/index.jsx';
 import { DocumentsTab } from '../money/VenueDetail.jsx';
+import { ClientPack } from './SitePack.jsx';
 
 /** The venue manager's read-only view of their site: details, instructions, who to contact and shared documents. */
 export default function Site() {
@@ -41,9 +42,11 @@ function VenueView({ id }) {
               </div>
             </div>
           </Tile>
-          <Tile title="Instructions for officers">
-            <p className="whitespace-pre-wrap text-body text-muted">{v.instructions || 'No instructions yet. Message the security company to add them.'}</p>
-          </Tile>
+          {v.instructions && (
+            <Tile title="Short note for officers">
+              <p className="whitespace-pre-wrap text-body text-muted">{v.instructions}</p>
+            </Tile>
+          )}
           <Section title="Your security managers" className="mt-0">
             {v.security.length ? (
               <List>{v.security.map((u) => <Row key={u.id} left={<Avatar name={u.name} size={38} />} title={u.name} subtitle={[u.phone, u.email].filter(Boolean).join(' · ')} />)}</List>
@@ -52,6 +55,7 @@ function VenueView({ id }) {
           <Section title="Venue managers" className="mt-0">
             <List>{v.contacts.map((u) => <Row key={u.id} left={<Avatar name={u.name} size={38} />} title={u.name} subtitle={u.email} />)}</List>
           </Section>
+          <div className="lg:col-span-2"><ClientPack venueId={v.id} /></div>
           <div className="lg:col-span-2"><DocumentsTab venueId={v.id} readOnly /></div>
         </div>
       )}

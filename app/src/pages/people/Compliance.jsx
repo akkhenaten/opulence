@@ -15,7 +15,7 @@ const SEV = {
 };
 const AREAS = [
   { value: '', label: 'All' }, { value: 'licence', label: 'Licences' }, { value: 'rtw', label: 'Right to work' },
-  { value: 'training', label: 'Training' }, { value: 'documents', label: 'Documents' },
+  { value: 'training', label: 'Training' }, { value: 'documents', label: 'Documents' }, { value: 'venue_pack', label: 'Site packs' },
 ];
 
 export default function Compliance() {

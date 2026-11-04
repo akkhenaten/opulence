@@ -56,13 +56,13 @@ export async function checkCap(module = 'ops') {
   }
 }
 
-const MODULE_NAMES = { ops: 'Ops AI', academy: 'Academy', toolbox: 'Toolbox', everyday: 'Everyday', orb: 'Orb', orb_voice: 'Orb voice', contracts: 'Contracts AI', clock_face: 'Clock-in face check' };
+const MODULE_NAMES = { ops: 'Ops AI', academy: 'Academy', toolbox: 'Toolbox', everyday: 'Everyday', orb: 'Orb', orb_voice: 'Orb voice', contracts: 'Contracts AI', clock_face: 'Clock-in face check', venue_packs: 'Venue packs' };
 
 // system may be a string or an array of text blocks (so long, stable parts can carry cache_control)
-export async function claude({ model = SONNET, system, messages, tools, tool_choice, max_tokens = 1024, module = 'ops' }) {
+export async function claude({ model = SONNET, system, messages, tools, tool_choice, max_tokens = 1024, module = 'ops', timeout = 45000 }) {
   await checkCap(module);
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 45000);
+  const timer = setTimeout(() => ctrl.abort(), timeout);
   let res;
   try {
     res = await fetch(URL, {
@@ -164,8 +164,8 @@ export async function drawImage({ prompt, module = 'academy' }) {
 }
 
 // Force a single tool call and return its input (structured output)
-export async function extract({ model = HAIKU, system, messages, tool, max_tokens = 1024, module = 'ops' }) {
-  const r = await claude({ model, system, messages, tools: [tool], tool_choice: { type: 'tool', name: tool.name }, max_tokens, module });
+export async function extract({ model = HAIKU, system, messages, tool, max_tokens = 1024, module = 'ops', timeout }) {
+  const r = await claude({ model, system, messages, tools: [tool], tool_choice: { type: 'tool', name: tool.name }, max_tokens, module, timeout });
   const block = (r.content || []).find((c) => c.type === 'tool_use');
   return { input: block?.input ? fixShapes(block.input, tool.input_schema) : null, credits: r.credits };
 }

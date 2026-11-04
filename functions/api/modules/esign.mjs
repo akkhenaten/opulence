@@ -10,7 +10,7 @@ import { fmtDate } from '../lib/time.mjs';
 import { CO, def, pub } from './_def.mjs';
 
 export const CATEGORIES = ['contract', 'policy', 'pay_rise'];
-export const TYPE_LABEL = { contract: 'Contract', policy: 'Policy', pay_rise: 'Pay rise agreement' };
+export const TYPE_LABEL = { contract: 'Contract', policy: 'Policy', pay_rise: 'Pay rise agreement', venue_pack: 'Venue pack' };
 const ACK = { policy: 'I have read and understood this policy and agree to follow it.' };
 const PNG = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
 
@@ -166,8 +166,8 @@ export const actions = {
   // Public: confirm a document is genuine. The PDF is hashed in the browser; no file and no wording leave the server.
   'esign.verify': pub(async (b) => {
     const ref = String(b.reference || '').trim().toUpperCase().slice(0, 40);
-    if (!/^ORB-[CPR]-\d{4}-\d{4,}$/.test(ref)) return { found: false };
-    const [s, c, a] = await Promise.all([
+    if (!/^ORB-[CPRV]-\d{4}-\d{4,}$/.test(ref)) return { found: false };
+    const [s, c, a, p] = await Promise.all([
       one('SELECT company_name FROM settings WHERE id = 1'),
       one(`SELECT c.reference, c.category, c.title, c.status, c.signed_name, c.signed_at, c.company_name_signed, c.fingerprint, c.pdf_sha256, c.sealed_at,
                   COALESCE(o.first_name || ' ' || o.last_name, g.signatory_name, g.name) AS officer_name, g.name AS party
@@ -175,8 +175,11 @@ export const actions = {
       one(`SELECT a.reference, 'pay_rise' AS category, 'Pay rise agreement' AS title, a.status, a.signed_name, a.signed_at, a.company_name_signed,
                   a.fingerprint, a.pdf_sha256, a.sealed_at, o.first_name || ' ' || o.last_name AS officer_name
              FROM pay_agreements a JOIN officers o ON o.id = a.officer_id WHERE a.reference = $1`, [ref]),
+      one(`SELECT p.reference, 'venue_pack' AS category, 'Venue pack: ' || v.name AS title, p.status, p.signed_name, p.signed_at, NULL AS company_name_signed,
+                  p.fingerprint, p.pdf_sha256, p.sealed_at, o.first_name || ' ' || o.last_name AS officer_name
+             FROM pack_signings p JOIN officers o ON o.id = p.officer_id JOIN venues v ON v.id = p.venue_id WHERE p.reference = $1`, [ref]),
     ]);
-    const d = c || a;
+    const d = c || a || p;
     if (!d) return { found: false };
     const status = d.status === 'applied' ? 'signed' : d.status;
     const sha = String(b.sha256 || '').toLowerCase();

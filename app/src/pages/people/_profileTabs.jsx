@@ -12,6 +12,7 @@ import { CertificateSheet } from '../team/_training.jsx';
 import { ContractView, DocPill, RemindButton, SendDocSheet } from './_esign.jsx';
 import StartSheet from './contracts/StartSheet.jsx';
 import { AMEND_KIND, ENGAGEMENT, JUR_SHORT } from './contracts/_shared.jsx';
+import { PackPill } from '../shared/PackPaper.jsx';
 
 // useApi that reports 403 to the parent so the tab can be hidden
 function useTabApi(action, body, onForbidden, opts) {
@@ -298,10 +299,30 @@ export function DocumentsTab({ o, isCo, onForbidden }) {
               ))}
             </List>
           ) : <Empty icon={FileText} title="No documents" body="SIA licence, right to work, ID and proof of address will show here." />}
+          <OfficerPacks officerId={o.id} />
           {adding && <DocSheet o={o} onClose={() => setAdding(false)} onDone={q.reload} />}
         </>
       )}
     </TabLoad>
+  );
+}
+
+// Site packs at the venues they work: where they stand, and each signing's sealed PDF
+function OfficerPacks({ officerId }) {
+  const q = useApi('venuePacks.officer', { officer_id: officerId });
+  const [run] = useAction();
+  const d = q.data;
+  if (!d || (!d.venues.length && !d.signings.length)) return null;
+  return (
+    <Section title="Site packs">
+      <List>
+        {d.venues.map((v) => <Row key={v.venue_id} title={v.name} subtitle="Current status at this venue" right={<PackPill status={v.status} />} />)}
+        {d.signings.map((g) => (
+          <Row key={g.id} onClick={() => run(() => downloadAction('venuePacks.pdf', { id: g.id })).catch(() => {})} left={<FileSignature size={18} className="text-muted" />}
+            title={`Signed: ${g.venue_name}`} subtitle={`${dateTime(g.signed_at)} · ${g.reference}`} right={<Eye size={16} className="text-blue" />} />
+        ))}
+      </List>
+    </Section>
   );
 }
 

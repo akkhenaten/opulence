@@ -14,6 +14,7 @@ import { guardSelf, markOwn } from '../lib/selfcheck.mjs';
 import { MGR, def } from './_def.mjs';
 import { evaluate } from '../lib/proof.mjs';
 import { checkPhone, findTap, spendTap, checkSelfie, scoreSelfie } from './clockProof.mjs';
+import { statusFor, OK, STATUS_LABEL } from '../lib/venuePack.mjs';
 import crypto from 'node:crypto';
 
 const VALID = ['ok', 'approved', 'manual'];
@@ -90,7 +91,10 @@ export const actions = {
       || list.find((a) => a.state === 'not_started' && new Date(a.ends_at) > new Date());
     const o = await one('SELECT face_consent FROM officers WHERE id = $1', [user.officer_id]);
     const s = await getSettings();
-    return { current: current || null, today: list, face_consent: o?.face_consent || null, face_match_enabled: !!s.face_match_enabled };
+    // The venue pack must be signed before clock-in at the next venue
+    const st = current ? await statusFor(user.officer_id, current.venue_id) : null;
+    const pack = st ? { status: st.status, label: STATUS_LABEL[st.status], to_read: st.toRead.length, ok: OK.has(st.status), venue_id: current.venue_id } : null;
+    return { current: current || null, today: list, face_consent: o?.face_consent || null, face_match_enabled: !!s.face_match_enabled, pack };
   }),
 
   'clock.punch': def(['officer'], async (b, { user }) => {
@@ -100,6 +104,13 @@ export const actions = {
     const state = stateOf(a.events);
     const allowed = { not_started: ['in'], on_shift: ['out', 'break_start'], on_break: ['break_end'], finished: [] }[state];
     if (!allowed.includes(b.kind)) fail(400, state === 'finished' ? 'You have already clocked out' : `You can't do that now (${state.replace('_', ' ')})`);
+    // Clock-in waits for the venue pack; clock-out and breaks never do, so a change mid-shift interrupts nothing
+    if (b.kind === 'in') {
+      const st = await statusFor(user.officer_id, a.venue_id);
+      if (!OK.has(st.status)) {
+        fail(423, `Read and sign the site pack for ${a.venue_name} before you clock in`, { code: 'venue_pack', venue_id: a.venue_id, pack_status: st.status, to_read: st.toRead.length });
+      }
+    }
 
     const s = await getSettings();
     const fence = insideFence({ lat: b.lat, lng: b.lng, accuracy: b.accuracy }, a, s.gps_tolerance_m);

@@ -22,19 +22,21 @@ const CONSENT = {
   contract: 'I have read this contract and agree to its terms',
   policy: 'I have read and understood this policy and agree to follow it',
   pay_rise: 'I accept this pay rise on these terms',
+  venue_pack: 'I have read and understood these instructions and procedures and agree to follow them',
 };
+const SIGN_LABEL = { pay_rise: 'agreement', venue_pack: 'site pack' };
 
-function Stepper({ step }) {
+export function Stepper({ step, steps = STEPS }) {
   return (
     <ol className="mb-4 flex items-center gap-2" aria-label="Signing steps">
-      {STEPS.map((s, i) => (
+      {steps.map((s, i) => (
         <li key={s} className="flex flex-1 items-center gap-2" aria-current={i === step ? 'step' : undefined}>
           <span className={cx('grid h-7 w-7 shrink-0 place-items-center rounded-full text-footnote font-bold transition-colors',
             i < step ? 'bg-green text-white' : i === step ? 'bg-blue text-white' : 'bg-fill-strong text-muted')}>
             {i < step ? <Check size={15} strokeWidth={3} /> : i + 1}
           </span>
           <span className={cx('text-footnote font-semibold', i === step ? 'text-ink' : 'text-muted')}>{s}</span>
-          {i < STEPS.length - 1 && <span className={cx('h-0.5 flex-1 rounded-full', i < step ? 'bg-green' : 'bg-fill-strong')} />}
+          {i < steps.length - 1 && <span className={cx('h-0.5 flex-1 rounded-full', i < step ? 'bg-green' : 'bg-fill-strong')} />}
         </li>
       ))}
     </ol>
@@ -42,7 +44,7 @@ function Stepper({ step }) {
 }
 
 // How far down the document the reader has scrolled, and whether the end has been seen
-function useReadProgress(paper, end, active) {
+export function useReadProgress(paper, end, active) {
   const [pct, setPct] = useState(0);
   const [done, setDone] = useState(false);
   useEffect(() => {
@@ -146,7 +148,7 @@ export default function SignFlow({ d, sign, pdf, onSigned, onDownload, doneNote,
   );
 }
 
-function SignStep({ d, sign, back, done, defaultName }) {
+export function SignStep({ d, sign, back, done, defaultName, children }) {
   const { user } = useAuth();
   const toast = useToast();
   const [name, setName] = useState(defaultName ?? user?.name ?? '');
@@ -168,8 +170,9 @@ function SignStep({ d, sign, back, done, defaultName }) {
           <h2 className="text-headline font-bold leading-snug">{d.doc.title}</h2>
           <div className="num text-footnote text-muted">{d.reference}</div>
         </div>
-        <Button variant="ghost" size="sm" icon={ArrowLeft} onClick={back}>Read again</Button>
+        {back && <Button variant="ghost" size="sm" icon={ArrowLeft} onClick={back}>Read again</Button>}
       </div>
+      {children}
       <Input className="mt-4" label="Full name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" maxLength={120} />
       <div className="mt-4 flex items-center justify-between">
         <span className="text-footnote font-semibold text-muted">Your signature</span>
@@ -180,7 +183,7 @@ function SignStep({ d, sign, back, done, defaultName }) {
         <Toggle checked={agree} onChange={setAgree} label={CONSENT[d.kind] || CONSENT.contract}
           hint="Your electronic signature is as binding as signing on paper. We record your name, signature, time, IP address and device." />
       </div>
-      <Button size="lg" className="mt-4 w-full" icon={FileSignature} busy={busy} disabled={!ok} onClick={go}>Sign {d.kind === 'pay_rise' ? 'agreement' : d.kind}</Button>
+      <Button size="lg" className="mt-4 w-full" icon={FileSignature} busy={busy} disabled={!ok} onClick={go}>Sign {SIGN_LABEL[d.kind] || d.kind}</Button>
     </div>
   );
 }

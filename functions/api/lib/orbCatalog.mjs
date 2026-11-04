@@ -156,6 +156,15 @@ export const CATALOG = {
     confirmWhen: (b) => !!b.id, link: (res, b) => (res?.id || b.id) && `team/toolbox/${res?.id || b.id}`,
     undo: (res, b) => !b.id && res?.id && { action: 'toolbox.setStatus', body: { id: res.id, status: 'archived' } } }),
   'toolbox.setStatus': c('toolbox', 'Publish or archive a toolbox card', 'id, status (published|archived|draft)'),
+  // Venue packs: instructions and procedures officers sign before working a venue
+  'procedures.list': r('venue_packs', 'Site instructions and procedures (general and per venue)', 'scope (general|venue)?, venue_id?, status (draft|published|archived)?'),
+  'procedures.get': r('venue_packs', 'One instructions or procedure document with versions and suggestions', 'id'),
+  'venuePacks.overview': r('venue_packs', 'Every venue: site pack documents, drafts, booked officers who still need to sign', ''),
+  'venuePacks.get': r('venue_packs', "A venue's site pack: documents in it and signing counts", 'venue_id'),
+  'venuePacks.register': r('venue_packs', "A venue's signing register: who has signed, who still needs to", 'venue_id, filter (action|current|booked)?, q?'),
+  'venuePacks.officer': r('venue_packs', "An officer's site pack signings and venues still to sign", 'officer_id'),
+  'venuePacks.ai.draft': c('venue_packs', "Draft a venue's assignment instructions with AI (saved as a draft, nothing published)", 'venue_id, answers? {site_type, hours, duties, access, patrols, keys, emergency, contacts, reporting, welfare, risks, other}, document_ids?',
+    { link: (_r, b) => `venues/${b.venue_id}?tab=pack` }),
   'everyday.feed': r('feed', 'Team feed posts', ''),
   'everyday.create': c('feed', 'Post to the team feed', 'body', { link: () => 'everyday' }),
   'messages.inbox': r('messages', 'My conversations', ''),
@@ -171,7 +180,7 @@ export const CATALOG = {
 };
 
 /** Prefixes Orb must never touch, whatever the catalogue says. */
-export const BANNED = /^(auth\.|files\.|push\.|assistant\.|demo\.|sign\.link\.|contracts\.ai\.)|^users\.(resetLink|resendInvite|mergeOfficerLogin)$|^settings\.setLogo$|^clock\.(tagTap|nfcSetup|passkeyOptions)$|^device\.register|^officers\.faceConsent$|^esign\.mySignature|\.(pdf|exportCsv|qrPoster)$/;
+export const BANNED = /^(auth\.|files\.|push\.|assistant\.|demo\.|sign\.link\.|contracts\.ai\.)|^users\.(resetLink|resendInvite|mergeOfficerLogin)$|^settings\.setLogo$|^clock\.(tagTap|nfcSetup|passkeyOptions)$|^device\.register|^officers\.faceConsent$|^esign\.mySignature|^venuePacks\.(sign|read|toggle|mine)$|^procedures\.(publish|archive|delete)$|\.(pdf|exportCsv|qrPoster)$/;
 const PAY = /^(pay|payRuns|payAgreements|invoices)\.|^reports\.(margin|hours|overdue)$/;
 
 /** Catalogue entries this person can use: the action's own roles, pay access, and the company-only money rule. */

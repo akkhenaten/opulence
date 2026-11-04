@@ -18,6 +18,7 @@ import { trainingStatus } from './academy.mjs';
 import { moduleOn } from '../lib/modules.mjs';
 import { lawAlerts } from '../lib/contractContent.mjs';
 import { CO, MGR, def } from './_def.mjs';
+import { statusesFor, pairKey, OK } from '../lib/venuePack.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const NO_CLOCK_IN = "NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')";
@@ -90,6 +91,7 @@ export async function readDocuments(limit = 4) {
 }
 
 // ---------- Rules ----------
+const PACK_TITLE = { unsigned: 'Site pack not signed', resign: 'Site pack changed, needs signing again', refresher: 'Site pack refresher due' };
 const remind = (o, kind, what) => ({ kind: 'remind', label: `Remind ${o.first_name} to upload ${what}`, params: { doc_kind: kind, what }, default: true });
 const unassign = (shifts) => ({ kind: 'unassign', label: `Take them off ${shifts.length === 1 ? 'the at-risk shift' : `${shifts.length} at-risk shifts`} and find cover`, params: { assignment_ids: shifts.map((s) => s.assignment_id) }, default: false });
 const correct = (field, from, to, label) => ({ kind: 'correct', label, params: { field, from, to }, company_only: true, default: false });
@@ -97,7 +99,7 @@ const remindTraining = (o, t, refresher = false) => ({ kind: 'remind', label: `R
 const recheck = (d) => ({ kind: 'recheck', label: `Mark "${d.title}" for re-check`, params: { doc_id: d.id }, default: false });
 
 // Every issue for one officer. ctx: { today, roles: {code: role}, docs, shifts, openTasks }
-export function officerIssues(o, { today, roles, docs = [], shifts = [], openTasks = 0, training = [], certs = [] }) {
+export function officerIssues(o, { today, roles, docs = [], shifts = [], openTasks = 0, training = [], certs = [], packs = [] }) {
   const issues = [];
   const add = (i) => issues.push({ ...i, actions: (i.actions || []).map((a) => ({ ...a, id: `${i.key}|${a.kind}` })) });
   const near = (list) => (list.length && days(today, londonDate(list[0].starts_at)) <= 7 ? 'urgent' : 'soon');
@@ -268,6 +270,17 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
       actions: [remindTraining(o, c, true)],
     });
   }
+  // Booked at a venue in the next 14 days without a current signature on its site pack (clock-in waits for it)
+  for (const p of packs) {
+    const first = p.shifts[0];
+    const soonest = days(today, londonDate(first.starts_at));
+    add({
+      key: `venue_pack:${p.venue_id}`, severity: soonest <= 2 ? 'urgent' : 'soon', sig: sig(p.status, p.reference),
+      title: `${PACK_TITLE[p.status] || 'Site pack not signed'}: ${p.venue_name}`,
+      detail: `Booked on ${plural(p.shifts.length, 'shift')} there, first ${fmtDate(first.starts_at)}. They cannot clock in until it is signed.`, shift: first,
+      actions: [{ kind: 'remind', label: `Remind ${o.first_name} to sign the ${p.venue_name} site pack`, params: { venue_id: p.venue_id, what: `the ${p.venue_name} site pack` }, default: true }, unassign(p.shifts)],
+    });
+  }
   return issues.sort((a, b) => RANK[b.severity] - RANK[a.severity]);
 }
 
@@ -294,13 +307,28 @@ export async function computeIssues({ officerId = null } = {}) {
     moduleOn('academy').then((on) => (on ? latestCertificates(officerId) : [])),
   ]);
   const roles = Object.fromEntries(roleRows.map((r) => [r.code, r]));
+  const packs = await packIssues(shifts);
   return officers.map((o) => {
     const issues = officerIssues(o, {
-      today, roles, docs: docs.filter((d) => d.owner_id === o.id), shifts: shifts.filter((s) => s.officer_id === o.id),
+      today, roles, docs: docs.filter((d) => d.owner_id === o.id), shifts: shifts.filter((s) => s.officer_id === o.id), packs: packs.filter((p) => p.officer_id === o.id),
       openTasks: tasks.find((t) => t.officer_id === o.id)?.n || 0, training: training.filter((t) => t.officer_id === o.id), certs: certs.filter((c) => c.officer_id === o.id),
     }).filter((i) => !dismissed.some((d) => d.officer_id === o.id && d.issue_key === i.key && d.sig === i.sig));
     return { officer: o, issues };
   }).filter((r) => r.issues.length);
+}
+
+/** Officer/venue pairs booked in the next 14 days whose venue pack is not signed and current */
+async function packIssues(shifts) {
+  const soon = shifts.filter((s) => new Date(s.starts_at) < new Date(Date.now() + 14 * 86400000));
+  const groups = new Map();
+  for (const s of soon) {
+    const k = pairKey(s.officer_id, s.venue_id);
+    if (!groups.has(k)) groups.set(k, { officer_id: s.officer_id, venue_id: s.venue_id, venue_name: s.venue_name, shifts: [] });
+    groups.get(k).shifts.push(s);
+  }
+  if (!groups.size) return [];
+  const st = await statusesFor([...groups.values()]);
+  return [...groups.entries()].map(([k, g]) => ({ ...g, status: st.get(k).status, reference: st.get(k).signing?.reference || '' })).filter((g) => !OK.has(g.status));
 }
 
 // ---------- Cards ----------
@@ -368,7 +396,14 @@ export async function decideCompliance(it, b, user) {
   if (!picked.length) fail(400, 'Tick at least one action, or dismiss the issues instead');
   const o = need(await one('SELECT * FROM officers WHERE id = $1', [it.officer_id]), 'Officer not found');
   const done = [];
-  const reminders = [...new Set(picked.filter((a) => a.kind === 'remind' && !a.params.course_id).map((a) => a.params.what))];
+  const reminders = [...new Set(picked.filter((a) => a.kind === 'remind' && !a.params.course_id && !a.params.venue_id).map((a) => a.params.what))];
+  for (const a of picked.filter((x) => x.kind === 'remind' && x.params.venue_id)) {
+    await notify(await officerUser(o.id), {
+      kind: 'venue_pack', severity: 'warning', title: `Please read and sign ${a.params.what}`,
+      body: 'You are booked there soon. Clock-in stays blocked until the site pack is read and signed.', link: `/officer/venue-pack/${a.params.venue_id}`, email: true,
+    });
+    done.push(`Reminded ${o.first_name} to sign ${a.params.what}`);
+  }
   for (const a of picked.filter((x) => x.kind === 'remind' && x.params.course_id)) {
     await notify(await officerUser(o.id), {
       kind: 'compliance', severity: 'warning', title: `Please ${a.params.refresher ? 'redo' : 'complete'} your training: ${a.params.what.replace(/"/g, '')}`,
@@ -552,6 +587,7 @@ function area(key) {
   if (/^(training|refresher)/.test(key) || /:(first_aid|cctv|training)$/.test(key)) return 'training';
   if (/(sia|licence_role)/.test(key)) return 'licence';
   if (/rtw/.test(key)) return 'rtw';
+  if (/^venue_pack/.test(key)) return 'venue_pack';
   return 'documents';
 }
 

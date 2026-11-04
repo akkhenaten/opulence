@@ -55,6 +55,9 @@ const OfficerProfile = P(() => import('./pages/officer/Profile.jsx'));
 const OfficerContract = P(() => import('./pages/officer/Contract.jsx'));
 const OfficerAgreement = P(() => import('./pages/officer/Agreement.jsx'));
 const OfficerGrowth = P(() => import('./pages/officer/Growth.jsx'));
+const VenuePack = P(() => import('./pages/officer/VenuePack.jsx'));
+const Procedures = P(() => import('./pages/people/procedures/Library.jsx'));
+const ProcedureEditor = P(() => import('./pages/people/procedures/Editor.jsx'));
 const IncidentForm = P(() => import('./pages/officer/IncidentForm.jsx'));
 // The shift page, shift logs and the ban register (everyone on a shift, managers and venues)
 const ShiftView = P(() => import('./pages/shift/ShiftView.jsx'));
@@ -141,6 +144,8 @@ const managerRoutes = (
     <Route path="team/academy" element={<Academy />} />
     <Route path="team/training" element={<Academy />} />
     <Route path="people/compliance" element={<Compliance />} />
+    <Route path="people/procedures" element={<Procedures />} />
+    <Route path="people/procedures/:id" element={<ProcedureEditor />} />
     <Route path="team/academy/:id" element={<CourseEditor />} />
     <Route path="team/academy/:id/preview" element={<Course />} />
     <Route path="team/toolbox" element={<ToolboxAdmin />} />
@@ -241,6 +246,7 @@ function App() {
             <Route path="profile" element={<OfficerProfile />} />
             <Route path="contracts/:id" element={<OfficerContract />} />
             <Route path="agreements/:id" element={<OfficerAgreement />} />
+            <Route path="venue-pack/:venueId" element={<VenuePack />} />
             <Route path="me/growth" element={<OfficerGrowth />} />
             <Route path="incidents" element={<Incidents />} />
             <Route path="incidents/new" element={<IncidentForm />} />

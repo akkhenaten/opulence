@@ -6,6 +6,8 @@ import { fmtDateTime, fmtTime, londonParts } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { compliance } from './officers.mjs';
 import { ALL, MGR, def } from './_def.mjs';
+import { statusFor, statusesFor, pairKey, OK, STATUS_LABEL } from '../lib/venuePack.mjs';
+import { remindPack } from './venuePacks.mjs';
 
 const WEEKDAY = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
 
@@ -46,7 +48,11 @@ export async function checkOfficerForShift(officerId, shift, { ignoreAssignment 
   if (!(o.roles || []).includes(shift.role)) warnings.push('Role not on profile');
   const shiftHours = (new Date(shift.ends_at) - new Date(shift.starts_at)) / 3600000;
   if (Number(hours.h) + shiftHours > o.max_weekly_hours) warnings.push(`Would exceed ${o.max_weekly_hours}h this week (${Math.round(Number(hours.h) + shiftHours)}h)`);
-  return { blocking, warnings, officer: { id: o.id, name: `${o.first_name} ${o.last_name}` } };
+  // Never stops a booking: the officer signs the venue pack before they can clock in
+  const notes = [];
+  const pk = await statusFor(o.id, shift.venue_id);
+  if (pk && !OK.has(pk.status)) notes.push(pk.status === 'unsigned' ? 'Not worked here before: they will read and sign the site pack before clock-in' : `Site pack: ${STATUS_LABEL[pk.status].toLowerCase()} before clock-in`);
+  return { blocking, warnings, notes, officer: { id: o.id, name: `${o.first_name} ${o.last_name}` } };
 }
 
 export async function getShift(id) {
@@ -70,8 +76,16 @@ export async function shiftsWithAssignments(where, params, user) {
        FROM shifts s JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role
        LEFT JOIN shift_assignments a ON a.shift_id = s.id LEFT JOIN officers o ON o.id = a.officer_id
       WHERE ${where} GROUP BY s.id, v.name, r.name ORDER BY s.starts_at, v.name`, params);
+  // Managers see who still has to sign the venue pack, on shifts that have not ended
+  const pairs = venueView ? [] : rows.filter((s) => new Date(s.ends_at) > new Date()).flatMap((s) => s.assignments
+    .filter((a) => ['assigned', 'accepted'].includes(a.status)).map((a) => ({ officer_id: a.officer_id, venue_id: s.venue_id })));
+  const packs = pairs.length ? await statusesFor(pairs) : new Map();
   return rows.map((s) => {
     const filled = s.assignments.filter((a) => ['assigned', 'accepted'].includes(a.status)).length;
+    for (const a of s.assignments) {
+      const p = packs.get(pairKey(a.officer_id, s.venue_id));
+      if (p && !OK.has(p.status)) a.pack = p.status;
+    }
     const out = { ...s, filled };
     // The signed-in manager's own shifts are marked "You" on the rota
     if (user.self_officer_id) out.assignments = s.assignments.map((a) => ({ ...a, is_self: a.officer_id === user.self_officer_id }));
@@ -223,7 +237,7 @@ export const actions = {
     for (const o of officers) {
       if (assigned.has(o.id)) continue;
       const c = await checkOfficerForShift(o.id, s);
-      results.push({ ...c.officer, blocking: c.blocking, warnings: c.warnings });
+      results.push({ ...c.officer, blocking: c.blocking, warnings: c.warnings, notes: c.notes });
     }
     return results.sort((a, b2) => a.blocking.length - b2.blocking.length || a.warnings.length - b2.warnings.length || a.name.localeCompare(b2.name));
   }),
@@ -240,7 +254,7 @@ export const actions = {
     const a = await one(
       `INSERT INTO shift_assignments (shift_id, officer_id, status) VALUES ($1,$2,'assigned')
        ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'assigned', responded_at = NULL RETURNING *`, [s.id, b.officer_id]);
-    if (s.status === 'published') await notifyAssigned(a, s);
+    if (s.status === 'published') { await notifyAssigned(a, s); await remindPack(a.id); }
     await audit(user, 'shift.assign', 'shift', s.id, { officer: b.officer_id, override: check.warnings, ...(b.officer_id === user.self_officer_id ? { self: true } : {}) });
     return a;
   }),
@@ -267,6 +281,7 @@ export const actions = {
       if ((await filledCount(s.id)) >= s.headcount) fail(400, 'Shift is already fully staffed');
       await q("UPDATE shift_assignments SET status = 'accepted', responded_at = now() WHERE id = $1", [a.id]);
       await notifyAssigned(a, s, 'approved');
+      await remindPack(a.id);
     } else {
       await q("UPDATE shift_assignments SET status = 'rejected' WHERE id = $1", [a.id]);
       await notify(await officerUser(a.officer_id), { kind: 'shift', title: 'Shift request not approved', body: `${s.venue_name} · ${fmtDateTime(s.starts_at)}`, link: '/officer/shifts' });

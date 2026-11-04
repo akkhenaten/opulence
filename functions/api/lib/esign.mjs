@@ -10,11 +10,13 @@ import { mergeUpload } from './uploadSeal.mjs';
 import { getObjectBytes } from './storage.mjs';
 import { issueLink, liveLink } from './signLinks.mjs';
 
-export const TABLE = { contract: 'contracts', pay_agreement: 'pay_agreements' };
-const PREFIX = { contract: 'C', policy: 'P', pay_rise: 'R' };
-const ARCHIVE_KIND = { contract: 'contract', policy: 'policy', pay_rise: 'pay_agreement' };
+export const TABLE = { contract: 'contracts', pay_agreement: 'pay_agreements', venue_pack: 'pack_signings' };
+const PREFIX = { contract: 'C', policy: 'P', pay_rise: 'R', venue_pack: 'V' };
+const ARCHIVE_KIND = { contract: 'contract', policy: 'policy', pay_rise: 'pay_agreement', venue_pack: 'venue_pack' };
+// Documents that are sent and wait for a signature (a venue pack is signed by the officer on their own)
+const SENT = ['contract', 'pay_agreement'];
 
-/** ORB-C-2026-0142 — C contract, P policy, R pay rise */
+/** ORB-C-2026-0142 — C contract, P policy, R pay rise, V venue pack */
 export async function nextReference(category, t = null) {
   const run = t ? t.q.bind(t) : q;
   const [r] = await run("SELECT nextval('esign_ref_seq') AS n");
@@ -102,7 +104,7 @@ export async function pdfFor(docType, row, build, { userId = null, filename }) {
   }
   const input = await build();
   // Signed before certificates existed: sealed now, with a note saying so
-  if (signed) return seal(docType, row, { ...input, doc: { ...input.doc, legacy: !row.company_signature } }, { userId, filename });
+  if (signed) return seal(docType, row, { ...input, doc: { ...input.doc, legacy: !row.company_signature && docType !== 'venue_pack' } }, { userId, filename });
   const status = row.status === 'void' ? 'void' : row.status === 'superseded' ? 'superseded' : 'sent';
   const { bytes } = await renderDoc(input, status, row.reference, await events(docType, row.id));
   return { filename: nameSafe(filename), pdf: Buffer.from(bytes).toString('base64') };
@@ -132,7 +134,7 @@ export async function remind(docType, r, { user = null, auto = false } = {}) {
 /** Hourly: unsigned documents get a reminder after 3 days and again after 7. */
 export async function esignReminders() {
   let n = 0;
-  for (const docType of Object.keys(TABLE)) {
+  for (const docType of SENT) {
     const rows = await q(
       `SELECT * FROM ${TABLE[docType]} WHERE status = 'sent' AND sent_at IS NOT NULL
          AND ((reminders = 0 AND sent_at < now() - interval '3 days') OR (reminders = 1 AND sent_at < now() - interval '7 days'))

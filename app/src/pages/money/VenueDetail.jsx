@@ -13,6 +13,7 @@ import { useBase } from './_parts.jsx';
 import { useAuth } from '../../auth.jsx';
 import { ShiftLogList } from '../shift/ShiftLogs.jsx';
 import { BanRegister } from '../shift/Bans.jsx';
+import VenuePackTab from './VenuePackTab.jsx';
 
 const UK = [54.3, -2.6];
 
@@ -55,7 +56,7 @@ export default function VenueDetail() {
 
           <Tabs value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })} tabs={[
             { value: 'location', label: 'Location' }, { value: 'details', label: 'Details' }, { value: 'codes', label: 'Venue codes' },
-            ...(isCo ? [{ value: 'rates', label: 'Charge rates' }] : []), { value: 'people', label: 'People' }, { value: 'documents', label: 'Documents', count: v.documents.length },
+            ...(isCo ? [{ value: 'rates', label: 'Charge rates' }] : []), { value: 'people', label: 'People' }, { value: 'pack', label: 'Instructions & procedures' }, { value: 'documents', label: 'Documents', count: v.documents.length },
             { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Bans' },
           ]} />
 
@@ -64,6 +65,7 @@ export default function VenueDetail() {
           {(tab === 'codes' || tab === 'qr') && <QrTab v={v} />}
           {tab === 'rates' && isCo && <RatesTab venueId={v.id} />}
           {tab === 'people' && <PeopleTab v={v} isCo={isCo} />}
+          {tab === 'pack' && <VenuePackTab venueId={v.id} />}
           {tab === 'documents' && <DocumentsTab venueId={v.id} />}
           {tab === 'logs' && <ShiftLogList venueId={v.id} />}
           {tab === 'bans' && <BanRegister venueId={v.id} />}
@@ -555,7 +557,7 @@ export function DocumentsTab({ venueId, readOnly }) {
   );
 }
 
-function DocSheet({ venueId, onClose, onSaved }) {
+export function DocSheet({ venueId, onClose, onSaved }) {
   const [run, busy] = useAction();
   const [file, setFile] = useState(null);
   const f = useForm({ kind: 'assignment_instructions', title: '', expiry: '' });

@@ -14,6 +14,7 @@ import {
   useAction, useApi, useConfirm, Pressable,
 } from '../../ui/index.jsx';
 import { BanList, BanSheet } from './_bans.jsx';
+import { SitePackCard } from '../officer/VenuePack.jsx';
 
 const KINDS = [
   { value: 'note', label: 'Note' },
@@ -58,6 +59,7 @@ function Body({ d, reload, role }) {
       <div className="space-y-5">
         <Header s={s} me={me} officer={officer} signed={signed} />
         {officer && <QuickActions s={s} d={d} />}
+        {officer && me.assignment_id && <SitePackCard venueId={s.venue_id} />}
         {d.previous_handover && !venue && (
           <Section title="Last handover here">
             <div className="rounded-tile bg-blue-soft/60 p-4">

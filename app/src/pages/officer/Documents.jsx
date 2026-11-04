@@ -2,7 +2,8 @@ import { useRef, useState } from 'react';
 import { BadgeCheck, Camera, Clock3, ExternalLink, FileText, Paperclip, Plus, ShieldCheck, Trash2, Upload } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, cx, date, daysUntil, Empty, Input, Load, Page, Pill, Pressable, Select, Sheet, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { Button, cx, date, daysUntil, Empty, Input, List, Load, Page, Pill, Pressable, Row, Section, Select, Sheet, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { PackPill } from '../shared/PackPaper.jsx';
 import { compressImage, DOC_KINDS, docKindLabel, expiryText, expiryTone, NotLinked } from './_parts.jsx';
 
 const NEEDS_EXPIRY = new Set(['sia', 'first_aid', 'cctv', 'id']);
@@ -39,12 +40,31 @@ export default function Documents() {
                 <div className="space-y-2">{sorted.map((d) => <DocCard key={d.id} d={d} reload={q.reload} />)}</div>
               )}
               <p className="px-1 text-footnote text-muted">The office checks each document. Once verified, only the office can remove it.</p>
+              <SitePacks />
             </div>
           );
         }}
       </Load>
       <AddSheet kind={adding} onClose={() => setAdding(null)} ownerId={user.officer_id} onDone={() => { setAdding(null); q.reload(); }} />
     </Page>
+  );
+}
+
+// Every venue's site pack: what still needs signing, and the signed copies
+function SitePacks() {
+  const q = useApi('venuePacks.myList', {});
+  const venues = q.data?.venues || [];
+  if (!venues.length) return null;
+  return (
+    <Section title="Site packs">
+      <List>
+        {venues.map((v) => (
+          <Row key={v.venue_id} to={`/officer/venue-pack/${v.venue_id}`} title={v.name}
+            subtitle={v.signed_at ? `Signed ${date(v.signed_at)} · ${v.reference}` : v.next_shift ? `Sign before ${date(v.next_shift)}` : 'Not signed'}
+            right={<PackPill status={v.status} />} />
+        ))}
+      </List>
+    </Section>
   );
 }
 

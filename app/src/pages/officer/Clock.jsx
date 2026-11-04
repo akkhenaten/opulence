@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, Camera, CameraOff, Check, CheckCircle2, Coffee, Crosshair, Info, LocateFixed, LogIn, LogOut, MapPin, Nfc, RotateCcw, ScanFace, ScanLine, Smartphone,
+  AlertTriangle, BookOpen, Camera, CameraOff, Check, CheckCircle2, Coffee, Crosshair, Info, LocateFixed, LogIn, LogOut, MapPin, Nfc, RotateCcw, ScanFace, ScanLine, Smartphone,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -60,6 +60,7 @@ function ClockScreen({ data, reload }) {
   const [flow, setFlow] = useState(null);
   const [busy, setBusy] = useState(false);
   const [consent, setConsent] = useState(data.face_consent);
+  const [packBlock, setPackBlock] = useState(null); // venue id, when a clock-in came back asking for the site pack
   const list = data.today || [];
   const a = list.find((x) => x.assignment_id === selId) || data.current;
   const need = NEED[a?.proof_rule] || 2;
@@ -80,6 +81,7 @@ function ClockScreen({ data, reload }) {
   }
 
   const state = a.state;
+  const packVenue = state === 'not_started' && (packBlock === a.venue_id || (data.pack && !data.pack.ok && data.pack.venue_id === a.venue_id)) ? a.venue_id : null;
   const opensAt = new Date(a.starts_at).getTime() - EARLY_MIN * 60000;
   const tooEarly = state === 'not_started' && now < opensAt;
   const valid = (a.events || []).filter((e) => e.status !== 'rejected');
@@ -110,7 +112,8 @@ function ClockScreen({ data, reload }) {
       setFlow({ kind, step: 'done', result: r });
       if (navigator.vibrate) navigator.vibrate(60);
     } catch (e) {
-      if (e.status === 422 && e.data?.can_request_exception) setFlow({ ...f, kind, step: 'exception', problems: e.data.problems || [e.message], missing: e.data.missing || [] });
+      if (e.status === 423 && e.data?.code === 'venue_pack') { setFlow(null); setPackBlock(e.data.venue_id); reload(); }
+      else if (e.status === 422 && e.data?.can_request_exception) setFlow({ ...f, kind, step: 'exception', problems: e.data.problems || [e.message], missing: e.data.missing || [] });
       else { toast(e.message, 'error'); if (kind === 'in' || kind === 'out') setFlow(null); reload(); }
     } finally {
       setBusy(false);
@@ -208,7 +211,8 @@ function ClockScreen({ data, reload }) {
       )}
 
       <div className="space-y-2.5 pt-1">
-        {state === 'not_started' && (
+        {packVenue && <PackCard venueId={packVenue} venue={a.venue_name} pack={data.pack?.venue_id === packVenue ? data.pack : null} />}
+        {state === 'not_started' && !packVenue && (
           <>
             <Button size="lg" icon={LogIn} className="h-16 w-full text-headline" disabled={tooEarly} onClick={() => startIn()}>Clock in</Button>
             <p className="text-center text-footnote text-muted">{tooEarly ? `You can clock in from ${time(opensAt)}.` : `Your phone, plus ${need === 3 ? 'all 3' : need === 1 ? 'any 1' : '2 of 3'}: location, venue code (QR or NFC tag), selfie.`}</p>
@@ -700,5 +704,25 @@ function SelfieCamera({ busy, onDone }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** Clock-in waits until the site pack for this venue is read and signed */
+function PackCard({ venueId, venue, pack }) {
+  const why = pack?.status === 'resign' ? 'Something has changed in the instructions or procedures since you signed.'
+    : pack?.status === 'refresher' ? 'You have not worked here for over six months, so the pack needs reading again.'
+      : `Before your first shift at ${venue || 'this venue'}, read the instructions and procedures and sign them.`;
+  return (
+    <section className="rounded-tile bg-amber-soft p-5 shadow-tile">
+      <div className="flex items-start gap-3">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-amber text-white"><BookOpen size={22} /></div>
+        <div className="min-w-0">
+          <h2 className="text-headline font-bold">Sign the site pack to clock in</h2>
+          <p className="mt-0.5 text-subhead text-ink/80">{why}{pack?.to_read ? ` ${pack.to_read} document${pack.to_read === 1 ? '' : 's'} to read.` : ''}</p>
+        </div>
+      </div>
+      <Button size="lg" icon={BookOpen} className="mt-4 h-14 w-full text-headline" to={`/officer/venue-pack/${venueId}?then=clock`}>Read and sign</Button>
+      <p className="mt-2 text-center text-footnote text-muted">Takes a few minutes. You come straight back here afterwards.</p>
+    </section>
   );
 }

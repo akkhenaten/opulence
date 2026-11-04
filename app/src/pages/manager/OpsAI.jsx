@@ -399,7 +399,7 @@ function OpsSettings() {
 }
 
 const AI_MODULES = [
-  { k: 'ops', label: 'Ops AI and incidents' }, { k: 'academy', label: 'Academy' }, { k: 'toolbox', label: 'Toolbox' }, { k: 'everyday', label: 'Everyday post checks' }, { k: 'orb', label: 'Orb assistant' }, { k: 'orb_voice', label: 'Orb voice' }, { k: 'contracts', label: 'Contracts AI' }, { k: 'clock_face', label: 'Clock-in face check' },
+  { k: 'ops', label: 'Ops AI and incidents' }, { k: 'academy', label: 'Academy' }, { k: 'toolbox', label: 'Toolbox' }, { k: 'everyday', label: 'Everyday post checks' }, { k: 'orb', label: 'Orb assistant' }, { k: 'orb_voice', label: 'Orb voice' }, { k: 'contracts', label: 'Contracts AI' }, { k: 'venue_packs', label: 'Site packs AI' }, { k: 'clock_face', label: 'Clock-in face check' },
 ];
 
 // Credits used this month by each AI feature, with an optional cap per feature inside the overall cap
