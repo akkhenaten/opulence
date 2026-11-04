@@ -206,15 +206,16 @@ function Comment({ c, onReply, onChanged, onPerson, onPhoto, highlight, reply })
 export function CommentBox({ post, parent, onSent, onCancel, autoFocus }) {
   const { user } = useAuth();
   const toast = useToast();
-  const [text, setText] = useState(parent ? `@${parent.author.name} ` : '');
+  const prefill = parent && parent.author.id !== user.id ? `@${parent.author.name} ` : '';
+  const [text, setText] = useState(prefill);
   const [mentions, setMentions] = useState(parent && parent.author.id !== user.id ? [parent.author.id] : []);
   const [photo, setPhoto] = useState(null); // { key, w, h, url } | 'busy'
   const [busy, setBusy] = useState(false);
   const file = useRef(null);
   useEffect(() => {
-    setText(parent ? `@${parent.author.name} ` : '');
+    setText(prefill);
     setMentions(parent && parent.author.id !== user.id ? [parent.author.id] : []);
-  }, [parent, user.id]);
+  }, [parent, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const pick = async (f) => {
     if (!f) return;
     setPhoto('busy');

@@ -231,7 +231,7 @@ export const actions = {
     const rows = await q(
       `SELECT c.id, c.kind, c.title, c.ref_id, c.last_message_at, cm.muted,
               (SELECT count(*)::int FROM messages m WHERE m.conversation_id = c.id AND m.created_at > cm.last_read_at AND m.sender_id <> $1 AND m.deleted_at IS NULL) AS unread,
-              (SELECT json_build_object('body', CASE WHEN m.deleted_at IS NULL THEN m.body ELSE 'Message deleted' END, 'photos', jsonb_array_length(m.attachments), 'voice', m.deleted_at IS NULL AND m.transcript_status IS NOT NULL, 'sender_id', m.sender_id, 'sender', u.name, 'at', m.created_at)
+              (SELECT json_build_object('body', CASE WHEN m.deleted_at IS NOT NULL THEN 'Message deleted' WHEN m.body = '' AND m.share IS NOT NULL THEN 'Shared a post' ELSE m.body END, 'photos', jsonb_array_length(m.attachments), 'voice', m.deleted_at IS NULL AND m.transcript_status IS NOT NULL, 'sender_id', m.sender_id, 'sender', u.name, 'at', m.created_at)
                  FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last,
               (SELECT json_agg(json_build_object('id', u.id, 'name', u.name, 'role', u.role, 'system', u.system, 'photo_key', ${PHOTO}) ORDER BY u.name)
                  FROM conversation_members x JOIN users u ON u.id = x.user_id WHERE x.conversation_id = c.id AND x.left_at IS NULL AND x.user_id <> $1) AS others

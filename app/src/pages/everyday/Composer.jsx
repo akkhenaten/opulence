@@ -100,17 +100,20 @@ export default function Composer({ rulesAccepted, onPosted, post, onCancel, auto
     const list = [...files].slice(0, MAX - photos.length);
     if (files.length > list.length) toast(`Up to ${MAX} photos per post`, 'error');
     setUploading((n) => n + list.length);
-    await Promise.all(list.map(async (f) => {
+    // Upload in parallel, but keep the order the photos were picked in
+    const done = await Promise.all(list.map(async (f) => {
       try {
         const small = await compressImage(f);
         const [{ w, h }, key] = await Promise.all([sizeOf(small), upload(small, 'feed')]);
-        setPhotos((p) => [...p, { key, url: URL.createObjectURL(small), w, h, caption: '', file: f.type === 'image/gif' ? null : f }]);
+        return { key, url: URL.createObjectURL(small), w, h, caption: '', file: f.type === 'image/gif' ? null : f };
       } catch (e) {
         toast(e.message || 'Photo upload failed', 'error');
+        return null;
       } finally {
         setUploading((n) => n - 1);
       }
     }));
+    setPhotos((p) => [...p, ...done.filter(Boolean)]);
   };
   const edited = async ({ file: out, w, h, caption }) => {
     const i = editor.i;
