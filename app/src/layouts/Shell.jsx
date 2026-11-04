@@ -165,6 +165,10 @@ export default function Shell() {
   // Opening the feed clears the badge
   const onFeed = /\/everyday$/.test(loc.pathname) || /[?&]tab=everyday/.test(loc.search);
   useEffect(() => { if (feedOn && onFeed) setTimeout(feed.reload, 1500); }, [onFeed, feedOn]);
+  // A new post from someone else bumps the badge straight away (unless the feed is open)
+  const reloadFeed = useRef(feed.reload);
+  reloadFeed.current = feed.reload;
+  useRealtime('feed.post', (d) => { if (feedOn && !onFeed && d.author_id !== user.id) reloadFeed.current(); });
   const groups = NAV[user.role]
     .map((g) => ({ ...g, items: g.items.filter((it) => (!it.module || on(it.module)) && (!it.moduleAny || it.moduleAny.some(on)) && (!it.perm || user[it.perm])) }))
     .filter((g) => g.items.length);

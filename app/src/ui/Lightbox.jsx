@@ -7,7 +7,7 @@ const cx = (...c) => c.filter(Boolean).join(' ');
 const btn = 'pressable grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white backdrop-blur hover:bg-white/25';
 
 // Full-screen photo viewer: swipe or arrow keys between photos, pinch or double-tap to zoom.
-// photos: [{ url, name }]; index: open photo (null = closed)
+// photos: [{ url, name, caption }]; index: open photo (null = closed)
 export function Lightbox({ photos = [], index, onClose, download }) {
   const open = index != null && !!photos[index];
   const { mounted, closing } = usePresence(open, 200);
@@ -83,6 +83,7 @@ export function Lightbox({ photos = [], index, onClose, download }) {
           </>
         )}
       </div>
+      {p.caption && <div className="relative z-10 mx-auto max-w-[640px] px-4 pb-4 text-center text-subhead text-white/90 safe-b">{p.caption}</div>}
     </div>,
     document.body,
   );

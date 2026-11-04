@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Bell, Building2, ImageUp, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Percent, Plus, ReceiptText, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
+import { Bell, Building2, ImageUp, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Newspaper, Percent, Plus, ReceiptText, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -9,6 +9,7 @@ import {
 import { Chips, CopyLink, DOC_KINDS, docKindLabel, SIA_TYPES } from './_parts.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
 import { NOTIFY_KINDS } from '../officer/_notify.jsx';
+import { resetEverydaySettings } from '../everyday/_parts.jsx';
 import { previewStyle, restoreStyle, styleVars } from '../../ui/style.js';
 import { TemplatesTab } from './_esign.jsx';
 import LibraryTab from './contracts/Library.jsx';
@@ -51,7 +52,7 @@ const RULE_KEYS = ['pay_period', 'rounding_minutes', 'grace_minutes', 'auto_sign
 
 function CompanyTab() {
   const q = useApi('settings.get');
-  return <Load q={q}>{(s) => <><BrandingTile s={s} onSaved={(d) => q.setData(d)} /><AppStyleTile s={s} onSaved={(d) => q.setData(d)} /><ModulesTile s={s} onSaved={(d) => q.setData(d)} /><SettingsForm s={s} keys={COMPANY_KEYS} onSaved={(d) => q.setData(d)}>{(b) => <CompanyFields b={b} />}</SettingsForm></>}</Load>;
+  return <Load q={q}>{(s) => <><BrandingTile s={s} onSaved={(d) => q.setData(d)} /><AppStyleTile s={s} onSaved={(d) => q.setData(d)} /><ModulesTile s={s} onSaved={(d) => q.setData(d)} />{s.modules?.everyday !== false && <EverydayTile s={s} onSaved={(d) => q.setData(d)} />}<SettingsForm s={s} keys={COMPANY_KEYS} onSaved={(d) => q.setData(d)}>{(b) => <CompanyFields b={b} />}</SettingsForm></>}</Load>;
 }
 
 const DEFAULT_COLOR = '#0A6CFF';
@@ -260,6 +261,43 @@ function ModulesTile({ s, onSaved }) {
     <Tile title="Modules" icon={LayoutGrid} className="mb-4">
       <div className="space-y-2">
         {MODULES.map((m) => <Toggle key={m.key} checked={s.modules?.[m.key] !== false} onChange={flip(m.key)} label={m.label} hint={m.hint} />)}
+      </div>
+    </Tile>
+  );
+}
+
+const CELEBRATION_OPTS = [
+  { key: 'birthday', label: 'Birthdays', hint: 'Only for people who switch it on in their own notification settings' },
+  { key: 'anniversary', label: 'Work anniversaries', hint: 'Each year from the day someone started' },
+  { key: 'welcome', label: 'Welcome new starters', hint: 'In their first two weeks — they can opt out' },
+  { key: 'qualification', label: 'Academy qualifications', hint: 'When someone earns a certificate' },
+];
+
+/** Everyday: shout-outs, automatic celebration posts and the topics suggested to everyone */
+function EverydayTile({ s, onSaved }) {
+  const [run, busy] = useAction();
+  const e = s.everyday || {};
+  const [topics, setTopics] = useState((e.featured_topics || []).join(' '));
+  const save = async (everyday, msg = 'Saved') => {
+    const d = await run(() => api('settings.update', { everyday }), msg).catch(() => null);
+    if (d) { onSaved(d); resetEverydaySettings(); }
+    return d;
+  };
+  const list = topics.split(/[\s,]+/).map((t) => t.replace(/^#/, '').trim()).filter(Boolean);
+  const changed = list.join(' ') !== (e.featured_topics || []).join(' ');
+  return (
+    <Tile title="Everyday" icon={Newspaper} className="mb-4">
+      <div className="space-y-2">
+        <Toggle checked={e.shoutouts !== false} onChange={(on) => save({ shoutouts: on })} label="Shout-outs" hint="Staff can thank a colleague with a badge on their profile" />
+        <div className="pt-2 text-footnote font-semibold uppercase tracking-wide text-muted">Automatic celebration posts</div>
+        {CELEBRATION_OPTS.map((c) => (
+          <Toggle key={c.key} checked={e.celebrations?.[c.key] !== false} onChange={(on) => save({ celebrations: { [c.key]: on } })} label={c.label} hint={c.hint} />
+        ))}
+        <div className="pt-2">
+          <Input label="Featured topics" value={topics} onChange={(ev) => setTopics(ev.target.value)} placeholder="#wins #training #safety"
+            hint="Up to 8, shown first above the feed" />
+          {changed && <Button className="mt-2" size="sm" busy={busy} onClick={async () => { const d = await save({ featured_topics: list }, 'Topics saved'); if (d) setTopics((d.everyday?.featured_topics || []).map((t) => `#${t}`).join(' ')); }}>Save topics</Button>}
+        </div>
       </div>
     </Tile>
   );

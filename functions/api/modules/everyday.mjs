@@ -221,7 +221,7 @@ async function safeFetch(url, { maxBytes, accept }) {
     const u = new URL(target);
     if (!['http:', 'https:'].includes(u.protocol) || (u.port && !['80', '443'].includes(u.port))) throw new Error('blocked');
     const addrs = await dns.lookup(u.hostname, { all: true });
-    if (!addrs.length || addrs.some((a) => isPrivateHost(a.address))) throw new Error('blocked');
+    if (!addrs.length || addrs.some((a) => isPrivateHost(a.address))) throw Object.assign(new Error('blocked'), { blocked: true });
     const r = await fetch(u, { redirect: 'manual', signal: AbortSignal.timeout(4000), headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EverydayLinkPreview/1.0)', Accept: accept } });
     if (r.status >= 300 && r.status < 400 && r.headers.get('location')) { target = new URL(r.headers.get('location'), u).href; continue; }
     if (!r.ok) throw new Error(`status ${r.status}`);
@@ -263,7 +263,8 @@ async function linkPreview(raw) {
       } catch { /* a preview without its picture is fine */ }
     }
     data = { url, title: meta.title, description: meta.description, site: meta.site, image_key };
-  } catch {
+  } catch (e) {
+    if (e.blocked) fail(400, "We can't preview that address");
     data = { url, title: '', description: '', site: new URL(url).hostname.replace(/^www\./, ''), image_key: null };
   }
   await q('INSERT INTO link_previews (url, data) VALUES ($1, $2) ON CONFLICT (url) DO UPDATE SET data = EXCLUDED.data, fetched_at = now()', [url, data]);
@@ -871,8 +872,9 @@ export const actions = {
   'everyday.ackRemind': def(MGR, async (b, { user }) => {
     await requireModule('everyday');
     required(b, 'id');
-    const p = need(await one(`UPDATE posts SET ack_reminded_at = now() WHERE id = $1 AND must_ack AND deleted_at IS NULL
-      AND (ack_reminded_at IS NULL OR ack_reminded_at < now() - interval '1 hour') RETURNING id, author_id, body`, [b.id]), 'You can send one reminder an hour');
+    const p = await one(`UPDATE posts SET ack_reminded_at = now() WHERE id = $1 AND must_ack AND deleted_at IS NULL
+      AND (ack_reminded_at IS NULL OR ack_reminded_at < now() - interval '1 hour') RETURNING id, author_id, body`, [b.id]);
+    if (!p) fail(429, 'You can send one reminder an hour');
     const rest = (await q(`SELECT u.id FROM users u LEFT JOIN officers o ON o.user_id = u.id
       WHERE ${ACTIVE_STAFF} AND u.id <> $2 AND NOT EXISTS (SELECT 1 FROM post_audience a WHERE a.post_id = $1 AND a.user_id = u.id AND a.acked_at IS NOT NULL)`, [p.id, p.author_id])).map((r) => r.id);
     await notify(rest, { kind: 'feed', title: 'Please read and confirm this announcement', body: snippet(p.body, 120), link: postLink(p.id), dedupe: `ackremind:${p.id}:${Date.now()}` });

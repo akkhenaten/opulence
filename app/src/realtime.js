@@ -58,8 +58,8 @@ async function connect(uid) {
     });
     next.connection.on('connected', () => { if (client === next) setConnected(true); });
     next.connection.on('disconnected', () => { if (client === next) setConnected(false); });
-    // Only the one channel the token allows: anything else would close the connection
-    next.channels.get(token.channel).subscribe((m) => emit(m.name, m.data));
+    // Only the channels the token allows (own, plus the shared Everyday feed for staff): anything else would close the connection
+    for (const ch of token.channels || [token.channel]) next.channels.get(ch).subscribe((m) => emit(m.name, m.data));
     const old = client;
     client = next;
     try { old?.close(); } catch { /* already closed */ }

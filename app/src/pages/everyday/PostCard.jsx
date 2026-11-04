@@ -1,86 +1,43 @@
 import { useEffect, useRef, useState } from 'react';
-import { EyeOff, Flag, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Send, Trash2, VolumeX } from 'lucide-react';
+import { Bookmark, BookmarkX, EyeOff, Flag, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Send, Trash2, UserMinus, VolumeX } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Avatar, Button, cx, Input, Load, Pressable, relative, Sheet, Toggle, useAction, useApi, useConfirm, useToast } from '../../ui/index.jsx';
+import { Avatar, Button, cx, Pressable, relative, Sheet, Toggle, useAction, useConfirm, useToast } from '../../ui/index.jsx';
+import { AckBar, AudienceSheet, CelebrationCard, EventCard, PollCard, ShoutoutCard } from './Cards.jsx';
+import Comments, { applyReaction, HideSheet, ReactButton, RemoveSheet, ReportSheet, topEmoji, total, WhoReacted } from './Comments.jsx';
 import Composer from './Composer.jsx';
-import { Body, isMgr, Lightbox, MentionBox, MuteSheet, PhotoGrid, reaction, REACTIONS, ROLE_LABEL } from './_parts.jsx';
+import ShareSheet from './ShareSheet.jsx';
+import { Body, isMgr, Lightbox, LinkCard, MuteSheet, PhotoGrid, PlaceLine, ROLE_LABEL, VideoPlayer, WithLine } from './_parts.jsx';
 
-const total = (r) => Object.values(r || {}).reduce((a, b) => a + b, 0);
-const topEmoji = (r) => Object.entries(r || {}).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => reaction(k)?.emoji).join('');
+export { ReactButton };
 
-// Optimistic reaction state: { reactions: {kind:n}, mine }
-function applyReaction(item, kind) {
-  const r = { ...(item.reactions || {}) };
-  if (item.mine) { r[item.mine] -= 1; if (!r[item.mine]) delete r[item.mine]; }
-  if (kind) r[kind] = (r[kind] || 0) + 1;
-  return { ...item, reactions: r, mine: kind };
+// Pinned posts that stay on screen for about a second count as seen; sent in small batches
+const seenQueue = new Set();
+const seenDone = new Set();
+let seenTimer = null;
+function markSeen(id) {
+  if (seenDone.has(id)) return;
+  seenDone.add(id);
+  seenQueue.add(id);
+  clearTimeout(seenTimer);
+  seenTimer = setTimeout(() => {
+    const ids = [...seenQueue];
+    seenQueue.clear();
+    api('everyday.seenPosts', { ids }).catch(() => ids.forEach((x) => seenDone.delete(x)));
+  }, 1500);
 }
-
-/** Tap = like (or undo); long-press or hover = choose a reaction. */
-export function ReactButton({ item, onReact, small }) {
-  const [open, setOpen] = useState(false);
-  const timer = useRef(null);
-  const long = useRef(false);
-  const hover = useRef(null);
-  const cur = reaction(item.mine);
-  const start = () => { long.current = false; timer.current = setTimeout(() => { long.current = true; setOpen(true); }, 420); };
-  const end = () => clearTimeout(timer.current);
-  useEffect(() => () => { clearTimeout(timer.current); clearTimeout(hover.current); }, []);
-  return (
-    <div className="relative" onMouseEnter={() => { hover.current = setTimeout(() => setOpen(true), 450); }} onMouseLeave={() => { clearTimeout(hover.current); setOpen(false); }}>
-      {open && (
-        <div className="absolute bottom-full left-0 z-20 mb-1 flex gap-0.5 rounded-full border border-line bg-surface p-1 shadow-lg">
-          {REACTIONS.map((r) => (
-            <Pressable press key={r.kind} title={r.label} aria-label={r.label} onClick={() => { setOpen(false); onReact(item.mine === r.kind ? null : r.kind); }}
-              className={cx('grid h-10 w-10 place-items-center rounded-full text-title2 transition hover:-translate-y-1 hover:scale-125', item.mine === r.kind && 'bg-blue-soft')}>{r.emoji}</Pressable>
-          ))}
-        </div>
-      )}
-      <Pressable press onPointerDown={start} onPointerUp={end} onPointerLeave={end} onContextMenu={(e) => e.preventDefault()}
-        onClick={() => { if (long.current) return; onReact(item.mine ? null : 'like'); }}
-        className={cx('flex select-none items-center gap-1.5 rounded-xl font-semibold transition active:scale-95', small ? '-my-2 py-2 text-caption' : 'px-3 py-2 text-subhead hover:bg-bg', cur ? 'text-blue' : 'text-muted')}>
-        {cur ? <span className={small ? 'text-footnote' : 'text-headline'}>{cur.emoji}</span> : !small && <span className="text-headline grayscale">👍</span>}
-        {cur ? cur.label : 'Like'}
-      </Pressable>
-    </div>
-  );
-}
-
-function WhoReacted({ target, onClose, onPerson }) {
-  const q = useApi('everyday.reactions', target || {}, { skip: !target });
-  const [tab, setTab] = useState('all');
-  return (
-    <Sheet open={!!target} onClose={onClose} title="Reactions" size="sm">
-      {target && (
-        <Load q={q}>
-          {(rows) => {
-            const kinds = [...new Set(rows.map((r) => r.kind))];
-            const shown = tab === 'all' ? rows : rows.filter((r) => r.kind === tab);
-            return (
-              <>
-                <div className="mb-3 flex flex-wrap gap-1.5">
-                  {['all', ...kinds].map((k) => (
-                    <Pressable press key={k} onClick={() => setTab(k)} className={cx('rounded-full px-3 py-1 text-footnote font-semibold', tab === k ? 'bg-blue text-white' : 'bg-bg')}>
-                      {k === 'all' ? `All ${rows.length}` : `${reaction(k)?.emoji} ${rows.filter((r) => r.kind === k).length}`}
-                    </Pressable>
-                  ))}
-                </div>
-                <div className="space-y-1">
-                  {shown.map((r) => (
-                    <Pressable press key={r.person.id} onClick={() => onPerson(r.person.id)} className="flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-bg">
-                      <span className="relative"><Avatar name={r.person.name} src={r.person.photo_url} size={36} /><span className="absolute -bottom-1 -right-1 text-subhead">{reaction(r.kind)?.emoji}</span></span>
-                      <span className="min-w-0 flex-1"><span className="block truncate text-body font-medium">{r.person.name}</span><span className="block text-caption text-muted">{ROLE_LABEL[r.person.role]}</span></span>
-                    </Pressable>
-                  ))}
-                </div>
-              </>
-            );
-          }}
-        </Load>
-      )}
-    </Sheet>
-  );
+function useSeen(ref, post, me) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !post.pinned_at || post.author.id === me || post.audience?.seen_at || typeof IntersectionObserver === 'undefined') return undefined;
+    let t = null;
+    const io = new IntersectionObserver(([e]) => {
+      clearTimeout(t);
+      if (e.isIntersecting) t = setTimeout(() => { markSeen(post.id); io.disconnect(); }, 1000);
+    }, { threshold: 0.5 });
+    io.observe(el);
+    return () => { clearTimeout(t); io.disconnect(); };
+  }, [post.id, post.pinned_at, post.audience?.seen_at, me]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 function Menu({ items }) {
@@ -98,7 +55,7 @@ function Menu({ items }) {
     <div className="relative" ref={ref}>
       <Pressable press aria-label="More" onClick={() => setOpen(!open)} className="grid h-10 w-10 place-items-center rounded-full text-muted hover:bg-bg"><MoreHorizontal size={20} /></Pressable>
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-56 overflow-hidden rounded-2xl border border-line bg-surface py-1 shadow-lg">
+        <div className="absolute right-0 top-full z-30 mt-1 w-60 overflow-hidden rounded-2xl border border-line bg-surface py-1 shadow-lg">
           {list.map((it) => (
             <Pressable press key={it.label} onClick={() => { setOpen(false); it.onClick(); }}
               className={cx('flex w-full items-center gap-3 px-4 py-2.5 text-left text-subhead font-medium hover:bg-bg', it.danger && 'text-red')}>
@@ -111,145 +68,23 @@ function Menu({ items }) {
   );
 }
 
-function ReportSheet({ target, onClose }) {
-  const [reason, setReason] = useState('');
-  const [run, busy] = useAction();
-  const go = () => run(() => api('everyday.report', { ...target, reason }), 'Reported — a manager will take a look').then(() => { setReason(''); onClose(); }).catch(() => {});
-  return (
-    <Sheet open={!!target} onClose={onClose} title="Report to a manager" size="sm"
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={go}>Report</Button></>}>
-      <p className="mb-3 text-subhead text-muted">Only managers see reports. The person isn't told who reported it.</p>
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        {['Unkind or bullying', 'Shows a customer or incident', 'Personal details', 'Confidential', 'Spam'].map((r) => (
-          <Pressable press key={r} onClick={() => setReason(r)} className={cx('rounded-full px-3 py-1.5 text-footnote font-medium', reason === r ? 'bg-blue text-white' : 'bg-bg')}>{r}</Pressable>
-        ))}
-      </div>
-      <Input label="Anything else?" value={reason} onChange={(e) => setReason(e.target.value)} />
-    </Sheet>
-  );
-}
-
-function HideSheet({ target, onClose, onDone }) {
-  const [reason, setReason] = useState('');
-  const [run, busy] = useAction();
-  const go = () => run(() => api('everyday.hide', { ...target, reason }), 'Hidden from the feed').then(() => { onDone(); onClose(); }).catch(() => {});
-  return (
-    <Sheet open={!!target} onClose={onClose} title={`Hide this ${target?.target_type}`} size="sm"
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant="danger" busy={busy} onClick={go}>Hide</Button></>}>
-      <p className="mb-3 text-subhead text-muted">Staff stop seeing it straight away; managers still can, and can unhide it. The author is told.</p>
-      <Input label="Reason (shown to the author)" value={reason} onChange={(e) => setReason(e.target.value)} />
-    </Sheet>
-  );
-}
-
 function PinSheet({ post, onClose, onDone }) {
   const [announce, setAnnounce] = useState(false);
+  const [ack, setAck] = useState(false);
   const [run, busy] = useAction();
-  const go = () => run(() => api('everyday.pin', { id: post.id, on: true, announce }), announce ? 'Pinned and everyone notified' : 'Pinned to the top').then(() => { onDone(); onClose(); }).catch(() => {});
+  const go = () => run(() => api('everyday.pin', { id: post.id, on: true, announce, must_ack: ack }),
+    ack ? 'Pinned — everyone is asked to confirm they read it' : announce ? 'Pinned and everyone notified' : 'Pinned to the top')
+    .then(() => { onDone(); onClose(); }).catch(() => {});
   return (
     <Sheet open={!!post} onClose={onClose} title="Pin to the top" size="sm"
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={go}>Pin</Button></>}>
-      <Toggle checked={announce} onChange={setAnnounce} label="Also send it as an announcement" hint="Every member of staff gets a notification." />
+      <Toggle checked={announce || ack} onChange={setAnnounce} label="Also send it as an announcement" hint="Every member of staff gets a notification." />
+      <Toggle checked={ack} onChange={setAck} label="Everyone must confirm they read it" hint={'Staff see an "I\'ve read this" button. You see who has and can remind the rest.'} />
     </Sheet>
   );
 }
 
-function Comment({ c, post, onReply, onChanged, onPerson, highlight, reply }) {
-  const { user } = useAuth();
-  const confirm = useConfirm();
-  const toast = useToast();
-  const [item, setItem] = useState(c);
-  const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(c.body);
-  const [report, setReport] = useState(null);
-  const [hide, setHide] = useState(null);
-  const [who, setWho] = useState(null);
-  const el = useRef(null);
-  useEffect(() => setItem(c), [c]);
-  useEffect(() => { if (highlight) el.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, [highlight]);
-  const mine = c.author.id === user.id;
-  const react = (kind) => {
-    const prev = item;
-    setItem(applyReaction(item, kind));
-    api('everyday.react', { target_type: 'comment', target_id: c.id, kind }).catch((e) => { setItem(prev); toast(e.message, 'error'); });
-  };
-  const save = () => api('everyday.editComment', { id: c.id, body: text }).then(() => { setEditing(false); onChanged(); }).catch((e) => toast(e.message, 'error'));
-  const del = async () => {
-    if (!(await confirm({ title: 'Delete this comment?', confirm: 'Delete', danger: true }))) return;
-    api('everyday.delete', { target_type: 'comment', id: c.id }).then(onChanged).catch((e) => toast(e.message, 'error'));
-  };
-  const n = total(item.reactions);
-  return (
-    <div ref={el} className={cx('flex gap-2', reply && 'ml-10')}>
-      <Pressable press onClick={() => onPerson(c.author.id)} className="shrink-0"><Avatar name={c.author.name} src={c.author.photo_url} size={reply ? 26 : 32} /></Pressable>
-      <div className="min-w-0 flex-1">
-        <div className={cx('relative inline-block max-w-full rounded-2xl px-3 py-2', highlight ? 'bg-blue-soft' : 'bg-bg', c.hidden_at && 'opacity-60')}>
-          <Pressable press onClick={() => onPerson(c.author.id)} className="block text-footnote font-semibold">{c.author.name}</Pressable>
-          {editing ? (
-            <div className="min-w-[220px]">
-              <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} className="w-full resize-none bg-transparent text-body outline-none" />
-              <div className="flex justify-end gap-2"><Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button><Button size="sm" onClick={save}>Save</Button></div>
-            </div>
-          ) : <Body text={c.body} mentions={c.mentions} onPerson={onPerson} className="text-body" />}
-          {c.hidden_at && <div className="text-caption2 font-semibold text-red">Hidden from staff</div>}
-          {n > 0 && (
-            <Pressable press onClick={() => setWho({ target_type: 'comment', target_id: c.id })}
-              className="absolute -bottom-2.5 right-1 flex items-center gap-0.5 rounded-full bg-surface px-1.5 py-0.5 text-caption shadow">{topEmoji(item.reactions)}{n > 1 && <span className="text-muted">{n}</span>}</Pressable>
-          )}
-        </div>
-        <div className="mt-1 flex items-center gap-3 px-2 text-caption text-muted">
-          <span>{relative(c.created_at)}{c.edited_at ? ' · edited' : ''}</span>
-          <ReactButton item={item} onReact={react} small />
-          <Pressable press className="-my-2 py-2 font-semibold" onClick={() => onReply(c)}>Reply</Pressable>
-          {mine && !editing && <Pressable press className="-my-2 py-2 font-semibold" onClick={() => setEditing(true)}>Edit</Pressable>}
-          {mine && <Pressable press className="-my-2 py-2 font-semibold" onClick={del}>Delete</Pressable>}
-          {!mine && <Pressable press className="-my-2 py-2 font-semibold" onClick={() => setReport({ target_type: 'comment', target_id: c.id })}>Report</Pressable>}
-          {isMgr(user) && !mine && !c.hidden_at && <Pressable press className="-my-2 py-2 font-semibold text-red" onClick={() => setHide({ target_type: 'comment', id: c.id })}>Hide</Pressable>}
-          {isMgr(user) && c.hidden_at && <Pressable press className="-my-2 py-2 font-semibold" onClick={() => api('everyday.unhide', { target_type: 'comment', id: c.id }).then(onChanged)}>Unhide</Pressable>}
-        </div>
-      </div>
-      <ReportSheet target={report} onClose={() => setReport(null)} />
-      <HideSheet target={hide} onClose={() => setHide(null)} onDone={onChanged} />
-      <WhoReacted target={who} onClose={() => setWho(null)} onPerson={(id) => { setWho(null); onPerson(id); }} />
-    </div>
-  );
-}
-
-function CommentBox({ post, parent, onSent, onCancel, autoFocus }) {
-  const { user } = useAuth();
-  const toast = useToast();
-  const [text, setText] = useState(parent ? `@${parent.author.name} ` : '');
-  const [mentions, setMentions] = useState(parent && parent.author.id !== user.id ? [parent.author.id] : []);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    setText(parent ? `@${parent.author.name} ` : '');
-    setMentions(parent && parent.author.id !== user.id ? [parent.author.id] : []);
-  }, [parent, user.id]);
-  const send = async () => {
-    if (!text.trim() || busy) return;
-    setBusy(true);
-    try {
-      const r = await api('everyday.comment', { post_id: post.id, parent_id: parent?.id, body: text, mentions });
-      setText(''); setMentions([]);
-      onSent(r.id);
-    } catch (e) {
-      toast(e.data?.need_rules ? 'Open Everyday and agree to the community rules first' : e.message, 'error');
-    } finally { setBusy(false); }
-  };
-  return (
-    <div className={cx('flex items-end gap-2', parent && 'ml-10')}>
-      <Avatar name={user.name} src={user.photo_url} size={parent ? 26 : 32} />
-      <div className="flex min-w-0 flex-1 items-end gap-1 rounded-2xl bg-bg py-1 pl-3 pr-1">
-        <div className="min-w-0 flex-1">
-          <MentionBox value={text} mentions={mentions} rows={1} autoFocus={autoFocus} onSubmit={send}
-            onChange={(t, ids) => { setText(t); setMentions(ids); }} placeholder={parent ? `Reply to ${parent.author.name}` : 'Write a comment'} className="py-1.5 text-body" />
-        </div>
-        {onCancel && <Pressable press className="px-2 py-2 text-caption font-semibold text-muted" onClick={onCancel}>Cancel</Pressable>}
-        <Pressable press aria-label="Send" disabled={!text.trim() || busy} onClick={send} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-blue disabled:opacity-30"><Send size={18} /></Pressable>
-      </div>
-    </div>
-  );
-}
+const KIND_LABEL = { shoutout: 'gave a shout-out', poll: 'asked', event: 'posted an event' };
 
 /** One post. `full` shows every comment (used on the single-post view). */
 export default function PostCard({ post: initial, onChanged, onPerson, full, highlightComment }) {
@@ -259,25 +94,33 @@ export default function PostCard({ post: initial, onChanged, onPerson, full, hig
   const [post, setPost] = useState(initial);
   const [comments, setComments] = useState(initial.comments || []);
   const [all, setAll] = useState(!!full);
+  const [order, setOrder] = useState('relevant');
   const [box, setBox] = useState(!!full);
-  const [replyTo, setReplyTo] = useState(null);
   const [photo, setPhoto] = useState(null);
   const [editing, setEditing] = useState(false);
   const [report, setReport] = useState(null);
   const [hide, setHide] = useState(null);
+  const [remove, setRemove] = useState(null);
   const [pin, setPin] = useState(null);
   const [mute, setMute] = useState(false);
   const [who, setWho] = useState(null);
-  useEffect(() => { setPost(initial); setComments(initial.comments || []); }, [initial]);
+  const [share, setShare] = useState(null);
+  const [audience, setAudience] = useState(null);
+  const el = useRef(null);
+  useEffect(() => { setPost(initial); if (!all || full) setComments(initial.comments || []); }, [initial]); // eslint-disable-line react-hooks/exhaustive-deps
+  useSeen(el, post, user.id);
 
   const mine = post.author.id === user.id;
   const mgr = isMgr(user);
-  const reload = async () => {
+  const tagged = post.tags?.some((t) => t.id === user.id);
+  const reload = async (o = order) => {
     try {
-      const p = await api('everyday.post', { id: post.id });
-      setPost(p); setComments(p.comments); setAll(true);
+      const p = await api('everyday.post', { id: post.id, comment_order: o });
+      setPost(p); setComments(p.comments); setAll(true); setOrder(o);
     } catch (e) { if (e.status === 404) onChanged?.(); else toast(e.message, 'error'); }
   };
+  // Cards update in place; `fetch` reloads the post from the server
+  const update = (next, fetch) => { if (next) setPost(next); if (fetch) reload(); };
   const react = (kind) => {
     const prev = post;
     setPost(applyReaction(post, kind));
@@ -287,37 +130,56 @@ export default function PostCard({ post: initial, onChanged, onPerson, full, hig
     if (!(await confirm({ title: 'Delete this post?', body: 'It is removed for everyone, with its comments.', confirm: 'Delete', danger: true }))) return;
     api('everyday.delete', { target_type: 'post', id: post.id }).then(() => { toast('Post deleted'); onChanged?.(); }).catch((e) => toast(e.message, 'error'));
   };
+  const save = () => api('everyday.save', { id: post.id, on: !post.saved })
+    .then(() => { setPost((p) => ({ ...p, saved: !p.saved })); toast(post.saved ? 'Removed from saved' : 'Saved — find it under Saved'); })
+    .catch((e) => toast(e.message, 'error'));
+  const untag = () => api('everyday.untag', { id: post.id }).then(() => { toast('Your tag was removed'); reload(); }).catch((e) => toast(e.message, 'error'));
   const unpin = () => api('everyday.pin', { id: post.id, on: false }).then(() => { toast('Unpinned'); onChanged?.(); }).catch((e) => toast(e.message, 'error'));
   const unhide = () => api('everyday.unhide', { target_type: 'post', id: post.id }).then(() => { toast('Visible again'); onChanged?.(); }).catch((e) => toast(e.message, 'error'));
 
   const n = total(post.reactions);
-  const top = comments.filter((c) => !c.parent_id);
-  const replies = (id) => comments.filter((c) => c.parent_id === id);
-  const more = post.comment_count - comments.length;
+  const celebration = post.kind === 'celebration';
 
   if (editing) return <Composer post={post} rulesAccepted onCancel={() => setEditing(false)} onPosted={() => { setEditing(false); reload(); }} autoFocus />;
 
   return (
-    <article className={cx('overflow-hidden rounded-tile bg-surface shadow-tile', post.hidden_at && 'ring-2 ring-red/30')}>
-      {post.pinned_at && <div className="flex items-center gap-1.5 bg-blue-soft px-4 py-1.5 text-caption font-semibold text-blue"><Pin size={14} /> Pinned announcement</div>}
+    <article ref={el} className={cx('overflow-hidden rounded-tile bg-surface shadow-tile', post.hidden_at && 'ring-2 ring-red/30')}>
+      {post.pinned_at && <div className="flex items-center gap-1.5 bg-blue-soft px-4 py-1.5 text-caption font-semibold text-blue"><Pin size={14} /> {post.must_ack ? 'Pinned — please read and confirm' : 'Pinned announcement'}</div>}
       {post.hidden_at && <div className="flex items-center gap-1.5 bg-red-soft px-4 py-1.5 text-caption font-semibold text-red"><EyeOff size={14} /> Hidden from staff{post.hidden_reason ? ` — ${post.hidden_reason}` : ''}</div>}
-      <header className="flex items-center gap-3 px-4 pt-3">
+      <header className="flex items-start gap-3 px-4 pt-3">
         <Pressable press onClick={() => onPerson(post.author.id)}><Avatar name={post.author.name} src={post.author.photo_url} size={42} /></Pressable>
         <div className="min-w-0 flex-1">
-          <Pressable press onClick={() => onPerson(post.author.id)} className="block truncate text-body font-semibold">{post.author.name}</Pressable>
-          <div className="text-caption text-muted">{ROLE_LABEL[post.author.role]} · {relative(post.created_at)}{post.edited_at ? ' · edited' : ''}</div>
+          <div className="text-body leading-snug text-muted">
+            <Pressable press onClick={() => onPerson(post.author.id)} className="inline font-semibold text-ink">{post.author.name}</Pressable>
+            {KIND_LABEL[post.kind] && <> {KIND_LABEL[post.kind]}</>}
+            {post.tags?.length > 0 && <> <WithLine people={post.tags} onPerson={onPerson} /></>}
+            {post.place && post.kind !== 'event' && <> at <PlaceLine place={post.place} /></>}
+          </div>
+          <div className="text-caption text-muted">{celebration ? 'Celebrating the team' : ROLE_LABEL[post.author.role]} · {relative(post.created_at)}{post.edited_at ? ' · edited' : ''}</div>
         </div>
         <Menu items={[
-          mine && { label: 'Edit post', icon: Pencil, onClick: () => setEditing(true) },
+          { label: post.saved ? 'Remove from saved' : 'Save post', icon: post.saved ? BookmarkX : Bookmark, onClick: save },
+          !post.hidden_at && { label: 'Share to a chat', icon: Send, onClick: () => setShare(post) },
+          mine && !celebration && post.kind !== 'poll' && { label: post.kind === 'event' ? 'Edit event' : 'Edit post', icon: Pencil, onClick: () => setEditing(true) },
           mine && { label: 'Delete post', icon: Trash2, onClick: del, danger: true },
+          tagged && !mine && { label: 'Remove my tag', icon: UserMinus, onClick: untag },
           !mine && { label: 'Report to a manager', icon: Flag, onClick: () => setReport({ target_type: 'post', target_id: post.id }) },
           mgr && !post.hidden_at && (post.pinned_at ? { label: 'Unpin', icon: PinOff, onClick: unpin } : { label: 'Pin to the top', icon: Pin, onClick: () => setPin(post) }),
           mgr && !mine && (post.hidden_at ? { label: 'Unhide', icon: EyeOff, onClick: unhide } : { label: 'Hide from staff', icon: EyeOff, onClick: () => setHide({ target_type: 'post', id: post.id }), danger: true }),
-          mgr && !mine && { label: `Pause ${post.author.name.split(' ')[0]}'s posting`, icon: VolumeX, onClick: () => setMute(true), danger: true },
+          mgr && !mine && { label: 'Remove permanently', icon: Trash2, onClick: () => setRemove({ target_type: 'post', id: post.id }), danger: true },
+          mgr && !mine && !celebration && { label: `Pause ${post.author.name.split(' ')[0]}'s posting`, icon: VolumeX, onClick: () => setMute(true), danger: true },
         ]} />
       </header>
-      {post.body && <Body text={post.body} mentions={post.mentions} onPerson={onPerson} className={cx('px-4 pt-2', !post.photos.length && post.body.length < 90 ? 'text-title3 leading-snug' : 'text-callout leading-relaxed')} />}
+      {post.body && <Body text={post.body} mentions={post.mentions} onPerson={onPerson}
+        className={cx('px-4 pt-2', post.kind === 'poll' ? 'text-headline' : !post.photos.length && !post.video && !post.link && post.kind === 'post' && post.body.length < 90 ? 'text-title3 leading-snug' : 'text-callout leading-relaxed')} />}
+      {post.kind === 'shoutout' && <ShoutoutCard post={post} onPerson={onPerson} />}
+      {celebration && <CelebrationCard post={post} onChanged={onChanged} />}
+      {post.kind === 'poll' && post.poll && <PollCard post={post} onUpdate={update} />}
+      {post.kind === 'event' && post.event && <EventCard post={post} onUpdate={update} onEdit={() => setEditing(true)} onPerson={onPerson} />}
+      <AckBar post={post} onUpdate={update} onAudience={() => setAudience(post)} />
+      {post.video && <div className="mt-3"><VideoPlayer video={post.video} /></div>}
       {post.photos.length > 0 && <div className="mt-3"><PhotoGrid photos={post.photos} onOpen={setPhoto} /></div>}
+      {post.link && !post.photos.length && !post.video && <LinkCard link={post.link} className="mt-3" />}
       {(n > 0 || post.comment_count > 0) && (
         <div className="flex items-center justify-between px-4 pt-2.5 text-footnote text-muted">
           {n > 0 ? <Pressable press onClick={() => setWho({ target_type: 'post', target_id: post.id })} className="-my-2 flex items-center gap-1 py-2"><span>{topEmoji(post.reactions)}</span>{n}</Pressable> : <span />}
@@ -326,30 +188,25 @@ export default function PostCard({ post: initial, onChanged, onPerson, full, hig
       )}
       <div className="mx-4 mt-2 flex border-t border-line py-1">
         <div className="flex flex-1 justify-center"><ReactButton item={post} onReact={react} /></div>
-        <Pressable press onClick={() => { setBox(true); setReplyTo(null); }} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-subhead font-semibold text-muted hover:bg-bg">
+        <Pressable press onClick={() => setBox(true)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-subhead font-semibold text-muted hover:bg-bg">
           <MessageCircle size={18} /> Comment
         </Pressable>
+        {!post.hidden_at && (
+          <Pressable press onClick={() => setShare(post)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-subhead font-semibold text-muted hover:bg-bg">
+            <Send size={18} /> Share
+          </Pressable>
+        )}
       </div>
-      {(comments.length > 0 || box) && (
-        <div className="space-y-3 border-t border-line px-4 pb-4 pt-3">
-          {!all && more > 0 && <Pressable press className="-my-2 py-2 text-subhead font-semibold text-muted" onClick={reload}>View all {post.comment_count} comments</Pressable>}
-          {top.map((c) => (
-            <div key={c.id} className="space-y-3">
-              <Comment c={c} post={post} onReply={(x) => { setReplyTo(x); setBox(true); }} onChanged={reload} onPerson={onPerson} highlight={highlightComment === c.id} />
-              {replies(c.id).map((r) => <Comment key={r.id} c={r} post={post} reply onReply={() => { setReplyTo({ ...r, id: c.id }); setBox(true); }} onChanged={reload} onPerson={onPerson} highlight={highlightComment === r.id} />)}
-              {replyTo?.id === c.id && <CommentBox post={post} parent={replyTo} autoFocus onCancel={() => setReplyTo(null)} onSent={() => { setReplyTo(null); reload(); }} />}
-            </div>
-          ))}
-          {box && !replyTo && <CommentBox post={post} autoFocus={!full} onSent={reload} />}
-        </div>
-      )}
-      <Lightbox photos={post.photos} index={photo} onClose={() => setPhoto(null)} />
+      <Comments post={post} comments={comments} all={all} order={order} loadAll={reload} box={box} onPerson={onPerson} highlight={highlightComment} autoFocus={!full} />
+      <Lightbox photos={post.photos.map((p) => ({ url: p.url, caption: p.caption }))} index={photo} onClose={() => setPhoto(null)} />
       <ReportSheet target={report} onClose={() => setReport(null)} />
       <HideSheet target={hide} onClose={() => setHide(null)} onDone={() => onChanged?.()} />
+      <RemoveSheet target={remove} onClose={() => setRemove(null)} onDone={() => onChanged?.()} />
       <PinSheet post={pin} onClose={() => setPin(null)} onDone={() => onChanged?.()} />
       <MuteSheet open={mute} person={post.author} onClose={() => setMute(false)} />
       <WhoReacted target={who} onClose={() => setWho(null)} onPerson={(id) => { setWho(null); onPerson(id); }} />
+      <ShareSheet post={share} onClose={() => setShare(null)} />
+      <AudienceSheet post={audience} onClose={() => setAudience(null)} />
     </article>
   );
 }
-

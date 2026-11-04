@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowDown, BadgeCheck, Bell, BellOff, Check, CheckCheck, ChevronLeft, Copy, Eye, FileText, Flag, Megaphone, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Reply, Search, Trash2, UserPlus, Users, X, LogOut } from 'lucide-react';
+import { ArrowDown, BadgeCheck, Bell, BellOff, Check, CheckCheck, ChevronLeft, Copy, Eye, FileText, Flag, Megaphone, Mic, Newspaper, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Reply, Search, Trash2, UserPlus, Users, X, LogOut } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { Composer } from '../../ui/Chat.jsx';
 import { RecordingBar, useRecorder, VoiceNote } from '../../ui/VoiceRecorder.jsx';
@@ -8,7 +8,7 @@ import { Avatar, Button, cx, dayLabel, ErrorBox, IconButton, Input, Lightbox, Pr
 import { api, upload } from '../../api.js';
 import { useRealtime, useRealtimeConnected } from '../../realtime.js';
 import { ROLE_LABEL } from '../../layouts/nav.js';
-import { REACTIONS, reaction } from '../everyday/_parts.jsx';
+import { REACTIONS, reaction, useFeedHref } from '../everyday/_parts.jsx';
 import NewMessage from './NewMessage.jsx';
 import { ConvAvatar, isImage, messagesChanged, useBase, whenLabel } from './_parts.jsx';
 
@@ -17,7 +17,7 @@ const TYPING_MS = 5000;
 const TYPING_EVERY_MS = 3000;
 const canEdit = (m) => !m.deleted_at && Date.now() - new Date(m.created_at) < EDIT_MINUTES * 60000;
 const isAudio = (a) => /^audio\//.test(a.mime || '');
-const quoteText = (m) => m.body || (m.attachments.some(isAudio) ? 'Voice message' : m.attachments.some(isImage) ? 'Photo' : 'File');
+const quoteText = (m) => m.body || (m.share ? 'Shared post' : m.attachments.some(isAudio) ? 'Voice message' : m.attachments.some(isImage) ? 'Photo' : 'File');
 // Replace messages we already hold with fresher copies of the same ids
 const refreshIn = (list, fresh) => { const by = new Map(fresh.map((m) => [m.id, m])); return list.map((m) => by.get(m.id) || m); };
 
@@ -404,6 +404,7 @@ function Bubble({ m, me, conv, first, flash, mentionNames, onReply, onJump, onAc
             <FileText size={16} />{a.name}
           </a>
         ))}
+        {m.share && live && <ShareCard s={m.share} />}
         {voice && <div className="mb-1"><VoiceNote a={voice} mine={mine} transcript={m.transcript} status={m.transcript_status} /></div>}
         {(m.body || m.deleted_at) && (
           <Pressable press onClick={() => live && onAction()}
@@ -428,6 +429,24 @@ function Bubble({ m, me, conv, first, flash, mentionNames, onReply, onJump, onAc
         {m.quick && !mine && <QuickReplies m={m} onDone={onReplied} />}
       </div>
     </div>
+  );
+}
+
+/** An Everyday post someone shared into the chat */
+function ShareCard({ s }) {
+  const navigate = useNavigate();
+  const href = useFeedHref();
+  if (s.restricted || s.removed) {
+    return <div className="mb-1 flex items-center gap-2 rounded-2xl border border-line px-3 py-2 text-footnote italic text-muted"><Newspaper size={16} />{s.removed ? 'This post was removed' : 'Shared from Everyday — staff only'}</div>;
+  }
+  return (
+    <Pressable press onClick={() => navigate(href({ post: s.post_id }))} className="mb-1 flex w-64 max-w-full overflow-hidden rounded-2xl border border-line bg-surface text-left">
+      {s.thumb_url && <img src={s.thumb_url} alt="" className="h-auto w-20 shrink-0 object-cover" />}
+      <span className="min-w-0 flex-1 px-3 py-2">
+        <span className="flex items-center gap-1 text-caption font-semibold text-blue"><Newspaper size={12} />Everyday · {s.author}</span>
+        <span className="line-clamp-3 text-footnote text-ink">{s.text || (s.kind === 'poll' ? 'Poll' : s.kind === 'event' ? 'Event' : 'Post')}</span>
+      </span>
+    </Pressable>
   );
 }
 

@@ -10,6 +10,10 @@ export const NOTIFY_KINDS = [
   { key: 'reaction', label: 'Reactions to my posts', hint: 'One summary a day' },
   { key: 'announcement', label: 'Announcements from managers' },
   { key: 'training', label: 'Training reminders', hint: 'New courses, due dates and certificates' },
+  { key: 'shoutout', label: 'Shout-outs for me', hint: 'When a colleague thanks you on Everyday' },
+  { key: 'tag', label: 'Someone tags me in a post' },
+  { key: 'event', label: 'Team events', hint: 'Reminders for events you said you\'d go to, and changes' },
+  { key: 'celebration', label: 'Celebrations about me', hint: 'Birthdays, anniversaries and qualifications' },
 ];
 
 const b64 = (s) => {
@@ -82,6 +86,27 @@ export function NotificationsSheet({ open, onClose }) {
           </div>
         )}
       </Load>
+      {open && <EverydayPrefs />}
     </Sheet>
+  );
+}
+
+/** What Everyday may post about me */
+function EverydayPrefs() {
+  const q = useApi('everyday.prefs', {});
+  const toast = useToast();
+  const [p, setP] = useState(null);
+  useEffect(() => { if (q.data) setP(q.data); }, [q.data]);
+  if (!p) return null;
+  const flip = (k) => (v) => {
+    setP((x) => ({ ...x, [k]: v }));
+    api('everyday.prefs', { set: { [k]: v } }).catch((e) => { setP((x) => ({ ...x, [k]: !v })); toast(e.message, 'error'); });
+  };
+  return (
+    <div className="mt-6 space-y-4">
+      <div className="text-footnote font-semibold uppercase tracking-wide text-muted">On Everyday</div>
+      <Toggle checked={p.birthday} onChange={flip('birthday')} label="Celebrate my birthday on Everyday" hint="Only the day and month are shown, never your age" />
+      <Toggle checked={p.welcome} onChange={flip('welcome')} label="Welcome post when I start" hint="A short hello to the team in your first two weeks" />
+    </div>
   );
 }
