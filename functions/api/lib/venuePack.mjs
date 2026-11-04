@@ -29,6 +29,12 @@ export function packStatus({ pack, signing, lastShiftAt = null, now = new Date()
 export const OK = new Set(['none', 'current']);
 export const STATUS_LABEL = { none: 'No pack', current: 'Current', resign: 'Needs re-sign', refresher: 'Refresher due', unsigned: 'Not signed' };
 
+/** Live board view of a pack status: 'none' | 'signed' | 'unsigned' | 'resign' (refresher counts as re-sign). */
+export const livePack = (status) => ({ current: 'signed', resign: 'resign', refresher: 'resign', unsigned: 'unsigned' }[status] || 'none');
+
+/** Venue clients only see signed or not: a re-sign reads as not signed yet. */
+export const venuePack = (pack) => (pack === 'resign' ? 'unsigned' : pack);
+
 /** Published packs for many venues at once: Map venueId → ordered documents (instructions first). */
 export async function packsFor(venueIds, { body = false } = {}) {
   const ids = [...new Set(venueIds.filter(Boolean))];

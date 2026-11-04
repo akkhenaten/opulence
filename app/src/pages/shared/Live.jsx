@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Phone, QrCode, Radio, RefreshCw, TriangleAlert } from 'lucide-react';
+import { FileSignature, Lock, MapPin, Phone, QrCode, Radio, RefreshCw, TriangleAlert } from 'lucide-react';
 import {
   Avatar, Button, Empty, IconButton, Input, KV, List, Load, Page, Pill, Row, Section, Segmented, Sheet, Textarea, cx, range, time, titleCase, useAction, useApi, useForm,
 } from '../../ui/index.jsx';
@@ -11,6 +11,25 @@ import { ProofFlags, SelfieCompare } from '../manager/_proof.jsx';
 const ISSUE = ['late', 'no_show', 'left_early'];
 const ON = ['on_shift', 'on_break'];
 const KIND = { in: 'Clocked in', out: 'Clocked out', break_start: 'Break started', break_end: 'Break ended' };
+const PACK_OUT = (r) => r.blocked || r.pack === 'unsigned' || r.pack === 'resign';
+const PACK_LABEL = { signed: 'Pack signed', unsigned: 'Pack not signed', resign: 'Needs re-sign', none: 'No pack published' };
+
+// "tried to clock in at 19:52" / "3 tries, last 19:58"
+function blockedText(b) {
+  return b.attempts > 1 ? <>{b.attempts} tries, last <span className="num">{time(b.last_at)}</span></> : <>tried to clock in at <span className="num">{time(b.first_at)}</span></>;
+}
+
+function PackPill({ r, venue }) {
+  if (r.blocked) return <Pill tone="red"><Lock size={14} />Pack not signed</Pill>;
+  if (venue) {
+    if (r.pack === 'signed') return <Pill tone="green">Signed</Pill>;
+    if (r.pack === 'unsigned') return <Pill tone="amber">Not signed yet</Pill>;
+    return null;
+  }
+  if (r.pack === 'unsigned' || r.pack === 'resign') return <Pill tone="amber">{PACK_LABEL[r.pack]}</Pill>;
+  if (r.pack === 'signed') return <span className="text-caption text-muted">Pack signed</span>;
+  return null;
+}
 
 export default function Live() {
   const { base, isManager, user } = useBase();
@@ -21,20 +40,20 @@ export default function Live() {
   return (
     <Page title={user.role === 'venue' ? 'On site' : 'Live'} subtitle="Updates every 15 seconds"
       actions={<IconButton icon={RefreshCw} label="Refresh" onClick={q.reload} className="bg-surface shadow-tile" />} wide>
-      <Load q={q}>{(rows) => <Board rows={rows} filter={filter} setFilter={setFilter} onOpen={isManager ? setOpen : null} base={base} />}</Load>
+      <Load q={q}>{(rows) => <Board rows={rows} filter={filter} setFilter={setFilter} onOpen={isManager ? setOpen : null} base={base} venue={user.role === 'venue'} />}</Load>
       {open && <Detail row={open} onClose={() => setOpen(null)} onDone={() => { setOpen(null); q.reload(); }} base={base} />}
     </Page>
   );
 }
 
-function Board({ rows, filter, setFilter, onOpen, base }) {
+function Board({ rows, filter, setFilter, onOpen, base, venue }) {
   const n = (f) => rows.filter(f).length;
   const counts = {
     on: n((r) => ON.includes(r.state)), late: n((r) => r.state === 'late'), no_show: n((r) => r.state === 'no_show'),
-    upcoming: n((r) => r.state === 'upcoming'), exc: n((r) => r.has_exception), done: n((r) => ['finished', 'left_early'].includes(r.state)),
+    upcoming: n((r) => r.state === 'upcoming'), exc: n((r) => r.has_exception), pack: n(PACK_OUT), done: n((r) => ['finished', 'left_early'].includes(r.state)),
   };
   const shown = rows.filter((r) => ({
-    all: true, on: ON.includes(r.state), issues: ISSUE.includes(r.state) || r.has_exception, upcoming: r.state === 'upcoming', done: ['finished', 'left_early'].includes(r.state),
+    all: true, on: ON.includes(r.state), issues: ISSUE.includes(r.state) || r.has_exception, pack: PACK_OUT(r), upcoming: r.state === 'upcoming', done: ['finished', 'left_early'].includes(r.state),
   }[filter]));
   const groups = useMemo(() => {
     const m = new Map();
@@ -52,6 +71,7 @@ function Board({ rows, filter, setFilter, onOpen, base }) {
         <Chip label="Late" value={counts.late} tone={counts.late ? 'amber' : 'grey'} active={filter === 'issues'} onClick={() => setFilter(filter === 'issues' ? 'all' : 'issues')} />
         <Chip label="No-show" value={counts.no_show} tone={counts.no_show ? 'red' : 'grey'} active={filter === 'issues'} onClick={() => setFilter(filter === 'issues' ? 'all' : 'issues')} />
         {counts.exc > 0 && <Chip label="Exceptions" value={counts.exc} tone="red" active={filter === 'issues'} onClick={() => setFilter('issues')} />}
+        {!venue && counts.pack > 0 && <Chip label="Pack not signed" value={counts.pack} tone="amber" active={filter === 'pack'} onClick={() => setFilter(filter === 'pack' ? 'all' : 'pack')} />}
         <Chip label="Due on" value={counts.upcoming} tone="blue" active={filter === 'upcoming'} onClick={() => setFilter(filter === 'upcoming' ? 'all' : 'upcoming')} />
         <Chip label="Finished" value={counts.done} active={filter === 'done'} onClick={() => setFilter(filter === 'done' ? 'all' : 'done')} />
       </div>
@@ -72,10 +92,11 @@ function Board({ rows, filter, setFilter, onOpen, base }) {
                     onClick={onOpen ? () => onOpen(r) : undefined}
                     left={<Avatar name={r.officer_name} src={r.photo_url} size={40} />}
                     title={r.officer_name}
-                    subtitle={<><span className="num">{range(r.starts_at, r.ends_at)}</span> · {r.role_name}{r.clocked_in ? <> · in <span className="num">{time(r.clocked_in)}</span></> : ''}</>}
+                    subtitle={<><span className="num">{range(r.starts_at, r.ends_at)}</span> · {r.role_name}{r.clocked_in ? <> · in <span className="num">{time(r.clocked_in)}</span></> : ''}{r.blocked && r.pack_block ? <> · {blockedText(r.pack_block)}</> : ''}</>}
                     right={
                       <div className="flex flex-col items-end gap-1">
-                        <Pill status={r.state} />
+                        {!r.blocked && <Pill status={r.state} />}
+                        <PackPill r={r} venue={venue} />
                         {r.has_exception && <Pill tone="red"><TriangleAlert size={14} />Exception</Pill>}
                       </div>
                     } />
@@ -104,10 +125,12 @@ function Detail({ row, onClose, onDone, base }) {
       </>}>
       {manual ? <ManualForm row={row} onCancel={() => setManual(false)} onDone={onDone} /> : (
         <div className="space-y-5">
-          <div className="flex flex-wrap items-center gap-2"><Pill status={row.state} />{row.has_exception && <Pill tone="red">Exception</Pill>}</div>
+          <div className="flex flex-wrap items-center gap-2"><Pill status={row.state} /><PackPill r={row} />{row.has_exception && <Pill tone="red">Exception</Pill>}</div>
           <KV items={[
             ['Venue', row.venue_name], ['Shift', <span className="num">{range(row.starts_at, row.ends_at)}</span>], ['Role', row.role_name],
             ['SIA', row.sia_number], ['Phone', row.phone], ['Clocked in', row.clocked_in && <span className="num">{time(row.clocked_in)}</span>],
+            ['Site pack', PACK_LABEL[row.pack]],
+            row.pack_block && ['Blocked clock-in', <>first <span className="num">{time(row.pack_block.first_at)}</span>{row.pack_block.attempts > 1 ? <>, last <span className="num">{time(row.pack_block.last_at)}</span> · {row.pack_block.attempts} attempts</> : ''}</>],
           ]} />
           <div>
             <div className="mb-2 text-caption font-semibold uppercase tracking-wide text-faint">Clock events</div>
@@ -130,6 +153,7 @@ function Detail({ row, onClose, onDone, base }) {
             </div>
           )}
           {row.has_exception && <Button variant="secondary" to={`${base}/exceptions`} icon={TriangleAlert}>Review exception</Button>}
+          {row.pack !== 'none' && <Button variant="secondary" to={`${base}/venues/${row.venue_id}?tab=pack`} icon={FileSignature}>Open site pack</Button>}
         </div>
       )}
     </Sheet>

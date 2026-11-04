@@ -14,7 +14,7 @@ import { guardSelf, markOwn } from '../lib/selfcheck.mjs';
 import { MGR, def } from './_def.mjs';
 import { evaluate } from '../lib/proof.mjs';
 import { checkPhone, findTap, spendTap, checkSelfie, scoreSelfie } from './clockProof.mjs';
-import { statusFor, OK, STATUS_LABEL } from '../lib/venuePack.mjs';
+import { statusFor, statusesFor, pairKey, livePack, venuePack, OK, STATUS_LABEL } from '../lib/venuePack.mjs';
 import crypto from 'node:crypto';
 
 const VALID = ['ok', 'approved', 'manual'];
@@ -108,6 +108,21 @@ export const actions = {
     if (b.kind === 'in') {
       const st = await statusFor(user.officer_id, a.venue_id);
       if (!OK.has(st.status)) {
+        // Record the refused attempt so Live can say why they are not on; managers hear once per shift
+        try {
+          const rec = await one(
+            `INSERT INTO pack_blocks (assignment_id, officer_id, venue_id, pack_status) VALUES ($1,$2,$3,$4)
+             ON CONFLICT (assignment_id) DO UPDATE SET last_at = now(), attempts = pack_blocks.attempts + 1, pack_status = EXCLUDED.pack_status
+             RETURNING (xmax = 0) AS first`, [a.assignment_id, user.officer_id, a.venue_id, st.status]);
+          if (rec?.first) {
+            await audit(user, 'clock.pack_blocked', 'assignment', a.assignment_id, { venue_id: a.venue_id, pack_status: st.status });
+            await notify(await managersFor(a.venue_id), {
+              kind: 'pack_blocked', severity: 'warning', title: `${user.name} can't clock in – site pack not signed`,
+              body: `${a.venue_name}, shift ${fmtTime(a.starts_at)}–${fmtTime(a.ends_at)}. They tried at ${fmtTime(new Date())}.`,
+              link: '/company/live', dedupe: `pack_blocked:${a.assignment_id}`,
+            });
+          }
+        } catch (e) { console.error('[pack_blocked]', e.message); }
         fail(423, `Read and sign the site pack for ${a.venue_name} before you clock in`, { code: 'venue_pack', venue_id: a.venue_id, pack_status: st.status, to_read: st.toRead.length });
       }
     }
@@ -260,13 +275,15 @@ export const actions = {
               o.id AS officer_id, o.first_name || ' ' || o.last_name AS officer_name, o.sia_number, o.phone, o.photo_key,
               COALESCE((SELECT json_agg(json_build_object('kind', kind, 'ts', ts, 'status', status, 'geo_ok', geo_ok, 'distance_m', distance_m, 'device_ok', device_ok,
                    'venue_code', venue_code, 'face_result', face_result, 'flags', flags, 'selfie_key', selfie_key, 'qr_ok', qr_ok, 'proof_rule', proof_rule, 'face_note', face_note) ORDER BY ts)
-                 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.status <> 'rejected'), '[]') AS events
+                 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.status <> 'rejected'), '[]') AS events,
+              (SELECT json_build_object('first_at', first_at, 'last_at', last_at, 'attempts', attempts) FROM pack_blocks pb WHERE pb.assignment_id = a.id) AS pack_block
          FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id JOIN roles r ON r.code = s.role
         WHERE s.status = 'published' AND a.status IN ('assigned','accepted')
           AND s.starts_at < now() + interval '12 hours' AND s.ends_at > now() - interval '2 hours'
           AND ($1::uuid[] IS NULL OR s.venue_id = ANY($1)) AND ($2::uuid IS NULL OR s.venue_id = $2)
         ORDER BY v.name, s.starts_at, officer_name`, [scope, b.venue_id || null]);
     const now = Date.now();
+    const packs = await statusesFor(rows.map((r) => ({ officer_id: r.officer_id, venue_id: r.venue_id })));
     return Promise.all(rows.map(async (r) => {
       const st = stateOf(r.events);
       let state = st;
@@ -276,9 +293,13 @@ export const actions = {
         else state = 'upcoming';
       }
       if (st === 'finished' && new Date(r.ends_at) - new Date(r.events.at(-1).ts) > 15 * 60000) state = 'left_early';
-      const out = { ...r, state, clocked_in: r.events.find((e) => e.kind === 'in')?.ts || null, has_exception: r.events.some((e) => e.status === 'exception') };
+      const clockedIn = r.events.find((e) => e.kind === 'in')?.ts || null;
+      const pack = livePack(packs.get(pairKey(r.officer_id, r.venue_id))?.status);
+      // Not on yet because the pack stopped their clock-in: say so rather than a bare late or no-show
+      const blocked = !!r.pack_block && !clockedIn && ['upcoming', 'late', 'no_show'].includes(state);
+      const out = { ...r, state, clocked_in: clockedIn, has_exception: r.events.some((e) => e.status === 'exception'), pack, blocked };
       const { photo_key, ...rest } = out;
-      if (user.role === 'venue') { delete rest.phone; delete rest.events; }
+      if (user.role === 'venue') { delete rest.phone; delete rest.events; delete rest.pack_block; delete rest.blocked; rest.pack = venuePack(pack); }
       // Selfies are for managers only
       const inEv = rest.events?.find((e) => e.kind === 'in' && e.selfie_key);
       if (rest.events) rest.events = rest.events.map(({ selfie_key, ...e }) => e);

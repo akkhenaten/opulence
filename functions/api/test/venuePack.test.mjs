@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { packStatus, REFRESHER_DAYS } from '../lib/venuePack.mjs';
+import { packStatus, REFRESHER_DAYS, livePack, venuePack } from '../lib/venuePack.mjs';
 
 const now = new Date('2026-11-04T09:00:00Z');
 const daysAgo = (n) => new Date(now - n * 86400000);
@@ -44,4 +44,12 @@ test('six months away from the venue: refresher, everything again', () => {
   assert.deepEqual(packStatus({ pack, signing: old, lastShiftAt: daysAgo(REFRESHER_DAYS + 5), now }), { status: 'refresher', toRead: ['ins', 'fire'] });
   assert.equal(packStatus({ pack, signing: old, lastShiftAt: daysAgo(20), now }).status, 'current');
   assert.equal(packStatus({ pack, signing: old, lastShiftAt: null, now }).status, 'refresher');
+});
+
+test('Live shows signed, not signed or re-sign; a refresher counts as re-sign', () => {
+  assert.deepEqual(['none', 'current', 'resign', 'refresher', 'unsigned', undefined].map(livePack), ['none', 'signed', 'resign', 'resign', 'unsigned', 'none']);
+});
+
+test('venue clients only see signed or not signed yet', () => {
+  assert.deepEqual(['none', 'signed', 'resign', 'unsigned'].map(venuePack), ['none', 'signed', 'unsigned', 'unsigned']);
 });
