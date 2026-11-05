@@ -3,7 +3,7 @@
 import crypto from 'node:crypto';
 import { degrees, rgb } from 'pdf-lib';
 import { Doc, INK, MUTED, LINE, SOFT, qrPng } from './pdf.mjs';
-import { hexToRgb, DEFAULT_COLOR } from './brand.mjs';
+import { hexToRgb, inkColor } from './brand.mjs';
 import { plain } from './docmarkup.mjs';
 import { fmtDate, fmtDateTime } from './time.mjs';
 
@@ -17,15 +17,6 @@ export const WATERMARK = { preview: 'PREVIEW - SAMPLE DATA', draft: 'DRAFT - PEN
 
 const sha = (x) => crypto.createHash('sha256').update(x).digest('hex');
 
-// A brand colour light enough to vanish on paper is darkened towards ink for text
-function accentInk(hex) {
-  const h = /^#[0-9a-f]{6}$/i.test(hex || '') ? hex : DEFAULT_COLOR;
-  const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
-  const lin = c.map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
-  const L = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
-  if (1.05 / (L + 0.05) >= 3.5) return hexToRgb(h);
-  return rgb(...c.map((v, i) => v * 0.45 + [0.04, 0.07, 0.13][i] * 0.55));
-}
 
 /** "Mozilla/5.0 (iPhone; …) … Safari" → "iPhone · Safari" */
 export function device(ua) {
@@ -137,7 +128,7 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
   const s = await SignDoc.create(doc.title, { unicode: true, company, title: doc.title });
 
   const accent = hexToRgb(company?.brand_color);
-  const accentText = accentInk(company?.brand_color);
+  const accentText = hexToRgb(inkColor(company?.brand_color));
   const tint = rgb(...[accent.red, accent.green, accent.blue].map((c) => 1 - (1 - c) * 0.07));
   const fingerprint = fingerprintOf({ reference: doc.reference, title: doc.title, blocks: doc.blocks, terms: doc.terms, signers });
 
@@ -209,7 +200,7 @@ export async function renderSigned({ company, doc, signers = {}, events = [], st
       for (const g of t.conditions) {
         s.ensure(18);
         const met = g.status === 'met';
-        s.page.drawRectangle({ x: s.x, y: s.y - 9, width: 8, height: 8, borderColor: met ? accent : MUTED, borderWidth: 0.8, color: met ? accent : undefined });
+        s.page.drawRectangle({ x: s.x, y: s.y - 9, width: 8, height: 8, borderColor: met ? accentText : MUTED, borderWidth: 0.8, color: met ? accentText : undefined });
         if (met) {
           s.page.drawLine({ start: { x: s.x + 1.6, y: s.y - 5 }, end: { x: s.x + 3.4, y: s.y - 7.2 }, thickness: 1.1, color: rgb(1, 1, 1) });
           s.page.drawLine({ start: { x: s.x + 3.4, y: s.y - 7.2 }, end: { x: s.x + 6.6, y: s.y - 2.6 }, thickness: 1.1, color: rgb(1, 1, 1) });

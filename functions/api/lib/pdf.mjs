@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { PDFDocument, PDFName, PDFString, StandardFonts, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import QRCode from 'qrcode';
-import { hexToRgb, logoBytes } from './brand.mjs';
+import { hexToRgb, inkColor, logoBytes } from './brand.mjs';
 
 const BLUE = rgb(0.04, 0.42, 1);
 const INK = rgb(0.04, 0.07, 0.13);
@@ -78,7 +78,7 @@ class Doc {
 
   // The company's logo (or its name) top left, the document title top right
   async header(company, docTitle, subtitle) {
-    this.accent = hexToRgb(company?.brand_color);
+    this.accent = hexToRgb(inkColor(company?.brand_color));
     const logo = await this.logo(company);
     if (logo) {
       const { width, height } = logo.scaleToFit(150, 36);
@@ -229,7 +229,7 @@ export async function qrPosterPdf(venue, payload, company) {
   const p = d.page;
   p.drawRectangle({ x: 0, y: 0, width: 595.28, height: 841.89, color: rgb(0.95, 0.96, 0.97) });
   p.drawRectangle({ x: 60, y: 120, width: 475, height: 640, color: rgb(1, 1, 1), borderColor: LINE, borderWidth: 1 });
-  const accent = hexToRgb(company?.brand_color);
+  const accent = hexToRgb(inkColor(company?.brand_color));
   const logo = await d.logo(company);
   const center = (s, y, size, font = d.bold, color = INK) => {
     const t = clean(s);

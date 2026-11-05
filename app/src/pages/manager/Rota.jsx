@@ -82,7 +82,7 @@ export default function Rota() {
               return <><VenueGrid {...props} venues={vs} /><VenueAgenda {...props} venues={vs} /></>;
             }
             if (view === 'officers') {
-              if (!rows.length) return <Empty icon={CalendarDays} title="No shifts this week" />;
+              if (!rows.length) return <Empty photo="kit" icon={CalendarDays} title="No shifts this week" />;
               return <><OfficerGrid {...props} /><OfficerAgenda {...props} /></>;
             }
             return <DayList {...props} />;

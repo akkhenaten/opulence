@@ -54,7 +54,7 @@ export default function Dashboard() {
   const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   return (
-    <Page title={`${greet}${first ? `, ${first}` : ''}`} subtitle={dayLabel(isoDate())} wide>
+    <Page title={`${greet}${first ? `, ${first}` : ''}`} subtitle={dayLabel(isoDate())} wide photo="door">
       {feedOn && (
         <Tabs value={tab} onChange={(t) => setSp(t === 'overview' ? {} : { tab: t }, { replace: true })}
           tabs={[{ value: 'overview', label: 'Overview' }, { value: 'everyday', label: 'Everyday', count: unread.data?.unread || undefined }]} />

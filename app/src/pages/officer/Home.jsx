@@ -22,7 +22,7 @@ export default function Home() {
   const pull = usePullRefresh(reloadAll);
 
   return (
-    <Page title={`${greeting()}${first ? `, ${first}` : ''}`} subtitle={dayLabel(new Date())}>
+    <Page title={`${greeting()}${first ? `, ${first}` : ''}`} subtitle={dayLabel(new Date())} photo="street">
       {pull}
       <InstallCard className="mb-4" />
       <Load q={dash} skeleton="tiles">

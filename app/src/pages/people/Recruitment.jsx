@@ -56,7 +56,7 @@ export default function Recruitment() {
   const ready = cols.onboarding.filter((r) => r.total && Number(r.done) === Number(r.total)).length;
 
   return (
-    <Page title="Recruitment" subtitle="From applicant to first shift" wide actions={<Button icon={Plus} onClick={() => setAdding(true)}>Add applicant</Button>}>
+    <Page title="Recruitment" subtitle="From applicant to first shift" wide photo="crowd" actions={<Button icon={Plus} onClick={() => setAdding(true)}>Add applicant</Button>}>
       <Load q={pipeline}>
         {() => (
           <>

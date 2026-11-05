@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom';
 import { Printer } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { Button, date, Load, Page, useApi } from '../../ui/index.jsx';
+import { inkColor } from '../../ui/style.js';
 
 export default function Certificate() {
   const { id } = useParams();
@@ -12,7 +13,7 @@ export default function Certificate() {
     <Page title="Certificate" back={back} actions={<span className="no-print"><Button variant="secondary" icon={Printer} onClick={() => window.print()}>Print or save as PDF</Button></span>}>
       <Load q={q}>
         {(c) => {
-          const color = c.brand_color || '#0A6CFF';
+          const color = inkColor(c.brand_color);
           return (
           <div className="print-sheet mx-auto max-w-2xl rounded-tile border-2 bg-surface p-8 text-center shadow-tile sm:p-12" style={{ borderColor: `${color}33` }}>
             {c.logo_url

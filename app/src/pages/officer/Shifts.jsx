@@ -66,7 +66,7 @@ function Mine() {
               </div>
             )}
             {!upcoming.length ? (
-              <Empty icon={CalendarDays} title="No upcoming shifts" body="When you're booked on a shift it appears here." action={<Button to="/officer/shifts?tab=open" icon={Megaphone}>Find open shifts</Button>} />
+              <Empty photo="kit" icon={CalendarDays} title="No upcoming shifts" body="When you're booked on a shift it appears here." action={<Button to="/officer/shifts?tab=open" icon={Megaphone}>Find open shifts</Button>} />
             ) : (
               <div className="space-y-2.5">
                 {upcoming.map((s) => {

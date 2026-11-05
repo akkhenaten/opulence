@@ -5,6 +5,7 @@ import { CheckCircle2, FileText, IdCard, Paperclip, X } from 'lucide-react';
 import { api, publicUpload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { Logo } from '../../layouts/Shell.jsx';
+import { Photo } from '../../ui/Photo.jsx';
 import { Button, Check, Chips, cx, ErrorBox, Input, PoweredBy, Textarea, useForm } from '../../ui/index.jsx';
 
 const ROLES = [
@@ -24,12 +25,18 @@ const MAX = 10 * 1024 * 1024;
 const CV_TYPES = '.pdf,.doc,.docx,image/*';
 const BADGE_TYPES = 'image/*,.pdf';
 
-function Frame({ children }) {
+// hero: a castle photo under the black bar with the page title on it
+function Frame({ children, hero }) {
   return (
     <div className="min-h-dvh bg-bg">
-      <header className="sticky top-0 z-30 flex h-14 items-center border-b border-hairline bg-surface/90 pt-[env(safe-area-inset-top)] [--px:1rem] sm:[--px:1.5rem] safe-x backdrop-blur-xl">
-        <Logo />
+      <header className="sticky top-0 z-30 flex h-14 items-center border-b border-white/10 bg-night pt-[env(safe-area-inset-top)] [--px:1rem] sm:[--px:1.5rem] safe-x">
+        <Logo tone="light" />
       </header>
+      {hero && (
+        <Photo name="castle" priority className="text-cream">
+          <div className="mx-auto flex min-h-[220px] max-w-2xl flex-col justify-end pb-7 pt-12 [--px:1rem] sm:min-h-[280px] sm:[--px:1.5rem] safe-x">{hero}</div>
+        </Photo>
+      )}
       <main className="mx-auto max-w-2xl py-6 [--px:1rem] sm:[--px:1.5rem] safe-x pb-16">{children}</main>
       <PoweredBy className="pb-8" />
     </div>
@@ -76,10 +83,11 @@ function FilePick({ label, hint, accept, file, onChange, icon: Icon, error }) {
 function Done({ name, brand }) {
   return (
     <Frame>
-      <div className="mx-auto mt-10 max-w-md rounded-tile bg-surface p-7 text-center shadow-tile">
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-green-soft text-green"><CheckCircle2 size={28} /></div>
-        <h1 className="mt-3 text-title2 font-bold">Thank you, {name}</h1>
-        <p className="mt-2 text-body text-muted">Your application to {brand} has been sent. We've emailed you a confirmation and our team will be in touch.</p>
+      <div className="mx-auto mt-10 max-w-md overflow-hidden rounded-tile bg-surface text-center shadow-tile">
+        <Photo name="crowd" priority className="h-40" />
+        <div className="relative -mt-7 mx-auto grid h-14 w-14 place-items-center rounded-full bg-green-soft text-green ring-4 ring-surface"><CheckCircle2 size={28} /></div>
+        <h1 className="mt-3 px-7 text-title2 font-bold">Thank you, {name}</h1>
+        <p className="mt-2 px-7 pb-7 text-body text-muted">Your application to {brand} has been sent. We've emailed you a confirmation and our team will be in touch.</p>
       </div>
     </Frame>
   );
@@ -127,11 +135,12 @@ export default function Apply() {
   if (stage === 'done') return <Done name={v.first_name} brand={brand.name} />;
   const busy = stage === 'uploading' || stage === 'sending';
   return (
-    <Frame>
+    <Frame hero={<>
+      <div className="text-caption font-semibold uppercase tracking-[0.14em] text-gold-light">Careers</div>
+      <h1 className="display text-title1 font-semibold leading-tight">Join the {brand.name} team</h1>
+    </>}>
       <div className="mb-5">
-        <div className="text-caption font-semibold uppercase tracking-wide text-muted">Careers</div>
-        <h1 className="display text-title1 font-bold leading-tight">Join the {brand.name} team</h1>
-        <p className="mt-2 text-body text-muted">Tell us about yourself and upload your CV and SIA badge. It takes about five minutes.</p>
+        <p className="text-body text-muted">Tell us about yourself and upload your CV and SIA badge. It takes about five minutes.</p>
       </div>
       <form onSubmit={submit} className="space-y-4" noValidate>
         <Card title="Your details">

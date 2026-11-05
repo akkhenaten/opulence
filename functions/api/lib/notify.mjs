@@ -1,6 +1,6 @@
 import { q } from './db.mjs';
 import { pushToUsers } from './webpush.mjs';
-import { esc, getBrand } from './brand.mjs';
+import { esc, getBrand, onColor } from './brand.mjs';
 
 // Kinds a person can switch off in their notification settings; operational alerts always go
 export const OPTIONAL_KINDS = ['mention', 'comment', 'reaction', 'announcement', 'training', 'shoutout', 'tag', 'event', 'celebration'];
@@ -44,7 +44,7 @@ async function emailHtml(title, body, link, button = null) {
   ${head}
   <h2 style="margin:16px 0 8px;color:#0B1220;font-size:20px">${title}</h2>
   <p style="color:#4B5563;line-height:1.5">${body || ''}</p>
-  <a href="${url}" style="display:inline-block;margin-top:12px;background:${b.color};color:#fff;padding:10px 18px;border-radius:12px;text-decoration:none;font-weight:600">${label}</a>
+  <a href="${url}" style="display:inline-block;margin-top:12px;background:${b.color};color:${onColor(b.color)};padding:10px 18px;border-radius:12px;text-decoration:none;font-weight:600">${label}</a>
   </div>
   <div style="text-align:center;margin-top:14px"><a href="https://orbsolutions.co.uk/" style="color:#9CA3AF;font-size:11px;text-decoration:none"><img src="${APP_URL()}/app/orb-lockup.png" alt="Orb Security" height="18" style="height:18px;vertical-align:middle;margin-right:6px">Powered by <span style="text-decoration:underline">orbsolutions.co.uk</span></a></div></div>`;
 }

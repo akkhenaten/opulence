@@ -10,35 +10,40 @@ import { SideSwitch } from './SideSwitch.jsx';
 import { AccountSheet } from './AccountSheet.jsx';
 import AskOrb from '../ui/AskOrb.jsx';
 import OrbFab from '../ui/OrbFab.jsx';
-import OrbMark from '../ui/OrbMark.jsx';
 import { OfflineBanner, useUpdateToast } from '../ui/pwa.jsx';
 
-// The company's logo, or its name next to the mark in the brand colour.
+// The Opulence horse and the company name in Playfair.
 // faded: the wordmark fades out (header shows the page title instead)
-// place: sidebar / header / auth — wide logos get a height cap, square ones a bigger tile
+// place: sidebar / header / auth sets the size; tone: 'light' (gold on dark chrome or photos) or 'dark' (ink on light)
+// The uploaded brand.logo_url is for PDFs and emails.
 const LOGO_SIZE = {
-  sidebar: { wide: 'h-11 max-w-[200px]', square: 'h-14 max-w-[200px]' },
-  header: { wide: 'h-9 max-w-[160px]', square: 'h-10 max-w-[160px]' },
-  auth: { wide: 'h-14 max-w-[240px]', square: 'h-20 max-w-[240px]' },
+  sidebar: { mark: 'h-9', text: 'text-title3' },
+  header: { mark: 'h-8', text: 'text-headline' },
+  auth: { mark: 'h-14', text: 'text-title2' },
 };
-export function Logo({ compact, faded, place = 'header' }) {
+export function Logo({ compact, faded, place = 'header', tone = 'dark' }) {
   const { brand } = useAuth();
-  const [wide, setWide] = useState(false);
+  const size = LOGO_SIZE[place] || LOGO_SIZE.header;
   const fade = cx('transition-opacity duration-[var(--dur-2)]', faded && 'opacity-0');
-  if (brand.logo_url && !compact) {
-    const size = LOGO_SIZE[place] || LOGO_SIZE.header;
-    return <img src={brand.logo_url} alt={brand.name} onLoad={(e) => setWide(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight > 2)}
-      className={cx('brand-logo w-auto min-w-0 shrink object-contain object-left', wide ? size.wide : size.square, fade)} />;
-  }
-  const orb = brand.name === 'Orb Security';
+  const light = tone === 'light';
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      <OrbMark color={brand.color} />
-      {!compact && (orb
-        ? <span className={cx('display text-title3 font-bold tracking-tight', fade)}>Orb <span className="text-muted font-semibold">Security</span></span>
-        : <span className={cx('display max-w-[180px] truncate text-headline font-bold tracking-tight', fade)}>{brand.name}</span>)}
+      <img src={`/app/brand/logo-${light ? 'gold' : 'ink'}-192.png`} alt={compact ? brand.name : ''} className={cx('w-auto shrink-0', size.mark)} />
+      {!compact && <span className={cx('display max-w-[200px] truncate font-semibold tracking-tight', size.text, light ? 'text-gold' : 'text-ink', fade)}>{brand.name}</span>}
     </div>
   );
+}
+
+// Phones (below lg) get the black top bar
+function useNarrow() {
+  const [narrow, setNarrow] = useState(() => !window.matchMedia('(min-width: 1024px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const on = () => setNarrow(!mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return narrow;
 }
 
 // Polls the unread count; opens the notification sheet
@@ -105,6 +110,11 @@ function HeaderTitle() {
     </div>
   );
 }
+
+// Sidebar links: gold bar and gold text on the active one
+const NAV_ITEM = 'pressable relative flex min-h-9 items-center gap-3 rounded-xl px-3 py-1.5 text-subhead font-semibold';
+const NAV_ON = 'bg-blue-soft text-blue before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-[var(--accent-fill)]';
+const NAV_OFF = 'text-ink/70 hover:bg-fill hover:text-ink';
 
 // Count badge for a nav item (Ops AI inbox)
 const Badge = ({ n, className }) => (n > 0 ? <span className={cx('rounded-full bg-blue px-1.5 text-caption2 font-bold leading-[18px] text-white', className)}>{n > 99 ? '99+' : n}</span> : null);
@@ -183,6 +193,9 @@ export default function Shell() {
   useScrollMemory();
   useUpdateToast();
   const header = usePageHeader();
+  // Black top bar on phones and for officers; managers on desktop keep the light see-through bar
+  const narrow = useNarrow();
+  const darkBar = isOfficer || narrow;
   // Desktop header is see-through at the top; it gets its frosted background once the page scrolls under it
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -218,8 +231,8 @@ export default function Shell() {
     <div className="min-h-dvh lg:flex">
       {/* Desktop sidebar (managers) */}
       {!isOfficer && (
-        <aside className="sticky top-0 hidden h-dvh w-[260px] shrink-0 flex-col border-r border-line/70 bg-surface/70 px-3 py-5 backdrop-blur-xl lg:flex">
-          <div className="px-3 pb-6"><Logo place="sidebar" /></div>
+        <aside data-style="control" className="sticky top-0 hidden h-dvh w-[260px] shrink-0 flex-col border-r border-line px-3 py-5 lg:flex">
+          <div className="px-3 pb-6"><Logo place="sidebar" tone="light" /></div>
           <SideSwitch full className="mb-4" />
           <nav className="flex-1 space-y-4 overflow-y-auto no-scrollbar">
             {groups.map((g, i) => (
@@ -227,7 +240,7 @@ export default function Shell() {
                 {g.title && <div className="mb-0.5 px-3 text-caption2 font-semibold uppercase tracking-wider text-faint">{g.title}</div>}
                 {g.items.map((it) => (
                   <NavLink key={it.to} to={it.to} end={it.end} onClick={tabTap(it)}
-                    className={({ isActive: on }) => cx('pressable flex min-h-9 items-center gap-3 rounded-xl px-3 py-1.5 text-subhead font-semibold', on ? 'bg-blue-soft text-blue' : 'text-ink/75 hover:bg-bg hover:text-ink')}>
+                    className={({ isActive: on }) => cx(NAV_ITEM, on ? NAV_ON : NAV_OFF)}>
                     <it.icon size={18} /><span className="flex-1">{it.label}</span><Badge n={badges[it.badge]} />
                   </NavLink>
                 ))}
@@ -235,10 +248,10 @@ export default function Shell() {
             ))}
           </nav>
           <NavLink to={`/${user.role}/help`}
-            className={({ isActive: on }) => cx('pressable mt-2 flex min-h-9 items-center gap-3 rounded-xl px-3 py-1.5 text-subhead font-semibold', on ? 'bg-blue-soft text-blue' : 'text-ink/75 hover:bg-bg hover:text-ink')}>
+            className={({ isActive: on }) => cx(NAV_ITEM, 'mt-2', on ? NAV_ON : NAV_OFF)}>
             <BookOpen size={18} /><span className="flex-1">Help & user guide</span>
           </NavLink>
-          <Pressable press onClick={() => setAccount(true)} aria-label="My account" className="mt-4 flex items-center gap-3 rounded-2xl bg-bg p-3 hover:bg-line/40">
+          <Pressable press onClick={() => setAccount(true)} aria-label="My account" className="mt-4 flex items-center gap-3 rounded-2xl bg-fill p-3 hover:bg-fill-strong">
             <Avatar name={user.name} src={user.photo_url} size={36} />
             <div className="min-w-0 flex-1"><div className="truncate text-subhead font-semibold">{user.name}</div><div className="truncate text-caption text-muted">{ROLE_LABEL[user.role]}</div></div>
             <ChevronRight size={18} className="text-faint" />
@@ -248,10 +261,10 @@ export default function Shell() {
 
       <div className="min-w-0 flex-1">
         {/* Top bar */}
-        <header className={cx('sticky top-0 z-30 border-b border-line/50 bg-bg/80 backdrop-blur-xl safe-t', !isOfficer && !scrolled && 'lg:border-transparent lg:bg-transparent lg:backdrop-blur-none', 'transition-[background-color,border-color] duration-200')}>
+        <header data-style={darkBar ? 'control' : undefined} className={cx('sticky top-0 z-30 border-b border-line/50 bg-bg/80 backdrop-blur-xl safe-t', !isOfficer && !scrolled && 'lg:border-transparent lg:bg-transparent lg:backdrop-blur-none', 'transition-[background-color,border-color] duration-200')}>
           <div className={cx('relative mx-auto flex h-14 items-center justify-between [--px:1rem] sm:[--px:1.5rem] safe-x', isOfficer ? 'max-w-2xl' : header.wide ? 'max-w-[1400px]' : 'max-w-6xl')}>
             <HeaderTitle />
-            <div className={cx('flex min-w-0', !isOfficer && 'lg:invisible')}><Logo faded={header.collapsed && !!header.title} /></div>
+            <div className={cx('flex min-w-0', !isOfficer && 'lg:invisible')}><Logo tone={darkBar ? 'light' : 'dark'} faded={header.collapsed && !!header.title} /></div>
             <div className="flex items-center gap-2">
               {feedOn && <EverydayButton to={isOfficer ? '/officer/everyday' : `/${user.role}?tab=everyday`} unread={badges.everyday} />}
               {user.role !== 'venue' && (

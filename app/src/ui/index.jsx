@@ -6,6 +6,7 @@ import { api } from '../api.js';
 import { initials, titleCase } from './format.js';
 import { usePresence, useScrollLock } from './motion.js';
 import { pageHeader, previousPath } from './nav.js';
+import { Photo } from './Photo.jsx';
 
 export * from './format.js';
 export { usePresence, useScrollLock } from './motion.js';
@@ -106,7 +107,8 @@ export function ToastProvider({ children }) {
 
 /* ---------- Layout primitives ---------- */
 
-export function Page({ title, subtitle, actions, back, children, wide }) {
+// photo: a brand photo name (ui/Photo.jsx) behind the title
+export function Page({ title, subtitle, actions, back, children, wide, photo }) {
   const nav = useNavigate();
   const sentinel = useRef(null);
   useEffect(() => {
@@ -126,6 +128,14 @@ export function Page({ title, subtitle, actions, back, children, wide }) {
     const to = String(back.to).split('?')[0];
     if (window.history.state?.idx > 0 && previousPath() && (previousPath() === to || previousPath().endsWith(to))) { e.preventDefault(); nav(-1); }
   };
+  const head = (
+    <div className="min-w-0">
+      <h1 className="text-title1 font-bold leading-tight sm:text-large">{title}</h1>
+      {subtitle && <p className="mt-0.5 text-body text-muted">{subtitle}</p>}
+      <div ref={sentinel} aria-hidden="true" />
+    </div>
+  );
+  const actionBox = actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>;
   return (
     <div className={cx('mx-auto w-full pb-[calc(var(--tabbar-h)+32px)] pt-4 [--px:1rem] sm:[--px:1.5rem] lg:pt-8 safe-x', wide ? 'max-w-[1400px]' : 'max-w-6xl')}>
       {back && (
@@ -133,14 +143,13 @@ export function Page({ title, subtitle, actions, back, children, wide }) {
           <ChevronLeft size={24} className="-mr-0.5" />{back.label}
         </Link>
       )}
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-title1 font-bold leading-tight sm:text-large">{title}</h1>
-          {subtitle && <p className="mt-0.5 text-body text-muted">{subtitle}</p>}
-          <div ref={sentinel} aria-hidden="true" />
-        </div>
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-      </div>
+      {photo ? (
+        <Photo name={photo} priority className="mb-5 rounded-tile text-cream [--color-muted:#DDD6C8]">
+          <div className="flex min-h-[150px] flex-wrap items-end justify-between gap-3 p-5 sm:min-h-[180px] sm:p-6">{head}{actionBox}</div>
+        </Photo>
+      ) : (
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">{head}{actionBox}</div>
+      )}
       {children}
       <PoweredBy className="mt-10" />
     </div>
@@ -494,10 +503,13 @@ export function SkeletonPage() {
   );
 }
 
-export function Empty({ title = 'Nothing here yet', body, icon: Icon = Inbox, action }) {
+// photo: a brand photo name (ui/Photo.jsx) shown in place of the icon tile
+export function Empty({ title = 'Nothing here yet', body, icon: Icon = Inbox, action, photo }) {
   return (
     <div className="flex flex-col items-center rounded-tile border border-dashed border-line bg-surface/60 px-6 py-12 text-center">
-      <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-soft text-blue"><Icon size={24} /></div>
+      {photo
+        ? <img src={`/app/brand/${photo}-800.webp`} alt="" loading="lazy" className="mb-4 h-24 w-36 rounded-tile object-cover" />
+        : <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-soft text-blue"><Icon size={24} /></div>}
       <div className="text-callout font-semibold">{title}</div>
       {body && <p className="mt-1 max-w-sm text-subhead text-muted">{body}</p>}
       {action && <div className="mt-4">{action}</div>}

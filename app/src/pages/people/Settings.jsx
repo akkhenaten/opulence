@@ -57,8 +57,8 @@ function CompanyTab() {
   return <Load q={q}>{(s) => <><BrandingTile s={s} onSaved={(d) => q.setData(d)} /><AppStyleTile s={s} onSaved={(d) => q.setData(d)} /><ModulesTile s={s} onSaved={(d) => q.setData(d)} />{s.modules?.everyday !== false && <EverydayTile s={s} onSaved={(d) => q.setData(d)} />}<SettingsForm s={s} keys={COMPANY_KEYS} onSaved={(d) => q.setData(d)}>{(b) => <CompanyFields b={b} />}</SettingsForm></>}</Load>;
 }
 
-const DEFAULT_COLOR = '#0A6CFF';
-const PRESETS = ['#0A6CFF', '#1B5E20', '#00796B', '#C62828', '#6A1B9A', '#0B1220'];
+const DEFAULT_COLOR = '#C9A45C';
+const PRESETS = ['#C9A45C', '#0B0B0C', '#1B5E20', '#00796B', '#C62828', '#6A1B9A'];
 const HEX = /^#[0-9a-f]{6}$/i;
 
 // Crops the empty border (white, off-white or transparent) off a logo, keeping a small even margin.
@@ -149,7 +149,7 @@ function BrandingTile({ s, onSaved }) {
                   className={cx('h-9 w-9 rounded-full ring-offset-2 ring-offset-surface', shown.toLowerCase() === c.toLowerCase() ? 'ring-2 ring-ink' : 'ring-1 ring-line')}
                   style={{ background: c }} />
               ))}
-              <Input aria-label="Colour hex code" className="w-32" value={color} onChange={(e) => setColor(e.target.value.trim())} error={color && !valid ? 'Like #0A6CFF' : undefined} />
+              <Input aria-label="Colour hex code" className="w-32" value={color} onChange={(e) => setColor(e.target.value.trim())} error={color && !valid ? 'Like #C9A45C' : undefined} />
             </div>
             <div className="mt-3 flex gap-2">
               <Button size="sm" busy={colorBusy} disabled={!valid || color.toLowerCase() === current} onClick={saveColor}>Save colour</Button>
@@ -180,8 +180,8 @@ function BrandingTile({ s, onSaved }) {
 }
 
 const APP_STYLES = [
-  { value: 'classic', label: 'Classic', hint: 'Light and airy, rounded cards. Easy on the eye in daylight.' },
-  { value: 'control', label: 'Control Room', hint: 'Dark, compact and sharp, numbers in a fixed-width font. Built for night shifts and the ops desk.' },
+  { value: 'classic', label: 'Day', hint: 'Light, warm and easy to read in daylight.' },
+  { value: 'control', label: 'Night', hint: 'Black and gold, compact, numbers in a fixed-width font. Built for night shifts and the ops desk.' },
 ];
 
 // A small shift card drawn in the given style, so each option always shows its own look

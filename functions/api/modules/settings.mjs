@@ -5,7 +5,7 @@ import { audit } from '../lib/audit.mjs';
 import { ALL, CO, def, pub } from './_def.mjs';
 import crypto from 'node:crypto';
 import { getObjectBytes, headObject, putObject } from '../lib/storage.mjs';
-import { clearBrand, getBrand, readable } from '../lib/brand.mjs';
+import { clearBrand, getBrand } from '../lib/brand.mjs';
 import { MODULES } from '../lib/modules.mjs';
 import { monthKey } from '../lib/ai.mjs';
 import { OPTIONAL_KINDS } from '../lib/notify.mjs';
@@ -63,8 +63,7 @@ export const actions = {
     const f = pick(b, FIELDS);
     if ('brand_color' in f) {
       f.brand_color = String(f.brand_color || '').trim().toLowerCase() || null;
-      if (f.brand_color && !/^#[0-9a-f]{6}$/.test(f.brand_color)) fail(400, 'Enter the colour as a hex code, like #0A6CFF');
-      if (f.brand_color && !readable(f.brand_color)) fail(400, 'Pick a darker colour so white text on it stays readable');
+      if (f.brand_color && !/^#[0-9a-f]{6}$/.test(f.brand_color)) fail(400, 'Enter the colour as a hex code, like #C9A45C');
     }
     if ('ui_style' in f && !UI_STYLES.includes(f.ui_style)) fail(400, 'Unknown app style');
     if ('default_signatory_id' in f) {

@@ -62,7 +62,7 @@ export default function Live() {
   const tabs = [{ value: 'board', label: 'Board' }, { value: 'activity', label: 'Activity' }, ...(user.role === 'company' ? [{ value: 'settings', label: 'Settings' }] : [])];
   const board = <Load q={q}>{(rows) => <Board rows={rows} filter={filter} setFilter={setFilter} onOpen={isManager ? setOpen : null} base={base} venue={venue} narrow={isManager} />}</Load>;
   return (
-    <Page title={venue ? 'On site' : 'Live operations'} wide
+    <Page title={venue ? 'On site' : 'Live operations'} wide photo="control"
       subtitle={isManager ? <>Board updates every 15 seconds · Ops AI checks every 5 minutes{lastChecked && <> · last checked <span className="num">{time(lastChecked)}</span></>}</> : 'Updates every 15 seconds'}
       actions={<>
         {isManager && <Button variant="secondary" icon={Sparkles} onClick={() => window.dispatchEvent(new Event('orb:askorb'))}>Orb</Button>}

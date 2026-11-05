@@ -1,6 +1,6 @@
 // App-shell cache only: API calls and private files always go to the network.
-const CACHE = 'orb-shell-v3';
-self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/app/', '/app/icon.svg', '/app/icon-192.png', '/app/badge-96.png']))); self.skipWaiting(); });
+const CACHE = 'orb-shell-v4';
+self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/app/', '/app/favicon-64.png', '/app/icon-192.png', '/app/badge-96.png']))); self.skipWaiting(); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);

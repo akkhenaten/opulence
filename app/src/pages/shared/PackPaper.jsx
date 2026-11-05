@@ -3,6 +3,7 @@ import { forwardRef } from 'react';
 import { useAuth } from '../../auth.jsx';
 import { Blocks } from '../../ui/DocPaper.jsx';
 import { cx, date, Pill } from '../../ui/index.jsx';
+import { inkColor } from '../../ui/style.js';
 
 export const PACK_TONE = { none: 'grey', current: 'green', resign: 'amber', refresher: 'amber', unsigned: 'red' };
 export const PACK_LABEL = { none: 'No pack', current: 'Current', resign: 'Needs re-sign', refresher: 'Refresher due', unsigned: 'Not signed' };
@@ -13,7 +14,7 @@ export const docKind = (d) => (d.kind === 'instructions' ? 'Assignment instructi
 
 export const PackPaper = forwardRef(function PackPaper({ doc, status, className, children }, end) {
   const { brand } = useAuth();
-  const color = brand.color || '#0A6CFF';
+  const color = inkColor(brand.color);
   return (
     <article className={cx('bg-paper relative overflow-hidden rounded-2xl border border-line text-ink shadow-tile', className)}>
       {status === 'draft' && (

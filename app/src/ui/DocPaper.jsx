@@ -1,8 +1,9 @@
 // A signed document drawn as paper on screen, laid out like the PDF: brand header, key facts, numbered clauses,
-// the pay-rise terms panel and the two signature boxes. Always light, also in the Control Room style.
+// the pay-rise terms panel and the two signature boxes. Always light, also in the Night style.
 import { forwardRef } from 'react';
 import { useAuth } from '../auth.jsx';
 import { cx, date, dateTime } from './index.jsx';
+import { inkColor } from './style.js';
 
 const Runs = ({ runs }) => runs.map((r, i) => (r.bold ? <strong key={i} className="font-semibold">{r.text}</strong> : <span key={i}>{r.text}</span>));
 
@@ -64,7 +65,7 @@ function SignBox({ label, s, sub, waiting = 'Awaiting signature' }) {
  */
 export const DocPaper = forwardRef(function DocPaper({ doc, signers = {}, status, preview, className, children }, end) {
   const { brand } = useAuth();
-  const color = brand.color || '#0A6CFF';
+  const color = inkColor(brand.color);
   const facts = [
     ['Reference', doc.reference || '—'],
     ['Issued', doc.issuedAt ? date(doc.issuedAt) : '—'],

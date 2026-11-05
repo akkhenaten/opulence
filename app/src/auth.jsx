@@ -3,7 +3,7 @@ import { api, getToken, setSide, setToken } from './api.js';
 import { applyStyle } from './ui/style.js';
 
 const AuthCtx = createContext(null);
-const DEFAULT_BRAND = { name: 'Orb Security', logo_url: null, color: '#0A6CFF' };
+const DEFAULT_BRAND = { name: 'Opulence', logo_url: null, color: '#C9A45C' };
 export const useAuth = () => useContext(AuthCtx);
 
 // Home path per role

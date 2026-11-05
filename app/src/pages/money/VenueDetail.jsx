@@ -112,7 +112,7 @@ function GeoMap({ pos, radius, onPick, focus }) {
     }
     const ll = [pos.lat, pos.lng];
     if (!r.marker) {
-      const accent = getComputedStyle(document.documentElement).getPropertyValue('--color-blue').trim() || '#0A6CFF';
+      const accent = getComputedStyle(document.documentElement).getPropertyValue('--color-blue').trim() || '#8A6A2B';
       r.circle = L.circle(ll, { radius, color: accent, weight: 2, fillColor: accent, fillOpacity: 0.12 }).addTo(r.map);
       r.marker = L.marker(ll, { icon: pinIcon, draggable: true, autoPan: true }).addTo(r.map);
       r.marker.on('drag', (e) => r.circle.setLatLng(e.target.getLatLng()));

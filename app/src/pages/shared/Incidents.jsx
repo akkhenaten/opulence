@@ -50,7 +50,7 @@ export default function Incidents() {
 
       {officer && !user.officer_id ? <NotLinked /> : <Load q={q}>
         {(rows) => (!rows.length ? (
-          <Empty icon={ShieldAlert} title={Object.keys(body).length ? 'No incidents match' : 'No incidents yet'}
+          <Empty photo="kit" icon={ShieldAlert} title={Object.keys(body).length ? 'No incidents match' : 'No incidents yet'}
             body={officer ? 'Report anything that happens on shift: ejections, injuries, damage, refusals.' : 'Incident reports from officers appear here.'}
             action={officer && user.officer_id && !Object.keys(body).length && <Button icon={Plus} to={`${base}/incidents/new`}>Report incident</Button>} />
         ) : (

@@ -1,34 +1,39 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #F2F4F7;
+  /* Opulence brand colours that stay the same in Day and Night (black chrome, photos) */
+  --color-night: #0B0B0C;
+  --color-gold: #C9A45C;
+  --color-gold-light: #E2C88E;
+  --color-cream: #F4F1EA;
+  --color-bg: #F6F4EF;
   --color-surface: #FFFFFF;
-  --color-ink: #0B1220;
-  --color-muted: #6B7280;
-  --color-faint: #9CA3AF;
-  --color-line: #E5E7EB;
-  --color-blue: #0A6CFF;
-  --color-blue-ink: #0656D1;
-  --color-blue-soft: #E8F0FF;
+  --color-ink: #0B0B0C;
+  --color-muted: #6B665C;
+  --color-faint: #A39E93;
+  --color-line: #E7E2D8;
+  --color-blue: #8A6A2B;
+  --color-blue-ink: #6F5420;
+  --color-blue-soft: #F6EFE0;
   --color-green: #16A34A;
   --color-green-soft: #E7F6EC;
   --color-amber: #D97706;
   --color-amber-soft: #FDF3E1;
   --color-red: #DC2626;
   --color-red-soft: #FDECEC;
-  --font-display: "Inter Tight", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --radius-tile: 22px;
-  --shadow-tile: 0 1px 2px rgba(11, 18, 32, 0.04), 0 8px 24px -12px rgba(11, 18, 32, 0.10);
-  --shadow-sheet: 0 -8px 40px -8px rgba(11, 18, 32, 0.25);
-  --radius-control: 14px;
-  --radius-sheet: 28px;
+  --font-display: "Playfair Display", ui-serif, Georgia, serif;
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --radius-tile: 16px;
+  --shadow-tile: 0 1px 2px rgba(40, 30, 10, 0.04), 0 8px 24px -14px rgba(40, 30, 10, 0.12);
+  --shadow-sheet: 0 -8px 40px -8px rgba(11, 11, 12, 0.28);
+  --radius-control: 12px;
+  --radius-sheet: 22px;
   /* Extra greys and press states, so pages never need raw hex */
-  --color-fill: #EEF0F3;
-  --color-fill-strong: #E8EAEE;
-  --color-blue-press: #DBE7FF;
+  --color-fill: #EFEBE3;
+  --color-fill-strong: #E8E3D9;
+  --color-blue-press: #EFE3C8;
   --color-red-press: #FBDCDC;
-  --color-toggle-off: #E3E5E8;
+  --color-toggle-off: #E3DED4;
   --color-amber-bright: #FBBF24;
   --color-red-bright: #F87171;
   --color-indigo: #4F46E5;
@@ -36,7 +41,7 @@
   --color-sky: #2563EB;
   --color-sky-soft: #E6F0FA;
   /* Style-aware extras: text on the accent fill, card outlines, always-white "paper", raised thumbs */
-  --color-on-accent: #FFFFFF;
+  --color-on-accent: #0B0B0C;
   --color-hairline: rgb(0 0 0 / 0.04);
   --color-paper: #FFFFFF;
   --color-raised: #FFFFFF;
@@ -59,13 +64,15 @@
 }
 
 :root {
+  /* Solid accent fill (Opulence gold); --color-blue is the text-safe deep gold */
+  --accent-fill: #C9A45C;
   --dur-1: 160ms;
   --dur-2: 240ms;
   --dur-3: 360ms;
   --header-h: 56px;
   --pad-tile: 20px;
-  --shimmer: #F7F8FA;
-  --hover-shadow: 0 1px 2px rgba(11,18,32,.05), 0 14px 30px -14px rgba(11,18,32,.18);
+  --shimmer: #F9F7F2;
+  --hover-shadow: 0 1px 2px rgba(40,30,10,.05), 0 14px 30px -14px rgba(40,30,10,.20);
   --tabbar-h: 0px;
 }
 html.has-tabbar { --tabbar-h: calc(58px + env(safe-area-inset-bottom)); }
@@ -81,16 +88,23 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
-  font-feature-settings: "ss01", "cv11";
   /* A long link, email or reference breaks onto the next line instead of pushing past the screen edge */
   overflow-wrap: break-word;
 }
 /* In the base layer so Tailwind utilities (text-*, font-*, tracking-*) still win */
 @layer base {
-  h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: -0.02em; }
+  /* Opulence: Playfair for page and section titles; smaller headings stay in the sans for readability */
+  h1, h2, .display { font-family: var(--font-display); letter-spacing: -0.01em; }
+  h3 { letter-spacing: -0.01em; }
   input, select, textarea, button { font: inherit; color: inherit; }
 }
 .num { font-variant-numeric: tabular-nums; }
+/* Solid accent: buttons, active chips and badges fill with the true brand colour (gold); text and icons on it
+   switch to whatever reads best (dark on gold). --color-blue stays the darker, text-safe shade. */
+.bg-blue { background-color: var(--accent-fill); }
+.bg-blue.text-white, .bg-blue .text-white { color: var(--color-on-accent); }
+.bg-blue [class*="text-white/"] { color: color-mix(in srgb, var(--color-on-accent) 75%, transparent); }
+.bg-blue.hover\:bg-blue-ink:hover, .bg-blue.hover\:bg-blue\/90:hover { background-color: color-mix(in srgb, var(--accent-fill) 88%, #000); }
 :focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; border-radius: 10px; }
 .safe-b { padding-bottom: env(safe-area-inset-bottom); }
 .safe-t { padding-top: env(safe-area-inset-top); }
@@ -111,8 +125,8 @@ html:not(.has-tabbar) .action-bar { bottom: calc(env(safe-area-inset-bottom) + 2
 /* Orb floating button: docks above the tab bar, and above an action bar when one is showing */
 .orb-fab {
   bottom: calc(var(--tabbar-h) + 16px);
-  background: radial-gradient(circle at 30% 25%, #3d8bff, #0a6cff 55%, #0753c4);
-  box-shadow: 0 10px 24px -8px rgb(10 108 255 / .65), 0 2px 6px rgb(0 0 0 / .18);
+  background: radial-gradient(circle at 30% 25%, #2a2a2e, #0b0b0c 60%);
+  box-shadow: 0 0 0 1.5px #C9A45C, 0 10px 24px -8px rgb(201 164 92 / .55), 0 2px 6px rgb(0 0 0 / .25);
   transition: transform var(--dur-1) var(--ease-ios), opacity var(--dur-2), visibility var(--dur-2), bottom var(--dur-2) var(--ease-ios);
 }
 html:not(.has-tabbar) .orb-fab { bottom: calc(env(safe-area-inset-bottom) + 24px); }
@@ -186,53 +200,51 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
 
 .leaflet-container { font-family: var(--font-sans); border-radius: 16px; }
 
-/* ---------- Control Room: the dark, compact company style (Settings → Branding → App style) ----------
+/* ---------- Night: the dark black-and-gold company style (Settings → Branding → App style; stored as 'control') ----------
    Screen only, so printing always uses the light look. Applies to <html> or any preview wrapper. */
 @media screen {
   [data-style="control"] {
     color-scheme: dark;
-    --color-bg: #0E1116;
-    --color-surface: #161B22;
-    --color-ink: #E6EAF0;
-    --color-muted: #8B95A5;
-    --color-faint: #6B7585;
-    --color-line: #262C36;
-    --color-hairline: #262C36;
-    --color-fill: #1E242D;
-    --color-fill-strong: #232A34;
-    --color-raised: #2E3643;
-    --color-toggle-off: #2E3643;
-    --color-green: #3FB950;
-    --color-amber: #E3A33B;
-    --color-red: #F85149;
-    --color-amber-bright: #F5C04A;
-    --color-red-bright: #FF7B72;
-    --color-indigo: #8E8CF8;
-    --color-sky: #58A6FF;
-    --accent-fill: #F5A524;
-    --color-blue: #F5A524;
-    --color-blue-ink: #F7B84F;
-    --color-on-accent: #0E1116;
-    --color-blue-soft: color-mix(in srgb, var(--color-blue) 16%, #161B22);
-    --color-blue-press: color-mix(in srgb, var(--color-blue) 26%, #161B22);
-    --color-green-soft: color-mix(in srgb, var(--color-green) 16%, #161B22);
-    --color-amber-soft: color-mix(in srgb, var(--color-amber) 16%, #161B22);
-    --color-red-soft: color-mix(in srgb, var(--color-red) 16%, #161B22);
-    --color-red-press: color-mix(in srgb, var(--color-red) 26%, #161B22);
-    --color-indigo-soft: color-mix(in srgb, var(--color-indigo) 16%, #161B22);
-    --color-sky-soft: color-mix(in srgb, var(--color-sky) 16%, #161B22);
-    --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
-    --font-display: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
-    --radius-tile: 8px;
-    --radius-control: 6px;
-    --radius-sheet: 12px;
-    --radius-xl: 8px;
-    --radius-2xl: 8px;
-    --radius-lg: 6px;
+    --color-bg: #0B0B0C;
+    --color-surface: #131315;
+    --color-ink: #F4F1EA;
+    --color-muted: #A9A49A;
+    --color-faint: #77736B;
+    --color-line: #26252A;
+    --color-hairline: rgb(255 255 255 / 0.07);
+    --color-fill: #1B1B1E;
+    --color-fill-strong: #222225;
+    --color-raised: #2C2B30;
+    --color-toggle-off: #2C2B30;
+    --color-green: #7BC59A;
+    --color-amber: #E6B35A;
+    --color-red: #F08A8A;
+    --color-amber-bright: #F0C470;
+    --color-red-bright: #FF9B9B;
+    --color-indigo: #A5A3F5;
+    --color-sky: #7DB4F0;
+    --accent-fill: #C9A45C;
+    --color-blue: #E2C88E;
+    --color-blue-ink: #ECD7A8;
+    --color-on-accent: #0B0B0C;
+    --color-blue-soft: color-mix(in srgb, var(--accent-fill) 16%, #131315);
+    --color-blue-press: color-mix(in srgb, var(--accent-fill) 26%, #131315);
+    --color-green-soft: color-mix(in srgb, var(--color-green) 14%, #131315);
+    --color-amber-soft: color-mix(in srgb, var(--color-amber) 14%, #131315);
+    --color-red-soft: color-mix(in srgb, var(--color-red) 14%, #131315);
+    --color-red-press: color-mix(in srgb, var(--color-red) 24%, #131315);
+    --color-indigo-soft: color-mix(in srgb, var(--color-indigo) 14%, #131315);
+    --color-sky-soft: color-mix(in srgb, var(--color-sky) 14%, #131315);
+    --radius-tile: 10px;
+    --radius-control: 8px;
+    --radius-sheet: 14px;
+    --radius-xl: 10px;
+    --radius-2xl: 10px;
+    --radius-lg: 8px;
     --shadow-tile: none;
     --shadow-sheet: 0 -8px 40px -8px rgba(0, 0, 0, 0.6);
     --hover-shadow: 0 0 0 1px var(--color-faint);
-    --shimmer: #262C36;
+    --shimmer: #222225;
     --pad-tile: 16px;
     --dur-1: 120ms;
     --dur-2: 180ms;
@@ -242,35 +254,29 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
     color: var(--color-ink);
     font-family: var(--font-sans);
   }
-  [data-style="control"] h1, [data-style="control"] h2, [data-style="control"] h3, [data-style="control"] .display { letter-spacing: -0.01em; }
   /* Times, hours, money and references line up like a console */
   [data-style="control"] .num { font-family: var(--font-mono); letter-spacing: -0.01em; }
-  /* Solid accent keeps the true brand colour; text and icons on it switch to whatever reads best */
-  [data-style="control"] .bg-blue { background-color: var(--accent-fill); }
-  [data-style="control"] .bg-blue.text-white, [data-style="control"] .bg-blue .text-white { color: var(--color-on-accent); }
-  [data-style="control"] .bg-blue [class*="text-white/"] { color: color-mix(in srgb, var(--color-on-accent) 75%, transparent); }
   /* Brighter status colours need dark text on solid fills */
-  [data-style="control"] :is(.bg-green, .bg-amber, .bg-red).text-white, [data-style="control"] :is(.bg-green, .bg-amber, .bg-red) .text-white { color: #0E1116; }
+  [data-style="control"] :is(.bg-green, .bg-amber, .bg-red).text-white, [data-style="control"] :is(.bg-green, .bg-amber, .bg-red) .text-white { color: #0B0B0C; }
   /* Dark hero tiles stay a step above the page */
-  [data-style="control"] .bg-ink { background-color: #232A34; }
-  [data-style="control"] [class~="bg-ink/95"] { background-color: rgb(35 42 52 / 0.95); }
+  [data-style="control"] .bg-ink { background-color: #1B1B1E; }
+  [data-style="control"] [class~="bg-ink/95"] { background-color: rgb(27 27 30 / 0.95); }
   /* Paper (documents, logos, QR codes, signatures) and Classic previews keep the light tokens */
   [data-style="control"] :is(.bg-paper, [data-style="classic"]) {
     color-scheme: light;
-    --color-bg: #F2F4F7; --color-surface: #FFFFFF; --color-ink: #0B1220; --color-muted: #6B7280; --color-faint: #9CA3AF;
-    --color-line: #E5E7EB; --color-hairline: rgb(0 0 0 / 0.04); --color-fill: #EEF0F3; --color-fill-strong: #E8EAEE; --color-raised: #FFFFFF;
-    --color-toggle-off: #E3E5E8; --color-green: #16A34A; --color-amber: #D97706; --color-red: #DC2626;
-    --color-blue: #0A6CFF; --color-blue-ink: #0656D1; --color-blue-soft: #E8F0FF; --color-blue-press: #DBE7FF; --color-on-accent: #FFFFFF; --accent-fill: #0A6CFF;
+    --color-bg: #F6F4EF; --color-surface: #FFFFFF; --color-ink: #0B0B0C; --color-muted: #6B665C; --color-faint: #A39E93;
+    --color-line: #E7E2D8; --color-hairline: rgb(0 0 0 / 0.04); --color-fill: #EFEBE3; --color-fill-strong: #E8E3D9; --color-raised: #FFFFFF;
+    --color-toggle-off: #E3DED4; --color-green: #16A34A; --color-amber: #D97706; --color-red: #DC2626;
+    --color-blue: #8A6A2B; --color-blue-ink: #6F5420; --color-blue-soft: #F6EFE0; --color-blue-press: #EFE3C8; --color-on-accent: #0B0B0C; --accent-fill: #C9A45C;
     --color-green-soft: #E7F6EC; --color-amber-soft: #FDF3E1; --color-red-soft: #FDECEC;
-    --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif; --font-display: "Inter Tight", ui-sans-serif, system-ui, -apple-system, sans-serif;
-    --radius-tile: 22px; --radius-control: 14px; --radius-xl: 0.75rem; --radius-2xl: 1rem; --radius-lg: 0.5rem;
-    --shadow-tile: 0 1px 2px rgba(11, 18, 32, 0.04), 0 8px 24px -12px rgba(11, 18, 32, 0.10); --pad-tile: 20px;
+    --radius-tile: 16px; --radius-control: 12px; --radius-xl: 0.75rem; --radius-2xl: 1rem; --radius-lg: 0.5rem;
+    --shadow-tile: 0 1px 2px rgba(40, 30, 10, 0.04), 0 8px 24px -14px rgba(40, 30, 10, 0.12); --pad-tile: 20px;
     color: var(--color-ink);
   }
   [data-style="control"] .bg-paper { font-family: inherit; }
   [data-style="control"] [data-style="classic"] { font-family: var(--font-sans); background-color: var(--color-bg); }
   [data-style="control"] [data-style="classic"] .num { font-family: inherit; }
-  [data-style="control"] .leaflet-container { background: #1E242D; }
+  [data-style="control"] .leaflet-container { background: #1B1B1E; }
   /* Logos are drawn for light backgrounds: give them a light plate */
   [data-style="control"] .brand-logo { background: #F2F4F7; padding: 3px 8px; border-radius: var(--radius-control); }
 }
@@ -279,5 +285,5 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
 @media print {
   header, nav, aside, .no-print { display: none !important; }
   body { background: #fff !important; }
-  .print-sheet { box-shadow: none !important; border: 2px solid #0A6CFF !important; }
+  .print-sheet { box-shadow: none !important; border: 2px solid #C9A45C !important; }
 }

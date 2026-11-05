@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { Clock, Download, FileX2, ShieldCheck } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { Logo } from '../../layouts/Shell.jsx';
+import { Photo } from '../../ui/Photo.jsx';
 import { Button, dateTime, PoweredBy, Spinner, useAction } from '../../ui/index.jsx';
 import SignFlow from '../officer/SignFlow.jsx';
 import { contractFlow } from '../officer/Contract.jsx';
@@ -19,9 +20,10 @@ const STATE = {
 function Frame({ children }) {
   return (
     <div className="min-h-dvh bg-bg">
-      <header className="sticky top-0 z-30 flex h-14 items-center border-b border-hairline bg-surface/90 pt-[env(safe-area-inset-top)] [--px:1rem] sm:[--px:1.5rem] safe-x backdrop-blur-xl">
-        <Logo />
+      <header className="sticky top-0 z-30 flex h-14 items-center border-b border-white/10 bg-night pt-[env(safe-area-inset-top)] [--px:1rem] sm:[--px:1.5rem] safe-x">
+        <Logo tone="light" />
       </header>
+      <Photo name="castle" priority className="h-[120px]" />
       <main className="mx-auto max-w-3xl py-5 [--px:1rem] sm:[--px:1.5rem] safe-x pb-28">{children}</main>
       <PoweredBy className="pb-8" />
     </div>
