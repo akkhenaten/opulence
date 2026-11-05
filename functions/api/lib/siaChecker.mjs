@@ -1,6 +1,7 @@
 // Automatic SIA register lookups through SIA Checker (siachecker.co.uk), a paid service that reads the public
 // register for us. Off until SIACHECKER_API_KEY is set; nothing is saved here — a manager confirms the result.
 const URL = 'https://api.siachecker.co.uk/v1/licences/verify';
+const QUOTA_URL = 'https://api.siachecker.co.uk/v1/quota/usage';
 const PENDING_RETRIES = 3;
 
 export const autoCheckEnabled = () => !!process.env.SIACHECKER_API_KEY;
@@ -56,6 +57,19 @@ export function mapResult(http, body) {
     : http === 502 || http === 503 || http === 504 ? 'unavailable'
     : 'error';
   return { outcome, status: outcome === 'not_found' ? 'not_found' : null, message: MESSAGES[outcome] };
+}
+
+// This month's allowance; free, so it doubles as a test that the key works
+export async function quotaUsage() {
+  try {
+    const res = await fetch(QUOTA_URL, { headers: { Authorization: `Bearer ${process.env.SIACHECKER_API_KEY}` }, signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return { ok: false, ...mapResult(res.status, null) };
+    const b = await res.json();
+    return { ok: true, period: b.period, used: b.used, quota: b.quota, remaining: b.remaining };
+  } catch (e) {
+    console.error('[siaChecker quota]', e.message);
+    return { ok: false, ...mapResult(503, null) };
+  }
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));

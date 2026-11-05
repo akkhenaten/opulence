@@ -87,6 +87,14 @@ function useLookup(d, setV) {
   return { auto, r, busy, check };
 }
 
+// "123 of 200 automatic checks left this month"; hidden when unknown or unlimited
+function Allowance() {
+  const q = useApi('sia.quota');
+  const a = q.data;
+  if (!a?.ok || a.remaining == null) return null;
+  return <div className="mt-2 text-caption text-faint">{a.remaining} of {a.quota} automatic checks left this month</div>;
+}
+
 function LookupResult({ d, look }) {
   const { r, busy, check } = look;
   const again = <Button size="sm" variant="ghost" icon={RefreshCw} onClick={check} disabled={busy}>Check again</Button>;
@@ -104,6 +112,7 @@ function LookupResult({ d, look }) {
           </div>
           <div className="mt-2 text-callout font-semibold">{name || d.name}</div>
           <div className="text-footnote text-muted">{[r.register_sector, r.role, r.expiry && `Expires ${date(r.expiry)}`].filter(Boolean).join(' · ')}</div>
+          <Allowance />
         </div>
         {r.name_matches === false && (
           <p className="flex items-start gap-2 rounded-xl bg-amber-soft px-3 py-2 text-footnote text-amber">

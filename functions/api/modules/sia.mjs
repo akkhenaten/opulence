@@ -8,7 +8,7 @@ import { audit } from '../lib/audit.mjs';
 import { notify, companyManagers } from '../lib/notify.mjs';
 import { SIA_TYPES } from '../lib/licences.mjs';
 import { CHECK_STATUSES, NOT_CLEARED, STATUS_LABEL, cleanSia, validSia, siaGroups, ukDate, maskDob } from '../lib/sia.mjs';
-import { autoCheckEnabled, lookupLicence } from '../lib/siaChecker.mjs';
+import { autoCheckEnabled, lookupLicence, quotaUsage } from '../lib/siaChecker.mjs';
 import { shapeOfficer } from './officers.mjs';
 import { MGR, def } from './_def.mjs';
 
@@ -36,6 +36,12 @@ export const actions = {
       history: await history(o.id),
       auto: autoCheckEnabled(),
     };
+  }),
+
+  // Automatic checks left this month (and whether the key works)
+  'sia.quota': def(MGR, async () => {
+    const enabled = autoCheckEnabled();
+    return { enabled, ...(enabled ? await quotaUsage() : {}) };
   }),
 
   // Ask the register automatically (SIA Checker); nothing is saved until the manager confirms with sia.record
