@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Button, Check, Empty, Input, Load, Pressable, SearchInput, Sheet, useAction, useApi } from '../../ui/index.jsx';
+import { Avatar, Button, Check, Empty, Input, Load, Pressable, SearchInput, Sheet, useAction, useApi, withGoesBy } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { ROLE_LABEL } from '../../layouts/nav.js';
 import { messagesChanged, useBase } from './_parts.jsx';
@@ -22,7 +22,7 @@ export default function NewMessage({ open, onClose, addTo, exclude = [], onAdded
   const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   const list = useMemo(() => {
     const s = search.trim().toLowerCase();
-    return (people.data || []).filter((p) => !exclude.includes(p.id) && (!s || `${p.name} ${p.venues} ${ROLE_LABEL[p.role]}`.toLowerCase().includes(s)));
+    return (people.data || []).filter((p) => !exclude.includes(p.id) && (!s || `${p.name} ${p.goes_by || ''} ${p.venues} ${ROLE_LABEL[p.role]}`.toLowerCase().includes(s)));
   }, [people.data, search, exclude]);
 
   const go = () => run(async () => {
@@ -52,7 +52,7 @@ export default function NewMessage({ open, onClose, addTo, exclude = [], onAdded
               <Pressable onClick={() => toggle(p.id)} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2">
                 <Avatar name={p.name} src={p.photo_url} size={40} />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-body font-semibold">{p.name}</div>
+                  <div className="truncate text-body font-semibold">{withGoesBy(p.name, p.goes_by)}</div>
                   <div className="truncate text-footnote text-muted">{[ROLE_LABEL[p.role], p.venues].filter(Boolean).join(' · ')}</div>
                 </div>
               </Pressable>

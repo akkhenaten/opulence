@@ -4,7 +4,7 @@ import { Plus, ShieldCheck, Users } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Bento, Button, Empty, List, Load, Page, Row, SearchInput, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useForm,
+  Avatar, Bento, Button, Empty, List, Load, Page, Row, SearchInput, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useForm, withGoesBy,
 } from '../../ui/index.jsx';
 import {
   ComplianceBadge, CopyLink, OFFICER_STATUSES, OfficerCoreFields, cleanOfficer, complianceState, emptyOfficer, useBase, useRoles,
@@ -29,7 +29,7 @@ export default function Staff() {
     return all.filter((o) => o.status === status
       && (!role || (o.roles || []).includes(role))
       && (comp === 'all' || complianceState(o.compliance).tone === comp)
-      && (!s || `${o.name} ${o.email} ${o.phone} ${o.sia_number}`.toLowerCase().includes(s)));
+      && (!s || `${o.name} ${o.goes_by || ''} ${o.email} ${o.phone} ${o.sia_number}`.toLowerCase().includes(s)));
   }, [all, status, role, comp, search]);
 
   const active = all.filter((o) => o.status === 'active');
@@ -71,7 +71,7 @@ export default function Staff() {
                     {col.map((o) => (
                       <Row key={o.id} to={`${base}/staff/${o.id}`}
                         left={<Avatar name={o.name} src={o.photo_url} size={44} />}
-                        title={o.name}
+                        title={withGoesBy(o.name, o.goes_by)}
                         subtitle={[(o.roles || []).map(roleName).join(', ') || 'No roles', o.sia_number && `SIA ${o.sia_number}`].filter(Boolean).join(' · ')}
                         right={<ComplianceBadge c={o.compliance} />} />
                     ))}

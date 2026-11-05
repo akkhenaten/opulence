@@ -5,7 +5,7 @@ import { useAuth } from '../../auth.jsx';
 import { Avatar, Button, date, Input, KV, List, Load, Page, Pill, Pressable, Row, Section, Tile, titleCase, Toggle, useAction, useApi } from '../../ui/index.jsx';
 import { compressImage, NotLinked } from './_parts.jsx';
 
-const FIELDS = ['phone', 'address', 'postcode', 'dob', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account'];
+const FIELDS = ['goes_by', 'phone', 'address', 'postcode', 'dob', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account'];
 
 export default function Profile() {
   const { user } = useAuth();
@@ -81,6 +81,7 @@ function Editor({ o, reload, notes }) {
         <Tile>
           <div className="space-y-3">
             <Input label="Name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} hint={nameBad ? 'Enter your name' : 'As it appears on your SIA licence'} />
+            <Input label="Goes by (optional)" placeholder="e.g. Goddey" maxLength={40} hint="The name the team knows you by" value={v.goes_by} onChange={set('goes_by')} />
             <Input label="Mobile" type="tel" inputMode="tel" autoComplete="tel" value={v.phone} onChange={set('phone')} />
             <Input label="Address" autoComplete="street-address" value={v.address} onChange={set('address')} />
             <div className="grid grid-cols-2 gap-3">

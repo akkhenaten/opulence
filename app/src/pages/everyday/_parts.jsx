@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ExternalLink, MapPin, Volume2, VolumeX, X } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Avatar, Button, cx, Input, Load, Pressable, relative, Select, Sheet, useAction, useApi } from '../../ui/index.jsx';
+import { Avatar, Button, cx, Input, Load, Pressable, relative, Select, Sheet, useAction, useApi, nameMatches, withGoesBy } from '../../ui/index.jsx';
 
 export const REACTIONS = [
   { kind: 'like', emoji: '👍', label: 'Like' },
@@ -112,7 +112,7 @@ export function MentionBox({ value, onChange, mentions, placeholder, rows = 3, a
     setQuery(m ? { text: m[1], start: caret - m[1].length - 1, caret } : null);
     update(text);
   };
-  const list = query ? people.filter((p) => p.name.toLowerCase().includes(query.text.trim().toLowerCase())).slice(0, 6) : [];
+  const list = query ? people.filter((p) => nameMatches(p, query.text.trim())).slice(0, 6) : [];
   const pick = (p) => {
     const text = `${value.slice(0, query.start)}@${p.name} ${value.slice(query.caret)}`;
     setQuery(null);
@@ -134,7 +134,7 @@ export function MentionBox({ value, onChange, mentions, placeholder, rows = 3, a
           {list.map((p) => (
             <Pressable press key={p.id} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(p)} className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-bg">
               <Avatar name={p.name} src={p.photo_url} size={30} />
-              <span className="min-w-0 flex-1 truncate text-body font-medium">{p.name}</span>
+              <span className="min-w-0 flex-1 truncate text-body font-medium">{withGoesBy(p.name, p.goes_by)}</span>
               <span className="text-caption text-muted">{ROLE_LABEL[p.role]}</span>
             </Pressable>
           ))}
@@ -390,7 +390,7 @@ export function PeoplePicker({ open, title, value, onChange, onClose, excludeMe 
   const { user } = useAuth();
   const people = usePeople().filter((p) => !excludeMe || p.id !== user.id);
   const [text, setText] = useState('');
-  const shown = people.filter((p) => p.name.toLowerCase().includes(text.trim().toLowerCase())).slice(0, 60);
+  const shown = people.filter((p) => nameMatches(p, text.trim())).slice(0, 60);
   const toggle = (id) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id].slice(0, 20));
   return (
     <Sheet open={open} onClose={onClose} title={title} footer={<Button onClick={onClose}>Done{value.length ? ` (${value.length})` : ''}</Button>}>
@@ -399,7 +399,7 @@ export function PeoplePicker({ open, title, value, onChange, onClose, excludeMe 
         {shown.map((p) => (
           <Pressable press key={p.id} onClick={() => toggle(p.id)} className={cx('flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left', value.includes(p.id) ? 'bg-blue-soft' : 'hover:bg-bg')}>
             <Avatar name={p.name} src={p.photo_url} size={36} />
-            <span className="min-w-0 flex-1"><span className="block truncate text-body font-medium">{p.name}</span><span className="block text-caption text-muted">{ROLE_LABEL[p.role]}</span></span>
+            <span className="min-w-0 flex-1"><span className="block truncate text-body font-medium">{withGoesBy(p.name, p.goes_by)}</span><span className="block text-caption text-muted">{ROLE_LABEL[p.role]}</span></span>
             <span className={cx('grid h-6 w-6 place-items-center rounded-full border-2 text-caption font-bold', value.includes(p.id) ? 'border-blue bg-blue text-white' : 'border-line')}>{value.includes(p.id) ? '✓' : ''}</span>
           </Pressable>
         ))}

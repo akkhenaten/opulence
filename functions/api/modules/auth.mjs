@@ -1,6 +1,6 @@
 import { one, q, tx } from '../lib/db.mjs';
 import { fail, required } from '../lib/http.mjs';
-import { hashPassword, verifyPassword, signToken, randomToken, publicUser, resolveActing, ownOfficer } from '../lib/auth.mjs';
+import { hashPassword, verifyPassword, signToken, randomToken, publicUser, resolveActing, ownOfficer, goesBy } from '../lib/auth.mjs';
 import { sendRawEmail, emailHtml } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
 import { downloadUrl, checkOwnPhoto } from '../lib/storage.mjs';
@@ -72,18 +72,19 @@ export const actions = {
     const name = b.name === undefined ? user.name : String(b.name).replace(/\s+/g, ' ').trim();
     if (name.length < 2 || name.length > 80) fail(400, 'Enter your name (2 to 80 characters)');
     const phone = b.phone === undefined ? user.phone : String(b.phone).trim().slice(0, 30);
+    const gb = b.goes_by === undefined ? user.goes_by || '' : goesBy(b.goes_by);
     const photo = b.photo_key === undefined ? undefined : await checkOwnPhoto(user, b.photo_key, fail);
     await tx(async (t) => {
-      await t.q('UPDATE users SET name = $2, phone = $3 WHERE id = $1', [user.id, name, phone]);
+      await t.q('UPDATE users SET name = $2, phone = $3, goes_by = $4 WHERE id = $1', [user.id, name, phone, gb]);
       const oid = ownOfficer(user);
       if (oid) {
         const cut = name.lastIndexOf(' ');
         const [first, last] = cut > 0 ? [name.slice(0, cut), name.slice(cut + 1)] : [name, ''];
-        await t.q('UPDATE officers SET first_name = $2, last_name = $3, phone = $4 WHERE id = $1', [oid, first, last, phone]);
+        await t.q('UPDATE officers SET first_name = $2, last_name = $3, phone = $4, goes_by = $5 WHERE id = $1', [oid, first, last, phone, gb]);
         if (photo !== undefined) await t.q('UPDATE officers SET photo_key = $2 WHERE id = $1', [oid, photo]);
       } else if (photo !== undefined) await t.q('UPDATE users SET photo_key = $2 WHERE id = $1', [user.id, photo]);
     });
-    await audit(user, 'user.self_update', 'user', user.id, Object.keys(b).filter((k) => ['name', 'phone', 'photo_key'].includes(k)));
+    await audit(user, 'user.self_update', 'user', user.id, Object.keys(b).filter((k) => ['name', 'goes_by', 'phone', 'photo_key'].includes(k)));
     return { user: await me(await loadUser(user.id, user.role === 'officer' ? 'officer' : undefined)) };
   }),
 

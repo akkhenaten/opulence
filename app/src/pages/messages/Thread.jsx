@@ -4,7 +4,7 @@ import { ArrowDown, BadgeCheck, Bell, BellOff, Check, CheckCheck, ChevronLeft, C
 import { useAuth } from '../../auth.jsx';
 import { Composer } from '../../ui/Chat.jsx';
 import { RecordingBar, useRecorder, VoiceNote } from '../../ui/VoiceRecorder.jsx';
-import { Avatar, Button, cx, dayLabel, ErrorBox, IconButton, Input, Lightbox, Pressable, SearchInput, Sheet, Spinner, Textarea, time, useAction, useApi, useConfirm, useToast } from '../../ui/index.jsx';
+import { Avatar, Button, cx, dayLabel, ErrorBox, IconButton, Input, Lightbox, Pressable, SearchInput, Sheet, Spinner, Textarea, time, useAction, useApi, useConfirm, useToast, withGoesBy } from '../../ui/index.jsx';
 import { api, upload } from '../../api.js';
 import { useRealtime, useRealtimeConnected } from '../../realtime.js';
 import { ROLE_LABEL } from '../../layouts/nav.js';
@@ -687,7 +687,7 @@ function SendBox({ conv, members, me, replyTo, onClearReply, onSent }) {
 
   const q = conv.can_mention ? mentionQuery(text, caret) : undefined;
   const choices = useMemo(() => (q === undefined ? [] : members
-    .filter((p) => p.id !== me.id && !p.system && p.name.toLowerCase().split(/\s+/).concat(p.name.toLowerCase()).some((w) => w.startsWith(q.toLowerCase())))
+    .filter((p) => p.id !== me.id && !p.system && `${p.name} ${p.goes_by || ''}`.toLowerCase().split(/\s+/).concat(p.name.toLowerCase(), (p.goes_by || '').toLowerCase()).some((w) => w && w.startsWith(q.toLowerCase())))
     .slice(0, 5)), [q, members, me.id]);
   const pick = (p) => {
     const head = text.slice(0, caret).replace(/@([^\s@]{0,30})$/, `@${p.name} `);
@@ -723,7 +723,7 @@ function SendBox({ conv, members, me, replyTo, onClearReply, onSent }) {
         <div className="mb-2 overflow-hidden rounded-2xl border border-line bg-surface shadow-tile" role="listbox" aria-label="People to mention">
           {choices.map((p) => (
             <Pressable key={p.id} onClick={() => pick(p)} className="flex items-center gap-3 px-3 py-2">
-              <Avatar name={p.name} src={p.photo_url} size={28} /><span className="truncate text-body font-semibold">{p.name}</span>
+              <Avatar name={p.name} src={p.photo_url} size={28} /><span className="truncate text-body font-semibold">{withGoesBy(p.name, p.goes_by)}</span>
             </Pressable>
           ))}
         </div>

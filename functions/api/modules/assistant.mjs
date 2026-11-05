@@ -230,7 +230,7 @@ async function prepare(name, input, user) {
     }
     case 'draft_message': {
       const to = need(await one(
-        "SELECT id, name FROM users WHERE status = 'active' AND NOT system AND id <> $2 AND name ILIKE $1 ORDER BY role = 'officer' DESC, name LIMIT 1",
+        "SELECT id, name FROM users WHERE status = 'active' AND NOT system AND id <> $2 AND (name ILIKE $1 OR (goes_by <> '' AND goes_by ILIKE $1)) ORDER BY role = 'officer' DESC, name LIMIT 1",
         [`%${String(input.to).slice(0, 80)}%`, user.id]), `No one called ${input.to}`);
       const body = String(input.body || '').trim().slice(0, 4000);
       if (!body) return { error: 'The message is empty' };

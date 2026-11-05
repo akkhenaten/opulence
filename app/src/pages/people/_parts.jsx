@@ -101,6 +101,7 @@ export function OfficerCoreFields({ form, roles, statusOptions = ['active', 'onb
       <div className="grid grid-cols-2 gap-3">
         <Input label="First name" {...bind('first_name')} autoFocus />
         <Input label="Last name" {...bind('last_name')} />
+        <Input label="Goes by (optional)" placeholder="e.g. Goddey" maxLength={40} className="col-span-2" {...bind('goes_by')} />
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Input label="Email" type="email" {...bind('email')} />
@@ -126,7 +127,7 @@ export function OfficerCoreFields({ form, roles, statusOptions = ['active', 'onb
 }
 
 export const emptyOfficer = (status = 'active') => ({
-  first_name: '', last_name: '', email: '', phone: '', roles: [], sia_number: '', sia_type: '', sia_expiry: '', start_date: '', status, invite: false,
+  first_name: '', last_name: '', goes_by: '', email: '', phone: '', roles: [], sia_number: '', sia_type: '', sia_expiry: '', start_date: '', status, invite: false,
 });
 
 export function cleanOfficer(v) {

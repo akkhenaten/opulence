@@ -4,7 +4,7 @@ import {
   CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Crown, Hand, NotebookPen, Plus, Repeat, Send, Trash2, UserMinus, UserPlus, X,
 } from 'lucide-react';
 import {
-  addDays, AssignPill, Avatar, Button, confirmState, cx, dateShort, dayLabel, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useToast,
+  addDays, AssignPill, Avatar, Button, confirmState, cx, dateShort, dayLabel, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useToast, nameMatches, withGoesBy,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -561,7 +561,7 @@ function AssignSheet({ shift, replace, onClose, onDone }) {
       <p className="mb-3 text-subhead text-muted">{shift.venue_name} · {dayLabel(shift.starts_at)} <span className="num">{range(shift.starts_at, shift.ends_at)}</span></p>
       <Input placeholder="Search officers" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-3" />
       <Load q={q}>{(list) => {
-        const shown = list.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
+        const shown = list.filter((c) => nameMatches(c, search));
         if (!shown.length) return <Empty title="No officers found" />;
         return (
           <List inset>
@@ -572,7 +572,7 @@ function AssignSheet({ shift, replace, onClose, onDone }) {
                   className={cx('flex w-full items-center gap-3 px-4 py-3 text-left transition', blocked ? 'opacity-60' : 'hover:bg-surface active:bg-surface')}>
                   <Avatar name={c.name} size={36} />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 truncate text-body font-semibold">{c.name}{c.id === user.self_officer_id && <Pill tone="blue">You</Pill>}</div>
+                    <div className="flex items-center gap-1.5 truncate text-body font-semibold">{withGoesBy(c.name, c.goes_by)}{c.id === user.self_officer_id && <Pill tone="blue">You</Pill>}</div>
                     {blocked ? <div className="text-caption text-red">{c.blocking.join(' · ')}</div>
                       : c.warnings.length ? <div className="text-caption text-amber">{c.warnings.join(' · ')}</div>
                         : <div className="text-caption text-green">Available</div>}

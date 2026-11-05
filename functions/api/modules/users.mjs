@@ -1,6 +1,6 @@
 import { one, q, tx } from '../lib/db.mjs';
 import { fail, required, pick } from '../lib/http.mjs';
-import { randomToken } from '../lib/auth.mjs';
+import { goesBy, randomToken } from '../lib/auth.mjs';
 import { sendRawEmail, emailHtml } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
 import { downloadUrl } from '../lib/storage.mjs';
@@ -10,12 +10,12 @@ import { seedOnboarding } from './hr.mjs';
 
 const ROLE_LABEL = { company: 'Company Manager', security: 'Security Manager', venue: 'Venue Manager', officer: 'Security Officer' };
 
-export async function createInvite(t, { email, name, role, phone = '', can_see_pay = false }) {
+export async function createInvite(t, { email, name, role, phone = '', can_see_pay = false, goes_by = '' }) {
   if (await t.one('SELECT 1 FROM users WHERE email = lower($1)', [email.trim()])) fail(409, 'A user with this email already exists');
   const token = randomToken();
   const u = await t.one(
-    'INSERT INTO users (email, name, role, phone, can_see_pay, invite_token) VALUES (lower($1),$2,$3,$4,$5,$6) RETURNING *',
-    [email.trim(), name.trim(), role, phone, !!can_see_pay, token],
+    'INSERT INTO users (email, name, role, phone, can_see_pay, invite_token, goes_by) VALUES (lower($1),$2,$3,$4,$5,$6,$7) RETURNING *',
+    [email.trim(), name.trim(), role, phone, !!can_see_pay, token, goesBy(goes_by)],
   );
   return u;
 }
@@ -39,7 +39,7 @@ const withPhotos = (rows) => Promise.all(rows.map(async ({ photo_key, ...u }) =>
 
 export const actions = {
   'users.list': def(CO, async (b) => withPhotos(await q(
-    `SELECT u.id, u.email, u.name, u.phone, u.role, COALESCE((SELECT o.photo_key FROM officers o WHERE o.user_id = u.id LIMIT 1), u.photo_key) AS photo_key, u.status, u.can_see_pay, u.last_login, u.created_at,
+    `SELECT u.id, u.email, u.name, u.goes_by, u.phone, u.role, COALESCE((SELECT o.photo_key FROM officers o WHERE o.user_id = u.id LIMIT 1), u.photo_key) AS photo_key, u.status, u.can_see_pay, u.last_login, u.created_at,
             COALESCE(array_agg(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS venues,
             COALESCE(array_agg(DISTINCT v.id) FILTER (WHERE v.id IS NOT NULL), '{}') AS venue_ids,
             CASE WHEN u.status = 'invited' THEN '/app/invite/' || u.invite_token END AS invite_link,
@@ -67,7 +67,8 @@ export const actions = {
   'users.update': def(CO, async (b, { user }) => {
     required(b, 'id');
     if (b.id === user.id && b.status === 'disabled') fail(400, "You can't disable yourself");
-    const fields = pick(b, ['name', 'phone', 'can_see_pay', 'email']);
+    const fields = pick(b, ['name', 'goes_by', 'phone', 'can_see_pay', 'email']);
+    if (fields.goes_by !== undefined) fields.goes_by = goesBy(fields.goes_by);
     if (b.status === 'disabled' || b.status === 'active') fields.status = b.status;
     if (fields.name !== undefined && String(fields.name).trim().length < 2) fail(400, 'Enter a name');
     if (fields.email !== undefined) {
@@ -84,10 +85,10 @@ export const actions = {
         : await t.one('SELECT * FROM users WHERE id = $1', [b.id]);
       if (!row) fail(404, 'User not found');
       // A linked staff record (an officer, or a manager who also works shifts) carries the same name, phone and email
-      if (fields.name !== undefined || fields.phone !== undefined || fields.email !== undefined) {
+      if (fields.name !== undefined || fields.goes_by !== undefined || fields.phone !== undefined || fields.email !== undefined) {
         const cut = row.name.lastIndexOf(' ');
-        await t.q('UPDATE officers SET first_name = $2, last_name = $3, phone = $4, email = $5 WHERE user_id = $1',
-          [row.id, cut > 0 ? row.name.slice(0, cut) : row.name, cut > 0 ? row.name.slice(cut + 1) : '', row.phone || '', row.email]);
+        await t.q('UPDATE officers SET first_name = $2, last_name = $3, phone = $4, email = $5, goes_by = $6 WHERE user_id = $1',
+          [row.id, cut > 0 ? row.name.slice(0, cut) : row.name, cut > 0 ? row.name.slice(cut + 1) : '', row.phone || '', row.email, row.goes_by || '']);
       }
       // A disabled manager's staff record stays, without a login (it can be invited again as an officer)
       if (fields.status === 'disabled' && row.role !== 'officer') {
@@ -146,8 +147,8 @@ export const actions = {
       }
       const cut = u.name.lastIndexOf(' ');
       const o = await t.one(
-        `INSERT INTO officers (first_name, last_name, email, phone, status, user_id) VALUES ($1,$2,$3,$4,'active',$5) RETURNING id`,
-        [cut > 0 ? u.name.slice(0, cut) : u.name, cut > 0 ? u.name.slice(cut + 1) : '', u.email, u.phone || '', u.id]);
+        `INSERT INTO officers (first_name, last_name, email, phone, status, user_id, goes_by) VALUES ($1,$2,$3,$4,'active',$5,$6) RETURNING id`,
+        [cut > 0 ? u.name.slice(0, cut) : u.name, cut > 0 ? u.name.slice(cut + 1) : '', u.email, u.phone || '', u.id, u.goes_by || '']);
       await seedOnboarding(t, o.id);
       return o.id;
     });

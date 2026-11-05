@@ -46,6 +46,9 @@ export function verifyToken(token) {
   return payload;
 }
 
+// The name someone is known by on shift ("Goddey"), searchable alongside their full name
+export const goesBy = (v) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);
+
 export const randomToken = () => crypto.randomBytes(24).toString('base64url');
 
 // A manager who also works shifts has one login with a linked staff record.
@@ -65,7 +68,7 @@ export async function userFromEvent(event, body = {}) {
   const payload = verifyToken(raw);
   if (!payload) return null;
   const user = await one(
-    `SELECT u.id, u.email, u.name, u.phone, u.role, u.status, u.can_see_pay, o.id AS officer_id,
+    `SELECT u.id, u.email, u.name, u.goes_by, u.phone, u.role, u.status, u.can_see_pay, o.id AS officer_id,
             COALESCE(o.photo_key, u.photo_key) AS photo_key
        FROM users u LEFT JOIN officers o ON o.user_id = u.id WHERE u.id = $1`,
     [payload.sub],
@@ -76,7 +79,7 @@ export async function userFromEvent(event, body = {}) {
 
 export function publicUser(u) {
   return {
-    id: u.id, email: u.email, name: u.name, phone: u.phone || '', role: u.role, officer_id: u.officer_id || null, can_see_pay: u.can_see_pay,
+    id: u.id, email: u.email, name: u.name, goes_by: u.goes_by || '', phone: u.phone || '', role: u.role, officer_id: u.officer_id || null, can_see_pay: u.can_see_pay,
     login_role: u.login_role || u.role, self_officer_id: u.self_officer_id || null, dual: !!u.dual,
   };
 }

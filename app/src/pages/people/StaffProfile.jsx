@@ -4,7 +4,7 @@ import { Ban, Mail, Pencil, Phone, Send, UserCheck } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Button, Input, Load, Page, Pill, Select, Sheet, Tabs, Textarea, Tile, Toggle, date, useAction, useApi, useConfirm, useForm,
+  Avatar, Button, Input, Load, Page, Pill, Select, Sheet, Tabs, Textarea, Tile, Toggle, date, useAction, useApi, useConfirm, useForm, withGoesBy,
 } from '../../ui/index.jsx';
 import { ComplianceBadge, CopyLink, ExpiryPill, LoginPill, OFFICER_STATUSES, SIA_TYPES, Chips, canPay, useBase, useRoles } from './_parts.jsx';
 import {
@@ -70,7 +70,7 @@ function Profile({ o, reload, user, base }) {
   const props = { o, reload, user, isCo, roles, roleName, onForbidden: forbid };
 
   return (
-    <Page title={o.name} back={{ to: `${base}/staff`, label: isCo ? 'Staff' : 'Officers' }}
+    <Page title={withGoesBy(o.name, o.goes_by)} back={{ to: `${base}/staff`, label: isCo ? 'Staff' : 'Officers' }}
       actions={isCo && (
         <>
           <Button variant="secondary" icon={Pencil} onClick={() => setEditing(true)}>Edit</Button>
@@ -144,7 +144,7 @@ function Profile({ o, reload, user, base }) {
   );
 }
 
-const EDIT_KEYS = ['first_name', 'last_name', 'email', 'phone', 'dob', 'address', 'postcode', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account',
+const EDIT_KEYS = ['first_name', 'last_name', 'goes_by', 'email', 'phone', 'dob', 'address', 'postcode', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account',
   'sia_number', 'sia_type', 'sia_expiry', 'roles', 'max_weekly_hours', 'start_date', 'notes'];
 
 function EditSheet({ open, onClose, o, roles, onDone }) {
@@ -169,6 +169,7 @@ function EditSheet({ open, onClose, o, roles, onDone }) {
           <div className="grid grid-cols-2 gap-3">
             <Input label="First name" {...bind('first_name')} />
             <Input label="Last name" {...bind('last_name')} />
+            <Input label="Goes by (optional)" placeholder="e.g. Goddey" maxLength={40} className="col-span-2" {...bind('goes_by')} />
             <Input label="Email" type="email" {...bind('email')} />
             <Input label="Mobile" type="tel" {...bind('phone')} />
             <Input label="Date of birth" type="date" {...bind('dob')} />

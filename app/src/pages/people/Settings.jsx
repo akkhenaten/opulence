@@ -543,7 +543,7 @@ const ROLE_HINT = {
 };
 
 function UserSheet({ u, me, all = [], venues, onClose, onDone }) {
-  const { v, bind, set } = useForm({ name: u.name, email: u.email, phone: u.phone || '', can_see_pay: !!u.can_see_pay, venue_ids: u.venue_ids || [] });
+  const { v, bind, set } = useForm({ name: u.name, goes_by: u.goes_by || '', email: u.email, phone: u.phone || '', can_see_pay: !!u.can_see_pay, venue_ids: u.venue_ids || [] });
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const [link, setLink] = useState(null);
@@ -568,6 +568,7 @@ function UserSheet({ u, me, all = [], venues, onClose, onDone }) {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Name" {...bind('name')} />
           <Input label="Phone" type="tel" {...bind('phone')} />
+          <Input label="Goes by (optional)" placeholder="e.g. Goddey" maxLength={40} {...bind('goes_by')} />
         </div>
         {u.officer_id
           ? <p className="text-footnote text-muted">Their sign-in email follows their staff record. Change it on the staff profile.</p>

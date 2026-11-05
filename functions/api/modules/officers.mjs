@@ -1,6 +1,6 @@
 import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, pick, need } from '../lib/http.mjs';
-import { canSeePay } from '../lib/auth.mjs';
+import { canSeePay, goesBy } from '../lib/auth.mjs';
 import { assertOfficerAccess, venueScope } from '../lib/scope.mjs';
 import { downloadUrl, checkOwnPhoto } from '../lib/storage.mjs';
 import { londonDate } from '../lib/time.mjs';
@@ -12,10 +12,10 @@ import { ALL, CO, MGR, def } from './_def.mjs';
 
 const NON_SIA = new Set(['steward']);
 const PRIVATE = ['ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account', 'dob'];
-const MANAGER_FIELDS = ['first_name', 'last_name', 'email', 'phone', 'dob', 'address', 'postcode', 'ni_number', 'utr', 'bank_name', 'bank_sort_code',
+const MANAGER_FIELDS = ['first_name', 'last_name', 'goes_by', 'email', 'phone', 'dob', 'address', 'postcode', 'ni_number', 'utr', 'bank_name', 'bank_sort_code',
   'bank_account', 'photo_key', 'sia_number', 'sia_type', 'sia_expiry', 'rtw_type', 'rtw_expiry', 'rtw_verified', 'status', 'roles', 'max_weekly_hours',
   'start_date', 'notes'];
-const SELF_FIELDS = ['phone', 'address', 'postcode', 'dob', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account', 'photo_key'];
+const SELF_FIELDS = ['goes_by', 'phone', 'address', 'postcode', 'dob', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account', 'photo_key'];
 
 const daysUntil = (d, today) => (d ? Math.round((new Date(d) - new Date(today)) / 86400000) : null);
 
@@ -81,7 +81,7 @@ export async function inviteOfficerLogin(id) {
   const m = await linkableManager({ one }, o.email);
   if (m) fail(409, `${m.name} already signs in as a manager. Link this staff record to their login?`, { can_link: true, user_name: m.name });
   const u = await tx(async (t) => {
-    const created = await createInvite(t, { email: o.email, name: `${o.first_name} ${o.last_name}`, role: 'officer', phone: o.phone });
+    const created = await createInvite(t, { email: o.email, name: `${o.first_name} ${o.last_name}`, role: 'officer', phone: o.phone, goes_by: o.goes_by });
     await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [o.id, created.id]);
     return created;
   });
@@ -93,7 +93,7 @@ export const actions = {
     const rows = await q(
       `SELECT o.*, u.status AS login_status, u.last_login, u.role AS login_role FROM officers o LEFT JOIN users u ON u.id = o.user_id
         WHERE ($1::text IS NULL OR o.status = $1) AND ($2::text IS NULL OR $2 = ANY(o.roles))
-          AND ($3::text IS NULL OR (o.first_name || ' ' || o.last_name || ' ' || o.email || ' ' || o.sia_number) ILIKE '%' || $3 || '%')
+          AND ($3::text IS NULL OR (o.first_name || ' ' || o.last_name || ' ' || o.goes_by || ' ' || o.email || ' ' || o.sia_number) ILIKE '%' || $3 || '%')
           AND ($4::uuid[] IS NULL OR o.status = 'active' OR EXISTS (SELECT 1 FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id WHERE a.officer_id = o.id AND s.venue_id = ANY($4)))
         ORDER BY o.status = 'active' DESC, o.first_name, o.last_name`, [b.status || null, b.role || null, b.q || null, user.role === 'security' ? await venueScope(user) : null]);
     return Promise.all(rows.map(async (o) => ({ ...shapeOfficer(o, user), photo_url: await downloadUrl(o.photo_key) })));
@@ -121,14 +121,17 @@ export const actions = {
     if (user.role === 'officer') {
       if (b.id && b.id !== user.officer_id) fail(403, 'Forbidden');
       const f = pick(b, SELF_FIELDS);
+      if (f.goes_by !== undefined) f.goes_by = goesBy(f.goes_by);
       if (f.photo_key !== undefined) f.photo_key = await checkOwnPhoto(user, f.photo_key, fail);
       const keys = Object.keys(f);
       if (keys.length) await q(`UPDATE officers SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [user.officer_id, ...keys.map((k) => f[k])]);
       if (f.phone !== undefined) await q('UPDATE users SET phone = $2 WHERE id = $1', [user.id, f.phone || '']);
+      if (f.goes_by !== undefined) await q('UPDATE users SET goes_by = $2 WHERE id = $1', [user.id, f.goes_by]);
       await audit(user, 'officer.self_update', 'officer', user.officer_id, Object.keys(f));
       return { ok: true };
     }
     const f = pick(b, MANAGER_FIELDS);
+    if (f.goes_by !== undefined) f.goes_by = goesBy(f.goes_by);
     if (typeof f.email === 'string') f.email = f.email.trim().toLowerCase();
     if (b.id) {
       const cur = need(await one('SELECT * FROM officers WHERE id = $1', [b.id]));
@@ -139,9 +142,9 @@ export const actions = {
         const keys = Object.keys(f);
         if (keys.length) await t.q(`UPDATE officers SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [b.id, ...keys.map((k) => f[k])]);
         // The app login follows the staff record, so the sign-in email and name never drift apart
-        if (cur.user_id && (changed('email') || changed('first_name') || changed('last_name') || changed('phone'))) {
-          const o = await t.one('SELECT first_name, last_name, email, phone FROM officers WHERE id = $1', [b.id]);
-          await t.q('UPDATE users SET email = $2, name = $3, phone = $4 WHERE id = $1', [cur.user_id, o.email, `${o.first_name} ${o.last_name}`.trim(), o.phone || '']);
+        if (cur.user_id && (changed('email') || changed('first_name') || changed('last_name') || changed('phone') || changed('goes_by'))) {
+          const o = await t.one('SELECT first_name, last_name, goes_by, email, phone FROM officers WHERE id = $1', [b.id]);
+          await t.q('UPDATE users SET email = $2, name = $3, phone = $4, goes_by = $5 WHERE id = $1', [cur.user_id, o.email, `${o.first_name} ${o.last_name}`.trim(), o.phone || '', o.goes_by]);
         }
       });
       await audit(user, 'officer.update', 'officer', b.id, f);
@@ -159,7 +162,7 @@ export const actions = {
       let invite = null;
       if (manager) userId = manager.id;
       else if (b.invite && b.email) {
-        const u = await createInvite(t, { email: b.email, name: `${b.first_name} ${b.last_name}`, role: 'officer', phone: b.phone || '' });
+        const u = await createInvite(t, { email: b.email, name: `${b.first_name} ${b.last_name}`, role: 'officer', phone: b.phone || '', goes_by: b.goes_by });
         userId = u.id;
         invite = u;
       }

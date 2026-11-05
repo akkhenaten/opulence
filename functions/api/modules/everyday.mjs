@@ -28,7 +28,7 @@ const COMMENTS_PER_MINUTE = 8;
 // Notification links go through /everyday, which the app sends to the right portal for the reader
 const postLink = (id, comment) => `/everyday?post=${id}${comment ? `&comment=${comment}` : ''}`;
 
-const PERSON = `json_build_object('id', u.id, 'name', u.name, 'role', u.role, 'photo_key', COALESCE(o.photo_key, u.photo_key))`;
+const PERSON = `json_build_object('id', u.id, 'name', u.name, 'goes_by', u.goes_by, 'role', u.role, 'photo_key', COALESCE(o.photo_key, u.photo_key))`;
 const VISIBLE = (alias, mgr) => `${alias}.deleted_at IS NULL${mgr ? '' : ` AND ${alias}.hidden_at IS NULL`}`;
 // Active staff who can be mentioned, tagged or counted for an announcement
 const ACTIVE_STAFF = `u.status = 'active' AND NOT u.system AND u.role IN ('company','security','officer') AND (o.id IS NULL OR o.status IN ('active','onboarding'))`;

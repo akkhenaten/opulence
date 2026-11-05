@@ -24,6 +24,10 @@ export const addDays = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.s
 export const mondayOf = (iso = isoDate()) => addDays(iso, -((new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7));
 
 // datetime-local <-> ISO, in the browser's zone (UK users)
+// "Onyeka Goddey" + goes by "Goddey" reads as the name alone; a different name is added after it
+export const withGoesBy = (name, gb) => (gb && !String(name || '').toLowerCase().includes(gb.toLowerCase()) ? `${name} · “${gb}”` : name || '');
+// Does a search term match someone's name or the name they go by?
+export const nameMatches = (p, term) => !term || `${p.name || ''} ${p.goes_by || ''}`.toLowerCase().includes(term.toLowerCase());
 export const toLocalInput = (d) => { if (!d) return ''; const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
 export const fromLocalInput = (s) => (s ? new Date(s).toISOString() : null);
 

@@ -15,7 +15,7 @@ export const CATALOG = {
   // People & onboarding
   'officers.list': r('people', 'List officers', 'status (applicant|onboarding|active|suspended|left)?, role?, q?'),
   'officers.get': r('people', 'Officer profile', 'id'),
-  'officers.save': c('people', 'Add or update an officer', `id? (omit to add), first_name, last_name, email, phone, dob, address, postcode, ni_number, utr, bank_name, bank_sort_code, bank_account,
+  'officers.save': c('people', 'Add or update an officer', `id? (omit to add), first_name, last_name, goes_by? (the name they are known by), email, phone, dob, address, postcode, ni_number, utr, bank_name, bank_sort_code, bank_account,
     sia_number, sia_type, sia_expiry, rtw_type, rtw_expiry, rtw_verified, status, roles[], max_weekly_hours, start_date, notes, invite (true sends a login invite)`,
   { link: (res, b) => staff(res?.id || b.id) }),
   'officers.inviteLogin': c('people', 'Invite an officer to log in', 'id (officer)', { link: (_r, b) => staff(b.id) }),

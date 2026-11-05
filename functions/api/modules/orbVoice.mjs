@@ -31,7 +31,8 @@ async function voiceOn() {
 async function vocabulary() {
   const rows = await q(
     `(SELECT name AS w FROM venues WHERE active ORDER BY name LIMIT 60)
-     UNION ALL (SELECT first_name || ' ' || last_name FROM officers WHERE status IN ('active','onboarding') ORDER BY last_name LIMIT 90)`);
+     UNION ALL (SELECT first_name || ' ' || last_name FROM officers WHERE status IN ('active','onboarding') ORDER BY last_name LIMIT 90)
+     UNION ALL (SELECT goes_by FROM officers WHERE goes_by <> '' AND status IN ('active','onboarding') LIMIT 40)`);
   return [...new Set([...TERMS, ...rows.map((r) => String(r.w || '').trim()).filter(Boolean)])].slice(0, 150);
 }
 

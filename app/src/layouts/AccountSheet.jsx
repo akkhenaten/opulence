@@ -70,13 +70,14 @@ export function AccountSheet({ open, onClose }) {
 
 function DetailsForm({ onDone }) {
   const { user, refresh } = useAuth();
-  const { v, bind } = useForm({ name: user.name || '', phone: user.phone || '' });
+  const { v, bind } = useForm({ name: user.name || '', goes_by: user.goes_by || '', phone: user.phone || '' });
   const [run, busy] = useAction();
   const nameBad = v.name.trim().length < 2;
-  const save = () => run(async () => { await api('auth.updateMe', { name: v.name, phone: v.phone }); await refresh(); }, 'Details saved').then(onDone).catch(() => {});
+  const save = () => run(async () => { await api('auth.updateMe', { name: v.name, goes_by: v.goes_by, phone: v.phone }); await refresh(); }, 'Details saved').then(onDone).catch(() => {});
   return (
     <div className="space-y-3">
       <Input label="Name" autoComplete="name" error={v.name && nameBad ? 'Enter your name' : undefined} {...bind('name')} />
+      <Input label="Goes by (optional)" placeholder="e.g. Goddey" maxLength={40} hint="The name the team knows you by" {...bind('goes_by')} />
       <Input label="Phone" type="tel" inputMode="tel" autoComplete="tel" {...bind('phone')} />
       <Input label="Email" value={user.email} readOnly disabled hint={user.role === 'company' ? 'You sign in with this email. Another company manager can change it in Settings.' : 'You sign in with this email. Ask your company manager to change it.'} />
       <div className="flex justify-end gap-2 pt-1">

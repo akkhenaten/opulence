@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveActing, ownOfficer } from '../lib/auth.mjs';
+import { goesBy, publicUser, resolveActing, ownOfficer } from '../lib/auth.mjs';
 import { decideSelf } from '../lib/selfcheck.mjs';
 
 const row = (role, officer_id = null) => ({ id: 'u1', role, officer_id, status: 'active' });
@@ -51,4 +51,17 @@ test('own hours are allowed but flagged when nobody else can approve', () => {
 
 test('someone else\'s hours are unaffected', () => {
   assert.deepEqual(decideSelf({ isOwn: false, otherApprovers: true }), { self: false, selfApproved: false });
+});
+
+test('the goes-by name follows the login to both sides of a dual role', () => {
+  const r = { ...row('security', 'o1'), name: 'Onyeka Goddey', goes_by: 'Goddey' };
+  assert.equal(publicUser(resolveActing(r, 'officer')).goes_by, 'Goddey');
+  assert.equal(publicUser(resolveActing(r, undefined)).goes_by, 'Goddey');
+  assert.equal(publicUser(row('venue')).goes_by, '');
+});
+
+test('goes-by names are trimmed, single-spaced and short', () => {
+  assert.equal(goesBy('  Big   Mo '), 'Big Mo');
+  assert.equal(goesBy(null), '');
+  assert.equal(goesBy('x'.repeat(60)).length, 40);
 });

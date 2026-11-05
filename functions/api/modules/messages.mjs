@@ -124,6 +124,7 @@ async function transcribeVoice(msg) {
   if (!a) return null;
   const names = await q(
     `(SELECT u.name AS w FROM conversation_members cm JOIN users u ON u.id = cm.user_id WHERE cm.conversation_id = $1 AND NOT u.system)
+     UNION (SELECT u.goes_by FROM conversation_members cm JOIN users u ON u.id = cm.user_id WHERE cm.conversation_id = $1 AND u.goes_by <> '')
      UNION (SELECT name FROM venues WHERE active ORDER BY name LIMIT 60)`, [msg.conversation_id]);
   const { text } = await transcribe({ url: await downloadUrl(a.key, a.name), vocabulary: [...TERMS, ...names.map((r) => r.w).filter(Boolean)], module: 'messages' });
   return text;
@@ -154,7 +155,7 @@ export async function transcriptSweep() {
 
 async function members(convId) {
   const rows = await q(
-    `SELECT u.id, u.name, u.role, u.system, ${PHOTO} AS photo_key, cm.last_read_at FROM conversation_members cm JOIN users u ON u.id = cm.user_id
+    `SELECT u.id, u.name, u.goes_by, u.role, u.system, ${PHOTO} AS photo_key, cm.last_read_at FROM conversation_members cm JOIN users u ON u.id = cm.user_id
       WHERE cm.conversation_id = $1 AND cm.left_at IS NULL ORDER BY u.system, u.name`, [convId]);
   return Promise.all(rows.map(sign));
 }
@@ -372,7 +373,7 @@ export const actions = {
   // Everyone can message everyone who is active
   'messages.people': def(ALL, async (_b, { user }) => {
     const rows = await q(
-      `SELECT u.id, u.name, u.role, ${PHOTO} AS photo_key,
+      `SELECT u.id, u.name, u.goes_by, u.role, ${PHOTO} AS photo_key,
               COALESCE((SELECT string_agg(DISTINCT v.name, ', ') FROM venue_contacts vc JOIN venues v ON v.id = vc.venue_id WHERE vc.user_id = u.id), '') AS venues
          FROM users u LEFT JOIN officers o ON o.user_id = u.id
         WHERE u.status = 'active' AND NOT u.system AND u.id <> $1 AND (o.id IS NULL OR o.status IN ('active','onboarding'))

@@ -730,7 +730,7 @@ export const CHAT_TOOLS = [
 
 async function findOfficer(name) {
   const o = await one(
-    `SELECT * FROM officers WHERE (first_name || ' ' || last_name) ILIKE $1 OR first_name ILIKE $2 OR last_name ILIKE $2
+    `SELECT * FROM officers WHERE (first_name || ' ' || last_name) ILIKE $1 OR first_name ILIKE $2 OR last_name ILIKE $2 OR (goes_by <> '' AND goes_by ILIKE $1)
       ORDER BY status = 'active' DESC, first_name LIMIT 1`, [`%${name}%`, `${String(name).split(' ')[0]}%`]);
   return need(o, `No officer called ${name}`);
 }
@@ -781,7 +781,8 @@ export async function runTool(name, input, user, created) {
       return { officer: firstLast(o), from: input.from, to: input.to, shifts: r.shifts, rostered_hours: money(r.rota_h), worked_hours: money(r.worked_h), weekly_cap: o.max_weekly_hours };
     }
     case 'list_officers':
-      return (await q("SELECT id, first_name, last_name, roles, postcode FROM officers WHERE status = 'active' ORDER BY first_name")).map((o) => ({ officer_id: o.id, name: firstLast(o), roles: o.roles, area: outward(o.postcode) }));
+      return (await q("SELECT id, first_name, last_name, goes_by, roles, postcode FROM officers WHERE status = 'active' ORDER BY first_name"))
+        .map((o) => ({ officer_id: o.id, name: firstLast(o), goes_by: o.goes_by || undefined, roles: o.roles, area: outward(o.postcode) }));
     case 'compliance_status': {
       const scope = await venueScope(user);
       const o = input.officer ? await findOfficer(input.officer) : null;
