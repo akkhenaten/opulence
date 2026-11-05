@@ -119,7 +119,7 @@ export const actions = {
             await notify(await managersFor(a.venue_id), {
               kind: 'pack_blocked', severity: 'warning', title: `${user.name} can't clock in – site pack not signed`,
               body: `${a.venue_name}, shift ${fmtTime(a.starts_at)}–${fmtTime(a.ends_at)}. They tried at ${fmtTime(new Date())}.`,
-              link: '/company/live', dedupe: `pack_blocked:${a.assignment_id}`,
+              link: '/company/live', dedupe: `pack_blocked:${a.assignment_id}`, ref: `asg:${a.assignment_id}`,
             });
           }
         } catch (e) { console.error('[pack_blocked]', e.message); }

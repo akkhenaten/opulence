@@ -129,7 +129,7 @@ function PublicOnly({ children }) {
   return user ? <Navigate to={HOME[user.role]} replace /> : children;
 }
 
-// Ops AI now lives on Live operations; old links and notifications keep their ?tab=
+// Orb now lives on Live operations; old links and notifications keep their ?tab=
 function OpsRedirect() {
   const { search } = useLocation();
   return <Navigate to={`../live${search}`} replace />;

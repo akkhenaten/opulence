@@ -17,7 +17,7 @@ const keys = (o, ctx = {}) => officerIssues(o, { today, roles, ...ctx }).map((i)
 before(() => { process.env.SIA_CHECK = 'on'; });
 after(() => { delete process.env.SIA_CHECK; });
 
-test('register checks switched off: no block, no Ops AI cards, no Help section', async () => {
+test('register checks switched off: no block, no Orb cards, no Help section', async () => {
   delete process.env.SIA_CHECK;
   try {
     assert.equal(compliance({ ...base, sia_status: 'suspended' }, today).ok, true);
@@ -54,7 +54,7 @@ test('a licence not active on the register blocks rostering', () => {
   assert.equal(compliance({ ...base, roles: ['steward'], sia_status: 'suspended' }, today).ok, true);
 });
 
-test('Ops AI: register status and re-checks', () => {
+test('Orb: register status and re-checks', () => {
   const susp = officerIssues({ ...base, sia_status: 'suspended' }, { today, roles, shifts: [shift] }).find((i) => i.key === 'register:sia');
   assert.equal(susp.severity, 'urgent');
   assert.ok(susp.actions.some((a) => a.kind === 'unassign' && a.default));

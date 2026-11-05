@@ -359,7 +359,7 @@ export async function callTool(name, input, turn, tools) {
 }
 
 const ROUTES = {
-  both: 'home: /ROLE, live (Live operations: live board + Ops AI inbox; live?tab=settings for Ops AI settings), rota, shifts/<id>, cover, timesheets, exceptions, incidents, incidents/<id>, staff, staff/<id>, team/academy, team/training, people/compliance, team/toolbox, team/toolbox/<id>, everyday, messages, messages/<id>, venues, venues/<id>, pay, pay/runs/<id>, help',
+  both: 'home: /ROLE, live (Live operations: live board + Orb inbox; live?tab=settings for Orb settings), rota, shifts/<id>, cover, timesheets, exceptions, incidents, incidents/<id>, staff, staff/<id>, team/academy, team/training, people/compliance, team/toolbox, team/toolbox/<id>, everyday, messages, messages/<id>, venues, venues/<id>, pay, pay/runs/<id>, help',
   company: 'recruitment (online applicants: recruitment?applicant=<officer id>), hr/time-off, people/contracts, clients, invoices, invoices/<id>, reports, settings, audit',
 };
 
@@ -449,7 +449,7 @@ export const actions = {
     if (!text) fail(400, 'Ask a question');
     if (text.length > 4000) fail(400, 'Keep it under 4,000 characters');
     const s = await getSettings();
-    if (!jobOn(s, 'chat')) fail(400, 'Orb is switched off in Ops AI settings');
+    if (!jobOn(s, 'chat')) fail(400, 'Orb is switched off in Settings');
     const turnId = UUID.test(String(b.turn_id || '')) ? b.turn_id : null;
     const conv = b.conversation_id ? await ownConversation(user, b.conversation_id)
       : await one('INSERT INTO assistant_conversations (user_id, title) VALUES ($1,$2) RETURNING *', [user.id, text.replace(/\s+/g, ' ').slice(0, 60)]);

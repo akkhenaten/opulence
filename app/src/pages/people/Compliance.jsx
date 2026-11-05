@@ -1,4 +1,4 @@
-// Every compliance issue across the workforce in one place: what is wrong, how urgent, and what Ops AI advises
+// Every compliance issue across the workforce in one place: what is wrong, how urgent, and what Orb advises
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';

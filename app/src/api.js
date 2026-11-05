@@ -40,8 +40,15 @@ export async function api(action, body = {}) {
     window.dispatchEvent(new Event('orb:signed-out'));
   }
   if (!res.ok) throw new ApiError(data.error || 'Something went wrong', res.status, data);
+  // A shift change tidies alerts and Orb cards on the server, so the bell and Live catch up straight away
+  if (SHIFT_CHANGES.test(action)) {
+    window.dispatchEvent(new Event('orb:ops'));
+    window.dispatchEvent(new Event('orb:notify'));
+  }
   return data;
 }
+
+const SHIFT_CHANGES = /^(shifts\.(assign|reassign|unassign|save|cancel|delete|publish|respond|request|decideRequest|bulkCreate|copyWeek)|cover\.(accept|cancel|create|decideChange|decline|update)|offboarding\.(save|rehire)|ops\.(decide|offerRespond|reply))$/;
 
 // Upload a file to private storage: returns the stored key (docs/...). purpose: officer|venue|incident|photo|company
 export async function upload(file, purpose = 'officer') {

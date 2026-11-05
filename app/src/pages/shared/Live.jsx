@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { FileSignature, Lock, MapPin, Phone, QrCode, Radio, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
 import {
@@ -47,11 +47,17 @@ export default function Live() {
   const [run, busy] = useAction();
   const toast = useToast();
 
-  // The round arrows: managers run every Ops AI check now (chasing, cover, site packs, hours, compliance), then everything reloads
+  // Any shift change or Orb decision anywhere in the app: the board, the count and the cards catch up
+  useEffect(() => {
+    const h = () => { q.reload(); count.reload(); setReloadKey((k) => k + 1); };
+    window.addEventListener('orb:ops', h);
+    return () => window.removeEventListener('orb:ops', h);
+  });
+
+  // The round arrows: managers run every Orb check now (chasing, cover, site packs, hours, compliance), then everything reloads
   const refresh = () => {
     if (!isManager) { q.reload(); toast('Updated'); return; }
     run(() => api('ops.refresh')).then((r) => {
-      q.reload(); count.reload(); setReloadKey((k) => k + 1);
       window.dispatchEvent(new Event('orb:ops'));
       if (r.busy) return toast('Checks already running');
       setLastChecked(r.checked_at);
@@ -63,10 +69,10 @@ export default function Live() {
   const board = <Load q={q}>{(rows) => <Board rows={rows} filter={filter} setFilter={setFilter} onOpen={isManager ? setOpen : null} base={base} venue={venue} narrow={isManager} />}</Load>;
   return (
     <Page title={venue ? 'On site' : 'Live operations'} wide photo="control"
-      subtitle={isManager ? <>Board updates every 15 seconds · Ops AI checks every 5 minutes{lastChecked && <> · last checked <span className="num">{time(lastChecked)}</span></>}</> : 'Updates every 15 seconds'}
+      subtitle={isManager ? <>Board updates every 15 seconds · Orb checks every 5 minutes{lastChecked && <> · last checked <span className="num">{time(lastChecked)}</span></>}</> : 'Updates every 15 seconds'}
       actions={<>
         {isManager && <Button variant="secondary" icon={Sparkles} onClick={() => window.dispatchEvent(new Event('orb:askorb'))}>Orb</Button>}
-        <IconButton icon={RefreshCw} label={isManager ? 'Run Ops AI checks and refresh' : 'Refresh'} onClick={refresh} disabled={busy}
+        <IconButton icon={RefreshCw} label={isManager ? 'Run Orb checks and refresh' : 'Refresh'} onClick={refresh} disabled={busy}
           className={cx('bg-surface shadow-tile', busy && '[&>svg]:animate-spin')} />
       </>}>
       {isManager && <Tabs value={tab} onChange={(v) => setSp(v === 'board' ? {} : { tab: v }, { replace: true })} tabs={tabs} />}
@@ -83,7 +89,7 @@ export default function Live() {
   );
 }
 
-/** Ops AI beside the board (above it on phones, as a single line when there is nothing to approve). */
+/** Orb beside the board (above it on phones, as a single line when there is nothing to approve). */
 function OpsPanel({ n, reloadKey, onChange }) {
   const [expanded, setExpanded] = useState(false);
   const quiet = n === 0 && !expanded;
@@ -91,7 +97,7 @@ function OpsPanel({ n, reloadKey, onChange }) {
     <aside className="order-first lg:sticky lg:top-4 lg:order-none lg:self-start">
       <div className="mb-3 flex items-center gap-2">
         <Sparkles size={18} className="text-blue" />
-        <h2 className="text-headline font-bold">Ops AI</h2>
+        <h2 className="text-headline font-bold">Orb</h2>
         {n > 0 && <Pill tone="blue">{n} to approve</Pill>}
       </div>
       {quiet ? (

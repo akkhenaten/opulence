@@ -74,7 +74,7 @@ test('pack check: a late run records both chases but sends only the second', () 
   assert.deepEqual(late, { due: ['chase1', 'chase2', 'escalate', 'cover'], chase: 'chase2', escalate: true, cover: true });
 });
 
-test('pack check follows the times set in Ops AI settings', () => {
+test('pack check follows the times set in Orb settings', () => {
   const r = packDue({ startsAt: new Date('2026-11-04T20:00:00Z'), now: new Date('2026-11-04T19:35:00Z'), offsets: { chase1: -30, chase2: -10, escalate: 5, cover: 20 } });
   assert.deepEqual(r.due, ['chase1']);
 });

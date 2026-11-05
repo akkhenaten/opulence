@@ -1,4 +1,4 @@
-// Ops AI on the venue portal: rate the officers who worked your recent shifts
+// Orb on the venue portal: rate the officers who worked your recent shifts
 import { useState } from 'react';
 import { Star } from 'lucide-react';
 import { api } from '../../api.js';

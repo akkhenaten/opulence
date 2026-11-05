@@ -104,7 +104,7 @@ async function sendReminders(rows, kind) {
     const [title, body] = REMINDER_TEXT[kind](r.venue_name);
     await notify(await officerUser(r.officer_id), {
       kind: 'venue_pack', title, body, link: packLink(r.venue_id), severity: kind === '2h' ? 'warning' : 'info', email: kind !== '2h',
-      dedupe: kind === 'booked' ? `pack-booked:${r.venue_id}:${new Date().toISOString().slice(0, 10)}` : `pack-${kind}:${r.id}`,
+      dedupe: kind === 'booked' ? `pack-booked:${r.venue_id}:${new Date().toISOString().slice(0, 10)}` : `pack-${kind}:${r.id}`, ref: kind === 'booked' ? null : `asg:${r.id}`,
     });
     sent += 1;
   }

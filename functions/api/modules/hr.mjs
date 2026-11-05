@@ -3,6 +3,7 @@ import { fail, required, need } from '../lib/http.mjs';
 import { assertOfficerAccess } from '../lib/scope.mjs';
 import { notify, companyManagers, officerUser } from '../lib/notify.mjs';
 import { fmtDate } from '../lib/time.mjs';
+import { afterShiftChange } from './shiftSync.mjs';
 import { parse, fill, unknownPlaceholders } from '../lib/docmarkup.mjs';
 import { nextReference, event, events, markOpened, companySigner, signerColumns, uaOf, sealQuietly, pdfFor } from '../lib/esign.mjs';
 import { CATEGORIES, officerValues, typedValues, contractInput, companyOf, uploadSignaturePage } from './esign.mjs';
@@ -326,19 +327,22 @@ export const actions = {
   // ---- Offboarding ----
   'offboarding.save': def(CO, async (b, { user }) => {
     required(b, 'officer_id', 'leave_date');
-    await tx(async (t) => {
+    const removed = await tx(async (t) => {
       await t.q(
         `INSERT INTO offboarding (officer_id, leave_date, reason, kit_returned, rehire_eligible, notes, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7)
          ON CONFLICT (officer_id) DO UPDATE SET leave_date = EXCLUDED.leave_date, reason = EXCLUDED.reason, kit_returned = EXCLUDED.kit_returned,
            rehire_eligible = EXCLUDED.rehire_eligible, notes = EXCLUDED.notes`,
         [b.officer_id, b.leave_date, b.reason || '', !!b.kit_returned, b.rehire_eligible !== false, b.notes || '', user.id]);
       await t.q("UPDATE officers SET status = 'left' WHERE id = $1", [b.officer_id]);
-      await t.q(
-        `UPDATE shift_assignments a SET status = 'cancelled' FROM shifts s
-          WHERE s.id = a.shift_id AND a.officer_id = $1 AND s.starts_at > ($2::date + interval '1 day') AND a.status IN ('assigned','accepted','requested')`,
+      const rows = await t.q(
+        `UPDATE shift_assignments a SET status = 'cancelled' FROM shifts s, venues v
+          WHERE s.id = a.shift_id AND v.id = s.venue_id AND a.officer_id = $1 AND s.starts_at > ($2::date + interval '1 day') AND a.status IN ('assigned','accepted','requested')
+          RETURNING a.id, a.officer_id, a.shift_id, s.starts_at, v.name AS venue_name`,
         [b.officer_id, b.leave_date]);
       if (b.disable_login !== false) await t.q("UPDATE users SET status = 'disabled' FROM officers o WHERE o.user_id = users.id AND o.id = $1", [b.officer_id]);
+      return rows;
     });
+    await afterShiftChange({ removed, officerIds: [b.officer_id] });
     await audit(user, 'officer.offboard', 'officer', b.officer_id, { reason: b.reason });
     return { ok: true };
   }),

@@ -8,6 +8,7 @@ import { fmtDate, fmtTime, fmtDateTime, londonDate, addDays } from '../lib/time.
 import { audit } from '../lib/audit.mjs';
 import { ensureThread, post } from '../lib/threads.mjs';
 import { londonToUtc } from './rota.mjs';
+import { afterShiftChange } from './shiftSync.mjs';
 import { MGR, def } from './_def.mjs';
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -141,13 +142,17 @@ async function notifyShiftOfficers(shiftId, title, body) {
   for (const a of rows) await notify(await officerUser(a.officer_id), { kind: 'shift', severity: 'warning', title, body, link: '/officer/shifts', email: true });
 }
 
+// Inside a transaction the tidy-up waits until it has committed, so it sees the change
+const syncAfter = (db, args) => (db.later ? db.later.push(args) : afterShiftChange(args));
+
 async function cancelOccurrence(occ, db = { q, one }) {
   await db.q("UPDATE cover_requests SET status = 'cancelled', change_status = 'none', change_payload = NULL WHERE id = $1", [occ.id]);
   const shifts = await db.q("UPDATE shifts SET status = 'cancelled' WHERE cover_request_id = $1 AND status <> 'cancelled' RETURNING id, starts_at", [occ.id]);
   for (const s of shifts) {
     const v = await one('SELECT name FROM venues WHERE id = $1', [occ.venue_id]);
     await notifyShiftOfficers(s.id, 'Shift cancelled', `${v.name} · ${fmtDateTime(s.starts_at)}. The venue no longer needs this shift.`);
-    await db.q("UPDATE shift_assignments SET status = 'cancelled' WHERE shift_id = $1 AND status IN ('assigned','accepted','requested')", [s.id]);
+    const team = await db.q("UPDATE shift_assignments SET status = 'cancelled' WHERE shift_id = $1 AND status IN ('assigned','accepted','requested') RETURNING id, officer_id, shift_id", [s.id]);
+    await syncAfter(db, { removed: team.map((a) => ({ ...a, venue_name: v.name, starts_at: s.starts_at })), shiftIds: [s.id], gone: true });
   }
 }
 
@@ -164,8 +169,11 @@ async function retimeOccurrence(occ, slot, extra = {}, db = { q, one }) {
     "UPDATE shifts SET starts_at = $2, ends_at = $3, headcount = $4, role = $5, notes = $6 WHERE cover_request_id = $1 AND status <> 'cancelled' RETURNING id",
     [occ.id, r.starts_at, r.ends_at, slot.headcount, role, notes]);
   const moved = String(new Date(occ.starts_at).getTime()) !== String(r.starts_at.getTime()) || String(new Date(occ.ends_at).getTime()) !== String(r.ends_at.getTime());
+  const v = await one('SELECT name FROM venues WHERE id = $1', [occ.venue_id]);
+  // What the team was told about the old times no longer holds; fewer places may leave cover cards with nothing to do
+  const team = shifts.length ? await db.q("SELECT id, officer_id, shift_id FROM shift_assignments WHERE shift_id = ANY($1::uuid[]) AND status IN ('assigned','accepted')", [shifts.map((s) => s.id)]) : [];
+  await syncAfter(db, { stale: moved ? team.map((a) => ({ ...a, venue_name: v.name, starts_at: occ.starts_at })) : [], shiftIds: shifts.map((s) => s.id), officerIds: team.map((a) => a.officer_id) });
   if (moved) {
-    const v = await one('SELECT name FROM venues WHERE id = $1', [occ.venue_id]);
     for (const s of shifts) await notifyShiftOfficers(s.id, 'Shift times changed', `${v.name} · now ${fmtDateTime(r.starts_at)} – ${fmtTime(r.ends_at)}`);
   }
 }
@@ -177,7 +185,9 @@ async function retimeOccurrence(occ, slot, extra = {}, db = { q, one }) {
 async function applyFuture(pivot, def, userId) {
   const old = need(await one('SELECT * FROM cover_series WHERE id = $1', [pivot.series_id]));
   const from = pivot.occurs_on;
+  const later = [];
   const fresh = await tx(async (t) => {
+    t.later = later;
     const before = addDays(from, -1);
     await t.q(`UPDATE cover_series SET end_date = $2, expanded_to = LEAST(expanded_to, $2), status = CASE WHEN $2 < start_date THEN 'cancelled' ELSE status END, updated_at = now() WHERE id = $1`, [old.id, before]);
     const affected = await t.q("SELECT * FROM cover_requests WHERE series_id = $1 AND occurs_on >= $2 AND status IN ('pending','accepted') ORDER BY occurs_on", [old.id, from]);
@@ -214,6 +224,7 @@ async function applyFuture(pivot, def, userId) {
     await t.q('UPDATE cover_series SET expanded_to = $2 WHERE id = $1', [s.id, reached]);
     return s;
   });
+  for (const args of later) await afterShiftChange(args);
   return fresh;
 }
 

@@ -5,14 +5,14 @@ import { cleanMentions, canPin, canRequireConfirm, seenSummary, confirmSummary, 
 const sam = { id: 's', name: 'Sam Lee', role: 'officer', last_read_at: '2026-11-04T21:05:00Z' };
 const jo = { id: 'j', name: 'Jo Khan', role: 'officer', last_read_at: '2026-11-04T20:00:00Z' };
 const boss = { id: 'b', name: 'Pat Boss', role: 'company', last_read_at: '2026-11-04T21:10:00Z' };
-const bot = { id: 'o', name: 'Orb Ops', role: 'company', system: true, last_read_at: '2026-11-04T22:00:00Z' };
+const bot = { id: 'o', name: 'Orb', role: 'company', system: true, last_read_at: '2026-11-04T22:00:00Z' };
 const people = [sam, jo, boss, bot];
 const msg = { id: 'm1', sender_id: 'b', created_at: '2026-11-04T21:00:00Z' };
 
 test('mentions keep members still named in the text, never the sender or the bot', () => {
   assert.deepEqual(cleanMentions('Thanks @Sam Lee and @jo khan', ['s', 'j', 'x'], people, 'b'), ['s', 'j']);
   assert.deepEqual(cleanMentions('Thanks all', ['s'], people, 'b'), []);                 // name deleted from the text
-  assert.deepEqual(cleanMentions('@Pat Boss @Orb Ops', ['b', 'o'], people, 'b'), []);
+  assert.deepEqual(cleanMentions('@Pat Boss @Orb', ['b', 'o'], people, 'b'), []);
   assert.deepEqual(cleanMentions('@Sam Lee', 'nope', people, 'b'), []);
 });
 

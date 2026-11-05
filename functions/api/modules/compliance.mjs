@@ -1,11 +1,11 @@
 // AI compliance runs: rule-based checks on licences, right to work and role documents against the rota,
-// plus an AI read of uploaded licence/ID scans. Findings become Ops AI cards; a manager approves each action.
+// plus an AI read of uploaded licence/ID scans. Findings become Orb cards; a manager approves each action.
 import { createHash } from 'node:crypto';
 import { one, q } from '../lib/db.mjs';
 import { fail, required, need } from '../lib/http.mjs';
 import { getObjectBytes, headObject } from '../lib/storage.mjs';
 import { extract, fileBlock, canRead, HAIKU } from '../lib/ai.mjs';
-import { notify, officerUser, companyManagers, emailHtml, sendRawEmail } from '../lib/notify.mjs';
+import { notify, withdraw, officerUser, companyManagers, emailHtml, sendRawEmail } from '../lib/notify.mjs';
 import { getBrand } from '../lib/brand.mjs';
 import { downloadUrl } from '../lib/storage.mjs';
 import { fmtDate, fmtTime, londonDate } from '../lib/time.mjs';
@@ -14,6 +14,7 @@ import { audit } from '../lib/audit.mjs';
 import { venueScope } from '../lib/scope.mjs';
 import { getShift } from './rota.mjs';
 import { createItem, logActivity, proposeCover } from './ops.mjs';
+import { afterShiftChange } from './shiftSync.mjs';
 import { trainingStatus } from './academy.mjs';
 import { moduleOn } from '../lib/modules.mjs';
 import { lawAlerts } from '../lib/contractContent.mjs';
@@ -376,10 +377,15 @@ async function advise(o, issues) {
 
 const cardTitle = (o, issues) => `${o.first_name} ${o.last_name}: ${issues[0].title}${issues.length > 1 ? ` (+${issues.length - 1} more)` : ''}`;
 
-export async function runCompliance({ manual = false } = {}) {
-  const read = await readDocuments(8);
-  const results = await computeIssues();
-  const open = await q("SELECT * FROM ops_items WHERE kind = 'compliance' AND status = 'pending'");
+/** Open cards that no longer have an issue behind them. officerIds: only those people were checked. */
+export const clearedCards = (open, results, officerIds = null) =>
+  open.filter((c) => (!officerIds || officerIds.includes(c.officer_id)) && !results.some((r) => r.officer.id === c.officer_id));
+
+/** officerIds: re-check just these people straight after a rota change (no document reading, nothing logged). */
+export async function runCompliance({ manual = false, officerIds = null } = {}) {
+  const read = officerIds ? 0 : await readDocuments(8);
+  const results = officerIds ? (await Promise.all(officerIds.map((officerId) => computeIssues({ officerId })))).flat() : await computeIssues();
+  const open = await q("SELECT * FROM ops_items WHERE kind = 'compliance' AND status = 'pending' AND ($1::uuid[] IS NULL OR officer_id = ANY($1))", [officerIds]);
   let created = 0;
   let updated = 0;
   let credits = 0;
@@ -403,8 +409,10 @@ export async function runCompliance({ manual = false } = {}) {
       created++;
     }
   }
-  const cleared = open.filter((c) => !results.some((r) => r.officer.id === c.officer_id));
+  const cleared = clearedCards(open, results, officerIds);
   for (const c of cleared) await q("UPDATE ops_items SET status = 'done', decided_at = now(), result = $2 WHERE id = $1", [c.id, { auto_closed: true }]);
+  await withdraw({ items: cleared.map((c) => c.id) });
+  if (officerIds) return { checked: officerIds.length, attention: results.length, created, updated, cleared: cleared.length };
   const { n: checked } = await one("SELECT count(*)::int AS n FROM officers WHERE status IN ('active','onboarding')");
   await logActivity('compliance', `Compliance check${manual ? ' (run by hand)' : ''}: ${plural(checked, 'officer')} checked, ${results.length} need attention${cleared.length ? `, ${cleared.length} cleared` : ''}`, { credits });
   return { checked, attention: results.length, created, updated, cleared: cleared.length, documents_read: read };
@@ -443,9 +451,10 @@ export async function decideCompliance(it, b, user) {
   }
   for (const a of picked.filter((x) => x.kind === 'unassign')) {
     const rows = await q(
-      `UPDATE shift_assignments a SET status = 'cancelled' WHERE a.id = ANY($1::uuid[]) AND a.officer_id = $2 AND a.status IN ${ACTIVE} AND ${NO_CLOCK_IN} RETURNING a.shift_id`,
+      `UPDATE shift_assignments a SET status = 'cancelled' WHERE a.id = ANY($1::uuid[]) AND a.officer_id = $2 AND a.status IN ${ACTIVE} AND ${NO_CLOCK_IN} RETURNING a.id, a.shift_id`,
       [a.params.assignment_ids, o.id]);
     for (const r of rows) {
+      await afterShiftChange({ removed: [{ ...r, officer_id: o.id }] });
       const sh = await getShift(r.shift_id);
       await notify(await officerUser(o.id), { kind: 'shift', severity: 'warning', title: 'Taken off a shift', body: `${sh.venue_name} · ${fmtDate(sh.starts_at)} ${fmtTime(sh.starts_at)}. ${a.issue.title}. Contact the office if this is wrong.`, link: '/officer/shifts' });
       const prev = await one("SELECT max((payload->>'batch')::int) AS b FROM ops_items WHERE kind = 'cover' AND shift_id = $1", [sh.id]);
@@ -549,7 +558,7 @@ export const actions = {
     return { ok: true };
   }),
 
-  // Every open issue as one row, worst first, with the Ops AI card that carries the actions
+  // Every open issue as one row, worst first, with the Orb card that carries the actions
   'compliance.overview': def(MGR, async () => {
     const [results, cards] = await Promise.all([
       computeIssues(),

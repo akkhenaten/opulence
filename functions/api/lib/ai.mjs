@@ -38,10 +38,10 @@ export async function checkCap(module = 'ops') {
      RETURNING ops_ai_used, ops_ai_cap_credits, ai_module_caps`, [m]);
   if (Number(s.ops_ai_used) >= Number(s.ops_ai_cap_credits)) {
     await notify(await companyManagers(), {
-      kind: 'ops', severity: 'warning', title: 'Ops AI paused: monthly credit cap reached',
+      kind: 'ops', severity: 'warning', title: 'Orb paused: monthly credit cap reached',
       body: 'Raise the cap in Live operations → Settings to resume AI features. Reminders and records keep running.', link: '/company/live?tab=settings', dedupe: `aicap:${m}`,
     });
-    throw new HttpError(429, 'Ops AI paused: monthly credit cap reached');
+    throw new HttpError(429, 'Orb paused: monthly credit cap reached');
   }
   const cap = (s.ai_module_caps || {})[module];
   if (cap != null && cap !== '') {
@@ -56,7 +56,7 @@ export async function checkCap(module = 'ops') {
   }
 }
 
-const MODULE_NAMES = { ops: 'Ops AI', academy: 'Academy', toolbox: 'Toolbox', everyday: 'Everyday', orb: 'Orb', orb_voice: 'Orb voice', contracts: 'Contracts AI', clock_face: 'Clock-in face check', venue_packs: 'Venue packs', messages: 'Voice note transcripts', email: 'Email', recruitment: 'Recruitment' };
+const MODULE_NAMES = { ops: 'Orb operations', academy: 'Academy', toolbox: 'Toolbox', everyday: 'Everyday', orb: 'Orb', orb_voice: 'Orb voice', contracts: 'Contracts AI', clock_face: 'Clock-in face check', venue_packs: 'Venue packs', messages: 'Voice note transcripts', email: 'Email', recruitment: 'Recruitment' };
 
 // system may be a string or an array of text blocks (so long, stable parts can carry cache_control)
 export async function claude({ model = SONNET, system, messages, tools, tool_choice, max_tokens = 1024, module = 'ops', timeout = 45000 }) {
@@ -72,14 +72,14 @@ export async function claude({ model = SONNET, system, messages, tools, tool_cho
       signal: ctrl.signal,
     });
   } catch (e) {
-    throw new HttpError(502, 'Ops AI is unavailable right now — try again shortly');
+    throw new HttpError(502, 'Orb is unavailable right now — try again shortly');
   } finally {
     clearTimeout(timer);
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     console.error('[ai]', res.status, JSON.stringify(data).slice(0, 500));
-    throw new HttpError(502, 'Ops AI is unavailable right now — try again shortly');
+    throw new HttpError(502, 'Orb is unavailable right now — try again shortly');
   }
   const credits = creditsFor(data.usage, await priceFor(model));
   await logUsage(module, credits);

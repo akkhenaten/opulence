@@ -21,7 +21,7 @@ import { emailSync } from './email.mjs';
 import { applicantJobs } from './apply.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in.
-// Officers whose site pack isn't signed are left to the Ops AI pack check until they sign.
+// Officers whose site pack isn't signed are left to the Orb pack check until they sign.
 async function lateAlerts(s) {
   let due = await q(
     `SELECT a.id, a.officer_id, s.venue_id FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
@@ -41,9 +41,9 @@ async function lateAlerts(s) {
   for (const r of rows) {
     await notify(await managersFor(r.venue_id), {
       kind: 'late', severity: 'warning', title: `${r.officer_name} not clocked in`, body: `${r.venue_name} · shift started ${fmtTime(r.starts_at)}`,
-      link: '/company/live', dedupe: `late:${r.id}`, email: true,
+      link: '/company/live', dedupe: `late:${r.id}`, ref: `asg:${r.id}`, email: true,
     });
-    // The chase goes to the officer's Orb Ops conversation; they can tap a reply or just type one
+    // The chase goes to the officer's Orb conversation; they can tap a reply or just type one
     const [uid] = await officerUser(r.officer_id);
     await opsMessage(uid, `Your shift at ${r.venue_name} started at ${fmtTime(r.starts_at)} and you haven't clocked in. Are you on your way?`, {
       ref: `chase:${r.id}`, options: [{ label: 'On my way', value: 'on_my_way' }, { label: "Can't make it", value: 'cant_make_it' }],
@@ -61,7 +61,7 @@ async function reminders() {
   for (const r of rows) {
     await notify(await officerUser(r.officer_id), {
       kind: 'reminder', title: `Shift at ${fmtTime(r.starts_at)} today`, body: `${r.venue_name}${r.postcode ? `, ${r.postcode}` : ''}. Scan the venue QR code to clock in.`,
-      link: '/officer', dedupe: `remind:${r.id}`, email: true,
+      link: '/officer', dedupe: `remind:${r.id}`, ref: `asg:${r.id}`, email: true,
     });
   }
   return rows.length;

@@ -207,7 +207,7 @@ export const actions = {
       await touch(t, b.id, 'reconciled');
       return { direct: direct.length, rows };
     });
-    // Ops AI checks rota, clock, timesheet and statement hours line up before anything is issued
+    // Orb checks rota, clock, timesheet and statement hours line up before anything is issued
     let reconcile = null;
     try {
       const { runReconcile } = await import('./ops.mjs');

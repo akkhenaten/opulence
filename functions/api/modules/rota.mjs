@@ -8,6 +8,7 @@ import { compliance } from './officers.mjs';
 import { ALL, MGR, def } from './_def.mjs';
 import { statusFor, statusesFor, pairKey, OK, STATUS_LABEL } from '../lib/venuePack.mjs';
 import { remindPack } from './venuePacks.mjs';
+import { afterShiftChange, FRESH } from './shiftSync.mjs';
 
 const WEEKDAY = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
 
@@ -94,10 +95,19 @@ export async function shiftsWithAssignments(where, params, user) {
   });
 }
 
+/** Cancel a shift and everyone on it; they are told, and alerts, cards and buttons about it go. */
+async function cancelShift(s, user, reason) {
+  await q("UPDATE shifts SET status = 'cancelled' WHERE id = $1", [s.id]);
+  const team = await q("UPDATE shift_assignments SET status = 'cancelled' WHERE shift_id = $1 AND status IN ('assigned','accepted','requested') RETURNING id, officer_id, shift_id, status", [s.id]);
+  await afterShiftChange({ removed: team.map((a) => ({ ...a, venue_name: s.venue_name, starts_at: s.starts_at })), shiftIds: [s.id], gone: true });
+  for (const a of team) await notify(await officerUser(a.officer_id), { kind: 'shift', title: 'Shift cancelled', body: `${s.venue_name} · ${fmtDateTime(s.starts_at)}`, link: '/officer/shifts', email: true, severity: 'warning' });
+  await audit(user, 'shift.cancel', 'shift', s.id, { reason });
+}
+
 async function notifyAssigned(assignment, shift, kind = 'assigned') {
   const title = kind === 'assigned' ? 'New shift assigned' : kind === 'approved' ? 'Shift request approved' : 'Shift updated';
   await notify(await officerUser(assignment.officer_id), {
-    kind: 'shift', title, body: `${shift.venue_name} · ${fmtDateTime(shift.starts_at)} – ${fmtTime(shift.ends_at)}`, link: '/officer/shifts', email: true,
+    kind: 'shift', title, body: `${shift.venue_name} · ${fmtDateTime(shift.starts_at)} – ${fmtTime(shift.ends_at)}`, link: '/officer/shifts', email: true, ref: `asg:${assignment.id}`,
   });
 }
 
@@ -131,13 +141,25 @@ export const actions = {
     if (b.id) {
       const before = await getShift(b.id);
       await assertVenue(user, before.venue_id);
+      // Cancelling goes the same way as the Cancel button, so the team is told and everything about it is cleared
+      if (f.status === 'cancelled' && before.status !== 'cancelled') {
+        delete f.status;
+        if (Object.keys(f).length) await one(`UPDATE shifts SET ${Object.keys(f).map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [b.id, ...Object.values(f)]);
+        await cancelShift(await getShift(b.id), user, b.reason);
+        return getShift(b.id);
+      }
       const keys = Object.keys(f);
       s = await one(`UPDATE shifts SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1 RETURNING *`, [b.id, ...keys.map((k) => f[k])]);
       const timeChanged = +new Date(before.starts_at) !== +new Date(s.starts_at) || +new Date(before.ends_at) !== +new Date(s.ends_at) || before.venue_id !== s.venue_id;
-      if (timeChanged && s.status === 'published') {
-        const officers = await q("SELECT officer_id FROM shift_assignments WHERE shift_id = $1 AND status IN ('assigned','accepted')", [s.id]);
-        const v = await one('SELECT name FROM venues WHERE id = $1', [s.venue_id]);
-        for (const a of officers) await notifyAssigned(a, { ...s, venue_name: v.name }, 'changed');
+      const unpublished = before.status === 'published' && s.status === 'draft';
+      if (timeChanged || unpublished) {
+        // What the team was told before (old time, old venue) no longer holds
+        const team = await q("SELECT id, officer_id, shift_id FROM shift_assignments WHERE shift_id = $1 AND status IN ('assigned','accepted')", [s.id]);
+        await afterShiftChange({ stale: team.map((a) => ({ ...a, venue_name: before.venue_name, starts_at: before.starts_at })), shiftIds: [s.id], officerIds: team.map((a) => a.officer_id) });
+        if (timeChanged && s.status === 'published') {
+          const v = await one('SELECT name FROM venues WHERE id = $1', [s.venue_id]);
+          for (const a of team) await notifyAssigned(a, { ...s, venue_name: v.name }, 'changed');
+        }
       }
       await audit(user, 'shift.update', 'shift', s.id, f);
     } else {
@@ -173,7 +195,7 @@ export const actions = {
       `UPDATE shifts SET status = 'published' WHERE id = ANY($1::uuid[]) AND status = 'draft' AND ($2::uuid[] IS NULL OR venue_id = ANY($2)) RETURNING id`,
       [b.ids, scope]);
     const assigns = await q(
-      `SELECT a.officer_id, s.*, v.name AS venue_name FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id
+      `SELECT a.officer_id, a.id AS assignment_id, s.*, v.name AS venue_name FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id
         WHERE a.shift_id = ANY($1::uuid[]) AND a.status = 'assigned'`, [rows.map((r) => r.id)]);
     const byOfficer = {};
     for (const a of assigns) (byOfficer[a.officer_id] ||= []).push(a);
@@ -181,6 +203,7 @@ export const actions = {
       await notify(await officerUser(officerId), {
         kind: 'shift', title: list.length > 1 ? `${list.length} new shifts published` : 'New shift published',
         body: list.slice(0, 3).map((s) => `${s.venue_name} ${fmtDateTime(s.starts_at)}`).join(' · '), link: '/officer/shifts', email: true,
+        ref: list.length === 1 ? `asg:${list[0].assignment_id}` : null,
       });
     }
     // Let eligible officers know about new open shifts
@@ -196,10 +219,7 @@ export const actions = {
   'shifts.cancel': def(MGR, async (b, { user }) => {
     const s = await getShift(b.id);
     await assertVenue(user, s.venue_id);
-    await q("UPDATE shifts SET status = 'cancelled' WHERE id = $1", [b.id]);
-    const officers = await q("UPDATE shift_assignments SET status = 'cancelled' WHERE shift_id = $1 AND status IN ('assigned','accepted','requested') RETURNING officer_id", [b.id]);
-    for (const a of officers) await notify(await officerUser(a.officer_id), { kind: 'shift', title: 'Shift cancelled', body: `${s.venue_name} · ${fmtDateTime(s.starts_at)}`, link: '/officer/shifts', email: true, severity: 'warning' });
-    await audit(user, 'shift.cancel', 'shift', b.id, { reason: b.reason });
+    await cancelShift(s, user, b.reason);
     return { ok: true };
   }),
 
@@ -207,7 +227,9 @@ export const actions = {
     const s = await getShift(b.id);
     await assertVenue(user, s.venue_id);
     if (s.status !== 'draft') fail(400, 'Only draft shifts can be deleted — cancel it instead');
+    const team = await q('SELECT id, officer_id, shift_id FROM shift_assignments WHERE shift_id = $1', [b.id]);
     await q('DELETE FROM shifts WHERE id = $1', [b.id]);
+    await afterShiftChange({ removed: team.map((a) => ({ ...a, venue_name: s.venue_name, starts_at: s.starts_at })), shiftIds: [b.id], gone: true });
     return { ok: true };
   }),
 
@@ -253,8 +275,10 @@ export const actions = {
     if ((await filledCount(s.id)) >= s.headcount) fail(400, 'Shift is already fully staffed');
     const a = await one(
       `INSERT INTO shift_assignments (shift_id, officer_id, status) VALUES ($1,$2,'assigned')
-       ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'assigned', responded_at = NULL RETURNING *`, [s.id, b.officer_id]);
+       ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'assigned', responded_at = NULL, ${FRESH} RETURNING *`, [s.id, b.officer_id]);
+    await q('DELETE FROM pack_reminders WHERE assignment_id = $1', [a.id]);
     if (s.status === 'published') { await notifyAssigned(a, s); await remindPack(a.id); }
+    await afterShiftChange({ shiftIds: [s.id], officerIds: [b.officer_id] });
     await audit(user, 'shift.assign', 'shift', s.id, { officer: b.officer_id, override: check.warnings, ...(b.officer_id === user.self_officer_id ? { self: true } : {}) });
     return a;
   }),
@@ -264,6 +288,7 @@ export const actions = {
     await assertVenue(user, a.venue_id);
     if (await one('SELECT 1 FROM clock_events WHERE assignment_id = $1', [a.id])) fail(400, 'Officer has already clocked in on this shift');
     await q("UPDATE shift_assignments SET status = 'cancelled' WHERE id = $1", [b.id]);
+    await afterShiftChange({ removed: [a], shiftIds: [a.shift_id] });
     if (a.shift_status === 'published') await notify(await officerUser(a.officer_id), { kind: 'shift', title: 'Removed from shift', body: `${a.venue_name} · ${fmtDateTime(a.starts_at)}`, link: '/officer/shifts', email: true, severity: 'warning' });
     await audit(user, 'shift.unassign', 'shift', a.shift_id, { officer: a.officer_id });
     return { ok: true };
@@ -289,8 +314,10 @@ export const actions = {
       await t.q("UPDATE shift_assignments SET status = 'cancelled', is_lead = false WHERE id = $1", [old.id]);
       return t.one(
         `INSERT INTO shift_assignments (shift_id, officer_id, status, is_lead) VALUES ($1,$2,'assigned',$3)
-         ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'assigned', responded_at = NULL, is_lead = $3 RETURNING *`, [s.id, b.officer_id, old.is_lead]);
+         ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'assigned', responded_at = NULL, is_lead = $3, ${FRESH} RETURNING *`, [s.id, b.officer_id, old.is_lead]);
     });
+    await q('DELETE FROM pack_reminders WHERE assignment_id = $1', [a.id]);
+    await afterShiftChange({ removed: [{ ...old, venue_name: s.venue_name, starts_at: s.starts_at }], shiftIds: [s.id], officerIds: [b.officer_id] });
     if (s.status === 'published') {
       await notify(await officerUser(old.officer_id), { kind: 'shift', title: 'Removed from shift', body: `${s.venue_name} · ${fmtDateTime(s.starts_at)}`, link: '/officer/shifts', email: true, severity: 'warning' });
       await notifyAssigned(a, s);
@@ -306,6 +333,8 @@ export const actions = {
     const a = need(await one("SELECT * FROM shift_assignments WHERE id = $1 AND status = 'requested'", [b.id]), 'Request not found');
     const s = await getShift(a.shift_id);
     await assertVenue(user, s.venue_id);
+    // The request is dealt with, so the managers' notice about it goes
+    await q('DELETE FROM notifications WHERE ref = $1', [`req:${a.id}`]);
     if (b.approve) {
       const check = await checkOfficerForShift(a.officer_id, s, { ignoreAssignment: a.id });
       if (check.blocking.length) fail(422, check.blocking.join('; '), check);
@@ -313,6 +342,7 @@ export const actions = {
       await q("UPDATE shift_assignments SET status = 'accepted', responded_at = now() WHERE id = $1", [a.id]);
       await notifyAssigned(a, s, 'approved');
       await remindPack(a.id);
+      await afterShiftChange({ shiftIds: [s.id], officerIds: [a.officer_id] });
     } else {
       await q("UPDATE shift_assignments SET status = 'rejected' WHERE id = $1", [a.id]);
       await notify(await officerUser(a.officer_id), { kind: 'shift', title: 'Shift request not approved', body: `${s.venue_name} · ${fmtDateTime(s.starts_at)}`, link: '/officer/shifts' });
@@ -360,10 +390,11 @@ export const actions = {
     if (!s.open || s.status !== 'published') fail(400, 'Shift is not open');
     const check = await checkOfficerForShift(user.officer_id, s);
     if (check.blocking.length) fail(422, check.blocking.join('; '));
-    await q(
+    const a = await one(
       `INSERT INTO shift_assignments (shift_id, officer_id, status) VALUES ($1,$2,'requested')
-       ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'requested' WHERE shift_assignments.status IN ('declined','cancelled')`, [s.id, user.officer_id]);
-    await notify(await managersFor(s.venue_id), { kind: 'open_shift', title: 'Open shift requested', body: `${user.name} · ${s.venue_name} ${fmtDateTime(s.starts_at)}`, link: '/company/rota?tab=requests' });
+       ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'requested', ${FRESH} WHERE shift_assignments.status IN ('declined','cancelled') RETURNING id`, [s.id, user.officer_id]);
+    if (a) await q('DELETE FROM pack_reminders WHERE assignment_id = $1', [a.id]);
+    await notify(await managersFor(s.venue_id), { kind: 'open_shift', title: 'Open shift requested', body: `${user.name} · ${s.venue_name} ${fmtDateTime(s.starts_at)}`, link: '/company/rota?tab=requests', ref: a ? `req:${a.id}` : null });
     return { ok: true };
   }),
 
@@ -377,6 +408,7 @@ export const actions = {
     const status = b.accept ? 'accepted' : a.status === 'requested' ? 'cancelled' : 'declined';
     await q('UPDATE shift_assignments SET status = $2, responded_at = now() WHERE id = $1', [a.id, status]);
     if (!b.accept) {
+      await afterShiftChange({ removed: [a], shiftIds: [a.shift_id] });
       await notify(await managersFor(a.venue_id), {
         kind: 'shift', title: 'Shift declined', body: `${user.name} can't work ${a.venue_name} · ${fmtDateTime(a.starts_at)}${b.reason ? ` — ${b.reason}` : ''}`,
         link: '/company/rota', severity: 'warning', email: new Date(a.starts_at) - Date.now() < 48 * 3600000,

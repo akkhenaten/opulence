@@ -909,7 +909,7 @@ export function OffboardingTab({ o, reload }) {
   );
 }
 
-/* ---------------- Attendance (Ops AI) ---------------- */
+/* ---------------- Attendance (Orb) ---------------- */
 
 const ATT_KIND = { late: ['Late', 'amber'], no_show: ['No show', 'red'], left_early: ['Left early', 'amber'], cant_make_it: ["Couldn't make it", 'grey'] };
 const sumCounts = (c) => Object.values(c || {}).reduce((a, n) => a + n, 0);
@@ -950,7 +950,7 @@ export function AttendanceTab({ o, onForbidden }) {
                   </div>
                 );
               })}</List>
-            ) : <Empty icon={Clock} title="No lates or absences" body="Ops AI records lates, no-shows and early finishes here automatically." />}
+            ) : <Empty icon={Clock} title="No lates or absences" body="Orb records lates, no-shows and early finishes here automatically." />}
           </Section>
 
           <Section title="Venue ratings">

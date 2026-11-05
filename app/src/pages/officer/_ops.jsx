@@ -1,4 +1,4 @@
-// Ops AI on the officer app: the "you haven't clocked in" reply banner and cover offers
+// Orb on the officer app: the "you haven't clocked in" reply banner and cover offers
 import { useState } from 'react';
 import { AlarmClock, Check, Megaphone, X } from 'lucide-react';
 import { api } from '../../api.js';

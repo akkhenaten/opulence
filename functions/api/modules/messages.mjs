@@ -1,5 +1,5 @@
 // Messages: direct and group chats for everyone, plus threads the system opens
-// (cover requests, shift teams, Orb Ops for chases and cover offers, pay disputes).
+// (cover requests, shift teams, Orb for chases and cover offers, pay disputes).
 import { one, q } from '../lib/db.mjs';
 import { fail, required, need, HttpError } from '../lib/http.mjs';
 import { downloadUrl } from '../lib/storage.mjs';
@@ -17,7 +17,7 @@ import { ALL, def } from './_def.mjs';
 const PAGE = 40;
 const EDIT_MINUTES = 15;
 const PHOTO = 'COALESCE((SELECT o.photo_key FROM officers o WHERE o.user_id = u.id LIMIT 1), u.photo_key)';
-const KIND_LABEL = { cover: 'Cover request', shift: 'Shift team', ops: 'Orb Ops', pay: 'Pay query', group: 'Group' };
+const KIND_LABEL = { cover: 'Cover request', shift: 'Shift team', ops: 'Orb', pay: 'Pay query', group: 'Group' };
 
 const sign = async (p) => ({ ...p, photo_key: undefined, photo_url: p.photo_key ? await downloadUrl(p.photo_key) : null });
 
@@ -160,7 +160,7 @@ async function members(convId) {
   return Promise.all(rows.map(sign));
 }
 
-// ---------- Orb Ops: understanding typed replies ----------
+// ---------- Orb: understanding typed replies ----------
 const REPLY_TOOL = {
   name: 'read_reply',
   description: "Classify a staff member's reply to an automated question from the security company.",
@@ -463,7 +463,7 @@ export const actions = {
       if (!REACTION_KINDS.includes(b.kind)) fail(400, 'Unknown reaction');
       await q(`INSERT INTO message_reactions (message_id, user_id, kind) VALUES ($1,$2,$3)
         ON CONFLICT (message_id, user_id) DO UPDATE SET kind = EXCLUDED.kind, created_at = now()`, [msg.id, user.id, b.kind]);
-      // One notice per message per day, never in a chat the author muted, never to Orb Ops
+      // One notice per message per day, never in a chat the author muted, never to Orb
       const author = await one(
         `SELECT cm.muted, u.system FROM conversation_members cm JOIN users u ON u.id = cm.user_id
           WHERE cm.conversation_id = $1 AND cm.user_id = $2 AND cm.left_at IS NULL`, [c.id, msg.sender_id]);
@@ -586,6 +586,6 @@ export const actions = {
   // Realtime: a short-lived token that can only read the person's own channel
   'messages.realtime': def(ALL, async (_b, { user }) => ({ token: await realtimeToken(user).catch((e) => { console.warn('[realtime]', e.message); return null; }) })),
 
-  // For people who are not in Orb Ops conversations (e.g. venue staff), confirm the system user exists
+  // For people who are not in Orb conversations (e.g. venue staff), confirm the system user exists
   'messages.opsId': def(ALL, async () => ({ id: await opsUser() })),
 };

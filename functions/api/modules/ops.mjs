@@ -1,9 +1,9 @@
-// Ops AI — the in-app operations manager. The AI prepares, a manager taps Approve.
+// Orb — the in-app operations manager. The AI prepares, a manager taps Approve.
 // Reminders to officers and feedback prompts to venues go out without approval.
 import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, need, pick } from '../lib/http.mjs';
 import { venueScope, assertVenue, assertOfficerAccess } from '../lib/scope.mjs';
-import { notify, companyManagers, securityFor, venueContacts, officerUser, managersFor } from '../lib/notify.mjs';
+import { notify, withdraw, companyManagers, securityFor, venueContacts, officerUser, managersFor } from '../lib/notify.mjs';
 import { fmtDate, fmtTime, fmtDateTime, londonDate, londonParts, addDays } from '../lib/time.mjs';
 import { roundHours, money } from '../lib/rates.mjs';
 import { audit } from '../lib/audit.mjs';
@@ -14,6 +14,7 @@ import { recalcStatement, recalcInvoice } from './money.mjs';
 import { ALL, MGR, CO, def } from './_def.mjs';
 import { runCompliance, readDocuments, decideCompliance, computeIssues, sendDigest } from './compliance.mjs';
 import { evidenceScan } from './incidentAi.mjs';
+import { afterShiftChange, FRESH } from './shiftSync.mjs';
 import { opsMessage, closeQuick, ensureThread, post, opsUser, syncMembers } from '../lib/threads.mjs';
 import { statusesFor, pairKey, packDue, OK } from '../lib/venuePack.mjs';
 
@@ -39,7 +40,7 @@ export async function createItem({ kind, title, reason = '', payload = {}, dedup
     `INSERT INTO ops_items (kind, title, reason, payload, dedupe, venue_id, shift_id, officer_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
      ON CONFLICT (dedupe) DO NOTHING RETURNING *`, [kind, title, reason, payload, dedupe, venue_id, shift_id, officer_id]);
   if (!item) return null;
-  await notifyManagers(venue_id, { kind: 'ops', severity, title: `Ops AI: ${title}`, body: reason.slice(0, 200), link: 'live', dedupe: `ops:${item.id}` });
+  await notifyManagers(venue_id, { kind: 'ops', severity, title: `Orb: ${title}`, body: reason.slice(0, 200), link: 'live', dedupe: `ops:${item.id}`, ref: `ops:${item.id}` });
   await logActivity('item', `Prepared for approval: ${title}`, { ref_type: 'ops_item', ref_id: item.id, venue_id });
   return item;
 }
@@ -141,9 +142,51 @@ export async function proposeCover(shift, cause, { batch = 1, exclude = [], repl
   });
 }
 
+/** Why a pending cover card no longer applies, or null while the cover is still needed. */
+export function coverStale({ shiftStatus, ended = false, filled, headcount, replacing = null, replacingActive = false }) {
+  if (shiftStatus !== 'published') return 'cancelled';
+  if (ended) return 'over';
+  // A no-show still counts as filled until they are stood down, so their card stays
+  if (filled >= headcount && !(replacing && replacingActive)) return 'filled';
+  return null;
+}
+
+const STALE_TEXT = { cancelled: 'Shift cancelled', over: 'Shift is over', filled: 'Shift already filled' };
+
+async function staleReason(it) {
+  const sh = await one('SELECT * FROM shifts WHERE id = $1', [it.shift_id]);
+  if (!sh) return 'cancelled';
+  const rep = it.payload?.replacing;
+  return coverStale({
+    shiftStatus: sh.status, ended: new Date(sh.ends_at) < new Date(), filled: await filledCount(sh.id), headcount: sh.headcount, replacing: rep,
+    replacingActive: !!(rep && (await one(`SELECT 1 FROM shift_assignments WHERE id = $1 AND status IN ${ACTIVE}`, [rep]))),
+  });
+}
+
+/** Close a card and take its alert out of the bell. */
+export async function closeItem(id, status = 'done', result = null) {
+  await q('UPDATE ops_items SET status = $2, decided_at = COALESCE(decided_at, now()), result = COALESCE($3, result) WHERE id = $1', [id, status, result]);
+  await withdraw({ items: [id] });
+}
+
+/** Pending cover cards whose shift was filled, cancelled or is over close by themselves. shiftIds null = all of them. */
+export async function tidyCover(shiftIds = null) {
+  if (Array.isArray(shiftIds) && !shiftIds.length) return 0;
+  const items = await q("SELECT * FROM ops_items WHERE kind = 'cover' AND status = 'pending' AND ($1::uuid[] IS NULL OR shift_id = ANY($1))", [shiftIds]);
+  let n = 0;
+  for (const it of items) {
+    const why = await staleReason(it);
+    if (!why) continue;
+    await closeItem(it.id, 'done', { auto_closed: true, reason: STALE_TEXT[why] });
+    await logActivity('item', `Closed by itself (${STALE_TEXT[why].toLowerCase()}): ${it.title}`, { ref_type: 'ops_item', ref_id: it.id, venue_id: it.venue_id });
+    n++;
+  }
+  return n;
+}
+
 async function nextBatch(item) {
   await q("UPDATE cover_offers SET status = 'expired', responded_at = now() WHERE item_id = $1 AND status = 'offered'", [item.id]);
-  await q("UPDATE ops_items SET status = 'expired' WHERE id = $1", [item.id]);
+  await closeItem(item.id, 'expired');
   const offered = (await q('SELECT officer_id FROM cover_offers WHERE shift_id = $1', [item.shift_id])).map((r) => r.officer_id);
   const sh = await getShift(item.shift_id);
   if (sh.status !== 'published' || new Date(sh.ends_at) < new Date()) return null;
@@ -277,12 +320,15 @@ async function escalate(a, s) {
   const sh = await getShift(a.shift_id);
   const name = `${a.first_name} ${a.last_name}`;
   const why = a.reply === 'cant_make_it' ? `says they can't make it${a.reply_reason ? `: "${a.reply_reason}"` : ''}` : a.reply === 'on_my_way' ? `said on my way (${a.reply_eta_min} min) but still not clocked in` : 'has not replied or clocked in';
-  if (a.reply === 'cant_make_it') await q("UPDATE shift_assignments SET status = 'cancelled' WHERE id = $1", [a.id]);
+  if (a.reply === 'cant_make_it') {
+    await q("UPDATE shift_assignments SET status = 'cancelled' WHERE id = $1", [a.id]);
+    await afterShiftChange({ removed: [{ id: a.id, officer_id: a.officer_id, shift_id: a.shift_id }] });
+  }
   else {
     const [uid] = await officerUser(a.officer_id);
     await opsMessage(uid, `We still haven't seen you clock in at ${sh.venue_name}, so the office is lining up cover. If you're on your way, tell us now.`);
   }
-  await notifyManagers(sh.venue_id, { kind: 'late', severity: 'critical', title: `${name} ${a.reply === 'cant_make_it' ? "can't make it" : 'is a no-show'}`, body: `${sh.venue_name} · ${when(sh)}. ${name} ${why}. Cover options are in Live operations.`, link: 'live', dedupe: `esc:${a.id}`, email: true });
+  await notifyManagers(sh.venue_id, { kind: 'late', severity: 'critical', title: `${name} ${a.reply === 'cant_make_it' ? "can't make it" : 'is a no-show'}`, body: `${sh.venue_name} · ${when(sh)}. ${name} ${why}. Cover options are in Live operations.`, link: 'live', dedupe: `esc:${a.id}`, ref: `asg:${a.id}`, email: true });
   await logActivity('escalate', `Escalated ${name} at ${sh.venue_name} (${fmtTime(sh.starts_at)}) — ${why}`, { ref_type: 'assignment', ref_id: a.id, venue_id: sh.venue_id });
   if (jobOn(s, 'cover')) await proposeCover(sh, a.reply === 'cant_make_it' ? 'cant_make_it' : 'no-show', { replacing: a.reply === 'cant_make_it' ? null : a.id });
 }
@@ -337,7 +383,7 @@ async function packCheck(s) {
       await notifyManagers(a.venue_id, {
         kind: 'late', severity: 'warning', title: `${name} can't clock in: site pack not signed`,
         body: `${name} hasn't signed the ${a.venue_name} site pack and can't clock in – shift started ${fmtTime(a.starts_at)}.${signing}`,
-        link: 'live', dedupe: `pack-esc:${a.id}`, email: true,
+        link: 'live', dedupe: `pack-esc:${a.id}`, ref: `asg:${a.id}`, email: true,
       });
       await logActivity('pack', `Told managers ${name} still hasn't signed the ${a.venue_name} site pack (shift started ${fmtTime(a.starts_at)})`, ref);
       steps++;
@@ -381,6 +427,7 @@ async function packSettle() {
     if (pending.length) {
       await q("UPDATE ops_items SET status = 'done', decided_at = now(), result = $2, reason = reason || $3 WHERE id = ANY($1::uuid[])",
         [pending.map((i) => i.id), { closed: note }, ` ${note}.`]);
+      await withdraw({ items: pending.map((i) => i.id) });
     }
     const stoodDown = a.status === 'cancelled' && items.some((i) => i.status !== 'pending' && i.status !== 'rejected' && i.decided_at);
     if (!stoodDown) {
@@ -396,7 +443,7 @@ async function packSettle() {
       const who = taken.map(firstLast).join(', ') || 'a replacement';
       await notifyManagers(a.venue_id, {
         kind: 'ops', severity: 'warning', title: `${name} has signed, but ${who} is covering`,
-        body: `${a.venue_name} · ${when(a)}. Both officers can now work. Decide who stays on the rota.`, link: 'rota', dedupe: `pack-both:${a.id}`, email: true,
+        body: `${a.venue_name} · ${when(a)}. Both officers can now work. Decide who stays on the rota.`, link: 'rota', dedupe: `pack-both:${a.id}`, ref: `asg:${a.id}`, email: true,
       });
       await opsMessage(uid, `Thanks for signing the ${a.venue_name} site pack. Someone else has already taken this shift, so the office will confirm whether you're still needed.`);
       await logActivity('pack', `${note} after ${who} took the cover — managers asked to decide`, ref);
@@ -415,7 +462,7 @@ async function packSettle() {
     await opsMessage(uid, `Thanks for signing the ${a.venue_name} site pack. You're back on ${when(a)}. Clock in now.`);
     await notifyManagers(a.venue_id, {
       kind: 'ops', title: `${name} has signed and keeps the shift`, body: `${a.venue_name} · ${when(a)}. Cover offers were withdrawn${withdrawn.length ? ` (${withdrawn.length})` : ''}.`,
-      link: 'live', dedupe: `pack-back:${a.id}`,
+      link: 'live', dedupe: `pack-back:${a.id}`, ref: `asg:${a.id}`,
     });
     await logActivity('pack', `${note}; no one had taken the cover, so offers were withdrawn and ${name} keeps the shift`, ref);
   }
@@ -434,8 +481,9 @@ export async function packReply(b, user) {
   const name = firstLast(a);
   if (b.reply === 'cant_make_it') {
     // The pack's cover card, if any, gives way to the can't-make-it one
-    await q("UPDATE ops_items SET status = 'expired', result = $2 WHERE kind = 'cover' AND status = 'pending' AND payload->>'replacing' = $1::text",
+    const gone = await q("UPDATE ops_items SET status = 'expired', result = $2 WHERE kind = 'cover' AND status = 'pending' AND payload->>'replacing' = $1::text RETURNING id",
       [a.id, { closed: `${name} said they can't make it` }]);
+    await withdraw({ items: gone.map((i) => i.id) });
     return officerReply({ assignment_id: a.id, reply: 'cant_make_it', reason: b.reason }, user);
   }
   await q('UPDATE shift_assignments SET pack_signing_at = COALESCE(pack_signing_at, now()) WHERE id = $1', [a.id]);
@@ -494,6 +542,9 @@ const JOBS = {
     return n;
   },
 
+  // Cover cards for shifts that were sorted out on the rota close by themselves
+  coverTidy: () => tidyCover(),
+
   async offerExpiry(s) {
     if (!jobOn(s, 'cover')) return 'off';
     const items = await q(
@@ -506,7 +557,7 @@ const JOBS = {
       const sh = await getShift(it.shift_id);
       const short = sh.headcount - (await filledCount(sh.id));
       if (short <= 0 || sh.status !== 'published' || new Date(sh.ends_at) < new Date()) {
-        await q("UPDATE ops_items SET status = 'done' WHERE id = $1", [it.id]);
+        await closeItem(it.id);
         await q("UPDATE cover_offers SET status = 'expired', responded_at = now() WHERE item_id = $1 AND status = 'offered'", [it.id]);
         continue;
       }
@@ -609,12 +660,18 @@ async function scopedItem(user, id) {
 
 async function decideCover(it, b, user) {
   const sh = await getShift(it.shift_id);
-  if (sh.status !== 'published') fail(400, 'Shift is no longer published');
+  // Fixed on the rota since the card was made: nothing to send
+  const why = await staleReason(it);
+  if (why) {
+    await closeItem(it.id, 'done', { auto_closed: true, reason: STALE_TEXT[why] });
+    fail(409, `${STALE_TEXT[why]}, so no offers were sent. The card has been closed.`);
+  }
   const ids = (b.edits?.officer_ids || it.payload.officer_ids || []).slice(0, 10);
   if (!ids.length) fail(400, 'Pick at least one officer to offer the shift to');
   if (it.payload.replacing) {
-    const r = await one(`UPDATE shift_assignments a SET status = 'cancelled' WHERE a.id = $1 AND a.status IN ${ACTIVE} AND ${NO_CLOCK_IN} RETURNING officer_id`, [it.payload.replacing]);
+    const r = await one(`UPDATE shift_assignments a SET status = 'cancelled' WHERE a.id = $1 AND a.status IN ${ACTIVE} AND ${NO_CLOCK_IN} RETURNING id, officer_id, shift_id`, [it.payload.replacing]);
     if (r) {
+      await afterShiftChange({ removed: [r] });
       const [uid] = await officerUser(r.officer_id);
       await closeQuick(uid, { ref: `chase:${it.payload.replacing}`, used: 'stood_down' });
       await closeQuick(uid, { ref: `pack:${it.payload.replacing}`, used: 'stood_down' });
@@ -681,7 +738,7 @@ async function decideReconcile(it, b, user) {
   await tx(async (t) => {
     if (p.fix.timesheet_hours != null) {
       await t.q(`UPDATE timesheets SET hours = $2, flags = array_append(array_remove(flags, 'edited'), 'edited'), resolution = $3, updated_at = now() WHERE id = $1`,
-        [p.timesheet_id, p.fix.timesheet_hours, 'Ops AI reconcile: matched to clocked hours']);
+        [p.timesheet_id, p.fix.timesheet_hours, 'Orb reconcile: matched to clocked hours']);
     }
     if (p.fix.statement_hours != null && p.stmt_line_id) {
       const l = need(await t.one("SELECT l.*, s.status FROM statement_lines l JOIN statements s ON s.id = l.statement_id WHERE l.id = $1", [p.stmt_line_id]));
@@ -725,7 +782,7 @@ export const CHAT_TOOLS = [
   { name: 'list_venues', description: 'Venues this manager looks after.', input_schema: { type: 'object', properties: {} } },
   { name: 'compliance_status', description: 'Live staff compliance issues: SIA licence and right-to-work expiry against the rota, licence type vs role, missing or mismatched documents. With from/to, only issues putting shifts in that range at risk.',
     input_schema: { type: 'object', properties: { officer: { type: 'string', description: 'Name (partial ok)' }, from: { type: 'string', description: 'YYYY-MM-DD' }, to: { type: 'string', description: 'YYYY-MM-DD inclusive' } } } },
-  { name: 'propose_change', description: 'Prepare a change for the manager to approve in the Ops AI inbox. Never changes anything by itself. kind=cover: offer a shift to officers. kind=rota: add, change or cancel shifts.',
+  { name: 'propose_change', description: 'Prepare a change for the manager to approve in the Orb inbox. Never changes anything by itself. kind=cover: offer a shift to officers. kind=rota: add, change or cancel shifts.',
     input_schema: { type: 'object', properties: {
       kind: { type: 'string', enum: ['cover', 'rota'] }, shift_id: { type: 'string', description: 'cover, or rota change/cancel' },
       officer_ids: { type: 'array', items: { type: 'string' }, description: 'cover: officers to offer first' },
@@ -811,7 +868,7 @@ export async function runTool(name, input, user, created) {
         const it = await proposeCover(sh, 'manager', { batch: (prev?.b || 0) + 1, prefer: input.officer_ids || [] });
         if (!it) return { error: 'That shift is already fully staffed.' };
         created.push(it.id);
-        return { created: 'cover card in the Ops AI inbox', item_id: it.id, offering: it.payload.officer_ids.map((id) => it.payload.candidates.find((c) => c.officer_id === id)?.name).filter(Boolean) };
+        return { created: 'cover card in the Orb inbox', item_id: it.id, offering: it.payload.officer_ids.map((id) => it.payload.candidates.find((c) => c.officer_id === id)?.name).filter(Boolean) };
       }
       let venue;
       if (input.shift_id) { const sh = await getShift(input.shift_id); venue = { id: sh.venue_id, name: sh.venue_name }; } else venue = await findVenue(user, input.venue || '');
@@ -823,7 +880,7 @@ export async function runTool(name, input, user, created) {
       const it = await createItem({ kind: 'venue_request', venue_id: venue.id, title: `Rota ${input.intent} · ${venue.name}`, reason: input.note || `Prepared in chat by ${user.name}`,
         payload: { intent: input.intent, shifts: v.shifts, from_manager: user.name, text: input.note || '' }, dedupe: `chat:${user.id}:${Date.now()}` });
       created.push(it.id);
-      return { created: 'rota card in the Ops AI inbox', item_id: it.id };
+      return { created: 'rota card in the Orb inbox', item_id: it.id };
     }
     default:
       return { error: 'Unknown tool' };
@@ -865,7 +922,7 @@ export async function officerReply(b, user) {
     await q("INSERT INTO attendance_events (officer_id, assignment_id, kind, reason, notified) VALUES ($1,$2,'cant_make_it',$3,true) ON CONFLICT DO NOTHING", [a.officer_id, a.id, reason]);
     await escalate({ ...a, reply: 'cant_make_it', reply_reason: reason }, await getSettings());
   } else {
-    await notifyManagers(sh.venue_id, { kind: 'late', title: `${name}: on my way (${eta} min)`, body: `${sh.venue_name} · started ${fmtTime(sh.starts_at)}`, link: 'live', dedupe: `omw:${a.id}` });
+    await notifyManagers(sh.venue_id, { kind: 'late', title: `${name}: on my way (${eta} min)`, body: `${sh.venue_name} · started ${fmtTime(sh.starts_at)}`, link: 'live', dedupe: `omw:${a.id}`, ref: `asg:${a.id}` });
     await logActivity('reply', `${name} replied "on my way, ${eta} min" for ${sh.venue_name}`, { ref_type: 'assignment', ref_id: a.id, venue_id: sh.venue_id });
   }
   return { ok: true };
@@ -897,8 +954,9 @@ export async function offerRespond(b, user) {
       await t.q("UPDATE cover_offers SET status = 'filled_by_other', responded_at = now() WHERE id = $1", [offer.id]);
       return 'already';
     }
-    await t.q(`INSERT INTO shift_assignments (shift_id, officer_id, status, responded_at) VALUES ($1,$2,'accepted',now())
-               ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'accepted', responded_at = now()`, [s.id, offer.officer_id]);
+    const a = await t.one(`INSERT INTO shift_assignments (shift_id, officer_id, status, responded_at) VALUES ($1,$2,'accepted',now())
+               ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'accepted', responded_at = now(), ${FRESH} RETURNING id`, [s.id, offer.officer_id]);
+    await t.q('DELETE FROM pack_reminders WHERE assignment_id = $1', [a.id]);
     await t.q("UPDATE cover_offers SET status = 'accepted', responded_at = now() WHERE id = $1", [offer.id]);
     return filled + 1 >= s.headcount;
   });
@@ -910,8 +968,10 @@ export async function offerRespond(b, user) {
       await closeQuick(uid, { ref: `offer:${x.id}`, used: 'filled' });
       await opsMessage(uid, `The cover shift at ${sh.venue_name} (${when(sh)}) has been taken. Thanks for looking.`);
     }
-    await q("UPDATE ops_items SET status = 'done' WHERE kind = 'cover' AND shift_id = $1 AND status IN ('pending','approved')", [sh.id]);
+    const done = await q("UPDATE ops_items SET status = 'done' WHERE kind = 'cover' AND shift_id = $1 AND status IN ('pending','approved') RETURNING id", [sh.id]);
+    await withdraw({ items: done.map((i) => i.id) });
   }
+  await afterShiftChange({ officerIds: [offer.officer_id] });
   await opsMessage(user.id, `It's yours: ${sh.venue_name} · ${when(sh)}. It is now on your rota.`);
   await coverFilledThreads(sh, firstLast(o));
   await notifyManagers(sh.venue_id, { kind: 'ops', title: `${firstLast(o)} took the cover shift`, body: `${sh.venue_name} · ${when(sh)}`, link: 'rota', dedupe: `took:${offer.id}` });
@@ -968,6 +1028,7 @@ export const actions = {
     } else fail(400, 'decision must be approve or reject');
     const status = b.decision === 'reject' ? 'rejected' : it.kind === 'cover' ? 'approved' : 'done';
     await q('UPDATE ops_items SET status = $2, decided_by = $3, decided_at = now(), result = $4 WHERE id = $1', [it.id, status, user.id, result]);
+    await withdraw({ items: [it.id] });
     await audit(user, `ops.${b.decision}`, 'ops_item', it.id, { kind: it.kind, edits: b.edits, result });
     await logActivity('decision', `${user.name} ${b.decision === 'reject' ? 'rejected' : 'approved'}: ${it.title}`, { ref_type: 'ops_item', ref_id: it.id, venue_id: it.venue_id });
     return { ok: true, status, result };
@@ -976,11 +1037,11 @@ export const actions = {
   'ops.chat': def(MGR, async (b, { user }) => {
     required(b, 'messages');
     const s = await getSettings();
-    if (!jobOn(s, 'chat')) fail(400, 'Ops AI chat is switched off in Settings');
+    if (!jobOn(s, 'chat')) fail(400, 'Orb chat is switched off in Settings');
     const now = new Date();
-    const system = `You are Ops AI, the operations manager assistant inside Orb Security, a UK manned-security company. You help ${user.name} (${user.role === 'company' ? 'company manager' : 'security manager'}) run rotas, cover, attendance and hours.
+    const system = `You are Orb, the operations manager assistant inside Orb Security, a UK manned-security company. You help ${user.name} (${user.role === 'company' ? 'company manager' : 'security manager'}) run rotas, cover, attendance and hours.
 Today is ${londonParts(now).weekday} ${londonDate(now)}, time ${fmtTime(now)} Europe/London. Weeks run Monday to Sunday.
-Rules: use the tools to look things up — never guess figures. For licences, right to work or "who can work" questions use compliance_status; compliance fixes are approved on the compliance cards in the Ops AI inbox. You can NEVER change anything yourself: to make a change, call propose_change, which puts a card in the Ops AI inbox for the manager to approve, and say so.
+Rules: use the tools to look things up — never guess figures. For licences, right to work or "who can work" questions use compliance_status; compliance fixes are approved on the compliance cards in the Orb inbox. You can NEVER change anything yourself: to make a change, call propose_change, which puts a card in the Orb inbox for the manager to approve, and say so.
 Answer in short, plain British business English. Use the officers' and venues' names, dates like "Sat 24 Oct" and 24-hour times. No markdown tables; short lists are fine.`;
     const messages = b.messages.slice(-20).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 4000) })).filter((m) => m.content);
     if (!messages.length || messages[messages.length - 1].role !== 'user') fail(400, 'Send a question');
@@ -1012,7 +1073,7 @@ Answer in short, plain British business English. Use the officers' and venues' n
     return { reply: 'That needed too many steps — try a narrower question.', items: created, credits };
   }),
 
-  // Live operations → refresh: every Ops AI check now (not reminders or invoices), then what it found
+  // Live operations → refresh: every Orb check now (not reminders or invoices), then what it found
   'ops.refresh': def(MGR, async (_b, { user }) => tx(async ({ one: o }) => {
     const lock = await o("SELECT pg_try_advisory_xact_lock(hashtext('ops.refresh')) AS ok");
     if (!lock.ok) return { busy: true };

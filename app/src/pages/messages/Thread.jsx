@@ -543,7 +543,7 @@ function ConfirmSheet({ m, onClose }) {
   );
 }
 
-// Buttons under an Orb Ops question ("On my way" / "Can't make it", "Accept" / "Decline"), plus an optional link ("Sign site pack")
+// Buttons under an Orb question ("On my way" / "Can't make it", "Accept" / "Decline"), plus an optional link ("Sign site pack")
 function QuickReplies({ m, onDone }) {
   const [run, busy] = useAction();
   const [picked, setPicked] = useState(null);
@@ -756,7 +756,7 @@ function SendBox({ conv, members, me, replyTo, onClearReply, onSent }) {
       <Composer value={text} onChange={change} onSend={send} busy={busy || uploading} ready={files.length > 0} inputRef={input} above={above}
         onSelect={(e) => setCaret(e.target.selectionStart)}
         onKeyDown={(e) => { if (choices.length && (e.key === 'Enter' || e.key === 'Tab')) { e.preventDefault(); pick(choices[0]); } }}
-        placeholder={conv.kind === 'ops' ? 'Reply to Orb Ops…' : 'Message'}
+        placeholder={conv.kind === 'ops' ? 'Reply to Orb…' : 'Message'}
         right={rec.supported && conv.kind !== 'ops'
           ? <IconButton icon={Mic} label="Hold to record a voice message" tone="primary" className="!h-11 !w-11 touch-none select-none" onPointerDown={rec.press} onContextMenu={(e) => e.preventDefault()} />
           : null}

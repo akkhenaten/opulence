@@ -18,7 +18,7 @@ const ITEM_STATUS = { approved: 'Offers sent', done: 'Done', rejected: 'Rejected
 
 /* ---------- Inbox ---------- */
 
-/** Ops AI cards to approve. compact = one column, for the panel beside the Live board. */
+/** Orb cards to approve. compact = one column, for the panel beside the Live board. */
 export function Inbox({ onChange, compact, reloadKey }) {
   const [view, setView] = useState('pending');
   const q = useApi('ops.inbox', { status: view }, { poll: 30000 });
@@ -32,7 +32,7 @@ export function Inbox({ onChange, compact, reloadKey }) {
         <div className={compact ? 'space-y-3' : 'grid grid-cols-1 gap-3 lg:grid-cols-2'}>{items.map((it) => <ItemCard key={it.id} it={it} onDone={reload} />)}</div>
       ) : (
         <Empty icon={Sparkles} title={view === 'pending' ? 'All clear' : 'Nothing decided yet'}
-          body={view === 'pending' ? 'Ops AI checks every 5 minutes for no-shows, gaps on the rota, venue requests, feedback and hours that don\'t match.' : undefined} />
+          body={view === 'pending' ? 'Orb checks every 5 minutes for no-shows, gaps on the rota, venue requests, feedback and hours that don\'t match.' : undefined} />
       ))}</Load>
     </>
   );
@@ -55,7 +55,10 @@ function ItemCard({ it, onDone }) {
     await api('ops.decide', { id: it.id, decision, ...extra });
     setEdit(false); setRejecting(false);
     onDone();
-  }, decision === 'approve' ? 'Approved' : 'Rejected');
+  }, decision === 'approve' ? 'Approved' : 'Rejected').catch((e) => {
+    // 409: the card no longer applies (the shift was filled or cancelled) and Orb has closed it
+    if (e.status === 409) { window.dispatchEvent(new Event('orb:ops')); onDone(); }
+  });
 
   const approve = async () => {
     if (it.kind === 'feedback') {
@@ -294,7 +297,7 @@ export function Activity() {
           ))}
         </ul>
       </Tile>
-    ) : <Empty icon={ClipboardList} title="No activity yet" body="Everything Ops AI does is logged here." />)}</Load>
+    ) : <Empty icon={ClipboardList} title="No activity yet" body="Everything Orb does is logged here." />)}</Load>
   );
 }
 
@@ -307,7 +310,7 @@ const JOBS = [
   { k: 'feedback', label: 'Ask venues for feedback', hint: 'After each shift, with one reminder' },
   { k: 'venue_requests', label: 'Venue request chat', hint: 'Venues ask for staff in plain words' },
   { k: 'reconcile', label: 'Check hours against pay and invoices', hint: 'Weekly, and after each pay run or invoice run' },
-  { k: 'chat', label: 'Ask Ops AI chat', hint: 'For managers' },
+  { k: 'chat', label: 'Orb chat for managers', hint: 'For managers' },
   { k: 'orb_voice', label: 'Talk to Orb', hint: 'Managers can dictate or talk to Orb by voice' },
   { k: 'compliance', label: 'Compliance checks', hint: 'Licences, right to work and documents against the rota. Weekly' },
   { k: 'compliance_digest', label: 'Weekly compliance email', hint: 'After the weekly check, the worst issues by email to company managers' },
@@ -345,7 +348,7 @@ export function OpsSettings() {
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <Tile title="What Ops AI does">
+      <Tile title="What Orb does">
         <div className="divide-y divide-line">
           {JOBS.map((j) => <div key={j.k} className="py-2"><Toggle label={j.label} hint={j.hint} checked={v.ops_jobs?.[j.k] !== false} onChange={(c) => set('ops_jobs', { ...v.ops_jobs, [j.k]: c })} /></div>)}
         </div>
@@ -390,7 +393,7 @@ export function OpsSettings() {
 }
 
 const AI_MODULES = [
-  { k: 'ops', label: 'Ops AI and incidents' }, { k: 'academy', label: 'Academy' }, { k: 'toolbox', label: 'Toolbox' }, { k: 'everyday', label: 'Everyday post checks' }, { k: 'orb', label: 'Orb assistant' }, { k: 'orb_voice', label: 'Orb voice' }, { k: 'contracts', label: 'Contracts AI' }, { k: 'venue_packs', label: 'Site packs AI' }, { k: 'clock_face', label: 'Clock-in face check' },
+  { k: 'ops', label: 'Orb operations and incidents' }, { k: 'academy', label: 'Academy' }, { k: 'toolbox', label: 'Toolbox' }, { k: 'everyday', label: 'Everyday post checks' }, { k: 'orb', label: 'Orb assistant' }, { k: 'orb_voice', label: 'Orb voice' }, { k: 'contracts', label: 'Contracts AI' }, { k: 'venue_packs', label: 'Site packs AI' }, { k: 'clock_face', label: 'Clock-in face check' },
 ];
 
 // Credits used this month by each AI feature, with an optional cap per feature inside the overall cap

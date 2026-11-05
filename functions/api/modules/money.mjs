@@ -185,7 +185,7 @@ function suggestPeriod(kind, today = londonDate(new Date())) {
   return { start: kind === 'fortnightly' ? addDays(lastMonday, -7) : lastMonday, end: addDays(lastMonday, 6) };
 }
 
-// Ops AI checks the new figures; never blocks generation
+// Orb checks the new figures; never blocks generation
 async function reconcileAfter(start, end) {
   try {
     const { runReconcile } = await import('./ops.mjs');

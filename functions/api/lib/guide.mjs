@@ -138,7 +138,7 @@ Tap Assign to put officers on the shift. Officers you assign are asked to confir
     sections: [
       {
         id: 'live', title: 'Live operations', image: 'live.png',
-        body: `Live operations shows every shift happening now: who is on site, who is late and who hasn't turned up. Alerts appear at the top. Tap a shift to see the officers, their clock times and the shift log. Ops AI's suggestions to approve sit beside the board (above it on a phone), and the round arrows run every Ops AI check straight away.`,
+        body: `Live operations shows every shift happening now: who is on site, who is late and who hasn't turned up. Alerts appear at the top. Tap a shift to see the officers, their clock times and the shift log. Orb's suggestions to approve sit beside the board (above it on a phone), and the round arrows run every Orb check straight away.`,
       },
       {
         id: 'clock', title: 'Clocking in and exceptions',
@@ -195,7 +195,7 @@ Officers are self-employed: statements show that no tax or NI has been deducted.
       },
       {
         id: 'sia_check', title: 'Checking an SIA licence on the register',
-        body: `On a profile's Compliance tab (or an SIA document, or an applicant), tap Verify SIA licence. When automatic checks are set up (SIA Checker), Opulence looks the 16-digit licence number up on the SIA register for you and fills in the status, expiry date and licence type; check the result (including the name) and tap Confirm & save check. Tap Check again to repeat it. If the automatic check can't answer, or isn't set up, open Check on the SIA website instead: Open register copies the licence number and opens the SIA public register, and the copy buttons hold the surname, first name and date of birth (shown masked to security managers). Record what the register shows (status, expiry, licence type, notes) and tap Confirm & save check. Every check is kept in the history and the audit log. A status other than Active (expired, suspended, revoked, under investigation or not found) blocks licensed shifts, raises an urgent Ops AI card and alerts company managers until a later check shows Active. Ops AI also reminds you when someone rostered on licensed work has never been checked, or the last check is over 90 days old.
+        body: `On a profile's Compliance tab (or an SIA document, or an applicant), tap Verify SIA licence. When automatic checks are set up (SIA Checker), Opulence looks the 16-digit licence number up on the SIA register for you and fills in the status, expiry date and licence type; check the result (including the name) and tap Confirm & save check. Tap Check again to repeat it. If the automatic check can't answer, or isn't set up, open Check on the SIA website instead: Open register copies the licence number and opens the SIA public register, and the copy buttons hold the surname, first name and date of birth (shown masked to security managers). Record what the register shows (status, expiry, licence type, notes) and tap Confirm & save check. Every check is kept in the history and the audit log. A status other than Active (expired, suspended, revoked, under investigation or not found) blocks licensed shifts, raises an urgent Orb card and alerts company managers until a later check shows Active. Orb also reminds you when someone rostered on licensed work has never been checked, or the last check is over 90 days old.
 
 If the register won't load, the problem is with the SIA's site or your connection: try mobile data instead of Wi-Fi, turn off any VPN or iCloud Private Relay, or start from gov.uk/check-a-private-security-licence. You can check on another device and still record the result here.`,
       },
@@ -267,8 +267,8 @@ Use the filters for Announcements, Shout-outs, Events, Polls, My venues and Save
     id: 'ai', title: 'AI helpers', roles: MGR,
     sections: [
       {
-        id: 'ops', title: 'Ops AI', image: 'ops.png',
-        body: `Ops AI is your AI operations manager. It watches the rota, clocking, incidents and compliance, and suggests what to do next, for example filling an unfilled shift or chasing an expiring licence. Nothing changes until you approve it. Ops AI sits beside the board on Live operations, and the number on Live operations shows items waiting for you. It checks every 5 minutes; tap the round arrows at the top of Live operations to run every check straight away (no-show chasing, cover, site packs, hours and compliance). Its activity log and settings are the Activity and Settings tabs on the same page.`,
+        id: 'ops', title: 'Orb operations', image: 'ops.png',
+        body: `Orb is your AI operations manager. It watches the rota, clocking, incidents and compliance, and suggests what to do next, for example filling an unfilled shift or chasing an expiring licence. Nothing changes until you approve it. Orb sits beside the board on Live operations, and the number on Live operations shows items waiting for you. It checks every 5 minutes; tap the round arrows at the top of Live operations to run every check straight away (no-show chasing, cover, site packs, hours and compliance). Its activity log and settings are the Activity and Settings tabs on the same page.`,
       },
       {
         id: 'ask', title: 'Orb, your assistant',

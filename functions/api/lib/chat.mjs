@@ -22,7 +22,7 @@ export const canPin = (user, conv, isMember) => !!isMember && conv.kind !== 'ops
 
 export const canRequireConfirm = (user, conv) => isMgr(user) && conv.kind !== 'ops';
 
-/** Who has read up to a message: everyone but the sender and the Orb Ops bot whose last read is at or after it. */
+/** Who has read up to a message: everyone but the sender and the Orb bot whose last read is at or after it. */
 export function seenSummary(members, msg) {
   const others = members.filter((m) => m.id !== msg.sender_id && !m.system);
   const seen = others.filter((m) => m.last_read_at && new Date(m.last_read_at) >= new Date(msg.created_at))

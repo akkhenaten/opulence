@@ -35,7 +35,7 @@ export const livePack = (status) => ({ current: 'signed', resign: 'resign', refr
 /** Venue clients only see signed or not: a re-sign reads as not signed yet. */
 export const venuePack = (pack) => (pack === 'resign' ? 'unsigned' : pack);
 
-/** Ops AI pre-shift check, in order. Offsets are minutes from shift start (negative = before). */
+/** Orb pre-shift check, in order. Offsets are minutes from shift start (negative = before). */
 export const PACK_STEPS = ['chase1', 'chase2', 'escalate', 'cover'];
 
 /**

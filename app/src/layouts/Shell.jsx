@@ -56,6 +56,13 @@ function NotificationBell() {
   const last = useRef(null);
   const unread = count.data?.unread || 0;
 
+  // A shift change takes back alerts that no longer hold
+  useEffect(() => {
+    const h = () => { count.reload(); if (open) list.reload(); };
+    window.addEventListener('orb:notify', h);
+    return () => window.removeEventListener('orb:notify', h);
+  });
+
   // Surface brand-new critical alerts in the tab title
   useEffect(() => {
     const latest = count.data?.latest;
@@ -116,7 +123,7 @@ const NAV_ITEM = 'pressable relative flex min-h-9 items-center gap-3 rounded-xl 
 const NAV_ON = 'bg-blue-soft text-blue before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-[var(--accent-fill)]';
 const NAV_OFF = 'text-ink/70 hover:bg-fill hover:text-ink';
 
-// Count badge for a nav item (Ops AI inbox)
+// Count badge for a nav item (Orb inbox)
 const Badge = ({ n, className }) => (n > 0 ? <span className={cx('rounded-full bg-blue px-1.5 text-caption2 font-bold leading-[18px] text-white', className)}>{n > 99 ? '99+' : n}</span> : null);
 
 // On "My shifts", a manager who also works shifts gets back to the manager side in one tap
@@ -152,7 +159,7 @@ export default function Shell() {
   const [account, setAccount] = useState(false);
   const [ask, setAsk] = useState(false);
   const [orbDot, setOrbDot] = useState(false);
-  // Other pages open Orb with this event (e.g. the Ops AI page)
+  // Other pages open Orb with this event (e.g. the Orb page)
   useEffect(() => {
     const o = () => setAsk(true);
     window.addEventListener('orb:askorb', o);

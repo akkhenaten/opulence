@@ -1,10 +1,10 @@
-// Conversations shared by Messages, cover requests, shifts and Orb Ops
+// Conversations shared by Messages, cover requests, shifts and Orb
 import { one, q } from './db.mjs';
 import { notify } from './notify.mjs';
 import { publishConv } from './realtime.mjs';
 
 let opsUserId = null;
-/** The "Orb Ops" system sender — has no password and can never sign in. */
+/** The "Orb" system sender — has no password and can never sign in. */
 export async function opsUser() {
   if (!opsUserId) opsUserId = (await one('SELECT id FROM users WHERE system LIMIT 1'))?.id;
   return opsUserId;
@@ -66,12 +66,21 @@ export async function post(convId, senderId, { body = '', attachments = [], quic
   return m;
 }
 
-/** A message from Orb Ops into the person's own Orb Ops conversation, with optional quick-reply buttons. */
+/** A message from Orb into the person's own Orb conversation, with optional quick-reply buttons. */
 export async function opsMessage(userId, body, quick = null, { email = false } = {}) {
   if (!userId) return null;
   const sys = await opsUser();
-  const c = await ensureThread('ops', userId, [userId, sys], 'Orb Ops');
+  const c = await ensureThread('ops', userId, [userId, sys], 'Orb');
   return post(c.id, sys, { body, quick, email });
+}
+
+/** Someone taken off a shift leaves its team chat, unless they still have a place there (on the shift again, or a manager). */
+export async function leaveThread(kind, refId, userId) {
+  await q(
+    `UPDATE conversation_members m SET left_at = now() FROM conversations c, users u
+      WHERE c.id = m.conversation_id AND c.kind = $1 AND c.ref_id = $2 AND m.user_id = $3 AND u.id = m.user_id AND u.role = 'officer' AND m.left_at IS NULL
+        AND NOT EXISTS (SELECT 1 FROM shift_assignments a JOIN officers o ON o.id = a.officer_id
+                         WHERE a.shift_id = c.ref_id AND o.user_id = m.user_id AND a.status IN ('assigned','accepted'))`, [kind, refId, userId]);
 }
 
 /** Mark quick replies of a kind as answered so the buttons disappear. */
