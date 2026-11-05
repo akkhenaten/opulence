@@ -1,30 +1,32 @@
 // Outlook.com / Microsoft 365 through Microsoft Graph (plain fetch, no SDK). A "thread" is a Graph conversationId.
 import { call, form, FORM, JSONH, mapLimit, MailError, lower, uniq } from './common.mjs';
+import { cfg } from './config.mjs';
 
 const ME = 'https://graph.microsoft.com/v1.0/me';
-const AUTH = 'https://login.microsoftonline.com/common/oauth2/v2.0';
+// A single-organisation app must use its own tenant; 'common' takes work and personal accounts
+const auth = () => `https://login.microsoftonline.com/${encodeURIComponent(cfg('microsoft').tenant || 'common')}/oauth2/v2.0`;
 export const SCOPES = 'openid profile email offline_access User.Read Mail.ReadWrite Mail.Send';
 
-export const configured = () => !!(process.env.MS_CLIENT_ID && process.env.MS_CLIENT_SECRET);
-const client = () => ({ client_id: process.env.MS_CLIENT_ID, client_secret: process.env.MS_CLIENT_SECRET });
+export const configured = () => { const c = cfg('microsoft'); return !!(c.client_id && c.client_secret); };
+const client = () => { const c = cfg('microsoft'); return { client_id: c.client_id, client_secret: c.client_secret }; };
 const HTML_BODY = { Prefer: 'outlook.body-content-type="html"' };
 
 export function authUrl({ state, challenge, redirect }) {
-  return `${AUTH}/authorize?${form({
-    client_id: process.env.MS_CLIENT_ID, redirect_uri: redirect, response_type: 'code', response_mode: 'query', scope: SCOPES,
+  return `${auth()}/authorize?${form({
+    client_id: cfg('microsoft').client_id, redirect_uri: redirect, response_type: 'code', response_mode: 'query', scope: SCOPES,
     state, code_challenge: challenge, code_challenge_method: 'S256', prompt: 'select_account',
   })}`;
 }
 
 export async function exchange(code, verifier, redirect) {
-  const t = await call(`${AUTH}/token`, { method: 'POST', headers: FORM, body: form({ ...client(), code, code_verifier: verifier, redirect_uri: redirect, grant_type: 'authorization_code', scope: SCOPES }) });
+  const t = await call(`${auth()}/token`, { method: 'POST', headers: FORM, body: form({ ...client(), code, code_verifier: verifier, redirect_uri: redirect, grant_type: 'authorization_code', scope: SCOPES }) });
   if (!t.refresh_token) throw new MailError(400, 'Microsoft did not give offline access. Try connecting again.');
   const me = await call(`${ME}?$select=displayName,mail,userPrincipalName`, { token: t.access_token });
   return { refresh: t.refresh_token, access: t.access_token, expires: Date.now() + (t.expires_in || 3600) * 1000, address: lower(me.mail || me.userPrincipalName), name: me.displayName || '', cursor: null };
 }
 
 export async function refresh(refreshToken) {
-  const t = await call(`${AUTH}/token`, { method: 'POST', headers: FORM, body: form({ ...client(), refresh_token: refreshToken, grant_type: 'refresh_token', scope: SCOPES }) });
+  const t = await call(`${auth()}/token`, { method: 'POST', headers: FORM, body: form({ ...client(), refresh_token: refreshToken, grant_type: 'refresh_token', scope: SCOPES }) });
   return { access: t.access_token, expires: Date.now() + (t.expires_in || 3600) * 1000, refresh: t.refresh_token || null };
 }
 

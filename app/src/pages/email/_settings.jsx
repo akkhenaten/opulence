@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { AlertTriangle, Inbox, Mail, RefreshCw, Trash2, Users } from 'lucide-react';
-import { Button, Chips, Empty, Load, Pill, Section, Textarea, Tile, relative, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { AlertTriangle, ExternalLink, Inbox, KeyRound, Mail, RefreshCw, Trash2, Users } from 'lucide-react';
+import { Button, Chips, Empty, Input, Load, Pill, Pressable, Section, Textarea, Tile, relative, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { api } from '../../api.js';
+import { CopyLink } from '../people/_parts.jsx';
 import { BASE, connect, emailChanged, PROVIDER_NAME, PROVIDER_SHORT } from './_parts.jsx';
 
 /** Connect Gmail / Outlook buttons. A provider whose keys are not set up yet is shown but disabled. */
@@ -19,7 +20,11 @@ export function ConnectButtons({ providers = {}, ready, shared, variant = 'prima
           </Button>
         ))}
       </div>
-      {off && <p className="max-w-sm text-center text-footnote text-faint">Email sign-in is not switched on yet. It needs the Google and Microsoft app keys adding to the server.</p>}
+      {off && (
+        <p className="max-w-sm text-center text-footnote text-faint">
+          Email sign-in is not switched on yet. Add the Google or Microsoft keys under <Pressable press to="/company/settings?tab=email" className="inline font-semibold text-blue">Email sign-in setup</Pressable>.
+        </p>
+      )}
     </div>
   );
 }
@@ -38,6 +43,115 @@ export function ReconnectBanner({ acc }) {
   );
 }
 
+const GUIDE = {
+  google: {
+    link: 'https://console.cloud.google.com/apis/credentials',
+    steps: [
+      'Open Google Cloud console with a Google Workspace admin account and create (or pick) a project.',
+      'APIs & Services → Library: enable the Gmail API.',
+      'OAuth consent screen: choose Internal for Workspace-only use, or External and add the people who will connect as test users (or publish the app).',
+      'Credentials → Create credentials → OAuth client ID → Web application. Under Authorised redirect URIs paste the redirect URI above.',
+      'Copy the Client ID and Client secret here.',
+    ],
+  },
+  microsoft: {
+    link: 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade',
+    steps: [
+      'Open Microsoft Entra admin centre → App registrations → New registration.',
+      'Supported account types: "Any organisational directory and personal Microsoft accounts" to allow Outlook.com too, or "This organisation only" (then enter the Directory (tenant) ID below).',
+      'Redirect URI: choose Web and paste the redirect URI above.',
+      'API permissions → Microsoft Graph → Delegated: Mail.ReadWrite, Mail.Send, offline_access, User.Read.',
+      'Certificates & secrets → New client secret. Copy its Value (not the Secret ID) and the Application (client) ID from Overview.',
+    ],
+  },
+};
+
+/** Settings → Email → the Google / Microsoft app keys that let people sign in. */
+function SetupSection({ onChanged }) {
+  const q = useApi('email.setup.get', { origin: window.location.origin });
+  const changed = () => { q.reload(); onChanged(); emailChanged(); };
+  return (
+    <Section title="Email sign-in setup" className="mt-0">
+      <Load q={q}>
+        {(d) => (
+          <div className="space-y-3">
+            <p className="text-subhead text-muted">
+              Once per company, an admin registers Orb with Google and/or Microsoft and pastes the keys here. Then everyone can connect their mailbox. Secrets are stored encrypted and are never shown again.
+            </p>
+            {d.redirect
+              ? <CopyLink link={d.redirect} label="Redirect URI" hint="Register this exact address with Google and Microsoft" />
+              : <p className="text-footnote text-amber">The app address is not known yet, so the redirect URI cannot be shown.</p>}
+            {['google', 'microsoft'].map((p) => <ProviderSetup key={p} provider={p} s={d.providers[p]} onChanged={changed} />)}
+          </div>
+        )}
+      </Load>
+    </Section>
+  );
+}
+
+function ProviderSetup({ provider, s, onChanged }) {
+  const confirm = useConfirm();
+  const [run, busy] = useAction();
+  const [f, setF] = useState({ client_id: s.client_id, client_secret: '', tenant: s.tenant });
+  const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
+  const dirty = f.client_id !== s.client_id || f.client_secret || f.tenant !== s.tenant;
+  const save = () => run(() => api('email.setup.save', { provider, ...f }), `${PROVIDER_SHORT[provider]} keys saved`)
+    .then(() => { setF((x) => ({ ...x, client_secret: '' })); onChanged(); });
+  const remove = async () => {
+    const ok = await confirm({
+      title: `Remove the ${PROVIDER_SHORT[provider]} keys?`,
+      body: `Nobody will be able to connect a ${PROVIDER_SHORT[provider]} mailbox, and connected ones stop working until the keys are added again.`,
+      confirm: 'Remove', danger: true,
+    });
+    if (!ok) return;
+    await run(() => api('email.setup.clear', { provider }), 'Keys removed');
+    setF({ client_id: '', client_secret: '', tenant: '' });
+    onChanged();
+  };
+  const g = GUIDE[provider];
+  return (
+    <Tile>
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-blue-soft text-blue"><KeyRound size={20} /></div>
+        <div className="min-w-0 flex-1">
+          <div className="text-body font-semibold">{PROVIDER_NAME[provider]}</div>
+          {s.updated_at && <div className="text-footnote text-muted">Updated {relative(s.updated_at)}</div>}
+        </div>
+        {s.from_env ? <Pill tone="green">Set on the server</Pill> : s.configured ? <Pill tone="green">Ready</Pill> : <Pill>Not set up</Pill>}
+      </div>
+      {s.from_env ? (
+        <p className="mt-3 text-footnote text-muted">These keys are set on the server ({s.client_id}) and cannot be changed here.</p>
+      ) : (
+        <>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <Input label={provider === 'google' ? 'Client ID' : 'Application (client) ID'} value={f.client_id} onChange={set('client_id')} autoComplete="off" spellCheck={false}
+              placeholder={provider === 'google' ? '…apps.googleusercontent.com' : '1a2b3c4d-…'} />
+            <Input label={provider === 'google' ? 'Client secret' : 'Client secret value'} type="password" value={f.client_secret} onChange={set('client_secret')} autoComplete="new-password"
+              hint={s.secret_hint ? `Saved ${s.secret_hint}. Leave blank to keep it.` : undefined} />
+            {provider === 'microsoft' && (
+              <Input label="Directory (tenant) ID" value={f.tenant} onChange={set('tenant')} autoComplete="off" spellCheck={false} placeholder="Optional"
+                hint="Only for apps limited to your organisation" />
+            )}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" busy={busy} disabled={!dirty || !f.client_id || (!s.configured && !f.client_secret)} onClick={save}>Save keys</Button>
+            {(s.configured || s.client_id) && <Button size="sm" variant="danger" icon={Trash2} busy={busy} onClick={remove}>Remove</Button>}
+          </div>
+        </>
+      )}
+      <details className="mt-4 rounded-xl bg-bg px-3 py-2">
+        <summary className="cursor-pointer text-footnote font-semibold">How to get these</summary>
+        <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-footnote text-muted">
+          {g.steps.map((t) => <li key={t}>{t}</li>)}
+        </ol>
+        <Pressable press href={g.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-footnote font-semibold text-blue">
+          Open {provider === 'google' ? 'Google Cloud console' : 'Microsoft Entra'}<ExternalLink size={14} />
+        </Pressable>
+      </details>
+    </Tile>
+  );
+}
+
 /** Settings → Email: your own mailbox, shared mailboxes, signatures and who can use a shared one. */
 export function EmailTab() {
   const q = useApi('email.accounts');
@@ -51,7 +165,8 @@ export function EmailTab() {
             <p className="mb-4 text-subhead text-muted">
               Connect Gmail, Google Workspace, Outlook or Microsoft 365 to read and answer email inside Orb. Mail stays with Google or Microsoft; Orb keeps only a short list of recent subjects so it can show email on staff, venue and client pages.
             </p>
-            <Section title="Your mailbox" className="mt-0">
+            <SetupSection onChanged={q.reload} />
+            <Section title="Your mailbox">
               {personal.length
                 ? <div className="space-y-3">{personal.map((a) => <AccountCard key={a.id} a={a} onChanged={q.reload} />)}</div>
                 : <Empty icon={Mail} title="No mailbox connected" body="Sign in with Google or Microsoft. Only you will see this mailbox." action={<ConnectButtons providers={d.providers} ready={d.ready} />} />}

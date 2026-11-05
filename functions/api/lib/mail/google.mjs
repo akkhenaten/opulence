@@ -3,18 +3,19 @@ import crypto from 'node:crypto';
 import { call, form, FORM, JSONH, mapLimit, MailError, lower, uniq } from './common.mjs';
 import { parseAddr, parseAddrList } from './html.mjs';
 import { buildMime } from './mime.mjs';
+import { cfg } from './config.mjs';
 
 const G = 'https://gmail.googleapis.com/gmail/v1/users/me';
 const UP = 'https://gmail.googleapis.com/upload/gmail/v1/users/me';
 const TOKEN = 'https://oauth2.googleapis.com/token';
 export const SCOPES = 'openid email profile https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send';
 
-export const configured = () => !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
-const client = () => ({ client_id: process.env.GOOGLE_CLIENT_ID, client_secret: process.env.GOOGLE_CLIENT_SECRET });
+export const configured = () => { const c = cfg('google'); return !!(c.client_id && c.client_secret); };
+const client = () => { const c = cfg('google'); return { client_id: c.client_id, client_secret: c.client_secret }; };
 
 export function authUrl({ state, challenge, redirect }) {
   return `https://accounts.google.com/o/oauth2/v2/auth?${form({
-    client_id: process.env.GOOGLE_CLIENT_ID, redirect_uri: redirect, response_type: 'code', scope: SCOPES,
+    client_id: cfg('google').client_id, redirect_uri: redirect, response_type: 'code', scope: SCOPES,
     access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true', state, code_challenge: challenge, code_challenge_method: 'S256',
   })}`;
 }

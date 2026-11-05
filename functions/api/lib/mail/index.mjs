@@ -3,6 +3,7 @@ import { q } from '../db.mjs';
 import { fail } from '../http.mjs';
 import { seal, open } from './crypto.mjs';
 import { MailError } from './common.mjs';
+import { loadConfig } from './config.mjs';
 import * as google from './google.mjs';
 import * as microsoft from './microsoft.mjs';
 
@@ -20,6 +21,7 @@ async function markBroken(account, e, status = 'reconnect') {
 
 /** A working access token for the account, refreshing (and re-sealing a rotated refresh token) when needed. */
 export async function accessToken(account, force = false) {
+  await loadConfig();
   if (!force && account.access_enc && account.access_expires && new Date(account.access_expires) > new Date(Date.now() + 60_000)) {
     return open(account.access_enc);
   }

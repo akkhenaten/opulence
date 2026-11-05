@@ -9,7 +9,8 @@ import { audit } from '../lib/audit.mjs';
 import { claude, SONNET } from '../lib/ai.mjs';
 import { putObject, downloadUrl, headObject, getObjectBytes } from '../lib/storage.mjs';
 import { fmtDate, fmtTime } from '../lib/time.mjs';
-import { seal, open, pkce } from '../lib/mail/crypto.mjs';
+import { seal, open, pkce, hasKey } from '../lib/mail/crypto.mjs';
+import { cfg, invalidate, loadConfig } from '../lib/mail/config.mjs';
 import { adapter, PROVIDERS, redirectUri, withMail } from '../lib/mail/index.mjs';
 import { mapLimit, FOLDERS, lower, uniq } from '../lib/mail/common.mjs';
 import { cleanHtml, cleanRecipients, escapeHtml, htmlToText, isEmail, textToHtml } from '../lib/mail/html.mjs';
@@ -50,6 +51,22 @@ function redirectFor(b) {
   const o = String(b.origin || '');
   if (!/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(o)) fail(400, 'The app address is not set yet');
   return `${o}/app/company/email/callback`;
+}
+
+const providersState = () => Object.fromEntries(Object.entries(PROVIDERS).map(([k, p]) => [k, p.configured()]));
+
+// ---------- provider setup (Settings → Email) ----------
+
+const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const TENANT = /^(common|organizations|consumers|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[a-z0-9-]+(\.[a-z0-9-]+)+)$/i;
+
+function setupView(provider) {
+  const c = cfg(provider);
+  return {
+    configured: !!(c.client_id && c.client_secret), from_env: c.from_env, client_id: c.client_id || '',
+    secret_hint: c.from_env ? (c.client_secret ? `••••${c.client_secret.slice(-4)}` : null) : c.secret_hint || null,
+    tenant: c.tenant || '', updated_at: c.updated_at || null,
+  };
 }
 
 // ---------- cache ----------
@@ -220,6 +237,7 @@ async function loadThread(user, b) {
 
 /** Every 5 minutes: incremental sync of connected mailboxes (oldest first, time-boxed) and expired OAuth states. */
 export async function emailSync(budgetMs = 20000) {
+  await loadConfig();
   await q('DELETE FROM email_oauth_states WHERE expires_at < now()');
   const start = Date.now();
   const rows = await q("SELECT * FROM email_accounts WHERE status = 'connected' ORDER BY last_sync NULLS FIRST LIMIT 20");
@@ -256,13 +274,54 @@ async function revokeQuietly(acc) {
 // ---------- actions ----------
 
 export const actions = {
-  'email.status': def(CO, async () => ({
-    providers: Object.fromEntries(Object.entries(PROVIDERS).map(([k, p]) => [k, p.configured()])),
-    ready: !!process.env.EMAIL_TOKEN_KEY,
-    redirect: process.env.EMAIL_REDIRECT_URL || process.env.APP_URL ? redirectUri() : null,
-  })),
+  'email.setup.get': def(CO, async (b) => {
+    await loadConfig();
+    let redirect = null;
+    try { redirect = redirectFor(b); } catch { /* the app address is not known yet */ }
+    return { redirect, ready: hasKey(), providers: { google: setupView('google'), microsoft: setupView('microsoft') } };
+  }),
+
+  'email.setup.save': def(CO, async (b, { user }) => {
+    required(b, 'provider', 'client_id');
+    adapter(b.provider);
+    await loadConfig();
+    if (cfg(b.provider).from_env) fail(409, `${NAME[b.provider]} keys are set on the server`);
+    if (!hasKey()) fail(503, 'Email is not set up yet');
+    const client_id = String(b.client_id).trim();
+    const secret = String(b.client_secret || '').trim();
+    const tenant = b.provider === 'microsoft' ? String(b.tenant || '').trim() || null : null;
+    if (b.provider === 'google' && !/^[\w-]+\.apps\.googleusercontent\.com$/.test(client_id)) fail(400, 'A Google client ID ends in .apps.googleusercontent.com');
+    if (b.provider === 'microsoft' && !GUID.test(client_id)) fail(400, 'The Microsoft Application (client) ID looks like 1a2b3c4d-…');
+    if (tenant && !TENANT.test(tenant)) fail(400, 'The Directory (tenant) ID looks like 1a2b3c4d-… or yourcompany.onmicrosoft.com');
+    if (secret.length > 500) fail(400, 'That client secret is too long');
+    const existing = await one('SELECT secret_enc FROM email_providers WHERE provider = $1', [b.provider]);
+    if (!secret && !existing) fail(400, 'Enter the client secret');
+    await q(`INSERT INTO email_providers (provider, client_id, secret_enc, tenant, updated_by, updated_at) VALUES ($1,$2,$3,$4,$5, now())
+             ON CONFLICT (provider) DO UPDATE SET client_id = $2, secret_enc = $3, tenant = $4, updated_by = $5, updated_at = now()`,
+    [b.provider, client_id, secret ? seal(secret) : existing.secret_enc, tenant, user.id]);
+    invalidate();
+    await audit(user, 'email.setup', 'email_provider', null, { provider: b.provider, client_id, tenant, secret: secret ? 'replaced' : 'kept' });
+    await loadConfig();
+    return setupView(b.provider);
+  }),
+
+  'email.setup.clear': def(CO, async (b, { user }) => {
+    required(b, 'provider');
+    adapter(b.provider);
+    await q('DELETE FROM email_providers WHERE provider = $1', [b.provider]);
+    invalidate();
+    await audit(user, 'email.setup', 'email_provider', null, { provider: b.provider, removed: true });
+    await loadConfig();
+    return setupView(b.provider);
+  }),
+
+  'email.status': def(CO, async () => {
+    await loadConfig();
+    return { providers: providersState(), ready: hasKey(), redirect: process.env.EMAIL_REDIRECT_URL || process.env.APP_URL ? redirectUri() : null };
+  }),
 
   'email.accounts': def(CO, async (_b, { user }) => {
+    await loadConfig();
     const rows = await q(`SELECT a.*, (SELECT count(*)::int FROM email_threads t WHERE t.account_id = a.id AND t.folder = 'inbox' AND t.unread) AS unread
       FROM email_accounts a WHERE ${VISIBLE} ORDER BY a.shared, a.created_at`, [user.id]);
     const grants = await q(`SELECT g.account_id, u.id, u.name FROM email_account_access g JOIN users u ON u.id = g.user_id WHERE g.account_id = ANY($1) ORDER BY u.name`, [rows.map((r) => r.id)]);
@@ -271,15 +330,16 @@ export const actions = {
         unread: a.unread, mine: a.owner_user_id === user.id,
         ...(a.shared ? { users: grants.filter((g) => g.account_id === a.id).map(({ id, name }) => ({ id, name })) } : {}),
       })),
-      providers: Object.fromEntries(Object.entries(PROVIDERS).map(([k, p]) => [k, p.configured()])),
-      ready: !!process.env.EMAIL_TOKEN_KEY,
+      providers: providersState(),
+      ready: hasKey(),
     };
   }),
 
   'email.connectStart': def(CO, async (b, { user }) => {
     required(b, 'provider');
     const p = adapter(b.provider);
-    if (!p.configured() || !process.env.EMAIL_TOKEN_KEY) fail(503, `${NAME[b.provider]} email is not set up yet`);
+    await loadConfig();
+    if (!p.configured() || !hasKey()) fail(503, `${NAME[b.provider]} email is not set up yet`);
     let shared = !!b.shared;
     if (b.account_id) {
       const acc = await account(user, b.account_id);
@@ -296,6 +356,7 @@ export const actions = {
 
   'email.connectFinish': def(CO, async (b, { user }) => {
     required(b, 'state');
+    await loadConfig();
     const st = await one('DELETE FROM email_oauth_states WHERE state = $1 RETURNING *', [String(b.state)]);
     if (!st || st.user_id !== user.id || new Date(st.expires_at) < new Date()) fail(400, 'This sign-in link has expired. Start connecting again.');
     if (b.error) fail(400, b.error === 'access_denied' ? 'Access was not granted' : `The provider said: ${String(b.error_description || b.error).slice(0, 200)}`);

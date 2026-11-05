@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import '../index.mjs';
 import { seal, open, pkce } from '../lib/mail/crypto.mjs';
+import { cfg, setCacheForTest } from '../lib/mail/config.mjs';
 import { buildMime, encodeWord } from '../lib/mail/mime.mjs';
 import { cleanHtml, cleanRecipients, htmlToText, parseAddrList } from '../lib/mail/html.mjs';
 import * as google from '../lib/mail/google.mjs';
@@ -18,7 +19,12 @@ test('tokens seal and open; tampering and a missing key fail', () => {
   parts[3] = Buffer.from('xxxx').toString('base64url');
   assert.throws(() => open(parts.join('.')));
   delete process.env.EMAIL_TOKEN_KEY;
+  const appSecret = process.env.APP_SECRET;
+  delete process.env.APP_SECRET;
   assert.throws(() => seal('x'), (e) => e.status === 503);
+  process.env.APP_SECRET = 'app-secret-for-tests';
+  assert.equal(open(seal('derived')), 'derived');
+  if (appSecret === undefined) delete process.env.APP_SECRET; else process.env.APP_SECRET = appSecret;
   const p = pkce();
   assert.ok(p.verifier.length >= 43 && p.challenge !== p.verifier);
 });
@@ -113,4 +119,37 @@ test('Orb: email reads are in the catalogue, and sending always needs a tap', ()
   assert.equal(CATALOG['email.send'].tier, 'confirm');
   assert.equal(needsTap({ action: 'email.send' }), 'something sent to people');
   assert.ok(!CATALOG['email.connectStart'] && !CATALOG['email.disconnect']);
+});
+
+test('provider keys: saved keys switch a provider on, env keys win, Microsoft uses the tenant', () => {
+  process.env.EMAIL_TOKEN_KEY = 'test-key-for-email-tokens-only';
+  for (const k of ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'MS_CLIENT_ID', 'MS_CLIENT_SECRET', 'MS_TENANT']) delete process.env[k];
+  setCacheForTest([]);
+  assert.equal(google.configured(), false);
+  assert.equal(microsoft.configured(), false);
+  setCacheForTest([
+    { provider: 'google', client_id: 'abc.apps.googleusercontent.com', secret_enc: seal('GOCSPX-secret1234'), tenant: null },
+    { provider: 'microsoft', client_id: '11111111-2222-3333-4444-555555555555', secret_enc: seal('ms~secret9876'), tenant: 'contoso.onmicrosoft.com' },
+  ]);
+  assert.equal(google.configured(), true);
+  assert.equal(cfg('google').secret_hint, '••••1234');
+  assert.equal(cfg('google').from_env, false);
+  assert.match(google.authUrl({ state: 's', challenge: 'c', redirect: 'https://x.test/cb' }), /client_id=abc\.apps\.googleusercontent\.com/);
+  assert.match(microsoft.authUrl({ state: 's', challenge: 'c', redirect: 'https://x.test/cb' }), /microsoftonline\.com\/contoso\.onmicrosoft\.com\/oauth2/);
+  process.env.GOOGLE_CLIENT_ID = 'env.apps.googleusercontent.com';
+  process.env.GOOGLE_CLIENT_SECRET = 'env-secret';
+  assert.equal(cfg('google').client_id, 'env.apps.googleusercontent.com');
+  assert.equal(cfg('google').from_env, true);
+  delete process.env.GOOGLE_CLIENT_ID;
+  delete process.env.GOOGLE_CLIENT_SECRET;
+  setCacheForTest([{ provider: 'microsoft', client_id: '11111111-2222-3333-4444-555555555555', secret_enc: seal('x'), tenant: null }]);
+  assert.match(microsoft.authUrl({ state: 's', challenge: 'c', redirect: 'https://x.test/cb' }), /microsoftonline\.com\/common\/oauth2/);
+  // A secret sealed under another key is treated as not set rather than crashing
+  setCacheForTest([{ provider: 'google', client_id: 'abc.apps.googleusercontent.com', secret_enc: 'v1.bad.bad.bad', tenant: null }]);
+  assert.equal(google.configured(), false);
+  setCacheForTest([]);
+});
+
+test('provider keys are never offered to Orb', () => {
+  assert.ok(!Object.keys(CATALOG).some((k) => k.startsWith('email.setup')));
 });

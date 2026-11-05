@@ -1,12 +1,15 @@
-// Mailbox tokens at rest: AES-256-GCM under EMAIL_TOKEN_KEY (its own key, not APP_SECRET). Format v1.iv.tag.ct (base64url).
+// Mailbox tokens at rest: AES-256-GCM under EMAIL_TOKEN_KEY, or a key derived from APP_SECRET when that is not set. Format v1.iv.tag.ct (base64url).
 import crypto from 'node:crypto';
 import { fail } from '../http.mjs';
 
 const key = () => {
   const k = process.env.EMAIL_TOKEN_KEY;
-  if (!k) fail(503, 'Email is not set up yet');
-  return crypto.createHash('sha256').update(k).digest();
+  if (k) return crypto.createHash('sha256').update(k).digest();
+  if (process.env.APP_SECRET) return Buffer.from(crypto.hkdfSync('sha256', process.env.APP_SECRET, '', 'orb-email-v1', 32));
+  fail(503, 'Email is not set up yet');
 };
+
+export const hasKey = () => !!(process.env.EMAIL_TOKEN_KEY || process.env.APP_SECRET);
 
 export function seal(text) {
   const iv = crypto.randomBytes(12);
