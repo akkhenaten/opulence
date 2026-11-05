@@ -49,3 +49,28 @@ test('Ops AI: register status and re-checks', () => {
   assert.ok(!keys({ ...base, status: 'applicant', sia_last_verified_at: null }, { shifts: [shift] }).includes('recheck:sia'));
   assert.ok(!keys({ ...base, roles: ['steward'], sia_status: 'revoked' }).includes('register:sia'));
 });
+
+test('automatic register check: SIA Checker answers mapped for the form', async () => {
+  const { mapResult, mapSector, mapStatus } = await import('../lib/siaChecker.mjs');
+  const found = mapResult(200, { status: 'FOUND', licence: { firstName: 'ALEX', surname: 'RIVERTON', licenceNumber: '1234123412341234', role: 'Front Line', licenceSector: 'Door Supervision', expiryDate: '2026-10-26', status: 'Active' } });
+  assert.equal(found.outcome, 'found');
+  assert.equal(found.status, 'active');
+  assert.equal(found.sector, 'Door Supervisor');
+  assert.equal(found.expiry, '2026-10-26');
+  assert.equal(found.surname, 'RIVERTON');
+  assert.equal(mapResult(200, { status: 'FOUND', licence: { status: 'Expired', licenceSector: 'Something new' } }).status, 'expired');
+  assert.equal(mapResult(200, { status: 'FOUND', licence: { status: 'Something new' } }).status, null);
+  assert.equal(mapStatus('Under investigation'), 'investigation');
+  assert.equal(mapSector('Public Space Surveillance (CCTV)'), 'CCTV (Public Space Surveillance)');
+  assert.equal(mapSector('Vehicle Immobilisation'), 'Vehicle Immobilising');
+  assert.equal(mapSector('Unknown'), null);
+  const nf = mapResult(404, { status: 'NOT_FOUND' });
+  assert.equal(nf.outcome, 'not_found');
+  assert.equal(nf.status, 'not_found');
+  assert.equal(mapResult(202, { status: 'PENDING' }).outcome, 'pending');
+  assert.equal(mapResult(429, { code: 'QUOTA_EXCEEDED' }).outcome, 'quota');
+  assert.equal(mapResult(401, { code: 'UNAUTHORIZED' }).outcome, 'bad_key');
+  assert.equal(mapResult(503, null).outcome, 'unavailable');
+  assert.equal(mapResult(500, null).outcome, 'error');
+  assert.ok(mapResult(503, null).message);
+});

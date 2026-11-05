@@ -1,10 +1,10 @@
-// SIA register check assistant. The register has no API: one click copies the licence number and opens the
-// register in a new tab, and this panel holds the details to paste and the form to record what it shows.
-import { useState } from 'react';
-import { AlertTriangle, Check, ChevronDown, Copy, ExternalLink, History, ShieldCheck } from 'lucide-react';
+// SIA register check assistant. With SIA Checker set up, the server looks the licence up and fills the form;
+// otherwise (or when it can't answer) the panel holds the details to paste into the SIA website. A manager confirms.
+import { useEffect, useState } from 'react';
+import { AlertTriangle, Check, ChevronDown, Copy, ExternalLink, History, Loader2, RefreshCw, ShieldCheck } from 'lucide-react';
 import { api } from '../../api.js';
 import { Avatar, Button, cx, date, dateTime, Input, Load, Pill, Pressable, Select, Sheet, Spinner, Textarea, useAction, useApi, useToast } from '../../ui/index.jsx';
-import { CHECK_STATUSES, NOT_CLEARED, SIA_REGISTER, SIA_REGISTER_GOVUK, STATUS_LABEL, checkState, cleanSia, validSia } from '../../ui/sia.js';
+import { CHECK_STATUSES, NOT_CLEARED, SIA_REGISTER, SIA_REGISTER_GOVUK, STATUS_LABEL, checkState, validSia } from '../../ui/sia.js';
 import { SIA_TYPES } from './_parts.jsx';
 
 // Latest register check as a pill, with who checked and when
@@ -18,16 +18,10 @@ export function SiaCheckPill({ status, at, by, className }) {
   );
 }
 
-// [start, sheet]: start(officer) must run straight from the click so the browser allows the copy and the new tab
+// [start, sheet]: start(officer) opens the check panel
 export function useSiaVerify(onSaved) {
-  const toast = useToast();
   const [id, setId] = useState(null);
-  const start = (o) => {
-    const n = cleanSia(o.sia_number);
-    if (n) navigator.clipboard?.writeText(n).then(() => toast('Licence number copied — paste it into the register'), () => toast('Couldn\'t copy — use the copy buttons in the panel', 'error'));
-    window.open(SIA_REGISTER, '_blank', 'noopener');
-    setId(o.id);
-  };
+  const start = (o) => setId(o.id);
   const sheet = <SiaVerifySheet id={id} onClose={() => setId(null)} onSaved={onSaved} />;
   return [start, sheet];
 }
@@ -67,11 +61,80 @@ function SiaVerifySheet({ id, onClose, onSaved }) {
   );
 }
 
+// Ask the register through the server (SIA Checker) and fill the form with what it says
+function useLookup(d, setV) {
+  const auto = d.auto && validSia(d.number);
+  const [r, setR] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const check = async () => {
+    setBusy(true);
+    try {
+      const x = await api('sia.lookup', { officer_id: d.id });
+      setR(x);
+      if (x.outcome === 'found' || x.outcome === 'not_found') {
+        setV((v) => ({
+          ...v, status: x.status || '', expiry: x.expiry || v.expiry, sector: x.sector || v.sector, source: 'auto',
+          notes: x.outcome === 'found' ? 'Automatic check (SIA Checker)' : 'Automatic check (SIA Checker): not found',
+        }));
+      }
+    } catch (e) {
+      setR({ outcome: 'error', message: e.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  useEffect(() => { if (auto) check(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return { auto, r, busy, check };
+}
+
+function LookupResult({ d, look }) {
+  const { r, busy, check } = look;
+  const again = <Button size="sm" variant="ghost" icon={RefreshCw} onClick={check} disabled={busy}>Check again</Button>;
+  if (busy || !r) {
+    return <p className="flex items-center gap-2 rounded-xl bg-bg px-3 py-3 text-callout text-muted"><Loader2 size={16} className="animate-spin" />Checking the SIA register…</p>;
+  }
+  if (r.outcome === 'found') {
+    const name = [r.first_name, r.surname].filter(Boolean).join(' ');
+    return (
+      <div className="space-y-2">
+        <div className="rounded-xl border border-line bg-surface px-3 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <Pill tone={r.status === 'active' ? 'green' : 'red'}><ShieldCheck size={14} />SIA register: {r.register_status || 'Unknown'}</Pill>
+            {again}
+          </div>
+          <div className="mt-2 text-callout font-semibold">{name || d.name}</div>
+          <div className="text-footnote text-muted">{[r.register_sector, r.role, r.expiry && `Expires ${date(r.expiry)}`].filter(Boolean).join(' · ')}</div>
+        </div>
+        {r.name_matches === false && (
+          <p className="flex items-start gap-2 rounded-xl bg-amber-soft px-3 py-2 text-footnote text-amber">
+            <AlertTriangle size={16} className="mt-px shrink-0" />The name on the register is different from the profile ({d.name}). Check it's the right person.
+          </p>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-start gap-2 rounded-xl bg-amber-soft px-3 py-2 text-footnote text-amber">
+      <AlertTriangle size={16} className="mt-px shrink-0" />
+      <span className="flex-1">{r.outcome === 'not_found' ? 'Not found on the SIA register. Check the licence number on the profile.' : r.message}</span>
+      {again}
+    </div>
+  );
+}
+
 function Assistant({ d, onClose, onSaved }) {
-  const [v, setV] = useState({ status: '', expiry: d.sia_expiry || '', sector: d.sia_type || '', notes: '' });
+  const [v, setV] = useState({ status: '', expiry: d.sia_expiry || '', sector: d.sia_type || '', notes: '', source: 'manual' });
   const set = (k) => (e) => setV((x) => ({ ...x, [k]: e.target.value }));
   const [run, busy] = useAction();
+  const toast = useToast();
   const [showHistory, setShowHistory] = useState(false);
+  const look = useLookup(d, setV);
+  const failed = look.r && !['found', 'not_found'].includes(look.r.outcome);
+  const [manual, setManual] = useState(false);
+  const showManual = !look.auto || manual || failed;
+  const openRegister = () => {
+    if (d.number) navigator.clipboard?.writeText(d.number).then(() => toast('Licence number copied — paste it into the register'), () => {});
+  };
   const needExpiry = v.status && v.status !== 'not_found';
   const save = async () => {
     await run(() => api('sia.record', { officer_id: d.id, ...v, expiry: needExpiry ? v.expiry : v.expiry || null }), 'Check saved');
@@ -94,10 +157,18 @@ function Assistant({ d, onClose, onSaved }) {
         </div>
       </div>
 
-      <div>
+      {look.auto && <LookupResult d={d} look={look} />}
+
+      {look.auto && !failed && (
+        <Pressable press onClick={() => setManual((x) => !x)} className="flex items-center gap-2 text-subhead font-semibold text-muted">
+          <ExternalLink size={16} />Check on the SIA website instead<ChevronDown size={16} className={cx('transition-transform', manual && 'rotate-180')} />
+        </Pressable>
+      )}
+
+      {showManual && <div>
         <div className="mb-2 flex items-center justify-between gap-2">
           <h3 className="text-subhead font-semibold">Search the register</h3>
-          <Button size="sm" variant="ghost" icon={ExternalLink} href={SIA_REGISTER}>Open register</Button>
+          <Button size="sm" variant="ghost" icon={ExternalLink} href={SIA_REGISTER} onClick={openRegister}>Open register</Button>
         </div>
         {!validSia(d.number) && (
           <p className="mb-2 flex items-start gap-2 rounded-xl bg-amber-soft px-3 py-2 text-footnote text-amber">
@@ -116,7 +187,7 @@ function Assistant({ d, onClose, onSaved }) {
           Register not loading? That's the SIA's site, not Opulence. Try mobile data instead of Wi-Fi, turn off any VPN or iCloud Private Relay,
           or start from <a href={SIA_REGISTER_GOVUK} target="_blank" rel="noopener" className="font-semibold underline">GOV.UK</a>. You can still record a check made on another device.
         </p>
-      </div>
+      </div>}
 
       <div className="space-y-3">
         <h3 className="text-subhead font-semibold">What the register shows</h3>
@@ -155,7 +226,7 @@ export function CheckHistory({ checks, className }) {
         <li key={c.id} className="px-3 py-2">
           <div className="flex flex-wrap items-center gap-2">
             <Pill tone={c.status === 'active' ? 'green' : 'red'}>{STATUS_LABEL[c.status]}</Pill>
-            <span className="text-footnote text-muted">{dateTime(c.created_at)}{c.checked_by_name ? ` · ${c.checked_by_name}` : ''}</span>
+            <span className="text-footnote text-muted">{dateTime(c.created_at)}{c.checked_by_name ? ` · ${c.checked_by_name}` : ''}{c.source === 'auto' ? ' · Automatic' : ''}</span>
           </div>
           <div className="mt-1 text-footnote text-muted">{[c.expiry && `Expires ${date(c.expiry)}`, c.sector].filter(Boolean).join(' · ')}</div>
           {c.notes && <p className="mt-1 text-footnote">{c.notes}</p>}
