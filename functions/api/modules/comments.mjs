@@ -6,9 +6,10 @@ import { venueScope, assertVenue } from '../lib/scope.mjs';
 import { notify, companyManagers, securityFor, venueContacts, withdraw } from '../lib/notify.mjs';
 import { fmtDate, fmtTime } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
-import { MGR, def } from './_def.mjs';
+import { CO, MGR, def } from './_def.mjs';
 import { createItem, logActivity } from './ops.mjs';
 import { officerName, officerShort, userName } from '../lib/names.mjs';
+import { fields as reviewFields, insertReview } from './reviews.mjs';
 
 export const ABOUT = ['staff', 'shift', 'service', 'other'];
 export const TONES = ['praise', 'suggestion', 'complaint'];
@@ -29,6 +30,15 @@ export function checkComment(b) {
   if (b.about === 'staff' && !b.officer_id) fail(400, 'Choose who the feedback is about');
   if (b.about === 'shift' && !b.shift_id) fail(400, 'Choose the shift');
   return { about: b.about, tone: b.tone, rating, comment };
+}
+
+/** Why this feedback can't become a website review yet, or null when it can. */
+export function canPromote(c, venue) {
+  if (c.tone !== 'praise') return 'Only praise can become a review';
+  if (c.review_id) return 'Already used as a review';
+  if (!venue?.site_client) return 'Link this venue to a website tile first (venue → Details → Website client)';
+  if (!String(c.comment || '').trim()) return 'Add a comment first';
+  return null;
 }
 
 /** Complaints and low ratings go to the Orb inbox for a follow-up. */
@@ -63,11 +73,12 @@ async function rateOfficer({ venueId, officerId, shiftId, rating, note, userId }
 }
 
 const LIST_SQL = (short) => `
-  SELECT c.*, v.name AS venue_name, ${short ? officerShort('o') : officerName('o')} AS officer_name,
+  SELECT c.*, v.name AS venue_name, v.site_client, rv.status AS review_status, ${short ? officerShort('o') : officerName('o')} AS officer_name,
          s.starts_at AS shift_starts_at, s.ends_at AS shift_ends_at, ${userName('cu')} AS created_by_name, ${userName('ru')} AS replied_by_name
     FROM venue_comments c JOIN venues v ON v.id = c.venue_id
     LEFT JOIN officers o ON o.id = c.officer_id LEFT JOIN shifts s ON s.id = c.shift_id
-    LEFT JOIN users cu ON cu.id = c.created_by LEFT JOIN users ru ON ru.id = c.replied_by`;
+    LEFT JOIN users cu ON cu.id = c.created_by LEFT JOIN users ru ON ru.id = c.replied_by
+    LEFT JOIN reviews rv ON rv.id = c.review_id`;
 
 export const actions = {
   /** Venues and shifts to choose from, for the venue itself or a manager logging it on the venue's behalf. */
@@ -77,6 +88,11 @@ export const actions = {
     const venueId = b.venue_id || (venues.length === 1 ? venues[0].id : null);
     if (!venueId) return { venues, venue_id: null, shifts: [], officers: [] };
     await assertVenue(user, venueId);
+    // A venue that has since closed can still be picked when it was asked for by name (its page, a filter link)
+    if (!venues.some((v) => v.id === venueId)) {
+      const v = await one('SELECT id, name FROM venues WHERE id = $1', [venueId]);
+      if (v) venues.push(v);
+    }
     const shifts = await recentShifts(venueId, user.role === 'venue');
     const seen = new Map();
     for (const s of shifts) for (const o of s.officers) if (!seen.has(o.officer_id)) seen.set(o.officer_id, { ...o, last_shift_at: s.starts_at });
@@ -164,5 +180,20 @@ export const actions = {
     }
     await audit(user, 'comments.reply', 'venue_comment', c.id, { status, replied: !!reply, hr_note: !!b.hr_note });
     return row;
+  }),
+
+  /** Praise from a venue, offered to the website as a pending review; the office still approves it in Reviews. */
+  'comments.toReview': def(CO, async (b, { user }) => {
+    required(b, 'id');
+    const c = need(await one(`SELECT c.*, ${userName('u')} AS created_by_name FROM venue_comments c LEFT JOIN users u ON u.id = c.created_by WHERE c.id = $1`, [b.id]), 'Feedback not found');
+    const venue = await one('SELECT id, site_client FROM venues WHERE id = $1', [c.venue_id]);
+    const why = canPromote(c, venue);
+    if (why) fail(400, why);
+    const f = reviewFields({ quote: b.quote ?? c.comment, reviewer: b.reviewer ?? (c.on_behalf ? '' : c.created_by_name), reviewer_role: b.reviewer_role ?? 'Venue manager', rating: c.rating });
+    const r = await insertReview(user, { ...f, client: venue.site_client, venue_id: venue.id, received_on: c.created_at }, 'pending');
+    const linked = await one('UPDATE venue_comments SET review_id = $2 WHERE id = $1 AND review_id IS NULL RETURNING id', [c.id, r.id]);
+    if (!linked) { await q('DELETE FROM reviews WHERE id = $1', [r.id]); fail(409, 'Already used as a review'); }
+    await audit(user, 'comments.to_review', 'venue_comment', c.id, { review_id: r.id, client: venue.site_client });
+    return { review_id: r.id, status: r.status };
   }),
 };

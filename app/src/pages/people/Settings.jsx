@@ -14,6 +14,7 @@ import { previewStyle, restoreStyle, styleVars } from '../../ui/style.js';
 import { TemplatesTab } from './_esign.jsx';
 import LibraryTab from './contracts/Library.jsx';
 import { EmailTab } from '../email/_settings.jsx';
+import { AccessFields, InviteSheet, USER_ROLES } from './_access.jsx';
 
 const TABS = [
   { value: 'company', label: 'Company details' }, { value: 'users', label: 'Users & access' }, { value: 'rules', label: 'Workforce rules' },
@@ -459,13 +460,12 @@ function KeyField({ label, value }) {
 
 /* ---------------- Users ---------------- */
 
-const USER_ROLES = ['company', 'security', 'venue'];
-
 function UsersTab({ openId }) {
   const { user: me } = useAuth();
   const [role, setRole] = useState('all');
   const q = useApi('users.list');
   const venues = useApi('venues.list');
+  const clients = useApi('clients.list');
   const [inviting, setInviting] = useState(false);
   const [editing, setEditing] = useState(null);
   // A link from a staff profile opens that person's access straight away
@@ -495,13 +495,13 @@ function UsersTab({ openId }) {
                   <Row key={u.id} onClick={() => setEditing(u)} chevron
                     left={<Avatar name={u.name} src={u.photo_url} size={40} />}
                     title={<span>{u.name}{u.id === me.id && <span className="ml-1.5 text-caption font-semibold text-faint">You</span>}</span>}
-                    subtitle={[u.officer_id ? (u.role === 'officer' ? 'Staff record linked' : 'Also works shifts') : null, u.email, u.venues?.length ? u.venues.join(', ') : null, u.last_login ? `Seen ${relative(u.last_login)}` : null].filter(Boolean).join(' · ')}
+                    subtitle={[u.officer_id ? (u.role === 'officer' ? 'Staff record linked' : 'Also works shifts') : null, u.email, u.client_name ? `Client: ${u.client_name}` : null, u.venues?.length ? u.venues.join(', ') : null, u.last_login ? `Seen ${relative(u.last_login)}` : null].filter(Boolean).join(' · ')}
                     right={<div className="flex flex-col items-end gap-1"><Pill tone="grey">{ROLE_LABEL[u.role]}</Pill>{u.status !== 'active' && <Pill status={u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : 'Disabled'}</Pill>}</div>} />
                 ))}
               </List>
             ) : <Empty title="No users" />}
-            {inviting && <InviteSheet venues={venues.data || []} onClose={() => setInviting(false)} onDone={q.reload} />}
-            {editing && <UserSheet u={editing} me={me} all={all} venues={venues.data || []} onClose={() => setEditing(null)} onDone={q.reload} />}
+            {inviting && <InviteSheet onClose={() => setInviting(false)} onDone={() => { q.reload(); clients.reload(); }} />}
+            {editing && <UserSheet u={editing} me={me} all={all} venues={venues.data || []} clients={clients.data || []} onClientCreated={clients.reload} onClose={() => setEditing(null)} onDone={q.reload} />}
           </>
         );
       }}
@@ -509,49 +509,13 @@ function UsersTab({ openId }) {
   );
 }
 
-function InviteSheet({ venues, onClose, onDone }) {
-  const { v, bind, set } = useForm({ name: '', email: '', phone: '', role: 'security', venue_ids: [], can_see_pay: false });
-  const [run, busy] = useAction();
-  const [link, setLink] = useState(null);
-  const send = async () => {
-    const r = await run(() => api('users.invite', { ...v, venue_ids: v.role === 'company' ? undefined : v.venue_ids, can_see_pay: v.role === 'security' && v.can_see_pay }), 'Invite sent');
-    setLink(r.invite_link);
-    onDone();
-  };
-  return (
-    <Sheet open onClose={onClose} title={link ? 'Invite sent' : 'Invite manager or venue user'}
-      footer={link ? <Button onClick={onClose}>Done</Button>
-        : <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!v.name || !v.email} onClick={send}>Send invite</Button></>}>
-      {link ? <CopyLink link={link} /> : (
-        <div className="space-y-4">
-          <Segmented value={v.role} onChange={(r) => set('role', r)} options={USER_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))} />
-          <p className="text-footnote text-muted">{ROLE_HINT[v.role]}</p>
-          <Input label="Full name" {...bind('name')} />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Input label="Email" type="email" {...bind('email')} />
-            <Input label="Phone" type="tel" {...bind('phone')} />
-          </div>
-          {v.role !== 'company' && <Chips label={v.role === 'venue' ? 'Venues they manage' : 'Venues they look after'} options={venues.map((x) => ({ value: x.id, label: x.name }))} value={v.venue_ids} onChange={(x) => set('venue_ids', x)} />}
-          {v.role === 'security' && <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.can_see_pay} onChange={(x) => set('can_see_pay', x)} label="Can see pay" hint="Officer rates and pay statements" /></div>}
-          <p className="text-caption text-faint">Officers are added from People → Staff, with App access turned on.</p>
-        </div>
-      )}
-    </Sheet>
-  );
-}
-const ROLE_HINT = {
-  company: 'Full access to everything, including money and settings.',
-  security: 'Runs the rota, live view, timesheets and incidents for their venues.',
-  venue: 'Client contact. Requests cover, signs off timesheets and sees invoices for their venues.',
-};
-
-function UserSheet({ u, me, all = [], venues, onClose, onDone }) {
-  const { v, bind, set } = useForm({ name: u.name, goes_by: u.goes_by || '', email: u.email, phone: u.phone || '', can_see_pay: !!u.can_see_pay, venue_ids: u.venue_ids || [] });
+function UserSheet({ u, me, all = [], venues, clients, onClientCreated, onClose, onDone }) {
+  const { v, bind, set } = useForm({ name: u.name, goes_by: u.goes_by || '', email: u.email, phone: u.phone || '', can_see_pay: !!u.can_see_pay, venue_ids: u.venue_ids || [], client_id: u.client_id || '' });
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const [link, setLink] = useState(null);
   const save = async () => {
-    await run(() => api('users.update', { id: u.id, ...v, email: u.officer_id || v.email === u.email ? undefined : v.email, venue_ids: ['security', 'venue'].includes(u.role) ? v.venue_ids : undefined }), 'User updated');
+    await run(() => api('users.update', { id: u.id, ...v, email: u.officer_id || v.email === u.email ? undefined : v.email, ...(['security', 'venue'].includes(u.role) ? { venue_ids: v.venue_ids, client_id: v.client_id || null } : { venue_ids: undefined, client_id: undefined }) }), 'User updated');
     onDone();
     onClose();
   };
@@ -576,7 +540,7 @@ function UserSheet({ u, me, all = [], venues, onClose, onDone }) {
         {u.officer_id
           ? <p className="text-footnote text-muted">Their sign-in email follows their staff record. Change it on the staff profile.</p>
           : <Input label="Sign-in email" type="email" hint={v.email !== u.email ? 'They will sign in with the new email from now on' : undefined} {...bind('email')} />}
-        {['security', 'venue'].includes(u.role) && <Chips label="Venues" options={venues.map((x) => ({ value: x.id, label: x.name }))} value={v.venue_ids} onChange={(x) => set('venue_ids', x)} />}
+        {['security', 'venue'].includes(u.role) && <AccessFields role={u.role} v={v} set={set} venues={venues} clients={clients} onClientCreated={onClientCreated} />}
         {u.role === 'security' && <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.can_see_pay} onChange={(x) => set('can_see_pay', x)} label="Can see pay" hint="Officer rates and pay statements" /></div>}
         {['company', 'security'].includes(u.role) && u.status !== 'disabled' && <WorksShifts u={u} all={all} onDone={() => { onDone(); onClose(); }} />}
         {u.officer_id && <Link to={`/company/staff/${u.officer_id}`} className="inline-flex items-center gap-1.5 text-subhead font-semibold text-blue"><Users size={16} />Staff profile<ChevronRight size={16} /></Link>}

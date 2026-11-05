@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkComment, needsFollowUp } from '../modules/comments.mjs';
+import { canPromote, checkComment, needsFollowUp } from '../modules/comments.mjs';
 
 const ok = { about: 'service', tone: 'praise', rating: 4, comment: '  Great night  ' };
 
@@ -28,4 +28,16 @@ test('complaints and low ratings need a follow-up', () => {
   assert.equal(needsFollowUp({ tone: 'praise', rating: 2 }), true);
   assert.equal(needsFollowUp({ tone: 'suggestion', rating: null }), false);
   assert.equal(needsFollowUp({ tone: 'praise', rating: 3 }), false);
+});
+
+test('only praise with a comment, at a venue on the website, becomes a review once', () => {
+  const praise = { tone: 'praise', comment: 'Brilliant door team', review_id: null };
+  const site = { site_client: 'banshee' };
+  assert.equal(canPromote(praise, site), null);
+  assert.match(canPromote({ ...praise, tone: 'complaint' }, site), /Only praise/);
+  assert.match(canPromote({ ...praise, tone: 'suggestion' }, site), /Only praise/);
+  assert.match(canPromote({ ...praise, review_id: 'r1' }, site), /Already used/);
+  assert.match(canPromote(praise, { site_client: null }), /website tile/);
+  assert.match(canPromote(praise, null), /website tile/);
+  assert.match(canPromote({ ...praise, comment: '  ' }, site), /Add a comment/);
 });

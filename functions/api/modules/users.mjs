@@ -37,11 +37,19 @@ async function setVenues(t, userId, role, venueIds) {
   for (const v of venueIds) await t.q(`INSERT INTO ${table} (venue_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [v, userId]);
 }
 
+// Venue and security managers can be a client's contact; anyone else carries no client
+async function checkClient(t, role, clientId) {
+  if (!clientId || !['venue', 'security'].includes(role)) return null;
+  if (!(await t.one('SELECT 1 FROM clients WHERE id = $1', [clientId]))) fail(400, 'Client not found');
+  return clientId;
+}
+
 const withPhotos = (rows) => Promise.all(rows.map(async ({ photo_key, ...u }) => ({ ...u, photo_url: await downloadUrl(photo_key) })));
 
 export const actions = {
   'users.list': def(CO, async (b) => withPhotos(await q(
     `SELECT u.id, u.email, u.name, u.goes_by, u.phone, u.role, COALESCE((SELECT o.photo_key FROM officers o WHERE o.user_id = u.id LIMIT 1), u.photo_key) AS photo_key, u.status, u.can_see_pay, u.last_login, u.created_at,
+            u.client_id, (SELECT c.name FROM clients c WHERE c.id = u.client_id) AS client_name,
             COALESCE(array_agg(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS venues,
             COALESCE(array_agg(DISTINCT v.id) FILTER (WHERE v.id IS NOT NULL), '{}') AS venue_ids,
             CASE WHEN u.status = 'invited' THEN '/app/invite/' || u.invite_token END AS invite_link,
@@ -59,10 +67,12 @@ export const actions = {
     if (b.role === 'officer') fail(400, 'Invite officers from Staff → Add officer');
     const u = await tx(async (t) => {
       const created = await createInvite(t, b);
+      const clientId = await checkClient(t, b.role, b.client_id);
+      if (clientId) await t.q('UPDATE users SET client_id = $2 WHERE id = $1', [created.id, clientId]);
       await setVenues(t, created.id, b.role, b.venue_ids);
       return created;
     });
-    await audit(user, 'user.invite', 'user', u.id, { role: b.role });
+    await audit(user, 'user.invite', 'user', u.id, { role: b.role, client_id: b.client_id || null });
     return { id: u.id, invite_link: await sendInvite(u) };
   }),
 
@@ -81,6 +91,11 @@ export const actions = {
       if (await one('SELECT 1 FROM users WHERE email = $1 AND id <> $2', [fields.email, b.id])) fail(409, 'A user with this email already exists');
     }
     const u = await tx(async (t) => {
+      if ('client_id' in b) {
+        const cur = await t.one('SELECT role FROM users WHERE id = $1', [b.id]);
+        if (!cur) fail(404, 'User not found');
+        fields.client_id = await checkClient(t, cur.role, b.client_id);
+      }
       const keys = Object.keys(fields);
       const row = keys.length
         ? await t.one(`UPDATE users SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1 RETURNING *`, [b.id, ...keys.map((k) => fields[k])])

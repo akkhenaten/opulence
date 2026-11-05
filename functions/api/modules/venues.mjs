@@ -44,12 +44,15 @@ export const actions = {
     await assertVenue(user, b.id);
     const v = need(await one('SELECT v.*, c.name AS client_name FROM venues v LEFT JOIN clients c ON c.id = v.client_id WHERE v.id = $1', [b.id]));
     const [contacts, security, rates, docs] = await Promise.all([
-      q("SELECT u.id, u.name, u.email, u.phone, u.status FROM venue_contacts vc JOIN users u ON u.id = vc.user_id WHERE vc.venue_id = $1", [b.id]),
-      q("SELECT u.id, u.name, u.email, u.phone FROM security_venues sv JOIN users u ON u.id = sv.user_id WHERE sv.venue_id = $1", [b.id]),
+      q(`SELECT u.id, u.name, u.email, u.phone, u.status, u.client_id, array(SELECT x.venue_id FROM venue_contacts x WHERE x.user_id = u.id) AS venue_ids
+           FROM venue_contacts vc JOIN users u ON u.id = vc.user_id WHERE vc.venue_id = $1 ORDER BY u.name`, [b.id]),
+      q(`SELECT u.id, u.name, u.email, u.phone, u.status, u.client_id, array(SELECT x.venue_id FROM security_venues x WHERE x.user_id = u.id) AS venue_ids
+           FROM security_venues sv JOIN users u ON u.id = sv.user_id WHERE sv.venue_id = $1 ORDER BY u.name`, [b.id]),
       user.role === 'venue' || canSeePay(user) ? currentVenueRates(b.id) : [],
       q("SELECT id, kind, title, expiry, created_at, mime FROM documents WHERE owner_type = 'venue' AND owner_id = $1 ORDER BY created_at DESC", [b.id]),
     ]);
-    return { ...clientView(user, v), photo_url: await downloadUrl(v.photo_key), contacts, security, rates, documents: docs };
+    const fb = await one("SELECT count(*)::int AS n FROM venue_comments WHERE venue_id = $1 AND status = 'open'", [b.id]);
+    return { ...clientView(user, v), photo_url: await downloadUrl(v.photo_key), contacts, security, rates, documents: docs, feedback_open: fb.n };
   }),
 
   // Company and security managers run venues; the client and invoicing set-up stay with the company
@@ -114,7 +117,36 @@ export const actions = {
   }),
 
   'clients.list': def(CO, async () => q(
-    'SELECT c.*, (SELECT count(*) FROM venues v WHERE v.client_id = c.id) AS venue_count FROM clients c ORDER BY name')),
+    `SELECT c.*, (SELECT count(*) FROM venues v WHERE v.client_id = c.id) AS venue_count,
+            (SELECT count(DISTINCT u.id) FROM users u WHERE NOT u.system AND u.status <> 'disabled'
+                AND (u.client_id = c.id OR u.id IN (SELECT vc.user_id FROM venue_contacts vc JOIN venues v ON v.id = vc.venue_id WHERE v.client_id = c.id))) AS contact_count,
+            COALESCE((SELECT array_agg(v.id) FROM venues v WHERE v.client_id = c.id), '{}') AS venue_ids
+       FROM clients c ORDER BY name`)),
+
+  // A client with its venues and the people who speak for it: linked to the client, or managing one of its venues
+  'clients.get': def(CO, async (b) => {
+    required(b, 'id');
+    const c = need(await one('SELECT * FROM clients WHERE id = $1', [b.id]), 'Client not found');
+    const [venues, contacts] = await Promise.all([
+      q('SELECT id, name, active, site_client FROM venues WHERE client_id = $1 ORDER BY active DESC, name', [b.id]),
+      q(`SELECT u.id, u.name, u.email, u.role, u.status, COALESCE(u.client_id = $1, false) AS linked,
+                COALESCE(array_agg(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS venues
+           FROM users u
+           LEFT JOIN venue_contacts vc ON vc.user_id = u.id
+           LEFT JOIN venues v ON v.id = vc.venue_id AND v.client_id = $1
+          WHERE NOT u.system AND (u.client_id = $1 OR v.id IS NOT NULL)
+          GROUP BY u.id ORDER BY u.status = 'disabled', u.name`, [b.id]),
+    ]);
+    return { ...c, venues, contacts };
+  }),
+
+  'clients.setVenue': def(CO, async (b, { user }) => {
+    required(b, 'venue_id');
+    if (b.client_id) need(await one('SELECT 1 FROM clients WHERE id = $1', [b.client_id]), 'Client not found');
+    const v = need(await one('UPDATE venues SET client_id = $2 WHERE id = $1 RETURNING id, client_id', [b.venue_id, b.client_id || null]), 'Venue not found');
+    await audit(user, 'venue.update', 'venue', v.id, { client_id: v.client_id });
+    return v;
+  }),
 
   'clients.save': def(CO, async (b) => {
     const f = pick(b, ['name', 'billing_email', 'billing_address', 'vat_number']);

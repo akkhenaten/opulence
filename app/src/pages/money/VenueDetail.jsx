@@ -4,7 +4,7 @@ import RecentEmail from '../email/_recent.jsx';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
-  Building2, Crosshair, Download, Eye, FileText, MessageSquareHeart, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, QrCode, RefreshCw, Search, Trash2, Upload, Users,
+  Building2, Crosshair, Download, Eye, FileText, MessageSquareHeart, UserMinus, UserPlus, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, QrCode, RefreshCw, Search, Trash2, Upload, Users,
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
@@ -17,6 +17,9 @@ import { BanRegister } from '../shift/Bans.jsx';
 import VenuePackTab from './VenuePackTab.jsx';
 import { AnalyticsView, useModuleOn } from './Analytics.jsx';
 import { GiveFeedbackSheet } from '../venue/_feedback.jsx';
+import { FeedbackList } from './Feedback.jsx';
+import { ClientSelect } from './_client.jsx';
+import { InviteSheet } from '../people/_access.jsx';
 
 const UK = [54.3, -2.6];
 
@@ -31,6 +34,7 @@ export default function VenueDetail() {
   const clients = useApi('clients.list', {}, { skip: !isCo });
   const analytics = useModuleOn('analytics');
   const [give, setGive] = useState(false);
+  const [fbKey, setFbKey] = useState(0);
 
   return (
     <Load q={q}>
@@ -38,7 +42,8 @@ export default function VenueDetail() {
         <Page title={v.name} subtitle={v.client_name || 'No client'} back={{ to: `${base}/venues`, label: 'Venues' }}
           actions={<><Pill status={v.active ? 'active' : 'closed'}>{v.active ? 'Active' : 'Inactive'}</Pill>
             <Button variant="secondary" size="sm" icon={MessageSquareHeart} onClick={() => setGive(true)}>Log feedback</Button></>}>
-          <GiveFeedbackSheet open={give} onClose={() => setGive(false)} venueId={v.id} />
+          <GiveFeedbackSheet open={give} onClose={() => setGive(false)} venueId={v.id}
+            onDone={() => { setParams({ tab: 'feedback' }, { replace: true }); setFbKey((k) => k + 1); q.reload(); }} />
           <Bento className="mb-6">
             <Tile className="col-span-2" tone="soft">
               <div className="flex items-start gap-4">
@@ -61,15 +66,16 @@ export default function VenueDetail() {
 
           <Tabs value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })} tabs={[
             { value: 'location', label: 'Location' }, { value: 'details', label: 'Details' }, { value: 'codes', label: 'Venue codes' },
-            ...(isCo ? [{ value: 'rates', label: 'Charge rates' }] : []), { value: 'people', label: 'People' }, { value: 'pack', label: 'Instructions & procedures' }, { value: 'documents', label: 'Documents', count: v.documents.length },
+            ...(isCo ? [{ value: 'rates', label: 'Charge rates' }] : []), { value: 'people', label: 'People' }, { value: 'feedback', label: 'Feedback', count: v.feedback_open || undefined }, { value: 'pack', label: 'Instructions & procedures' }, { value: 'documents', label: 'Documents', count: v.documents.length },
             { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Ejections & bans' }, ...(analytics ? [{ value: 'analytics', label: 'Analytics' }] : []),
           ]} />
 
           {tab === 'location' && <LocationTab v={v} onSaved={q.reload} />}
-          {tab === 'details' && <DetailsTab v={v} clients={clients.data || []} isCo={isCo} onSaved={q.reload} />}
+          {tab === 'details' && <DetailsTab v={v} clients={clients.data || []} onClientCreated={clients.reload} isCo={isCo} onSaved={q.reload} />}
           {(tab === 'codes' || tab === 'qr') && <QrTab v={v} />}
           {tab === 'rates' && isCo && <RatesTab venueId={v.id} />}
-          {tab === 'people' && <PeopleTab v={v} isCo={isCo} />}
+          {tab === 'people' && <PeopleTab v={v} isCo={isCo} onChanged={q.reload} />}
+          {tab === 'feedback' && <FeedbackList key={fbKey} venueId={v.id} fixedVenue onChanged={q.reload} />}
           {tab === 'people' && isCo && <RecentEmail type="venue" id={v.id} />}
           {tab === 'pack' && <VenuePackTab venueId={v.id} />}
           {tab === 'documents' && <DocumentsTab venueId={v.id} />}
@@ -244,7 +250,7 @@ function VenuePhoto({ v, canEdit, onSaved }) {
   );
 }
 
-function DetailsTab({ v, clients, isCo, onSaved }) {
+function DetailsTab({ v, clients, onClientCreated, isCo, onSaved }) {
   const [run, busy] = useAction();
   const f = useForm({
     client_id: v.client_id || '', name: v.name || '', address: v.address || '', postcode: v.postcode || '', phone: v.phone || '',
@@ -262,7 +268,8 @@ function DetailsTab({ v, clients, isCo, onSaved }) {
       <Tile title="Venue">
         <div className="space-y-4">
           <Input label="Name" {...f.bind('name')} />
-          {isCo && <Select label="Client" placeholder="No client" options={clients.map((c) => ({ value: c.id, label: c.name }))} {...f.bind('client_id')} />}
+          {isCo && <ClientSelect clients={clients} value={f.v.client_id} onChange={(id) => f.set('client_id', id)} onCreated={onClientCreated}
+            hint={f.v.client_id !== (v.client_id || '') ? 'Save to move this venue to the new client' : undefined} />}
           {isCo && <Select label="Website client" hint="The tile on the website this venue's reviews appear on" placeholder="Not on the website"
             options={(site.data?.clients || []).map((c) => ({ value: c.slug, label: `${c.name} (${c.city})` }))} {...f.bind('site_client')} />}
           <Textarea label="Address" rows={2} {...f.bind('address')} />
@@ -510,16 +517,26 @@ function RateSheet({ venueId, roles, onClose, onSaved }) {
 
 /* ---------- People ---------- */
 
-function PeopleTab({ v, isCo }) {
+function PeopleTab({ v, isCo, onChanged }) {
+  const [inviting, setInviting] = useState(false);
+  const [run] = useAction();
+  const confirm = useConfirm();
+  // Taking someone off this venue keeps their other venues; the server replaces the whole list
+  const remove = async (u) => {
+    if (!(await confirm({ title: `Remove ${u.name} from ${v.name}?`, body: `They keep their login${u.venue_ids.length > 1 ? ' and their other venues' : ''}, but lose access to this venue.`, confirm: 'Remove', danger: true }))) return;
+    await run(() => api('users.update', { id: u.id, venue_ids: u.venue_ids.filter((x) => x !== v.id) }), `${u.name} removed from ${v.name}`).then(onChanged).catch(() => {});
+  };
+  const removeBtn = (u) => isCo && <IconButton icon={UserMinus} label={`Remove ${u.name} from this venue`} size="sm" onClick={() => remove(u)} />;
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <div>
-        <Section title="Venue managers" className="mt-0">
+        <Section title="Venue managers" className="mt-0"
+          action={isCo && <Button size="sm" variant="soft" icon={UserPlus} onClick={() => setInviting(true)}>Invite venue manager</Button>}>
           {v.contacts.length ? (
             <List>
               {v.contacts.map((u) => (
                 <Row key={u.id} left={<Avatar name={u.name} size={38} />} title={u.name} subtitle={[u.email, u.phone].filter(Boolean).join(' · ')}
-                  right={<Pill status={u.status} />} />
+                  right={<div className="flex items-center gap-2">{u.status !== 'active' && <Pill status={u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : 'Disabled'}</Pill>}{removeBtn(u)}</div>} />
               ))}
             </List>
           ) : <Empty icon={Users} title="No venue managers" body="Invite the client's site manager so they can sign timesheets, request cover and see incidents." />}
@@ -529,14 +546,15 @@ function PeopleTab({ v, isCo }) {
         <Section title="Security managers" className="mt-0">
           {v.security.length ? (
             <List>
-              {v.security.map((u) => <Row key={u.id} left={<Avatar name={u.name} size={38} />} title={u.name} subtitle={[u.email, u.phone].filter(Boolean).join(' · ')} />)}
+              {v.security.map((u) => <Row key={u.id} left={<Avatar name={u.name} size={38} />} title={u.name} subtitle={[u.email, u.phone].filter(Boolean).join(' · ')} right={removeBtn(u)} />)}
             </List>
           ) : <Empty icon={Users} title="No security managers" body="Security managers assigned to this venue can run its rota and live board." />}
         </Section>
       </div>
       <div className="lg:col-span-2">
-        {isCo && <Button variant="soft" icon={Users} to="/company/settings">Manage users and venue access</Button>}
+        {isCo && <Button variant="soft" icon={Users} to="/company/settings?tab=users">Manage users and venue access</Button>}
       </div>
+      {inviting && <InviteSheet preset={{ role: 'venue', venue_ids: [v.id], client_id: v.client_id || '' }} onClose={() => setInviting(false)} onDone={onChanged} />}
     </div>
   );
 }

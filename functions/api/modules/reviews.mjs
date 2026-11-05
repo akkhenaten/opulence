@@ -40,7 +40,7 @@ async function visibleClients(user) {
 
 const text = (v, max) => String(v ?? '').trim().slice(0, max);
 
-function fields(b) {
+export function fields(b) {
   const rating = b.rating === null || b.rating === '' || b.rating === undefined ? null : Number(b.rating);
   if (rating !== null && !(Number.isInteger(rating) && rating >= 1 && rating <= 5)) fail(400, 'Rating must be 1 to 5 stars');
   const f = { quote: text(b.quote, 600), reviewer: text(b.reviewer, 80), reviewer_role: text(b.reviewer_role, 80), rating, received_on: b.received_on || null };
@@ -52,6 +52,24 @@ async function own(user, id) {
   const r = need(await one('SELECT * FROM reviews WHERE id = $1', [id]), 'Review not found');
   if (user.role === 'company') return r;
   if (r.created_by !== user.id || r.status !== 'pending') fail(403, 'Only the office can change a review once it has been checked');
+  return r;
+}
+
+/** A new review at the end of its client's list; a pending one asks the company managers to approve it. */
+export async function insertReview(user, f, status) {
+  const { n } = await one('SELECT COALESCE(max(sort), -1) + 1 AS n FROM reviews WHERE client = $1', [f.client]);
+  const r = await one(
+    `INSERT INTO reviews (client, quote, reviewer, reviewer_role, rating, received_on, status, sort, venue_id, created_by, approved_by, approved_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+    [f.client, f.quote, f.reviewer, f.reviewer_role, f.rating, f.received_on || null, status, n, f.venue_id || null, user.id,
+      status === 'published' ? user.id : null, status === 'published' ? new Date() : null]);
+  if (status === 'pending') {
+    const name = SITE_CLIENTS.find((c) => c.slug === f.client).name;
+    await notify(await companyManagers(), {
+      kind: 'review', title: 'New review to approve', body: `${name}: “${f.quote.slice(0, 90)}${f.quote.length > 90 ? '…' : ''}” — added by ${user.name}`,
+      link: '/company/reviews?status=pending', ref: `review:${r.id}`,
+    });
+  }
   return r;
 }
 
@@ -91,21 +109,8 @@ export const actions = {
     if (!(await myClients(user)).includes(b.client)) fail(403, 'You can only add reviews for your own venue');
     const venue = user.role === 'venue'
       ? (await one('SELECT id FROM venues WHERE id = ANY($1::uuid[]) AND site_client = $2 LIMIT 1', [await venueScope(user), b.client]))?.id : null;
-    const status = statusOnCreate(user.role);
-    const { n } = await one('SELECT COALESCE(max(sort), -1) + 1 AS n FROM reviews WHERE client = $1', [b.client]);
-    const r = await one(
-      `INSERT INTO reviews (client, quote, reviewer, reviewer_role, rating, received_on, status, sort, venue_id, created_by, approved_by, approved_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [b.client, f.quote, f.reviewer, f.reviewer_role, f.rating, f.received_on, status, n, venue, user.id,
-        status === 'published' ? user.id : null, status === 'published' ? new Date() : null]);
-    if (status === 'pending') {
-      const name = SITE_CLIENTS.find((c) => c.slug === b.client).name;
-      await notify(await companyManagers(), {
-        kind: 'review', title: 'New review to approve', body: `${name}: “${f.quote.slice(0, 90)}${f.quote.length > 90 ? '…' : ''}” — added by ${user.name}`,
-        link: '/company/reviews?status=pending', ref: `review:${r.id}`,
-      });
-    }
-    await audit(user, 'review.create', 'review', r.id, { client: r.client, status });
+    const r = await insertReview(user, { ...f, client: b.client, venue_id: venue }, statusOnCreate(user.role));
+    await audit(user, 'review.create', 'review', r.id, { client: r.client, status: r.status });
     return r;
   }),
 

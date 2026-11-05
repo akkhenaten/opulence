@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import RecentEmail from '../email/_recent.jsx';
 import { Building2, Plus, Search, Users } from 'lucide-react';
 import { api } from '../../api.js';
 import {
-  Avatar, Button, cx, Empty, Input, List, Load, Page, PhotoCard, Pill, Pressable, Row, SearchInput, Select, Sheet, Textarea, useAction, useApi, useForm,
+  Avatar, Button, cx, Empty, Input, List, Load, Page, PhotoCard, Pill, Pressable, Row, SearchInput, Sheet, Textarea, useAction, useApi, useForm,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
+import { ClientSelect, ClientSheet } from './_client.jsx';
 import { useAuth } from '../../auth.jsx';
 
 export default function Venues() {
@@ -21,7 +21,7 @@ export default function Venues() {
   return (
     <Page title="Venues" subtitle="Sites you guard" actions={<Button icon={Plus} onClick={() => setAddVenue(true)}>Add venue</Button>}>
       <Load q={venues}>{(rows) => <VenueGrid rows={rows} onAdd={() => setAddVenue(true)} />}</Load>
-      <AddVenueSheet open={addVenue} onClose={() => setAddVenue(false)} clients={clients.data || []} />
+      <AddVenueSheet open={addVenue} onClose={() => setAddVenue(false)} clients={user.role === 'company' ? clients.data || [] : null} onClientCreated={clients.reload} />
     </Page>
   );
 }
@@ -86,13 +86,18 @@ function ClientList({ rows, onEdit }) {
         <Row key={c.id} onClick={() => onEdit(c)} chevron left={<Avatar name={c.name} size={38} />}
           title={c.name}
           subtitle={[c.billing_email, c.vat_number && `VAT ${c.vat_number}`].filter(Boolean).join(' · ') || 'No billing details'}
-          right={<span className="text-muted"><span className="num font-semibold text-ink">{c.venue_count}</span> {Number(c.venue_count) === 1 ? 'venue' : 'venues'}</span>} />
+          right={(
+            <span className="text-right text-footnote text-muted">
+              <span className="num font-semibold text-ink">{c.venue_count}</span> {Number(c.venue_count) === 1 ? 'venue' : 'venues'}
+              <span className="block"><span className="num font-semibold text-ink">{c.contact_count}</span> {Number(c.contact_count) === 1 ? 'contact' : 'contacts'}</span>
+            </span>
+          )} />
       ))}
     </List>
   );
 }
 
-function AddVenueSheet({ open, onClose, clients }) {
+function AddVenueSheet({ open, onClose, clients, onClientCreated }) {
   const nav = useNavigate();
   const base = useBase();
   const [run, busy] = useAction();
@@ -107,7 +112,7 @@ function AddVenueSheet({ open, onClose, clients }) {
     <Sheet open={open} onClose={onClose} title="Add venue"
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!f.v.name.trim()} onClick={save}>Add venue</Button></>}>
       <div className="space-y-4">
-        {clients.length > 0 && <Select label="Client" placeholder="No client" options={clients.map((c) => ({ value: c.id, label: c.name }))} {...f.bind('client_id')} />}
+        {clients && <ClientSelect clients={clients} value={f.v.client_id} onChange={(id) => f.set('client_id', id)} onCreated={onClientCreated} />}
         <Input label="Venue name" placeholder="e.g. The Crown, Soho" autoFocus {...f.bind('name')} />
         <Textarea label="Address" rows={2} {...f.bind('address')} />
         <div className="grid grid-cols-2 gap-3">
@@ -116,33 +121,6 @@ function AddVenueSheet({ open, onClose, clients }) {
         </div>
         <p className="text-footnote text-muted">You can set the map location and geofence on the next screen.</p>
       </div>
-    </Sheet>
-  );
-}
-
-function ClientSheet({ client, onClose, onSaved }) {
-  const open = !!client;
-  return open ? <ClientForm key={client.id || 'new'} client={client} onClose={onClose} onSaved={onSaved} /> : null;
-}
-
-function ClientForm({ client, onClose, onSaved }) {
-  const [run, busy] = useAction();
-  const f = useForm({ name: client.name || '', billing_email: client.billing_email || '', billing_address: client.billing_address || '', vat_number: client.vat_number || '' });
-  const save = async () => {
-    await run(() => api('clients.save', { ...(client.id ? { id: client.id } : {}), ...f.v }), client.id ? 'Client saved' : 'Client added');
-    onSaved();
-    onClose();
-  };
-  return (
-    <Sheet open onClose={onClose} title={client.id ? 'Edit client' : 'Add client'}
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!f.v.name.trim()} onClick={save}>Save</Button></>}>
-      <div className="space-y-4">
-        <Input label="Client name" autoFocus {...f.bind('name')} />
-        <Input label="Billing email" type="email" hint="Invoices are sent here" {...f.bind('billing_email')} />
-        <Textarea label="Billing address" rows={3} {...f.bind('billing_address')} />
-        <Input label="VAT number" placeholder="GB123456789" {...f.bind('vat_number')} />
-      </div>
-      {client.id && <RecentEmail type="client" id={client.id} />}
     </Sheet>
   );
 }
