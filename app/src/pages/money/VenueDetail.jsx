@@ -4,7 +4,7 @@ import RecentEmail from '../email/_recent.jsx';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
-  Building2, Crosshair, Download, Eye, FileText, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, QrCode, RefreshCw, Search, Trash2, Upload, Users,
+  Building2, Crosshair, Download, Eye, FileText, MessageSquareHeart, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, QrCode, RefreshCw, Search, Trash2, Upload, Users,
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
@@ -15,6 +15,8 @@ import { useAuth } from '../../auth.jsx';
 import { ShiftLogList } from '../shift/ShiftLogs.jsx';
 import { BanRegister } from '../shift/Bans.jsx';
 import VenuePackTab from './VenuePackTab.jsx';
+import { AnalyticsView, useModuleOn } from './Analytics.jsx';
+import { GiveFeedbackSheet } from '../venue/_feedback.jsx';
 
 const UK = [54.3, -2.6];
 
@@ -27,12 +29,16 @@ export default function VenueDetail() {
   const isCo = user.role === 'company';
   const q = useApi('venues.get', { id });
   const clients = useApi('clients.list', {}, { skip: !isCo });
+  const analytics = useModuleOn('analytics');
+  const [give, setGive] = useState(false);
 
   return (
     <Load q={q}>
       {(v) => (
         <Page title={v.name} subtitle={v.client_name || 'No client'} back={{ to: `${base}/venues`, label: 'Venues' }}
-          actions={<Pill status={v.active ? 'active' : 'closed'}>{v.active ? 'Active' : 'Inactive'}</Pill>}>
+          actions={<><Pill status={v.active ? 'active' : 'closed'}>{v.active ? 'Active' : 'Inactive'}</Pill>
+            <Button variant="secondary" size="sm" icon={MessageSquareHeart} onClick={() => setGive(true)}>Log feedback</Button></>}>
+          <GiveFeedbackSheet open={give} onClose={() => setGive(false)} venueId={v.id} />
           <Bento className="mb-6">
             <Tile className="col-span-2" tone="soft">
               <div className="flex items-start gap-4">
@@ -56,7 +62,7 @@ export default function VenueDetail() {
           <Tabs value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })} tabs={[
             { value: 'location', label: 'Location' }, { value: 'details', label: 'Details' }, { value: 'codes', label: 'Venue codes' },
             ...(isCo ? [{ value: 'rates', label: 'Charge rates' }] : []), { value: 'people', label: 'People' }, { value: 'pack', label: 'Instructions & procedures' }, { value: 'documents', label: 'Documents', count: v.documents.length },
-            { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Ejections & bans' },
+            { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Ejections & bans' }, ...(analytics ? [{ value: 'analytics', label: 'Analytics' }] : []),
           ]} />
 
           {tab === 'location' && <LocationTab v={v} onSaved={q.reload} />}
@@ -69,6 +75,7 @@ export default function VenueDetail() {
           {tab === 'documents' && <DocumentsTab venueId={v.id} />}
           {tab === 'logs' && <ShiftLogList venueId={v.id} />}
           {tab === 'bans' && <BanRegister venueId={v.id} />}
+          {tab === 'analytics' && analytics && <AnalyticsView venueId={v.id} fixedVenue />}
         </Page>
       )}
     </Load>

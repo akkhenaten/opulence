@@ -1,7 +1,7 @@
 import {
   BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
   Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText,
-  GraduationCap, BookOpenCheck, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck, Quote,
+  GraduationCap, BookOpenCheck, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck, Quote, MessageSquareHeart, LineChart,
 } from 'lucide-react';
 
 // Sidebar sections per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
@@ -36,6 +36,7 @@ export const NAV = {
       { to: '/company/venues', label: 'Venues', icon: Building2 },
       { to: '/company/people/procedures', label: 'Site packs', icon: BookText },
       { to: '/company/reviews', label: 'Reviews', icon: Quote },
+      { to: '/company/feedback', label: 'Feedback', icon: MessageSquareHeart },
     ] },
     { title: 'Finance', items: [
       { to: '/company/pay', label: 'Pay runs', icon: Banknote },
@@ -43,6 +44,7 @@ export const NAV = {
     ] },
     { title: 'Reporting', items: [
       { to: '/company/reports', label: 'Reports', icon: BarChart3 },
+      { to: '/company/analytics', label: 'Analytics', icon: LineChart, module: 'analytics' },
     ] },
     { title: 'Administration', items: [
       { to: '/company/settings', label: 'Settings', icon: Settings },
@@ -74,6 +76,8 @@ export const NAV = {
       { to: '/security/venues', label: 'Venues', icon: Building2 },
       { to: '/security/people/procedures', label: 'Site packs', icon: BookText },
       { to: '/security/reviews', label: 'Reviews', icon: Quote },
+      { to: '/security/feedback', label: 'Feedback', icon: MessageSquareHeart },
+      { to: '/security/analytics', label: 'Analytics', icon: LineChart, module: 'analytics' },
     ] },
     { title: 'Finance', items: [
       { to: '/security/pay', label: 'Pay runs', icon: Banknote, perm: 'can_see_pay' },
@@ -86,6 +90,8 @@ export const NAV = {
       { to: '/venue/messages', label: 'Messages', icon: MessagesSquare, tab: true, badge: 'messages' },
       { to: '/venue/site', label: 'My venue', icon: Store },
       { to: '/venue/reviews', label: 'Reviews', icon: Quote },
+      { to: '/venue/feedback', label: 'Feedback', icon: MessageSquareHeart },
+      { to: '/venue/analytics', label: 'Analytics', icon: LineChart, module: 'analytics' },
       { to: '/venue/cover', label: 'Cover requests', icon: Megaphone },
       { to: '/venue/logs', label: 'Shift logs', icon: NotebookPen },
       { to: '/venue/bans', label: 'Ejection log', icon: Ban },

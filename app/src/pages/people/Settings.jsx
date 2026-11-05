@@ -248,6 +248,7 @@ const MODULES = [
   { key: 'academy', label: 'Academy', hint: 'Training courses with quizzes and certificates' },
   { key: 'toolbox', label: 'Toolbox', hint: 'Quick guide cards officers can open on shift' },
   { key: 'everyday', label: 'Everyday', hint: 'Team feed with posts, photos and comments' },
+  { key: 'analytics', label: 'Analytics', hint: 'Lateness, incidents, satisfaction and customer numbers by venue' },
 ];
 
 // Switching a module off hides it from every menu straight away; nothing is deleted

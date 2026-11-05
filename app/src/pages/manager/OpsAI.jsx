@@ -85,7 +85,13 @@ function ItemCard({ it, onDone }) {
         {it.kind === 'venue_request' && <RequestBody it={it} />}
         {it.kind === 'reconcile' && <ReconcileBody p={p} />}
         {it.kind === 'compliance' && <ComplianceBody it={it} pending={pending} picked={picked} setPicked={setPicked} allowed={allowed} onChanged={onDone} />}
-        {it.kind === 'feedback' && <div className="flex items-center gap-1 text-amber">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={18} fill={n <= p.rating ? 'currentColor' : 'none'} />)}<span className="ml-2 text-footnote text-muted">{p.shift}</span></div>}
+        {it.kind === 'feedback' && p.rating && <div className="flex items-center gap-1 text-amber">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={18} fill={n <= p.rating ? 'currentColor' : 'none'} />)}<span className="ml-2 text-footnote text-muted">{p.shift}</span></div>}
+        {it.kind === 'feedback' && p.comment_id && (
+          <div className="mt-2 space-y-1">
+            <div className="text-footnote font-semibold text-muted">{{ staff: 'About a member of staff', shift: 'About a shift', service: 'About the service', other: 'Other feedback' }[p.about] || 'Feedback'}{p.tone ? ` · ${p.tone[0].toUpperCase()}${p.tone.slice(1)}` : ''}{!p.rating && p.shift ? ` · ${p.shift}` : ''}</div>
+            {p.note && <p className="whitespace-pre-line text-subhead">{p.note}</p>}
+          </div>
+        )}
       </div>
 
       {pending ? (

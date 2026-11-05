@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, CalendarDays, ClipboardCheck, MapPin, Megaphone, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
+import { Building2, CalendarDays, ClipboardCheck, LineChart, MapPin, Megaphone, MessageSquareHeart, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
-import { FeedbackTile, RateStaffSheet } from '../venue/_feedback.jsx';
+import { FeedbackTile, GiveFeedbackSheet, RateStaffSheet } from '../venue/_feedback.jsx';
+import { useModuleOn } from './Analytics.jsx';
+import { presetRange } from './_parts.jsx';
 import {
   assignTone, Bento, Button, Dot, List, Load, Page, Pill, Row, Section, Stat, Tile, cx, dayLabel, money, range, relative, titleCase, useApi,
 } from '../../ui/index.jsx';
@@ -31,6 +33,8 @@ function Body({ d, name }) {
   const toSign = d.counts?.toSign || 0;
   const pendingCover = d.cover.filter((c) => c.status === 'pending').length;
   const [rate, setRate] = useState(false);
+  const [give, setGive] = useState(false);
+  const analytics = useModuleOn('analytics');
 
   if (!d.venues.length) {
     return (
@@ -42,9 +46,10 @@ function Body({ d, name }) {
 
   return (
     <Page title={`${greeting()}${name ? `, ${name}` : ''}`} subtitle={multi ? `${d.venues.length} venues` : d.venues[0].name}
-      actions={<><Button variant="secondary" icon={Star} onClick={() => setRate(true)}>Rate staff</Button><Button icon={Plus} to="/venue/cover">Request cover</Button></>}>
+      actions={<><Button variant="secondary" icon={Star} onClick={() => setRate(true)}>Rate staff</Button><Button variant="secondary" icon={MessageSquareHeart} onClick={() => setGive(true)}>Give feedback</Button><Button icon={Plus} to="/venue/cover">Request cover</Button></>}>
       <InstallCard className="mb-4" />
       <RateStaffSheet open={rate} onClose={() => setRate(false)} />
+      <GiveFeedbackSheet open={give} onClose={() => setGive(false)} />
       <Bento>
         <Tile tone="blue" to="/venue/live" title="On site now" icon={Radio} className="col-span-2 lg:row-span-2">
           <div className="flex items-end gap-3">
@@ -82,6 +87,7 @@ function Body({ d, name }) {
         </Tile>
       </Bento>
       <FeedbackTile multi={multi} className="mt-4" />
+      {analytics && <MonthTile />}
 
       <div className="grid grid-cols-1 gap-x-4 lg:grid-cols-2">
         <Section title="Next 48 hours">
@@ -156,6 +162,24 @@ function Body({ d, name }) {
         </Section>
       </div>
     </Page>
+  );
+}
+
+// A glance at this month: rating, incidents, lateness and customers, opening the full Analytics page
+function MonthTile() {
+  const r = presetRange('this');
+  const q = useApi('analytics.venue', { from: r.from, to: r.to });
+  if (!q.data) return null;
+  const { attendance: a, incidents: i, satisfaction: s, customers: c } = q.data;
+  return (
+    <Tile title="This month" icon={LineChart} to="/venue/analytics" className="mt-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat value={s.avg == null ? '–' : `${s.avg}★`} label="Average rating" />
+        <Stat value={i.total} label={i.total === 1 ? 'Incident' : 'Incidents'} />
+        <Stat value={a.late} label="Late arrivals" />
+        <Stat value={c.avg_per_night ?? '–'} label="Customers a night" />
+      </div>
+    </Tile>
   );
 }
 

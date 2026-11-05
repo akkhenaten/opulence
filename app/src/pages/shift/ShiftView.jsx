@@ -4,17 +4,18 @@ import { useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Ban, BookOpen, Camera, Check, Clock3, Crown, EyeOff, FileSignature, HeartPulse, LockOpen, MapPin, MessagesSquare, Pencil, Phone, Plus,
-  Scale, ShieldAlert, Undo2, X,
+  MessageSquareHeart, Scale, ShieldAlert, Undo2, Users, X,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { compressImage } from '../officer/_parts.jsx';
 import {
-  Avatar, Button, cx, dateTime, dayLabel, Empty, IconButton, Lightbox, Load, Page, Pill, range, relative, Section, Segmented, Sheet, Textarea, time,
+  Avatar, Button, cx, dateTime, dayLabel, Empty, IconButton, Input, Lightbox, Load, Page, Pill, range, relative, Section, Segmented, Sheet, Textarea, time,
   useAction, useApi, useConfirm, Pressable,
 } from '../../ui/index.jsx';
 import { BanList, BanSheet, isEjection } from './_bans.jsx';
 import { SitePackCard } from '../officer/VenuePack.jsx';
+import { GiveFeedbackSheet } from '../venue/_feedback.jsx';
 
 const KINDS = [
   { value: 'note', label: 'Note' },
@@ -62,6 +63,7 @@ function Body({ d, reload, role }) {
       <div className="space-y-5">
         <Header s={s} me={me} officer={officer} signed={signed} />
         {officer && <QuickActions s={s} d={d} />}
+        {venue && started && <VenueActions s={s} />}
         {officer && me.assignment_id && <SitePackCard venueId={s.venue_id} />}
         {d.previous_handover && !venue && (
           <Section title="Last handover here">
@@ -71,6 +73,7 @@ function Body({ d, reload, role }) {
             </div>
           </Section>
         )}
+        {started && (me.can_count || log.customers != null) && <CustomersCard d={d} reload={reload} />}
         <LogSection d={d} reload={reload} />
       </div>
 
@@ -155,6 +158,55 @@ function QuickActions({ s, d }) {
     <div className="flex flex-wrap gap-2">
       {started && <Button variant="soft" icon={ShieldAlert} to={`/officer/incidents/new?shift=${s.id}`}>Report incident</Button>}
       {d.thread_id && <Button variant="secondary" icon={MessagesSquare} to={`/officer/messages/${d.thread_id}`}>Shift chat</Button>}
+    </div>
+  );
+}
+
+function VenueActions({ s }) {
+  const [give, setGive] = useState(false);
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Button variant="soft" icon={MessageSquareHeart} onClick={() => setGive(true)}>Give feedback</Button>
+      <GiveFeedbackSheet open={give} onClose={() => setGive(false)} venueId={s.venue_id} shift={s} />
+    </div>
+  );
+}
+
+// The night's customer total: the lead enters it, the venue can correct it for a week, managers any time
+function CustomersCard({ d, reload }) {
+  const { me, log } = d;
+  const [editing, setEditing] = useState(false);
+  const [n, setN] = useState('');
+  const [run, busy] = useAction();
+  const has = log.customers != null;
+  const open = () => { setN(has ? String(log.customers) : ''); setEditing(true); };
+  const save = () => run(() => api('shiftlog.customers', { shift_id: d.shift.id, customers: Number(n) }), 'Customers saved')
+    .then(() => { setEditing(false); reload(); }).catch(() => {});
+  const valid = /^\d{1,6}$/.test(n.trim());
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-tile border border-hairline bg-surface p-4 shadow-tile">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><Users size={20} /></div>
+      {editing ? (
+        <>
+          <Input className="min-w-0 flex-1" type="number" inputMode="numeric" min="0" step="1" aria-label="Customers tonight" placeholder="Customers tonight"
+            value={n} onChange={(e) => setN(e.target.value)} autoFocus />
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setEditing(false)}>Cancel</Button>
+            <Button busy={busy} disabled={!valid} onClick={save}>Save</Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="min-w-0 flex-1">
+            <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Customers tonight</div>
+            {has ? (
+              <div className="text-body"><span className="num text-title3 font-bold">{Number(log.customers).toLocaleString('en-GB')}</span>
+                {log.customers_by_name && <span className="ml-2 text-footnote text-muted">by {log.customers_by_name}{log.customers_at ? `, ${relative(log.customers_at)}` : ''}</span>}</div>
+            ) : <div className="text-subhead text-muted">Not counted yet. A rough total for the night is fine.</div>}
+          </div>
+          {me.can_count && <Button variant={has ? 'secondary' : 'primary'} size="sm" icon={has ? Pencil : Plus} onClick={open}>{has ? 'Correct' : 'Add count'}</Button>}
+        </>
+      )}
     </div>
   );
 }
@@ -349,16 +401,25 @@ function Entry({ e, me, signed, shiftId, onChanged }) {
 function SignSheet({ d, onClose, onDone }) {
   const handovers = d.entries.filter((e) => e.state === 'kept' && e.kind === 'handover').map((e) => `• ${e.body}`);
   const [text, setText] = useState(handovers.join('\n'));
+  const [customers, setCustomers] = useState(d.log.customers != null ? String(d.log.customers) : '');
   const [run, busy] = useAction();
-  const sign = () => run(() => api('shiftlog.sign', { shift_id: d.shift.id, handover_summary: text.trim() }), 'Signed off. The venue and the next team have been told.').then(onDone).catch(() => {});
+  const count = customers.trim();
+  const badCount = count !== '' && !/^\d{1,6}$/.test(count);
+  const sign = () => run(() => api('shiftlog.sign', { shift_id: d.shift.id, handover_summary: text.trim(), ...(count && d.me.can_count ? { customers: Number(count) } : {}) }),
+    'Signed off. The venue and the next team have been told.').then(onDone).catch(() => {});
   const kept = d.entries.filter((e) => e.state === 'kept').length;
   return (
     <Sheet open onClose={onClose} title="Sign off the shift"
-      footer={<><Button variant="secondary" onClick={onClose}>Not yet</Button><Button icon={Check} busy={busy} onClick={sign}>Sign off</Button></>}>
+      footer={<><Button variant="secondary" onClick={onClose}>Not yet</Button><Button icon={Check} busy={busy} disabled={badCount} onClick={sign}>Sign off</Button></>}>
       <div className="space-y-4">
         <p className="text-body text-muted">
           {kept} entr{kept === 1 ? 'y' : 'ies'} will stay in the log. The venue can read it once signed, and the next team at {d.shift.venue_name} sees your handover.
         </p>
+        {d.me.can_count && (
+          <Input label="Customers tonight" type="number" inputMode="numeric" min="0" step="1" value={customers} onChange={(e) => setCustomers(e.target.value)}
+            error={badCount ? 'Enter a whole number' : undefined}
+            hint={count ? 'The venue sees this, and it feeds the analytics.' : 'Leave it empty if you did not count. A rough total helps the venue plan staffing.'} />
+        )}
         <Textarea label="Handover for the next team" rows={6} placeholder="e.g. Quiet night. Watch for the group in red from last week. Fire exit B alarm is faulty." value={text} onChange={(e) => setText(e.target.value)} />
         {d.bans.some((b) => b.status === 'proposed') && <p className="flex items-center gap-1.5 text-footnote font-semibold text-amber"><Ban size={14} />Some bans are still waiting to be confirmed.</p>}
       </div>

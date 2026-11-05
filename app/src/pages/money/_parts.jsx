@@ -26,7 +26,16 @@ export const PRESETS = [
   { value: 'custom', label: 'Custom' },
 ];
 
+// Analytics starts on the last four weeks rather than the calendar month
+export const PRESETS_4W = [{ value: 'four', label: 'Last 4 weeks' }, ...PRESETS.filter((p) => p.value !== 'last')];
+
 export function presetRange(key) {
+  if (key === 'four') {
+    const to = isoDate();
+    const d = new Date(`${to}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 27);
+    return { from: d.toISOString().slice(0, 10), to };
+  }
   const [y, m] = ym(isoDate());
   if (key === 'last') return { from: firstOf(y, m - 1), to: lastOf(y, m - 1) };
   if (key === 'three') return { from: firstOf(y, m - 2), to: lastOf(y, m) };

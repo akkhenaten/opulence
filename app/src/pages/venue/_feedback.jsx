@@ -1,10 +1,10 @@
-// Orb on the venue portal: rate the officers who worked your recent shifts
-import { useState } from 'react';
+// Orb on the venue portal: rate the officers who worked your recent shifts, and give feedback about anything
+import { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 import { api } from '../../api.js';
-import { Avatar, Button, Empty, Input, Pressable, Sheet, Spinner, Tile, cx, dayLabel, range, useAction, useApi } from '../../ui/index.jsx';
+import { Avatar, Button, Empty, Input, Pressable, Segmented, Select, Sheet, Spinner, Textarea, Tile, cx, dayLabel, range, useAction, useApi } from '../../ui/index.jsx';
 
-function Stars({ value, onChange }) {
+export function Stars({ value, onChange }) {
   return (
     <div className="-mr-1.5 flex" role="radiogroup" aria-label="Rating">
       {[1, 2, 3, 4, 5].map((n) => (
@@ -91,6 +91,77 @@ export function RateStaffSheet({ open, onClose }) {
               {o.last_rating && <span className="flex items-center gap-1 text-footnote font-semibold text-amber"><Star size={14} className="fill-amber" />{o.last_rating}</span>}
             </Pressable>
           ))}
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
+export const ABOUT = [{ value: 'staff', label: 'Staff' }, { value: 'shift', label: 'A shift' }, { value: 'service', label: 'Service' }, { value: 'other', label: 'Other' }];
+export const TONES = [{ value: 'praise', label: 'Praise' }, { value: 'suggestion', label: 'Suggestion' }, { value: 'complaint', label: 'Complaint' }];
+const blank = (shift, officerId) => ({
+  about: officerId ? 'staff' : shift ? 'shift' : 'staff', officer_id: officerId || '', shift_id: shift?.id || '', rating: 0, tone: '', comment: '',
+});
+
+/**
+ * "Give feedback": about a member of staff, a shift, the service or anything else. Only the office sees it.
+ * Managers pass venueId to log feedback on a venue's behalf; a shift page passes the shift (and an officer) to prefill.
+ */
+export function GiveFeedbackSheet({ open, onClose, venueId, shift, officerId, onDone }) {
+  const [venue, setVenue] = useState(venueId || shift?.venue_id || '');
+  const opts = useApi('comments.options', venue ? { venue_id: venue } : {}, { skip: !open });
+  const [v, setV] = useState(() => blank(shift, officerId));
+  const [run, busy] = useAction();
+  const set = (k, x) => setV((s) => ({ ...s, [k]: x }));
+  useEffect(() => { if (open) { setV(blank(shift, officerId)); setVenue(venueId || shift?.venue_id || ''); } }, [open, shift?.id, officerId, venueId]);
+  const d = opts.data;
+  const vid = venue || d?.venue_id || '';
+  const needsRating = v.about !== 'other';
+  const ready = vid && v.tone && (!needsRating || v.rating) && (v.rating || v.comment.trim())
+    && (v.about !== 'staff' || v.officer_id) && (v.about !== 'shift' || v.shift_id);
+  const officers = d?.officers || [];
+  const shifts = d?.shifts || [];
+  const onShift = v.shift_id && shifts.find((s) => s.id === v.shift_id);
+  const send = () => run(() => api('comments.save', {
+    venue_id: vid, about: v.about, tone: v.tone, rating: v.rating || null, comment: v.comment.trim(),
+    officer_id: v.about === 'staff' ? v.officer_id : null, shift_id: v.about === 'shift' || (v.about === 'staff' && onShift?.officers.some((o) => o.officer_id === v.officer_id)) ? v.shift_id || null : null,
+  }), 'Thanks, your feedback is with our office').then(() => { onDone?.(); onClose(); }).catch(() => {});
+  return (
+    <Sheet open={open} onClose={onClose} title="Give feedback" size="sm"
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!ready} onClick={send}>Send feedback</Button></>}>
+      {!d ? <Spinner /> : (
+        <div className="space-y-4">
+          {!venueId && d.venues.length > 1 && (
+            <Select label="Venue" value={vid} onChange={(e) => setVenue(e.target.value)} placeholder="Choose the venue"
+              options={d.venues.map((x) => ({ value: x.id, label: x.name }))} />
+          )}
+          <div>
+            <div className="mb-1.5 text-footnote font-semibold text-muted">What is it about?</div>
+            <Segmented full value={v.about} onChange={(x) => set('about', x)} options={ABOUT} />
+          </div>
+          {v.about === 'staff' && (
+            officers.length
+              ? <Select label="Who" value={v.officer_id} onChange={(e) => set('officer_id', e.target.value)} placeholder="Choose an officer"
+                  options={officers.map((o) => ({ value: o.officer_id, label: `${o.name} · last here ${dayLabel(o.last_shift_at)}` }))} />
+              : <p className="text-subhead text-muted">Nobody has worked here in the last 30 days.</p>
+          )}
+          {v.about === 'shift' && (
+            shifts.length
+              ? <Select label="Which shift" value={v.shift_id} onChange={(e) => set('shift_id', e.target.value)} placeholder="Choose a shift"
+                  options={shifts.map((s) => ({ value: s.id, label: `${dayLabel(s.starts_at)} · ${range(s.starts_at, s.ends_at)} · ${s.role_name}` }))} />
+              : <p className="text-subhead text-muted">No shifts here in the last 30 days.</p>
+          )}
+          <div>
+            <div className="mb-0.5 text-footnote font-semibold text-muted">Rating{needsRating ? '' : ' (optional)'}</div>
+            <Stars value={v.rating} onChange={(n) => set('rating', n === v.rating && !needsRating ? 0 : n)} />
+          </div>
+          <div>
+            <div className="mb-1.5 text-footnote font-semibold text-muted">Is it…</div>
+            <Segmented full value={v.tone} onChange={(x) => set('tone', x)} options={TONES} />
+          </div>
+          <Textarea label="Comment" rows={4} value={v.comment} maxLength={2000} onChange={(e) => set('comment', e.target.value)}
+            placeholder={v.tone === 'complaint' ? 'What happened? We will look into it and reply.' : 'What went well, or what should change?'} />
+          <p className="text-caption text-muted">Only our office team sees this. Complaints are followed up and you will see our reply under Feedback.</p>
         </div>
       )}
     </Sheet>

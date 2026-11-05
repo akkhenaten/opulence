@@ -42,6 +42,37 @@ export async function shiftAccess(user, shiftId) {
 
 const canCurate = (ax) => ax.access === 'mgr' || (ax.access === 'lead' && ax.canWrite);
 
+/**
+ * Who may enter customers tonight: the lead from clock-in until 12 hours after the end,
+ * the venue for 7 days after the end (a correction), a manager at any time.
+ */
+export function canCount({ access, endsAt, clockedIn, now = Date.now() }) {
+  if (access === 'mgr') return true;
+  const end = +new Date(endsAt);
+  if (access === 'lead') return !!clockedIn && now < end + 12 * 3600e3;
+  if (access === 'venue') return now < end + 7 * 86400e3;
+  return false;
+}
+
+async function clockedIn(ax) {
+  if (!ax.a) return false;
+  return !!(await one(`SELECT 1 FROM clock_events WHERE assignment_id = $1 AND kind = 'in' AND status IN ('ok','approved','manual')`, [ax.a.id]));
+}
+
+/** Save the night's customer total on the log; audited with the old and new figure. */
+async function saveCustomers(user, ax, value) {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0 || n > 100000) fail(400, 'Enter the number of customers as a whole number');
+  if (!canCount({ access: ax.access, endsAt: ax.sh.ends_at, clockedIn: await clockedIn(ax) })) {
+    fail(403, ax.access === 'venue' ? 'Customer numbers can be corrected for 7 days after the shift' : 'Only the shift lead can enter customers, from clock-in until 12 hours after the shift');
+  }
+  await ensureLog(ax.sh.id);
+  const before = await one('SELECT customers FROM shift_logs WHERE shift_id = $1', [ax.sh.id]);
+  const log = await one('UPDATE shift_logs SET customers = $2, customers_by = $3, customers_at = now() WHERE shift_id = $1 RETURNING *', [ax.sh.id, n, user.id]);
+  if (before?.customers !== n) await audit(user, 'shiftlog.customers', 'shift', ax.sh.id, { from: before?.customers ?? null, to: n });
+  return log;
+}
+
 export async function shiftThread(sh) {
   const team = (await q(`SELECT o.user_id FROM shift_assignments a JOIN officers o ON o.id = a.officer_id WHERE a.shift_id = $1 AND a.status IN ${ACTIVE} AND o.user_id IS NOT NULL`, [sh.id])).map((r) => r.user_id);
   return ensureThread('shift', sh.id, [...team, ...(await managersFor(sh.venue_id)), await opsUser()], `${sh.venue_name} · ${when(sh)}`);
@@ -49,8 +80,9 @@ export async function shiftThread(sh) {
 
 async function getLog(shiftId) {
   return (await one(
-    `SELECT l.*, ${userName('u')} AS signed_by_name FROM shift_logs l LEFT JOIN users u ON u.id = l.signed_by WHERE l.shift_id = $1`, [shiftId]))
-    || { shift_id: shiftId, status: 'open', handover_summary: '', signed_by: null, signed_at: null };
+    `SELECT l.*, ${userName('u')} AS signed_by_name, ${userName('cu')} AS customers_by_name
+       FROM shift_logs l LEFT JOIN users u ON u.id = l.signed_by LEFT JOIN users cu ON cu.id = l.customers_by WHERE l.shift_id = $1`, [shiftId]))
+    || { shift_id: shiftId, status: 'open', handover_summary: '', signed_by: null, signed_at: null, customers: null };
 }
 
 async function entries(shiftId, { keptOnly = false } = {}) {
@@ -99,7 +131,8 @@ export const actions = {
         venue_phone: sh.venue_phone, instructions: sh.instructions, role: sh.role, role_name: sh.role_name, starts_at: sh.starts_at, ends_at: sh.ends_at,
         break_minutes: sh.break_minutes, headcount: sh.headcount, notes: sh.notes, status: sh.status,
       },
-      me: { access: ax.access, can_write: ax.canWrite && log.status === 'open' || ax.access === 'mgr', can_curate: canCurate(ax), assignment_id: ax.a?.id || null, assignment_status: ax.a?.status || null, is_lead: !!ax.a?.is_lead, clock },
+      me: { access: ax.access, can_write: ax.canWrite && log.status === 'open' || ax.access === 'mgr', can_curate: canCurate(ax), assignment_id: ax.a?.id || null, assignment_status: ax.a?.status || null, is_lead: !!ax.a?.is_lead, clock,
+        can_count: canCount({ access: ax.access, endsAt: sh.ends_at, clockedIn: clock.some((c) => c.kind === 'in' && ['ok', 'approved', 'manual'].includes(c.status)) }) },
       team: await Promise.all(team.map(async ({ photo_key, phone, roles, user_id, ...m }) => ({
         ...m, photo_url: await downloadUrl(photo_key), head_door: (roles || []).includes('head_door'), ...(venue ? {} : { phone, user_id }),
       }))),
@@ -187,6 +220,7 @@ export const actions = {
     if (new Date(ax.sh.starts_at) > new Date()) fail(400, 'You can sign off once the shift has started');
     const summary = String(b.handover_summary || '').trim().slice(0, 4000);
     if (!summary) fail(400, 'Write a short handover for the next team');
+    if (b.customers != null && b.customers !== '') await saveCustomers(user, ax, b.customers);
     await ensureLog(b.shift_id);
     const log = await one(`UPDATE shift_logs SET status = 'signed', handover_summary = $2, signed_by = $3, signed_at = now() WHERE shift_id = $1 RETURNING *`,
       [b.shift_id, summary, user.id]);
@@ -204,6 +238,14 @@ export const actions = {
     return log;
   }),
 
+  'shiftlog.customers': def(ALL, async (b, { user }) => {
+    required(b, 'shift_id', 'customers');
+    const ax = await shiftAccess(user, b.shift_id);
+    if (new Date(ax.sh.starts_at) > new Date()) fail(400, 'You can enter customers once the shift has started');
+    const log = await saveCustomers(user, ax, b.customers);
+    return { customers: log.customers, customers_at: log.customers_at };
+  }),
+
   'shiftlog.reopen': def(MGR, async (b, { user }) => {
     required(b, 'shift_id');
     await shiftAccess(user, b.shift_id);
@@ -217,7 +259,7 @@ export const actions = {
     const scope = await venueScope(user);
     if (b.venue_id) await assertVenue(user, b.venue_id);
     return q(
-      `SELECT s.id AS shift_id, s.venue_id, v.name AS venue_name, s.starts_at, s.ends_at, r.name AS role_name, l.status, l.handover_summary, l.signed_at, ${userName('u')} AS signed_by_name,
+      `SELECT s.id AS shift_id, s.venue_id, v.name AS venue_name, s.starts_at, s.ends_at, r.name AS role_name, l.status, l.handover_summary, l.customers, l.signed_at, ${userName('u')} AS signed_by_name,
               (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept')::int AS entries,
               (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept' AND e.kind = 'incident')::int AS incidents,
               (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept' AND e.kind = 'ban')::int AS bans,

@@ -15,3 +15,9 @@ export const displayName = (p) => (p?.goes_by || '').trim() || p?.name || `${p?.
 
 /** An officer row already loaded: { goes_by, first_name, last_name }. */
 export const officerDisplay = (o) => (o?.goes_by || '').trim() || `${o?.first_name || ''} ${o?.last_name || ''}`.trim();
+
+/** SQL for the short name a venue sees: goes_by, otherwise "First L." */
+export const officerShort = (a = 'o') => {
+  const p = a ? `${a}.` : '';
+  return `COALESCE(NULLIF(btrim(${p}goes_by), ''), ${p}first_name || ' ' || left(${p}last_name, 1) || '.')`;
+};

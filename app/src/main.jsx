@@ -42,6 +42,8 @@ const StatementDetail = P(() => import('./pages/money/StatementDetail.jsx'));
 const Invoices = P(() => import('./pages/money/Invoices.jsx'));
 const InvoiceDetail = P(() => import('./pages/money/InvoiceDetail.jsx'));
 const Reports = P(() => import('./pages/money/Reports.jsx'));
+const Feedback = P(() => import('./pages/money/Feedback.jsx'));
+const Analytics = P(() => import('./pages/money/Analytics.jsx'));
 // Venue manager
 const VenueDashboard = P(() => import('./pages/money/VenueDashboard.jsx'));
 const VenueCover = P(() => import('./pages/manager/VenueCover.jsx'));
@@ -199,6 +201,8 @@ function App() {
             <Route path="venues" element={<Venues />} />
             <Route path="venues/:id" element={<VenueDetail />} />
             <Route path="reviews" element={<Reviews />} />
+            <Route path="feedback" element={<Feedback />} />
+            <Route path="analytics" element={<Analytics />} />
             <Route path="pay" element={<Pay />} />
             <Route path="pay/runs/:id" element={<PayRun />} />
             <Route path="pay/:id" element={<StatementDetail />} />
@@ -217,6 +221,8 @@ function App() {
             <Route path="venues" element={<Venues />} />
             <Route path="venues/:id" element={<VenueDetail />} />
             <Route path="reviews" element={<Reviews />} />
+            <Route path="feedback" element={<Feedback />} />
+            <Route path="analytics" element={<Analytics />} />
             <Route path="pay" element={<Pay />} />
             <Route path="pay/runs/:id" element={<PayRun />} />
             <Route path="pay/:id" element={<StatementDetail />} />
@@ -233,6 +239,8 @@ function App() {
             <Route path="messages/:id" element={<Messages />} />
             <Route path="site" element={<VenueSite />} />
             <Route path="reviews" element={<Reviews />} />
+            <Route path="feedback" element={<Feedback />} />
+            <Route path="analytics" element={<Analytics />} />
             <Route path="logs" element={<ShiftLogs />} />
             <Route path="logs/:id" element={<ShiftView />} />
             <Route path="bans" element={<Bans />} />

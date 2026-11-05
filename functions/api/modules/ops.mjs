@@ -762,8 +762,11 @@ async function decideReconcile(it, b, user) {
 }
 
 async function decideFeedback(it, b, user) {
+  // Feedback left through "Give feedback" is closed along with its Orb card
+  if (it.payload.comment_id) await q("UPDATE venue_comments SET status = 'resolved' WHERE id = $1", [it.payload.comment_id]);
   if (b.edits?.hr_note && it.officer_id) {
-    await insert('hr_notes', { officer_id: it.officer_id, kind: 'venue_feedback', title: it.title, body: `${it.payload.note || ''} (rating ${it.payload.rating}/5)`, author_id: user.id });
+    const rating = it.payload.rating != null ? ` (rating ${it.payload.rating}/5)` : '';
+    await insert('hr_notes', { officer_id: it.officer_id, kind: 'venue_feedback', title: it.title, body: `${it.payload.note || ''}${rating}`, author_id: user.id });
     return { hr_note: true };
   }
   return { reviewed: true };

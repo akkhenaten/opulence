@@ -2,7 +2,7 @@ import { one } from './db.mjs';
 import { fail } from './http.mjs';
 
 // Optional modules a company can switch off in Settings
-export const MODULES = ['academy', 'toolbox', 'everyday'];
+export const MODULES = ['academy', 'toolbox', 'everyday', 'analytics'];
 
 export async function moduleOn(name) {
   const s = await one('SELECT modules FROM settings WHERE id = 1');
