@@ -13,7 +13,7 @@ import {
   Avatar, Button, cx, dateTime, dayLabel, Empty, IconButton, Lightbox, Load, Page, Pill, range, relative, Section, Segmented, Sheet, Textarea, time,
   useAction, useApi, useConfirm, Pressable,
 } from '../../ui/index.jsx';
-import { BanList, BanSheet } from './_bans.jsx';
+import { BanList, BanSheet, isEjection } from './_bans.jsx';
 import { SitePackCard } from '../officer/VenuePack.jsx';
 
 const KINDS = [
@@ -25,6 +25,7 @@ const KIND = {
   handover: { label: 'Handover', tone: 'blue' },
   incident: { label: 'Incident', tone: 'red' },
   ban: { label: 'Ban', tone: 'red' },
+  ejection: { label: 'Ejection', tone: 'amber' },
 };
 const TOOLBOX = [
   { cat: 'first_aid', label: 'First aid', icon: HeartPulse, tone: 'bg-red-soft text-red' },
@@ -53,6 +54,8 @@ function Body({ d, reload, role }) {
   const signed = log.status === 'signed';
   const started = new Date(s.starts_at) <= new Date();
   const proposed = d.bans.filter((b) => b.status === 'proposed');
+  // Tonight's ejections that are not bans (those show under "Banned here")
+  const tonight = (d.ejections || []).filter(isEjection);
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
@@ -73,10 +76,17 @@ function Body({ d, reload, role }) {
 
       <div className="space-y-5">
         <Team team={team} venue={venue} />
-        {!venue || d.bans.length ? (
-          <Section title={`Banned here${d.bans.length ? ` · ${d.bans.length}` : ''}`} action={me.can_write && !signed && <Button size="sm" variant="soft" icon={Plus} onClick={() => setBanning(true)}>Ban someone</Button>}>
+        {!venue || d.bans.length || tonight.length ? (
+          <Section title="Ejections & bans" action={me.can_write && !signed && <Button size="sm" variant="soft" icon={Plus} onClick={() => setBanning(true)}>Log ejection</Button>}>
             {proposed.length > 0 && me.can_curate && <p className="mb-2 text-footnote font-semibold text-amber">{proposed.length} waiting for you to confirm</p>}
-            <BanList bans={d.bans} canConfirm={me.can_curate || venue} canManage={!officer} onChanged={reload} empty="No bans at this venue" />
+            {tonight.length > 0 && (
+              <div className="mb-4">
+                <div className="mb-2 text-footnote font-semibold text-muted">This shift · {tonight.length}</div>
+                <BanList bans={tonight} canManage={!officer && !venue} canEscalate={!venue && (me.can_write || !officer)} directBan={me.can_curate} venueId={s.venue_id} onChanged={reload} />
+              </div>
+            )}
+            <div className="mb-2 text-footnote font-semibold text-muted">Banned here{d.bans.length ? ` · ${d.bans.length}` : ''}</div>
+            <BanList bans={d.bans} canConfirm={me.can_curate || venue} canManage={!officer} venueId={s.venue_id} onChanged={reload} empty="No bans at this venue" />
           </Section>
         ) : null}
         {officer && started && (

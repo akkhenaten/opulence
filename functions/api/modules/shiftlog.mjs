@@ -9,10 +9,10 @@ import { ensureThread, opsUser } from '../lib/threads.mjs';
 import { fmtDate, fmtTime } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { ALL, MGR, def } from './_def.mjs';
-import { activeBans } from './bans.mjs';
+import { activeBans, shiftEjections } from './bans.mjs';
 
 const ACTIVE = "('assigned','accepted')";
-const KINDS = ['note', 'handover', 'incident', 'ban'];
+const KINDS = ['note', 'handover', 'incident', 'ban', 'ejection'];
 const when = (sh) => `${fmtDate(sh.starts_at)} ${fmtTime(sh.starts_at)}–${fmtTime(sh.ends_at)}`;
 const PHOTO = 'COALESCE((SELECT o.photo_key FROM officers o WHERE o.user_id = u.id LIMIT 1), u.photo_key)';
 
@@ -106,6 +106,7 @@ export const actions = {
       entries: showEntries ? await entries(sh.id, { keptOnly: venue }) : [],
       previous_handover: prev,
       bans: await activeBans(sh.venue_id, { withProposed: ax.access !== 'venue' }),
+      ejections: await shiftEjections(sh.id),
       thread_id: thread?.id || null,
     };
   }),
@@ -218,7 +219,8 @@ export const actions = {
       `SELECT s.id AS shift_id, s.venue_id, v.name AS venue_name, s.starts_at, s.ends_at, r.name AS role_name, l.status, l.handover_summary, l.signed_at, u.name AS signed_by_name,
               (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept')::int AS entries,
               (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept' AND e.kind = 'incident')::int AS incidents,
-              (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept' AND e.kind = 'ban')::int AS bans
+              (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept' AND e.kind = 'ban')::int AS bans,
+              (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept' AND e.kind = 'ejection')::int AS ejections
          FROM shift_logs l JOIN shifts s ON s.id = l.shift_id JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role LEFT JOIN users u ON u.id = l.signed_by
         WHERE ($1::uuid[] IS NULL OR s.venue_id = ANY($1)) AND ($2::uuid IS NULL OR s.venue_id = $2)
           AND ($3::text = 'all' OR l.status = 'signed') AND ($4::timestamptz IS NULL OR s.starts_at >= $4) AND ($5::timestamptz IS NULL OR s.starts_at < $5)

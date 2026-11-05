@@ -474,7 +474,7 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
             {shiftState(s) === 'unconfirmed' && <Pill tone="amber">{s.assignments.filter((a) => a.status === 'assigned').length} unconfirmed</Pill>}
             {s.cover_request_id && <Pill tone="grey">From cover request</Pill>}
           </div>
-          {s.status === 'published' && <Button variant="soft" icon={NotebookPen} to={`${base}/shifts/${s.id}`}>Shift page, log and bans</Button>}
+          {s.status === 'published' && <Button variant="soft" icon={NotebookPen} to={`${base}/shifts/${s.id}`}>Shift page, log and ejections</Button>}
           <KV items={[
             ['When', <>{dayLabel(s.starts_at)}, <span className="num">{range(s.starts_at, s.ends_at)}</span></>],
             ['Role', s.role_name || roleName(s.role)],

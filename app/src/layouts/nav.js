@@ -86,7 +86,7 @@ export const NAV = {
       { to: '/venue/site', label: 'My venue', icon: Store },
       { to: '/venue/cover', label: 'Cover requests', icon: Megaphone },
       { to: '/venue/logs', label: 'Shift logs', icon: NotebookPen },
-      { to: '/venue/bans', label: 'Bans', icon: Ban },
+      { to: '/venue/bans', label: 'Ejection log', icon: Ban },
       { to: '/venue/timesheets', label: 'Timesheets', icon: ClipboardCheck },
       { to: '/venue/incidents', label: 'Incidents', icon: ShieldAlert, tab: true },
       { to: '/venue/invoices', label: 'Invoices', icon: ReceiptText },

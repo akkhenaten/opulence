@@ -220,8 +220,8 @@ They then switch between Manager and My shifts at the top of the menu or in My a
 - Turning Also works shifts off keeps the staff record and its history. It just has no login any more.`,
       },
       {
-        id: 'bans', title: 'Bans',
-        body: `Officers and venues can record people banned from a venue, with a photo and reason. The ban list is shown on the shift page so the team on the door can check it.`,
+        id: 'bans', title: 'Ejection log and bans',
+        body: `Every ejection or refusal is logged from the shift page with Log ejection: ejected or refused entry, the time, a reason category, a photo, name or description, and the reason. That is a record only and needs no approval. To also ban the person, switch on Also ban this person and choose a length (tonight, 1 week, 1 month, 6 months, 12 months, a date or permanent) and where it applies: this venue, all the client's venues, or every venue. A ban from an officer who is not leading the shift waits for the lead, a manager or the venue to confirm. Anyone in the Ejection log can be upgraded to a ban later with Upgrade to ban. Current bans are shown on the shift page, including ones from the client's other venues, so the team on the door can check them.`,
       },
       {
         id: 'training', title: 'Academy, Toolbox and compliance', image: 'training.png',
@@ -302,7 +302,7 @@ AI features use credits from your plan. The usage is shown in Settings.`,
         body: `- Timesheets: check and sign off the hours worked at your venue.
 - Incidents: read reports from your site and download them as PDF.
 - Shift logs: read what happened on each shift and the handover notes.
-- Bans: see and add people banned from your venue.
+- Ejection log: everyone ejected or refused at your venue, and the people banned (from your venue or all your venues).
 - Invoices: see and download your invoices.
 - Rate staff: tell the company how the officers did. It takes a few seconds.`,
       },

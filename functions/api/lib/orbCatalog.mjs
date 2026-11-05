@@ -100,7 +100,8 @@ export const CATALOG = {
   'venues.saveRate': c('venues', 'Set a venue charge rate', 'venue_id, role, rate, night_uplift?, weekend_uplift?, bh_uplift?, min_hours?, effective_from'),
   'clients.list': r('venues', 'Clients', ''),
   'clients.save': c('venues', 'Add or update a client', 'id?, name, billing_email?, billing_address?, vat_number?', { link: () => 'clients' }),
-  'bans.list': r('venues', 'Customer bans', 'venue_id?, status?'),
+  'bans.list': r('venues', 'Ejection log and customer bans', 'venue_id?, kind? (ejection = the ejection log, ban = bans, the default), status? (bans only)'),
+  'bans.escalate': c('venues', 'Ban someone already in the ejection log', 'id (the ejection), permanent? or ends_on (YYYY-MM-DD), starts_on?, scope? (venue|client|all), category?, reason?'),
   'bans.confirm': c('venues', 'Confirm or reject a proposed customer ban', 'id, approve, reason?'),
   'bans.revoke': c('venues', 'Lift a customer ban', 'id, reason'),
 

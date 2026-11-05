@@ -19,7 +19,7 @@ export function ShiftLogList({ venueId }) {
             right={(
               <div className="flex flex-col items-end gap-1">
                 <Pill tone={r.status === 'signed' ? 'green' : 'grey'}>{r.status === 'signed' ? 'Signed' : 'Open'}</Pill>
-                {(r.incidents > 0 || r.bans > 0) && <span className="text-caption text-muted">{[r.incidents && `${r.incidents} incident${r.incidents > 1 ? 's' : ''}`, r.bans && `${r.bans} ban${r.bans > 1 ? 's' : ''}`].filter(Boolean).join(' · ')}</span>}
+                {(r.incidents > 0 || r.ejections > 0 || r.bans > 0) && <span className="text-caption text-muted">{[r.incidents && `${r.incidents} incident${r.incidents > 1 ? 's' : ''}`, r.ejections && `${r.ejections} ejection${r.ejections > 1 ? 's' : ''}`, r.bans && `${r.bans} ban${r.bans > 1 ? 's' : ''}`].filter(Boolean).join(' · ')}</span>}
               </div>
             )} />
         ))}

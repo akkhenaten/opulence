@@ -57,7 +57,7 @@ export default function VenueDetail() {
           <Tabs value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })} tabs={[
             { value: 'location', label: 'Location' }, { value: 'details', label: 'Details' }, { value: 'codes', label: 'Venue codes' },
             ...(isCo ? [{ value: 'rates', label: 'Charge rates' }] : []), { value: 'people', label: 'People' }, { value: 'pack', label: 'Instructions & procedures' }, { value: 'documents', label: 'Documents', count: v.documents.length },
-            { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Bans' },
+            { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Ejections & bans' },
           ]} />
 
           {tab === 'location' && <LocationTab v={v} onSaved={q.reload} />}
