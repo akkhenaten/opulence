@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { AlertTriangle, Check, ChevronDown, Copy, ExternalLink, History, ShieldCheck } from 'lucide-react';
 import { api } from '../../api.js';
 import { Avatar, Button, cx, date, dateTime, Input, Load, Pill, Pressable, Select, Sheet, Spinner, Textarea, useAction, useApi, useToast } from '../../ui/index.jsx';
-import { CHECK_STATUSES, NOT_CLEARED, SIA_REGISTER, STATUS_LABEL, checkState, cleanSia, validSia } from '../../ui/sia.js';
+import { CHECK_STATUSES, NOT_CLEARED, SIA_REGISTER, SIA_REGISTER_GOVUK, STATUS_LABEL, checkState, cleanSia, validSia } from '../../ui/sia.js';
 import { SIA_TYPES } from './_parts.jsx';
 
 // Latest register check as a pill, with who checked and when
@@ -111,7 +111,11 @@ function Assistant({ d, onClose, onSaved }) {
           <CopyChip label="First name" value={d.first_name} />
           <CopyChip label="Date of birth" value={d.dob} shown={d.dob_masked} mono className="col-span-2" />
         </div>
-        <p className="mt-2 text-caption text-faint">On the register choose <b>Search by licence number</b> and paste the number. Name search needs surname, first name and date of birth (DD/MM/YYYY). If the register doesn't load, it may be down; try Open register again in a minute.</p>
+        <p className="mt-2 text-caption text-faint">On the register choose <b>Search by licence number</b> and paste the number. Name search needs surname, first name and date of birth (DD/MM/YYYY).</p>
+        <p className="mt-1 text-caption text-faint">
+          Register not loading? That's the SIA's site, not Opulence. Try mobile data instead of Wi-Fi, turn off any VPN or iCloud Private Relay,
+          or start from <a href={SIA_REGISTER_GOVUK} target="_blank" rel="noopener" className="font-semibold underline">GOV.UK</a>. You can still record a check made on another device.
+        </p>
       </div>
 
       <div className="space-y-3">
