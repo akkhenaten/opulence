@@ -218,7 +218,7 @@ const BTN_S = {
   md: ['h-11 px-4 text-subhead rounded-xl', 'w-11', 18],
   lg: ['h-[52px] px-6 text-callout rounded-2xl', 'w-[52px]', 20],
 };
-export function Button({ variant = 'primary', size = 'md', icon: Icon, iconRight: IconRight, iconOnly, busy, className, children, to, ...p }) {
+export function Button({ variant = 'primary', size = 'md', icon: Icon, iconRight: IconRight, iconOnly, busy, className, children, to, href, ...p }) {
   const [s, sq, is] = BTN_S[size];
   const link = variant.startsWith('link');
   const cls = cx('pressable relative inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap font-semibold disabled:pointer-events-none disabled:opacity-50',
@@ -235,6 +235,7 @@ export function Button({ variant = 'primary', size = 'md', icon: Icon, iconRight
     </>
   );
   if (to) return <Link to={to} className={cls} {...p}>{inner}</Link>;
+  if (href) return <a href={href} target="_blank" rel="noopener" className={cls} {...p}>{inner}</a>;
   return <button type="button" className={cls} disabled={busy || p.disabled} aria-busy={busy || undefined} {...p}>{inner}</button>;
 }
 

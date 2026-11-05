@@ -1,5 +1,5 @@
 // SIA register checks (same rules as functions/api/lib/sia.mjs)
-export const SIA_REGISTER = 'https://services.sia.homeoffice.gov.uk/rolh';
+export const SIA_REGISTER = 'https://rolh.services.sia.homeoffice.gov.uk/';
 export const CHECK_STATUSES = [
   { value: 'active', label: 'Active' }, { value: 'expired', label: 'Expired' }, { value: 'suspended', label: 'Suspended' },
   { value: 'revoked', label: 'Revoked' }, { value: 'investigation', label: 'Under investigation' }, { value: 'not_found', label: 'Not found on the register' },

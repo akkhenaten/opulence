@@ -97,7 +97,7 @@ function Assistant({ d, onClose, onSaved }) {
       <div>
         <div className="mb-2 flex items-center justify-between gap-2">
           <h3 className="text-subhead font-semibold">Search the register</h3>
-          <Button size="sm" variant="ghost" icon={ExternalLink} onClick={() => window.open(SIA_REGISTER, '_blank', 'noopener')}>Open register</Button>
+          <Button size="sm" variant="ghost" icon={ExternalLink} href={SIA_REGISTER}>Open register</Button>
         </div>
         {!validSia(d.number) && (
           <p className="mb-2 flex items-start gap-2 rounded-xl bg-amber-soft px-3 py-2 text-footnote text-amber">
@@ -111,7 +111,7 @@ function Assistant({ d, onClose, onSaved }) {
           <CopyChip label="First name" value={d.first_name} />
           <CopyChip label="Date of birth" value={d.dob} shown={d.dob_masked} mono className="col-span-2" />
         </div>
-        <p className="mt-2 text-caption text-faint">Search by licence number first. Name search needs surname, first name and date of birth (DD/MM/YYYY).</p>
+        <p className="mt-2 text-caption text-faint">On the register choose <b>Search by licence number</b> and paste the number. Name search needs surname, first name and date of birth (DD/MM/YYYY). If the register doesn't load, it may be down; try Open register again in a minute.</p>
       </div>
 
       <div className="space-y-3">

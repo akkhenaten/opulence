@@ -1,5 +1,5 @@
 // SIA register checks: statuses, the 16-digit number and the date formats the register search expects.
-export const SIA_REGISTER_URL = 'https://services.sia.homeoffice.gov.uk/rolh';
+export const SIA_REGISTER_URL = 'https://rolh.services.sia.homeoffice.gov.uk/';
 export const CHECK_STATUSES = ['active', 'expired', 'suspended', 'revoked', 'investigation', 'not_found'];
 export const NOT_CLEARED = ['expired', 'suspended', 'revoked', 'investigation', 'not_found'];
 export const STATUS_LABEL = {
