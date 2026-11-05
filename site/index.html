@@ -69,7 +69,7 @@
     nav a:hover { color: var(--gold-2); }
     .login { font-size: 13px; letter-spacing: .12em; text-transform: uppercase; text-decoration: none; color: var(--text); border-bottom: 1px solid rgba(201,164,92,.5); padding-bottom: 2px; }
     @media (max-width: 1020px) { nav { display: none; } }
-    @media (max-width: 560px) { .brand span { display: none; } .top header { gap: 16px; } .login { font-size: 12px; letter-spacing: .06em; } }
+    @media (max-width: 560px) { .lg-long { display: none; } .brand span { display: none; } .top header { gap: 16px; } .login { font-size: 12px; letter-spacing: .06em; } }
 
     /* Hero */
     .hero { position: relative; min-height: min(100svh, 920px); display: grid; align-items: end; padding: 140px 0 56px; isolation: isolate; overflow: hidden; }
@@ -85,6 +85,7 @@
     .proof span { display: block; margin-top: 4px; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
     @media (max-width: 760px) { .proof { grid-template-columns: 1fr 1fr; row-gap: 8px; } }
 
+    [id] { scroll-margin-top: 64px; }
     section.block { padding: clamp(80px, 11vw, 140px) 0; }
     .lead { max-width: 720px; }
     .lead h2 { margin-top: 18px; font-size: clamp(36px, 5vw, 60px); }
@@ -226,7 +227,7 @@
         <a href="#clients">Clients</a>
         <a href="#awards">Awards</a>
       </nav>
-      <a class="login" href="/app/login">Client &amp; staff login</a>
+      <a class="login" href="/app/login"><span class="lg-long">Client &amp; staff </span>login</a>
       <button class="btn sm" type="button" data-cover>Request cover</button>
     </header>
   </div>
