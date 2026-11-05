@@ -4,7 +4,7 @@ import {
   CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Crown, Hand, NotebookPen, Plus, Repeat, Send, Trash2, UserMinus, UserPlus, X,
 } from 'lucide-react';
 import {
-  addDays, Avatar, Button, cx, dateShort, dayLabel, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useToast,
+  addDays, AssignPill, Avatar, Button, confirmState, cx, dateShort, dayLabel, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useToast,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -105,6 +105,11 @@ const COLS = 'grid-cols-[150px_repeat(7,minmax(0,1fr))]';
 const STICKY = 'sticky left-0 z-10 bg-surface shadow-[1px_0_0_var(--color-line)]';
 const DAYS = (week) => Array.from({ length: 7 }, (_, i) => addDays(week, i));
 const isShort = (s) => s.filled < s.headcount;
+// Drafts have not been sent to anyone yet, so only published shifts can be waiting on confirmations
+const shiftState = (s) => {
+  const st = confirmState({ filled: s.filled, headcount: s.headcount, statuses: s.assignments.filter((a) => ACTIVE.includes(a.status)).map((a) => a.status) });
+  return st === 'unconfirmed' && s.status !== 'published' ? 'confirmed' : st;
+};
 const [wdOf, dateOf] = [(d) => dayLabel(d).split(' ')[0], (d) => dayLabel(d).split(' ').slice(1).join(' ')];
 
 // Folds runs of empty days into one group so phone lists stay short
@@ -150,19 +155,21 @@ const orderVenues = (rows, venues) => {
 /* ---------- Shift card ---------- */
 
 function ShiftCard({ s, onOpen, showVenue = true, compact }) {
-  const short = isShort(s);
+  const state = shiftState(s);
   const requested = s.assignments.filter((a) => a.status === 'requested').length;
-  const names = s.assignments.filter((a) => ACTIVE.includes(a.status)).map((a) => (a.is_self ? `${a.name} (You)` : a.name));
+  const people = s.assignments.filter((a) => ACTIVE.includes(a.status));
   return (
     <Pressable press onClick={() => onOpen(s)}
       className={cx('relative block w-full overflow-hidden rounded-2xl border bg-surface text-left shadow-tile transition hover:-translate-y-0.5 active:scale-[0.99]',
         compact ? 'py-2 pl-2.5 pr-2' : 'p-3 pl-3.5', s.status === 'draft' ? 'border-dashed border-faint/60' : 'border-hairline')}>
-      {short && s.status === 'published' && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-red" />}
+      {s.status === 'published' && state !== 'confirmed' && <span aria-hidden className={cx('absolute inset-y-0 left-0 w-[3px]', state === 'short' ? 'bg-red' : 'bg-amber')} />}
       <div className={cx('num whitespace-nowrap font-bold', compact ? 'text-footnote' : 'text-body')}>{range(s.starts_at, s.ends_at)}</div>
       {showVenue && <div className="mt-0.5 truncate text-subhead font-semibold">{s.venue_name}</div>}
       <div className="mt-1 flex items-center justify-between gap-1.5">
         <span className={cx('min-w-0 truncate text-muted', compact ? 'text-caption' : 'text-footnote')}>{s.role_name}</span>
-        <Pill tone={short ? (s.status === 'draft' ? 'grey' : 'red') : 'green'} className="num shrink-0">{s.filled}/{s.headcount}</Pill>
+        <Pill tone={state === 'short' ? (s.status === 'draft' ? 'grey' : 'red') : state === 'unconfirmed' ? 'amber' : 'green'} className="num shrink-0">
+          {s.filled}/{s.headcount}{state === 'unconfirmed' && !compact && ' · Unconfirmed'}
+        </Pill>
       </div>
       {(s.status === 'draft' || s.open || requested > 0) && (
         <div className="mt-1.5 flex flex-wrap gap-1">
@@ -171,7 +178,16 @@ function ShiftCard({ s, onOpen, showVenue = true, compact }) {
           {requested > 0 && <Pill tone="amber">{requested} request{requested > 1 ? 's' : ''}</Pill>}
         </div>
       )}
-      {!compact && names.length > 0 && <div className="mt-2 truncate text-caption text-muted">{names.join(', ')}</div>}
+      {!compact && people.length > 0 && (
+        <div className="mt-2 truncate text-caption text-muted">
+          {people.map((a, i) => (
+            <span key={a.id}>{i > 0 && ', '}
+              {s.status === 'published' && <span aria-hidden className={cx('mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle', a.status === 'accepted' ? 'bg-green' : 'bg-amber')} />}
+              {a.is_self ? `${a.name} (You)` : a.name}
+            </span>
+          ))}
+        </div>
+      )}
     </Pressable>
   );
 }
@@ -179,10 +195,10 @@ function ShiftCard({ s, onOpen, showVenue = true, compact }) {
 function OfficerChip({ s, oid, onOpen }) {
   const a = s.assignments.find((x) => x.officer_id === oid);
   return (
-    <Pressable press onClick={() => onOpen(s)} className={cx('block w-full rounded-xl p-2 text-left text-caption transition hover:-translate-y-0.5', a.status === 'requested' ? 'bg-amber-soft' : s.status === 'draft' ? 'bg-bg' : 'bg-blue-soft')}>
+    <Pressable press onClick={() => onOpen(s)} className={cx('block w-full rounded-xl p-2 text-left text-caption transition hover:-translate-y-0.5', a.status === 'requested' || (a.status === 'assigned' && s.status === 'published') ? 'bg-amber-soft' : s.status === 'draft' ? 'bg-bg' : 'bg-green-soft')}>
       <div className="num whitespace-nowrap font-bold">{range(s.starts_at, s.ends_at)}</div>
       <div className="truncate text-muted">{s.venue_name}</div>
-      {a.status !== 'accepted' && <div className="font-semibold">{titleCase(a.status)}</div>}
+      {a.status !== 'accepted' && <div className="font-semibold">{a.status === 'assigned' ? (s.status === 'published' ? 'Unconfirmed' : 'Draft') : titleCase(a.status)}</div>}
     </Pressable>
   );
 }
@@ -454,7 +470,8 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2">
             <Pill status={s.status} />{s.open && <Pill tone="blue">Open shift</Pill>}
-            <Pill tone={s.filled < s.headcount ? 'red' : 'green'} className="num">{s.filled}/{s.headcount} filled</Pill>
+            <Pill tone={shiftState(s) === 'short' ? 'red' : shiftState(s) === 'unconfirmed' ? 'amber' : 'green'} className="num">{s.filled}/{s.headcount} filled</Pill>
+            {shiftState(s) === 'unconfirmed' && <Pill tone="amber">{s.assignments.filter((a) => a.status === 'assigned').length} unconfirmed</Pill>}
             {s.cover_request_id && <Pill tone="grey">From cover request</Pill>}
           </div>
           {s.status === 'published' && <Button variant="soft" icon={NotebookPen} to={`${base}/shifts/${s.id}`}>Shift page, log and bans</Button>}
@@ -490,7 +507,7 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
                         {a.clocked_in ? <>In <span className="num">{time(a.clocked_in)}</span>{a.clocked_out && <> · out <span className="num">{time(a.clocked_out)}</span></>}</> : a.sia_number ? `SIA ${a.sia_number}` : ''}
                       </div>
                     </div>
-                    <Pill status={a.status} />
+                    {s.status === 'draft' && a.status === 'assigned' ? <Pill status="draft" /> : <AssignPill status={a.status} />}
                     {a.status === 'requested' ? (
                       <div className="flex gap-1">
                         <IconButton icon={X} label="Decline request" onClick={() => decide(a, false)} />

@@ -4,7 +4,7 @@ import { Building2, CalendarDays, ClipboardCheck, MapPin, Megaphone, Plus, Radio
 import { useAuth } from '../../auth.jsx';
 import { FeedbackTile, RateStaffSheet } from '../venue/_feedback.jsx';
 import {
-  Bento, Button, Dot, List, Load, Page, Pill, Row, Section, Stat, Tile, cx, dayLabel, money, range, relative, titleCase, useApi,
+  assignTone, Bento, Button, Dot, List, Load, Page, Pill, Row, Section, Stat, Tile, cx, dayLabel, money, range, relative, titleCase, useApi,
 } from '../../ui/index.jsx';
 import { InstallCard } from '../../ui/pwa.jsx';
 
@@ -96,11 +96,15 @@ function Body({ d, name }) {
                         <div className="truncate text-body font-semibold">{dayLabel(s.starts_at)} · <span className="num">{range(s.starts_at, s.ends_at)}</span></div>
                         <div className="truncate text-footnote text-muted">{s.role_name}{multi ? ` · ${s.venue_name}` : ''}</div>
                       </div>
-                      <Pill tone={short ? 'amber' : 'green'}><span className="num">{s.filled}/{s.headcount}</span> {short ? 'filling' : 'booked'}</Pill>
+                      <Pill tone={short || s.confirmed < s.filled ? 'amber' : 'green'}><span className="num">{s.filled}/{s.headcount}</span> {short ? 'filling' : s.confirmed < s.filled ? 'booked' : 'confirmed'}</Pill>
                     </div>
                     {s.team?.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {s.team.map((n, i) => <span key={i} className="rounded-full bg-bg px-2.5 py-0.5 text-caption font-semibold">{n}</span>)}
+                        {s.team.map((t, i) => (
+                          <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-bg px-2.5 py-0.5 text-caption font-semibold">
+                            <Dot tone={assignTone(t.status)} label={t.status === 'accepted' ? 'Confirmed' : 'Not confirmed yet'} />{t.name}
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>

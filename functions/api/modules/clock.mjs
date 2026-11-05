@@ -271,7 +271,7 @@ export const actions = {
     const scope = await venueScope(user);
     const s = await getSettings();
     const rows = await q(
-      `SELECT a.id AS assignment_id, s.id AS shift_id, s.starts_at, s.ends_at, s.role, r.name AS role_name, v.id AS venue_id, v.name AS venue_name,
+      `SELECT a.id AS assignment_id, a.status AS assignment_status, s.id AS shift_id, s.starts_at, s.ends_at, s.role, r.name AS role_name, v.id AS venue_id, v.name AS venue_name,
               o.id AS officer_id, o.first_name || ' ' || o.last_name AS officer_name, o.sia_number, o.phone, o.photo_key,
               COALESCE((SELECT json_agg(json_build_object('kind', kind, 'ts', ts, 'status', status, 'geo_ok', geo_ok, 'distance_m', distance_m, 'device_ok', device_ok,
                    'venue_code', venue_code, 'face_result', face_result, 'flags', flags, 'selfie_key', selfie_key, 'qr_ok', qr_ok, 'proof_rule', proof_rule, 'face_note', face_note) ORDER BY ts)

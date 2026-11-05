@@ -96,6 +96,7 @@ function Board({ rows, filter, setFilter, onOpen, base, venue }) {
                     right={
                       <div className="flex flex-col items-end gap-1">
                         {!r.blocked && <Pill status={r.state} />}
+                        {r.state === 'upcoming' && r.assignment_status === 'assigned' && <Pill tone="amber">Unconfirmed</Pill>}
                         <PackPill r={r} venue={venue} />
                         {r.has_exception && <Pill tone="red"><TriangleAlert size={14} />Exception</Pill>}
                       </div>

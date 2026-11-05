@@ -439,6 +439,18 @@ export function Pill({ children, tone, status, className }) {
   const t = tone || STATUS_TONE[status] || 'grey';
   return <span className={cx('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-caption font-semibold', PILL[t], className)}>{children ?? titleCase(status)}</span>;
 }
+// Shift assignments: 'assigned' means the officer has not confirmed yet, 'accepted' means they have
+export function AssignPill({ status, className }) {
+  if (status === 'assigned') return <Pill tone="amber" className={className}>Unconfirmed</Pill>;
+  if (status === 'accepted') return <Pill tone="green" className={className}>Confirmed</Pill>;
+  return <Pill status={status} className={className} />;
+}
+export const assignTone = (status) => (status === 'accepted' ? 'green' : status === 'assigned' ? 'amber' : 'grey');
+// A shift is short until every place is filled, then unconfirmed until everyone on it has confirmed
+export function confirmState({ filled, headcount, statuses = [] }) {
+  if (filled < headcount) return 'short';
+  return statuses.some((st) => st === 'assigned') ? 'unconfirmed' : 'confirmed';
+}
 export const Dot = ({ tone = 'green', live, label }) => <span className={cx('inline-block h-2.5 w-2.5 shrink-0 rounded-full', { green: 'bg-green', amber: 'bg-amber', red: 'bg-red', grey: 'bg-faint', blue: 'bg-blue' }[tone], live && 'live-dot')}>{label && <span className="sr-only">{label}</span>}</span>;
 
 export function Avatar({ name, src, size = 40, className }) {

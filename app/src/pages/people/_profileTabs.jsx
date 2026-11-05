@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
-  addDays, Bento, Button, cx, date, dateShort, dateTime, dayLabel, Empty, ErrorBox, hours, IconButton, Input, isoDate, KV, List, money, Pill, Pressable, range, relative, Row, Section, Segmented, Select, Sheet, Spinner, Stat, Table, Textarea, Tile, titleCase, Toggle, useAction, useApi, useConfirm, useForm,
+  addDays, AssignPill, Bento, Button, cx, date, dateShort, dateTime, dayLabel, Empty, ErrorBox, hours, IconButton, Input, isoDate, KV, List, money, Pill, Pressable, range, relative, Row, Section, Segmented, Select, Sheet, Spinner, Stat, Table, Textarea, Tile, titleCase, Toggle, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { DOC_KINDS, ExpiryPill, Progress, RTW_TYPES, SIA_TYPES, TIMEOFF_KINDS, WEEKDAYS, docKindLabel, openUrl } from './_parts.jsx';
 import { CertificateSheet } from '../team/_training.jsx';
@@ -433,7 +433,7 @@ function Upcoming({ o, from, onForbidden }) {
         <List>
           {rows.map((s) => {
             const a = s.assignments.find((x) => x.officer_id === o.id);
-            return <Row key={s.id} left={<DateBadge d={s.starts_at} />} title={s.venue_name} subtitle={`${s.role_name} · ${range(s.starts_at, s.ends_at)}`} right={<Pill status={a?.status || s.status} />} />;
+            return <Row key={s.id} left={<DateBadge d={s.starts_at} />} title={s.venue_name} subtitle={`${s.role_name} · ${range(s.starts_at, s.ends_at)}`} right={a ? <AssignPill status={a.status} /> : <Pill status={s.status} />} />;
           })}
         </List>
       ) : <Empty icon={Clock} title="No upcoming shifts" body="Nothing rostered in the next 60 days." />}

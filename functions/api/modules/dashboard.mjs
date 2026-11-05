@@ -22,7 +22,9 @@ async function upcomingShifts(scope, hours = 36) {
   return q(
     `SELECT s.id, s.starts_at, s.ends_at, s.headcount, v.name AS venue_name, r.name AS role_name,
             (SELECT count(*)::int FROM shift_assignments a WHERE a.shift_id = s.id AND a.status IN ('assigned','accepted')) AS filled,
-            COALESCE((SELECT json_agg(o.first_name || ' ' || left(o.last_name, 1) || '.') FROM shift_assignments a JOIN officers o ON o.id = a.officer_id
+            (SELECT count(*)::int FROM shift_assignments a WHERE a.shift_id = s.id AND a.status = 'accepted') AS confirmed,
+            COALESCE((SELECT json_agg(json_build_object('name', o.first_name || ' ' || left(o.last_name, 1) || '.', 'status', a.status) ORDER BY o.first_name)
+               FROM shift_assignments a JOIN officers o ON o.id = a.officer_id
                WHERE a.shift_id = s.id AND a.status IN ('assigned','accepted')), '[]') AS team
        FROM shifts s JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role
       WHERE s.status = 'published' AND s.ends_at > now() AND s.starts_at < now() + make_interval(hours => $2)

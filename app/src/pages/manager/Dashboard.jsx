@@ -3,7 +3,7 @@ import {
   AlertTriangle, Banknote, CalendarClock, CalendarDays, CalendarOff, ClipboardCheck, Clock, Hand, Megaphone, Radio, ShieldAlert, ShieldCheck, TriangleAlert, Users,
 } from 'lucide-react';
 import {
-  Bento, Dot, Load, Page, Pill, Stat, Tabs, Tile, cx, dateShort, daysUntil, hours, money0, range, relative, dayLabel, isoDate, titleCase, useApi,
+  Bento, confirmState, Dot, Load, Page, Pill, Stat, Tabs, Tile, cx, dateShort, daysUntil, hours, money0, range, relative, dayLabel, isoDate, titleCase, useApi,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 import { FeedBody } from '../everyday/Feed.jsx';
@@ -116,7 +116,7 @@ function Body({ d, base, isCompany }) {
           {(d.shifts || []).length === 0 ? <p className="px-5 pb-5 text-subhead text-muted">No published shifts in the next 36 hours.</p> : (
             <div className="divide-y divide-line">
               {d.shifts.slice(0, 8).map((s) => {
-                const short = s.filled < s.headcount;
+                const state = confirmState({ filled: s.filled, headcount: s.headcount, statuses: (s.team || []).map((t) => t.status) });
                 return (
                   <Link key={s.id} to={`${base}/rota?shift=${s.id}`} className="flex items-center gap-3 px-5 py-3 transition hover:bg-bg">
                     <div className="w-[64px] shrink-0">
@@ -125,9 +125,11 @@ function Body({ d, base, isCompany }) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-body font-semibold">{s.venue_name}</div>
-                      <div className="truncate text-footnote text-muted"><span className="num">{range(s.starts_at, s.ends_at)}</span> · {s.role_name}{s.team?.length ? ` · ${s.team.join(', ')}` : ''}</div>
+                      <div className="truncate text-footnote text-muted"><span className="num">{range(s.starts_at, s.ends_at)}</span> · {s.role_name}{(s.team || []).map((t, i) => (
+                        <span key={i}>{i ? ', ' : ' · '}<span aria-hidden className={cx('mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle', t.status === 'accepted' ? 'bg-green' : 'bg-amber')} />{t.name}</span>
+                      ))}</div>
                     </div>
-                    <Pill tone={short ? 'red' : 'green'} className="num">{s.filled}/{s.headcount}</Pill>
+                    <Pill tone={state === 'short' ? 'red' : state === 'unconfirmed' ? 'amber' : 'green'} className="num">{s.filled}/{s.headcount}{state === 'unconfirmed' && ' · Unconfirmed'}</Pill>
                   </Link>
                 );
               })}

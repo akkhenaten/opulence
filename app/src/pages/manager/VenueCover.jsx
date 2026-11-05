@@ -71,7 +71,7 @@ function Detail({ c, onClose, onDone }) {
           ['When', <>{dayLabel(c.starts_at)}, <span className="num">{range(c.starts_at, c.ends_at)}</span></>],
           c.kind === 'recurring' && ['Pattern', c.pattern],
           ['Sent', c.requested_by_name ? `${relative(c.created_at)} by ${c.requested_by_name}` : relative(c.created_at)],
-          c.status === 'accepted' && ['Officers confirmed', <span className="num">{c.filled} of {c.headcount}</span>],
+          c.status === 'accepted' && ['Officers', <span className="num">Booked {c.filled} of {c.headcount} · {c.confirmed ?? 0} confirmed</span>],
           ['Notes', c.notes],
           c.status === 'declined' && ['Reason', c.decline_reason || 'Please contact us to discuss.'],
         ]} />

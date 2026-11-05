@@ -257,7 +257,9 @@ export const actions = {
               (SELECT id FROM conversations x WHERE x.kind = 'cover' AND x.ref_id = COALESCE(s.root_id, c.series_id)) AS conversation_id,
               (SELECT count(*) FROM shifts sh WHERE sh.cover_request_id = c.id AND sh.status <> 'cancelled') AS shift_count,
               (SELECT count(*) FROM shift_assignments a JOIN shifts sh ON sh.id = a.shift_id
-                 WHERE sh.cover_request_id = c.id AND sh.status <> 'cancelled' AND a.status IN ('assigned','accepted')) AS filled
+                 WHERE sh.cover_request_id = c.id AND sh.status <> 'cancelled' AND a.status IN ('assigned','accepted')) AS filled,
+              (SELECT count(*)::int FROM shift_assignments a JOIN shifts sh ON sh.id = a.shift_id
+                 WHERE sh.cover_request_id = c.id AND sh.status <> 'cancelled' AND a.status = 'accepted') AS confirmed
          FROM cover_requests c JOIN venues v ON v.id = c.venue_id JOIN roles r ON r.code = c.role LEFT JOIN users u ON u.id = c.requested_by
          LEFT JOIN users cu ON cu.id = c.change_by LEFT JOIN cover_series s ON s.id = c.series_id
         WHERE ($1::uuid[] IS NULL OR c.venue_id = ANY($1)) AND ($2::text IS NULL OR c.status = $2)
