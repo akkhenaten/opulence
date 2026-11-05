@@ -182,6 +182,7 @@ export const rolesFor = (codes) => q('SELECT code, name, requires_sia, accepted_
 /** An application with its officer, or null */
 export const getApplication = (officerId) => one(
   `SELECT o.*, a.roles AS applied_roles, a.availability, a.availability_note, a.rtw_confirmed, a.consent_at, a.ai, a.ai_status, a.ai_error, a.ai_at,
-          a.sia_checked_at, a.rejected_at, a.seen_at, a.created_at AS applied_at, a.updated_at AS application_updated, u.name AS sia_checked_by_name
+          a.sia_checked_at, a.rejected_at, a.seen_at, a.created_at AS applied_at, a.updated_at AS application_updated, u.name AS sia_checked_by_name, vu.name AS sia_last_verified_by_name
      FROM applications a JOIN officers o ON o.id = a.officer_id LEFT JOIN users u ON u.id = a.sia_checked_by
+     LEFT JOIN users vu ON vu.id = o.sia_last_verified_by
     WHERE a.officer_id = $1`, [officerId]);

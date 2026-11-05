@@ -1,12 +1,12 @@
 // An online application (from the public Apply page): AI summary of the CV, SIA details read from the badge, flags,
 // the files, and the decision — invite to onboarding or reject.
 import { useEffect, useState } from 'react';
-import { AlertTriangle, ExternalLink, FileText, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
+import { AlertTriangle, FileText, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
 import { api } from '../../api.js';
 import { Button, date, dateTime, KV, List, Load, Pill, Row, Section, Sheet, Toggle, useAction, useApi } from '../../ui/index.jsx';
 import { CopyLink, openUrl } from './_parts.jsx';
+import { SiaCheckPill, SiaVerifyButton } from './SiaVerify.jsx';
 
-const SIA_REGISTER = 'https://services.sia.homeoffice.gov.uk/rolh';
 const AVAIL = { weekdays: 'Weekdays', weekends: 'Weekends', nights: 'Nights', events: 'Events' };
 const TONE = { critical: 'red', warning: 'amber' };
 const siaFmt = (n) => String(n || '').replace(/(\d{4})(?=\d)/g, '$1 ');
@@ -109,15 +109,8 @@ export function ApplicationSheet({ id, onClose, onDone }) {
                 ['Name on badge', a.ai?.badge?.name],
               ]} />
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button variant="secondary" size="sm" icon={ExternalLink} onClick={() => window.open(SIA_REGISTER, '_blank', 'noopener')}>Check SIA register</Button>
-                {a.sia_checked_at ? (
-                  <>
-                    <Pill tone="green"><ShieldCheck size={14} />Checked by {a.sia_checked_by || 'a manager'} {date(a.sia_checked_at)}</Pill>
-                    <Button variant="link" size="sm" onClick={() => act(() => api('apply.siaChecked', { officer_id: id, undo: true }))}>Undo</Button>
-                  </>
-                ) : (
-                  <Button variant="secondary" size="sm" icon={ShieldCheck} onClick={() => act(() => api('apply.siaChecked', { officer_id: id }), 'Marked as checked')}>Mark SIA checked</Button>
-                )}
+                <SiaVerifyButton o={{ id, sia_number: a.sia_number || a.ai?.badge?.number }} onSaved={q.reload} />
+                <SiaCheckPill status={a.sia_status} at={a.sia_last_verified_at} by={a.sia_last_verified_by_name} />
               </div>
             </Section>
 

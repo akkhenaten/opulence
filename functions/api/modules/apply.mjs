@@ -152,6 +152,7 @@ export const actions = {
       applied_at: o.applied_at, updated_at: o.application_updated, has_login: !!o.user_id,
       ai: o.ai, ai_status: o.ai_status, ai_error: o.ai_error, ai_at: o.ai_at,
       sia_checked_at: o.sia_checked_at, sia_checked_by: o.sia_checked_by_name, rejected_at: o.rejected_at,
+      sia_status: o.sia_status, sia_last_verified_at: o.sia_last_verified_at, sia_last_verified_by_name: o.sia_last_verified_by_name,
       flags, duplicates, docs,
     };
   }),

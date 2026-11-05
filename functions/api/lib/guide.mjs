@@ -92,7 +92,7 @@ On the venue page you can:
 
 For new starters use Recruitment: add an applicant, tick off onboarding tasks (right to work, documents, training), then activate them. You can email them an app login when they are ready.
 
-Online applications: the "Join our team" button on the website opens the Apply page (/app/apply). Applicants upload a CV and a photo of their SIA badge; AI reads both and the person appears in Recruitment → Applicants marked New, with a summary, the SIA details from the badge and any flags (expired badge, name mismatch, licence not covering the role, possible duplicate). Open the card to check the licence on the SIA public register, mark it checked, then Invite to onboarding (sends their app login and copies the SIA details to their profile) or Reject (optionally with a polite email). Applications not taken forward are deleted after 6 months.`,
+Online applications: the "Join our team" button on the website opens the Apply page (/app/apply). Applicants upload a CV and a photo of their SIA badge; AI reads both and the person appears in Recruitment → Applicants marked New, with a summary, the SIA details from the badge and any flags (expired badge, name mismatch, licence not covering the role, possible duplicate). Open the card and tap Verify SIA licence to check it on the SIA public register and record the result, then Invite to onboarding (sends their app login and copies the SIA details to their profile) or Reject (optionally with a polite email). Applications not taken forward are deleted after 6 months.`,
       },
       {
         id: 'users', title: 'Invite managers and venue users',
@@ -190,6 +190,10 @@ Officers are self-employed: statements show that no tax or NI has been deducted.
       {
         id: 'hr', title: 'HR file and documents',
         body: `Each officer's profile holds their details, SIA licence, right to work, documents, contracts, training and history. Documents have expiry dates and the app warns you and the officer before they run out. Send staff contracts and agreements from Staff contracts for officers to read and sign in the app.`,
+      },
+      {
+        id: 'sia_check', title: 'Checking an SIA licence on the register',
+        body: `On a profile's Compliance tab (or an SIA document, or an applicant), tap Verify SIA licence. The app copies the 16-digit licence number and opens the SIA public register in a new tab; paste it into the search. The panel that opens has copy buttons for the number, surname, first name and date of birth (shown masked to security managers). Record what the register shows (status, expiry, licence type, notes) and tap Confirm & save check. Every check is kept in the history and the audit log. A status other than Active (expired, suspended, revoked, under investigation or not found) blocks licensed shifts, raises an urgent Ops AI card and alerts company managers until a later check shows Active. Ops AI also reminds you when someone rostered on licensed work has never been checked, or the last check is over 90 days old.`,
       },
       {
         id: 'esign', title: 'Contracts, policies and e-signatures',

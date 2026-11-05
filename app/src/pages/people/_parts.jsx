@@ -41,7 +41,7 @@ export function useRoles() {
 export function complianceState(c) {
   if (!c) return { tone: 'grey', label: 'Unknown' };
   const hard = (c.issues || []).filter((i) => !i.startsWith('Status:'));
-  if (hard.length) return { tone: 'red', label: hard.some((i) => /expired/i.test(i)) ? 'Expired' : 'Missing checks', detail: hard.join(' · ') };
+  if (hard.length) return { tone: 'red', label: hard.some((i) => i.startsWith('SIA register')) ? 'SIA not active' : hard.some((i) => /expired/i.test(i)) ? 'Expired' : 'Missing checks', detail: hard.join(' · ') };
   const soon = [c.sia_days, c.rtw_days].filter((d) => d != null && d <= 30);
   if (soon.length) {
     const d = Math.min(...soon);

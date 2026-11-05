@@ -19,6 +19,7 @@ import { moduleOn } from '../lib/modules.mjs';
 import { lawAlerts } from '../lib/contractContent.mjs';
 import { CO, MGR, def } from './_def.mjs';
 import { statusesFor, pairKey, OK } from '../lib/venuePack.mjs';
+import { NOT_CLEARED, STATUS_LABEL, RECHECK_DAYS, daysSinceCheck } from '../lib/sia.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const NO_CLOCK_IN = "NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')";
@@ -154,6 +155,26 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
   // Missing licence or right to work
   if ((siaRoles.length || siaShifts.length) && (!o.sia_number || !o.sia_expiry)) {
     add({ key: 'missing:sia', severity: siaShifts.length ? near(siaShifts) : 'soon', sig: sig(o.sia_number, o.sia_expiry), title: o.sia_type ? 'SIA licence number or expiry missing on the profile' : 'No SIA licence on the profile', detail: siaShifts.length ? `Rostered on ${plural(siaShifts.length, 'licensed shift')}.` : '', shift: siaShifts[0], actions: [remind(o, 'sia', 'their SIA licence'), ...(siaShifts.length ? [unassign(siaShifts)] : [])] });
+  }
+  // What a manager saw on the SIA public register: not Active blocks licensed work; checks go stale after 90 days
+  const needsLicence = siaRoles.length || siaShifts.length;
+  if (needsLicence && NOT_CLEARED.includes(o.sia_status)) {
+    add({
+      key: 'register:sia', severity: 'urgent', sig: sig(o.sia_status, o.sia_last_verified_at),
+      title: `SIA register shows the licence as ${STATUS_LABEL[o.sia_status]}`,
+      detail: `Checked ${fmtDate(o.sia_last_verified_at)}. They can't be rostered for licensed work until a check shows Active.${siaShifts.length ? ` Rostered on ${plural(siaShifts.length, 'licensed shift')}.` : ''}`,
+      shift: siaShifts[0], actions: [...(siaShifts.length ? [{ ...unassign(siaShifts), default: true }] : []), remind(o, 'sia', 'proof their SIA licence is active')],
+    });
+  } else if (needsLicence && o.sia_number && o.status !== 'applicant') {
+    const since = daysSinceCheck(o.sia_last_verified_at, today);
+    if ((since === null && siaShifts.length) || since > RECHECK_DAYS) {
+      add({
+        key: 'recheck:sia', severity: siaShifts.length ? near(siaShifts) : 'advisory', sig: sig(o.sia_last_verified_at),
+        title: since === null ? 'SIA licence never checked on the register' : `SIA register check is ${plural(since, 'day')} old`,
+        detail: `Use "Verify SIA licence" on their profile.${siaShifts.length ? ` Rostered on ${plural(siaShifts.length, 'licensed shift')}.` : ''}`,
+        shift: siaShifts[0], actions: [],
+      });
+    }
   }
   if (!o.rtw_verified) {
     add({ key: 'unverified:rtw', severity: shifts.length ? near(shifts) : 'soon', sig: sig(o.rtw_type), title: 'Right to work not verified', detail: shifts.length ? `Rostered on ${plural(shifts.length, 'shift')}.` : 'Check and verify on the profile.', shift: shifts[0], actions: [remind(o, 'rtw', 'right to work proof')] });

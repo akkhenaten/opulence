@@ -9,6 +9,7 @@ import { createInvite, sendInvite } from './users.mjs';
 import { seedOnboarding } from './hr.mjs';
 import { guardSelf } from '../lib/selfcheck.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
+import { NOT_CLEARED, STATUS_LABEL } from '../lib/sia.mjs';
 
 const NON_SIA = new Set(['steward']);
 const PRIVATE = ['ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account', 'dob'];
@@ -25,6 +26,7 @@ export function compliance(o, today = londonDate(new Date())) {
   if (needsSia) {
     if (!o.sia_number || !o.sia_expiry) issues.push('No SIA licence on file');
     else if (o.sia_expiry < today) issues.push('SIA licence expired');
+    if (NOT_CLEARED.includes(o.sia_status)) issues.push(`SIA register shows the licence as ${STATUS_LABEL[o.sia_status]}`);
   }
   if (!o.rtw_verified) issues.push('Right to work not verified');
   else if (o.rtw_expiry && o.rtw_expiry < today) issues.push('Right to work expired');
@@ -103,7 +105,7 @@ export const actions = {
     const id = b.id || user.officer_id;
     if (user.role === 'venue') fail(403, 'Forbidden');
     await assertOfficerAccess(user, id);
-    const o = need(await one('SELECT o.*, u.status AS login_status, u.last_login, u.role AS login_role FROM officers o LEFT JOIN users u ON u.id = o.user_id WHERE o.id = $1', [id]));
+    const o = need(await one('SELECT o.*, u.status AS login_status, u.last_login, u.role AS login_role, vu.name AS sia_last_verified_by_name FROM officers o LEFT JOIN users u ON u.id = o.user_id LEFT JOIN users vu ON vu.id = o.sia_last_verified_by WHERE o.id = $1', [id]));
     const [contacts, rates, bans, availability, offboarding] = await Promise.all([
       q('SELECT * FROM emergency_contacts WHERE officer_id = $1', [id]),
       canSeePay(user) || user.officer_id === id
