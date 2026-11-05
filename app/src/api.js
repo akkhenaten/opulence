@@ -51,6 +51,15 @@ export async function upload(file, purpose = 'officer') {
   return key;
 }
 
+// Upload from the public Apply page (no login): kind cv|sia_front|sia_back; returns the stored key
+export async function publicUpload(file, kind) {
+  const type = file.type || 'application/octet-stream';
+  const { url, key } = await api('apply.uploadUrl', { kind, filename: file.name, content_type: type });
+  const r = await fetch(url, { method: 'PUT', headers: { 'content-type': type }, body: file });
+  if (!r.ok) throw new ApiError('Upload failed — please try again', r.status);
+  return key;
+}
+
 // Actions returning { filename, pdf (base64) } or { filename, csv }
 export function downloadBase64(filename, b64, type = 'application/pdf') {
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));

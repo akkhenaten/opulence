@@ -58,6 +58,7 @@ export async function readDocuments(limit = 4) {
     `SELECT d.* FROM documents d JOIN officers o ON o.id = d.owner_id
       WHERE d.owner_type = 'officer' AND d.kind = ANY($1) AND d.s3_key IS NOT NULL AND d.ai_read_key IS DISTINCT FROM d.s3_key
         AND o.status IN ('active','onboarding','applicant')
+        AND NOT (o.status = 'applicant' AND EXISTS (SELECT 1 FROM applications ap WHERE ap.officer_id = o.id))
       ORDER BY d.created_at DESC LIMIT $2`, [READ_KINDS, limit]);
   let n = 0;
   let credits = 0;

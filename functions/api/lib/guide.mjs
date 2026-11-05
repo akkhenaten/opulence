@@ -90,7 +90,9 @@ On the venue page you can:
         id: 'staff', title: 'Add your officers', image: 'staff.png',
         body: `Open Staff and tap Add staff member. Enter their name, email, phone and SIA licence. The app checks licence expiry and warns you before it runs out.
 
-For new starters use Recruitment: add an applicant, tick off onboarding tasks (right to work, documents, training), then activate them. You can email them an app login when they are ready.`,
+For new starters use Recruitment: add an applicant, tick off onboarding tasks (right to work, documents, training), then activate them. You can email them an app login when they are ready.
+
+Online applications: the "Join our team" button on the website opens the Apply page (/app/apply). Applicants upload a CV and a photo of their SIA badge; AI reads both and the person appears in Recruitment → Applicants marked New, with a summary, the SIA details from the badge and any flags (expired badge, name mismatch, licence not covering the role, possible duplicate). Open the card to check the licence on the SIA public register, mark it checked, then Invite to onboarding (sends their app login and copies the SIA details to their profile) or Reject (optionally with a polite email). Applications not taken forward are deleted after 6 months.`,
       },
       {
         id: 'users', title: 'Invite managers and venue users',

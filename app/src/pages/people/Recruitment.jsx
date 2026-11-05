@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Plus, ShieldCheck } from 'lucide-react';
 import { api } from '../../api.js';
 import {
@@ -7,6 +7,7 @@ import {
 } from '../../ui/index.jsx';
 import { ComplianceBadge, CopyLink, Progress, useRoles } from './_parts.jsx';
 import { AddOfficerSheet } from './Staff.jsx';
+import { ApplicationSheet } from './_application.jsx';
 
 const STAGES = [
   { key: 'applicant', label: 'Applicants', hint: 'Interested, not yet started' },
@@ -22,6 +23,11 @@ export default function Recruitment() {
   const { roles, name: roleName } = useRoles();
   const [adding, setAdding] = useState(false);
   const [hiring, setHiring] = useState(null);
+  // An online application opens in its own sheet; ?applicant=<id> comes from the "New application" notification
+  const [params, setParams] = useSearchParams();
+  const applicant = params.get('applicant');
+  const review = (p) => setParams((s) => { s.set('applicant', p.id); return s; });
+  const closeReview = () => setParams((s) => { s.delete('applicant'); return s; }, { replace: true });
   const [run] = useAction();
   const confirm = useConfirm();
   const reload = () => { pipeline.reload(); active.reload(); };
@@ -72,7 +78,7 @@ export default function Recruitment() {
                   <div className="space-y-2">
                     {cols[s.key].map((p) => (s.key === 'active'
                       ? <ActiveCard key={p.id} o={p} roleName={roleName} />
-                      : <Card key={p.id} p={p} roleName={roleName} onMove={move} />))}
+                      : <Card key={p.id} p={p} roleName={roleName} onMove={move} onReview={review} />))}
                     {!cols[s.key].length && <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-footnote text-faint">Nobody here</p>}
                   </div>
                 </section>
@@ -81,37 +87,49 @@ export default function Recruitment() {
           </>
         )}
       </Load>
+      <ApplicationSheet id={applicant} onClose={closeReview} onDone={reload} />
       <HireSheet p={hiring} onClose={() => setHiring(null)} onHire={(invite) => setStatus(hiring, 'active', { invite })} />
       <AddOfficerSheet open={adding} onClose={() => setAdding(false)} roles={roles} onDone={reload} status="applicant" title="Add applicant" statusOptions={['applicant', 'onboarding']} />
     </Page>
   );
 }
 
-function Card({ p, roleName, onMove }) {
+function Card({ p, roleName, onMove, onReview }) {
+  // Online applicants are reviewed (invite or reject) in the application sheet
+  const reviewing = p.online && p.status === 'applicant';
   const next = NEXT[p.status];
   const prev = PREV[p.status];
   const complete = p.total && Number(p.done) === Number(p.total);
   return (
     <div className="rounded-2xl bg-surface p-3 shadow-tile">
-      <Link to={`/company/staff/${p.id}`} className="flex items-center gap-3">
+      <Pressable press to={reviewing ? undefined : `/company/staff/${p.id}`} onClick={reviewing ? () => onReview(p) : undefined} className="flex w-full items-center gap-3 text-left">
         <Avatar name={p.name} size={38} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-body font-semibold">{p.name}</div>
           <div className="truncate text-caption text-muted">{(p.roles || []).map(roleName).join(', ') || p.email || p.phone || 'No details'}</div>
         </div>
         <span className="text-caption2 text-faint">{relative(p.created_at)}</span>
-      </Link>
-      <Progress className="mt-3" done={Number(p.done)} total={Number(p.total)} />
+      </Pressable>
+      {!reviewing && <Progress className="mt-3" done={Number(p.done)} total={Number(p.total)} />}
       <div className="mt-2 flex items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1">
+          {reviewing && !p.seen && <Pill tone="blue">New</Pill>}
+          {p.online && <Pill tone="grey">Applied online</Pill>}
+          {reviewing && p.ai_status === 'pending' && <Pill tone="grey">Reading documents…</Pill>}
+          {reviewing && Number(p.flag_count) > 0 && <Pill tone="amber">{p.flag_count} to check</Pill>}
           {p.login_status === 'invited' && <Pill tone="amber">Invite pending</Pill>}
           {p.login_status === 'active' && <Pill tone="blue">In the app</Pill>}
-          {!p.login_status && <Pill tone="grey">No login</Pill>}
+          {!p.login_status && !reviewing && <Pill tone="grey">No login</Pill>}
           {complete && <Pill tone="green">Ready</Pill>}
         </div>
         <div className="flex items-center">
           {prev && <IconButton icon={ChevronLeft} label={`Move back to ${prev}`} onClick={() => onMove(p, prev)} />}
-          {next && (
+          {reviewing ? (
+            <Pressable press onClick={() => onReview(p)}
+              className="inline-flex h-8 items-center gap-0.5 rounded-xl bg-blue px-2.5 text-footnote font-semibold text-white transition active:scale-95">
+              Review<ChevronRight size={16} />
+            </Pressable>
+          ) : next && (
             <Pressable press onClick={() => onMove(p, next)}
               className={cx('inline-flex h-8 items-center gap-0.5 rounded-xl px-2.5 text-footnote font-semibold transition active:scale-95', complete || next === 'onboarding' ? 'bg-blue text-white' : 'bg-blue-soft text-blue')}>
               {next === 'active' ? 'Activate' : 'Start onboarding'}<ChevronRight size={16} />

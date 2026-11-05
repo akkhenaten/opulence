@@ -948,7 +948,7 @@ export const actions = {
   'ops.activity': def(MGR, async (_b, { user }) => {
     const scope = await venueScope(user);
     return q(
-      `SELECT * FROM ops_activity WHERE kind NOT IN ('reconcile_run','compliance_run') AND ($1::uuid[] IS NULL OR venue_id = ANY($1) ${''}OR (venue_id IS NULL AND $2))
+      `SELECT * FROM ops_activity WHERE kind NOT IN ('reconcile_run','compliance_run','applicant_purge') AND ($1::uuid[] IS NULL OR venue_id = ANY($1) ${''}OR (venue_id IS NULL AND $2))
         ORDER BY created_at DESC LIMIT 150`, [scope, user.role === 'company']);
   }),
 

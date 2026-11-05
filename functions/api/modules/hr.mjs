@@ -152,9 +152,11 @@ export const actions = {
   // ---- Onboarding & recruitment ----
   'onboarding.pipeline': def(CO, async () => q(
     `SELECT o.id, o.first_name || ' ' || o.last_name AS name, o.email, o.phone, o.status, o.roles, o.created_at, u.status AS login_status,
-            count(t.*) FILTER (WHERE t.done) AS done, count(t.*) AS total
-       FROM officers o LEFT JOIN users u ON u.id = o.user_id LEFT JOIN onboarding_tasks t ON t.officer_id = o.id
-      WHERE o.status IN ('applicant','onboarding') GROUP BY o.id, u.status ORDER BY o.created_at DESC`)),
+            count(t.*) FILTER (WHERE t.done) AS done, count(t.*) AS total,
+            ap.officer_id IS NOT NULL AS online, ap.seen_at IS NOT NULL AS seen, ap.ai_status,
+            (ap.ai_status = 'failed')::int + (coalesce(ap.ai->'badge'->>'expiry', '') BETWEEN '0' AND to_char(CURRENT_DATE + 60, 'YYYY-MM-DD'))::int AS flag_count
+       FROM officers o LEFT JOIN users u ON u.id = o.user_id LEFT JOIN onboarding_tasks t ON t.officer_id = o.id LEFT JOIN applications ap ON ap.officer_id = o.id
+      WHERE o.status IN ('applicant','onboarding') GROUP BY o.id, u.status, ap.officer_id ORDER BY coalesce(ap.updated_at, o.created_at) DESC`)),
 
   'onboarding.tasks': def(['company', 'officer'], async (b, { user }) => {
     const id = ownOrManager(user, b.officer_id);
