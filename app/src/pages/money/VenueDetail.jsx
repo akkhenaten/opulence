@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import RecentEmail from '../email/_recent.jsx';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -65,6 +66,7 @@ export default function VenueDetail() {
           {(tab === 'codes' || tab === 'qr') && <QrTab v={v} />}
           {tab === 'rates' && isCo && <RatesTab venueId={v.id} />}
           {tab === 'people' && <PeopleTab v={v} isCo={isCo} />}
+          {tab === 'people' && isCo && <RecentEmail type="venue" id={v.id} />}
           {tab === 'pack' && <VenuePackTab venueId={v.id} />}
           {tab === 'documents' && <DocumentsTab venueId={v.id} />}
           {tab === 'logs' && <ShiftLogList venueId={v.id} />}

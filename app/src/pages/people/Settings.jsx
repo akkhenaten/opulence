@@ -13,10 +13,11 @@ import { resetEverydaySettings } from '../everyday/_parts.jsx';
 import { previewStyle, restoreStyle, styleVars } from '../../ui/style.js';
 import { TemplatesTab } from './_esign.jsx';
 import LibraryTab from './contracts/Library.jsx';
+import { EmailTab } from '../email/_settings.jsx';
 
 const TABS = [
   { value: 'company', label: 'Company details' }, { value: 'users', label: 'Users & access' }, { value: 'rules', label: 'Workforce rules' },
-  { value: 'templates', label: 'Templates' }, { value: 'library', label: 'Contract library' }, { value: 'notifications', label: 'Notifications' }, { value: 'demos', label: 'Demo requests' },
+  { value: 'templates', label: 'Templates' }, { value: 'library', label: 'Contract library' }, { value: 'notifications', label: 'Notifications' }, { value: 'email', label: 'Email' }, { value: 'demos', label: 'Demo requests' },
 ];
 // Older links used these tab names
 const OLD_TAB = { calendar: 'rules', contracts: 'templates', account: 'company' };
@@ -34,6 +35,7 @@ export default function Settings() {
       {tab === 'templates' && <TemplatesTab />}
       {tab === 'library' && <LibraryTab />}
       {tab === 'notifications' && <NotificationsTab />}
+      {tab === 'email' && <EmailTab />}
       {tab === 'demos' && <DemosTab />}
     </Page>
   );

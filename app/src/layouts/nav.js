@@ -1,7 +1,7 @@
 import {
   BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
   Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText, Sparkles,
-  GraduationCap, BookOpenCheck, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck,
+  GraduationCap, BookOpenCheck, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck,
 } from 'lucide-react';
 
 // Sidebar sections per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
@@ -11,6 +11,7 @@ export const NAV = {
     { title: 'Overview', items: [
       { to: '/company', label: 'Dashboard', icon: LayoutGrid, end: true, tab: true, badge: 'everyday' },
       { to: '/company/messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
+      { to: '/company/email', label: 'Email', icon: Mail, badge: 'email' },
       { to: '/company/ops', label: 'Ops AI', icon: Sparkles, badge: 'ops' },
     ] },
     { title: 'Operations', items: [

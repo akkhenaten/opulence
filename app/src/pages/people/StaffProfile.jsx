@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
+import RecentEmail from '../email/_recent.jsx';
 import { Ban, Mail, Pencil, Phone, Send, UserCheck } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -124,6 +125,7 @@ function Profile({ o, reload, user, base }) {
       <Tabs tabs={tabs} value={current} onChange={setTab} />
 
       {current === 'overview' && <OverviewTab {...props} />}
+      {current === 'overview' && isCo && <RecentEmail type="officer" id={o.id} />}
       {current === 'compliance' && <ComplianceTab {...props} />}
       {current === 'documents' && <DocumentsTab {...props} onForbidden={() => forbid('documents')} />}
       {current === 'rates' && <RatesTab {...props} />}

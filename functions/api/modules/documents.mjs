@@ -27,7 +27,7 @@ export const actions = {
   // Generic presigned upload for any private file (documents, incident photos, profile photos)
   'files.uploadUrl': def(ALL, async (b, { user }) => {
     required(b, 'filename', 'content_type');
-    const folder = ({ officer: 'officers', venue: 'venues', incident: 'incidents', photo: 'photos', company: 'company', feed: 'feed', learn: 'learn', message: 'messages', shiftlog: 'shiftlog', ban: 'bans', voice: 'voice', contract: 'contracts', selfie: 'selfies' })[b.purpose] || 'misc';
+    const folder = ({ officer: 'officers', venue: 'venues', incident: 'incidents', photo: 'photos', company: 'company', feed: 'feed', learn: 'learn', message: 'messages', shiftlog: 'shiftlog', ban: 'bans', voice: 'voice', contract: 'contracts', selfie: 'selfies', email: 'email' })[b.purpose] || 'misc';
     return uploadUrl(`${folder}/${user.id.slice(0, 8)}`, b.filename, b.content_type);
   }),
 

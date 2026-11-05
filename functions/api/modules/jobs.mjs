@@ -17,6 +17,7 @@ import { selfieJobs } from './clockProof.mjs';
 import { packReminders } from './venuePacks.mjs';
 import { transcriptSweep } from './messages.mjs';
 import { feedJobs } from './everydayJobs.mjs';
+import { emailSync } from './email.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in.
 // Officers whose site pack isn't signed are left to the Ops AI pack check until they sign.
@@ -157,6 +158,8 @@ export async function runJobs() {
   result.everyday = await feedJobs().catch((e) => `error: ${e.message}`);
   // Pay review reminders and deadlines
   result.payRuns = await payRunJobs().catch((e) => `error: ${e.message}`);
+  // Connected mailboxes: incremental sync into the inbox cache
+  result.email = await emailSync().catch((e) => `error: ${e.message}`);
   console.log('[jobs]', JSON.stringify(result));
   return result;
 }

@@ -7,6 +7,7 @@ import { downloadUrl } from '../lib/storage.mjs';
 import { CO, ALL, def } from './_def.mjs';
 import { getBrand } from '../lib/brand.mjs';
 import { seedOnboarding } from './hr.mjs';
+import { disconnectUser } from './email.mjs';
 
 const ROLE_LABEL = { company: 'Company Manager', security: 'Security Manager', venue: 'Venue Manager', officer: 'Security Officer' };
 
@@ -98,6 +99,8 @@ export const actions = {
       await setVenues(t, row.id, row.role, b.venue_ids);
       return row;
     });
+    // Their own mailboxes go with them; shared ones stay with the people they are shared with
+    if (fields.status === 'disabled') await disconnectUser(u.id);
     await audit(user, 'user.update', 'user', u.id, fields);
     return { ok: true };
   }),

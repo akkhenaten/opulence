@@ -133,7 +133,9 @@ export default function Shell() {
   const live = useRealtimeConnected();
   const msgs = useApi('messages.unread', {}, { poll: live ? 120000 : 30000 });
   useEffect(() => startRealtime(user.id), [user.id]);
-  const badges = { ops: opsCount.data?.n || 0, everyday: feed.data?.unread || 0, messages: msgs.data?.unread || 0 };
+  const mail = useApi('email.accounts', {}, { poll: 120000, skip: user.role !== 'company' });
+  useEffect(() => { const h = () => mail.reload(); window.addEventListener('orb:email', h); return () => window.removeEventListener('orb:email', h); });
+  const badges = { ops: opsCount.data?.n || 0, everyday: feed.data?.unread || 0, messages: msgs.data?.unread || 0, email: (mail.data?.accounts || []).reduce((n, a) => n + (a.unread || 0), 0) };
   const loc = useLocation();
   const [more, setMore] = useState(false);
   const [account, setAccount] = useState(false);

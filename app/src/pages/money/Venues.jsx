@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import RecentEmail from '../email/_recent.jsx';
 import { Building2, CalendarDays, MapPin, Plus, Search, ShieldAlert, Users } from 'lucide-react';
 import { api } from '../../api.js';
 import {
@@ -28,10 +29,12 @@ export default function Venues() {
 export function Clients() {
   const clients = useApi('clients.list');
   const [client, setClient] = useState(null); // {} = new, row = edit
+  const [sp, setSp] = useSearchParams();
+  const linked = sp.get('client') && (clients.data || []).find((c) => c.id === sp.get('client')); // opened from a link (e.g. an email)
   return (
     <Page title="Clients" subtitle="Who you bill, and their venues" actions={<Button icon={Plus} onClick={() => setClient({})}>Add client</Button>}>
       <Load q={clients}>{(rows) => <ClientList rows={rows} onEdit={setClient} />}</Load>
-      <ClientSheet client={client} onClose={() => setClient(null)} onSaved={clients.reload} />
+      <ClientSheet client={client || linked || null} onClose={() => { setClient(null); if (sp.get('client')) setSp({}, { replace: true }); }} onSaved={clients.reload} />
     </Page>
   );
 }
@@ -164,6 +167,7 @@ function ClientForm({ client, onClose, onSaved }) {
         <Textarea label="Billing address" rows={3} {...f.bind('billing_address')} />
         <Input label="VAT number" placeholder="GB123456789" {...f.bind('vat_number')} />
       </div>
+      {client.id && <RecentEmail type="client" id={client.id} />}
     </Sheet>
   );
 }

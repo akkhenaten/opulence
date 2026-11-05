@@ -27,6 +27,8 @@ const TimeOff = P(() => import('./pages/people/TimeOff.jsx'));
 const Settings = P(() => import('./pages/people/Settings.jsx'));
 const Audit = P(() => import('./pages/people/Audit.jsx'));
 const Venues = P(() => import('./pages/money/Venues.jsx'));
+const Email = P(() => import('./pages/email/Email.jsx'));
+const EmailCallback = P(() => import('./pages/email/Callback.jsx'));
 const Clients = P(() => import('./pages/money/Venues.jsx').then((m) => ({ default: m.Clients })));
 const StaffContracts = P(() => import('./pages/people/StaffContracts.jsx'));
 const ContractWorkspace = P(() => import('./pages/people/contracts/Workspace.jsx'));
@@ -182,6 +184,9 @@ function App() {
             <Route path="hr/time-off" element={<TimeOff />} />
             <Route path="people/contracts" element={<StaffContracts />} />
             <Route path="people/contracts/draft/:id" element={<ContractWorkspace />} />
+            <Route path="email" element={<Email />} />
+            <Route path="email/callback" element={<EmailCallback />} />
+            <Route path="email/:account/:thread" element={<Email />} />
             <Route path="clients" element={<Clients />} />
             <Route path="venues" element={<Venues />} />
             <Route path="venues/:id" element={<VenueDetail />} />

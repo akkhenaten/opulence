@@ -175,6 +175,10 @@ export const CATALOG = {
   'everyday.rsvp': c('feed', 'Answer a team event', 'post_id, answer (going|maybe|no)', { link: (_r, b) => `everyday?post=${b.post_id}` }),
   'messages.inbox': r('messages', 'My conversations', ''),
   'messages.people': r('messages', 'People I can message', ''),
+  'email.search': r('email', 'Search my connected mailboxes (Gmail / Outlook)', 'q (words, a name or an address), account_id?'),
+  'email.forRecord': r('email', 'Recent email with an officer, venue or client', 'type (officer|venue|client), id'),
+  'email.summary': r('email', 'Summarise an email thread', 'account_id, id (thread)'),
+  'email.send': c('email', 'Send an email from my connected mailbox', 'account_id, to[] (addresses), cc[]?, subject, text, reply? {thread_id, id, message_id, references, all}', { link: () => 'email' }),
   'messages.createGroup': c('messages', 'Start a group conversation', 'user_ids[], title', { link: (res) => res?.id && `messages/${res.id}` }),
 
   // Settings
@@ -200,7 +204,7 @@ export function catalogFor(user, actions) {
 }
 
 // Changes that reach people outside the app's managers: messages, posts, documents to sign, the published rota, invites
-const OUTWARD = /^(messages\.send|messages\.createGroup|everyday\.create|shifts\.publish|contracts\.send|contracts\.draft\.send|contracts\.upload\.send|contracts\.link\.resend|esign\.remind|officers\.inviteLogin|users\.invite)$/;
+const OUTWARD = /^(email\.send|messages\.send|messages\.createGroup|everyday\.create|shifts\.publish|contracts\.send|contracts\.draft\.send|contracts\.upload\.send|contracts\.link\.resend|esign\.remind|officers\.inviteLogin|users\.invite)$/;
 
 /** A Confirm card line a spoken "yes" cannot approve: money, or anything sent to people. Returns why, or null. */
 export function needsTap(step) {
