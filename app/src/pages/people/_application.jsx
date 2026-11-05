@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, FileText, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
 import { api } from '../../api.js';
-import { Button, date, dateTime, KV, List, Load, Pill, Row, Section, Sheet, Toggle, useAction, useApi } from '../../ui/index.jsx';
+import { Button, date, dateTime, KV, List, Load, Pill, Row, Section, Sheet, Spinner, Toggle, useAction, useApi } from '../../ui/index.jsx';
 import { CopyLink, openUrl } from './_parts.jsx';
 import { SiaCheckPill, SiaVerifyButton } from './SiaVerify.jsx';
 import { SIA_CHECK_ON } from '../../ui/sia.js';
@@ -50,7 +50,7 @@ export function ApplicationSheet({ id, onClose, onDone }) {
   return (
     <Sheet open={!!id} onClose={close} title={name} size="lg" footer={footer}>
       <Load q={q}>
-        {() => (invite ? <Invited a={a} r={invite} /> : rejecting ? (
+        {() => (!a ? <Spinner /> : invite ? <Invited a={a} r={invite} /> : rejecting ? (
           <div className="space-y-3">
             <p className="text-body text-muted">{a.first_name} will be removed from Applicants. The application is kept for 6 months, then deleted.</p>
             <div className="rounded-2xl bg-bg px-4 py-2">
@@ -66,9 +66,9 @@ export function ApplicationSheet({ id, onClose, onDone }) {
               {(a.role_names || []).map((r) => <Pill key={r}>{r}</Pill>)}
             </div>
 
-            {a.flags.length > 0 && (
+            {(a.flags || []).length > 0 && (
               <div className="mt-4 space-y-2">
-                {a.flags.map((f) => (
+                {(a.flags || []).map((f) => (
                   <div key={f.key} className={`flex items-start gap-2 rounded-2xl px-3.5 py-2.5 text-subhead ${f.severity === 'critical' ? 'bg-red-soft text-red' : 'bg-amber-soft text-amber'}`}>
                     <AlertTriangle size={18} className="mt-0.5 shrink-0" /><span>{f.text}</span>
                   </div>
@@ -117,7 +117,7 @@ export function ApplicationSheet({ id, onClose, onDone }) {
 
             <Section title="Files">
               <List>
-                {a.docs.map((d) => (
+                {(a.docs || []).map((d) => (
                   <Row key={d.id} title={d.title} subtitle={d.mime || ''} left={<FileText size={20} className="text-blue" />} chevron
                     onClick={() => openUrl(() => api('docs.url', { id: d.id })).catch(() => {})} />
                 ))}

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronDown, History, Search } from 'lucide-react';
-import { Avatar, cx, dateTime, dayLabel, Empty, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Section, Segmented, Select, time, titleCase, useApi } from '../../ui/index.jsx';
+import { WhatsNew } from './_whatsnew.jsx';
+import { Avatar, cx, dateTime, dayLabel, Empty, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Section, Segmented, Select, Tabs, time, titleCase, useApi } from '../../ui/index.jsx';
 
 const ENTITIES = ['officer', 'document', 'contract', 'hr_note', 'officer_rate', 'shift', 'assignment', 'cover_request', 'timesheet',
   'incident', 'venue', 'venue_rate', 'invoice', 'invoice_line', 'statement', 'statement_line', 'user', 'settings'];
@@ -12,10 +13,13 @@ const actionTone = (a = '') => (/delete|void|cancel|offboard|remove|dispute|cred
 const actionLabel = (a = '') => titleCase(a.replace(/[._]/g, ' '));
 
 export default function Audit() {
+  const [sp, setSp] = useSearchParams();
+  const tab = sp.get('tab') === 'new' ? 'new' : 'activity';
+  const setTab = (t) => setSp(t === 'activity' ? {} : { tab: t }, { replace: true });
   const [entity, setEntity] = useState('');
   const [limit, setLimit] = useState(200);
   const [search, setSearch] = useState('');
-  const q = useApi('audit.list', { entity: entity || undefined, limit });
+  const q = useApi('audit.list', { entity: entity || undefined, limit }, { skip: tab !== 'activity' });
 
   const days = useMemo(() => {
     const s = search.trim().toLowerCase();
@@ -30,7 +34,9 @@ export default function Audit() {
   }, [q.data, search]);
 
   return (
-    <Page title="Audit log" subtitle="Who changed what, and when">
+    <Page title="Audit log" subtitle={tab === 'new' ? 'Every upgrade to your platform' : 'Who changed what, and when'}>
+      <div className="mb-3"><Tabs value={tab} onChange={setTab} tabs={[{ value: 'activity', label: 'Activity' }, { value: 'new', label: 'What’s new' }]} /></div>
+      {tab === 'new' ? <WhatsNew /> : <>
       <div className="mb-2 grid gap-3 sm:grid-cols-[1fr_220px_auto] sm:items-end">
         <div className="relative">
           <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-faint" />
@@ -46,6 +52,7 @@ export default function Audit() {
           </Section>
         )) : <Empty icon={History} title="No activity" body={search ? 'Nothing matches your search.' : 'Changes will appear here.'} />)}
       </Load>
+      </>}
     </Page>
   );
 }

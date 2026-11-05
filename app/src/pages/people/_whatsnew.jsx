@@ -1,0 +1,130 @@
+// What's new: every upgrade to the platform, told as what it means for the business
+import {
+  BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, FileSignature, Fingerprint, Globe, GraduationCap, MessageSquareHeart,
+  MessagesSquare, Newspaper, Palette, Radar, ShieldAlert, Sparkles, Users, Wallet,
+} from 'lucide-react';
+import { Pill } from '../../ui/index.jsx';
+
+// Newest first; the first card is the latest release
+export const UPDATES = [
+  {
+    month: 'November 2026', icon: MessageSquareHeart, title: 'Praise, straight to your website',
+    lede: 'The kind words your venues share now go straight onto their tile on your website when you tick them. No retyping, and no second approval step.',
+    points: ['One switch on each praise card: Show on website', 'Quotes appear under the venue’s name, never a person’s', 'Take any quote down again in a second', 'A Feedback tab on every venue, with replies and follow-ups in one place'],
+  },
+  {
+    month: 'November 2026', icon: Building2, title: 'Clients, venues and the people behind them',
+    lede: 'Every client now has a home of its own: its venues, its contacts and its correspondence, all connected and all in one view.',
+    points: ['Create a client right from a venue, without leaving the page', 'Link a user to a client and their venues tick themselves', 'Invite or remove venue managers from the venue itself', 'Customers per night and a full analytics module'],
+  },
+  {
+    month: 'November 2026', icon: Sparkles, title: 'Orb, your operations assistant',
+    lede: 'A quietly brilliant colleague that knows your rota, your venues and your people, and can act on all of them when you ask.',
+    points: ['Ask in plain English and Orb does the work across the app', 'Talk to Orb by voice, or dictate on the move', 'Ask Orb about any pay run before you approve it', 'A movable button wearing the Opulence mark'],
+  },
+  {
+    month: 'November 2026', icon: Radar, title: 'Live operations, ahead of the night',
+    lede: 'See every shift as it happens and let the platform chase the details before doors open, so you never have to.',
+    points: ['One Live view for every venue tonight', 'Pre-shift checks that chase missing site packs automatically', 'Cover suggestions the moment someone drops out', 'Signed site packs shown right on Live'],
+  },
+  {
+    month: 'October 2026', icon: FileSignature, title: 'A complete contracts suite',
+    lede: 'From first draft to signature, every agreement your business runs on, written for the law of the place you trade.',
+    points: ['Eight ready contract packs for England & Wales, Scotland and Northern Ireland', 'An AI drafting partner that knows your business', 'Upload outside contracts and invite outside signers', 'Variations, extensions and a searchable contract library'],
+  },
+  {
+    month: 'October 2026', icon: ClipboardCheck, title: 'Site packs that are read, then signed',
+    lede: 'Assignment instructions written in moments and acknowledged by every officer before they can clock in. Evidence you can stand behind.',
+    points: ['AI-drafted instructions for each venue', 'Signature required before clock-in', 'A signing register for audits and clients'],
+  },
+  {
+    month: 'October 2026', icon: Fingerprint, title: 'Clock-in you can prove',
+    lede: 'Each clock-in is tied to the right person, on the right phone, at the right door. That gives you timesheets nobody can argue with.',
+    points: ['Passkey-protected phones', 'NFC tags on site', 'Selfie face check', 'Phone approvals for the office'],
+  },
+  {
+    month: 'October 2026', icon: MessagesSquare, title: 'Conversation, all in one place',
+    lede: 'Your team, your venues and your inbox, brought together so nothing important gets lost in someone’s personal phone.',
+    points: ['Messages for everyone, with typing, reactions and pins', 'Voice messages', 'Your Gmail or Outlook inbox inside the app'],
+  },
+  {
+    month: 'October 2026', icon: Newspaper, title: 'Everyday, the heartbeat of your team',
+    lede: 'A team feed that makes a dispersed workforce feel like one company, and keeps everyone informed without a single group chat.',
+    points: ['Announcements and shout-outs', 'Polls, events and RSVPs', 'Photo posts with built-in editing'],
+  },
+  {
+    month: 'October 2026', icon: GraduationCap, title: 'An academy of your own',
+    lede: 'Training that people actually finish, with the records to prove it when an inspector or client asks.',
+    points: ['Illustrated lessons and a practical toolbox', 'Outside certificates kept in one place', 'An AI compliance overview of who is due what'],
+  },
+  {
+    month: 'October 2026', icon: CalendarDays, title: 'Rota and shifts, refined',
+    lede: 'Planning that shows you, at a glance, who is confirmed, who leads the door and where the gaps still are.',
+    points: ['Shift calendar and a page for every shift', 'Head doorman on each shift', 'Repeating cover requests', 'Unconfirmed shifts highlighted in amber'],
+  },
+  {
+    month: 'October 2026', icon: ShieldAlert, title: 'Incidents, recorded properly',
+    lede: 'Reports that are complete, evidenced and reviewed. The kind that protect your licence and your people.',
+    points: ['Photos and files, with AI review of each report', 'Report past incidents after the fact', 'Ejection log with an optional ban', 'Weekly compliance checks'],
+  },
+  {
+    month: 'October 2026', icon: Users, title: 'People and HR, done with care',
+    lede: 'The conversations that keep good people are now planned, recorded and followed through.',
+    points: ['One-to-ones, goals and pay-rise agreements', 'Online applications flowing into Recruitment', 'Staff can keep their own profile up to date', '“Goes by” names everywhere'],
+  },
+  {
+    month: 'October 2026', icon: BadgeCheck, title: 'SIA licence verification',
+    lede: 'A guided check against the public SIA register, with the history saved, so every licence on your books has a clear audit trail.',
+    points: ['Step-by-step verification assistant', 'Check history kept on each officer', 'Status shown wherever the officer appears'],
+  },
+  {
+    month: 'October 2026', icon: Wallet, title: 'Pay runs and invoicing',
+    lede: 'Pay your team and bill your clients with confidence, and with fewer late-night spreadsheets.',
+    points: ['Pay runs reviewed by staff before they are final', 'Saved PDF payslips', 'Invoices held back until the hours are approved'],
+  },
+  {
+    month: 'October 2026', icon: Palette, title: 'The Opulence look and feel',
+    lede: 'An experience as polished as the service you provide, on every screen and in every light.',
+    points: ['Opulence Day and Night themes with your branding', 'Smooth iOS-style motion', 'Flip cards and picture cards for staff and venues', 'Install-the-app help, offline notices and a user guide'],
+  },
+  {
+    month: 'October 2026', icon: Globe, title: 'A landing page that wins work',
+    lede: 'A public face that shows off your clients and turns visitors into enquiries.',
+    points: ['Your client venues as flip-card tiles', 'Real quotes from the venues you protect', 'Demo and enquiry requests straight to your inbox', '“Join the team” applications straight into Recruitment'],
+  },
+];
+
+export function WhatsNew() {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-tile bg-surface p-5 shadow-tile">
+        <div className="flex items-center gap-2 text-footnote font-semibold uppercase tracking-wide text-blue"><Sparkles size={16} aria-hidden /> What’s new</div>
+        <h2 className="mt-1.5 text-title3 font-bold">Your platform keeps getting better</h2>
+        <p className="mt-1.5 max-w-2xl text-body text-muted">
+          Since October, {UPDATES.length} major upgrades have arrived, each built around how Opulence actually works.
+          Here’s what has changed, and what it means for your business.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {UPDATES.map((u, i) => (
+          <div key={u.title} className="flex flex-col rounded-tile bg-surface p-4 shadow-tile">
+            <div className="flex items-center gap-2.5">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue/10 text-blue"><u.icon size={18} aria-hidden /></span>
+              <div className="min-w-0 flex-1 text-subhead font-semibold">{u.title}</div>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {i === 0 && <Pill tone="green">New</Pill>}
+              <Pill>{u.month}</Pill>
+            </div>
+            <p className="mt-2 text-body">{u.lede}</p>
+            <ul className="mt-2.5 space-y-1">
+              {u.points.map((p) => (
+                <li key={p} className="flex gap-2 text-footnote text-muted"><Check size={14} className="mt-0.5 shrink-0 text-green" aria-hidden />{p}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

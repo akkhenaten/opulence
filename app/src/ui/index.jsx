@@ -21,16 +21,17 @@ export { cx };
 // Load an action on mount/when deps change; returns { data, error, loading, reload, setData }
 export function useApi(action, body = {}, { poll, skip } = {}) {
   const key = JSON.stringify(body);
-  const [state, setState] = useState({ data: null, error: null, loading: !skip });
+  // done: the request that last finished, so a sheet that was skipped until now shows a spinner, not empty data
+  const [state, setState] = useState({ data: null, error: null, loading: !skip, done: null });
   const alive = useRef(true);
   const load = useCallback(async (quiet) => {
     if (skip) return;
     if (!quiet) setState((s) => ({ ...s, loading: true }));
     try {
       const data = await api(action, JSON.parse(key));
-      if (alive.current) setState({ data, error: null, loading: false });
+      if (alive.current) setState({ data, error: null, loading: false, done: key });
     } catch (error) {
-      if (alive.current) setState((s) => ({ ...s, error, loading: false }));
+      if (alive.current) setState((s) => ({ ...s, error, loading: false, done: key }));
     }
   }, [action, key, skip]);
   useEffect(() => {
@@ -40,7 +41,7 @@ export function useApi(action, body = {}, { poll, skip } = {}) {
     const t = setInterval(() => document.visibilityState === 'visible' && load(true), poll);
     return () => { alive.current = false; clearInterval(t); };
   }, [load, poll]);
-  return { ...state, reload: () => load(true), setData: (d) => setState((s) => ({ ...s, data: typeof d === 'function' ? d(s.data) : d })) };
+  return { ...state, loading: state.loading || (!skip && state.done !== key), reload: () => load(true), setData: (d) => setState((s) => ({ ...s, data: typeof d === 'function' ? d(s.data) : d })) };
 }
 
 // Wrap an async action with busy state + toast on error/success

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canPromote, checkComment, needsFollowUp } from '../modules/comments.mjs';
+import { canPublish, checkComment, needsFollowUp } from '../modules/comments.mjs';
+import { mergePublic } from '../modules/reviews.mjs';
 
 const ok = { about: 'service', tone: 'praise', rating: 4, comment: '  Great night  ' };
 
@@ -30,14 +31,26 @@ test('complaints and low ratings need a follow-up', () => {
   assert.equal(needsFollowUp({ tone: 'praise', rating: 3 }), false);
 });
 
-test('only praise with a comment, at a venue on the website, becomes a review once', () => {
+test('only praise with a comment, at a venue on the website, can go on the site', () => {
   const praise = { tone: 'praise', comment: 'Brilliant door team', review_id: null };
   const site = { site_client: 'banshee' };
-  assert.equal(canPromote(praise, site), null);
-  assert.match(canPromote({ ...praise, tone: 'complaint' }, site), /Only praise/);
-  assert.match(canPromote({ ...praise, tone: 'suggestion' }, site), /Only praise/);
-  assert.match(canPromote({ ...praise, review_id: 'r1' }, site), /Already used/);
-  assert.match(canPromote(praise, { site_client: null }), /website tile/);
-  assert.match(canPromote(praise, null), /website tile/);
-  assert.match(canPromote({ ...praise, comment: '  ' }, site), /Add a comment/);
+  assert.equal(canPublish(praise, site), null);
+  assert.equal(canPublish({ ...praise, review_id: 'r1' }, site), null);
+  assert.match(canPublish({ ...praise, tone: 'complaint' }, site), /Only praise/);
+  assert.match(canPublish({ ...praise, tone: 'suggestion' }, site), /Only praise/);
+  assert.match(canPublish(praise, { site_client: null }), /website tile/);
+  assert.match(canPublish(praise, null), /website tile/);
+  assert.match(canPublish({ ...praise, comment: '  ' }, site), /Add a comment/);
+});
+
+test('ticked feedback joins the website quotes under the venue name only', () => {
+  const by = { banshee: [{ quote: 'Old', reviewer: 'A', reviewer_role: 'GM', rating: 5, received_on: null }] };
+  const out = mergePublic(by, [{ id: 'c1', venue_id: 'v1', created_by: 'u1', comment: ` ${'x'.repeat(700)} `, rating: 4, created_at: '2026-11-05', venue_name: 'Banshee', site_client: 'banshee' }]);
+  assert.equal(out.banshee.length, 2);
+  assert.equal(out.banshee[0].quote, 'Old');
+  assert.deepEqual(Object.keys(out.banshee[1]).sort(), ['quote', 'rating', 'received_on', 'reviewer', 'reviewer_role']);
+  assert.equal(out.banshee[1].reviewer, 'Banshee');
+  assert.equal(out.banshee[1].reviewer_role, 'Venue');
+  assert.equal(out.banshee[1].quote.length, 600);
+  assert.equal(by.banshee.length, 1);
 });

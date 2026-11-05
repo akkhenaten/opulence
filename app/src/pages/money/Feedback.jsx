@@ -5,7 +5,7 @@ import { Globe, MessageSquareHeart, Plus, Reply, Star } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Button, Empty, Input, List, Load, Page, Pill, Segmented, Select, Sheet, Textarea, Toggle, cx, dayLabel, range, relative, useAction, useApi,
+  Button, Empty, List, Load, Page, Pill, Segmented, Select, Sheet, Textarea, Toggle, cx, dayLabel, range, relative, useAction, useApi,
 } from '../../ui/index.jsx';
 import { ABOUT, GiveFeedbackSheet, TONES } from '../venue/_feedback.jsx';
 import { useBase } from './_parts.jsx';
@@ -53,7 +53,6 @@ export function FeedbackList({ venueId, fixedVenue, onChanged }) {
   const q = useApi('comments.list', { venue_id: f.venue_id || null, tone: f.tone || null, about: f.about || null, status: f.status || null });
   const [give, setGive] = useState(false);
   const [reply, setReply] = useState(null);
-  const [promote, setPromote] = useState(null);
   const venues = opts.data?.venues || [];
   const reload = () => { q.reload(); onChanged?.(); };
 
@@ -77,21 +76,19 @@ export function FeedbackList({ venueId, fixedVenue, onChanged }) {
             action={<Button variant="soft" icon={Plus} onClick={() => setGive(true)}>Give feedback</Button>} />
         ) : (
           <List>
-            {rows.map((c) => <Card key={c.id} c={c} mgr={mgr} office={user.role === 'company'} multi={!fixedVenue && venues.length > 1} onReply={() => setReply(c)} onPromote={() => setPromote(c)} />)}
+            {rows.map((c) => <Card key={c.id} c={c} mgr={mgr} office={user.role === 'company'} multi={!fixedVenue && venues.length > 1} onReply={() => setReply(c)} onChanged={reload} />)}
           </List>
         ))}
       </Load>
       <GiveFeedbackSheet open={give} onClose={() => setGive(false)} venueId={f.venue_id || undefined} onDone={reload} />
       <ReplySheet c={reply} onClose={() => setReply(null)} onDone={reload} />
-      <ReviewSheet c={promote} onClose={() => setPromote(null)} onDone={reload} />
     </>
   );
 }
 
-const REVIEW_PILL = { pending: ['amber', 'Review pending'], published: ['green', 'On the website'], hidden: ['grey', 'Review hidden'] };
+const REVIEW_PILL = { pending: ['amber', 'Review pending'], published: ['green', 'Review on the website'], hidden: ['grey', 'Review hidden'] };
 
-function Card({ c, mgr, office, multi, onReply, onPromote }) {
-  const base = useBase();
+function Card({ c, mgr, office, multi, onReply, onChanged }) {
   const rv = c.review_status && REVIEW_PILL[c.review_status];
   return (
     <div className="px-4 py-3.5">
@@ -99,6 +96,7 @@ function Card({ c, mgr, office, multi, onReply, onPromote }) {
         <Pill tone={TONE_PILL[c.tone]}>{TONE_LABEL[c.tone]}</Pill>
         <StarsShown n={c.rating} />
         <span className="min-w-0 flex-1 truncate text-body font-semibold">{aboutLine(c)}</span>
+        {c.public && <Pill tone="green"><Globe size={14} aria-hidden /> On website</Pill>}
         {mgr && c.status === 'open' && <Pill tone="amber">Open</Pill>}
       </div>
       {c.comment && <p className="mt-1.5 whitespace-pre-line text-body">{c.comment}</p>}
@@ -115,10 +113,30 @@ function Card({ c, mgr, office, multi, onReply, onPromote }) {
       {(mgr || rv) && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {mgr && <Button size="sm" variant="soft" icon={Reply} onClick={onReply}>{c.reply ? 'Reply again' : 'Reply'}</Button>}
-          {office && c.tone === 'praise' && !c.review_id && <Button size="sm" variant="secondary" icon={Globe} onClick={onPromote}>Use as review</Button>}
-          {rv && <Link to={office ? `${base}/reviews?status=${c.review_status}` : `${base}/reviews`}><Pill tone={rv[0]}>{rv[1]}</Pill></Link>}
+          {rv && <Pill tone={rv[0]}>{rv[1]}</Pill>}
         </div>
       )}
+      {office && c.tone === 'praise' && <WebsiteSwitch c={c} onChanged={onChanged} />}
+    </div>
+  );
+}
+
+// The office ticks praise onto the venue's tile on the website; the quote shows under the venue's name, never a person's
+function WebsiteSwitch({ c, onChanged }) {
+  const base = useBase();
+  const [run] = useAction();
+  if (!c.site_client) {
+    return (
+      <p className="mt-2 text-footnote text-muted">
+        <Globe size={14} className="mr-1 inline" aria-hidden />{c.venue_name} isn't linked to a website tile yet. <Link className="font-semibold text-blue" to={`${base}/venues/${c.venue_id}?tab=details`}>Choose its tile</Link> to show praise on the website.
+      </p>
+    );
+  }
+  if (!c.comment?.trim()) return null;
+  const set = (on) => run(() => api('comments.setPublic', { id: c.id, public: on }), on ? 'Now on the website' : 'Taken off the website').then(onChanged).catch(() => {});
+  return (
+    <div className="mt-2 rounded-2xl bg-bg px-3 py-1">
+      <Toggle checked={!!c.public} onChange={set} label="Show on website" hint={`Appears on ${c.venue_name}'s tile as “— ${c.venue_name}, venue”`} />
     </div>
   );
 }
@@ -146,40 +164,6 @@ function ReplySheet({ c, onClose, onDone }) {
           {c.officer_id && <Toggle checked={hr} onChange={setHr} label="Add to the officer's HR notes" hint="Saved on their record; officers don't see HR notes." />}
         </div>
       )}
-    </Sheet>
-  );
-}
-
-// Praise offered to the website: it becomes a pending review on the venue's website tile, to approve in Reviews
-function ReviewSheet({ c, onClose, onDone }) {
-  const base = useBase();
-  const [v, setV] = useState(null);
-  const [run, busy] = useAction();
-  const open = !!c;
-  const form = v || (c ? { quote: c.comment.slice(0, 600), reviewer: c.on_behalf ? '' : c.created_by_name || '', reviewer_role: 'Venue manager' } : {});
-  const set = (k) => (e) => setV({ ...form, [k]: e.target.value });
-  const close = () => { setV(null); onClose(); };
-  const send = () => run(() => api('comments.toReview', { id: c.id, ...form }), 'Review added. Approve it in Reviews to publish it.')
-    .then(() => { onDone(); close(); }).catch(() => {});
-  return (
-    <Sheet open={open} onClose={close} title="Use as a website review" size="sm"
-      footer={<><Button variant="secondary" onClick={close}>Cancel</Button>{c?.site_client && <Button busy={busy} disabled={!form.quote?.trim()} onClick={send}>Add review</Button>}</>}>
-      {c && (c.site_client ? (
-        <div className="space-y-4">
-          <p className="text-footnote text-muted">It is added as a pending review for {c.venue_name}'s tile on the website. Nothing is published until you approve it in Reviews.</p>
-          <Textarea label="Quote" rows={4} maxLength={600} value={form.quote} onChange={set('quote')} />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Input label="Who said it" placeholder="e.g. Sam, General Manager" maxLength={80} value={form.reviewer} onChange={set('reviewer')} />
-            <Input label="Their role" maxLength={80} value={form.reviewer_role} onChange={set('reviewer_role')} />
-          </div>
-          <StarsShown n={c.rating} />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <p className="text-body">{c.venue_name} isn't linked to a tile on the website yet, so its reviews have nowhere to appear.</p>
-          <Button variant="soft" to={`${base}/venues/${c.venue_id}?tab=details`} onClick={close}>Choose its website tile</Button>
-        </div>
-      ))}
     </Sheet>
   );
 }

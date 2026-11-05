@@ -9,7 +9,6 @@ import { audit } from '../lib/audit.mjs';
 import { CO, MGR, def } from './_def.mjs';
 import { createItem, logActivity } from './ops.mjs';
 import { officerName, officerShort, userName } from '../lib/names.mjs';
-import { fields as reviewFields, insertReview } from './reviews.mjs';
 
 export const ABOUT = ['staff', 'shift', 'service', 'other'];
 export const TONES = ['praise', 'suggestion', 'complaint'];
@@ -32,10 +31,9 @@ export function checkComment(b) {
   return { about: b.about, tone: b.tone, rating, comment };
 }
 
-/** Why this feedback can't become a website review yet, or null when it can. */
-export function canPromote(c, venue) {
-  if (c.tone !== 'praise') return 'Only praise can become a review';
-  if (c.review_id) return 'Already used as a review';
+/** Why this feedback can't go on the venue's website tile yet, or null when it can. */
+export function canPublish(c, venue) {
+  if (c.tone !== 'praise') return 'Only praise can go on the website';
   if (!venue?.site_client) return 'Link this venue to a website tile first (venue → Details → Website client)';
   if (!String(c.comment || '').trim()) return 'Add a comment first';
   return null;
@@ -182,18 +180,19 @@ export const actions = {
     return row;
   }),
 
-  /** Praise from a venue, offered to the website as a pending review; the office still approves it in Reviews. */
-  'comments.toReview': def(CO, async (b, { user }) => {
+  /** The office ticks praise onto the venue's website tile, or takes it down again. */
+  'comments.setPublic': def(CO, async (b, { user }) => {
     required(b, 'id');
-    const c = need(await one(`SELECT c.*, ${userName('u')} AS created_by_name FROM venue_comments c LEFT JOIN users u ON u.id = c.created_by WHERE c.id = $1`, [b.id]), 'Feedback not found');
-    const venue = await one('SELECT id, site_client FROM venues WHERE id = $1', [c.venue_id]);
-    const why = canPromote(c, venue);
-    if (why) fail(400, why);
-    const f = reviewFields({ quote: b.quote ?? c.comment, reviewer: b.reviewer ?? (c.on_behalf ? '' : c.created_by_name), reviewer_role: b.reviewer_role ?? 'Venue manager', rating: c.rating });
-    const r = await insertReview(user, { ...f, client: venue.site_client, venue_id: venue.id, received_on: c.created_at }, 'pending');
-    const linked = await one('UPDATE venue_comments SET review_id = $2 WHERE id = $1 AND review_id IS NULL RETURNING id', [c.id, r.id]);
-    if (!linked) { await q('DELETE FROM reviews WHERE id = $1', [r.id]); fail(409, 'Already used as a review'); }
-    await audit(user, 'comments.to_review', 'venue_comment', c.id, { review_id: r.id, client: venue.site_client });
-    return { review_id: r.id, status: r.status };
+    const c = need(await one('SELECT * FROM venue_comments WHERE id = $1', [b.id]), 'Feedback not found');
+    await assertVenue(user, c.venue_id);
+    const on = !!b.public;
+    if (on) {
+      const why = canPublish(c, await one('SELECT id, site_client FROM venues WHERE id = $1', [c.venue_id]));
+      if (why) fail(400, why);
+    }
+    await q(`UPDATE venue_comments SET public = $2, published_by = CASE WHEN $2 THEN $3::uuid END, published_at = CASE WHEN $2 THEN now() END
+              WHERE id = $1`, [c.id, on, user.id]);
+    await audit(user, on ? 'comments.publish' : 'comments.unpublish', 'venue_comment', c.id, { venue_id: c.venue_id });
+    return { ok: true, public: on };
   }),
 };

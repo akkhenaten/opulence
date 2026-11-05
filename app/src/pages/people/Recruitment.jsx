@@ -87,7 +87,7 @@ export default function Recruitment() {
           </>
         )}
       </Load>
-      <ApplicationSheet id={applicant} onClose={closeReview} onDone={reload} />
+      <ApplicationSheet key={applicant || 'none'} id={applicant} onClose={closeReview} onDone={reload} />
       <HireSheet p={hiring} onClose={() => setHiring(null)} onHire={(invite) => setStatus(hiring, 'active', { invite })} />
       <AddOfficerSheet open={adding} onClose={() => setAdding(false)} roles={roles} onDone={reload} status="applicant" title="Add applicant" statusOptions={['applicant', 'onboarding']} />
     </Page>
