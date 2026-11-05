@@ -35,6 +35,15 @@ export function mergePublic(by, feedback) {
   return out;
 }
 
+/** Praise the office ticked onto the site, newest 10 per venue, for venues shown on the website */
+export const tickedPraise = () => q(`
+  SELECT * FROM (
+    SELECT c.comment, c.rating, c.created_at, v.id AS venue_id, v.name AS venue_name, v.site_client,
+           ROW_NUMBER() OVER (PARTITION BY v.id ORDER BY c.created_at DESC) AS n
+      FROM venue_comments c JOIN venues v ON v.id = c.venue_id
+     WHERE c.public AND c.tone = 'praise' AND v.active AND v.on_website AND btrim(c.comment) <> '') x
+   WHERE n <= 10 ORDER BY created_at DESC`);
+
 /** Website clients this person may file reviews for: every one for company managers, their own linked venues' for venue managers. */
 async function myClients(user) {
   if (user.role === 'company') return SITE_CLIENTS.map((c) => c.slug);
@@ -156,10 +165,5 @@ export const actions = {
   // The landing page: published reviews only, grouped by website client
   'reviews.public': pub(async () => mergePublic(
     groupPublic(await q("SELECT * FROM reviews WHERE status = 'published'")),
-    await q(`SELECT * FROM (
-               SELECT c.comment, c.rating, c.created_at, v.name AS venue_name, v.site_client,
-                      ROW_NUMBER() OVER (PARTITION BY v.site_client ORDER BY c.created_at DESC) AS n
-                 FROM venue_comments c JOIN venues v ON v.id = c.venue_id
-                WHERE c.public AND c.tone = 'praise' AND v.active AND v.site_client IS NOT NULL AND btrim(c.comment) <> '') x
-              WHERE n <= 10 ORDER BY created_at DESC`))),
+    (await tickedPraise()).filter((c) => c.site_client))),
 };

@@ -4,7 +4,7 @@ import { DOC_KINDS, SIA_TYPES } from '../lib/licences.mjs';
 import { audit } from '../lib/audit.mjs';
 import { ALL, CO, def, pub } from './_def.mjs';
 import crypto from 'node:crypto';
-import { getObjectBytes, headObject, putObject } from '../lib/storage.mjs';
+import { getObjectBytes, headObject, publicUrl, putObject } from '../lib/storage.mjs';
 import { clearBrand, getBrand } from '../lib/brand.mjs';
 import { MODULES } from '../lib/modules.mjs';
 import { monthKey } from '../lib/ai.mjs';
@@ -17,8 +17,6 @@ const FIELDS = ['company_name', 'company_address', 'company_email', 'company_pho
 export const UI_STYLES = ['classic', 'control'];
 const STYLE_NAMES = { classic: 'Classic', control: 'Control Room' };
 
-// Public copies of the logo are served by the CDN (storage "media" alias) for emails and the app
-const publicUrl = (key) => `${(process.env.APP_URL || '').replace(/\/$/, '')}/${key}`;
 
 export const getSettings = () => one('SELECT * FROM settings WHERE id = 1');
 // The NFC tag keys never leave the server except through clock.nfcSetup

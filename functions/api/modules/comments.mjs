@@ -31,10 +31,9 @@ export function checkComment(b) {
   return { about: b.about, tone: b.tone, rating, comment };
 }
 
-/** Why this feedback can't go on the venue's website tile yet, or null when it can. */
-export function canPublish(c, venue) {
+/** Why this feedback can't go on the venue's website tile, or null when it can. */
+export function canPublish(c) {
   if (c.tone !== 'praise') return 'Only praise can go on the website';
-  if (!venue?.site_client) return 'Link this venue to a website tile first (venue → Details → Website client)';
   if (!String(c.comment || '').trim()) return 'Add a comment first';
   return null;
 }
@@ -71,7 +70,7 @@ async function rateOfficer({ venueId, officerId, shiftId, rating, note, userId }
 }
 
 const LIST_SQL = (short) => `
-  SELECT c.*, v.name AS venue_name, v.site_client, rv.status AS review_status, ${short ? officerShort('o') : officerName('o')} AS officer_name,
+  SELECT c.*, v.name AS venue_name, v.site_client, v.on_website, rv.status AS review_status, ${short ? officerShort('o') : officerName('o')} AS officer_name,
          s.starts_at AS shift_starts_at, s.ends_at AS shift_ends_at, ${userName('cu')} AS created_by_name, ${userName('ru')} AS replied_by_name
     FROM venue_comments c JOIN venues v ON v.id = c.venue_id
     LEFT JOIN officers o ON o.id = c.officer_id LEFT JOIN shifts s ON s.id = c.shift_id
@@ -187,7 +186,7 @@ export const actions = {
     await assertVenue(user, c.venue_id);
     const on = !!b.public;
     if (on) {
-      const why = canPublish(c, await one('SELECT id, site_client FROM venues WHERE id = $1', [c.venue_id]));
+      const why = canPublish(c);
       if (why) fail(400, why);
     }
     await q(`UPDATE venue_comments SET public = $2, published_by = CASE WHEN $2 THEN $3::uuid END, published_at = CASE WHEN $2 THEN now() END

@@ -125,14 +125,14 @@ function Card({ c, mgr, office, multi, onReply, onChanged }) {
 function WebsiteSwitch({ c, onChanged }) {
   const base = useBase();
   const [run] = useAction();
-  if (!c.site_client) {
+  if (!c.comment?.trim()) return null;
+  if (c.on_website === false && !c.public) {
     return (
       <p className="mt-2 text-footnote text-muted">
-        <Globe size={14} className="mr-1 inline" aria-hidden />{c.venue_name} isn't linked to a website tile yet. <Link className="font-semibold text-blue" to={`${base}/venues/${c.venue_id}?tab=details`}>Choose its tile</Link> to show praise on the website.
+        <Globe size={14} className="mr-1 inline" aria-hidden />{c.venue_name} is hidden from the website. <Link className="font-semibold text-blue" to={`${base}/venues/${c.venue_id}?tab=details`}>Show it</Link> to share praise there.
       </p>
     );
   }
-  if (!c.comment?.trim()) return null;
   const set = (on) => run(() => api('comments.setPublic', { id: c.id, public: on }), on ? 'Now on the website' : 'Taken off the website').then(onChanged).catch(() => {});
   return (
     <div className="mt-2 rounded-2xl bg-bg px-3 py-1">

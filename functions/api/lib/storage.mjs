@@ -28,6 +28,9 @@ export async function putObject(key, bytes, contentType) {
   return key;
 }
 
+// Public copies (logo, venue photos) are served by the CDN under media/ on the app domain
+export const publicUrl = (key) => `${(process.env.APP_URL || '').replace(/\/$/, '')}/${key}`;
+
 export async function getObjectBytes(key) {
   const res = await client().send(new GetObjectCommand({ Bucket: process.env.STORAGE_BUCKET, Key: key }));
   return Buffer.from(await res.Body.transformToByteArray());

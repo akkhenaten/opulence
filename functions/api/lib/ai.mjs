@@ -56,7 +56,7 @@ export async function checkCap(module = 'ops') {
   }
 }
 
-const MODULE_NAMES = { ops: 'Orb operations', academy: 'Academy', toolbox: 'Toolbox', everyday: 'Everyday', orb: 'Orb', orb_voice: 'Orb voice', contracts: 'Contracts AI', clock_face: 'Clock-in face check', venue_packs: 'Venue packs', messages: 'Voice note transcripts', email: 'Email', recruitment: 'Recruitment' };
+const MODULE_NAMES = { ops: 'Orb operations', academy: 'Academy', toolbox: 'Toolbox', everyday: 'Everyday', orb: 'Orb', orb_voice: 'Orb voice', contracts: 'Contracts AI', clock_face: 'Clock-in face check', venue_packs: 'Venue packs', messages: 'Voice note transcripts', email: 'Email', recruitment: 'Recruitment', website: 'Website text' };
 
 // system may be a string or an array of text blocks (so long, stable parts can carry cache_control)
 export async function claude({ model = SONNET, system, messages, tools, tool_choice, max_tokens = 1024, module = 'ops', timeout = 45000 }) {

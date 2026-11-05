@@ -31,16 +31,14 @@ test('complaints and low ratings need a follow-up', () => {
   assert.equal(needsFollowUp({ tone: 'praise', rating: 3 }), false);
 });
 
-test('only praise with a comment, at a venue on the website, can go on the site', () => {
+test('only praise with a comment can go on the site', () => {
   const praise = { tone: 'praise', comment: 'Brilliant door team', review_id: null };
-  const site = { site_client: 'banshee' };
-  assert.equal(canPublish(praise, site), null);
-  assert.equal(canPublish({ ...praise, review_id: 'r1' }, site), null);
-  assert.match(canPublish({ ...praise, tone: 'complaint' }, site), /Only praise/);
-  assert.match(canPublish({ ...praise, tone: 'suggestion' }, site), /Only praise/);
-  assert.match(canPublish(praise, { site_client: null }), /website tile/);
-  assert.match(canPublish(praise, null), /website tile/);
-  assert.match(canPublish({ ...praise, comment: '  ' }, site), /Add a comment/);
+  assert.equal(canPublish(praise), null);
+  assert.equal(canPublish({ ...praise, review_id: 'r1' }), null);
+  assert.match(canPublish({ ...praise, tone: 'complaint' }), /Only praise/);
+  assert.match(canPublish({ ...praise, tone: 'suggestion' }), /Only praise/);
+  assert.match(canPublish({ ...praise, comment: '  ' }), /Add a comment/);
+  assert.equal(canPublish({ ...praise, site_client: null }), null);
 });
 
 test('ticked feedback joins the website quotes under the venue name only', () => {

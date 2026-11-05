@@ -5,13 +5,58 @@ import { canSeePay } from '../lib/auth.mjs';
 import { venueScope, assertVenue } from '../lib/scope.mjs';
 import { qrPayload } from '../lib/qr.mjs';
 import { qrPosterPdf } from '../lib/pdf.mjs';
-import { checkOwnPhoto, downloadUrl } from '../lib/storage.mjs';
+import crypto from 'node:crypto';
+import { checkOwnPhoto, downloadUrl, getObjectBytes, headObject, publicUrl, putObject } from '../lib/storage.mjs';
 import { audit } from '../lib/audit.mjs';
-import { CO, MGR, def } from './_def.mjs';
+import { CO, MGR, def, pub } from './_def.mjs';
 import { getSettings } from './settings.mjs';
 import { isSiteClient } from '../lib/siteClients.mjs';
+import { cleanBlurb, publicTile, webUrl } from '../lib/siteVenues.mjs';
+import { extract, HAIKU } from '../lib/ai.mjs';
+import { feedbackShape, groupPublic, mergePublic, tickedPraise } from './reviews.mjs';
 
-const VENUE_FIELDS = ['client_id', 'name', 'address', 'postcode', 'lat', 'lng', 'radius_m', 'phone', 'instructions', 'notes', 'photo_key', 'invoice_cycle', 'active', 'proof_rule', 'site_client'];
+const VENUE_FIELDS = ['client_id', 'name', 'address', 'postcode', 'lat', 'lng', 'radius_m', 'phone', 'instructions', 'notes', 'photo_key', 'invoice_cycle', 'active', 'proof_rule', 'site_client',
+  'on_website', 'city', 'website_blurb', 'website_url'];
+const WEBSITE_FIELDS = ['site_client', 'on_website', 'city', 'website_blurb', 'website_url'];
+const PHOTO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+
+// A public copy of the venue photo for its tile on the landing page; HEIC and big files stay app-only
+async function publishPhoto(key) {
+  if (!key) return null;
+  const h = await headObject(key);
+  const ext = h && PHOTO_TYPES[h.mime];
+  if (!ext || h.size > 5 * 1024 * 1024) return null;
+  const pubKey = `media/venues/${crypto.randomUUID()}.${ext}`;
+  await putObject(pubKey, await getObjectBytes(key), h.mime);
+  return publicUrl(pubKey);
+}
+
+const TILE_TOOL = {
+  name: 'tile',
+  description: 'The venue\'s city and its welcome line on the Opulence website.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      city: { type: 'string', description: 'Town or city of the venue, e.g. Edinburgh; empty if unknown' },
+      blurb: { type: 'string', description: '1-2 sentences, at most 220 characters' },
+    },
+    required: ['city', 'blurb'],
+  },
+};
+
+/** AI: the welcome line for a venue's tile, and its city from the address */
+export async function writeWebsite(v) {
+  const { input } = await extract({
+    model: HAIKU, module: 'website', tool: TILE_TOOL, max_tokens: 300,
+    system: 'You write for Opulence Security & Services LTD, a Scottish door supervision and venue security company. '
+      + 'Write 1-2 warm, professional British-English sentences (at most 220 characters) for the venue\'s tile on the Opulence website, '
+      + 'welcoming it as a venue Opulence has begun looking after. Use only the venue name, its city and that Opulence provides door supervision and venue security. '
+      + 'Never invent facts about the venue, its history, awards or customers. No quotation marks, no emoji. '
+      + 'Also give the town or city from the address or postcode.',
+    messages: [{ role: 'user', content: `Venue: ${v.name}\nAddress: ${v.address || 'unknown'}\nPostcode: ${v.postcode || 'unknown'}${v.city ? `\nCity: ${v.city}` : ''}` }],
+  });
+  return { city: String(input?.city || '').trim().slice(0, 60) || null, blurb: cleanBlurb(input?.blurb) };
+}
 
 export async function currentVenueRates(venueId, onDate = new Date().toISOString().slice(0, 10)) {
   return q(
@@ -58,7 +103,14 @@ export const actions = {
   // Company and security managers run venues; the client and invoicing set-up stay with the company
   'venues.save': def(MGR, async (b, { user }) => {
     const f = pick(b, VENUE_FIELDS);
-    if (user.role !== 'company') { delete f.client_id; delete f.invoice_cycle; delete f.site_client; }
+    if (user.role !== 'company') { delete f.client_id; delete f.invoice_cycle; for (const k of WEBSITE_FIELDS) delete f[k]; }
+    if (f.website_url !== undefined) {
+      f.website_url = String(f.website_url ?? '').trim() ? webUrl(f.website_url) : null;
+      if (f.website_url === null && String(b.website_url ?? '').trim()) fail(400, 'Enter a full website address, e.g. https://example.com');
+    }
+    if (f.website_blurb !== undefined) f.website_blurb = cleanBlurb(f.website_blurb);
+    if (f.city !== undefined) f.city = String(f.city ?? '').trim().slice(0, 60) || null;
+    if (f.on_website !== undefined) f.on_website = !!f.on_website;
     if (f.site_client === '') f.site_client = null;
     if (f.site_client && !isSiteClient(f.site_client)) fail(400, 'Unknown website client');
     if (f.proof_rule !== undefined && !RULES[f.proof_rule]) fail(400, 'Unknown clock-in rule');
@@ -66,7 +118,10 @@ export const actions = {
     // A new venue photo must be an image this manager just uploaded; an unchanged key passes through
     if (f.photo_key !== undefined) {
       const cur = b.id ? await one('SELECT photo_key FROM venues WHERE id = $1', [b.id]) : null;
-      if (f.photo_key !== (cur?.photo_key ?? null)) f.photo_key = await checkOwnPhoto(user, f.photo_key, fail);
+      if (f.photo_key !== (cur?.photo_key ?? null)) {
+        f.photo_key = await checkOwnPhoto(user, f.photo_key, fail);
+        f.website_photo_url = await publishPhoto(f.photo_key);
+      }
     }
     let v;
     if (b.id) v = await update('venues', b.id, f);
@@ -76,7 +131,44 @@ export const actions = {
       if (user.role === 'security') await q('INSERT INTO security_venues (venue_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [v.id, user.id]);
     }
     await audit(user, b.id ? 'venue.update' : 'venue.create', 'venue', v.id, f);
+    // A venue on the website without a welcome line gets one from AI; the default line covers any failure
+    if (v.on_website && !v.website_blurb) {
+      try {
+        const w = await writeWebsite(v);
+        if (w.blurb) v = await one('UPDATE venues SET website_blurb = $2, city = COALESCE(city, $3) WHERE id = $1 RETURNING *', [v.id, w.blurb, w.city]);
+      } catch (e) { console.warn('[venues] website text', e.message); }
+    }
     return v;
+  }),
+
+  // "Write with AI" in venue → Details → Website: a suggestion only, saved with the form
+  'venues.writeWebsite': def(CO, async (b, { user }) => {
+    required(b, 'id');
+    const v = need(await one('SELECT name, address, postcode, city FROM venues WHERE id = $1', [b.id]), 'Venue not found');
+    const w = await writeWebsite({ ...v, ...Object.fromEntries(['name', 'address', 'postcode', 'city'].filter((k) => b[k] != null).map((k) => [k, b[k]])) });
+    await audit(user, 'venue.ai_text', 'venue', b.id);
+    return w;
+  }),
+
+  // The landing page: hand-made tiles' reviews, photos and hidden ones, and an automatic tile for every other venue
+  'venues.public': pub(async () => {
+    const [published, praise, venues] = await Promise.all([
+      q("SELECT * FROM reviews WHERE status = 'published'"),
+      tickedPraise(),
+      q('SELECT id, name, city, site_client, active, on_website, website_blurb, website_url, website_photo_url FROM venues ORDER BY name'),
+    ]);
+    const shown = (v) => v.active && v.on_website;
+    const linked = venues.filter((v) => v.site_client);
+    const photos = {};
+    for (const v of linked) if (shown(v) && v.website_photo_url) photos[v.site_client] ||= v.website_photo_url;
+    const visible = new Set(linked.filter(shown).map((v) => v.site_client));
+    return {
+      reviews: mergePublic(groupPublic(published), praise.filter((c) => c.site_client)),
+      photos,
+      hide: [...new Set(linked.filter((v) => !visible.has(v.site_client)).map((v) => v.site_client))],
+      tiles: venues.filter((v) => !v.site_client && shown(v))
+        .map((v) => publicTile(v, praise.filter((c) => c.venue_id === v.id).map(feedbackShape))),
+    };
   }),
 
   'venues.rates': def(['company', 'security', 'venue'], async (b, { user }) => {

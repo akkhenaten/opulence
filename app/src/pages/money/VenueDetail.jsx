@@ -4,7 +4,7 @@ import RecentEmail from '../email/_recent.jsx';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
-  Building2, Crosshair, Download, Eye, FileText, MessageSquareHeart, UserMinus, UserPlus, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, QrCode, RefreshCw, Search, Trash2, Upload, Users,
+  Building2, Crosshair, Download, Eye, FileText, Globe, MessageSquareHeart, UserMinus, UserPlus, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, QrCode, RefreshCw, Search, Sparkles, Trash2, Upload, Users,
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
@@ -217,6 +217,22 @@ const PROOF_RULES = [
   { value: 'all_three', label: 'All 3 checks (strictest)' },
 ];
 
+// A phone photo made web-sized: a JPEG at most 1600px wide, so HEIC from iPhones also shows on the website
+async function toJpeg(file) {
+  try {
+    const img = await createImageBitmap(file);
+    const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * k);
+    c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.85));
+    return blob ? new File([blob], 'venue.jpg', { type: 'image/jpeg' }) : file;
+  } catch {
+    return file;
+  }
+}
+
 // The venue's picture on its cards: an uploaded photo, else its picture on the website, else an icon
 function VenuePhoto({ v, canEdit, onSaved }) {
   const [run, busy] = useAction();
@@ -228,7 +244,7 @@ function VenuePhoto({ v, canEdit, onSaved }) {
   const pick = async (e) => {
     const f = e.target.files?.[0];
     e.target.value = '';
-    const key = f && await run(() => upload(f, 'photo')).catch(() => null);
+    const key = f && await run(async () => upload(await toJpeg(f), 'photo')).catch(() => null);
     if (key) save(key, 'Venue photo updated');
   };
   const remove = async () => {
@@ -255,12 +271,13 @@ function DetailsTab({ v, clients, onClientCreated, isCo, onSaved }) {
   const f = useForm({
     client_id: v.client_id || '', name: v.name || '', address: v.address || '', postcode: v.postcode || '', phone: v.phone || '',
     instructions: v.instructions || '', notes: v.notes || '', invoice_cycle: v.invoice_cycle || '', site_client: v.site_client || '', proof_rule: v.proof_rule || 'two_of_three', active: !!v.active,
+    on_website: v.on_website !== false, city: v.city || '', website_blurb: v.website_blurb || '', website_url: v.website_url || '',
   });
   const site = useApi('reviews.clients', {}, { skip: !isCo });
   // Client, invoicing and the website tile belong to the company manager; the server ignores them from anyone else
   const save = () => run(() => api('venues.save', {
     id: v.id, ...f.v, client_id: f.v.client_id || null, invoice_cycle: f.v.invoice_cycle || null, site_client: f.v.site_client || null, postcode: f.v.postcode.toUpperCase(),
-    ...(isCo ? {} : { client_id: undefined, invoice_cycle: undefined, site_client: undefined }),
+    ...(isCo ? {} : { client_id: undefined, invoice_cycle: undefined, site_client: undefined, on_website: undefined, city: undefined, website_blurb: undefined, website_url: undefined }),
   }), 'Venue saved').then(onSaved).catch(() => {});
 
   return (
@@ -270,8 +287,6 @@ function DetailsTab({ v, clients, onClientCreated, isCo, onSaved }) {
           <Input label="Name" {...f.bind('name')} />
           {isCo && <ClientSelect clients={clients} value={f.v.client_id} onChange={(id) => f.set('client_id', id)} onCreated={onClientCreated}
             hint={f.v.client_id !== (v.client_id || '') ? 'Save to move this venue to the new client' : undefined} />}
-          {isCo && <Select label="Website client" hint="The tile on the website this venue's reviews appear on" placeholder="Not on the website"
-            options={(site.data?.clients || []).map((c) => ({ value: c.slug, label: `${c.name} (${c.city})` }))} {...f.bind('site_client')} />}
           <Textarea label="Address" rows={2} {...f.bind('address')} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Postcode" {...f.bind('postcode')} />
@@ -290,10 +305,70 @@ function DetailsTab({ v, clients, onClientCreated, isCo, onSaved }) {
           </div>
         </div>
       </Tile>
+      <WebsiteTile v={v} f={f} isCo={isCo} sites={site.data?.clients || []} />
       <div className="flex justify-end lg:col-span-2">
         <Button busy={busy} disabled={!f.v.name.trim()} onClick={save}>Save changes</Button>
       </div>
     </div>
+  );
+}
+
+// The venue's tile on the landing page: shown by default, with an AI welcome line until praise arrives
+const DEFAULT_LINE = (name) => `Opulence is proud to provide door supervision and venue security for ${name}.`;
+// The landing page's own black and gold, so the preview looks like the real tile
+const SITE = { ink: '#0b0b0c', gold: '#C9A45C', glow: 'radial-gradient(circle at 30% 20%, #2a2416, #0b0b0c)' };
+const initials = (name) => name.split(/\s+/).filter((w) => /^[a-z0-9]/i.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '·';
+
+function WebsiteTile({ v, f, isCo, sites }) {
+  const [run, busy] = useAction();
+  const name = f.v.name.trim() || v.name;
+  const linked = sites.find((c) => c.slug === f.v.site_client);
+  const photo = v.website_photo_url || (linked && !v.photo_key ? `/img/opulence/clients/${linked.slug}-480.jpg` : null);
+  const write = () => run(() => api('venues.writeWebsite', { id: v.id, name, address: f.v.address, postcode: f.v.postcode, city: f.v.city || undefined }))
+    .then((w) => {
+      if (w.blurb) f.set('website_blurb', w.blurb);
+      if (w.city && !f.v.city.trim()) f.set('city', w.city);
+    }).catch(() => {});
+  return (
+    <Tile title="Website" icon={Globe} className="lg:col-span-2">
+      <div className="grid gap-5 md:grid-cols-[1fr_260px]">
+        {isCo ? (
+          <div className="space-y-4">
+            <div className="rounded-xl bg-bg px-4 py-2">
+              <Toggle label="Show on website" hint={f.v.on_website ? 'This venue has a tile in Clients on the landing page' : 'Hidden from the landing page'}
+                checked={f.v.on_website} onChange={(x) => f.set('on_website', x)} />
+            </div>
+            {f.v.on_website && (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input label="City" placeholder="e.g. Edinburgh" hint="The tile sits under this city" {...f.bind('city')} />
+                  <Input label="Website link" inputMode="url" autoCapitalize="none" placeholder="venue.co.uk" hint="Optional, shown as Visit venue" {...f.bind('website_url')} />
+                </div>
+                <div>
+                  <Textarea label="Welcome line" rows={3} maxLength={220} placeholder={DEFAULT_LINE(name)}
+                    hint={`Shown until praise is ticked for the website. ${f.v.website_blurb.length}/220`} {...f.bind('website_blurb')} />
+                  <Button variant="secondary" size="sm" icon={Sparkles} busy={busy} className="mt-2" onClick={write}>Write with AI</Button>
+                </div>
+                <Select label="Website client" hint="Use a hand-made tile on the website instead of an automatic one" placeholder="Automatic tile"
+                  options={sites.map((c) => ({ value: c.slug, label: `${c.name} (${c.city})` }))} {...f.bind('site_client')} />
+              </>
+            )}
+          </div>
+        ) : (
+          <p className="text-body text-muted">{v.on_website === false ? 'This venue is hidden from the Opulence website.' : 'This is how the venue appears on the Opulence website. The office looks after its text.'}</p>
+        )}
+        <div className={cx('self-start overflow-hidden rounded-2xl text-white shadow-tile', !f.v.on_website && 'opacity-50')} style={{ background: SITE.ink }} aria-label="Website tile preview">
+          {photo
+            ? <img src={photo} alt="" className="aspect-[4/3] w-full object-cover" />
+            : <div className="grid aspect-[4/3] place-items-center text-[40px] font-semibold tracking-wide" style={{ background: SITE.glow, color: SITE.gold }}>{initials(name)}</div>}
+          <div className="space-y-1 p-3">
+            <div className="text-subhead font-semibold">{linked ? linked.name : name}</div>
+            {(linked?.city || f.v.city) && <div className="text-footnote uppercase tracking-wide" style={{ color: SITE.gold }}>{linked?.city || f.v.city}</div>}
+            {!linked && <p className="text-footnote text-white/75">{f.v.website_blurb.trim() || DEFAULT_LINE(name)}</p>}
+          </div>
+        </div>
+      </div>
+    </Tile>
   );
 }
 

@@ -8,6 +8,11 @@ import { Pill } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release
 export const UPDATES = [
   {
+    month: 'November 2026', icon: Globe, title: 'Every venue, on your website',
+    lede: 'Each venue you look after now has its own tile on your website from day one. A warm welcome line greets visitors until the praise starts arriving.',
+    points: ['A tile for every active venue, with a switch to hide it', 'A welcome line written by AI, yours to edit', 'The venue photo from Details becomes its picture', 'Ticked praise appears on the tile automatically'],
+  },
+  {
     month: 'November 2026', icon: MessageSquareHeart, title: 'Praise, straight to your website',
     lede: 'The kind words your venues share now go straight onto their tile on your website when you tick them. No retyping, and no second approval step.',
     points: ['One switch on each praise card: Show on website', 'Quotes appear under the venue’s name, never a person’s', 'Take any quote down again in a second', 'A Feedback tab on every venue, with replies and follow-ups in one place'],
