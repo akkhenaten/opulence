@@ -707,7 +707,7 @@ async function decideFeedback(it, b, user) {
 
 // ---------- Manager chat ----------
 export const CHAT_TOOLS = [
-  { name: 'find_shifts', description: 'List shifts in a date range (London dates). Includes headcount, filled and assigned officers.',
+  { name: 'find_shifts', description: 'List shifts in a date range (London dates). Includes headcount, filled and assigned officers (with officer_id, assignment_id and whether they have confirmed).',
     input_schema: { type: 'object', properties: { from: { type: 'string', description: 'YYYY-MM-DD' }, to: { type: 'string', description: 'YYYY-MM-DD inclusive' }, venue: { type: 'string', description: 'Venue name (partial ok)' }, unfilled_only: { type: 'boolean' } }, required: ['from', 'to'] } },
   { name: 'cover_candidates', description: 'Ranked eligible officers who could cover a shift, with reasons.',
     input_schema: { type: 'object', properties: { shift_id: { type: 'string' } }, required: ['shift_id'] } },
@@ -751,7 +751,8 @@ export async function runTool(name, input, user, created) {
       let rows = await shiftsWithAssignments(where, params, user);
       if (input.unfilled_only) rows = rows.filter((s) => s.filled < s.headcount && s.status === 'published');
       return rows.slice(0, 60).map((s) => ({ shift_id: s.id, venue: s.venue_name, role: s.role_name, when: when(s), status: s.status, headcount: s.headcount, filled: s.filled,
-        officers: s.assignments.filter((a) => ['assigned', 'accepted'].includes(a.status)).map((a) => a.name) }));
+        officers: s.assignments.filter((a) => ['assigned', 'accepted'].includes(a.status))
+          .map((a) => ({ assignment_id: a.id, officer_id: a.officer_id, name: a.name, goes_by: a.goes_by || undefined, status: a.status === 'accepted' ? 'confirmed' : 'unconfirmed' })) }));
     }
     case 'cover_candidates': {
       const sh = await getShift(input.shift_id);

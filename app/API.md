@@ -110,6 +110,7 @@ A company or security manager with a linked staff record (`user.dual`) adds `_as
 - shifts.candidates [MGR] fields: shift_id
 - shifts.assign [MGR] fields: shift_id, officer_id, override
 - shifts.unassign [MGR] fields: id
+- shifts.reassign [MGR] fields: shift_id, officer_id, assignment_id | from_officer_id, override — swaps one officer for another in one step (works on a full shift; the new officer starts unconfirmed)
 - shifts.decideRequest [MGR] fields: id, approve
 - shifts.pendingRequests [MGR] fields: -
 - shifts.mine [['officer']] fields: from, to

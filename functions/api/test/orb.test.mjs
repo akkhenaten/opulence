@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { ACTIONS } from '../index.mjs';
 import { CATALOG, BANNED, catalogFor, needsTap, sanitize, searchCatalog, tierOf } from '../lib/orbCatalog.mjs';
 import { declarations, signContext, verifyContext, voiceCredits, voiceTools } from '../modules/orbVoice.mjs';
-import { searchGuide } from '../modules/assistant.mjs';
+import { rotaLine, searchGuide } from '../modules/assistant.mjs';
 
 const company = { id: 'u1', role: 'company', name: 'Alex' };
 const security = { id: 'u2', role: 'security', name: 'Dan', can_see_pay: false };
@@ -125,4 +125,18 @@ test('voice estimate follows talk length', () => {
   assert.equal(voiceCredits(600), 20000);
   const minute = (n) => voiceCredits(n * 60) - voiceCredits((n - 1) * 60);
   assert.ok(minute(10) > minute(1));
+});
+
+test('swapping an officer on a shift is its own confirm action', () => {
+  const d = CATALOG['shifts.reassign'];
+  assert.ok(d && ACTIONS['shifts.reassign'], 'shifts.reassign must exist');
+  assert.equal(d.tier, 'confirm');
+  assert.equal(d.link({}, { shift_id: 's1' }), 'shifts/s1');
+  assert.match(CATALOG['shifts.assign'].title, /unfilled/);
+  assert.ok(catalogFor(security, ACTIONS).some(([n]) => n === 'shifts.reassign'));
+});
+
+test('the rota check only looks at assign and reassign with a shift', async () => {
+  assert.deepEqual(await rotaLine('shifts.save', { shift_id: 's1' }), {});
+  assert.deepEqual(await rotaLine('shifts.reassign', {}), {});
 });

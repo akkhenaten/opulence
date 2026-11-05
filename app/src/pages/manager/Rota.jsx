@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Crown, Hand, NotebookPen, Plus, Send, Trash2, UserMinus, UserPlus, X,
+  CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Crown, Hand, NotebookPen, Plus, Repeat, Send, Trash2, UserMinus, UserPlus, X,
 } from 'lucide-react';
 import {
   addDays, Avatar, Button, cx, dateShort, dayLabel, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useToast,
@@ -416,6 +416,7 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const [assigning, setAssigning] = useState(false);
+  const [replacing, setReplacing] = useState(null);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
   const changed = () => { q.reload(); onChanged(); };
@@ -500,7 +501,10 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
                       <IconButton icon={Crown} label={a.is_lead ? `Remove ${a.name} as lead` : `Make ${a.name} the shift lead`} className={a.is_lead ? 'text-amber' : ''} disabled={busy} onClick={() => setLead(a)} />
                     )}
                     {ACTIVE.includes(a.status) && !a.clocked_in && s.status !== 'cancelled' && a.status !== 'requested' && (
-                      <IconButton icon={UserMinus} label={`Remove ${a.name}`} onClick={() => unassign(a)} />
+                      <>
+                        <IconButton icon={Repeat} label={`Replace ${a.name}`} onClick={() => setReplacing(a)} />
+                        <IconButton icon={UserMinus} label={`Remove ${a.name}`} onClick={() => unassign(a)} />
+                      </>
                     )}
                   </div>
                 ))}
@@ -510,11 +514,13 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
         </div>
       )}
       {assigning && s && <AssignSheet shift={s} onClose={() => setAssigning(false)} onDone={() => { setAssigning(false); changed(); }} />}
+      {replacing && s && <AssignSheet shift={s} replace={replacing} onClose={() => setReplacing(null)} onDone={() => { setReplacing(null); changed(); }} />}
     </Sheet>
   );
 }
 
-function AssignSheet({ shift, onClose, onDone }) {
+// Assign fills an empty place; with `replace` it swaps that assignment for the picked officer in one step
+function AssignSheet({ shift, replace, onClose, onDone }) {
   const { user } = useAuth();
   const q = useApi('shifts.candidates', { shift_id: shift.id });
   const [run] = useAction();
@@ -524,14 +530,17 @@ function AssignSheet({ shift, onClose, onDone }) {
   const assign = async (c) => {
     let override = false;
     if (c.warnings.length) {
-      if (!(await confirm({ title: `Assign ${c.name} anyway?`, body: c.warnings.join(' · '), confirm: 'Assign anyway' }))) return;
+      if (!(await confirm({ title: `${replace ? 'Put' : 'Assign'} ${c.name} on anyway?`, body: c.warnings.join(' · '), confirm: `${replace ? 'Replace' : 'Assign'} anyway` }))) return;
       override = true;
-    }
+    } else if (replace && !(await confirm({ title: `Replace ${replace.name} with ${c.name}?`, body: shift.status === 'published' ? `${replace.name} is told they are off this shift and ${c.name} is asked to confirm.` : undefined, confirm: 'Replace' }))) return;
     setBusyId(c.id);
-    run(() => api('shifts.assign', { shift_id: shift.id, officer_id: c.id, override }), `${c.name} assigned`).then(onDone).catch(() => {}).finally(() => setBusyId(null));
+    const call = () => (replace
+      ? api('shifts.reassign', { shift_id: shift.id, assignment_id: replace.id, officer_id: c.id, override })
+      : api('shifts.assign', { shift_id: shift.id, officer_id: c.id, override }));
+    run(call, replace ? `${c.name} replaces ${replace.name}` : `${c.name} assigned`).then(onDone).catch(() => {}).finally(() => setBusyId(null));
   };
   return (
-    <Sheet open onClose={onClose} title="Assign officer" size="md">
+    <Sheet open onClose={onClose} title={replace ? `Replace ${replace.name}` : 'Assign officer'} size="md">
       <p className="mb-3 text-subhead text-muted">{shift.venue_name} · {dayLabel(shift.starts_at)} <span className="num">{range(shift.starts_at, shift.ends_at)}</span></p>
       <Input placeholder="Search officers" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-3" />
       <Load q={q}>{(list) => {
@@ -552,7 +561,7 @@ function AssignSheet({ shift, onClose, onDone }) {
                         : <div className="text-caption text-green">Available</div>}
                     {!blocked && c.notes?.length > 0 && <div className="text-caption text-muted">{c.notes.join(' · ')}</div>}
                   </div>
-                  {busyId === c.id ? <span className="text-footnote text-muted">Assigning…</span> : !blocked && <Plus size={18} className="text-blue" />}
+                  {busyId === c.id ? <span className="text-footnote text-muted">{replace ? 'Replacing…' : 'Assigning…'}</span> : !blocked && <Plus size={18} className="text-blue" />}
                 </Pressable>
               );
             })}

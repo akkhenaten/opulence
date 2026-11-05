@@ -52,7 +52,7 @@ export async function checkOfficerForShift(officerId, shift, { ignoreAssignment 
   const notes = [];
   const pk = await statusFor(o.id, shift.venue_id);
   if (pk && !OK.has(pk.status)) notes.push(pk.status === 'unsigned' ? 'Not worked here before: they will read and sign the site pack before clock-in' : `Site pack: ${STATUS_LABEL[pk.status].toLowerCase()} before clock-in`);
-  return { blocking, warnings, notes, officer: { id: o.id, name: `${o.first_name} ${o.last_name}` } };
+  return { blocking, warnings, notes, officer: { id: o.id, name: `${o.first_name} ${o.last_name}`, goes_by: o.goes_by || '' } };
 }
 
 export async function getShift(id) {
@@ -69,7 +69,7 @@ export async function shiftsWithAssignments(where, params, user) {
     `SELECT s.*, v.name AS venue_name, r.name AS role_name,
        COALESCE(json_agg(json_build_object(
          'id', a.id, 'officer_id', a.officer_id, 'status', a.status, 'is_lead', a.is_lead,
-         'name', o.first_name || ' ' || o.last_name, 'sia_number', o.sia_number,
+         'name', o.first_name || ' ' || o.last_name, 'goes_by', o.goes_by, 'sia_number', o.sia_number,
          'clocked_in', (SELECT min(ts) FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status IN ('ok','approved','manual')),
          'clocked_out', (SELECT max(ts) FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'out' AND ce.status IN ('ok','approved','manual'))
        ) ORDER BY o.first_name) FILTER (WHERE a.id IS NOT NULL AND a.status NOT IN ('cancelled','rejected')), '[]') AS assignments
@@ -267,6 +267,37 @@ export const actions = {
     if (a.shift_status === 'published') await notify(await officerUser(a.officer_id), { kind: 'shift', title: 'Removed from shift', body: `${a.venue_name} · ${fmtDateTime(a.starts_at)}`, link: '/officer/shifts', email: true, severity: 'warning' });
     await audit(user, 'shift.unassign', 'shift', a.shift_id, { officer: a.officer_id });
     return { ok: true };
+  }),
+
+  // Swap one officer for another in one step: the headcount does not change, so a full shift is fine
+  'shifts.reassign': def(MGR, async (b, { user }) => {
+    required(b, 'shift_id', 'officer_id');
+    if (!b.assignment_id && !b.from_officer_id) fail(400, 'Say who is being replaced');
+    const s = await getShift(b.shift_id);
+    await assertVenue(user, s.venue_id);
+    if (s.status === 'cancelled') fail(400, 'Shift is cancelled');
+    const old = need(await one(
+      `SELECT a.*, o.first_name || ' ' || o.last_name AS name FROM shift_assignments a JOIN officers o ON o.id = a.officer_id
+        WHERE a.shift_id = $1 AND a.status IN ('assigned','accepted') AND ($2::uuid IS NULL OR a.id = $2) AND ($3::uuid IS NULL OR a.officer_id = $3)`,
+      [s.id, b.assignment_id || null, b.from_officer_id || null]), 'That officer is not on this shift');
+    if (old.officer_id === b.officer_id) fail(400, 'That officer is already on this shift');
+    if (await one('SELECT 1 FROM clock_events WHERE assignment_id = $1', [old.id])) fail(400, `${old.name} has already clocked in on this shift`);
+    const check = await checkOfficerForShift(b.officer_id, s);
+    if (check.blocking.length) fail(422, check.blocking.join('; '), check);
+    if (check.warnings.length && !b.override) fail(409, check.warnings.join('; '), { ...check, needs_override: true });
+    const a = await tx(async (t) => {
+      await t.q("UPDATE shift_assignments SET status = 'cancelled', is_lead = false WHERE id = $1", [old.id]);
+      return t.one(
+        `INSERT INTO shift_assignments (shift_id, officer_id, status, is_lead) VALUES ($1,$2,'assigned',$3)
+         ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'assigned', responded_at = NULL, is_lead = $3 RETURNING *`, [s.id, b.officer_id, old.is_lead]);
+    });
+    if (s.status === 'published') {
+      await notify(await officerUser(old.officer_id), { kind: 'shift', title: 'Removed from shift', body: `${s.venue_name} · ${fmtDateTime(s.starts_at)}`, link: '/officer/shifts', email: true, severity: 'warning' });
+      await notifyAssigned(a, s);
+      await remindPack(a.id);
+    }
+    await audit(user, 'shift.reassign', 'shift', s.id, { from: old.officer_id, to: b.officer_id, override: check.warnings });
+    return { ...a, replaced: old.name, name: check.officer.name };
   }),
 
   // Officer requested an open shift → approve / reject
