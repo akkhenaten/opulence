@@ -210,12 +210,13 @@ function DetailsTab({ v, clients, isCo, onSaved }) {
   const [run, busy] = useAction();
   const f = useForm({
     client_id: v.client_id || '', name: v.name || '', address: v.address || '', postcode: v.postcode || '', phone: v.phone || '',
-    instructions: v.instructions || '', notes: v.notes || '', invoice_cycle: v.invoice_cycle || '', proof_rule: v.proof_rule || 'two_of_three', active: !!v.active,
+    instructions: v.instructions || '', notes: v.notes || '', invoice_cycle: v.invoice_cycle || '', site_client: v.site_client || '', proof_rule: v.proof_rule || 'two_of_three', active: !!v.active,
   });
-  // Client and invoicing belong to the company manager; the server ignores them from anyone else
+  const site = useApi('reviews.clients', {}, { skip: !isCo });
+  // Client, invoicing and the website tile belong to the company manager; the server ignores them from anyone else
   const save = () => run(() => api('venues.save', {
-    id: v.id, ...f.v, client_id: f.v.client_id || null, invoice_cycle: f.v.invoice_cycle || null, postcode: f.v.postcode.toUpperCase(),
-    ...(isCo ? {} : { client_id: undefined, invoice_cycle: undefined }),
+    id: v.id, ...f.v, client_id: f.v.client_id || null, invoice_cycle: f.v.invoice_cycle || null, site_client: f.v.site_client || null, postcode: f.v.postcode.toUpperCase(),
+    ...(isCo ? {} : { client_id: undefined, invoice_cycle: undefined, site_client: undefined }),
   }), 'Venue saved').then(onSaved).catch(() => {});
 
   return (
@@ -224,6 +225,8 @@ function DetailsTab({ v, clients, isCo, onSaved }) {
         <div className="space-y-4">
           <Input label="Name" {...f.bind('name')} />
           {isCo && <Select label="Client" placeholder="No client" options={clients.map((c) => ({ value: c.id, label: c.name }))} {...f.bind('client_id')} />}
+          {isCo && <Select label="Website client" hint="The tile on the website this venue's reviews appear on" placeholder="Not on the website"
+            options={(site.data?.clients || []).map((c) => ({ value: c.slug, label: `${c.name} (${c.city})` }))} {...f.bind('site_client')} />}
           <Textarea label="Address" rows={2} {...f.bind('address')} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Postcode" {...f.bind('postcode')} />

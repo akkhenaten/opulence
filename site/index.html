@@ -6,7 +6,8 @@
   <title>Opulence Security &amp; Services | Door supervision &amp; event security in Edinburgh and Glasgow</title>
   <meta name="description" content="Award-winning door supervision, manned guarding, mobile response and event security across Edinburgh, Glasgow and Scotland, run on our own platform: live on-site view, same-night incident reports and licence checks for every officer.">
   <meta name="theme-color" content="#0B0B0C">
-  <link rel="icon" href="/img/opulence/logo-192.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/img/opulence/logo-192.png">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Opulence Security &amp; Services">
   <meta property="og:title" content="Security you can see | Opulence Security &amp; Services">
@@ -137,30 +138,74 @@
     /* Services */
     .alt-bg { background: var(--ink-2); border-block: 1px solid var(--line); }
     .services { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 56px; }
-    .service { display: flex; flex-direction: column; padding: 34px 30px; border-radius: 22px; border: 1px solid var(--line); background: var(--ink); }
-    .service svg { color: var(--gold); }
-    .service h3 { margin-top: 22px; font-size: 28px; }
+    .service { display: flex; flex-direction: column; padding: 0 30px 34px; border-radius: 22px; border: 1px solid var(--line); background: var(--ink); overflow: hidden; }
+    .service .ph { margin: 0 -30px; aspect-ratio: 4 / 3; border-bottom: 1px solid rgba(201,164,92,.28); }
+    .service .ph img { width: 100%; height: 100%; object-fit: cover; }
+    .service h3 { margin-top: 26px; font-size: 28px; }
     .service p { margin-top: 12px; color: var(--muted); flex: 1; }
     .service button { margin-top: 24px; align-self: flex-start; background: none; border: 0; padding: 0; color: var(--gold-2); font: 600 13px var(--sans); letter-spacing: .16em; text-transform: uppercase; cursor: pointer; border-bottom: 1px solid rgba(201,164,92,.45); padding-bottom: 3px; }
     @media (max-width: 900px) { .services { grid-template-columns: 1fr; } }
 
-    /* Clients */
-    .cities { display: grid; grid-template-columns: 2fr 1fr; gap: 48px; margin-top: 56px; }
+    /* Clients: photo tiles; hover tints them gold, a click flips one over to its reviews */
+    .cities { display: grid; gap: 56px; margin-top: 56px; }
     .city h3 { font: 600 12px var(--sans); letter-spacing: .24em; text-transform: uppercase; color: var(--gold); padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-    .city ul { list-style: none; display: grid; grid-template-columns: repeat(2, 1fr); column-gap: 32px; }
-    .city.one ul { grid-template-columns: 1fr; }
-    .city li { padding: 14px 0; border-bottom: 1px solid var(--line); }
-    .city li b { display: block; font: 500 20px var(--serif); }
-    .city li span { display: block; margin-top: 2px; font-size: 14px; color: var(--muted); line-height: 1.45; }
-    @media (max-width: 900px) { .cities { grid-template-columns: 1fr; } }
-    @media (max-width: 560px) { .city ul { grid-template-columns: 1fr; } }
+    .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 24px; }
+    .vt { position: relative; aspect-ratio: 4 / 5; perspective: 1400px; cursor: pointer; border-radius: 20px; outline: none; transition: transform .45s var(--spring); }
+    .vt .inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .8s var(--spring); }
+    .vt.flip .inner { transform: rotateY(180deg); }
+    .face { position: absolute; inset: 0; border-radius: 20px; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; border: 1px solid var(--line); }
+    .front picture, .front img { width: 100%; height: 100%; object-fit: cover; }
+    .front img { transition: transform 1.2s var(--spring), filter .4s; }
+    .front::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, transparent 45%, rgba(11,11,12,.88)); }
+    .front::after { content: ""; position: absolute; inset: 0; z-index: 1; background: rgba(201,164,92,.22); mix-blend-mode: color; opacity: 0; transition: opacity .35s; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(226,200,142,.7); }
+    .cap { position: absolute; left: 18px; right: 18px; bottom: 16px; z-index: 2; }
+    .cap b { display: block; font: 500 21px/1.15 var(--serif); }
+    .cap small { display: block; margin-top: 4px; font: 600 11px var(--sans); letter-spacing: .22em; text-transform: uppercase; color: var(--gold-2); }
+    @media (hover: hover) {
+      .vt:hover { transform: translateY(-4px); }
+      .vt:hover .front::after { opacity: 1; }
+      .vt:hover .front img { transform: scale(1.04); filter: sepia(.25) saturate(1.1); }
+    }
+    .vt:focus-visible { box-shadow: 0 0 0 2px var(--ink-2), 0 0 0 4px var(--gold); }
+    .vt:focus-visible .front::after { opacity: 1; }
+    .back { transform: rotateY(180deg); display: flex; flex-direction: column; padding: 22px 20px 18px; border-color: rgba(201,164,92,.35);
+      background: radial-gradient(130% 90% at 0% 0%, rgba(201,164,92,.16), transparent 60%), var(--ink); }
+    .about b, .rv-head b { display: block; font: 500 21px/1.15 var(--serif); }
+    .about p { margin-top: 10px; color: var(--muted); font-size: 15px; line-height: 1.5; }
+    .visit { display: inline-block; margin-top: 16px; color: var(--gold-2); font: 600 12px var(--sans); letter-spacing: .16em; text-transform: uppercase; text-decoration: none; border-bottom: 1px solid rgba(201,164,92,.45); padding-bottom: 2px; }
+    .rv-head small { display: block; margin-top: 4px; font: 600 11px var(--sans); letter-spacing: .22em; text-transform: uppercase; color: var(--gold); }
+    .track { flex: 1; min-height: 0; margin: 14px -20px 0; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+    .track::-webkit-scrollbar { display: none; }
+    .slide { flex: 0 0 100%; scroll-snap-align: start; padding: 0 20px; display: flex; flex-direction: column; min-height: 0; }
+    .slide .stars { color: var(--gold); letter-spacing: .12em; font-size: 14px; }
+    .slide q { display: block; margin-top: 8px; flex: 1; min-height: 0; overflow-y: auto; font: italic 400 16px/1.5 var(--serif); quotes: "“" "”"; }
+    .slide .who { margin-top: 10px; font-size: 13px; color: var(--muted); }
+    .slide .who b { color: var(--text); font-weight: 600; }
+    .rv-nav { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+    .rv-nav button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(201,164,92,.45); background: none; color: var(--gold-2); font-size: 16px; cursor: pointer; display: grid; place-items: center; }
+    .rv-nav button:disabled { opacity: .3; cursor: default; }
+    .dots { display: flex; gap: 6px; flex: 1; justify-content: center; }
+    .dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.22); transition: background .2s, width .3s var(--spring); }
+    .dots i.on { width: 18px; border-radius: 3px; background: var(--gold); }
+    @media (max-width: 1020px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, 1fr); gap: 12px; } .cap b { font-size: 18px; } }
+    @media (max-width: 480px) { .tiles { grid-template-columns: 1fr; } .vt { aspect-ratio: 4 / 4.2; } }
+    @media (prefers-reduced-motion: reduce) {
+      .vt .inner { transition: none; transform: none !important; }
+      .back { transform: none; opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
+      .vt.flip .back { opacity: 1; visibility: visible; }
+      .vt.flip .front { visibility: hidden; }
+    }
 
     /* Awards */
     .awards { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 56px; }
-    .award { padding: 34px 30px; border-radius: 22px; border: 1px solid rgba(201,164,92,.28); background: radial-gradient(120% 120% at 0% 0%, rgba(201,164,92,.12), transparent 60%), var(--ink); }
+    .award { display: grid; grid-template-columns: 150px 1fr; gap: 26px; align-items: start; padding: 30px; border-radius: 22px; border: 1px solid rgba(201,164,92,.28); background: radial-gradient(120% 120% at 0% 0%, rgba(201,164,92,.12), transparent 60%), var(--ink); }
+    .award .ph { aspect-ratio: 1; border-radius: 16px; overflow: hidden; border: 1px solid rgba(201,164,92,.28); }
+    .award .ph img { width: 100%; height: 100%; object-fit: cover; }
     .award .k::before { display: none; }
     .award h3 { margin-top: 12px; font-size: 30px; }
     .award p { margin-top: 10px; color: var(--muted); }
+    @media (max-width: 1020px) { .award { grid-template-columns: 1fr; } .award .ph { max-width: 220px; } }
     @media (max-width: 760px) { .awards { grid-template-columns: 1fr; } }
 
     /* Join + close */
@@ -340,19 +385,19 @@
         </div>
         <div class="services">
           <article class="service" data-reveal>
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+            <picture class="ph"><source type="image/webp" srcset="/img/opulence/services/manned-guarding-600.webp 600w, /img/opulence/services/manned-guarding-1200.webp 1200w" sizes="(max-width: 900px) 92vw, 380px"><img src="/img/opulence/services/manned-guarding-1200.jpg" width="1200" height="900" alt="Door supervisor at a venue entrance" loading="lazy" decoding="async"></picture>
             <h3>Manned Guarding</h3>
             <p>Professional door supervisors trained to deliver both safety and service for licensed venues, hotels and retail. Our team combines up-to-date security expertise with a clear understanding of licensing requirements, so your venue runs smoothly and securely.</p>
             <button type="button" data-cover="Manned guarding / door supervision">Request cover</button>
           </article>
           <article class="service" data-reveal>
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <picture class="ph"><source type="image/webp" srcset="/img/opulence/services/mobile-response-600.webp 600w, /img/opulence/services/mobile-response-1200.webp 1200w" sizes="(max-width: 900px) 92vw, 380px"><img src="/img/opulence/services/mobile-response-1200.jpg" width="1200" height="900" alt="Mobile response officer" loading="lazy" decoding="async"></picture>
             <h3>Mobile Response</h3>
             <p>Immediate deployment of security teams in emergency situations. Our rapid response units are strategically positioned across Scotland for the fastest response times.</p>
             <button type="button" data-cover="Mobile response">Request cover</button>
           </article>
           <article class="service" data-reveal>
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <picture class="ph"><source type="image/webp" srcset="/img/opulence/services/event-security-600.webp 600w, /img/opulence/services/event-security-1200.webp 1200w" sizes="(max-width: 900px) 92vw, 380px"><img src="/img/opulence/services/event-security-1200.jpg" width="1200" height="900" alt="Event security team" loading="lazy" decoding="async"></picture>
             <h3>Event Security</h3>
             <p>Crowd management and door supervision for festivals and landmark events, from Days Festival to The Royal Yacht Britannia. Every officer is briefed on your event before the first shift.</p>
             <button type="button" data-cover="Event security">Request cover</button>
@@ -366,44 +411,298 @@
         <div class="lead" data-reveal>
           <div class="k">Who we protect</div>
           <h2>Trusted by Scotland’s most prestigious venues.</h2>
+          <p>Tap a venue to read what they say about working with us.</p>
         </div>
         <div class="cities">
-          <div class="city" data-reveal>
-            <h3>Edinburgh</h3>
-            <ul>
-              <li><b>Angels Share</b><span>Door supervision and venue security for a celebrated whisky bar.</span></li>
-              <li><b>Bar 50</b><span>Reliable security cover for a vibrant city-centre social hub.</span></li>
-              <li><b>Bar Napoli</b><span>Discreet security for an authentic Italian dining venue.</span></li>
-              <li><b>Bbar</b><span>Tailored door supervision for a stylish late-night cocktail bar.</span></li>
-              <li><b>Biblos</b><span>Trusted security presence for a long-standing bar and restaurant.</span></li>
-              <li><b>Black Rose</b><span>Dedicated security for a premier hospitality venue.</span></li>
-              <li><b>Evergreen</b><span>Attentive security cover for a refined hospitality venue.</span></li>
-              <li><b>Frankenstein</b><span>Door supervision and crowd management for a renowned themed venue.</span></li>
-              <li><b>Garibaldis</b><span>Discreet security for an established restaurant and bar.</span></li>
-              <li><b>Grand Cru</b><span>Comprehensive security for a luxury dining establishment.</span></li>
-              <li><b>Harvey Nichols</b><span>Manned guarding and loss prevention for a prestigious retail destination.</span></li>
-              <li><b>Hoxton</b><span>24/7 security and access control for a boutique hotel.</span></li>
-              <li><b>Le Monde</b><span>Integrated security for a stylish boutique hotel and bar.</span></li>
-              <li><b>New Eidyn</b><span>Premium security for a flagship luxury retail and hospitality district.</span></li>
-              <li><b>Pilgrim</b><span>Door supervision and venue protection for a lively neighbourhood bar.</span></li>
-              <li><b>Shanghai</b><span>Event security and venue protection for an iconic establishment.</span></li>
-              <li><b>The Royal Yacht Britannia</b><span>Bespoke event security for a world-famous heritage attraction.</span></li>
-              <li><b>W Hotel</b><span>Premium security for a world-renowned luxury hotel.</span></li>
-            </ul>
+        <div class="city" data-reveal>
+          <h3>Edinburgh</h3>
+          <div class="tiles">
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="angels-share" aria-label="Angels Share, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/angels-share-480.webp 480w, /img/opulence/clients/angels-share-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/angels-share-960.jpg" width="960" height="720" alt="Angels Share" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Angels Share</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Angels Share</b><p>Door supervision and venue security for a celebrated whisky bar.</p>
+                <a class="visit" href="https://angelssharehotel.com/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="bar-50" aria-label="Bar 50, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/bar-50-480.webp 480w, /img/opulence/clients/bar-50-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/bar-50-960.jpg" width="960" height="720" alt="Bar 50" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Bar 50</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Bar 50</b><p>Reliable security cover for a vibrant city-centre social hub.</p>
+                <a class="visit" href="https://pugmanmedia.co.uk/pugman-links/bar-50/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="bar-napoli" aria-label="Bar Napoli, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/bar-napoli-480.webp 480w, /img/opulence/clients/bar-napoli-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/bar-napoli-960.jpg" width="960" height="720" alt="Bar Napoli" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Bar Napoli</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Bar Napoli</b><p>Discreet security for an authentic Italian dining venue.</p>
+                <a class="visit" href="https://barnapoli.co.uk/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="bbar" aria-label="Bbar, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/bbar-480.webp 480w, /img/opulence/clients/bbar-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/bbar-960.jpg" width="960" height="720" alt="Bbar" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Bbar</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Bbar</b><p>Tailored door supervision for a stylish late-night cocktail bar.</p>
+                <a class="visit" href="https://www.b-baredinburgh.co.uk" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="biblos" aria-label="Biblos, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/biblos-480.webp 480w, /img/opulence/clients/biblos-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/biblos-960.jpg" width="960" height="720" alt="Biblos" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Biblos</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Biblos</b><p>Trusted security presence for a long-standing bar and restaurant.</p>
+                <a class="visit" href="https://www.biblosedinburgh.co.uk/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="black-rose" aria-label="Black Rose, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/black-rose-480.webp 480w, /img/opulence/clients/black-rose-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/black-rose-960.jpg" width="960" height="720" alt="Black Rose" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Black Rose</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Black Rose</b><p>Dedicated security for a premier hospitality venue.</p>
+                <a class="visit" href="https://www.blackrosetavern.com/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="evergreen" aria-label="Evergreen, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/evergreen-480.webp 480w, /img/opulence/clients/evergreen-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/evergreen-960.jpg" width="960" height="720" alt="Evergreen" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Evergreen</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Evergreen</b><p>Attentive security cover for a refined hospitality venue.</p>
+                <a class="visit" href="https://evergreenbars.com/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="frankenstein" aria-label="Frankenstein, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/frankenstein-480.webp 480w, /img/opulence/clients/frankenstein-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/frankenstein-960.jpg" width="960" height="720" alt="Frankenstein" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Frankenstein</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Frankenstein</b><p>Door supervision and crowd management for a renowned themed venue.</p>
+                <a class="visit" href="https://frankensteinedinburgh.co.uk/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="garibaldis" aria-label="Garibaldis, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/garibaldis-480.webp 480w, /img/opulence/clients/garibaldis-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/garibaldis-960.jpg" width="960" height="720" alt="Garibaldis" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Garibaldis</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Garibaldis</b><p>Discreet security for an established restaurant and bar.</p>
+                <a class="visit" href="https://www.garibaldisplaza.com/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="grand-cru" aria-label="Grand Cru, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/grand-cru-480.webp 480w, /img/opulence/clients/grand-cru-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/grand-cru-960.jpg" width="960" height="720" alt="Grand Cru" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Grand Cru</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Grand Cru</b><p>Comprehensive security for a luxury dining establishment.</p>
+                <a class="visit" href="https://grandcrubar.co.uk/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="harvey-nichols" aria-label="Harvey Nichols, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/harvey-nichols-480.webp 480w, /img/opulence/clients/harvey-nichols-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/harvey-nichols-960.jpg" width="960" height="720" alt="Harvey Nichols" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Harvey Nichols</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Harvey Nichols</b><p>Manned guarding and loss prevention for a prestigious retail destination.</p>
+                <a class="visit" href="https://www.harveynichols.com/store/edinburgh" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="hoxton" aria-label="Hoxton, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/hoxton-480.webp 480w, /img/opulence/clients/hoxton-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/hoxton-960.jpg" width="960" height="720" alt="Hoxton" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Hoxton</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Hoxton</b><p>24/7 security and access control for a boutique hotel.</p>
+                <a class="visit" href="https://thehoxton.com/edinburgh/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="le-monde" aria-label="Le Monde, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/le-monde-480.webp 480w, /img/opulence/clients/le-monde-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/le-monde-960.jpg" width="960" height="720" alt="Le Monde" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Le Monde</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Le Monde</b><p>Integrated security for a stylish boutique hotel and bar.</p>
+                <a class="visit" href="https://lemondehotel.co.uk/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="new-eidyn" aria-label="New Eidyn, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/new-eidyn-480.webp 480w, /img/opulence/clients/new-eidyn-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/new-eidyn-960.jpg" width="960" height="720" alt="New Eidyn" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>New Eidyn</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>New Eidyn</b><p>Premium security for a flagship luxury retail and hospitality district.</p>
+                <a class="visit" href="https://www.neweidyn.com/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="pilgrim" aria-label="Pilgrim, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/pilgrim-480.webp 480w, /img/opulence/clients/pilgrim-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/pilgrim-960.jpg" width="960" height="720" alt="Pilgrim" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Pilgrim</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Pilgrim</b><p>Door supervision and venue protection for a lively neighbourhood bar.</p>
+                <a class="visit" href="https://www.pilgrimbar.co.uk/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="shanghai" aria-label="Shanghai, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/shanghai-480.webp 480w, /img/opulence/clients/shanghai-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/shanghai-960.jpg" width="960" height="720" alt="Shanghai" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Shanghai</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Shanghai</b><p>Event security and venue protection for an iconic establishment.</p>
+                <a class="visit" href="https://shanghaiclub.co.uk/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="the-royal-yacht-britannia" aria-label="The Royal Yacht Britannia, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/the-royal-yacht-britannia-480.webp 480w, /img/opulence/clients/the-royal-yacht-britannia-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/the-royal-yacht-britannia-960.jpg" width="960" height="720" alt="The Royal Yacht Britannia" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>The Royal Yacht Britannia</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>The Royal Yacht Britannia</b><p>Bespoke event security for a world-famous heritage attraction.</p>
+                <a class="visit" href="https://www.royalyachtbritannia.co.uk/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="w-hotel" aria-label="W Hotel, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/w-hotel-480.webp 480w, /img/opulence/clients/w-hotel-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/w-hotel-960.jpg" width="960" height="720" alt="W Hotel" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>W Hotel</b><small>Edinburgh</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>W Hotel</b><p>Premium security for a world-renowned luxury hotel.</p>
+                <a class="visit" href="https://www.marriott.com/en-us/hotels/ediwh-w-edinburgh/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="city one" data-reveal style="--d:.08s">
-            <h3>Glasgow</h3>
-            <ul>
-              <li><b>Shilling Brewing Co.</b><span>Reliable cover for a popular city-centre brewery and taproom.</span></li>
-              <li><b>Vega Glasgow</b><span>Crowd management and door supervision for a leading nightlife venue.</span></li>
-              <li><b>Yotel Glasgow</b><span>Integrated security for a modern city-centre hotel.</span></li>
-            </ul>
-            <h3 style="margin-top:36px">Across Scotland</h3>
-            <ul>
-              <li><b>Carbon Lounge</b><span>Professional door staff and crowd management for a contemporary lounge.</span></li>
-              <li><b>Days Festival</b><span>Event security and crowd control for a major outdoor festival.</span></li>
-            </ul>
+        </div>
+        <div class="city" data-reveal>
+          <h3>Glasgow</h3>
+          <div class="tiles">
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="shilling-brewing-co" aria-label="Shilling Brewing Co., tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/shilling-brewing-co-480.webp 480w, /img/opulence/clients/shilling-brewing-co-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/shilling-brewing-co-960.jpg" width="960" height="720" alt="Shilling Brewing Co." loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Shilling Brewing Co.</b><small>Glasgow</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Shilling Brewing Co.</b><p>Reliable cover for a popular city-centre brewery and taproom.</p>
+                <a class="visit" href="https://shillingbrewingcompany.co.uk/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="vega-glasgow" aria-label="Vega Glasgow, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/vega-glasgow-480.webp 480w, /img/opulence/clients/vega-glasgow-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/vega-glasgow-960.jpg" width="960" height="720" alt="Vega Glasgow" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Vega Glasgow</b><small>Glasgow</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Vega Glasgow</b><p>Crowd management and door supervision for a leading nightlife venue.</p>
+                <a class="visit" href="https://vegaglasgow.com/" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="yotel-glasgow" aria-label="Yotel Glasgow, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/yotel-glasgow-480.webp 480w, /img/opulence/clients/yotel-glasgow-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/yotel-glasgow-960.jpg" width="960" height="720" alt="Yotel Glasgow" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Yotel Glasgow</b><small>Glasgow</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Yotel Glasgow</b><p>Integrated security for a modern city-centre hotel.</p>
+                <a class="visit" href="https://www.yotel.com/en/hotels/yotel-glasgow" target="_blank" rel="noopener">Visit venue <span aria-hidden="true">↗</span></a></div>
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+        <div class="city" data-reveal>
+          <h3>Across Scotland</h3>
+          <div class="tiles">
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="carbon-lounge" aria-label="Carbon Lounge, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/carbon-lounge-480.webp 480w, /img/opulence/clients/carbon-lounge-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/carbon-lounge-960.jpg" width="960" height="720" alt="Carbon Lounge" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Carbon Lounge</b><small>Scotland</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Carbon Lounge</b><p>Professional door staff and crowd management for a contemporary lounge.</p></div>
+                </div>
+              </div>
+            </div>
+            <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="days-festival" aria-label="Days Festival, tap for more">
+              <div class="inner">
+                <div class="face front">
+                  <picture><source type="image/webp" srcset="/img/opulence/clients/days-festival-480.webp 480w, /img/opulence/clients/days-festival-960.webp 960w" sizes="(max-width: 560px) 92vw, (max-width: 900px) 46vw, 300px"><img src="/img/opulence/clients/days-festival-960.jpg" width="960" height="720" alt="Days Festival" loading="lazy" decoding="async"></picture>
+                  <div class="cap"><b>Days Festival</b><small>Scotland</small></div>
+                </div>
+                <div class="face back" aria-hidden="true">
+                  <div class="about"><b>Days Festival</b><p>Event security and crowd control for a major outdoor festival.</p></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         </div>
       </div>
     </section>
@@ -416,14 +715,20 @@
         </div>
         <div class="awards">
           <article class="award" data-reveal>
+            <picture class="ph"><source type="image/webp" srcset="/img/opulence/awards/40-under-40-400.webp 400w, /img/opulence/awards/40-under-40-800.webp 800w" sizes="160px"><img src="/img/opulence/awards/40-under-40-800.jpg" width="800" height="800" alt="40 Under 40 Global award" loading="lazy" decoding="async"></picture>
+            <div>
             <div class="k">Winner</div>
             <h3>40 Under 40 Global</h3>
             <p>Recognised among the world’s top 40 young business leaders for innovation in the security industry.</p>
+            </div>
           </article>
           <article class="award" data-reveal>
+            <picture class="ph"><source type="image/webp" srcset="/img/opulence/awards/innovation-400.webp 400w, /img/opulence/awards/innovation-800.webp 800w" sizes="160px"><img src="/img/opulence/awards/innovation-800.jpg" width="800" height="800" alt="Innovation in Business award" loading="lazy" decoding="async"></picture>
+            <div>
             <div class="k">Shortlisted · Innovation in Business</div>
             <h3>Edinburgh Chamber of Commerce</h3>
             <p>Shortlisted for the Innovation in Business award for our data-driven security approach.</p>
+            </div>
           </article>
         </div>
       </div>
@@ -532,6 +837,91 @@
         }, { rootMargin: '0px 0px -6% 0px' });
         document.querySelectorAll('[data-reveal]').forEach(function (el) { io.observe(el); });
       }
+      // Venue tiles: a click flips one over (one at a time). Its back shows the client's published reviews as a
+      // carousel, or their description and website when there are none yet (and when the reviews can't load).
+      var tiles = [].slice.call(document.querySelectorAll('.vt'));
+      function setFlip(t, on) {
+        t.classList.toggle('flip', on);
+        t.setAttribute('aria-pressed', on ? 'true' : 'false');
+        var back = t.querySelector('.back');
+        back.setAttribute('aria-hidden', on ? 'false' : 'true');
+        back.inert = !on;
+      }
+      tiles.forEach(function (t) {
+        t.querySelector('.back').inert = true;
+        var toggle = function () {
+          var on = !t.classList.contains('flip');
+          tiles.forEach(function (o) { if (o !== t && o.classList.contains('flip')) setFlip(o, false); });
+          setFlip(t, on);
+        };
+        t.addEventListener('click', function (e) { if (!e.target.closest('a, button')) toggle(); });
+        t.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && t.classList.contains('flip')) { setFlip(t, false); t.focus(); }
+          else if (e.target === t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(); }
+        });
+      });
+      function el(tag, cls, text) {
+        var n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text != null) n.textContent = text;
+        return n;
+      }
+      function carousel(t, list) {
+        var back = t.querySelector('.back');
+        var head = el('div', 'rv-head');
+        head.append(el('b', null, t.querySelector('.cap b').textContent), el('small', null, list.length === 1 ? 'Client review' : list.length + ' client reviews'));
+        var track = el('div', 'track');
+        list.forEach(function (r, i) {
+          var s = el('div', 'slide');
+          s.setAttribute('aria-label', 'Review ' + (i + 1) + ' of ' + list.length);
+          if (r.rating) {
+            var st = el('div', 'stars', '★★★★★'.slice(0, r.rating) + '☆☆☆☆☆'.slice(r.rating));
+            st.setAttribute('role', 'img'); st.setAttribute('aria-label', r.rating + ' out of 5');
+            s.append(st);
+          }
+          s.append(el('q', null, r.quote));
+          if (r.reviewer || r.reviewer_role) {
+            var who = el('div', 'who');
+            if (r.reviewer) who.append(el('b', null, r.reviewer));
+            if (r.reviewer_role) who.append(document.createTextNode((r.reviewer ? ', ' : '') + r.reviewer_role));
+            s.append(who);
+          }
+          track.append(s);
+        });
+        back.replaceChildren(head, track);
+        if (list.length < 2) return;
+        var prev = el('button', null, '‹'), next = el('button', null, '›'), dots = el('div', 'dots');
+        prev.type = next.type = 'button';
+        prev.setAttribute('aria-label', 'Previous review'); next.setAttribute('aria-label', 'Next review');
+        list.forEach(function () { dots.append(el('i')); });
+        var nav = el('div', 'rv-nav'); nav.append(prev, dots, next); back.append(nav);
+        var at = function () { return Math.round(track.scrollLeft / Math.max(1, track.clientWidth)); };
+        var sync = function () {
+          var i = at();
+          [].forEach.call(dots.children, function (d, j) { d.classList.toggle('on', j === i); });
+          prev.disabled = i === 0; next.disabled = i === list.length - 1;
+        };
+        prev.addEventListener('click', function () { track.scrollTo({ left: (at() - 1) * track.clientWidth, behavior: 'smooth' }); });
+        next.addEventListener('click', function () { track.scrollTo({ left: (at() + 1) * track.clientWidth, behavior: 'smooth' }); });
+        track.addEventListener('scroll', sync, { passive: true });
+        sync();
+      }
+      var loadReviews = function () {
+        fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reviews.public' }) })
+          .then(function (r) { return r.ok ? r.json() : {}; })
+          .then(function (by) {
+            tiles.forEach(function (t) {
+              var list = by && by[t.dataset.client];
+              if (list && list.length) { carousel(t, list); t.setAttribute('aria-label', t.querySelector('.cap b').textContent + ', tap to read client reviews'); }
+            });
+          })
+          .catch(function () {});
+      };
+      var clients = document.getElementById('clients');
+      if (clients && 'IntersectionObserver' in window) {
+        var ro = new IntersectionObserver(function (es) { if (es[0].isIntersecting) { ro.disconnect(); loadReviews(); } }, { rootMargin: '600px 0px' });
+        ro.observe(clients);
+      } else if (clients) loadReviews();
       // "Request cover" buttons open the form, preset to the service they belong to
       document.querySelectorAll('[data-cover]').forEach(function (b) {
         b.addEventListener('click', function () {

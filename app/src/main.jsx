@@ -28,6 +28,7 @@ const Audit = P(() => import('./pages/people/Audit.jsx'));
 const Venues = P(() => import('./pages/money/Venues.jsx'));
 const Email = P(() => import('./pages/email/Email.jsx'));
 const EmailCallback = P(() => import('./pages/email/Callback.jsx'));
+const Reviews = P(() => import('./pages/money/Reviews.jsx'));
 const Clients = P(() => import('./pages/money/Venues.jsx').then((m) => ({ default: m.Clients })));
 const StaffContracts = P(() => import('./pages/people/StaffContracts.jsx'));
 const ContractWorkspace = P(() => import('./pages/people/contracts/Workspace.jsx'));
@@ -197,6 +198,7 @@ function App() {
             <Route path="clients" element={<Clients />} />
             <Route path="venues" element={<Venues />} />
             <Route path="venues/:id" element={<VenueDetail />} />
+            <Route path="reviews" element={<Reviews />} />
             <Route path="pay" element={<Pay />} />
             <Route path="pay/runs/:id" element={<PayRun />} />
             <Route path="pay/:id" element={<StatementDetail />} />
@@ -214,6 +216,7 @@ function App() {
             {managerRoutes}
             <Route path="venues" element={<Venues />} />
             <Route path="venues/:id" element={<VenueDetail />} />
+            <Route path="reviews" element={<Reviews />} />
             <Route path="pay" element={<Pay />} />
             <Route path="pay/runs/:id" element={<PayRun />} />
             <Route path="pay/:id" element={<StatementDetail />} />
@@ -229,6 +232,7 @@ function App() {
             <Route path="messages" element={<Messages />} />
             <Route path="messages/:id" element={<Messages />} />
             <Route path="site" element={<VenueSite />} />
+            <Route path="reviews" element={<Reviews />} />
             <Route path="logs" element={<ShiftLogs />} />
             <Route path="logs/:id" element={<ShiftView />} />
             <Route path="bans" element={<Bans />} />

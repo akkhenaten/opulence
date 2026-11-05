@@ -9,8 +9,9 @@ import { downloadUrl } from '../lib/storage.mjs';
 import { audit } from '../lib/audit.mjs';
 import { CO, MGR, def } from './_def.mjs';
 import { getSettings } from './settings.mjs';
+import { isSiteClient } from '../lib/siteClients.mjs';
 
-const VENUE_FIELDS = ['client_id', 'name', 'address', 'postcode', 'lat', 'lng', 'radius_m', 'phone', 'instructions', 'notes', 'photo_key', 'invoice_cycle', 'active', 'proof_rule'];
+const VENUE_FIELDS = ['client_id', 'name', 'address', 'postcode', 'lat', 'lng', 'radius_m', 'phone', 'instructions', 'notes', 'photo_key', 'invoice_cycle', 'active', 'proof_rule', 'site_client'];
 
 export async function currentVenueRates(venueId, onDate = new Date().toISOString().slice(0, 10)) {
   return q(
@@ -54,7 +55,9 @@ export const actions = {
   // Company and security managers run venues; the client and invoicing set-up stay with the company
   'venues.save': def(MGR, async (b, { user }) => {
     const f = pick(b, VENUE_FIELDS);
-    if (user.role !== 'company') { delete f.client_id; delete f.invoice_cycle; }
+    if (user.role !== 'company') { delete f.client_id; delete f.invoice_cycle; delete f.site_client; }
+    if (f.site_client === '') f.site_client = null;
+    if (f.site_client && !isSiteClient(f.site_client)) fail(400, 'Unknown website client');
     if (f.proof_rule !== undefined && !RULES[f.proof_rule]) fail(400, 'Unknown clock-in rule');
     if (b.id) await assertVenue(user, b.id);
     let v;

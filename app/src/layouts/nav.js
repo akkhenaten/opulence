@@ -1,7 +1,7 @@
 import {
   BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
   Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText,
-  GraduationCap, BookOpenCheck, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck,
+  GraduationCap, BookOpenCheck, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck, Quote,
 } from 'lucide-react';
 
 // Sidebar sections per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
@@ -35,6 +35,7 @@ export const NAV = {
       { to: '/company/clients', label: 'Clients', icon: Briefcase },
       { to: '/company/venues', label: 'Venues', icon: Building2 },
       { to: '/company/people/procedures', label: 'Site packs', icon: BookText },
+      { to: '/company/reviews', label: 'Reviews', icon: Quote },
     ] },
     { title: 'Finance', items: [
       { to: '/company/pay', label: 'Pay runs', icon: Banknote },
@@ -72,6 +73,7 @@ export const NAV = {
     { title: 'Sites', items: [
       { to: '/security/venues', label: 'Venues', icon: Building2 },
       { to: '/security/people/procedures', label: 'Site packs', icon: BookText },
+      { to: '/security/reviews', label: 'Reviews', icon: Quote },
     ] },
     { title: 'Finance', items: [
       { to: '/security/pay', label: 'Pay runs', icon: Banknote, perm: 'can_see_pay' },
@@ -83,6 +85,7 @@ export const NAV = {
       { to: '/venue/live', label: 'On site', icon: Radio, tab: true },
       { to: '/venue/messages', label: 'Messages', icon: MessagesSquare, tab: true, badge: 'messages' },
       { to: '/venue/site', label: 'My venue', icon: Store },
+      { to: '/venue/reviews', label: 'Reviews', icon: Quote },
       { to: '/venue/cover', label: 'Cover requests', icon: Megaphone },
       { to: '/venue/logs', label: 'Shift logs', icon: NotebookPen },
       { to: '/venue/bans', label: 'Ejection log', icon: Ban },
