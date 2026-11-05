@@ -39,7 +39,7 @@ export async function checkCap(module = 'ops') {
   if (Number(s.ops_ai_used) >= Number(s.ops_ai_cap_credits)) {
     await notify(await companyManagers(), {
       kind: 'ops', severity: 'warning', title: 'Ops AI paused: monthly credit cap reached',
-      body: 'Raise the cap in Ops AI → Settings to resume AI features. Reminders and records keep running.', link: '/company/ops?tab=settings', dedupe: `aicap:${m}`,
+      body: 'Raise the cap in Live operations → Settings to resume AI features. Reminders and records keep running.', link: '/company/live?tab=settings', dedupe: `aicap:${m}`,
     });
     throw new HttpError(429, 'Ops AI paused: monthly credit cap reached');
   }
@@ -49,7 +49,7 @@ export async function checkCap(module = 'ops') {
     if (Number(u?.credits || 0) >= Number(cap)) {
       await notify(await companyManagers(), {
         kind: 'ops', severity: 'warning', title: `AI for ${MODULE_NAMES[module] || module} paused: its monthly cap is reached`,
-        body: 'Raise the cap in Ops AI → Settings. Everything else keeps working.', link: '/company/ops?tab=settings', dedupe: `aicap:${module}:${m}`,
+        body: 'Raise the cap in Live operations → Settings. Everything else keeps working.', link: '/company/live?tab=settings', dedupe: `aicap:${module}:${m}`,
       });
       throw new HttpError(429, `AI for ${MODULE_NAMES[module] || module} is paused this month (credit cap reached)`);
     }

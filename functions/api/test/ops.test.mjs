@@ -60,3 +60,14 @@ test('AI credits and month key', () => {
   assert.equal(monthKey(new Date('2026-10-31T23:30:00Z')), '2026-10');
   assert.equal(monthKey(new Date('2026-03-31T23:30:00Z')), '2026-04'); // BST
 });
+
+test('refresh: compliance at most every 10 minutes; managers only', async () => {
+  const { complianceDue, actions } = await import('../modules/ops.mjs');
+  const now = Date.now();
+  assert.equal(complianceDue(null, now), true);
+  assert.equal(complianceDue(new Date(now - 5 * 60_000), now), false);
+  assert.equal(complianceDue(new Date(now - 11 * 60_000), now), true);
+  const roles = actions['ops.refresh'].roles;
+  assert.ok(roles.includes('company') && roles.includes('security'));
+  assert.ok(!roles.includes('officer') && !roles.includes('venue'));
+});

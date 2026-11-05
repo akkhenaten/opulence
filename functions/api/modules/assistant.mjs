@@ -359,7 +359,7 @@ export async function callTool(name, input, turn, tools) {
 }
 
 const ROUTES = {
-  both: 'home: /ROLE, ops (Ops AI inbox), live, rota, shifts/<id>, cover, timesheets, exceptions, incidents, incidents/<id>, staff, staff/<id>, team/academy, team/training, people/compliance, team/toolbox, team/toolbox/<id>, everyday, messages, messages/<id>, venues, venues/<id>, pay, pay/runs/<id>, help',
+  both: 'home: /ROLE, live (Live operations: live board + Ops AI inbox; live?tab=settings for Ops AI settings), rota, shifts/<id>, cover, timesheets, exceptions, incidents, incidents/<id>, staff, staff/<id>, team/academy, team/training, people/compliance, team/toolbox, team/toolbox/<id>, everyday, messages, messages/<id>, venues, venues/<id>, pay, pay/runs/<id>, help',
   company: 'recruitment, hr/time-off, people/contracts, clients, invoices, invoices/<id>, reports, settings, audit',
 };
 

@@ -212,7 +212,7 @@ export const actions = {
   // Manager: build or refresh the evidence summary now
   'incidents.aiReview': def(MGR, async (b, { user }) => {
     required(b, 'id');
-    if (!aiOn(await getSettings())) fail(400, 'AI on incidents is switched off in Ops AI settings');
+    if (!aiOn(await getSettings())) fail(400, 'AI on incidents is switched off in Live operations › Settings');
     const inc = await loadFull(b.id);
     await assertVenue(user, inc.venue_id);
     if (!b.force && inc.ai_summary && inc.ai_summary_sig === summarySig(inc)) return inc.ai_summary;

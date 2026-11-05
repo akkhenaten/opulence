@@ -246,7 +246,7 @@ function Bubble({ m, role, onChange, onSettled }) {
         {!mine && m.done?.length > 0 && <DoneList m={m} onChange={onChange} />}
         {!mine && m.pending_action && <ActionCard m={m} onChange={onChange} onSettled={onSettled} />}
         {!mine && m.items?.length > 0 && (
-          <div className="mt-2"><Button size="sm" variant="soft" icon={Sparkles} to={`/${role}/ops`}>Open in Ops AI inbox ({m.items.length})</Button></div>
+          <div className="mt-2"><Button size="sm" variant="soft" icon={Sparkles} to={`/${role}/live`}>Open in Live operations ({m.items.length})</Button></div>
         )}
       </div>
     </div>

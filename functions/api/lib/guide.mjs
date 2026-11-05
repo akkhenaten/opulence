@@ -134,7 +134,7 @@ Tap Assign to put officers on the shift. Officers you assign are asked to confir
     sections: [
       {
         id: 'live', title: 'Live operations', image: 'live.png',
-        body: `Live operations shows every shift happening now: who is on site, who is late and who hasn't turned up. Alerts appear at the top. Tap a shift to see the officers, their clock times and the shift log.`,
+        body: `Live operations shows every shift happening now: who is on site, who is late and who hasn't turned up. Alerts appear at the top. Tap a shift to see the officers, their clock times and the shift log. Ops AI's suggestions to approve sit beside the board (above it on a phone), and the round arrows run every Ops AI check straight away.`,
       },
       {
         id: 'clock', title: 'Clocking in and exceptions',
@@ -258,7 +258,7 @@ Use the filters for Announcements, Shout-outs, Events, Polls, My venues and Save
     sections: [
       {
         id: 'ops', title: 'Ops AI', image: 'ops.png',
-        body: `Ops AI is your AI operations manager. It watches the rota, clocking, incidents and compliance, and suggests what to do next, for example filling an unfilled shift or chasing an expiring licence. Nothing changes until you approve it. The number on Ops AI shows items waiting for you.`,
+        body: `Ops AI is your AI operations manager. It watches the rota, clocking, incidents and compliance, and suggests what to do next, for example filling an unfilled shift or chasing an expiring licence. Nothing changes until you approve it. Ops AI sits beside the board on Live operations, and the number on Live operations shows items waiting for you. It checks every 5 minutes; tap the round arrows at the top of Live operations to run every check straight away (no-show chasing, cover, site packs, hours and compliance). Its activity log and settings are the Activity and Settings tabs on the same page.`,
       },
       {
         id: 'ask', title: 'Orb, your assistant',

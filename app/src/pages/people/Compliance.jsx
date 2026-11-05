@@ -41,7 +41,7 @@ export default function Compliance() {
       )}>
       <Load q={q} skeleton="rows">
         {(d) => <Body d={d} sev={sev} setSev={setSev} area={area} setArea={setArea} dismiss={dismiss} busy={busy}
-          openCard={() => nav(`/${user.role}/ops`)} openStaff={(id) => nav(`/${user.role}/staff/${id}?tab=documents`)} />}
+          openCard={() => nav(`/${user.role}/live`)} openStaff={(id) => nav(`/${user.role}/staff/${id}?tab=documents`)} />}
       </Load>
       {preview && <DigestPreview onClose={() => setPreview(false)} />}
     </Page>
@@ -119,7 +119,7 @@ function Body({ d, sev, setSev, area, setArea, dismiss, busy, openCard, openStaf
                 )}
                 {g.card_id && (
                   <div className="mt-2 flex justify-end">
-                    <Button size="sm" variant="soft" onClick={openCard}>Open in Ops AI</Button>
+                    <Button size="sm" variant="soft" onClick={openCard}>Open in Live operations</Button>
                   </div>
                 )}
               </Tile>
@@ -138,7 +138,7 @@ function DigestPreview({ onClose }) {
       footer={<Button variant="secondary" onClick={onClose}>Close</Button>}>
       {!q.data ? <Spinner /> : (
         <>
-          <p className="mb-2 text-footnote text-muted">Subject: {q.data.subject}. Sent to company managers after the weekly check (turn it off in Ops AI › Settings).</p>
+          <p className="mb-2 text-footnote text-muted">Subject: {q.data.subject}. Sent to company managers after the weekly check (turn it off in Live operations › Settings).</p>
           <iframe title="Email preview" srcDoc={q.data.html} className="h-[560px] max-h-full w-full rounded-2xl border border-sep bg-paper" />
         </>
       )}

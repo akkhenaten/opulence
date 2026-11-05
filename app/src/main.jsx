@@ -14,7 +14,6 @@ const Live = P(() => import('./pages/shared/Live.jsx'));
 const Rota = P(() => import('./pages/manager/Rota.jsx'));
 const CoverManage = P(() => import('./pages/manager/Cover.jsx'));
 const Exceptions = P(() => import('./pages/manager/Exceptions.jsx'));
-const OpsAI = P(() => import('./pages/manager/OpsAI.jsx'));
 const Messages = P(() => import('./pages/messages/Messages.jsx'));
 const VenueSite = P(() => import('./pages/venue/Site.jsx'));
 const Timesheets = P(() => import('./pages/shared/Timesheets.jsx'));
@@ -129,10 +128,16 @@ function PublicOnly({ children }) {
   return user ? <Navigate to={HOME[user.role]} replace /> : children;
 }
 
+// Ops AI now lives on Live operations; old links and notifications keep their ?tab=
+function OpsRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`../live${search}`} replace />;
+}
+
 // Screens shared by company and security managers, mounted under each prefix
 const managerRoutes = (
   <>
-    <Route path="ops" element={<OpsAI />} />
+    <Route path="ops" element={<OpsRedirect />} />
     <Route path="live" element={<Live />} />
     <Route path="rota" element={<Rota />} />
     <Route path="shifts/:id" element={<ShiftView />} />

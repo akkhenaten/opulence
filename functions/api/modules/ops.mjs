@@ -39,7 +39,7 @@ export async function createItem({ kind, title, reason = '', payload = {}, dedup
     `INSERT INTO ops_items (kind, title, reason, payload, dedupe, venue_id, shift_id, officer_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
      ON CONFLICT (dedupe) DO NOTHING RETURNING *`, [kind, title, reason, payload, dedupe, venue_id, shift_id, officer_id]);
   if (!item) return null;
-  await notifyManagers(venue_id, { kind: 'ops', severity, title: `Ops AI: ${title}`, body: reason.slice(0, 200), link: 'ops', dedupe: `ops:${item.id}` });
+  await notifyManagers(venue_id, { kind: 'ops', severity, title: `Ops AI: ${title}`, body: reason.slice(0, 200), link: 'live', dedupe: `ops:${item.id}` });
   await logActivity('item', `Prepared for approval: ${title}`, { ref_type: 'ops_item', ref_id: item.id, venue_id });
   return item;
 }
@@ -282,7 +282,7 @@ async function escalate(a, s) {
     const [uid] = await officerUser(a.officer_id);
     await opsMessage(uid, `We still haven't seen you clock in at ${sh.venue_name}, so the office is lining up cover. If you're on your way, tell us now.`);
   }
-  await notifyManagers(sh.venue_id, { kind: 'late', severity: 'critical', title: `${name} ${a.reply === 'cant_make_it' ? "can't make it" : 'is a no-show'}`, body: `${sh.venue_name} · ${when(sh)}. ${name} ${why}. Cover options are in Ops AI.`, link: 'ops', dedupe: `esc:${a.id}`, email: true });
+  await notifyManagers(sh.venue_id, { kind: 'late', severity: 'critical', title: `${name} ${a.reply === 'cant_make_it' ? "can't make it" : 'is a no-show'}`, body: `${sh.venue_name} · ${when(sh)}. ${name} ${why}. Cover options are in Live operations.`, link: 'live', dedupe: `esc:${a.id}`, email: true });
   await logActivity('escalate', `Escalated ${name} at ${sh.venue_name} (${fmtTime(sh.starts_at)}) — ${why}`, { ref_type: 'assignment', ref_id: a.id, venue_id: sh.venue_id });
   if (jobOn(s, 'cover')) await proposeCover(sh, a.reply === 'cant_make_it' ? 'cant_make_it' : 'no-show', { replacing: a.reply === 'cant_make_it' ? null : a.id });
 }
@@ -592,6 +592,12 @@ export async function runOpsJobs(s) {
   }
   return out;
 }
+
+/** The compliance check reads documents with AI, so a refresh runs it at most every 10 minutes. */
+export const complianceDue = (lastAt, now = Date.now()) => !lastAt || now - new Date(lastAt).getTime() > 10 * 60_000;
+
+const pendingCount = async (scope) =>
+  (await one("SELECT count(*)::int AS n FROM ops_items WHERE status = 'pending' AND ($1::uuid[] IS NULL OR venue_id = ANY($1))", [scope])).n;
 
 // ---------- Inbox ----------
 async function scopedItem(user, id) {
@@ -937,10 +943,7 @@ export const actions = {
     }));
   }),
 
-  'ops.count': def(MGR, async (_b, { user }) => {
-    const scope = await venueScope(user);
-    return one("SELECT count(*)::int AS n FROM ops_items WHERE status = 'pending' AND ($1::uuid[] IS NULL OR venue_id = ANY($1))", [scope]);
-  }),
+  'ops.count': def(MGR, async (_b, { user }) => ({ n: await pendingCount(await venueScope(user)) })),
 
   'ops.activity': def(MGR, async (_b, { user }) => {
     const scope = await venueScope(user);
@@ -1008,6 +1011,26 @@ Answer in short, plain British business English. Use the officers' and venues' n
     }
     return { reply: 'That needed too many steps — try a narrower question.', items: created, credits };
   }),
+
+  // Live operations → refresh: every Ops AI check now (not reminders or invoices), then what it found
+  'ops.refresh': def(MGR, async (_b, { user }) => tx(async ({ one: o }) => {
+    const lock = await o("SELECT pg_try_advisory_xact_lock(hashtext('ops.refresh')) AS ok");
+    if (!lock.ok) return { busy: true };
+    const scope = await venueScope(user);
+    const before = await pendingCount(scope);
+    const out = { ops: await runOpsJobs(await getSettings()) };
+    const today = londonDate(new Date());
+    out.reconcile = await runReconcile(addDays(today, -14), today).catch((e) => `error: ${e.message}`);
+    const skipped = [];
+    const last = await one("SELECT created_at FROM ops_activity WHERE kind = 'compliance' ORDER BY created_at DESC LIMIT 1");
+    if (complianceDue(last?.created_at)) out.compliance = await runCompliance({ manual: true }).catch((e) => `error: ${e.message}`);
+    else skipped.push('compliance');
+    await logActivity('refresh', `Checks run by ${user.name || 'a manager'}`);
+    const after = await pendingCount(scope);
+    const errors = [...Object.entries(out.ops), ['reconcile', out.reconcile], ['compliance', out.compliance]]
+      .filter(([, v]) => typeof v === 'string' && v.startsWith('error:')).map(([k]) => k);
+    return { new_items: Math.max(0, after - before), pending: after, checked_at: new Date(), skipped, errors };
+  })),
 
   'ops.runNow': def(CO, async (b) => {
     const { runJobs } = await import('./jobs.mjs');

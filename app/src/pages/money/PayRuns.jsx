@@ -301,7 +301,7 @@ function ResolveSheet({ dispute: d, onClose, onDone }) {
 
 function ReconcileSheet({ data, onClose }) {
   return (
-    <Sheet open onClose={onClose} title="Hours check" size="sm" footer={<><Button variant="secondary" to="/company/ops">Open Ops AI</Button><Button onClick={onClose}>OK</Button></>}>
+    <Sheet open onClose={onClose} title="Hours check" size="sm" footer={<><Button variant="secondary" to="/company/live">Open Live operations</Button><Button onClick={onClose}>OK</Button></>}>
       <div className="flex gap-3">
         <AlertTriangle size={20} className="mt-0.5 shrink-0 text-amber" />
         <p className="text-subhead">The run is finalised. Ops AI checked {plural(data.checked, 'timesheet')} and found {plural(data.created, 'difference')} between rota, clock and timesheet hours. Each one is waiting in Ops AI for your decision. It is worth a look before you issue.</p>

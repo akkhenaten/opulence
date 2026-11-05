@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Check, ClipboardList, Pencil, Sparkles, Star, X } from 'lucide-react';
 import {
-  Button, cx, dateTime, dayLabel, Empty, hours, Input, Load, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
+  Button, cx, dateTime, dayLabel, Empty, hours, Input, Load, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
@@ -17,38 +16,20 @@ const KIND = {
 const SEVERITY = { urgent: { label: 'Urgent', tone: 'red' }, soon: { label: 'Soon', tone: 'amber' }, advisory: { label: 'Advisory', tone: 'grey' } };
 const ITEM_STATUS = { approved: 'Offers sent', done: 'Done', rejected: 'Rejected', expired: 'Expired', pending: 'Waiting' };
 
-export default function OpsAI() {
-  const { user } = useBase();
-  const [sp, setSp] = useSearchParams();
-  const tab = sp.get('tab') || 'inbox';
-  const count = useApi('ops.count', {}, { poll: 30000 });
-  const tabs = [
-    { value: 'inbox', label: 'Inbox', count: count.data?.n }, { value: 'activity', label: 'Activity' },
-    ...(user.role === 'company' ? [{ value: 'settings', label: 'Settings' }] : []),
-  ];
-  return (
-    <Page title="Ops AI" subtitle="Your operations assistant. It prepares the work — you approve it."
-      actions={<Button variant="secondary" icon={Sparkles} onClick={() => window.dispatchEvent(new Event('orb:askorb'))}>Orb</Button>}>
-      <Tabs value={tab} onChange={(v) => setSp(v === 'inbox' ? {} : { tab: v }, { replace: true })} tabs={tabs} />
-      {tab === 'inbox' && <Inbox onChange={count.reload} />}
-      {tab === 'activity' && <Activity />}
-      {tab === 'chat' && <AskOrbMoved />}
-      {tab === 'settings' && user.role === 'company' && <OpsSettings />}
-    </Page>
-  );
-}
-
 /* ---------- Inbox ---------- */
 
-function Inbox({ onChange }) {
+/** Ops AI cards to approve. compact = one column, for the panel beside the Live board. */
+export function Inbox({ onChange, compact, reloadKey }) {
   const [view, setView] = useState('pending');
   const q = useApi('ops.inbox', { status: view }, { poll: 30000 });
-  const reload = () => { q.reload(); onChange(); };
+  const reload = () => { q.reload(); onChange?.(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (reloadKey) q.reload(); }, [reloadKey]);
   return (
     <>
       <div className="mb-4"><Segmented value={view} onChange={setView} options={[{ value: 'pending', label: 'To approve' }, { value: 'decided', label: 'Decided' }]} /></div>
       <Load q={q}>{(items) => (items.length ? (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">{items.map((it) => <ItemCard key={it.id} it={it} onDone={reload} />)}</div>
+        <div className={compact ? 'space-y-3' : 'grid grid-cols-1 gap-3 lg:grid-cols-2'}>{items.map((it) => <ItemCard key={it.id} it={it} onDone={reload} />)}</div>
       ) : (
         <Empty icon={Sparkles} title={view === 'pending' ? 'All clear' : 'Nothing decided yet'}
           body={view === 'pending' ? 'Ops AI checks every 5 minutes for no-shows, gaps on the rota, venue requests, feedback and hours that don\'t match.' : undefined} />
@@ -296,7 +277,7 @@ function RejectSheet({ open, busy, venue, onClose, onReject }) {
 
 /* ---------- Activity ---------- */
 
-function Activity() {
+export function Activity() {
   const q = useApi('ops.activity', {}, { poll: 60000 });
   return (
     <Load q={q}>{(rows) => (rows.length ? (
@@ -314,15 +295,6 @@ function Activity() {
         </ul>
       </Tile>
     ) : <Empty icon={ClipboardList} title="No activity yet" body="Everything Ops AI does is logged here." />)}</Load>
-  );
-}
-
-/* ---------- Chat (moved to Orb) ---------- */
-
-function AskOrbMoved() {
-  return (
-    <Empty icon={Sparkles} title="Chat has moved to Orb" body="Orb is the round button at the bottom right of every page. It knows how the app works, looks things up, does small things straight away and asks you to confirm anything bigger."
-      action={<Button icon={Sparkles} onClick={() => window.dispatchEvent(new Event('orb:askorb'))}>Open Orb</Button>} />
   );
 }
 
@@ -350,7 +322,7 @@ const PACK_TIMES = [
 const packHint = (m) => { const n = Number(m); return !Number.isFinite(n) || m === '' ? '' : n === 0 ? 'At the start time' : `${Math.abs(n)} min ${n < 0 ? 'before' : 'after'} the start`; };
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-function OpsSettings() {
+export function OpsSettings() {
   const q = useApi('ops.settings.get', {});
   const [run, busy] = useAction();
   const [runNow, running] = useAction();
@@ -409,7 +381,7 @@ function OpsSettings() {
         <ModuleUsage />
         <div className="flex flex-wrap gap-2">
           <Button busy={busy} onClick={save}>Save settings</Button>
-          <Button variant="secondary" busy={running} onClick={() => runNow(() => api('ops.runNow', { reconcile: true }), 'Checks run — see the Inbox')}>Run checks now</Button>
+          <Button variant="secondary" busy={running} onClick={() => runNow(() => api('ops.runNow', { reconcile: true }), 'Checks run — see the Board tab')}>Run checks now</Button>
           <Button variant="secondary" busy={checking} onClick={() => runCheck(() => api('ops.complianceRun', {}), (r) => `Checked ${r.checked} officers · ${r.attention} need attention`).catch(() => {})}>Run compliance check</Button>
         </div>
       </div>

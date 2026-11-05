@@ -135,6 +135,7 @@ export default function Shell() {
   useEffect(() => startRealtime(user.id), [user.id]);
   const mail = useApi('email.accounts', {}, { poll: 120000, skip: user.role !== 'company' });
   useEffect(() => { const h = () => mail.reload(); window.addEventListener('orb:email', h); return () => window.removeEventListener('orb:email', h); });
+  useEffect(() => { const h = () => opsCount.reload(); window.addEventListener('orb:ops', h); return () => window.removeEventListener('orb:ops', h); });
   const badges = { ops: opsCount.data?.n || 0, everyday: feed.data?.unread || 0, messages: msgs.data?.unread || 0, email: (mail.data?.accounts || []).reduce((n, a) => n + (a.unread || 0), 0) };
   const loc = useLocation();
   const [more, setMore] = useState(false);

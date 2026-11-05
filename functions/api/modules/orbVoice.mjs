@@ -19,11 +19,11 @@ export const VOICE_MS = 10 * 60 * 1000;
 const LIVE_MODEL = 'gemini-3.8-live';
 const TERMS = ['Orb', 'SIA', 'SIA licence', 'door supervisor', 'steward', 'CCTV', 'rota', 'timesheet', 'pay run', 'clock-in', 'toolbox talk', 'Academy', 'ejection', 'incident report'];
 
-/** Voice is on unless Orb or "Talk to Orb" is switched off in Ops AI settings. */
+/** Voice is on unless Orb or "Talk to Orb" is switched off in Live operations › Settings. */
 async function voiceOn() {
   const s = await getSettings();
-  if (!jobOn(s, 'chat')) fail(403, 'Orb is switched off in Ops AI settings');
-  if (!jobOn(s, 'orb_voice')) fail(403, 'Talking to Orb is switched off in Ops AI settings');
+  if (!jobOn(s, 'chat')) fail(403, 'Orb is switched off in Live operations › Settings');
+  if (!jobOn(s, 'orb_voice')) fail(403, 'Talking to Orb is switched off in Live operations › Settings');
   return s;
 }
 

@@ -1,6 +1,6 @@
 import {
   BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
-  Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText, Sparkles,
+  Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText,
   GraduationCap, BookOpenCheck, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck,
 } from 'lucide-react';
 
@@ -12,10 +12,9 @@ export const NAV = {
       { to: '/company', label: 'Dashboard', icon: LayoutGrid, end: true, tab: true, badge: 'everyday' },
       { to: '/company/messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
       { to: '/company/email', label: 'Email', icon: Mail, badge: 'email' },
-      { to: '/company/ops', label: 'Ops AI', icon: Sparkles, badge: 'ops' },
     ] },
     { title: 'Operations', items: [
-      { to: '/company/live', label: 'Live operations', short: 'Live', icon: Radio, tab: true },
+      { to: '/company/live', label: 'Live operations', short: 'Live', icon: Radio, tab: true, badge: 'ops' },
       { to: '/company/rota', label: 'Rota', icon: CalendarDays, tab: true },
       { to: '/company/cover', label: 'Cover requests', icon: Megaphone },
       { to: '/company/timesheets', label: 'Timesheets', icon: ClipboardCheck },
@@ -53,10 +52,9 @@ export const NAV = {
     { title: 'Overview', items: [
       { to: '/security', label: 'Dashboard', icon: LayoutGrid, end: true, tab: true, badge: 'everyday' },
       { to: '/security/messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
-      { to: '/security/ops', label: 'Ops AI', icon: Sparkles, badge: 'ops' },
     ] },
     { title: 'Operations', items: [
-      { to: '/security/live', label: 'Live operations', short: 'Live', icon: Radio, tab: true },
+      { to: '/security/live', label: 'Live operations', short: 'Live', icon: Radio, tab: true, badge: 'ops' },
       { to: '/security/rota', label: 'Rota', icon: CalendarDays, tab: true },
       { to: '/security/exceptions', label: 'Exceptions', icon: TriangleAlert },
       { to: '/security/cover', label: 'Cover requests', icon: Megaphone },

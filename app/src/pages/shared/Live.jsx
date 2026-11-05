@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FileSignature, Lock, MapPin, Phone, QrCode, Radio, RefreshCw, TriangleAlert } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { FileSignature, Lock, MapPin, Phone, QrCode, Radio, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
 import {
-  Avatar, Button, Empty, IconButton, Input, KV, List, Load, Page, Pill, Row, Section, Segmented, Sheet, Textarea, cx, range, time, titleCase, useAction, useApi, useForm,
+  Avatar, Button, Empty, IconButton, Input, KV, List, Load, Page, Pill, Row, Section, Segmented, Sheet, Tabs, Textarea, Tile, cx, range, time, titleCase, useAction, useApi, useForm, useToast,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { Chip, fromLondonInput, toLondonInput, useBase } from '../manager/_parts.jsx';
 import { ProofFlags, SelfieCompare } from '../manager/_proof.jsx';
+import { Activity, Inbox, OpsSettings } from '../manager/OpsAI.jsx';
 
 const ISSUE = ['late', 'no_show', 'left_early'];
 const ON = ['on_shift', 'on_break'];
@@ -33,20 +34,80 @@ function PackPill({ r, venue }) {
 
 export default function Live() {
   const { base, isManager, user } = useBase();
+  const venue = user.role === 'venue';
   const q = useApi('live.board', {}, { poll: 15000 });
+  const count = useApi('ops.count', {}, { poll: 30000, skip: !isManager });
+  const [sp, setSp] = useSearchParams();
+  const raw = sp.get('tab');
+  const tab = isManager && (raw === 'activity' || (raw === 'settings' && user.role === 'company')) ? raw : 'board';
   const [filter, setFilter] = useState('all');
   const [open, setOpen] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [lastChecked, setLastChecked] = useState(null);
+  const [run, busy] = useAction();
+  const toast = useToast();
 
+  // The round arrows: managers run every Ops AI check now (chasing, cover, site packs, hours, compliance), then everything reloads
+  const refresh = () => {
+    if (!isManager) { q.reload(); toast('Updated'); return; }
+    run(() => api('ops.refresh')).then((r) => {
+      q.reload(); count.reload(); setReloadKey((k) => k + 1);
+      window.dispatchEvent(new Event('orb:ops'));
+      if (r.busy) return toast('Checks already running');
+      setLastChecked(r.checked_at);
+      toast(r.new_items ? `Checked — ${r.new_items} new ${r.new_items === 1 ? 'item' : 'items'} to approve` : r.errors?.length ? `Checked — some checks failed (${r.errors.join(', ')})` : 'Checked — all clear', r.errors?.length ? 'error' : undefined);
+    }).catch(() => {});
+  };
+
+  const tabs = [{ value: 'board', label: 'Board' }, { value: 'activity', label: 'Activity' }, ...(user.role === 'company' ? [{ value: 'settings', label: 'Settings' }] : [])];
+  const board = <Load q={q}>{(rows) => <Board rows={rows} filter={filter} setFilter={setFilter} onOpen={isManager ? setOpen : null} base={base} venue={venue} narrow={isManager} />}</Load>;
   return (
-    <Page title={user.role === 'venue' ? 'On site' : 'Live'} subtitle="Updates every 15 seconds"
-      actions={<IconButton icon={RefreshCw} label="Refresh" onClick={q.reload} className="bg-surface shadow-tile" />} wide>
-      <Load q={q}>{(rows) => <Board rows={rows} filter={filter} setFilter={setFilter} onOpen={isManager ? setOpen : null} base={base} venue={user.role === 'venue'} />}</Load>
+    <Page title={venue ? 'On site' : 'Live operations'} wide
+      subtitle={isManager ? <>Board updates every 15 seconds · Ops AI checks every 5 minutes{lastChecked && <> · last checked <span className="num">{time(lastChecked)}</span></>}</> : 'Updates every 15 seconds'}
+      actions={<>
+        {isManager && <Button variant="secondary" icon={Sparkles} onClick={() => window.dispatchEvent(new Event('orb:askorb'))}>Orb</Button>}
+        <IconButton icon={RefreshCw} label={isManager ? 'Run Ops AI checks and refresh' : 'Refresh'} onClick={refresh} disabled={busy}
+          className={cx('bg-surface shadow-tile', busy && '[&>svg]:animate-spin')} />
+      </>}>
+      {isManager && <Tabs value={tab} onChange={(v) => setSp(v === 'board' ? {} : { tab: v }, { replace: true })} tabs={tabs} />}
+      {tab === 'board' && (isManager ? (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
+          <div className="min-w-0">{board}</div>
+          <OpsPanel n={count.data?.n} reloadKey={reloadKey} onChange={count.reload} />
+        </div>
+      ) : board)}
+      {tab === 'activity' && <Activity />}
+      {tab === 'settings' && <OpsSettings />}
       {open && <Detail row={open} onClose={() => setOpen(null)} onDone={() => { setOpen(null); q.reload(); }} base={base} />}
     </Page>
   );
 }
 
-function Board({ rows, filter, setFilter, onOpen, base, venue }) {
+/** Ops AI beside the board (above it on phones, as a single line when there is nothing to approve). */
+function OpsPanel({ n, reloadKey, onChange }) {
+  const [expanded, setExpanded] = useState(false);
+  const quiet = n === 0 && !expanded;
+  return (
+    <aside className="order-first lg:sticky lg:top-4 lg:order-none lg:self-start">
+      <div className="mb-3 flex items-center gap-2">
+        <Sparkles size={18} className="text-blue" />
+        <h2 className="text-headline font-bold">Ops AI</h2>
+        {n > 0 && <Pill tone="blue">{n} to approve</Pill>}
+      </div>
+      {quiet ? (
+        <Tile className="flex items-center gap-3 lg:hidden">
+          <span className="min-w-0 flex-1 text-subhead text-muted">All clear. Nothing to approve.</span>
+          <Button size="sm" variant="link" onClick={() => setExpanded(true)}>Open</Button>
+        </Tile>
+      ) : null}
+      <div className={cx(quiet && 'hidden lg:block')}>
+        <Inbox compact reloadKey={reloadKey} onChange={onChange} />
+      </div>
+    </aside>
+  );
+}
+
+function Board({ rows, filter, setFilter, onOpen, base, venue, narrow }) {
   const n = (f) => rows.filter(f).length;
   const counts = {
     on: n((r) => ON.includes(r.state)), late: n((r) => r.state === 'late'), no_show: n((r) => r.state === 'no_show'),
@@ -81,7 +142,7 @@ function Board({ rows, filter, setFilter, onOpen, base, venue }) {
       {!rows.length && <div className="mt-4"><Empty icon={Radio} title="Nobody due on site" body="Officers on published shifts from 2 hours ago to 12 hours ahead show here." /></div>}
       {rows.length > 0 && !shown.length && <div className="mt-4"><Empty title="Nobody in this view" /></div>}
 
-      <div className="grid grid-cols-1 gap-x-5 lg:grid-cols-2">
+      <div className={cx('grid grid-cols-1 gap-x-5', narrow ? 'xl:grid-cols-2' : 'lg:grid-cols-2')}>
         {groups.map(([id, g]) => {
           const on = g.rows.filter((r) => ON.includes(r.state)).length;
           return (
