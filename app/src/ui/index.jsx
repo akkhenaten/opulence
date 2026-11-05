@@ -289,7 +289,57 @@ export function Field({ label, hint, error, children, className }) {
 }
 const inv = (error) => (error ? { 'aria-invalid': true } : {});
 export const Input = ({ label, hint, error, className, inputClassName, ...p }) => <Field label={label} hint={hint} error={error} className={className}><input className={cx(inputCls, inputClassName)} {...inv(error)} {...p} /></Field>;
-export const Textarea = ({ label, hint, error, className, rows = 4, ...p }) => <Field label={label} hint={hint} error={error} className={className}><textarea rows={rows} className={cx(inputCls, 'h-auto py-2.5 leading-relaxed')} {...inv(error)} {...p} /></Field>;
+// autoGrow: the box grows with what is typed (never below minRows), so long accounts stay readable on a phone
+export function Textarea({ label, hint, error, className, rows = 4, autoGrow, minRows, ...p }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!autoGrow || !el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [autoGrow, p.value]);
+  return (
+    <Field label={label} hint={hint} error={error} className={className}>
+      <textarea ref={ref} rows={autoGrow ? minRows || rows : rows} className={cx(inputCls, 'h-auto py-2.5 leading-relaxed', autoGrow && 'resize-none overflow-hidden')} {...inv(error)} {...p} />
+    </Field>
+  );
+}
+
+// True while the on-screen keyboard covers the bottom of the screen, so sticky bars can step aside
+export function useKeyboardOpen() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+    const check = () => setOpen(vv.height < window.innerHeight * 0.75);
+    vv.addEventListener('resize', check);
+    return () => vv.removeEventListener('resize', check);
+  }, []);
+  return open;
+}
+
+// A yes/no question as two big equal buttons; danger tints Yes red (force used)
+export function YesNo({ label, hint, icon: I, value, onChange, danger }) {
+  const opt = (on, text) => {
+    const chosen = value === on;
+    return (
+      <Pressable press aria-pressed={chosen} onClick={() => onChange(on)}
+        className={cx('flex h-12 flex-1 items-center justify-center gap-1.5 rounded-2xl border-2 text-callout font-semibold transition-colors',
+          !chosen ? 'border-transparent bg-bg text-ink' : on && danger ? 'border-red bg-red-soft text-red' : 'border-blue bg-blue-soft text-blue')}>
+        {chosen && <CheckIcon size={18} aria-hidden />}{text}
+      </Pressable>
+    );
+  };
+  return (
+    <div role="group" aria-label={label}>
+      <div className="flex items-start gap-2.5">
+        {I && <I size={20} className="mt-0.5 shrink-0 text-muted" aria-hidden />}
+        <div><div className="text-body font-semibold">{label}</div>{hint && <div className="text-footnote text-muted">{hint}</div>}</div>
+      </div>
+      <div className="mt-2.5 flex gap-2">{opt(false, 'No')}{opt(true, 'Yes')}</div>
+    </div>
+  );
+}
 export function Select({ label, hint, error, options, className, placeholder, ...p }) {
   return (
     <Field label={label} hint={hint} error={error} className={className}>

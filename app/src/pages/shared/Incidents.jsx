@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Camera, MapPin, Plus, ShieldAlert } from 'lucide-react';
+import { Camera, ChevronRight, FilePen, MapPin, Plus, ShieldAlert, Trash2 } from 'lucide-react';
+import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, cx, dateTime, Empty, Load, Page, Pill, SearchInput, Segmented, Select, useApi } from '../../ui/index.jsx';
+import { Button, cx, dateTime, dayLabel, Empty, IconButton, List, Load, Page, Pill, SearchInput, Section, Segmented, Select, time, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { clearLocal } from '../officer/_draft.js';
 import { INCIDENT_STATUS, INCIDENT_TYPES, LatePill, NotLinked, SEVERITIES, typeLabel } from '../officer/_parts.jsx';
 
 const SEV_BAR = { low: 'bg-faint', medium: 'bg-amber', high: 'bg-red', critical: 'bg-red' };
@@ -31,6 +33,7 @@ export default function Incidents() {
   return (
     <Page title="Incidents" subtitle={officer ? 'Your incident reports' : undefined} wide={!officer}
       actions={((officer && user.officer_id) || ['company', 'security'].includes(user.role)) && <Button icon={Plus} to={`${base}/incidents/new`}>{officer ? 'Report' : 'Report incident'}</Button>}>
+      {((officer && user.officer_id) || !officer) && <Drafts base={base} officer={officer} />}
       <div className="mb-3 space-y-2">
         <div className="no-scrollbar -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           <Segmented value={f.status} onChange={(val) => setF('status', val)}
@@ -87,5 +90,40 @@ export default function Incidents() {
         ))}
       </Load>}
     </Page>
+  );
+}
+
+// Reports the writer started and has not sent yet; only they see them
+function Drafts({ base, officer }) {
+  const q = useApi('incidents.drafts', {});
+  const confirm = useConfirm();
+  const [run] = useAction();
+  // A manager who also works shifts sees each side's own drafts
+  const rows = (q.data || []).filter((d) => d.manager === !officer);
+  if (!rows.length) return null;
+  const del = async (d) => {
+    if (!(await confirm({ title: 'Delete this draft?', body: 'The draft and any photos added to it are deleted. This cannot be undone.', confirm: 'Delete', danger: true }))) return;
+    run(() => api('incidents.draftDelete', { id: d.id }), 'Draft deleted').then(() => { clearLocal(d.id); q.reload(); }).catch(() => {});
+  };
+  return (
+    <Section title="Your drafts" className="!mt-0 mb-5">
+      <List>
+        {rows.map((d) => (
+          <div key={d.id} className="flex items-center gap-1 pr-2">
+            <Link to={`${base}/incidents/new?draft=${d.id}`} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition-colors hover:bg-bg active:bg-fill">
+              <FilePen size={20} className="shrink-0 text-amber" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-body font-semibold">{d.type ? typeLabel(d.type) : 'Untitled report'}{d.venue_name ? ` · ${d.venue_name}` : ''}</div>
+                <div className="truncate text-footnote text-muted">
+                  {d.shift_starts_at ? `${dayLabel(d.shift_starts_at)} shift · ` : ''}Saved {dayLabel(d.updated_at)} {time(d.updated_at)} · {d.progress.done} of {d.progress.total} parts
+                </div>
+              </div>
+              <ChevronRight size={18} className="shrink-0 text-faint" aria-hidden />
+            </Link>
+            <IconButton icon={Trash2} label="Delete draft" size="sm" onClick={() => del(d)} />
+          </div>
+        ))}
+      </List>
+    </Section>
   );
 }

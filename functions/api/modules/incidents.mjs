@@ -1,7 +1,7 @@
 import { one, q, tx } from '../lib/db.mjs';
 import { fail, required, need } from '../lib/http.mjs';
 import { venueScope, assertVenue } from '../lib/scope.mjs';
-import { downloadUrl, getObjectBytes, headObject } from '../lib/storage.mjs';
+import { deleteObject, downloadUrl, getObjectBytes, headObject } from '../lib/storage.mjs';
 import { notify, managersFor, venueContacts, officerUser } from '../lib/notify.mjs';
 import { fmtDateTime } from '../lib/time.mjs';
 import { Doc } from '../lib/pdf.mjs';
@@ -10,6 +10,7 @@ import { getSettings } from './settings.mjs';
 import { ALL, MGR, def } from './_def.mjs';
 import { summarySig } from './incidentAi.mjs';
 import { officerName, userName } from '../lib/names.mjs';
+import { cleanDraft, draftProgress } from '../lib/incidentDrafts.mjs';
 
 export const TYPES = ['ejection', 'refused_entry', 'assault', 'theft', 'drugs', 'weapon', 'medical', 'damage', 'fire', 'disorder', 'lost_child', 'vulnerable_person', 'other'];
 const SEVERITIES = ['low', 'medium', 'high', 'critical'];
@@ -110,6 +111,21 @@ export async function loadFull(id) {
   };
 }
 
+// A draft is private to its writer; deleting it also removes files that never reached a report, and its reminders
+export async function dropDraft(id, userId) {
+  const d = await one('DELETE FROM incident_drafts WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2) RETURNING attachments', [id, userId]);
+  if (!d) return false;
+  for (const a of d.attachments || []) await deleteObject(a.key).catch(() => {});
+  await q('DELETE FROM notifications WHERE ref = $1', [`draft:${id}`]);
+  return true;
+}
+
+const DRAFT_SQL = `
+  SELECT d.id, d.step, d.version, d.updated_at, d.created_at, d.data, d.shift_id, s.starts_at AS shift_starts_at, s.ends_at AS shift_ends_at,
+         COALESCE(v.name, mv.name) AS venue_name
+    FROM incident_drafts d LEFT JOIN shifts s ON s.id = d.shift_id LEFT JOIN venues v ON v.id = COALESCE(d.venue_id, s.venue_id)
+    LEFT JOIN venues mv ON mv.id = NULLIF(d.data->'manager'->>'venue_id', '')::uuid`;
+
 export const actions = {
   'incidents.types': def(ALL, async () => ({ types: TYPES, severities: SEVERITIES })),
 
@@ -143,6 +159,50 @@ export const actions = {
     const v = need(await one('SELECT v.*, i.venue_id FROM incident_versions v JOIN incidents i ON i.id = v.incident_id WHERE v.id = $1', [b.id]));
     await assertVenue(user, v.venue_id);
     return v;
+  }),
+
+  // Drafts: half-written reports saved as the writer goes, seen by nobody else until they submit
+  'incidents.drafts': def(['officer', 'company', 'security'], async (b, { user }) => {
+    const rows = await q(`${DRAFT_SQL} WHERE d.user_id = $1 ORDER BY d.updated_at DESC LIMIT 50`, [user.id]);
+    return rows.map(({ data, ...d }) => ({ ...d, type: data.type || null, shift_id: d.shift_id || data.shift_id || null, manager: !!data.manager, progress: draftProgress(data) }));
+  }),
+
+  'incidents.draftGet': def(['officer', 'company', 'security'], async (b, { user }) => {
+    required(b, 'id');
+    const d = need(await one(`${DRAFT_SQL.replace('SELECT d.id,', 'SELECT d.attachments, d.id,')} WHERE d.id = $1 AND d.user_id = $2`, [b.id, user.id]), 'This draft has been submitted or deleted');
+    for (const a of d.attachments) a.url = await downloadUrl(a.key, a.name).catch(() => null);
+    return d;
+  }),
+
+  'incidents.draftSave': def(['officer', 'company', 'security'], async (b, { user }) => {
+    const data = cleanDraft(b.data);
+    const files = (Array.isArray(b.attachments) ? b.attachments : []).map((a) => ({ key: String(a?.key || ''), mime: String(a?.mime || ''), name: String(a?.name || '').slice(0, 200) }));
+    if (files.length > MAX_ATTACHMENTS) fail(400, `A report can hold up to ${MAX_ATTACHMENTS} photos and files`);
+    if (files.some((a) => !ownUpload(user, a.key))) fail(400, 'Invalid attachment');
+    const step = Math.max(0, Math.min(10, Number(b.step) || 0));
+    const shiftId = data.shift_id || data.manager?.shift_id || null;
+    // An officer's draft only links to a shift they are on; a manager's to any shift in their venues (checked again at submit)
+    const sh = shiftId ? await one(
+      `SELECT s.id, s.venue_id FROM shifts s WHERE s.id = $1 AND ($2::uuid IS NULL OR EXISTS (SELECT 1 FROM shift_assignments a WHERE a.shift_id = s.id AND a.officer_id = $2))`,
+      [shiftId, user.role === 'officer' ? user.officer_id : null]) : null;
+    const venueId = sh?.venue_id || data.manager?.venue_id || null;
+    const args = [user.id, sh?.id || null, venueId, JSON.stringify(data), JSON.stringify(files), step];
+    if (!b.id) {
+      return one(`INSERT INTO incident_drafts (user_id, shift_id, venue_id, data, attachments, step) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, version, updated_at`, args);
+    }
+    // Each reminder is sent once; an edit only restarts the 30-day clock and its warning
+    const row = await one(
+      `UPDATE incident_drafts SET shift_id = $2, venue_id = $3, data = $4, attachments = $5, step = $6, version = version + 1, updated_at = now(), warned_expiry = false
+        WHERE id = $7 AND user_id = $1 AND ($8::int IS NULL OR version = $8) RETURNING id, version, updated_at`, [...args, b.id, b.version ?? null]);
+    if (row) return row;
+    const cur = need(await one(`${DRAFT_SQL.replace('SELECT d.id,', 'SELECT d.attachments, d.id,')} WHERE d.id = $1 AND d.user_id = $2`, [b.id, user.id]), 'This draft has been submitted or deleted');
+    fail(409, 'This draft was updated on another device', { draft: cur });
+  }),
+
+  'incidents.draftDelete': def(['officer', 'company', 'security'], async (b, { user }) => {
+    required(b, 'id');
+    need(await dropDraft(b.id, user.id), 'This draft has been submitted or deleted');
+    return { ok: true };
   }),
 
   // Officers report from their shift; managers can file on behalf of an officer.
@@ -186,8 +246,11 @@ export const actions = {
       await saveAttachments(t, row.id, b.attachments, user);
       if (entry) await t.q("UPDATE shift_log_entries SET incident_id = $2, kind = 'incident', updated_at = now() WHERE id = $1", [entry.id, row.id]);
       await t.q('INSERT INTO incident_versions (incident_id, version, data, edited_by) VALUES ($1,1,$2,$3)', [row.id, JSON.stringify({ ...f, witnesses: b.witnesses || [] }), user.id]);
+      // The draft it was written from is done; its files now belong to the report
+      if (b.draft_id) await t.q('DELETE FROM incident_drafts WHERE id = $1 AND user_id = $2', [b.draft_id, user.id]);
       return row;
     });
+    if (b.draft_id) await q('DELETE FROM notifications WHERE ref = $1', [`draft:${b.draft_id}`]);
     const v = await one('SELECT name FROM venues WHERE id = $1', [venueId]);
     // A report filed a week or more after the event is a record, not an alert
     const late = lateDays(inc);

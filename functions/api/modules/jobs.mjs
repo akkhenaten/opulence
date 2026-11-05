@@ -19,6 +19,8 @@ import { transcriptSweep } from './messages.mjs';
 import { feedJobs } from './everydayJobs.mjs';
 import { emailSync } from './email.mjs';
 import { applicantJobs } from './apply.mjs';
+import { dropDraft } from './incidents.mjs';
+import { reminderDue } from '../lib/incidentDrafts.mjs';
 import { officerName } from '../lib/names.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in.
@@ -128,10 +130,47 @@ async function overdueInvoices() {
   return rows.length;
 }
 
+// Unfinished incident reports: their writer (and only them) is reminded after the shift and the next morning; idle drafts go after 30 days
+const DRAFT_TEXT = {
+  after_shift: ['Finish your incident report', (v) => `You have an unfinished report${v ? ` from ${v}` : ''}. Finish it while it’s fresh.`],
+  morning: ['Your incident report is still a draft', (v) => `The report${v ? ` from ${v}` : ''} hasn’t been sent yet. It only takes a few minutes to finish.`],
+  expiry_warn: ['This draft will be deleted in 3 days', (v) => `Your unfinished incident report${v ? ` from ${v}` : ''} is deleted after 30 days without changes.`],
+};
+const DRAFT_FLAG = { after_shift: 'reminded_after_shift', morning: 'reminded_morning', expiry_warn: 'warned_expiry' };
+export async function draftReminders(s, now = new Date()) {
+  let sent = 0;
+  let removed = 0;
+  for (const d of await q("SELECT d.id FROM incident_drafts d JOIN users u ON u.id = d.user_id WHERE u.status = 'disabled' LIMIT 200")) {
+    if (await dropDraft(d.id, null)) removed++;
+  }
+  const rows = await q(
+    `SELECT d.id, d.user_id, d.created_at, d.updated_at, d.reminded_after_shift, d.reminded_morning, d.warned_expiry, d.data, u.role,
+            s.ends_at AS shift_ends_at, COALESCE(v.name, mv.name) AS venue_name
+       FROM incident_drafts d JOIN users u ON u.id = d.user_id AND u.status = 'active'
+       LEFT JOIN shifts s ON s.id = d.shift_id LEFT JOIN venues v ON v.id = COALESCE(d.venue_id, s.venue_id)
+       LEFT JOIN venues mv ON mv.id = NULLIF(d.data->'manager'->>'venue_id', '')::uuid
+      WHERE NOT (d.reminded_after_shift AND d.reminded_morning AND d.warned_expiry) OR d.updated_at < $1
+      ORDER BY d.updated_at LIMIT 200`, [new Date(now.getTime() - 29 * 86400000)]);
+  for (const d of rows) {
+    const which = reminderDue(d, d.shift_ends_at, now);
+    if (!which) continue;
+    if (which === 'expire') { if (await dropDraft(d.id, null)) removed++; continue; }
+    const flag = DRAFT_FLAG[which];
+    const claimed = await q(`UPDATE incident_drafts SET ${flag} = true WHERE id = $1 AND NOT ${flag} RETURNING id`, [d.id]);
+    if (!claimed.length) continue;
+    // Written on the officer side (a shift, no manager picks) opens there; otherwise on the writer's own side
+    const base = d.role === 'officer' || (d.data?.shift_id && !d.data?.manager) ? '/officer' : `/${d.role}`;
+    const [title, body] = DRAFT_TEXT[which];
+    await notify([d.user_id], { kind: 'incident', severity: 'info', title, body: body(d.venue_name), link: `${base}/incidents/new?draft=${d.id}`, dedupe: `draft:${d.id}:${which}`, ref: `draft:${d.id}`, email: which !== 'after_shift' });
+    sent++;
+  }
+  return { sent, removed };
+}
+
 export async function runJobs() {
   const s = await getSettings();
   const result = {};
-  for (const [name, fn] of Object.entries({ lateAlerts, reminders, closeOpenShifts, autoSignoff, expiryAlerts, overdueInvoices })) {
+  for (const [name, fn] of Object.entries({ lateAlerts, reminders, closeOpenShifts, autoSignoff, expiryAlerts, overdueInvoices, draftReminders })) {
     try {
       result[name] = await fn(s);
     } catch (e) {

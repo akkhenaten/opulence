@@ -1,12 +1,17 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, FileSignature, Fingerprint, Globe, GraduationCap, MessageSquareHeart,
+  BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, FilePen, FileSignature, Fingerprint, Globe, GraduationCap, MessageSquareHeart,
   MessagesSquare, Newspaper, Palette, Radar, ShieldAlert, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { Pill } from '../../ui/index.jsx';
 
 // Newest first; the first card is the latest release
 export const UPDATES = [
+  {
+    month: 'November 2026', icon: FilePen, title: 'Incident reports that wait for you',
+    lede: 'A report can now be started in the moment and finished when the night is over. Nothing is lost if the signal drops or the phone locks.',
+    points: ['Drafts save as you write, private to you until you send them', 'A reminder after the shift and the next morning', 'A roomier form on the phone, with clear Yes and No answers', 'Jump to any step, and see at a glance what is still missing'],
+  },
   {
     month: 'November 2026', icon: Globe, title: 'Every venue, on your website',
     lede: 'Each venue you look after now has its own tile on your website from day one. A warm welcome line greets visitors until the praise starts arriving.',
