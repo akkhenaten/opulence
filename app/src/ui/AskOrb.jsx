@@ -7,7 +7,7 @@ import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { Button, Check, cx, Empty, IconButton, Pill, Pressable, relative, useAction, useApi, useConfirm, useScrollLock } from './index.jsx';
 import { Composer, Suggestions } from './Chat.jsx';
-import OrbMark from './OrbMark.jsx';
+import OrbBrand from './OrbBrand.jsx';
 import { canRecord, MicButton, VoiceView } from './OrbVoice.jsx';
 
 const KEY = 'orb.askorb';
@@ -146,7 +146,7 @@ export default function AskOrb({ open, onClose, onDot }) {
           ? <IconButton icon={ChevronLeft} label="Back to chat" onClick={() => setView('chat')} />
           : <IconButton icon={History} label="Previous chats" onClick={() => setView('history')} />}
         <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-1">
-          <OrbMark className="h-7 w-7" />
+          <OrbBrand className="h-7 w-7" />
           <div className="min-w-0 text-left">
             <div className="text-headline font-semibold leading-tight">Orb</div>
             <div className="truncate text-caption text-muted">{view === 'chat' && title ? title : 'Your assistant'}</div>
@@ -167,7 +167,7 @@ export default function AskOrb({ open, onClose, onDot }) {
           <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
             {!msgs.length && !busy && (
               <div className="py-6 text-center">
-                <OrbMark className="mx-auto mb-3 h-12 w-12" />
+                <OrbBrand className="mx-auto mb-3 h-12 w-12" />
                 <div className="text-callout font-semibold">What can I do for you?</div>
                 <p className="mx-auto mt-1 max-w-xs text-subhead text-muted">Ask how anything works, look things up, or ask me to do it. Small things I do straight away; anything bigger waits for your Confirm.</p>
                 <Suggestions items={suggestionsFor(user, pageContext(pathname))} onPick={send} />

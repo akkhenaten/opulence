@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, PhoneOff, Square } from 'lucide-react';
 import { api, upload } from '../api.js';
 import { Button, cx, IconButton, useToast } from './index.jsx';
-import OrbMark from './OrbMark.jsx';
+import OrbBrand from './OrbBrand.jsx';
 
 // The classic script, not the ES module: the module file has no CORS header, so browsers refuse to import it
 const SDK = 'https://openkbs.com/sdk/live.js';
@@ -301,9 +301,9 @@ export function VoiceView({ conversationId, page, onConversation, onEnd, Message
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 flex-col items-center gap-2 border-b border-line px-4 pb-4 pt-6">
         <div className="relative grid h-28 w-28 place-items-center">
-          {shown === 'listening' && <span className="orb-voice-halo absolute inset-0 rounded-[34px] bg-blue" />}
-          {(shown === 'connecting' || shown === 'thinking') && <span className="orb-voice-turn absolute -inset-1.5 rounded-full border-[3px] border-blue/20 border-t-blue" />}
-          <OrbMark className={cx('relative h-24 w-24', shown === 'speaking' && 'orb-voice-speaking', shown === 'muted' && 'opacity-50 grayscale')} />
+          {shown === 'listening' && <span className="orb-voice-halo absolute inset-0 rounded-full bg-gold" />}
+          {(shown === 'connecting' || shown === 'thinking') && <span className="orb-voice-turn absolute -inset-1.5 rounded-full border-[3px] border-gold/20 border-t-gold" />}
+          <OrbBrand className={cx('relative h-24 w-24', shown === 'speaking' && 'orb-voice-speaking', shown === 'muted' && 'opacity-50 grayscale')} />
         </div>
         <div className="text-headline font-semibold" aria-live="polite">{phase === 'error' ? 'Voice unavailable' : phase === 'ending' ? 'Ending…' : STATE_LABEL[shown] || 'Listening'}</div>
         {phase === 'live' && <div className="num text-caption text-muted">{clock(elapsed)} · ends after 2 minutes of quiet or 10 minutes</div>}
