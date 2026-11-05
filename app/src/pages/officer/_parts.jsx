@@ -144,3 +144,13 @@ export const SEVERITIES = [
   { value: 'critical', label: 'Critical', hint: 'Serious harm or risk to life' },
 ];
 export const INCIDENT_STATUS = { submitted: 'Submitted', changes_requested: 'Changes requested', closed: 'Closed' };
+
+// Whole days between an incident and its report, when it was filed more than a day later (same rule as the API)
+export function lateDays(inc) {
+  const gap = new Date(inc.created_at || Date.now()) - new Date(inc.occurred_at);
+  return gap > 86400000 ? Math.floor(gap / 86400000) : 0;
+}
+export const LatePill = ({ inc }) => {
+  const n = lateDays(inc);
+  return n ? <Pill tone="amber">Reported {n} day{n > 1 ? 's' : ''} later</Pill> : null;
+};

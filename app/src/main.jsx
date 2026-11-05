@@ -138,6 +138,7 @@ const managerRoutes = (
     <Route path="timesheets" element={<Timesheets />} />
     <Route path="exceptions" element={<Exceptions />} />
     <Route path="incidents" element={<Incidents />} />
+    <Route path="incidents/new" element={<IncidentForm />} />
     <Route path="incidents/:id" element={<IncidentDetail />} />
     <Route path="staff" element={<Staff />} />
     <Route path="staff/:id" element={<StaffProfile />} />

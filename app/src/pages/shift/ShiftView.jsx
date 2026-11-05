@@ -139,7 +139,8 @@ function Header({ s, me, officer, signed }) {
 }
 
 function QuickActions({ s, d }) {
-  const started = new Date(s.starts_at).getTime() - 3600000 <= Date.now();
+  // Officers can report up to 30 days after a shift ends
+  const started = new Date(s.starts_at).getTime() - 3600000 <= Date.now() && Date.now() - new Date(s.ends_at).getTime() < 30 * 86400000;
   return (
     <div className="flex flex-wrap gap-2">
       {started && <Button variant="soft" icon={ShieldAlert} to={`/officer/incidents/new?shift=${s.id}`}>Report incident</Button>}

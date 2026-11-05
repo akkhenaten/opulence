@@ -33,8 +33,8 @@ async function upcomingShifts(scope, hours = 36) {
 }
 
 const recentIncidents = (scope) => q(
-  `SELECT i.id, i.ref, i.type, i.severity, i.status, i.occurred_at, v.name AS venue_name FROM incidents i JOIN venues v ON v.id = i.venue_id
-    WHERE ($1::uuid[] IS NULL OR i.venue_id = ANY($1)) ORDER BY i.occurred_at DESC LIMIT 6`, [scope]);
+  `SELECT i.id, i.ref, i.type, i.severity, i.status, i.occurred_at, i.created_at, v.name AS venue_name FROM incidents i JOIN venues v ON v.id = i.venue_id
+    WHERE ($1::uuid[] IS NULL OR i.venue_id = ANY($1)) ORDER BY i.created_at DESC LIMIT 6`, [scope]);
 
 async function managerDash(ctx) {
   const { user } = ctx;

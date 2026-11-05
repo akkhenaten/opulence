@@ -8,7 +8,7 @@ import { useAuth } from '../../auth.jsx';
 import {
   Button, cx, dateTime, KV, Lightbox, List, Load, Page, Pill, Pressable, Row, Section, Sheet, Spinner, Textarea, Tile, useAction, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
-import { INCIDENT_STATUS, typeLabel } from '../officer/_parts.jsx';
+import { INCIDENT_STATUS, LatePill, typeLabel } from '../officer/_parts.jsx';
 import { DOC_ACCEPT, fileSize, MAX_FILES, useUploads } from './evidence.jsx';
 
 const yn = (b, ref) => (b ? `Yes${ref ? ` (ref ${ref})` : ''}` : 'No');
@@ -60,6 +60,7 @@ function Detail({ inc, reload, base }) {
             <Pill status={inc.severity}>{inc.severity === 'critical' ? 'Critical' : `${inc.severity[0].toUpperCase()}${inc.severity.slice(1)} severity`}</Pill>
             <Pill status={inc.status}>{INCIDENT_STATUS[inc.status]}</Pill>
             {inc.version > 1 && <Pill tone="grey">Version {inc.version}</Pill>}
+            <LatePill inc={inc} />
             {isMgr && inc.ai_assisted && <Pill tone="blue"><Sparkles size={14} />AI-assisted</Pill>}
           </div>
           <KV items={[

@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { one, q } from '../lib/db.mjs';
 import { fail, required, need } from '../lib/http.mjs';
 import { getObjectBytes, headObject } from '../lib/storage.mjs';
-import { assertVenue } from '../lib/scope.mjs';
+import { assertVenue, venueScope } from '../lib/scope.mjs';
 import { extract, fileBlock, canRead, SONNET } from '../lib/ai.mjs';
 import { fmtDateTime } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
@@ -90,7 +90,7 @@ const REVIEW_TOOL = {
 };
 
 const reportText = (inc) => [
-  `Type: ${inc.type}`, `Severity: ${inc.severity}`, `When: ${fmtDateTime(inc.occurred_at)}`, `Venue: ${inc.venue_name}`, `Location: ${inc.location || '—'}`,
+  `Type: ${inc.type}`, `Severity: ${inc.severity}`, `When: ${fmtDateTime(inc.occurred_at)}`, inc.created_at ? `Reported: ${fmtDateTime(inc.created_at)}` : '', `Venue: ${inc.venue_name}`, `Location: ${inc.location || '—'}`,
   `Description: ${inc.description || '—'}`, `People involved: ${inc.people_involved || '—'}`, `Injuries: ${inc.injuries || '—'}`,
   `Actions taken: ${inc.actions_taken || '—'}`, `Force used: ${inc.force_used ? `yes — ${inc.force_justification}` : 'no'}`,
   `Police called: ${inc.police_called ? 'yes' : 'no'}`, `Ambulance called: ${inc.ambulance_called ? 'yes' : 'no'}`,
@@ -156,15 +156,18 @@ export async function evidenceScan(s) {
 
 export const actions = {
   // Officer: suggest report fields from their photos/files and rough notes
-  'incidents.aiDraft': def(['officer'], async (b, { user }) => {
+  // Officers draft from their shift; managers filing from the office can use it too
+  'incidents.aiDraft': def(['officer', 'company', 'security'], async (b, { user }) => {
+    const officer = user.role === 'officer';
     if (!aiOn(await getSettings())) fail(400, 'AI on incidents is switched off by your company');
     const keys = [...new Set(b.keys || [])].slice(0, 20);
     const notes = String(b.notes || '').slice(0, 4000);
     if (!keys.length && !notes.trim()) fail(400, 'Add photos or a few notes first');
     let own = [];
     if (b.incident_id) {
-      const inc = need(await one('SELECT id, officer_id FROM incidents WHERE id = $1', [b.incident_id]));
-      if (inc.officer_id !== user.officer_id) fail(403, 'Forbidden');
+      const inc = need(await one('SELECT id, officer_id, venue_id FROM incidents WHERE id = $1', [b.incident_id]));
+      if (!officer) await assertVenue(user, inc.venue_id);
+      else if (inc.officer_id !== user.officer_id) fail(403, 'Forbidden');
       own = await q('SELECT s3_key, mime, name, size_bytes FROM incident_attachments WHERE incident_id = $1 AND removed_at IS NULL', [inc.id]);
     }
     const files = [];
@@ -177,13 +180,16 @@ export const actions = {
     }
     const shift = b.shift_id ? await one(
       `SELECT s.starts_at, s.ends_at, v.name AS venue_name, r.name AS role_name FROM shifts s JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role
-        JOIN shift_assignments a ON a.shift_id = s.id AND a.officer_id = $2 WHERE s.id = $1`, [b.shift_id, user.officer_id]) : null;
+        WHERE s.id = $1 AND ($3::uuid[] IS NULL OR s.venue_id = ANY($3))
+          AND ($2::uuid IS NULL OR EXISTS (SELECT 1 FROM shift_assignments a WHERE a.shift_id = s.id AND a.officer_id = $2))`,
+      [b.shift_id, officer ? user.officer_id : null, officer ? null : await venueScope(user)]) : null;
     const { blocks, used, skipped } = await loadBlocks(files);
     const current = Object.entries(b.current || {}).filter(([, v]) => v !== '' && v != null).map(([k, v]) => `${k}: ${String(v).slice(0, 500)}`).join('\n');
     const text = [
-      `Officer: ${user.name}.`,
+      officer ? `Officer: ${user.name}.` : `Written by ${user.name} from the office, not the officer on the door.`,
       shift ? `Shift: ${shift.role_name} at ${shift.venue_name}, ${fmtDateTime(shift.starts_at)} to ${fmtDateTime(shift.ends_at)}.` : '',
       b.occurred_at ? `Incident time given: ${fmtDateTime(b.occurred_at)}.` : '',
+      b.occurred_at && Date.now() - new Date(b.occurred_at) > 86400000 ? `This is being written up later, on ${fmtDateTime(new Date())}: write it in the past tense from the officer's recollection.` : '',
       `Officer's rough notes:\n${notes || '(none)'}`,
       current ? `Fields already filled in:\n${current}` : '',
       used.length ? `${used.length} photo(s)/file(s) follow.` : 'No photos.',

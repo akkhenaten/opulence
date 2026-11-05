@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, Ambulance, Baby, Ban, Camera, Check, ChevronLeft, ChevronRight, CircleHelp, DoorOpen, FilePlus, Flame, Hammer, HeartPulse, ImagePlus, MessageSquareWarning,
   Pencil, Pill as PillIcon, Plus, ShieldAlert, ShoppingBag, Siren, Sparkles, Swords, Trash2, UserRoundX,
@@ -7,7 +7,7 @@ import {
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Button, cx, dateTime, dayLabel, fromLocalInput, Input, KV, Load, Page, Pressable, range, Sheet, Spinner, Textarea, Toggle, toLocalInput, useAction, useApi, useConfirm, useToast,
+  Button, cx, dateTime, dayLabel, fromLocalInput, Input, KV, Load, Page, Pill, Pressable, range, Segmented, Select, Sheet, Spinner, Textarea, Toggle, toLocalInput, useAction, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
 import { INCIDENT_TYPES, NotLinked, Progress, SEVERITIES, typeLabel } from './_parts.jsx';
 import { DOC_ACCEPT, FileTile, MAX_FILES, useUploads } from '../shared/evidence.jsx';
@@ -25,10 +25,17 @@ const BLANK = {
   force_used: false, force_justification: '', police_called: false, police_ref: '', ambulance_called: false, ambulance_ref: '',
 };
 const H = 3600000;
+const DAY = 24 * H;
+// Officers can report up to 30 days back (incidents.create checks the same)
+const BACKDATE_DAYS = 30;
+const PAGE = 8;
 
 export default function IncidentForm() {
   const { id } = useParams();
   const { user } = useAuth();
+  const { pathname } = useLocation();
+  // Managers file from /company or /security/incidents/new for any venue and date
+  if (!id && user.role !== 'officer' && !pathname.startsWith('/officer')) return <Wizard manager />;
   if (!user.officer_id) return <Page title="Report incident"><NotLinked /></Page>;
   return id ? <EditLoader id={id} /> : <Wizard />;
 }
@@ -44,8 +51,10 @@ function EditLoader({ id }) {
   );
 }
 
-function Wizard({ existing }) {
+function Wizard({ existing, manager }) {
   const nav = useNavigate();
+  const { user } = useAuth();
+  const base = manager ? `/${user.role}` : '/officer';
   const toast = useToast();
   const edit = !!existing;
   const [step, setStep] = useState(0);
@@ -69,32 +78,53 @@ function Wizard({ existing }) {
   const [run, busy] = useAction();
   const top = useRef(null);
 
-  // Shifts the officer could be reporting from (recent and current)
-  const [from] = useState(() => new Date(Date.now() - 3 * 24 * H).toISOString());
-  const shiftsQ = useApi('shifts.mine', { from }, { skip: edit });
+  // Shifts the officer could be reporting from: tonight's, or any they worked in the last 30 days
+  const [from] = useState(() => new Date(Date.now() - BACKDATE_DAYS * DAY).toISOString());
+  const shiftsQ = useApi('shifts.mine', { from }, { skip: edit || manager });
   const shifts = useMemo(() => (shiftsQ.data || [])
     .filter((s) => ['assigned', 'accepted'].includes(s.assignment_status) && new Date(s.starts_at) - 2 * H <= Date.now())
     .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at)), [shiftsQ.data]);
+  const recent = useMemo(() => shifts.filter((s) => Date.now() - new Date(s.ends_at) < 12 * H), [shifts]);
+  // "Earlier" when coming from an older shift's page, or when there is nothing on tonight
+  const [when, setWhen] = useState('now');
   useEffect(() => {
-    if (edit || shiftId || !shifts.length) return;
+    if (edit || manager || shiftId || !shifts.length) return;
     const now = Date.now();
     const live = shifts.find((s) => new Date(s.starts_at) - 2 * H <= now && new Date(s.ends_at).getTime() + 2 * H >= now);
-    setShiftId((live || shifts[0]).id);
-  }, [shifts, edit, shiftId]);
+    if (live || recent.length) setShiftId((live || recent[0]).id);
+    else setWhen('earlier');
+  }, [shifts, recent, edit, manager, shiftId]);
   const shift = shifts.find((s) => s.id === shiftId);
+  useEffect(() => {
+    if (shift && !recent.includes(shift)) { setWhen('earlier'); pickShift(shift); }
+  }, [shift, recent]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Manager mode: venue, an optional shift that day and an optional officer
+  const [m, setM] = useState({ venue_id: '', shift_id: '', officer_id: '' });
+  const venuesQ = useApi('venues.list', {}, { skip: !manager });
+  const venueName = manager ? venuesQ.data?.find((x) => x.id === m.venue_id)?.name : shift?.venue_name || existing?.venue_name;
 
   const set = (k) => (e) => setV((s) => ({ ...s, [k]: e?.target ? e.target.value : e }));
   const at = fromLocalInput(v.occurred_at);
   const atMs = at ? new Date(at).getTime() : NaN;
   const future = atMs > Date.now() + 5 * 60000;
-  const outsideShift = !edit && shift && (atMs < new Date(shift.starts_at) - 2 * H || atMs > new Date(shift.ends_at).getTime() + 2 * H);
+  const outsideShift = !edit && !manager && shift && (atMs < new Date(shift.starts_at) - 2 * H || atMs > new Date(shift.ends_at).getTime() + 2 * H);
+  const tooOld = !edit && !manager && Date.now() - atMs > BACKDATE_DAYS * DAY;
+  // Picking an earlier shift moves the time onto it, unless it is already within that shift
+  const pickShift = (s) => {
+    setShiftId(s.id);
+    const t = fromLocalInput(v.occurred_at);
+    const ms = t ? new Date(t).getTime() : NaN;
+    if (!(ms >= new Date(s.starts_at) - 2 * H && ms <= new Date(s.ends_at).getTime() + 2 * H)) setV((x) => ({ ...x, occurred_at: toLocalInput(new Date(Math.min(Date.parse(s.starts_at), Date.now()))) }));
+  };
 
   const problems = [
     !v.type || !v.severity ? 'Choose what happened and how serious it was' : null,
     !v.description.trim() ? 'Describe what happened' : null,
     !at ? 'Add the time it happened' : future ? 'The time cannot be in the future' : null,
-    !edit && !shift ? 'Choose the shift you were working' : null,
+    !edit && !manager && !shift ? 'Choose the shift you were working' : null,
+    manager && !m.venue_id ? 'Choose the venue' : null,
     outsideShift ? 'The time must be within 2 hours of your shift' : null,
+    tooOld ? `Officers can report up to ${BACKDATE_DAYS} days back. Ask the office for anything older.` : null,
     v.force_used && !v.force_justification.trim() ? 'Explain why force was necessary' : null,
     uploads.uploading ? 'Wait for your files to finish uploading' : null,
   ].filter(Boolean);
@@ -102,7 +132,7 @@ function Wizard({ existing }) {
   const canNext = [
     true,
     v.type && v.severity && v.description.trim().length > 0,
-    at && !future && (edit || (shift && !outsideShift)),
+    at && !future && (edit || (manager ? m.venue_id : shift && !outsideShift && !tooOld)),
     true,
     !v.force_used || v.force_justification.trim(),
     !problems.length,
@@ -122,10 +152,11 @@ function Wizard({ existing }) {
       if (attachments.length) await api('incidents.addAttachments', { id: existing.id, attachments });
       return existing;
     }
+    if (manager) return api('incidents.create', { ...body, venue_id: m.venue_id, shift_id: m.shift_id || undefined, officer_id: m.officer_id || undefined, attachments });
     return api('incidents.create', { ...body, shift_id: shift.id, venue_id: shift.venue_id, attachments, log_entry_id: entryId || undefined });
-  }, edit ? 'Report updated and resubmitted' : 'Incident reported').then((inc) => nav(`/officer/incidents/${inc.id}`, { replace: true })).catch(() => {});
+  }, edit ? 'Report updated and resubmitted' : 'Incident reported').then((inc) => nav(`${base}/incidents/${inc.id}`, { replace: true })).catch(() => {});
 
-  const back = edit ? { to: `/officer/incidents/${existing.id}`, label: existing.ref } : { to: '/officer/incidents', label: 'Incidents' };
+  const back = edit ? { to: `/officer/incidents/${existing.id}`, label: existing.ref } : { to: `${base}/incidents`, label: 'Incidents' };
 
   return (
     <Page title={edit ? `Edit ${existing.ref}` : 'Report incident'} back={back}>
@@ -146,13 +177,16 @@ function Wizard({ existing }) {
       <div key={step} style={{ animation: 'fade .2s' }}>
         {step === 0 && (
           <StepEvidence uploads={uploads} saved={saved} setSaved={setSaved} toast={toast} notes={notes} setNotes={setNotes}
-            draft={{ v, setV, shiftId, at, incidentId: existing?.id, onAccept: () => setAiAssisted(true) }} />
+            draft={{ v, setV, shiftId: manager ? m.shift_id || null : shiftId, at, incidentId: existing?.id, onAccept: () => setAiAssisted(true) }} />
         )}
         {step === 1 && <StepWhat v={v} setV={setV} set={set} />}
-        {step === 2 && <StepWhen v={v} set={set} edit={edit} existing={existing} shifts={shifts} loading={shiftsQ.loading} shiftId={shiftId} setShiftId={setShiftId} future={future} outsideShift={outsideShift} />}
+        {step === 2 && (manager
+          ? <ManagerWhen v={v} set={set} m={m} setM={setM} at={at} future={future} venues={venuesQ} />
+          : <StepWhen v={v} set={set} edit={edit} existing={existing} shifts={shifts} recent={recent} when={when} setWhen={setWhen} shift={shift}
+            loading={shiftsQ.loading} shiftId={shiftId} pickShift={pickShift} future={future} outsideShift={outsideShift} tooOld={tooOld} />)}
         {step === 3 && <StepPeople v={v} set={set} witnesses={witnesses} setWitnesses={setWitnesses} />}
         {step === 4 && <StepActions v={v} set={set} setV={setV} />}
-        {step === 5 && <StepReview v={v} at={at} shift={shift} existing={existing} witnesses={witnesses} files={uploads.done.length} saved={saved.length} aiAssisted={aiAssisted} problems={problems} goTo={go} />}
+        {step === 5 && <StepReview v={v} at={at} venueName={venueName} existing={existing} witnesses={witnesses} files={uploads.done.length} saved={saved.length} aiAssisted={aiAssisted} problems={problems} goTo={go} />}
       </div>
 
       <div className="sticky bottom-[calc(var(--tabbar-h)+12px)] z-10 mt-5 flex gap-2 rounded-tile bg-bg/90 py-2 backdrop-blur">
@@ -212,36 +246,102 @@ function StepWhat({ v, setV, set }) {
   );
 }
 
-function StepWhen({ v, set, edit, existing, shifts, loading, shiftId, setShiftId, future, outsideShift }) {
+function ShiftChoice({ s, on, onPick }) {
+  return (
+    <Pressable press onClick={() => onPick(s)} aria-pressed={on}
+      className={cx('flex w-full items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 transition-colors', on ? 'border-blue bg-blue-soft' : 'border-transparent bg-bg')}>
+      <span className="min-w-0"><span className="block truncate text-body font-semibold">{s.venue_name}</span><span className="num text-footnote text-muted">{dayLabel(s.starts_at)} · {range(s.starts_at, s.ends_at)}</span></span>
+      <span className={cx('grid h-6 w-6 shrink-0 place-items-center rounded-full border-2', on ? 'border-blue bg-blue' : 'border-line')}>{on && <span className="h-2 w-2 rounded-full bg-white" />}</span>
+    </Pressable>
+  );
+}
+
+function StepWhen({ v, set, edit, existing, shifts, recent, when, setWhen, shift, loading, shiftId, pickShift, future, outsideShift, tooOld }) {
+  const [shown, setShown] = useState(PAGE);
+  const earlier = when === 'earlier';
+  const list = earlier ? shifts : recent;
+  // The time picker stays within the chosen shift (2 hours either side), and never in the future
+  const lim = shift && !edit ? {
+    min: toLocalInput(new Date(Date.parse(shift.starts_at) - 2 * H)),
+    max: toLocalInput(new Date(Math.min(Date.parse(shift.ends_at) + 2 * H, Date.now()))),
+  } : { max: toLocalInput(new Date()) };
+  const choose = (w) => {
+    setWhen(w);
+    if (w === 'now' && recent.length) { pickShift(recent[0]); set('occurred_at')(toLocalInput(new Date())); }
+  };
+  const timeCard = (
+    <Card key="time" title={earlier ? 'What time?' : 'When did it happen?'} hint={earlier && shift ? 'Your best estimate is fine. Say in the description if you are not sure.' : undefined}>
+      <div className="flex gap-2">
+        <Input className="flex-1" type="datetime-local" value={v.occurred_at} min={lim.min} max={lim.max} onChange={set('occurred_at')} />
+        {!earlier && <Button variant="secondary" onClick={() => set('occurred_at')(toLocalInput(new Date()))}>Now</Button>}
+      </div>
+      {future && <p className="mt-2 text-footnote font-semibold text-red">The time cannot be in the future.</p>}
+      {outsideShift && <p className="mt-2 text-footnote font-semibold text-red">This is more than 2 hours outside the shift you picked.</p>}
+      {tooOld && <p className="mt-2 text-footnote font-semibold text-red">You can report up to {BACKDATE_DAYS} days back. Ask the office to file anything older.</p>}
+    </Card>
+  );
+  const shiftCard = (
+    <Card key="shift" title={earlier ? 'Which shift was it?' : 'Which shift?'} hint={edit ? undefined : earlier ? `Shifts you worked in the last ${BACKDATE_DAYS} days.` : 'Incidents are filed against the venue you were working at.'}>
+      {edit ? (
+        <div className="rounded-2xl bg-bg px-4 py-3 text-body font-semibold">{existing.venue_name}</div>
+      ) : loading && !shifts.length ? <Spinner className="py-6" /> : !list.length ? (
+        <p className="rounded-2xl bg-amber-soft px-4 py-3 text-subhead font-semibold text-amber">
+          {earlier || !shifts.length
+            ? `You have no shifts in the last ${BACKDATE_DAYS} days. Ask the office to file anything older.`
+            : 'You are not on a shift right now. Choose Earlier to report something from a past shift.'}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {list.slice(0, shown).map((s) => <ShiftChoice key={s.id} s={s} on={s.id === shiftId} onPick={pickShift} />)}
+          {list.length > shown && <Button variant="secondary" className="w-full" onClick={() => setShown((n) => n + PAGE)}>Show more shifts</Button>}
+        </div>
+      )}
+    </Card>
+  );
   return (
     <div className="space-y-3">
-      <Card title="When did it happen?">
-        <div className="flex gap-2">
-          <Input className="flex-1" type="datetime-local" value={v.occurred_at} max={toLocalInput(new Date())} onChange={set('occurred_at')} />
-          <Button variant="secondary" onClick={() => set('occurred_at')(toLocalInput(new Date()))}>Now</Button>
-        </div>
-        {future && <p className="mt-2 text-footnote font-semibold text-red">The time cannot be in the future.</p>}
-        {outsideShift && <p className="mt-2 text-footnote font-semibold text-red">This is more than 2 hours outside the shift you picked.</p>}
-      </Card>
-      <Card title="Which shift?" hint={edit ? undefined : 'Incidents are filed against the venue you were working at.'}>
-        {edit ? (
-          <div className="rounded-2xl bg-bg px-4 py-3 text-body font-semibold">{existing.venue_name}</div>
-        ) : loading && !shifts.length ? <Spinner className="py-6" /> : !shifts.length ? (
-          <p className="rounded-2xl bg-amber-soft px-4 py-3 text-subhead font-semibold text-amber">You have no recent shifts. You can only report incidents for a shift you worked in the last 3 days. Contact the office for anything older.</p>
-        ) : (
-          <div className="space-y-2">
-            {shifts.slice(0, 6).map((s) => (
-              <Pressable press key={s.id} onClick={() => setShiftId(s.id)} aria-pressed={s.id === shiftId}
-                className={cx('flex w-full items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 transition-colors', s.id === shiftId ? 'border-blue bg-blue-soft' : 'border-transparent bg-bg')}>
-                <span className="min-w-0"><span className="block truncate text-body font-semibold">{s.venue_name}</span><span className="num text-footnote text-muted">{dayLabel(s.starts_at)} · {range(s.starts_at, s.ends_at)}</span></span>
-                <span className={cx('grid h-6 w-6 shrink-0 place-items-center rounded-full border-2', s.id === shiftId ? 'border-blue bg-blue' : 'border-line')}>{s.id === shiftId && <span className="h-2 w-2 rounded-full bg-white" />}</span>
-              </Pressable>
-            ))}
-          </div>
-        )}
-      </Card>
+      {!edit && (
+        <Segmented full value={when} onChange={choose} options={[{ value: 'now', label: 'Tonight / just now' }, { value: 'earlier', label: 'Earlier' }]} />
+      )}
+      {earlier ? [shiftCard, timeCard] : [timeCard, shiftCard]}
       <Card title="Where exactly?">
         <Input value={v.location} onChange={set('location')} placeholder="e.g. Main entrance, smoking area, upstairs bar" />
+      </Card>
+    </div>
+  );
+}
+
+// Office filing: any venue in scope, any past date; the shift and officer are optional
+function ManagerWhen({ v, set, m, setM, at, future, venues }) {
+  const day = v.occurred_at.slice(0, 10);
+  const range0 = day ? { from: fromLocalInput(`${day}T00:00`), to: new Date(Date.parse(fromLocalInput(`${day}T00:00`)) + 30 * H).toISOString() } : null;
+  const shiftsQ = useApi('shifts.list', { ...range0, venue_id: m.venue_id }, { skip: !m.venue_id || !range0 });
+  const officersQ = useApi('officers.list', {});
+  const dayShifts = (shiftsQ.data || []).filter((s) => s.status === 'published');
+  const sh = dayShifts.find((s) => s.id === m.shift_id);
+  const people = sh
+    ? sh.assignments.filter((a) => ['assigned', 'accepted'].includes(a.status)).map((a) => ({ value: a.officer_id, label: a.name }))
+    : (officersQ.data || []).map((o) => ({ value: o.id, label: `${o.first_name} ${o.last_name}` }));
+  const pick = (k) => (e) => setM((x) => ({ ...x, [k]: e.target.value, ...(k === 'venue_id' ? { shift_id: '', officer_id: '' } : k === 'shift_id' ? { officer_id: '' } : {}) }));
+  const old = at && Date.now() - Date.parse(at) > DAY;
+  return (
+    <div className="space-y-3">
+      <Card title="When did it happen?" hint="Any past date. Your best estimate of the time is fine.">
+        <Input type="datetime-local" value={v.occurred_at} max={toLocalInput(new Date())} onChange={set('occurred_at')} />
+        {future && <p className="mt-2 text-footnote font-semibold text-red">The time cannot be in the future.</p>}
+        {old && !future && <p className="mt-2 text-footnote text-muted">This will show as reported later, with today's date as the report date.</p>}
+      </Card>
+      <Card title="Where?">
+        <div className="space-y-3">
+          <Select label="Venue" value={m.venue_id} onChange={pick('venue_id')} placeholder="Choose venue"
+            options={(venues.data || []).filter((x) => x.active !== false).map((x) => ({ value: x.id, label: x.name }))} />
+          {m.venue_id && (
+            <Select label="Shift (optional)" value={m.shift_id} onChange={pick('shift_id')} placeholder={shiftsQ.loading ? 'Loading shifts…' : dayShifts.length ? 'No particular shift' : 'No shifts that day'}
+              options={dayShifts.map((s) => ({ value: s.id, label: `${dayLabel(s.starts_at)} · ${range(s.starts_at, s.ends_at)} · ${s.role_name}` }))} />
+          )}
+          <Select label="Officer involved (optional)" value={m.officer_id} onChange={pick('officer_id')} placeholder="No officer" options={people} />
+          <Input label="Where exactly?" value={v.location} onChange={set('location')} placeholder="e.g. Main entrance, smoking area, upstairs bar" />
+        </div>
       </Card>
     </div>
   );
@@ -433,7 +533,7 @@ function DraftSheet({ onClose, notes, keys, v, setV, shiftId, at, incidentId, on
   );
 }
 
-function StepReview({ v, at, shift, existing, witnesses, files, saved, aiAssisted, problems, goTo }) {
+function StepReview({ v, at, venueName, existing, witnesses, files, saved, aiAssisted, problems, goTo }) {
   const yn = (b, ref) => (b ? `Yes${ref ? ` (ref ${ref})` : ''}` : 'No');
   const sev = SEVERITIES.find((s) => s.value === v.severity);
   const Edit = ({ n }) => <Button variant="link" onClick={() => goTo(n)}>Edit</Button>;
@@ -450,7 +550,10 @@ function StepReview({ v, at, shift, existing, witnesses, files, saved, aiAssiste
         <p className="mt-2 whitespace-pre-line text-body">{v.description || <span className="text-faint">No description</span>}</p>
       </ReviewCard>
       <ReviewCard title="When and where" action={<Edit n={2} />}>
-        <KV items={[['Time', at && dateTime(at)], ['Venue', shift?.venue_name || existing?.venue_name], ['Location', v.location]]} />
+        {at && Date.now() - Date.parse(at) > DAY && (
+          <Pill tone="amber" className="mb-2">Reported later · {Math.floor((Date.now() - Date.parse(at)) / DAY)} day{Date.now() - Date.parse(at) >= 2 * DAY ? 's' : ''} after</Pill>
+        )}
+        <KV items={[['Time', at && dateTime(at)], ['Venue', venueName], ['Location', v.location]]} />
       </ReviewCard>
       <ReviewCard title="People" action={<Edit n={3} />}>
         <KV items={[['People involved', v.people_involved], ['Injuries', v.injuries || 'None'], ['Witnesses', witnesses.filter((w) => w.name.trim()).map((w) => w.name).join(', ') || 'None']]} />

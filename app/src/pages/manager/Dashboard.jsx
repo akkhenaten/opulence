@@ -8,6 +8,7 @@ import {
 import { useBase } from './_parts.jsx';
 import { FeedBody } from '../everyday/Feed.jsx';
 import { InstallCard } from '../../ui/pwa.jsx';
+import { lateDays } from '../officer/_parts.jsx';
 
 // Everyday lives on the Dashboard now; old links (and notification links) land on that tab
 export function EverydayRedirect() {
@@ -145,7 +146,7 @@ function Body({ d, base, isCompany }) {
                 <Link key={i.id} to={`${base}/incidents/${i.id}`} className="flex items-center gap-3 px-5 py-3 transition hover:bg-bg">
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-body font-semibold">{titleCase(i.type)} <span className="font-normal text-muted">· {i.ref}</span></div>
-                    <div className="truncate text-footnote text-muted">{i.venue_name} · {relative(i.occurred_at)}</div>
+                    <div className="truncate text-footnote text-muted">{i.venue_name} · {relative(i.occurred_at)}{lateDays(i) ? ` · reported ${relative(i.created_at)}` : ''}</div>
                   </div>
                   <div className="flex shrink-0 gap-1"><Pill status={i.severity} /><Pill status={i.status} /></div>
                 </Link>

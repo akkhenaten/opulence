@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Camera, MapPin, Plus, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { Button, cx, dateTime, Empty, Load, Page, Pill, SearchInput, Segmented, Select, useApi } from '../../ui/index.jsx';
-import { INCIDENT_STATUS, INCIDENT_TYPES, NotLinked, SEVERITIES, typeLabel } from '../officer/_parts.jsx';
+import { INCIDENT_STATUS, INCIDENT_TYPES, LatePill, NotLinked, SEVERITIES, typeLabel } from '../officer/_parts.jsx';
 
 const SEV_BAR = { low: 'bg-faint', medium: 'bg-amber', high: 'bg-red', critical: 'bg-red' };
 
@@ -30,7 +30,7 @@ export default function Incidents() {
 
   return (
     <Page title="Incidents" subtitle={officer ? 'Your incident reports' : undefined} wide={!officer}
-      actions={officer && user.officer_id && <Button icon={Plus} to={`${base}/incidents/new`}>Report</Button>}>
+      actions={((officer && user.officer_id) || ['company', 'security'].includes(user.role)) && <Button icon={Plus} to={`${base}/incidents/new`}>{officer ? 'Report' : 'Report incident'}</Button>}>
       <div className="mb-3 space-y-2">
         <div className="no-scrollbar -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           <Segmented value={f.status} onChange={(val) => setF('status', val)}
@@ -68,6 +68,7 @@ export default function Incidents() {
                     <div className="flex shrink-0 flex-col items-end gap-1">
                       <Pill status={r.status}>{INCIDENT_STATUS[r.status]}</Pill>
                       <Pill status={r.severity} />
+                      <LatePill inc={r} />
                     </div>
                   </div>
                   <p className="mt-1 line-clamp-2 text-subhead text-muted">{r.description}</p>

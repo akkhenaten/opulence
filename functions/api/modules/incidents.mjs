@@ -21,6 +21,29 @@ const BASE_SQL = `
     FROM incidents i JOIN venues v ON v.id = i.venue_id LEFT JOIN officers o ON o.id = i.officer_id
     LEFT JOIN users ur ON ur.id = i.reported_by LEFT JOIN users uv ON uv.id = i.reviewed_by`;
 
+// Officers can file up to 30 days after a shift they worked; managers can file for any date
+export const OFFICER_BACKDATE_DAYS = 30;
+const DAY = 86400000;
+// Whole days between the incident and the report, when it was filed more than a day later
+export function lateDays(inc) {
+  const gap = new Date(inc.created_at || Date.now()) - new Date(inc.occurred_at);
+  return gap > DAY ? Math.floor(gap / DAY) : 0;
+}
+export const withinBackdate = (at, now = Date.now()) => now - new Date(at) <= OFFICER_BACKDATE_DAYS * DAY;
+
+// The officer's shift around the incident time (2 hours either side), within the last 30 days
+async function officerShift(officerId, shiftId, venueId, at) {
+  if (!withinBackdate(at)) fail(400, `You can only report incidents from the last ${OFFICER_BACKDATE_DAYS} days. Ask the office to file anything older.`);
+  const a = await one(
+    `SELECT s.id, s.venue_id FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
+      WHERE a.officer_id = $1 AND a.status IN ('assigned','accepted') AND ($2::uuid IS NULL OR s.id = $2) AND ($3::uuid IS NULL OR s.venue_id = $3)
+        AND $4::timestamptz BETWEEN s.starts_at - interval '2 hours' AND s.ends_at + interval '2 hours'
+        AND s.starts_at > now() - make_interval(days => $5)
+      ORDER BY abs(extract(epoch FROM (s.starts_at - $4::timestamptz))) LIMIT 1`, [officerId, shiftId, venueId || null, at, OFFICER_BACKDATE_DAYS + 1]);
+  if (!a) fail(400, `The time must be during a shift you worked in the last ${OFFICER_BACKDATE_DAYS} days (up to 2 hours either side). Ask the office for anything older.`);
+  return a;
+}
+
 function validate(b) {
   if (b.type && !TYPES.includes(b.type)) fail(400, 'Unknown incident type');
   if (b.severity && !SEVERITIES.includes(b.severity)) fail(400, 'Unknown severity');
@@ -97,7 +120,7 @@ export const actions = {
           AND ($3::text IS NULL OR i.status = $3) AND ($4::text IS NULL OR i.severity = $4) AND ($5::text IS NULL OR i.type = $5)
           AND ($6::uuid IS NULL OR i.venue_id = $6) AND ($7::timestamptz IS NULL OR i.occurred_at >= $7) AND ($8::timestamptz IS NULL OR i.occurred_at < $8)
           AND ($9::text IS NULL OR i.ref ILIKE $9 OR i.description ILIKE $9 OR i.location ILIKE $9 OR i.police_ref ILIKE $9)
-        ORDER BY i.occurred_at DESC LIMIT $10`,
+        ORDER BY ${b.sort === 'reported' ? 'i.created_at' : 'i.occurred_at'} DESC LIMIT $10`,
       [user.role === 'officer' ? null : scope, user.role === 'officer' ? user.officer_id : b.officer_id || null, b.status || null, b.severity || null, b.type || null,
         b.venue_id || null, b.from || null, b.to || null, b.search ? `%${b.search}%` : null, Math.min(Number(b.limit) || 200, 500)]);
   }),
@@ -131,17 +154,24 @@ export const actions = {
     if (user.role === 'officer') {
       if (!officerId) fail(403, 'Officer profile not linked');
       // Officer must be (or have been) rostered at the venue around the incident time
-      const a = await one(
-        `SELECT s.id, s.venue_id FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
-          WHERE a.officer_id = $1 AND a.status IN ('assigned','accepted') AND ($2::uuid IS NULL OR s.id = $2) AND ($3::uuid IS NULL OR s.venue_id = $3)
-            AND $4::timestamptz BETWEEN s.starts_at - interval '2 hours' AND s.ends_at + interval '2 hours'
-          ORDER BY abs(extract(epoch FROM (s.starts_at - $4::timestamptz))) LIMIT 1`, [officerId, shiftId, venueId || null, b.occurred_at]);
-      if (!a) fail(400, 'You can only report incidents for a shift you worked');
+      const a = await officerShift(officerId, shiftId, venueId, b.occurred_at);
       venueId = a.venue_id;
       shiftId = a.id;
     } else {
-      required(b, 'venue_id');
+      // Managers can file for any past date; a shift and officer are optional but must match the venue
+      if (shiftId) {
+        const sh = need(await one('SELECT id, venue_id FROM shifts WHERE id = $1', [shiftId]), 'Shift not found');
+        if (venueId && venueId !== sh.venue_id) fail(400, 'That shift is at a different venue');
+        venueId = sh.venue_id;
+      }
+      if (!venueId) fail(400, 'Choose the venue');
       await assertVenue(user, venueId);
+      if (officerId) {
+        const ok = shiftId
+          ? await one("SELECT 1 FROM shift_assignments WHERE shift_id = $1 AND officer_id = $2 AND status IN ('assigned','accepted')", [shiftId, officerId])
+          : await one('SELECT 1 FROM officers WHERE id = $1', [officerId]);
+        if (!ok) fail(400, shiftId ? 'That officer was not on this shift' : 'Officer not found');
+      }
     }
     // Written up from a shift log note: the report and the note point at each other
     const entry = b.log_entry_id ? need(await one('SELECT id, shift_id FROM shift_log_entries WHERE id = $1 AND shift_id = $2', [b.log_entry_id, shiftId]), 'That log note is not on this shift') : null;
@@ -158,9 +188,11 @@ export const actions = {
       return row;
     });
     const v = await one('SELECT name FROM venues WHERE id = $1', [venueId]);
-    const urgent = ['high', 'critical'].includes(inc.severity);
+    // A report filed a week or more after the event is a record, not an alert
+    const late = lateDays(inc);
+    const urgent = ['high', 'critical'].includes(inc.severity) && late < 7;
     const msg = { kind: 'incident', severity: urgent ? 'critical' : 'info', title: `${urgent ? `${inc.severity.toUpperCase()} incident` : 'New incident'} · ${v.name}`,
-      body: `${inc.ref}: ${inc.type.replace(/_/g, ' ')} at ${fmtDateTime(inc.occurred_at)}${inc.location ? ` — ${inc.location}` : ''}`, email: urgent };
+      body: `${inc.ref}: ${inc.type.replace(/_/g, ' ')} at ${fmtDateTime(inc.occurred_at)}${inc.location ? ` — ${inc.location}` : ''}${late ? ` · reported ${late} day${late > 1 ? 's' : ''} later` : ''}`, email: urgent };
     await notify((await managersFor(venueId)).filter((id) => id !== user.id), { ...msg, link: `/company/incidents/${inc.id}` });
     if (urgent) await notify(await venueContacts(venueId), { ...msg, link: `/venue/incidents/${inc.id}` });
     await audit(user, 'incident.create', 'incident', inc.id, { ref: inc.ref, severity: inc.severity });
@@ -175,6 +207,9 @@ export const actions = {
     await canSee(user, cur);
     if (user.role === 'officer' && cur.status !== 'changes_requested' && cur.reported_by !== user.id) fail(403, 'This report can no longer be edited');
     if (user.role === 'officer' && cur.status === 'closed') fail(400, 'This report is closed');
+    if (user.role === 'officer' && b.occurred_at && new Date(b.occurred_at).getTime() !== new Date(cur.occurred_at).getTime()) {
+      await officerShift(user.officer_id, cur.shift_id, cur.venue_id, b.occurred_at);
+    }
     const f = pickFields(b);
     const inc = await tx(async (t) => {
       const keys = Object.keys(f);
@@ -247,7 +282,8 @@ export const actions = {
     const yn = (v, ref) => (v ? `Yes${ref ? ` (ref ${ref})` : ''}` : 'No');
     d.meta(
       [['Venue', inc.venue_name], ['Type', inc.type.replace(/_/g, ' ')], ['Severity', inc.severity.toUpperCase()], ['Location', inc.location || '-']],
-      [['Occurred', fmtDateTime(inc.occurred_at)], ['Officer', inc.officer_name || '-'], ['Reported by', inc.reported_by_name || '-'], ['Status', inc.status.replace(/_/g, ' ')]],
+      [['Occurred', fmtDateTime(inc.occurred_at)], ['Reported', `${fmtDateTime(inc.created_at)}${lateDays(inc) ? ` (${lateDays(inc)} days later)` : ''}`],
+        ['Officer', inc.officer_name || '-'], ['Reported by', inc.reported_by_name || '-'], ['Status', inc.status.replace(/_/g, ' ')]],
     );
     const block = (title, body) => { if (body) { d.section(title); d.text(body, { size: 10 }); d.space(4); } };
     block('What happened', inc.description);
