@@ -57,7 +57,11 @@ export default function ShiftCalendar() {
               const list = byDay[d] || [];
               const other = d.slice(0, 7) !== anchor.slice(0, 7);
               return (
-                <div key={d} className={cx('min-h-[72px] border-b border-r border-sep p-1 sm:min-h-[96px]', other && 'bg-bg/50')}>
+                <div key={d} className={cx('relative min-h-[72px] border-b border-r border-sep p-1 sm:min-h-[96px]', other && 'bg-bg/50')}>
+                  {/* On phones the whole day is the tap target: one shift opens it, more open that week. */}
+                  {list.length > 0 && (list.length === 1
+                    ? <Pressable press to={`/officer/shifts/${list[0].id}`} aria-label={`Shift on ${d}`} className="absolute inset-0 z-10 sm:hidden" />
+                    : <Pressable press onClick={() => { setAnchor(d); setView('week'); }} aria-label={`${list.length} shifts on ${d}`} className="absolute inset-0 z-10 sm:hidden" />)}
                   <div className={cx('num mb-0.5 grid h-6 w-6 place-items-center rounded-full text-caption font-semibold', d === today ? 'bg-blue text-white' : other ? 'text-faint' : 'text-ink')}>{dayNum(d)}</div>
                   <div className="space-y-0.5">
                     {list.slice(0, 3).map((s) => (

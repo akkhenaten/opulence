@@ -7,7 +7,7 @@ import { getObjectBytes, headObject } from '../lib/storage.mjs';
 import { extract, fileBlock, canRead, HAIKU } from '../lib/ai.mjs';
 import { notify, withdraw, officerUser, companyManagers, emailHtml, sendRawEmail } from '../lib/notify.mjs';
 import { getBrand } from '../lib/brand.mjs';
-import { downloadUrl } from '../lib/storage.mjs';
+import { downloadUrl, photoUrls } from '../lib/storage.mjs';
 import { fmtDate, fmtTime, londonDate } from '../lib/time.mjs';
 import { SIA_TYPES, DOC_LABEL, TRAINING_KINDS } from '../lib/licences.mjs';
 import { audit } from '../lib/audit.mjs';
@@ -484,7 +484,7 @@ const SEV_ORDER = { urgent: 0, soon: 1, advisory: 2 };
 
 async function staffList() {
   const rows = await q("SELECT id, first_name, last_name, photo_key, roles, status FROM officers WHERE status IN ('active','onboarding') ORDER BY first_name, last_name");
-  return Promise.all(rows.map(async ({ photo_key, ...o }) => ({ ...o, photo_url: await downloadUrl(photo_key) })));
+  return Promise.all(rows.map(async ({ photo_key, ...o }) => ({ ...o, ...(await photoUrls(photo_key)) })));
 }
 
 // Outside certificates (newest first) and Academy certificates in one list per officer

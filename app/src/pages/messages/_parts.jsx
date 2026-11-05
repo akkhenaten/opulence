@@ -17,12 +17,12 @@ export function ConvAvatar({ c, others = c.others || [], size = 44 }) {
     const s = Math.round(size * 0.68);
     return (
       <div className="relative shrink-0" style={{ width: size, height: size }}>
-        <Avatar name={others[0].name} src={others[0].photo_url} size={s} className="absolute left-0 top-0" />
-        <Avatar name={others[1].name} src={others[1].photo_url} size={s} className="absolute bottom-0 right-0 ring-2 ring-surface" />
+        <Avatar name={others[0].name} src={[others[0].photo_thumb_url, others[0].photo_url]} size={s} className="absolute left-0 top-0" />
+        <Avatar name={others[1].name} src={[others[1].photo_thumb_url, others[1].photo_url]} size={s} className="absolute bottom-0 right-0 ring-2 ring-surface" />
       </div>
     );
   }
-  return <Avatar name={others[0]?.name || c.title} src={others[0]?.photo_url} size={size} />;
+  return <Avatar name={others[0]?.name || c.title} src={[others[0]?.photo_thumb_url, others[0]?.photo_url]} size={size} />;
 }
 
 // 14:05 today, Tue this week, 3 Oct before that

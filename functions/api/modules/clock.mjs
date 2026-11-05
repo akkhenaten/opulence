@@ -7,7 +7,7 @@ import { roundHours } from '../lib/rates.mjs';
 import { notify, managersFor } from '../lib/notify.mjs';
 import { fmtTime } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
-import { downloadUrl } from '../lib/storage.mjs';
+import { downloadUrl, photoUrls } from '../lib/storage.mjs';
 import { compliance } from './officers.mjs';
 import { getSettings } from './settings.mjs';
 import { guardSelf, markOwn } from '../lib/selfcheck.mjs';
@@ -304,7 +304,7 @@ export const actions = {
       // Selfies are for managers only
       const inEv = rest.events?.find((e) => e.kind === 'in' && e.selfie_key);
       if (rest.events) rest.events = rest.events.map(({ selfie_key, ...e }) => e);
-      return { ...rest, photo_url: await downloadUrl(photo_key), selfie_url: inEv ? await downloadUrl(inEv.selfie_key) : null };
+      return { ...rest, ...(await photoUrls(photo_key)), selfie_url: inEv ? await downloadUrl(inEv.selfie_key) : null };
     }));
   }),
 };

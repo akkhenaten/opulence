@@ -169,15 +169,13 @@ export default function CourseEditor() {
   return (
     <Page title={c.title || 'Untitled course'} back={{ to: `${base}/team/training?tab=courses`, label: 'Courses' }} wide
       subtitle={<span className="flex flex-wrap items-center gap-2">{status}{c.review_by && <span className="text-footnote">Review by {date(c.review_by)}</span>}{dirty && <Pill tone="amber">Unsaved changes</Pill>}</span>}
-      actions={(
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" icon={Eye} to={`${base}/team/academy/${c.id}/preview`}>Preview</Button>
-          {co && c.status !== 'archived' && <Button variant="soft" icon={Images} busy={!!allProg} disabled={busy} onClick={visualsForAll}>Add visuals to all</Button>}
-          {c.status === 'published' && <Button variant="secondary" icon={UserPlus} onClick={() => setAssign(true)}>Assign</Button>}
-          {co && <Button variant="secondary" icon={Save} busy={busy && !drafting} disabled={!dirty} onClick={() => save().catch(() => {})}>Save</Button>}
-          {co && c.status !== 'archived' && (c.status !== 'published' || dirty) && <Button icon={Send} disabled={busy || !ready} onClick={publish}>Publish</Button>}
-        </div>
-      )}>
+      actions={[
+        { label: 'Preview', icon: Eye, to: `${base}/team/academy/${c.id}/preview` },
+        co && c.status !== 'archived' && { label: 'Add visuals to all', icon: Images, variant: 'soft', busy: !!allProg, disabled: busy, onClick: visualsForAll },
+        c.status === 'published' && { label: 'Assign', icon: UserPlus, onClick: () => setAssign(true) },
+        co && { label: 'Save', icon: Save, busy: busy && !drafting, disabled: !dirty, onClick: () => save().catch(() => {}), main: !(c.status !== 'archived' && (c.status !== 'published' || dirty)) },
+        co && c.status !== 'archived' && (c.status !== 'published' || dirty) && { label: 'Publish', icon: Send, variant: 'primary', disabled: busy || !ready, onClick: publish, main: true },
+      ]}>
       {allProg && (
         <div className="mb-4 rounded-2xl bg-blue-soft px-4 py-3 text-subhead text-blue">
           <div className="font-semibold">Adding visuals {allProg.n + 1} of {allProg.total}: {allProg.title}</div>

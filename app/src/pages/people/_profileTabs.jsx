@@ -379,11 +379,11 @@ export function RatesTab({ o, reload, isCo, roles }) {
     reload();
   };
   const cols = [
-    { key: 'role_name', label: 'Role' },
-    { key: 'venue', label: 'Venue', render: (r) => r.venue_name || 'All venues' },
-    { key: 'rate', label: 'Hourly rate', align: 'right', render: (r) => <span className="num font-semibold">{money(r.rate)}</span> },
-    { key: 'from', label: 'From', render: (r) => date(r.effective_from) },
-    isCo && { key: 'x', label: '', align: 'right', render: (r) => <IconButton icon={Trash2} label="Delete" className="text-red" onClick={(e) => { e.stopPropagation(); del(r); }} /> },
+    { key: 'role_name', mobile: 'title', label: 'Role' },
+    { key: 'venue', mobile: 'sub', label: 'Venue', render: (r) => r.venue_name || 'All venues' },
+    { key: 'rate', mobile: 'value', label: 'Hourly rate', align: 'right', render: (r) => <span className="num font-semibold">{money(r.rate)}</span> },
+    { key: 'from', mobile: 'sub', label: 'From', render: (r) => date(r.effective_from) },
+    isCo && { key: 'x', mobile: 'value', label: '', align: 'right', render: (r) => <IconButton icon={Trash2} label="Delete" className="text-red" onClick={(e) => { e.stopPropagation(); del(r); }} /> },
   ].filter(Boolean);
   return (
     <>
@@ -467,12 +467,12 @@ function Worked({ o, from, onForbidden }) {
               <Tile><Stat value={rows.filter((t) => t.status === 'disputed').length} label="Disputed" tone={rows.some((t) => t.status === 'disputed') ? 'red' : undefined} /></Tile>
             </Bento>
             <Table rows={rows} empty="No timesheets in the last 90 days" columns={[
-              { key: 'day', label: 'Date', render: (t) => dayLabel(t.starts_at) },
-              { key: 'venue_name', label: 'Venue' },
-              { key: 'role_name', label: 'Role' },
-              { key: 'times', label: 'Actual', render: (t) => (t.actual_start ? range(t.actual_start, t.actual_end || t.actual_start) : '—') },
-              { key: 'hours', label: 'Hours', align: 'right', render: (t) => hours(t.hours) },
-              { key: 'status', label: 'Status', render: (t) => <Pill status={t.status} /> },
+              { key: 'day', mobile: 'title', label: 'Date', render: (t) => dayLabel(t.starts_at) },
+              { key: 'venue_name', mobile: 'sub', label: 'Venue' },
+              { key: 'role_name', mobile: false, label: 'Role' },
+              { key: 'times', mobile: 'sub', label: 'Actual', render: (t) => (t.actual_start ? range(t.actual_start, t.actual_end || t.actual_start) : '—') },
+              { key: 'hours', mobile: 'value', label: 'Hours', align: 'right', render: (t) => hours(t.hours) },
+              { key: 'status', mobile: 'value', label: 'Status', render: (t) => <Pill status={t.status} /> },
             ]} />
           </>
         );

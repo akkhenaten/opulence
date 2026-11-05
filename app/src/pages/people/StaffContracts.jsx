@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { FilePen, FilePlus2, FileSignature, FileUp, ScrollText, Search, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
-import { Button, dateTime, Select, Empty, IconButton, List, Load, Page, Pill, Progress, Row, SearchInput, Segmented, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { dateTime, Select, Empty, IconButton, List, Load, Page, Pill, Progress, Row, SearchInput, Segmented, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { ContractRow } from './_profileTabs.jsx';
 import { ContractView, SendDocSheet } from './_esign.jsx';
 import StartSheet from './contracts/StartSheet.jsx';
@@ -106,11 +106,11 @@ export default function StaffContracts() {
   };
   return (
     <Page title="Staff contracts" subtitle="Contracts and policies sent for signature, and where each one stands"
-      actions={<>
-        <Button variant="secondary" icon={FileSignature} onClick={() => setSending(true)}>Send a template</Button>
-        <Button variant="secondary" icon={FileUp} onClick={() => setUploading(true)}>Upload contract</Button>
-        <Button icon={FilePlus2} onClick={() => setCreating(true)}>Create contract</Button>
-      </>}>
+      actions={[
+        { label: 'Send a template', icon: FileSignature, onClick: () => setSending(true) },
+        { label: 'Upload contract', icon: FileUp, onClick: () => setUploading(true) },
+        { label: 'Create contract', icon: FilePlus2, variant: 'primary', main: true, onClick: () => setCreating(true) },
+      ]}>
       <Segmented className="mb-4" value={view} onChange={(x) => setParams(x === 'drafts' ? { view: x } : {}, { replace: true })} options={VIEWS} />
       {view === 'drafts' ? <Drafts /> : <>
       <div className="mb-4 flex flex-wrap items-center gap-3">

@@ -100,12 +100,12 @@ function Detail({ isCo }) {
         return (
           <Page title={periodOf(r)} subtitle={`Pay run${r.created_via === 'ai' ? ' · started by Orb' : ''}${r.created_by_name ? ` · ${r.created_by_name}` : ''}`}
             back={{ to: `${base}/pay`, label: 'Pay runs' }}
-            actions={isCo && <>
-              {r.status === 'draft' && <Button variant="secondary" icon={Send} onClick={() => setSheet({ kind: 'review' })}>Send for review</Button>}
-              {['draft', 'in_review'].includes(r.status) && <Button icon={ShieldCheck} busy={busy} disabled={open.length > 0} title={open.length ? 'Resolve the open queries first' : undefined} onClick={startFinalise}>Finalise</Button>}
-              {['reconciled', 'issued'].includes(r.status) && toIssue > 0 && <Button icon={Send} busy={busy} onClick={issue}>Issue {toIssue}</Button>}
-              {r.status === 'issued' && r.issued > 0 && <Button variant={toIssue ? 'secondary' : 'primary'} icon={CheckIcon} busy={busy} onClick={markPaid}>Mark paid</Button>}
-            </>}>
+            actions={isCo ? [
+              r.status === 'draft' && { label: 'Send for review', icon: Send, onClick: () => setSheet({ kind: 'review' }) },
+              ['draft', 'in_review'].includes(r.status) && { label: 'Finalise', icon: ShieldCheck, variant: 'primary', main: true, busy, disabled: open.length > 0, title: open.length ? 'Resolve the open queries first' : undefined, hint: open.length ? 'Resolve the open queries first' : undefined, onClick: startFinalise },
+              ['reconciled', 'issued'].includes(r.status) && toIssue > 0 && { label: `Issue ${toIssue}`, icon: Send, variant: 'primary', main: true, busy, onClick: issue },
+              r.status === 'issued' && r.issued > 0 && { label: 'Mark paid', icon: CheckIcon, variant: toIssue ? 'secondary' : 'primary', main: !toIssue, busy, onClick: markPaid },
+            ] : undefined}>
             <Timeline status={r.status} />
 
             <Bento className="mb-2">

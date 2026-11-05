@@ -108,7 +108,7 @@ function WebsiteButton() {
   const [ok, setOk] = useState(true);
   return (
     <a href="/" target="_blank" rel="noopener" aria-label={`Open the ${brand.name} website`} title="Open the website"
-      className="pressable silver-btn grid h-10 w-10 shrink-0 place-items-center rounded-full shadow-tile ring-1 ring-white/15">
+      className="pressable silver-btn relative grid h-10 w-10 shrink-0 before:absolute before:-inset-0.5 place-items-center rounded-full shadow-tile ring-1 ring-white/15">
       {ok ? <span className="silver-mark" aria-hidden="true" /> : <Globe size={20} className="text-white/80" aria-hidden="true" />}
       <img src="/app/brand/logo-white-192.png" alt="" hidden onError={() => setOk(false)} />
     </a>
@@ -272,7 +272,7 @@ export default function Shell() {
             <BookOpen size={18} /><span className="flex-1">Help & user guide</span>
           </NavLink>
           <Pressable press onClick={() => setAccount(true)} aria-label="My account" className="mt-4 flex items-center gap-3 rounded-2xl bg-fill p-3 hover:bg-fill-strong">
-            <Avatar name={user.name} src={user.photo_url} size={36} />
+            <Avatar name={user.name} src={[user.photo_thumb_url, user.photo_url]} size={36} />
             <div className="min-w-0 flex-1"><div className="truncate text-subhead font-semibold">{user.name}</div><div className="truncate text-caption text-muted">{ROLE_LABEL[user.role]}</div></div>
             <ChevronRight size={18} className="text-faint" />
           </Pressable>
@@ -336,7 +336,7 @@ export default function Shell() {
           ))}
         </div>
         <Pressable press onClick={() => { setMore(false); setAccount(true); }} className="mt-4 flex items-center gap-3 rounded-2xl bg-bg p-3">
-          <Avatar name={user.name} src={user.photo_url} size={36} />
+          <Avatar name={user.name} src={[user.photo_thumb_url, user.photo_url]} size={36} />
           <div className="min-w-0 flex-1"><div className="truncate font-semibold">{user.name}</div><div className="text-footnote text-muted">My account · {ROLE_LABEL[user.role]}</div></div>
           <ChevronRight size={18} className="text-faint" />
         </Pressable>

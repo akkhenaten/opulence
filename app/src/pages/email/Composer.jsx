@@ -222,7 +222,7 @@ function Recipients({ label, value, onChange, className }) {
         {value.map((a) => (
           <span key={a.email} className="inline-flex max-w-full items-center gap-1 rounded-full bg-blue-soft py-0.5 pl-2.5 pr-0.5 text-footnote font-semibold text-blue" title={a.email}>
             <span className="truncate">{a.name || a.email}</span>
-            <Pressable press aria-label={`Remove ${a.email}`} onClick={() => onChange(value.filter((v) => v.email !== a.email))} className="grid h-6 w-6 place-items-center rounded-full hover:bg-blue/10"><X size={14} /></Pressable>
+            <Pressable press aria-label={`Remove ${a.email}`} onClick={() => onChange(value.filter((v) => v.email !== a.email))} className="relative grid h-6 w-6 place-items-center before:absolute before:-inset-2.5 rounded-full hover:bg-blue/10"><X size={14} /></Pressable>
           </span>
         ))}
         {/* ui-ok: a bare field inside the styled chip box */}<input type="text" inputMode="email" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={key} onBlur={() => setTimeout(() => text.trim() && typed(), 150)}

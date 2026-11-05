@@ -114,7 +114,7 @@ export function StaffRecords() {
                 const name = `${r.officer.first_name} ${r.officer.last_name}`;
                 return (
                   <Row key={r.officer.id} chevron onClick={() => nav(`/${user.role}/staff/${r.officer.id}?tab=training`)}
-                    left={<Avatar name={name} src={r.officer.photo_url} size={40} />}
+                    left={<Avatar name={name} src={[r.officer.photo_thumb_url, r.officer.photo_url]} size={40} />}
                     title={name}
                     subtitle={(
                       <span className="mt-1 flex flex-wrap gap-1">
@@ -168,7 +168,7 @@ export function Refreshers() {
               const name = `${c.officer.first_name} ${c.officer.last_name}`;
               return (
                 <Row key={`${c.source}${c.id}`}
-                  left={<Avatar name={name} src={c.officer.photo_url} size={40} />}
+                  left={<Avatar name={name} src={[c.officer.photo_thumb_url, c.officer.photo_url]} size={40} />}
                   title={<>{name} <span className="font-normal text-muted">· {c.title}</span></>}
                   subtitle={<>{c.source === 'academy' ? 'Academy course' : `${KIND_LABEL[c.kind]}${c.provider ? ` · ${c.provider}` : ''}`}<span className="mt-1 block"><ExpiryTag days={c.days_left} on={c.expires_on} /></span></>}
                   right={(

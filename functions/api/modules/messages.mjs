@@ -2,7 +2,7 @@
 // (cover requests, shift teams, Orb for chases and cover offers, pay disputes).
 import { one, q } from '../lib/db.mjs';
 import { fail, required, need, HttpError } from '../lib/http.mjs';
-import { downloadUrl } from '../lib/storage.mjs';
+import { downloadUrl, photoUrls } from '../lib/storage.mjs';
 import { cleanFiles } from '../lib/files.mjs';
 import { notify, companyManagers } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
@@ -20,7 +20,7 @@ const EDIT_MINUTES = 15;
 const PHOTO = 'COALESCE((SELECT o.photo_key FROM officers o WHERE o.user_id = u.id LIMIT 1), u.photo_key)';
 const KIND_LABEL = { cover: 'Cover request', shift: 'Shift team', ops: 'Orb', pay: 'Pay query', group: 'Group' };
 
-const sign = async (p) => ({ ...p, photo_key: undefined, photo_url: p.photo_key ? await downloadUrl(p.photo_key) : null });
+const sign = async (p) => ({ ...p, photo_key: undefined, ...(await photoUrls(p.photo_key)) });
 
 async function membership(user, convId) {
   const c = need(await one('SELECT * FROM conversations WHERE id = $1', [convId]), 'Conversation not found');

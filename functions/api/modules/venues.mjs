@@ -6,7 +6,7 @@ import { venueScope, assertVenue } from '../lib/scope.mjs';
 import { qrPayload } from '../lib/qr.mjs';
 import { qrPosterPdf } from '../lib/pdf.mjs';
 import crypto from 'node:crypto';
-import { checkOwnPhoto, downloadUrl, getObjectBytes, headObject, publicUrl, putObject } from '../lib/storage.mjs';
+import { checkOwnPhoto, saveThumb, downloadUrl, getObjectBytes, headObject, publicUrl, putObject, photoUrls } from '../lib/storage.mjs';
 import { audit } from '../lib/audit.mjs';
 import { CO, MGR, def, pub } from './_def.mjs';
 import { getSettings } from './settings.mjs';
@@ -81,7 +81,7 @@ export const actions = {
          FROM venues v LEFT JOIN clients c ON c.id = v.client_id
         WHERE ($1::uuid[] IS NULL OR v.id = ANY($1)) AND ($2::boolean OR v.active)
         ORDER BY v.active DESC, v.name`, [scope, !!b.include_inactive]);
-    return Promise.all(rows.map(async (v) => ({ ...clientView(user, v), photo_url: await downloadUrl(v.photo_key) })));
+    return Promise.all(rows.map(async (v) => ({ ...clientView(user, v), ...(await photoUrls(v.photo_key)) })));
   }),
 
   'venues.get': def(['company', 'security', 'venue'], async (b, { user }) => {
@@ -121,6 +121,7 @@ export const actions = {
       if (f.photo_key !== (cur?.photo_key ?? null)) {
         f.photo_key = await checkOwnPhoto(user, f.photo_key, fail);
         f.website_photo_url = await publishPhoto(f.photo_key);
+        if (f.photo_key) await saveThumb(user, f.photo_key, b.photo_thumb_key);
       }
     }
     let v;

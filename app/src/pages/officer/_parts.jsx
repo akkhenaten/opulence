@@ -2,6 +2,7 @@
 import { Link } from 'react-router-dom';
 import { CalendarDays, Clock3, MapPin, UserX } from 'lucide-react';
 import { cx, dayLabel, Empty, Pill, range, titleCase } from '../../ui/index.jsx';
+import { upload } from '../../api.js';
 
 // Shrink camera photos before upload (night-time signal at a venue door is often poor).
 // Returns a JPEG File (keeps PDFs and non-images untouched). PDFs embed only PNG/JPEG, so JPEG is ideal.
@@ -22,6 +23,18 @@ export async function compressImage(file, max = 1600, quality = 0.82) {
   } catch {
     return file;
   }
+}
+
+// A profile or venue photo plus its small (256px) version for lists and avatars. The small one is best-effort:
+// if the phone can't make it, lists fall back to the large photo.
+export async function uploadPhoto(file, max = 1600) {
+  const large = await compressImage(file, max, 0.85);
+  const small = await compressImage(file, 256, 0.8);
+  const [photo_key, photo_thumb_key] = await Promise.all([
+    upload(large, 'photo'),
+    small !== file && small.size < 1024 * 1024 ? upload(small, 'photo').catch(() => undefined) : undefined,
+  ]);
+  return { photo_key, photo_thumb_key, file: large };
 }
 
 // Metres between two points

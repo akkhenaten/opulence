@@ -9,7 +9,7 @@ import { fail, need, required, HttpError } from '../lib/http.mjs';
 import { audit } from '../lib/audit.mjs';
 import { isManager } from '../lib/auth.mjs';
 import { extract, fileBlock, HAIKU } from '../lib/ai.mjs';
-import { downloadUrl, getObjectBytes, headObject, putObject } from '../lib/storage.mjs';
+import { downloadUrl, getObjectBytes, headObject, putObject, photoUrls } from '../lib/storage.mjs';
 import { notify, companyManagers } from '../lib/notify.mjs';
 import { moduleOn, requireModule } from '../lib/modules.mjs';
 import { londonDate } from '../lib/time.mjs';
@@ -37,7 +37,7 @@ const ACTIVE_STAFF = `u.status = 'active' AND NOT u.system AND u.role IN ('compa
 async function signPerson(p) {
   if (!p) return p;
   const { photo_key, ...rest } = p;
-  return { ...rest, photo_url: photo_key ? await downloadUrl(photo_key) : null };
+  return { ...rest, ...(await photoUrls(photo_key)) };
 }
 const signKey = (k) => (k ? downloadUrl(k) : null);
 

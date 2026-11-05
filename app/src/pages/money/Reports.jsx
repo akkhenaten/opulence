@@ -53,14 +53,14 @@ function ProofSection({ q }) {
           if (!rows.length) return <Empty icon={Fingerprint} title="No clock-ins in this period" />;
           return (
             <Table rows={rows} columns={[
-              { key: 'name', label: by === 'officers' ? 'Officer' : 'Venue', render: (r) => <span className="font-semibold">{r.name}</span> },
-              { key: 'punches', label: 'Clock-ins', align: 'right' },
-              { key: 'phone_ok', label: 'Phone ok', align: 'right', render: (r) => <span className={r.phone_failed ? 'font-semibold text-amber' : ''}>{share(r.phone_ok, r.punches)}</span> },
-              { key: 'location_ok', label: 'Location', align: 'right', render: (r) => share(r.location_ok, r.punches) },
-              { key: 'qr', label: 'QR / NFC', align: 'right', render: (r) => <span className="num">{r.qr} / {r.nfc}</span> },
-              { key: 'selfies', label: 'Selfies', align: 'right' },
-              { key: 'exceptions', label: 'Exceptions', align: 'right', render: (r) => (r.exceptions ? <Pill tone="amber">{r.exceptions} · {share(r.exceptions, r.punches)}</Pill> : '0') },
-              { key: 'face_flags', label: 'Face flags', align: 'right', render: (r) => (r.face_flags ? <Pill tone="red">{r.face_flags}</Pill> : '0') },
+              { key: 'name', mobile: 'title', label: by === 'officers' ? 'Officer' : 'Venue', render: (r) => <span className="font-semibold">{r.name}</span> },
+              { key: 'punches', mobile: 'sub', mobileLabel: true, label: 'Clock-ins', align: 'right' },
+              { key: 'phone_ok', mobile: 'sub', mobileLabel: true, label: 'Phone ok', align: 'right', render: (r) => <span className={r.phone_failed ? 'font-semibold text-amber' : ''}>{share(r.phone_ok, r.punches)}</span> },
+              { key: 'location_ok', mobile: 'sub', mobileLabel: true, label: 'Location', align: 'right', render: (r) => share(r.location_ok, r.punches) },
+              { key: 'qr', mobile: false, label: 'QR / NFC', align: 'right', render: (r) => <span className="num">{r.qr} / {r.nfc}</span> },
+              { key: 'selfies', mobile: false, label: 'Selfies', align: 'right' },
+              { key: 'exceptions', mobile: 'value', label: 'Exceptions', align: 'right', render: (r) => (r.exceptions ? <Pill tone="amber">{r.exceptions} · {share(r.exceptions, r.punches)}</Pill> : '0') },
+              { key: 'face_flags', mobile: 'value', label: 'Face flags', align: 'right', render: (r) => (r.face_flags ? <Pill tone="red">{r.face_flags}</Pill> : '0') },
             ]} />
           );
         }}
@@ -98,12 +98,12 @@ function MoneySection({ q, overdue, hrs }) {
                 <HBars items={data.map((r) => ({ key: r.id, label: r.venue_name, value: r.revenue, display: money0(r.revenue), sub: pct(r.margin, r.revenue) }))} />
               </Tile>
               <Table rows={data} columns={[
-                { key: 'venue_name', label: 'Venue', render: (r) => <span className="font-semibold">{r.venue_name}</span> },
-                { key: 'hours', label: 'Hours', align: 'right', render: (r) => num(r.hours).toLocaleString('en-GB', { maximumFractionDigits: 1 }) },
-                { key: 'revenue', label: 'Revenue', align: 'right', render: (r) => money(r.revenue) },
-                { key: 'pay_cost', label: 'Pay cost', align: 'right', render: (r) => <span className="text-muted">{money(r.pay_cost)}</span> },
-                { key: 'margin', label: 'Margin', align: 'right', render: (r) => <span className={num(r.margin) < 0 ? 'font-semibold text-red' : 'font-semibold'}>{money(r.margin)}</span> },
-                { key: 'pct', label: '%', align: 'right', render: (r) => <MarginPill m={r.margin} r={r.revenue} /> },
+                { key: 'venue_name', mobile: 'title', label: 'Venue', render: (r) => <span className="font-semibold">{r.venue_name}</span> },
+                { key: 'hours', mobile: 'sub', mobileLabel: true, label: 'Hours', align: 'right', render: (r) => num(r.hours).toLocaleString('en-GB', { maximumFractionDigits: 1 }) },
+                { key: 'revenue', mobile: 'sub', mobileLabel: true, label: 'Revenue', align: 'right', render: (r) => money(r.revenue) },
+                { key: 'pay_cost', mobile: false, label: 'Pay cost', align: 'right', render: (r) => <span className="text-muted">{money(r.pay_cost)}</span> },
+                { key: 'margin', mobile: 'value', label: 'Margin', align: 'right', render: (r) => <span className={num(r.margin) < 0 ? 'font-semibold text-red' : 'font-semibold'}>{money(r.margin)}</span> },
+                { key: 'pct', mobile: 'value', label: '%', align: 'right', render: (r) => <MarginPill m={r.margin} r={r.revenue} /> },
               ]} />
             </div>
           ))}

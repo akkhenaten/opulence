@@ -144,7 +144,7 @@ function Card({ p, roleName, onMove, onReview }) {
 function ActiveCard({ o, roleName }) {
   return (
     <Link to={`/company/staff/${o.id}`} className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-tile transition hover:-translate-y-0.5">
-      <Avatar name={o.name} src={o.photo_url} size={38} />
+      <Avatar name={o.name} src={[o.photo_thumb_url, o.photo_url]} size={38} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-body font-semibold">{o.name}</div>
         <div className="truncate text-caption text-muted">{(o.roles || []).map(roleName).join(', ') || 'No roles'}{o.start_date ? ` · since ${date(o.start_date)}` : ''}</div>

@@ -224,7 +224,7 @@ function Extras() {
           <div className="divide-y divide-line">
             {posts.map((p) => (
               <div key={p.id} className="flex items-center gap-3 py-2.5">
-                <Avatar name={p.author.name} src={p.author.photo_url} size={34} />
+                <Avatar name={p.author.name} src={[p.author.photo_thumb_url, p.author.photo_url]} size={34} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-subhead"><b>{p.author.name.split(' ')[0]}</b> {p.body || 'shared a photo'}</div>
                   <div className="text-caption text-faint">{relative(p.created_at)}{p.comment_count ? ` · ${p.comment_count} comment${p.comment_count === 1 ? '' : 's'}` : ''}</div>

@@ -56,11 +56,11 @@ function Courses({ co }) {
       <Load q={q}>
         {(rows) => rows.length ? (
           <Table rows={rows} onRow={open} columns={[
-            { key: 'title', label: 'Course', render: (c) => <div className="min-w-0"><div className="font-semibold">{c.title}</div><div className="text-caption text-muted">{TOPICS[c.topic]}{c.mandatory ? ' · Required' : ''}{c.renew_months ? ` · Renew every ${c.renew_months} months` : ''}</div></div> },
-            { key: 'status', label: 'Status', render: courseStatus },
-            { key: 'content', label: 'Content', render: (c) => <span className={cx('text-footnote', (c.empty_sections || c.questions < 5) && 'text-amber')}>{c.sections} sections · {c.questions} questions{c.empty_sections ? ` · ${c.empty_sections} empty` : ''}</span> },
-            { key: 'people', label: 'Officers', render: (c) => <span className="num text-footnote">{c.passed} passed / {c.assigned} assigned</span> },
-            { key: 'go', label: '', align: 'right', render: (c) => c.status === 'published' ? <Button size="sm" variant="soft" icon={UserPlus} onClick={(e) => { e.stopPropagation(); setAssign(c.id); }}>Assign</Button> : null },
+            { key: 'title', mobile: 'title', label: 'Course', render: (c) => <div className="min-w-0"><div className="font-semibold">{c.title}</div><div className="text-caption text-muted">{TOPICS[c.topic]}{c.mandatory ? ' · Required' : ''}{c.renew_months ? ` · Renew every ${c.renew_months} months` : ''}</div></div> },
+            { key: 'status', mobile: 'value', label: 'Status', render: courseStatus },
+            { key: 'content', mobile: 'sub', label: 'Content', render: (c) => <span className={cx('text-footnote', (c.empty_sections || c.questions < 5) && 'text-amber')}>{c.sections} sections · {c.questions} questions{c.empty_sections ? ` · ${c.empty_sections} empty` : ''}</span> },
+            { key: 'people', mobile: 'sub', label: 'Officers', render: (c) => <span className="num text-footnote">{c.passed} passed / {c.assigned} assigned</span> },
+            { key: 'go', mobile: false, label: '', align: 'right', render: (c) => c.status === 'published' ? <Button size="sm" variant="soft" icon={UserPlus} onClick={(e) => { e.stopPropagation(); setAssign(c.id); }}>Assign</Button> : null },
           ]} />
         ) : (
           <Empty icon={GraduationCap} title="No courses yet" body={co ? 'Create one, or draft the whole starter library with AI.' : 'Your company has not added any courses yet.'}
@@ -119,7 +119,7 @@ function Results() {
               <tr key={r.officer.id} className="border-b border-line last:border-0">
                 <td className="sticky left-0 z-10 bg-surface px-4 py-2.5">
                   <Pressable press className="flex items-center gap-2 text-left font-semibold hover:text-blue" onClick={() => nav(`/${user.role}/staff/${r.officer.id}?tab=training`)}>
-                    <Avatar name={`${r.officer.first_name} ${r.officer.last_name}`} src={r.officer.photo_url} size={28} />
+                    <Avatar name={`${r.officer.first_name} ${r.officer.last_name}`} src={[r.officer.photo_thumb_url, r.officer.photo_url]} size={28} />
                     <span className="whitespace-nowrap">{r.officer.first_name} {r.officer.last_name}</span>
                   </Pressable>
                 </td>

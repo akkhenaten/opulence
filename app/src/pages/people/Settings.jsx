@@ -147,7 +147,7 @@ function BrandingTile({ s, onSaved }) {
             <div className="flex flex-wrap items-center gap-2">
               {PRESETS.map((c) => (
                 <Pressable key={c} press onClick={() => setColor(c)} aria-label={`Use colour ${c}`}
-                  className={cx('h-9 w-9 rounded-full ring-offset-2 ring-offset-surface', shown.toLowerCase() === c.toLowerCase() ? 'ring-2 ring-ink' : 'ring-1 ring-line')}
+                  className={cx('relative h-9 w-9 rounded-full before:absolute before:-inset-1 ring-offset-2 ring-offset-surface', shown.toLowerCase() === c.toLowerCase() ? 'ring-2 ring-ink' : 'ring-1 ring-line')}
                   style={{ background: c }} />
               ))}
               <Input aria-label="Colour hex code" className="w-32" value={color} onChange={(e) => setColor(e.target.value.trim())} error={color && !valid ? 'Like #C9A45C' : undefined} />
@@ -493,7 +493,7 @@ function UsersTab({ openId }) {
               <List>
                 {rows.map((u) => (
                   <Row key={u.id} onClick={() => setEditing(u)} chevron
-                    left={<Avatar name={u.name} src={u.photo_url} size={40} />}
+                    left={<Avatar name={u.name} src={[u.photo_thumb_url, u.photo_url]} size={40} />}
                     title={<span>{u.name}{u.id === me.id && <span className="ml-1.5 text-caption font-semibold text-faint">You</span>}</span>}
                     subtitle={[u.officer_id ? (u.role === 'officer' ? 'Staff record linked' : 'Also works shifts') : null, u.email, u.client_name ? `Client: ${u.client_name}` : null, u.venues?.length ? u.venues.join(', ') : null, u.last_login ? `Seen ${relative(u.last_login)}` : null].filter(Boolean).join(' · ')}
                     right={<div className="flex flex-col items-end gap-1"><Pill tone="grey">{ROLE_LABEL[u.role]}</Pill>{u.status !== 'active' && <Pill status={u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : 'Disabled'}</Pill>}</div>} />
@@ -726,13 +726,13 @@ function DemosTab() {
     <Load q={q}>
       {(rows) => (
         <Table rows={rows} empty="No demo requests yet" columns={[
-          { key: 'created_at', label: 'Received', render: (r) => relative(r.created_at) },
-          { key: 'name', label: 'Name', render: (r) => <span className="font-semibold">{r.name}</span> },
-          { key: 'company', label: 'Company' },
-          { key: 'email', label: 'Email', render: (r) => <a href={`mailto:${r.email}`} className="font-semibold text-blue">{r.email}</a> },
-          { key: 'phone', label: 'Phone', render: (r) => (r.phone ? <a href={`tel:${r.phone}`} className="text-blue">{r.phone}</a> : '—') },
-          { key: 'sites', label: 'Sites', render: (r) => r.sites || '—' },
-          { key: 'message', label: 'Message', render: (r) => <span className="whitespace-pre-line text-muted">{r.message || '—'}</span> },
+          { key: 'created_at', mobile: 'value', label: 'Received', render: (r) => relative(r.created_at) },
+          { key: 'name', mobile: 'title', label: 'Name', render: (r) => <span className="font-semibold">{r.name}</span> },
+          { key: 'company', mobile: 'sub', label: 'Company' },
+          { key: 'email', mobile: 'sub', label: 'Email', render: (r) => <a href={`mailto:${r.email}`} className="font-semibold text-blue">{r.email}</a> },
+          { key: 'phone', mobile: 'sub', label: 'Phone', render: (r) => (r.phone ? <a href={`tel:${r.phone}`} className="text-blue">{r.phone}</a> : '—') },
+          { key: 'sites', mobile: false, label: 'Sites', render: (r) => r.sites || '—' },
+          { key: 'message', mobile: 'note', label: 'Message', render: (r) => <span className="whitespace-pre-line text-muted">{r.message || '—'}</span> },
         ]} />
       )}
     </Load>

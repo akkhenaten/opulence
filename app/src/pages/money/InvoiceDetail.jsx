@@ -52,17 +52,17 @@ export default function InvoiceDetail() {
         };
 
         const columns = [
-          { key: 'description', label: 'Description', render: (l) => <span className="block whitespace-normal">{l.description}</span>, className: 'max-w-[420px]' },
-          { key: 'work_date', label: 'Date', render: (l) => (l.work_date ? dayLabel(l.work_date) : '–'), className: 'whitespace-nowrap' },
-          { key: 'hours', label: 'Hours', align: 'right', render: (l) => (l.hours != null ? Number(l.hours).toFixed(2) : '–') },
-          { key: 'rate', label: 'Rate', align: 'right', render: (l) => (l.rate != null ? money(l.rate) : '–') },
-          { key: 'amount', label: 'Amount', align: 'right', render: (l) => <span className="num font-semibold">{money(l.amount)}</span> },
+          { key: 'description', mobile: 'title', label: 'Description', render: (l) => <span className="block whitespace-normal">{l.description}</span>, className: 'max-w-[420px]' },
+          { key: 'work_date', mobile: 'sub', label: 'Date', render: (l) => (l.work_date ? dayLabel(l.work_date) : '–'), className: 'whitespace-nowrap' },
+          { key: 'hours', mobile: 'sub', mobileLabel: true, label: 'Hours', align: 'right', render: (l) => (l.hours != null ? Number(l.hours).toFixed(2) : '–') },
+          { key: 'rate', mobile: 'sub', mobileLabel: true, label: 'Rate', align: 'right', render: (l) => (l.rate != null ? money(l.rate) : '–') },
+          { key: 'amount', mobile: 'value', label: 'Amount', align: 'right', render: (l) => <span className="num font-semibold">{money(l.amount)}</span> },
           ...(isCo && !credit ? [
             { key: 'pay_cost', label: 'Pay cost', align: 'right', render: (l) => <span className="num text-muted">{money(l.pay_cost)}</span> },
-            { key: 'margin', label: 'Margin', align: 'right', render: (l) => { const m = Number(l.amount) - Number(l.pay_cost || 0); return <span className={cx('num font-semibold', m < 0 ? 'text-red' : 'text-green')}>{money(m)}</span>; } },
+            { key: 'margin', mobile: 'sub', mobileLabel: true, label: 'Margin', align: 'right', render: (l) => { const m = Number(l.amount) - Number(l.pay_cost || 0); return <span className={cx('num font-semibold', m < 0 ? 'text-red' : 'text-green')}>{money(m)}</span>; } },
           ] : []),
           ...(editable ? [{
-            key: 'x', label: '', align: 'right', render: (l) => (
+            key: 'x', mobile: 'value', label: '', align: 'right', render: (l) => (
               <span className="inline-flex gap-0.5">
                 <IconButton icon={Pencil} label="Edit line" onClick={(e) => { e.stopPropagation(); setLine(l); }} className="h-8 w-8" />
                 <IconButton icon={Trash2} label="Remove line" onClick={(e) => { e.stopPropagation(); removeLine(l); }} className="h-8 w-8 text-red hover:bg-red-soft" />
@@ -73,11 +73,11 @@ export default function InvoiceDetail() {
 
         return (
           <Page title={title} subtitle={[inv.client_name, inv.venue_name].filter(Boolean).join(' · ')} back={{ to: `${base}/invoices`, label: 'Invoices' }}
-            actions={<>
-              <Button variant="secondary" icon={Download} busy={pdfBusy} onClick={() => pdf(() => downloadAction('invoices.pdf', { id: inv.id })).catch(() => {})}>{inv.pdf_document_id ? 'Saved PDF' : 'PDF'}</Button>
-              {editable && <Button icon={Send} busy={busy} disabled={!inv.lines.length} onClick={issue}>Issue</Button>}
-              {isCo && ['issued', 'overdue'].includes(inv.status) && !credit && <Button icon={CheckIcon} onClick={() => setPaying(true)}>Mark paid</Button>}
-            </>}>
+            actions={[
+              { label: inv.pdf_document_id ? 'Saved PDF' : 'PDF', icon: Download, busy: pdfBusy, onClick: () => pdf(() => downloadAction('invoices.pdf', { id: inv.id })).catch(() => {}) },
+              editable && { label: 'Issue', icon: Send, variant: 'primary', busy, disabled: !inv.lines.length, onClick: issue },
+              isCo && ['issued', 'overdue'].includes(inv.status) && !credit && { label: 'Mark paid', icon: CheckIcon, variant: 'primary', onClick: () => setPaying(true) },
+            ]}>
             <Bento className="mb-2">
               <Tile tone="blue" className="col-span-2">
                 <div className="flex items-start justify-between gap-3">

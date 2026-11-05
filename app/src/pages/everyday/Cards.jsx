@@ -17,7 +17,7 @@ export function ShoutoutCard({ post, onPerson }) {
         <div className="mt-3 flex flex-wrap justify-center gap-2">
           {to.map((p) => (
             <Pressable press key={p.id} onClick={() => onPerson(p.id)} className="flex items-center gap-1.5 rounded-full bg-surface py-1 pl-1 pr-3 shadow-sm">
-              <Avatar name={p.name} src={p.photo_url} size={26} /><span className="text-footnote font-semibold">{p.name}</span>
+              <Avatar name={p.name} src={[p.photo_thumb_url, p.photo_url]} size={26} /><span className="text-footnote font-semibold">{p.name}</span>
             </Pressable>
           ))}
         </div>
@@ -132,7 +132,7 @@ function VotersSheet({ open, post, onClose }) {
 
 const PersonRow = ({ p, right }) => (
   <div className="flex items-center gap-3 rounded-xl px-1 py-1.5">
-    <Avatar name={p.name} src={p.photo_url} size={34} />
+    <Avatar name={p.name} src={[p.photo_thumb_url, p.photo_url]} size={34} />
     <span className="min-w-0 flex-1"><span className="block truncate text-body font-medium">{p.name}</span><span className="block text-caption text-muted">{ROLE_LABEL[p.role]}</span></span>
     {right}
   </div>
@@ -197,7 +197,7 @@ export function EventCard({ post, onUpdate, onEdit, onPerson }) {
       ) : (
         <div className="space-y-2 border-t border-line p-3">
           <Pressable press onClick={() => setList(true)} className="flex w-full items-center gap-2 text-left text-footnote text-muted">
-            {e.going.length > 0 && <span className="flex -space-x-2">{e.going.slice(0, 5).map((p) => <Avatar key={p.id} name={p.name} src={p.photo_url} size={24} className="ring-2 ring-surface" />)}</span>}
+            {e.going.length > 0 && <span className="flex -space-x-2">{e.going.slice(0, 5).map((p) => <Avatar key={p.id} name={p.name} src={[p.photo_thumb_url, p.photo_url]} size={24} className="ring-2 ring-surface" />)}</span>}
             <span><b className="text-ink">{e.counts.going}</b> going{e.counts.maybe ? ` · ${e.counts.maybe} maybe` : ''}{e.counts.waitlist ? ` · ${e.counts.waitlist} waiting` : ''}{left != null ? ` · ${left ? `${left} place${left === 1 ? '' : 's'} left` : 'Full'}` : ''}</span>
           </Pressable>
           {e.mine === 'waitlist' && <div className="rounded-xl bg-amber-soft px-3 py-2 text-footnote font-semibold">You're on the waiting list</div>}

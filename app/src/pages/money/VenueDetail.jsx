@@ -11,6 +11,7 @@ import {
   Avatar, Bento, Button, cx, date, daysUntil, Empty, IconButton, Input, isoDate, List, Load, money, Page, Pill, Pressable, Row, Section, Select, Sheet, Stat, Table, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm, useToast,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
+import { uploadPhoto } from '../officer/_parts.jsx';
 import { useAuth } from '../../auth.jsx';
 import { ShiftLogList } from '../shift/ShiftLogs.jsx';
 import { BanRegister } from '../shift/Bans.jsx';
@@ -217,22 +218,6 @@ const PROOF_RULES = [
   { value: 'all_three', label: 'All 3 checks (strictest)' },
 ];
 
-// A phone photo made web-sized: a JPEG at most 1600px wide, so HEIC from iPhones also shows on the website
-async function toJpeg(file) {
-  try {
-    const img = await createImageBitmap(file);
-    const k = Math.min(1, 1600 / Math.max(img.width, img.height));
-    const c = document.createElement('canvas');
-    c.width = Math.round(img.width * k);
-    c.height = Math.round(img.height * k);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.85));
-    return blob ? new File([blob], 'venue.jpg', { type: 'image/jpeg' }) : file;
-  } catch {
-    return file;
-  }
-}
-
 // The venue's picture on its cards: an uploaded photo, else its picture on the website, else an icon
 function VenuePhoto({ v, canEdit, onSaved }) {
   const [run, busy] = useAction();
@@ -240,15 +225,15 @@ function VenuePhoto({ v, canEdit, onSaved }) {
   const file = useRef(null);
   const [broken, setBroken] = useState(false);
   const src = v.photo_url || (v.site_client && !broken ? `/img/opulence/clients/${v.site_client}-480.jpg` : null);
-  const save = (photo_key, msg) => run(() => api('venues.save', { id: v.id, photo_key }), msg).then(onSaved).catch(() => {});
+  const save = (photo, msg) => run(() => api('venues.save', { id: v.id, ...photo }), msg).then(onSaved).catch(() => {});
   const pick = async (e) => {
     const f = e.target.files?.[0];
     e.target.value = '';
-    const key = f && await run(async () => upload(await toJpeg(f), 'photo')).catch(() => null);
-    if (key) save(key, 'Venue photo updated');
+    const keys = f && await run(async () => { const { photo_key, photo_thumb_key } = await uploadPhoto(f); return { photo_key, photo_thumb_key }; }).catch(() => null);
+    if (keys) save(keys, 'Venue photo updated');
   };
   const remove = async () => {
-    if (await confirm({ title: 'Remove the venue photo?', body: 'The venue card goes back to its website picture or initials.', confirm: 'Remove', danger: true })) save(null, 'Venue photo removed');
+    if (await confirm({ title: 'Remove the venue photo?', body: 'The venue card goes back to its website picture or initials.', confirm: 'Remove', danger: true })) save({ photo_key: null }, 'Venue photo removed');
   };
   return (
     <div className="flex shrink-0 flex-col items-center gap-1.5">
@@ -539,15 +524,15 @@ function RatesTab({ venueId }) {
         {(rows) => (
           <Table rows={rows} empty="No charge rates yet. Add one per role before invoicing."
             columns={[
-              { key: 'role_name', label: 'Role', render: (r) => <span className="font-semibold">{r.role_name}</span> },
-              { key: 'rate', label: 'Rate', align: 'right', render: (r) => <span className="num font-semibold">{money(r.rate)}</span> },
-              { key: 'night', label: 'Night', align: 'right', render: (r) => <span className="num">+{Number(r.night_uplift)}%</span> },
-              { key: 'weekend', label: 'Weekend', align: 'right', render: (r) => <span className="num">+{Number(r.weekend_uplift)}%</span> },
-              { key: 'bh', label: 'Bank hol.', align: 'right', render: (r) => <span className="num">+{Number(r.bh_uplift)}%</span> },
-              { key: 'min', label: 'Min hours', align: 'right', render: (r) => <span className="num">{Number(r.min_hours)}h</span> },
-              { key: 'from', label: 'From', render: (r) => date(r.effective_from) },
-              { key: 'st', label: 'Status', render: (r) => <Pill tone={tone[status[r.id]]}>{status[r.id] === 'current' ? 'Current' : status[r.id] === 'scheduled' ? 'Scheduled' : 'Superseded'}</Pill> },
-              { key: 'x', label: '', align: 'right', render: (r) => <IconButton icon={Trash2} label="Delete rate" onClick={(e) => { e.stopPropagation(); del(r); }} className="ml-auto h-8 w-8 text-red hover:bg-red-soft" /> },
+              { key: 'role_name', mobile: 'title', label: 'Role', render: (r) => <span className="font-semibold">{r.role_name}</span> },
+              { key: 'rate', mobile: 'value', label: 'Rate', align: 'right', render: (r) => <span className="num font-semibold">{money(r.rate)}</span> },
+              { key: 'night', mobile: 'sub', mobileLabel: true, label: 'Night', align: 'right', render: (r) => <span className="num">+{Number(r.night_uplift)}%</span> },
+              { key: 'weekend', mobile: 'sub', mobileLabel: true, label: 'Weekend', align: 'right', render: (r) => <span className="num">+{Number(r.weekend_uplift)}%</span> },
+              { key: 'bh', mobile: false, label: 'Bank hol.', align: 'right', render: (r) => <span className="num">+{Number(r.bh_uplift)}%</span> },
+              { key: 'min', mobile: false, label: 'Min hours', align: 'right', render: (r) => <span className="num">{Number(r.min_hours)}h</span> },
+              { key: 'from', mobile: false, label: 'From', render: (r) => date(r.effective_from) },
+              { key: 'st', mobile: 'value', label: 'Status', render: (r) => <Pill tone={tone[status[r.id]]}>{status[r.id] === 'current' ? 'Current' : status[r.id] === 'scheduled' ? 'Scheduled' : 'Superseded'}</Pill> },
+              { key: 'x', mobile: 'value', label: '', align: 'right', render: (r) => <IconButton icon={Trash2} label="Delete rate" onClick={(e) => { e.stopPropagation(); del(r); }} className="ml-auto h-8 w-8 text-red hover:bg-red-soft" /> },
             ]} />
         )}
       </Load>

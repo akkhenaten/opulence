@@ -3,7 +3,7 @@
 import { one, q, tx } from '../lib/db.mjs';
 import { fail, required, need } from '../lib/http.mjs';
 import { assertOfficerAccess } from '../lib/scope.mjs';
-import { downloadUrl } from '../lib/storage.mjs';
+import { photoUrls } from '../lib/storage.mjs';
 import { audit } from '../lib/audit.mjs';
 import { notify, companyManagers } from '../lib/notify.mjs';
 import { SIA_TYPES } from '../lib/licences.mjs';
@@ -33,7 +33,7 @@ export const actions = {
     await audit(user, 'sia.details', 'officer', o.id);
     return {
       id: o.id, name: `${o.first_name} ${o.last_name}`, first_name: o.first_name, last_name: o.last_name, roles: o.roles || [], status: o.status,
-      photo_url: await downloadUrl(o.photo_key), sia_type: o.sia_type, sia_expiry: o.sia_expiry,
+      ...(await photoUrls(o.photo_key)), sia_type: o.sia_type, sia_expiry: o.sia_expiry,
       sia_status: o.sia_status, sia_last_verified_at: o.sia_last_verified_at, sia_last_verified_by_name: o.sia_last_verified_by_name,
       number, number_groups: siaGroups(number),
       dob: ukDate(o.dob), dob_masked: user.role === 'company' ? ukDate(o.dob) : maskDob(o.dob),

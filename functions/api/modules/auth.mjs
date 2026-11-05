@@ -3,7 +3,7 @@ import { fail, required } from '../lib/http.mjs';
 import { hashPassword, verifyPassword, signToken, randomToken, publicUser, resolveActing, ownOfficer, goesBy } from '../lib/auth.mjs';
 import { sendRawEmail, emailHtml } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
-import { downloadUrl, checkOwnPhoto } from '../lib/storage.mjs';
+import { checkOwnPhoto, saveThumb, photoUrls } from '../lib/storage.mjs';
 import { ALL, pub, def } from './_def.mjs';
 import { getBrand } from '../lib/brand.mjs';
 
@@ -11,7 +11,7 @@ import { getBrand } from '../lib/brand.mjs';
 const loadUser = async (userId, as) => resolveActing(await one(
   'SELECT u.*, o.id AS officer_id, COALESCE(o.photo_key, u.photo_key) AS photo_key FROM users u LEFT JOIN officers o ON o.user_id = u.id WHERE u.id = $1', [userId]), as);
 // The signed-in person as the app sees them, with a short-lived link to their photo
-const me = async (u) => ({ ...publicUser(u), photo_url: await downloadUrl(u.photo_key) });
+const me = async (u) => ({ ...publicUser(u), ...(await photoUrls(u.photo_key)) });
 
 const session = async (userId) => {
   const u = await loadUser(userId);
@@ -84,6 +84,7 @@ export const actions = {
         if (photo !== undefined) await t.q('UPDATE officers SET photo_key = $2 WHERE id = $1', [oid, photo]);
       } else if (photo !== undefined) await t.q('UPDATE users SET photo_key = $2 WHERE id = $1', [user.id, photo]);
     });
+    if (photo) await saveThumb(user, photo, b.photo_thumb_key);
     await audit(user, 'user.self_update', 'user', user.id, Object.keys(b).filter((k) => ['name', 'goes_by', 'phone', 'photo_key'].includes(k)));
     return { user: await me(await loadUser(user.id, user.role === 'officer' ? 'officer' : undefined)) };
   }),

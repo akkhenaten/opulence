@@ -234,7 +234,7 @@ export default function Composer({ rulesAccepted, onPosted, post, onCancel, auto
       )}
 
       <div className="flex gap-3">
-        {!post && <Avatar name={user.name} src={user.photo_url} size={40} />}
+        {!post && <Avatar name={user.name} src={[user.photo_thumb_url, user.photo_url]} size={40} />}
         <div className="min-w-0 flex-1">
           <MentionBox value={text} mentions={mentions} rows={post ? 4 : 2} autoFocus={autoFocus}
             onChange={(t, ids) => { setText(t); setMentions(ids); }} placeholder={placeholder} />
@@ -272,7 +272,7 @@ export default function Composer({ rulesAccepted, onPosted, post, onCancel, auto
       {kind === 'post' && video && (
         <div className="relative mt-3 overflow-hidden rounded-xl bg-black">
           <video src={video.url} poster={video.poster_url} controls playsInline className="max-h-[320px] w-full object-contain" />
-          <Pressable press aria-label="Remove video" onClick={() => setVideo(null)} className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white"><X size={16} /></Pressable>
+          <Pressable press aria-label="Remove video" onClick={() => setVideo(null)} className="absolute right-2 top-2 grid h-8 w-8 place-items-center before:absolute before:-inset-1.5 rounded-full bg-black/60 text-white"><X size={16} /></Pressable>
         </div>
       )}
 
@@ -282,7 +282,7 @@ export default function Composer({ rulesAccepted, onPosted, post, onCancel, auto
             <div key={p.key} className="relative aspect-square overflow-hidden rounded-xl bg-bg">
               <img src={p.url} alt={p.caption || ''} className="h-full w-full object-cover" />
               <Pressable press aria-label="Remove photo" onClick={() => setPhotos((x) => x.filter((y) => y.key !== p.key))}
-                className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white"><X size={16} /></Pressable>
+                className="absolute right-1 top-1 grid h-7 w-7 before:absolute before:-inset-2.5 place-items-center rounded-full bg-black/60 text-white"><X size={16} /></Pressable>
               <Pressable press onClick={() => setEditor({ i })}
                 className="absolute bottom-1 left-1 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-caption font-semibold text-white"><Pencil size={12} /> {p.file ? 'Edit' : 'Caption'}</Pressable>
               {p.caption && <span className="absolute right-1 bottom-1 h-2 w-2 rounded-full bg-white" title="Has a caption" />}

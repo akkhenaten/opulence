@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CalendarDays, CalendarRange, Repeat } from 'lucide-react';
-import { Button, Chip, cx, Input, isoDate, addDays, Pressable, Segmented, Select, Sheet, Textarea, Toggle, useAction, useConfirm, useForm } from '../../ui/index.jsx';
+import { Button, Callout, Chip, cx, Input, isoDate, addDays, Pressable, Segmented, Select, Sheet, Textarea, Toggle, useAction, useConfirm, useForm } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { londonParts, WEEKDAYS } from './_parts.jsx';
 
@@ -73,7 +73,7 @@ export function RequestForm({ venues, roles, draft, onClose, onDone }) {
     <Sheet open onClose={onClose} title="Request cover"
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={send} busy={busy} disabled={!ok}>Send request</Button></>}>
       <div className="space-y-4">
-        {draft && <p className="rounded-2xl bg-blue-soft px-3 py-2 text-footnote text-blue">Filled in from your message. Check the details before sending.</p>}
+        {draft && <Callout>Filled in from your message. Check the details before sending.</Callout>}
         <Segmented full value={v.kind} onChange={(k) => f.set('kind', k)} options={[{ value: 'one_off', label: 'One date' }, { value: 'recurring', label: 'Repeating' }]} />
         {venues.length !== 1 && <Select label="Venue" value={v.venue_id} onChange={(e) => f.set('venue_id', e.target.value)} placeholder="Choose venue" options={venues.map((x) => ({ value: x.id, label: x.name }))} />}
         <Select label="Officer type" value={v.role} onChange={(e) => f.set('role', e.target.value)} placeholder="Choose" options={roles.map((r) => ({ value: r.code, label: r.name }))} />
@@ -146,7 +146,7 @@ export function ChangeSheet({ c, mode, isMgr, onClose, onDone }) {
     <Sheet open onClose={onClose} title={mode === 'delete' ? 'Cancel cover' : scope === 'future' ? 'Change this and later dates' : 'Change this date'}
       footer={<><Button variant="secondary" onClick={onClose}>Back</Button><Button variant={mode === 'delete' ? 'danger' : 'primary'} busy={busy} disabled={!ok} onClick={go}>{needsOk ? 'Ask for approval' : mode === 'delete' ? 'Cancel cover' : 'Save'}</Button></>}>
       <div className="space-y-4">
-        {needsOk && <p className="rounded-2xl bg-amber-soft px-3 py-2 text-footnote text-amber">This cover is already booked, so Orb will approve the change. Until then the booking stays as it is.</p>}
+        {needsOk && <Callout tone="warning">This cover is already booked, so Orb will approve the change. Until then the booking stays as it is.</Callout>}
         {mode === 'delete' ? (
           <p className="text-body text-muted">{scope === 'future' ? 'This date and every later date in the pattern will be cancelled.' : 'Only this date will be cancelled.'}</p>
         ) : scope === 'one' ? (

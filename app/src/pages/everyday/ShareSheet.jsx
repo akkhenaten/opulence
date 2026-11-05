@@ -32,7 +32,7 @@ export default function ShareSheet({ post, onClose }) {
                 <div className="mt-3 max-h-[45vh] space-y-0.5 overflow-y-auto">
                   {list.map((c) => (
                     <Pressable press key={c.id} onClick={() => setTo(c)} className={cx('flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left', to?.id === c.id ? 'bg-blue-soft' : 'hover:bg-bg')}>
-                      <Avatar name={c.title} src={c.kind === 'direct' ? c.others[0]?.photo_url : null} size={36} />
+                      <Avatar name={c.title} src={c.kind === 'direct' ? [c.others[0]?.photo_thumb_url, c.others[0]?.photo_url] : null} size={36} />
                       <span className="min-w-0 flex-1"><span className="block truncate text-body font-medium">{c.title}</span><span className="block text-caption text-muted">{c.kind === 'group' ? `${c.member_count} people` : 'Direct message'}</span></span>
                     </Pressable>
                   ))}

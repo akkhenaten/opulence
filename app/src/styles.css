@@ -118,6 +118,13 @@ body {
 .pressable-card { transition: transform var(--dur-2) var(--ease-ios), box-shadow var(--dur-2), background-color var(--dur-1); }
 .pressable-card:active { transform: scale(.985); }
 @media (hover: hover) { .pressable-card:hover { box-shadow: var(--hover-shadow); } }
+/* Panels (Tile, List, Table, PhotoCard) are flat on phones: no outline or shadow, a little less padding */
+@media (max-width: 639.98px) {
+  .ui-panel, .ui-card { border-color: transparent; box-shadow: none; --pad-tile: 16px; }
+}
+/* Never a box in a box: a panel inside a panel becomes a plain group under a hairline */
+.ui-panel .ui-panel:not([data-tone]) { background-color: transparent; border-width: 1px 0 0; border-color: var(--color-line); border-radius: 0; box-shadow: none; }
+.ui-panel .ui-panel:not([data-tone]):is(section, a) { padding: 12px 0 0; }
 /* Floating bars dock above the tab bar, or near the bottom edge when there is none */
 .action-bar { bottom: calc(var(--tabbar-h) + 12px); }
 html:not(.has-tabbar) .action-bar { bottom: calc(env(safe-area-inset-bottom) + 24px); }

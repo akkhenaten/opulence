@@ -6,7 +6,7 @@ import {
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Button, cx, dateTime, KV, Lightbox, List, Load, Page, Pill, Pressable, Row, Section, Sheet, Spinner, Textarea, Tile, useAction, useApi, useConfirm, useToast,
+  Button, Callout, cx, dateTime, KV, Lightbox, List, Load, Page, Pill, Pressable, Row, Section, Sheet, Spinner, Textarea, Tile, useAction, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
 import { INCIDENT_STATUS, LatePill, typeLabel } from '../officer/_parts.jsx';
 import { DOC_ACCEPT, fileSize, MAX_FILES, useUploads } from './evidence.jsx';
@@ -238,7 +238,7 @@ function Attachments({ inc, images, files, canAdd, reload, openImage }) {
               </Pressable>
               {a.can_remove && (
                 <Pressable press aria-label={`Remove ${a.name || 'photo'}`} disabled={busy} onClick={() => remove(a)}
-                  className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full bg-ink/70 text-white"><Trash2 size={16} /></Pressable>
+                  className="absolute right-1 top-1 grid h-8 w-8 place-items-center before:absolute before:-inset-1.5 rounded-full bg-ink/70 text-white"><Trash2 size={16} /></Pressable>
               )}
             </div>
           ))}
@@ -297,7 +297,7 @@ function EvidenceReview({ inc, onRequest }) {
   return (
     <Tile title={<span className="inline-flex items-center gap-1.5"><Sparkles size={16} className="text-blue" />Evidence review</span>}
       action={d && !d.error && <Button size="sm" variant="ghost" icon={RefreshCw} busy={state.loading} onClick={() => load(true)}>Refresh</Button>}>
-      {state.error && <p className="mb-2 rounded-xl bg-amber-soft px-3 py-2 text-footnote text-amber">{state.error}</p>}
+      {state.error && <Callout tone="warning" className="mb-2">{state.error}</Callout>}
       {(!d || d.error) ? (
         <div className="grid gap-2">
           <p className="text-footnote text-muted">{d?.error ? 'The last review could not finish.' : 'AI reads the photos and files and checks them against the written report.'}</p>

@@ -35,7 +35,7 @@ export default function Profile({ userId, onBack, onPerson, onPost }) {
       {!d ? <Spinner /> : (
         <>
           <div className="rounded-tile bg-surface p-5 text-center shadow-tile">
-            <Avatar name={d.person.name} src={d.person.photo_url} size={96} className="mx-auto" />
+            <Avatar name={d.person.name} src={[d.person.photo_thumb_url, d.person.photo_url]} size={96} className="mx-auto" />
             <h2 className="mt-3 text-title2 font-bold">{d.person.name}</h2>
             <div className="text-subhead text-muted">{ROLE_LABEL[d.person.role]} · with the team since {d.since}</div>
             <div className="text-footnote text-faint">{d.post_count} post{d.post_count === 1 ? '' : 's'}</div>

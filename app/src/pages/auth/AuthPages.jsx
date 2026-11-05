@@ -12,14 +12,14 @@ import { ROLE_LABEL } from '../../layouts/nav.js';
 export function AuthCard({ title, subtitle, children, footer }) {
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[1.1fr_1fr]">
-      <Photo name="castle" priority className="h-[240px] text-cream lg:sticky lg:top-0 lg:h-dvh">
+      <Photo name="castle" priority className="h-[140px] text-cream sm:h-[240px] lg:sticky lg:top-0 lg:h-dvh">
         <div className="flex h-full flex-col justify-between px-6 pb-14 pt-[calc(1.5rem+env(safe-area-inset-top))] lg:p-12">
           <Logo place="auth" tone="light" />
           <p className="display hidden text-[2.5rem] font-semibold leading-tight lg:block">Security you can see.</p>
         </div>
       </Photo>
       <div className="flex flex-col items-center px-4 pb-10 lg:justify-center lg:py-10">
-        <div className="relative -mt-10 w-full max-w-[400px] rounded-sheet border border-hairline bg-surface p-7 shadow-tile lg:mt-0">
+        <div className="relative -mt-10 w-full max-w-[400px] rounded-sheet border border-hairline bg-surface p-5 shadow-tile sm:p-7 lg:mt-0">
           <h1 className="text-title2 font-bold">{title}</h1>
           {subtitle && <p className="mt-1 text-body text-muted">{subtitle}</p>}
           <div className="mt-6">{children}</div>

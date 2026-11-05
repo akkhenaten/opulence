@@ -34,7 +34,7 @@ function Frame({ children, hero }) {
       </header>
       {hero && (
         <Photo name="castle" priority className="text-cream">
-          <div className="mx-auto flex min-h-[220px] max-w-2xl flex-col justify-end pb-7 pt-12 [--px:1rem] sm:min-h-[280px] sm:[--px:1.5rem] safe-x">{hero}</div>
+          <div className="mx-auto flex min-h-[120px] max-w-2xl flex-col justify-end pb-5 pt-6 sm:pb-7 sm:pt-12 [--px:1rem] sm:min-h-[280px] sm:[--px:1.5rem] safe-x">{hero}</div>
         </Photo>
       )}
       <main className="mx-auto max-w-2xl py-6 [--px:1rem] sm:[--px:1.5rem] safe-x pb-16">{children}</main>
@@ -84,7 +84,7 @@ function Done({ name, brand }) {
   return (
     <Frame>
       <div className="mx-auto mt-10 max-w-md overflow-hidden rounded-tile bg-surface text-center shadow-tile">
-        <Photo name="crowd" priority className="h-40" />
+        <Photo name="crowd" priority className="h-24 sm:h-40" />
         <div className="relative -mt-7 mx-auto grid h-14 w-14 place-items-center rounded-full bg-green-soft text-green ring-4 ring-surface"><CheckCircle2 size={28} /></div>
         <h1 className="mt-3 px-7 text-title2 font-bold">Thank you, {name}</h1>
         <p className="mt-2 px-7 pb-7 text-body text-muted">Your application to {brand} has been sent. We've emailed you a confirmation and our team will be in touch.</p>

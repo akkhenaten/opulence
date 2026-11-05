@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, Fragment, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, Check as CheckIcon, ChevronLeft, ChevronRight, Inbox, Loader2, Search, X, XCircle } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, Check as CheckIcon, ChevronLeft, ChevronRight, Inbox, Info, Loader2, MoreHorizontal, Search, X, XCircle } from 'lucide-react';
 import { api } from '../api.js';
 import { initials, titleCase } from './format.js';
 import { usePresence, useScrollLock } from './motion.js';
@@ -96,7 +96,7 @@ export function ToastProvider({ children }) {
               t.kind === 'error' ? 'bg-red text-white' : 'bg-ink/90 text-white', t.leaving ? 'anim-toast-out' : 'anim-toast-in')}>
             {t.kind === 'error' ? <AlertCircle size={16} className="shrink-0" /> : <CheckIcon size={16} className="shrink-0" />}<span className="min-w-0">{t.message}</span>
             {t.action && (
-              <button type="button" className="pressable ml-1 h-8 shrink-0 rounded-full bg-white/15 px-3 text-footnote font-bold hover:bg-white/25"
+              <button type="button" className="pressable relative ml-1 h-8 shrink-0 before:absolute before:-inset-y-1.5 before:inset-x-0 rounded-full bg-white/15 px-3 text-footnote font-bold hover:bg-white/25"
                 onClick={(e) => { e.stopPropagation(); t.action.onClick(); dismiss(t.id); }}>{t.action.label}</button>
             )}
           </div>
@@ -132,11 +132,11 @@ export function Page({ title, subtitle, actions, back, children, wide, photo }) 
   const head = (
     <div className="min-w-0">
       <h1 className="text-title1 font-bold leading-tight sm:text-large">{title}</h1>
-      {subtitle && <p className="mt-0.5 text-body text-muted">{subtitle}</p>}
+      {subtitle && <div className={cx('mt-0.5 text-body text-muted', photo && 'line-clamp-1 sm:line-clamp-none')}>{subtitle}</div>}
       <div ref={sentinel} aria-hidden="true" />
     </div>
   );
-  const actionBox = actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>;
+  const actionBox = Array.isArray(actions) ? <PageActions items={actions} /> : actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>;
   return (
     <div className={cx('mx-auto w-full pb-[calc(var(--tabbar-h)+32px)] pt-4 [--px:1rem] sm:[--px:1.5rem] lg:pt-8 safe-x', wide ? 'max-w-[1400px]' : 'max-w-6xl')}>
       {back && (
@@ -146,7 +146,7 @@ export function Page({ title, subtitle, actions, back, children, wide, photo }) 
       )}
       {photo ? (
         <Photo name={photo} priority className="mb-5 rounded-tile text-cream [--color-muted:#DDD6C8]">
-          <div className="flex min-h-[150px] flex-wrap items-end justify-between gap-3 p-5 sm:min-h-[180px] sm:p-6">{head}{actionBox}</div>
+          <div className="flex min-h-[96px] flex-wrap items-end justify-between gap-3 p-4 sm:min-h-[180px] sm:p-6">{head}{actionBox}</div>
         </Photo>
       ) : (
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">{head}{actionBox}</div>
@@ -154,6 +154,61 @@ export function Page({ title, subtitle, actions, back, children, wide, photo }) 
       {children}
       <PoweredBy className="mt-10" />
     </div>
+  );
+}
+
+/* Page actions given as a list: every one is a button from sm up; on phones only the main one (marked `main`, else the last)
+   stays a button and the rest move into the … menu. Falsy entries are dropped, so `cond && {…}` works. */
+const actionButton = (a, i) => (
+  <Button key={a.label || i} variant={a.variant || (a.danger ? 'danger' : a.main ? 'primary' : 'secondary')} icon={a.icon} to={a.to} href={a.href}
+    onClick={a.onClick} busy={a.busy} disabled={a.disabled} title={a.title}>{a.label}</Button>
+);
+export function PageActions({ items }) {
+  const list = items.filter(Boolean);
+  if (!list.length) return null;
+  const main = list.find((a) => a.main) || list[list.length - 1];
+  const rest = list.filter((a) => a !== main);
+  return (
+    <>
+      <div className="hidden flex-wrap items-center gap-2 sm:flex">{list.map(actionButton)}</div>
+      <div className="flex items-center gap-2 sm:hidden">
+        {rest.length > 0 && <MoreMenu items={rest} />}
+        {actionButton({ ...main, main: main.main ?? !main.variant }, 'main')}
+      </div>
+    </>
+  );
+}
+
+/** The one "…" menu: a round button that opens a sheet of labelled actions. Destructive ones are red and last. */
+export function MoreMenu({ items, label = 'More actions', title, tone = 'ghost', size = 'md', className }) {
+  const [open, setOpen] = useState(false);
+  const list = items.filter(Boolean).sort((a, b) => !!a.danger - !!b.danger);
+  if (!list.length) return null;
+  const pick = (a) => { setOpen(false); a.onClick?.(); };
+  return (
+    <>
+      <IconButton icon={MoreHorizontal} label={label} tone={tone} size={size} className={className} aria-haspopup="dialog" onClick={(e) => { e.stopPropagation(); setOpen(true); }} />
+      <Sheet open={open} onClose={() => setOpen(false)} title={title || label} size="sm">
+        <div className="-mx-2 divide-y divide-line">
+          {list.map((a) => {
+            const cls = cx('flex min-h-[52px] w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-bg active:bg-fill disabled:opacity-50',
+              a.danger ? 'text-red' : 'text-ink');
+            const inner = (
+              <>
+                {a.busy ? <Loader2 size={20} className="shrink-0 animate-spin" /> : a.icon ? <a.icon size={20} className={cx('shrink-0', !a.danger && 'text-muted')} aria-hidden /> : null}
+                <span className="min-w-0 flex-1">
+                  <span className="block text-body font-semibold">{a.label}</span>
+                  {a.hint && <span className="block text-footnote text-muted">{a.hint}</span>}
+                </span>
+              </>
+            );
+            if (a.to) return <Link key={a.label} to={a.to} onClick={() => setOpen(false)} className={cls}>{inner}</Link>;
+            if (a.href) return <a key={a.label} href={a.href} target="_blank" rel="noopener" onClick={() => setOpen(false)} className={cls}>{inner}</a>;
+            return <button key={a.label} type="button" disabled={a.disabled || a.busy} onClick={() => pick(a)} className={cls}>{inner}</button>;
+          })}
+        </div>
+      </Sheet>
+    </>
   );
 }
 
@@ -185,8 +240,9 @@ export function Tile({ title, icon: Icon, action, to, className, children, pad =
       {children}
     </>
   );
-  const cls = cx('rounded-tile border border-hairline shadow-tile min-w-0', tones[tone] || 'bg-surface', pad && 'p-[var(--pad-tile)]', to && 'pressable-card', className);
-  return to ? <Link to={to} className={cx('block', cls)}>{body}</Link> : <section className={cls}>{body}</section>;
+  const cls = cx('ui-panel rounded-tile border border-hairline shadow-tile min-w-0', tones[tone] || 'bg-surface', pad && 'p-[var(--pad-tile)]', to && 'pressable-card', className);
+  const t = tone ? { 'data-tone': tone } : {};
+  return to ? <Link to={to} className={cx('block', cls)} {...t}>{body}</Link> : <section className={cls} {...t}>{body}</section>;
 }
 
 export function Stat({ value, label, hint, tone }) {
@@ -369,7 +425,7 @@ export function Toggle({ checked, onChange, label, hint }) {
     <label className="flex cursor-pointer items-center justify-between gap-4 py-1">
       <span><span className="block text-body font-medium">{label}</span>{hint && <span className="block text-caption text-muted">{hint}</span>}</span>
       <button type="button" role="switch" aria-checked={!!checked} onClick={() => onChange(!checked)}
-        className={cx('relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors duration-[var(--dur-2)]', checked ? 'bg-green' : 'bg-toggle-off')}>
+        className={cx('relative h-[31px] w-[51px] shrink-0 rounded-full before:absolute before:-inset-[7px] transition-colors duration-[var(--dur-2)]', checked ? 'bg-green' : 'bg-toggle-off')}>
         <span className={cx('absolute top-[2px] h-[27px] w-[27px] rounded-full bg-white shadow transition-[left] duration-[var(--dur-2)] ease-ios', checked ? 'left-[22px]' : 'left-[2px]')} />
       </button>
     </label>
@@ -405,7 +461,7 @@ export function Segmented({ value, onChange, options, className, full }) {
         const l = typeof o === 'string' ? titleCase(o) : o.label;
         return (
           <button key={v} type="button" role="tab" aria-selected={value === v} onClick={() => onChange(v)}
-            className={cx(full && 'flex-1', 'relative min-h-9 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-footnote font-semibold transition-colors', value === v ? 'text-ink' : 'text-muted hover:text-ink', !thumb && value === v && 'bg-raised shadow-sm')}>
+            className={cx(full && 'flex-1', 'relative min-h-[38px] whitespace-nowrap rounded-lg before:absolute before:inset-x-0 before:-inset-y-[3px] px-3.5 py-1.5 text-footnote font-semibold transition-colors', value === v ? 'text-ink' : 'text-muted hover:text-ink', !thumb && value === v && 'bg-raised shadow-sm')}>
             {l}{o.count != null && o.count > 0 && <span className="ml-1.5 rounded-full bg-blue px-1.5 text-caption2 text-white">{o.count}</span>}
           </button>
         );
@@ -417,7 +473,7 @@ export function Segmented({ value, onChange, options, className, full }) {
 /* ---------- Lists ---------- */
 
 export const List = ({ children, className, inset }) => (
-  <div className={cx('overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile divide-y divide-line', inset && 'border-0 shadow-none rounded-2xl bg-bg/60', className)}>{children}</div>
+  <div className={cx('overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile divide-y divide-line', inset ? 'border-0 shadow-none rounded-2xl bg-bg/60' : 'ui-panel', className)}>{children}</div>
 );
 export function Row({ title, subtitle, left, right, to, onClick, chevron, className }) {
   const Inner = (
@@ -452,11 +508,20 @@ export function KV({ items }) {
   );
 }
 
-// Simple responsive table: becomes cards on mobile
+// Responsive table. Below md each row is a compact list row: a bold title, one muted line, one value on the right.
+// Columns may set mobile: 'title' | 'sub' | 'note' | 'value' | false (mobileLabel: true prefixes a sub with its label); by default the first is the title, the last the value
+// and up to two in between make the muted line.
+const mobileRoles = (columns) => {
+  if (columns.some((c) => c.mobile !== undefined)) return columns.map((c) => c.mobile ?? false);
+  return columns.map((c, i) => (i === 0 ? 'title' : columns.length > 1 && i === columns.length - 1 ? 'value' : i <= 2 ? 'sub' : false));
+};
 export function Table({ columns, rows, onRow, empty = 'Nothing here yet', rowKey = 'id' }) {
   if (!rows?.length) return <Empty title={empty} />;
+  const roles = mobileRoles(columns);
+  const cell = (c, r) => (c.render ? c.render(r) : r[c.key]);
+  const blank = (v) => v == null || v === '' || v === false;
   return (
-    <div className="overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile">
+    <div className="ui-panel overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile">
       <table className="hidden w-full text-subhead md:table">
         <thead><tr className="border-b border-line text-left text-caption font-semibold uppercase tracking-wide text-faint">
           {columns.map((c) => <th key={c.key || c.label} className={cx('px-4 py-3 font-semibold', c.align === 'right' && 'text-right')}>{c.label}</th>)}
@@ -464,21 +529,52 @@ export function Table({ columns, rows, onRow, empty = 'Nothing here yet', rowKey
         <tbody className="divide-y divide-line">
           {rows.map((r, i) => (
             <tr key={r[rowKey] ?? i} onClick={onRow ? () => onRow(r) : undefined} className={cx(onRow && 'cursor-pointer hover:bg-bg')}>
-              {columns.map((c) => <td key={c.key || c.label} className={cx('px-4 py-3 align-middle', c.align === 'right' && 'text-right num', c.className)}>{c.render ? c.render(r) : r[c.key]}</td>)}
+              {columns.map((c) => <td key={c.key || c.label} className={cx('px-4 py-3 align-middle', c.align === 'right' && 'text-right num', c.className)}>{cell(c, r)}</td>)}
             </tr>
           ))}
         </tbody>
       </table>
       <div className="divide-y divide-line md:hidden">
-        {rows.map((r, i) => (
-          <div key={r[rowKey] ?? i} onClick={onRow ? () => onRow(r) : undefined} className={cx('px-4 py-3', onRow && 'active:bg-bg')}>
-            {columns.map((c, ci) => (
-              <div key={c.key || c.label} className={cx('flex items-center justify-between gap-3', ci === 0 ? 'text-body font-semibold' : 'text-footnote text-muted')}>
-                {ci > 0 && <span className="text-faint">{c.label}</span>}<span className={cx('min-w-0', ci > 0 && 'text-right text-ink')}>{c.render ? c.render(r) : r[c.key]}</span>
+        {rows.map((r, i) => {
+          const pick = (role) => columns.filter((c, ci) => roles[ci] === role);
+          const subs = pick('sub').map((c) => [c, cell(c, r)]).filter(([, v]) => !blank(v) && v !== '—' && v !== '–');
+          const notes = pick('note').map((c) => [c, cell(c, r)]).filter(([, v]) => !blank(v) && v !== '—' && v !== '–');
+          return (
+            <div key={r[rowKey] ?? i} onClick={onRow ? () => onRow(r) : undefined} className={cx('flex min-h-[52px] items-center gap-3 px-4 py-2.5', onRow && 'cursor-pointer active:bg-fill')}>
+              <div className="min-w-0 flex-1">
+                {pick('title').map((c) => <div key={c.key || c.label} className="truncate text-body font-semibold">{cell(c, r)}</div>)}
+                {subs.length > 0 && (
+                  <div className="truncate text-footnote text-muted">
+                    {subs.map(([c, v], k) => <Fragment key={c.key || c.label}>{k > 0 && <span aria-hidden> · </span>}{c.mobileLabel && <span className="text-faint">{c.label} </span>}{v}</Fragment>)}
+                  </div>
+                )}
+                {notes.map(([c, v]) => <div key={c.key || c.label} className="mt-0.5 line-clamp-3 text-footnote">{v}</div>)}
               </div>
-            ))}
-          </div>
-        ))}
+              {pick('value').map((c) => <div key={c.key || c.label} className="shrink-0 text-right text-subhead num">{cell(c, r)}</div>)}
+              {onRow && <ChevronRight size={18} className="shrink-0 text-faint" aria-hidden />}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// A note inside a panel: info, warning, success or danger, with an optional action
+const CALLOUT = {
+  info: ['bg-blue-soft text-blue', Info], warning: ['bg-amber-soft text-amber', AlertTriangle],
+  success: ['bg-green-soft text-green', CheckCircle2], danger: ['bg-red-soft text-red', AlertCircle],
+};
+export function Callout({ tone = 'info', icon, title, children, action, className }) {
+  const [cls, Def] = CALLOUT[tone] || CALLOUT.info;
+  const I = icon === false ? null : icon || Def;
+  return (
+    <div className={cx('flex gap-2.5 rounded-2xl px-3.5 py-3 text-subhead', cls, className)}>
+      {I && <I size={18} className="mt-0.5 shrink-0" aria-hidden />}
+      <div className="min-w-0 flex-1">
+        {title && <div className="font-semibold">{title}</div>}
+        {children && <div className={cx(title && 'mt-0.5', 'text-ink/80')}>{children}</div>}
+        {action && <div className="mt-1.5">{action}</div>}
       </div>
     </div>
   );
@@ -517,9 +613,15 @@ export const Dot = ({ tone = 'green', live, label }) => <span className={cx('inl
 // The same soft colour for a name everywhere it appears without a photo
 export const avatarHue = (name) => ['bg-blue-soft text-blue', 'bg-fill text-ink', 'bg-sky-soft text-sky', 'bg-indigo-soft text-indigo'][[...(name || '')].reduce((a, c) => a + c.charCodeAt(0), 0) % 4];
 
+// src: a URL, or a list tried in order (small version first, then the full photo), then initials
 export function Avatar({ name, src, size = 40, className }) {
   const bg = avatarHue(name);
-  if (src) return <img src={src} alt="" className={cx('shrink-0 rounded-full object-cover', className)} style={{ width: size, height: size }} />;
+  const list = (Array.isArray(src) ? src : [src]).filter(Boolean);
+  const key = list.join('|');
+  const [fail, setFail] = useState({ key, n: 0 });
+  const n = fail.key === key ? fail.n : 0;
+  const url = list[n];
+  if (url) return <img src={url} alt="" loading="lazy" decoding="async" onError={() => setFail({ key, n: n + 1 })} className={cx('shrink-0 rounded-full object-cover', className)} style={{ width: size, height: size }} />;
   return <div className={cx('grid shrink-0 place-items-center rounded-full font-bold', bg, className)} style={{ width: size, height: size, fontSize: size * 0.36 }}>{initials(name)}</div>;
 }
 
@@ -530,10 +632,10 @@ export function PhotoCard({ to, srcs = [], name, sub, dot }) {
   const [i, setI] = useState(0);
   const src = list[i];
   return (
-    <Pressable card to={to} className="block overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile">
+    <Pressable card to={to} className="ui-card block overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile">
       <div className="relative aspect-square">
         {src
-          ? <img src={src} alt="" loading="lazy" onError={() => setI((n) => n + 1)} className="h-full w-full object-cover" />
+          ? <img src={src} alt="" loading="lazy" decoding="async" onError={() => setI((n) => n + 1)} className="h-full w-full object-cover" />
           : <div className={cx('grid h-full w-full place-items-center text-title1 font-bold', avatarHue(name))}>{initials(name)}</div>}
         {dot && <span className="absolute right-2 top-2 grid h-5 w-5 place-items-center rounded-full bg-surface shadow-tile"><Dot tone={dot.tone} label={dot.label} /></span>}
       </div>
@@ -695,9 +797,21 @@ export function useForm(initial) {
   return { v, setV, set: (k, val) => setV((s) => ({ ...s, [k]: val })), bind };
 }
 
-export const Tabs = ({ tabs, value, onChange }) => (
-  <div className="no-scrollbar -mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0"><Segmented value={value} onChange={onChange} options={tabs} /></div>
-);
+// More than five tabs: a full-width picker on phones, the sliding tab row from sm up
+export function Tabs({ tabs, value, onChange }) {
+  const opts = tabs.filter(Boolean).map((t) => (typeof t === 'string' ? { value: t, label: titleCase(t) } : t));
+  const row = <div className="no-scrollbar -mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0"><Segmented value={value} onChange={onChange} options={tabs} /></div>;
+  if (opts.length <= 5) return row;
+  return (
+    <>
+      <div className="mb-4 sm:hidden">
+        <Select aria-label="Section" value={value} onChange={(e) => onChange(e.target.value)}
+          options={opts.map((o) => ({ value: o.value, label: o.count > 0 ? `${o.label} (${o.count})` : o.label }))} />
+      </div>
+      <div className="hidden sm:block">{row}</div>
+    </>
+  );
+}
 
 /* ---------- Small shared controls ---------- */
 
@@ -733,7 +847,7 @@ export function Chip({ label, value, tone = 'grey', active, onClick }) {
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag type={onClick ? 'button' : undefined} onClick={onClick} aria-pressed={onClick ? !!active : undefined}
-      className={cx('inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-footnote font-semibold shadow-tile',
+      className={cx('relative inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-footnote font-semibold shadow-tile', onClick && 'before:absolute before:inset-x-0 before:-inset-y-1',
         tones[tone], active ? 'border-blue ring-2 ring-blue/15' : 'border-hairline', onClick && 'pressable')}>
       <span className="num text-body font-bold">{value}</span>{label}
     </Tag>
@@ -746,10 +860,10 @@ export function Chips({ options, value = [], onChange, label }) {
   return (
     <div>
       {label && <div className="mb-1.5 text-footnote font-semibold text-muted">{label}</div>}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-x-2 gap-y-3">
         {options.map((o) => (
           <button key={o.value} type="button" onClick={() => toggle(o.value)} aria-pressed={value.includes(o.value)}
-            className={cx('pressable min-h-9 rounded-full border px-3.5 py-1.5 text-footnote font-semibold',
+            className={cx('pressable relative min-h-9 rounded-full border px-3.5 py-1.5 text-footnote font-semibold before:absolute before:inset-x-0 before:-inset-y-1',
               value.includes(o.value) ? 'border-blue bg-blue text-white' : 'border-line bg-surface text-ink hover:bg-bg')}>
             {o.label}
           </button>

@@ -77,7 +77,7 @@ function Body({ d, base, isCompany }) {
     <div className="space-y-4">
       <Bento>
         {/* Live now */}
-        <Tile tone="ink" title="Live now" icon={Radio} className="col-span-2 lg:row-span-2" action={<Link to={`${base}/live`} className="-my-2.5 inline-block py-2.5 text-footnote font-semibold text-white/80 hover:text-white">Open board ›</Link>}>
+        <Tile tone="ink" title="Live now" icon={Radio} className="col-span-2 lg:row-span-2" action={<Link to={`${base}/live`} className="relative -my-2.5 inline-block py-2.5 before:absolute before:-inset-x-3 before:-inset-y-1 text-footnote font-semibold text-white/80 hover:text-white">Open board ›</Link>}>
           <div className="grid grid-cols-3 gap-3">
             <div><div className="flex items-center gap-2"><Dot tone="green" live={live.on_site > 0} /><span className="text-caption font-semibold uppercase tracking-wide opacity-70">On site</span></div><div className="display num mt-1 text-[44px] font-bold leading-none">{live.on_site ?? 0}</div></div>
             <div><div className="text-caption font-semibold uppercase tracking-wide opacity-70">Late</div><div className={cx('display num mt-1 text-[44px] font-bold leading-none', live.late ? 'text-amber-bright' : 'opacity-40')}>{live.late ?? 0}</div></div>
@@ -117,7 +117,7 @@ function Body({ d, base, isCompany }) {
 
       <Bento>
         {/* Upcoming shifts */}
-        <Tile title="Upcoming shifts" icon={CalendarDays} pad={false} className="col-span-2" action={<Link to={`${base}/rota`} className="-my-2.5 inline-block py-2.5 text-footnote font-semibold text-blue">Rota ›</Link>}>
+        <Tile title="Upcoming shifts" icon={CalendarDays} pad={false} className="col-span-2" action={<Link to={`${base}/rota`} className="relative -my-2.5 inline-block py-2.5 before:absolute before:-inset-x-3 before:-inset-y-1 text-footnote font-semibold text-blue">Rota ›</Link>}>
           {(d.shifts || []).length === 0 ? <p className="px-5 pb-5 text-subhead text-muted">No published shifts in the next 36 hours.</p> : (
             <div className="divide-y divide-line">
               {d.shifts.slice(0, 8).map((s) => {
@@ -143,7 +143,7 @@ function Body({ d, base, isCompany }) {
         </Tile>
 
         {/* Recent incidents */}
-        <Tile title="Recent incidents" icon={ShieldAlert} pad={false} className="col-span-2" action={<Link to={`${base}/incidents`} className="-my-2.5 inline-block py-2.5 text-footnote font-semibold text-blue">All ›</Link>}>
+        <Tile title="Recent incidents" icon={ShieldAlert} pad={false} className="col-span-2" action={<Link to={`${base}/incidents`} className="relative -my-2.5 inline-block py-2.5 before:absolute before:-inset-x-3 before:-inset-y-1 text-footnote font-semibold text-blue">All ›</Link>}>
           {(d.incidents || []).length === 0 ? <p className="px-5 pb-5 text-subhead text-muted">No incidents reported.</p> : (
             <div className="divide-y divide-line">
               {d.incidents.map((i) => (
@@ -172,7 +172,7 @@ function Body({ d, base, isCompany }) {
         )}
 
         {isCompany && (
-          <Tile title="Compliance" icon={ShieldCheck} className="col-span-2" action={<Link to="/company/staff" className="-my-2.5 inline-block py-2.5 text-footnote font-semibold text-blue">Staff ›</Link>}>
+          <Tile title="Compliance" icon={ShieldCheck} className="col-span-2" action={<Link to="/company/staff" className="relative -my-2.5 inline-block py-2.5 before:absolute before:-inset-x-3 before:-inset-y-1 text-footnote font-semibold text-blue">Staff ›</Link>}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <div className="mb-2 flex items-baseline gap-2"><span className={cx('display num text-title2 font-bold', d.nonCompliantCount ? 'text-red' : 'text-green')}>{d.nonCompliantCount || 0}</span><span className="text-footnote font-semibold">can't work</span></div>

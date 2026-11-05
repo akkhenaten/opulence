@@ -87,7 +87,7 @@ function Body({ d, sev, setSev, area, setArea, dismiss, busy, openCard, openStaf
             return (
               <Tile key={g.officer.id}>
                 <div className="mb-3 flex items-center gap-3">
-                  <Avatar name={name} src={g.officer.photo_url} size={40} />
+                  <Avatar name={name} src={[g.officer.photo_thumb_url, g.officer.photo_url]} size={40} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-headline font-bold">{name}</div>
                     <div className="text-footnote text-muted">{g.rows.length} issue{g.rows.length === 1 ? '' : 's'}{g.officer.status === 'onboarding' ? ' · onboarding' : ''}</div>

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, BookmarkX, EyeOff, Flag, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Send, Trash2, UserMinus, VolumeX } from 'lucide-react';
+import { Bookmark, BookmarkX, EyeOff, Flag, MessageCircle, Pencil, Pin, PinOff, Send, Trash2, UserMinus, VolumeX } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Avatar, Button, cx, Pressable, relative, Sheet, Toggle, useAction, useConfirm, useToast } from '../../ui/index.jsx';
+import { Avatar, Button, cx, MoreMenu, Pressable, relative, Sheet, Toggle, useAction, useConfirm, useToast } from '../../ui/index.jsx';
 import { AckBar, AudienceSheet, CelebrationCard, EventCard, PollCard, ShoutoutCard } from './Cards.jsx';
 import Comments, { applyReaction, HideSheet, ReactButton, RemoveSheet, ReportSheet, topEmoji, total, WhoReacted } from './Comments.jsx';
 import Composer from './Composer.jsx';
@@ -40,33 +40,8 @@ function useSeen(ref, post, me) {
   }, [post.id, post.pinned_at, post.audience?.seen_at, me]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-function Menu({ items }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return undefined;
-    const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
-    document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
-  }, [open]);
-  const list = items.filter(Boolean);
-  if (!list.length) return null;
-  return (
-    <div className="relative" ref={ref}>
-      <Pressable press aria-label="More" onClick={() => setOpen(!open)} className="grid h-10 w-10 place-items-center rounded-full text-muted hover:bg-bg"><MoreHorizontal size={20} /></Pressable>
-      {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-60 overflow-hidden rounded-2xl border border-line bg-surface py-1 shadow-lg">
-          {list.map((it) => (
-            <Pressable press key={it.label} onClick={() => { setOpen(false); it.onClick(); }}
-              className={cx('flex w-full items-center gap-3 px-4 py-2.5 text-left text-subhead font-medium hover:bg-bg', it.danger && 'text-red')}>
-              <it.icon size={18} /> {it.label}
-            </Pressable>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+// The post's … menu (the app's shared one)
+const Menu = ({ items }) => <MoreMenu items={items} label="More" title="Post" />;
 
 function PinSheet({ post, onClose, onDone }) {
   const [announce, setAnnounce] = useState(false);
@@ -147,7 +122,7 @@ export default function PostCard({ post: initial, onChanged, onPerson, full, hig
       {post.pinned_at && <div className="flex items-center gap-1.5 bg-blue-soft px-4 py-1.5 text-caption font-semibold text-blue"><Pin size={14} /> {post.must_ack ? 'Pinned — please read and confirm' : 'Pinned announcement'}</div>}
       {post.hidden_at && <div className="flex items-center gap-1.5 bg-red-soft px-4 py-1.5 text-caption font-semibold text-red"><EyeOff size={14} /> Hidden from staff{post.hidden_reason ? ` — ${post.hidden_reason}` : ''}</div>}
       <header className="flex items-start gap-3 px-4 pt-3">
-        <Pressable press onClick={() => onPerson(post.author.id)}><Avatar name={post.author.name} src={post.author.photo_url} size={42} /></Pressable>
+        <Pressable press onClick={() => onPerson(post.author.id)}><Avatar name={post.author.name} src={[post.author.photo_thumb_url, post.author.photo_url]} size={42} /></Pressable>
         <div className="min-w-0 flex-1">
           <div className="text-body leading-snug text-muted">
             <Pressable press onClick={() => onPerson(post.author.id)} className="inline font-semibold text-ink">{post.author.name}</Pressable>

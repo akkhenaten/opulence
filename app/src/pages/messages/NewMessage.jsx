@@ -50,7 +50,7 @@ export default function NewMessage({ open, onClose, addTo, exclude = [], onAdded
           {() => (list.length ? list.map((p) => (
             <div key={p.id} className="flex items-center gap-2 pr-2">
               <Pressable onClick={() => toggle(p.id)} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2">
-                <Avatar name={p.name} src={p.photo_url} size={40} />
+                <Avatar name={p.name} src={[p.photo_thumb_url, p.photo_url]} size={40} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-body font-semibold">{displayName(p)}</div>
                   <div className="truncate text-footnote text-muted">{[ROLE_LABEL[p.role], p.venues].filter(Boolean).join(' · ')}</div>

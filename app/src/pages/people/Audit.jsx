@@ -82,7 +82,7 @@ function Entry({ r }) {
       </div>
       {detail && (
         <>
-          <Pressable press onClick={() => setOpen((x) => !x)} className="ml-12 mt-1 inline-flex items-center gap-1 text-caption font-semibold text-blue">
+          <Pressable press onClick={() => setOpen((x) => !x)} className="relative ml-12 mt-1 inline-flex before:absolute before:-inset-x-2 before:-inset-y-3 items-center gap-1 text-caption font-semibold text-blue">
             {open ? 'Hide detail' : 'Show detail'}<ChevronDown size={14} className={cx('transition', open && 'rotate-180')} />
           </Pressable>
           {open && <DetailView detail={detail} />}

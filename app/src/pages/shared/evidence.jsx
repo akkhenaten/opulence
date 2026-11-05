@@ -56,7 +56,7 @@ export function FileTile({ name, mime, url, size, status, badge, onRemove, onOpe
       {badge && <span className="absolute bottom-1 left-1 rounded-full bg-ink/70 px-2 py-0.5 text-caption2 font-semibold text-white">{badge}</span>}
       {onRemove && (
         <Pressable press aria-label={`Remove ${name}`} onClick={onRemove}
-          className={cx('absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full bg-ink/70 text-white')}><Trash2 size={16} /></Pressable>
+          className={cx('absolute right-1 top-1 grid h-8 w-8 place-items-center before:absolute before:-inset-1.5 rounded-full bg-ink/70 text-white')}><Trash2 size={16} /></Pressable>
       )}
     </div>
   );

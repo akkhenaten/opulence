@@ -45,10 +45,10 @@ export default function ToolboxAdmin() {
           }
           return (
             <Table rows={rows} onRow={(c) => nav(`${base}/${c.id}`)} empty="No cards match" columns={[
-              { key: 'title', label: 'Card', render: (c) => { const k = category(c.category); return <div className="flex min-w-0 items-center gap-3"><span className={cx('grid h-9 w-9 shrink-0 place-items-center rounded-xl', k.tone)}><k.icon size={18} /></span><div className="min-w-0"><div className="font-semibold">{c.title}</div><div className="max-w-[640px] truncate text-caption text-muted">{c.summary}</div></div></div>; } },
-              { key: 'category', label: 'Category', render: (c) => <span className="text-footnote">{category(c.category).label}{c.venue_name ? ` · ${c.venue_name}` : ''}</span> },
-              { key: 'status', label: 'Status', render: status },
-              { key: 'updated', label: 'Updated', render: (c) => <span className="text-footnote text-muted">{date(c.updated_at)}</span> },
+              { key: 'title', mobile: 'title', label: 'Card', render: (c) => { const k = category(c.category); return <div className="flex min-w-0 items-center gap-3"><span className={cx('grid h-9 w-9 shrink-0 place-items-center rounded-xl', k.tone)}><k.icon size={18} /></span><div className="min-w-0"><div className="font-semibold">{c.title}</div><div className="max-w-[640px] truncate text-caption text-muted">{c.summary}</div></div></div>; } },
+              { key: 'category', mobile: 'sub', label: 'Category', render: (c) => <span className="text-footnote">{category(c.category).label}{c.venue_name ? ` · ${c.venue_name}` : ''}</span> },
+              { key: 'status', mobile: 'value', label: 'Status', render: status },
+              { key: 'updated', mobile: 'sub', label: 'Updated', render: (c) => <span className="text-footnote text-muted">{date(c.updated_at)}</span> },
             ]} />
           );
         }}

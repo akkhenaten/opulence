@@ -46,7 +46,11 @@ function Body({ d, name }) {
 
   return (
     <Page title={`${greeting()}${name ? `, ${name}` : ''}`} subtitle={multi ? `${d.venues.length} venues` : d.venues[0].name}
-      actions={<><Button variant="secondary" icon={Star} onClick={() => setRate(true)}>Rate staff</Button><Button variant="secondary" icon={MessageSquareHeart} onClick={() => setGive(true)}>Give feedback</Button><Button icon={Plus} to="/venue/cover">Request cover</Button></>}>
+      actions={[
+        { label: 'Rate staff', icon: Star, onClick: () => setRate(true) },
+        { label: 'Give feedback', icon: MessageSquareHeart, onClick: () => setGive(true) },
+        { label: 'Request cover', icon: Plus, variant: 'primary', main: true, to: '/venue/cover' },
+      ]}>
       <InstallCard className="mb-4" />
       <RateStaffSheet open={rate} onClose={() => setRate(false)} />
       <GiveFeedbackSheet open={give} onClose={() => setGive(false)} />

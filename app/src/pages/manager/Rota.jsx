@@ -53,11 +53,11 @@ export default function Rota() {
 
   return (
     <Page title="Rota" subtitle={tab === 'rota' ? `Week of ${dayLabel(week)}` : 'Officer requests for open shifts'} wide
-      actions={tab === 'rota' && <>
-        <Button variant="secondary" icon={Copy} onClick={copyWeek} busy={busy}><span className="hidden sm:inline">Copy last week</span></Button>
-        {drafts.length > 0 && <Button variant="soft" icon={Send} onClick={publish} busy={busy}>Publish {drafts.length}</Button>}
-        <Button icon={Plus} onClick={() => setForm({})}>New shift</Button>
-      </>}>
+      actions={tab === 'rota' ? [
+        { label: 'Copy last week', icon: Copy, onClick: copyWeek, busy },
+        drafts.length > 0 && { label: `Publish ${drafts.length}`, icon: Send, variant: 'soft', onClick: publish, busy },
+        { label: 'New shift', icon: Plus, variant: 'primary', main: true, onClick: () => setForm({}) },
+      ] : undefined}>
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'rota', label: 'Rota' }, { value: 'requests', label: 'Requests', count: reqs.data?.length }]} />
 
       {tab === 'requests' ? <Requests q={reqs} roleName={roleName} onChanged={reload} onOpen={setOpenId} /> : (

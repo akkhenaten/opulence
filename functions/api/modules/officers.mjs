@@ -2,7 +2,7 @@ import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, pick, need } from '../lib/http.mjs';
 import { canSeePay, goesBy } from '../lib/auth.mjs';
 import { assertOfficerAccess, venueScope } from '../lib/scope.mjs';
-import { downloadUrl, checkOwnPhoto } from '../lib/storage.mjs';
+import { downloadUrl, checkOwnPhoto, saveThumb, photoUrls } from '../lib/storage.mjs';
 import { londonDate } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { createInvite, sendInvite } from './users.mjs';
@@ -99,7 +99,7 @@ export const actions = {
           AND ($3::text IS NULL OR (o.first_name || ' ' || o.last_name || ' ' || o.goes_by || ' ' || o.email || ' ' || o.sia_number) ILIKE '%' || $3 || '%')
           AND ($4::uuid[] IS NULL OR o.status = 'active' OR EXISTS (SELECT 1 FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id WHERE a.officer_id = o.id AND s.venue_id = ANY($4)))
         ORDER BY o.status = 'active' DESC, o.first_name, o.last_name`, [b.status || null, b.role || null, b.q || null, user.role === 'security' ? await venueScope(user) : null]);
-    return Promise.all(rows.map(async (o) => ({ ...shapeOfficer(o, user), photo_url: await downloadUrl(o.photo_key) })));
+    return Promise.all(rows.map(async (o) => ({ ...shapeOfficer(o, user), ...(await photoUrls(o.photo_key)) })));
   }),
 
   'officers.get': def(ALL, async (b, { user }) => {
@@ -126,6 +126,7 @@ export const actions = {
       const f = pick(b, SELF_FIELDS);
       if (f.goes_by !== undefined) f.goes_by = goesBy(f.goes_by);
       if (f.photo_key !== undefined) f.photo_key = await checkOwnPhoto(user, f.photo_key, fail);
+      if (f.photo_key) await saveThumb(user, f.photo_key, b.photo_thumb_key);
       const keys = Object.keys(f);
       if (keys.length) await q(`UPDATE officers SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [user.officer_id, ...keys.map((k) => f[k])]);
       if (f.phone !== undefined) await q('UPDATE users SET phone = $2 WHERE id = $1', [user.id, f.phone || '']);
@@ -141,6 +142,11 @@ export const actions = {
       const changed = (k) => f[k] !== undefined && String(f[k] || '') !== String(cur[k] || '');
       if (changed('email') || changed('sia_number')) await assertNotDuplicate({ one }, { id: b.id, email: changed('email') ? f.email : '', sia_number: changed('sia_number') ? f.sia_number : '', login: !!cur.user_id });
       if (cur.user_id && f.email === '') fail(400, 'This person signs in with their email, so it can\'t be blank');
+      // A new photo must be an image this manager just uploaded; an unchanged key passes through
+      if (changed('photo_key')) {
+        f.photo_key = await checkOwnPhoto(user, f.photo_key, fail);
+        if (f.photo_key) await saveThumb(user, f.photo_key, b.photo_thumb_key);
+      }
       await tx(async (t) => {
         const keys = Object.keys(f);
         if (keys.length) await t.q(`UPDATE officers SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [b.id, ...keys.map((k) => f[k])]);

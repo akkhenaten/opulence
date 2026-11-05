@@ -227,7 +227,7 @@ function InfoSheet({ open, onClose, conv, members, base, onChanged }) {
       <div className="-mx-1">
         {members.map((p) => (
           <div key={p.id} className="flex items-center gap-3 px-1 py-2">
-            {p.system ? <ConvAvatar c={{ kind: 'ops' }} size={40} /> : <Avatar name={p.name} src={p.photo_url} size={40} />}
+            {p.system ? <ConvAvatar c={{ kind: 'ops' }} size={40} /> : <Avatar name={p.name} src={[p.photo_thumb_url, p.photo_url]} size={40} />}
             <div className="min-w-0 flex-1">
               <div className="truncate text-body font-semibold">{p.name}</div>
               <div className="truncate text-footnote text-muted">{p.system ? 'Automatic assistant' : ROLE_LABEL[p.role]}</div>
@@ -377,7 +377,7 @@ function Bubble({ m, me, conv, first, flash, mentionNames, onReply, onJump, onAc
       className={cx('relative flex items-end gap-2 rounded-2xl transition-colors duration-500', mine ? 'justify-end' : 'justify-start', first ? 'mt-3' : 'mt-1', flash && 'bg-blue-soft')}>
       {swipe.dx > 0 && <Reply size={18} className="absolute left-1 top-1/2 -translate-y-1/2 text-muted" style={{ opacity: swipe.dx / 60 }} />}
       {!mine && conv.kind !== 'direct' && (
-        <div className="w-8 shrink-0">{first && (m.sender.system ? <ConvAvatar c={{ kind: 'ops' }} size={32} /> : <Avatar name={m.sender.name} src={m.sender.photo_url} size={32} />)}</div>
+        <div className="w-8 shrink-0">{first && (m.sender.system ? <ConvAvatar c={{ kind: 'ops' }} size={32} /> : <Avatar name={m.sender.name} src={[m.sender.photo_thumb_url, m.sender.photo_url]} size={32} />)}</div>
       )}
       <div className={cx('flex max-w-[82%] flex-col sm:max-w-[70%]', mine ? 'items-end' : 'items-start')} style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
         onContextMenu={(e) => { if (live) { e.preventDefault(); onAction(); } }}>
@@ -423,7 +423,7 @@ function Bubble({ m, me, conv, first, flash, mentionNames, onReply, onJump, onAc
         <div className="mt-0.5 flex items-center gap-1 px-2 text-caption2 text-faint">
           {m.pinned && <Pin size={11} className="text-blue" />}
           {time(m.created_at)}{m.edited_at && !m.deleted_at ? ' · Edited' : ''}
-          {live && !m.body && <button type="button" onClick={onAction} aria-label="Message options" className="pressable -my-1 ml-1 rounded-full p-1"><MoreHorizontal size={14} /></button>}
+          {live && !m.body && <button type="button" onClick={onAction} aria-label="Message options" className="pressable relative -my-1 ml-1 rounded-full p-1 before:absolute before:-inset-3"><MoreHorizontal size={14} /></button>}
         </div>
         {m.confirm && <ConfirmRow m={m} busy={busy} onConfirm={() => run(async () => { await api('messages.confirm', { id: m.id }); onChanged(m.id); }, 'Thanks — confirmed')} onOpen={onConfirms} />}
         {m.quick && !mine && <QuickReplies m={m} onDone={onReplied} />}
@@ -489,7 +489,7 @@ function SeenSheet({ list, onClose }) {
       <div className="-mx-1">
         {sorted.map((p) => (
           <div key={p.id} className="flex items-center gap-3 px-1 py-2">
-            <Avatar name={p.name} src={p.photo_url} size={36} />
+            <Avatar name={p.name} src={[p.photo_thumb_url, p.photo_url]} size={36} />
             <span className="min-w-0 flex-1 truncate text-body font-semibold">{p.name}</span>
             <span className={cx('text-footnote', p.seen ? 'text-muted' : 'text-faint')}>{p.seen ? whenLabel(p.last_read_at) : 'Not yet'}</span>
           </div>
@@ -507,7 +507,7 @@ function ReactorsSheet({ m, onClose }) {
         <div className="-mx-1">
           {q.data.map((p) => (
             <div key={p.id} className="flex items-center gap-3 px-1 py-2">
-              <Avatar name={p.name} src={p.photo_url} size={36} />
+              <Avatar name={p.name} src={[p.photo_thumb_url, p.photo_url]} size={36} />
               <span className="min-w-0 flex-1 truncate text-body font-semibold">{p.name}</span>
               <span className="text-title3">{reaction(p.kind)?.emoji}</span>
             </div>
@@ -723,7 +723,7 @@ function SendBox({ conv, members, me, replyTo, onClearReply, onSent }) {
         <div className="mb-2 overflow-hidden rounded-2xl border border-line bg-surface shadow-tile" role="listbox" aria-label="People to mention">
           {choices.map((p) => (
             <Pressable key={p.id} onClick={() => pick(p)} className="flex items-center gap-3 px-3 py-2">
-              <Avatar name={p.name} src={p.photo_url} size={28} /><span className="truncate text-body font-semibold">{displayName(p)}</span>
+              <Avatar name={p.name} src={[p.photo_thumb_url, p.photo_url]} size={28} /><span className="truncate text-body font-semibold">{displayName(p)}</span>
             </Pressable>
           ))}
         </div>

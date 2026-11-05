@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import RecentEmail from '../email/_recent.jsx';
 import { Ban, Mail, Pencil, Phone, Send, UserCheck } from 'lucide-react';
-import { api, upload } from '../../api.js';
+import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
   Avatar, Button, Input, Load, Page, Pill, Select, Sheet, Tabs, Textarea, Tile, Toggle, date, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
+import { uploadPhoto } from '../officer/_parts.jsx';
 import { ComplianceBadge, CopyLink, ExpiryPill, LoginPill, OFFICER_STATUSES, SIA_TYPES, Chips, canPay, useBase, useRoles } from './_parts.jsx';
 import {
   AttendanceTab, AvailabilityTab, ComplianceTab, ContractsTab, DocumentsTab, GrowthTab, HrTab, OffboardingTab, OnboardingTab, OverviewTab, RatesTab, ShiftsTab, TimeOffTab, TrainingTab,
@@ -72,18 +73,16 @@ function Profile({ o, reload, user, base }) {
 
   return (
     <Page title={o.full_name || o.name} subtitle={o.goes_by?.trim() ? `Goes by ${o.goes_by.trim()}` : undefined} back={{ to: `${base}/staff`, label: isCo ? 'Staff' : 'Officers' }}
-      actions={isCo && (
-        <>
-          <Button variant="secondary" icon={Pencil} onClick={() => setEditing(true)}>Edit</Button>
-          {!o.user_id && o.email && <Button variant="soft" icon={Send} busy={busy} onClick={invite}>Invite to app</Button>}
-          {o.user_id && o.login_status === 'invited' && <Button variant="soft" icon={Send} busy={busy} onClick={resend}>Resend invite</Button>}
-          {o.status !== 'left' && <Button variant="secondary" icon={UserCheck} onClick={() => setStatusOpen(true)}>Status</Button>}
-          {o.status === 'active' && <Button variant="danger" icon={Ban} onClick={suspend}>Suspend</Button>}
-        </>
-      )}>
+      actions={isCo ? [
+        { label: 'Edit', icon: Pencil, onClick: () => setEditing(true), main: true },
+        !o.user_id && o.email && { label: 'Invite to app', icon: Send, variant: 'soft', busy, onClick: invite },
+        o.user_id && o.login_status === 'invited' && { label: 'Resend invite', icon: Send, variant: 'soft', busy, onClick: resend },
+        o.status !== 'left' && { label: 'Status', icon: UserCheck, onClick: () => setStatusOpen(true) },
+        o.status === 'active' && { label: 'Suspend', icon: Ban, danger: true, onClick: suspend },
+      ] : undefined}>
       <Tile className="mb-5">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <Avatar name={o.name} src={o.photo_url} size={76} />
+          <Avatar name={o.name} src={[o.photo_thumb_url, o.photo_url]} size={76} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <Pill status={o.status} />
@@ -157,7 +156,7 @@ function EditSheet({ open, onClose, o, roles, onDone }) {
   const save = async () => {
     await run(async () => {
       const body = { id: o.id, ...v, max_weekly_hours: Number(v.max_weekly_hours) || 60 };
-      if (photo) body.photo_key = await upload(photo, 'photo');
+      if (photo) { const { photo_key, photo_thumb_key } = await uploadPhoto(photo, 800); Object.assign(body, { photo_key, photo_thumb_key }); }
       return api('officers.save', body);
     }, 'Profile saved');
     onDone();

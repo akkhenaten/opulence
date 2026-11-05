@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react';
 import { Bell, BookOpen, Camera, Download, KeyRound, LogOut, UserPen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { api, upload } from '../api.js';
+import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { Avatar, Button, Input, List, Pill, Pressable, Row, Sheet, useAction, useForm } from '../ui/index.jsx';
 import { NotificationsSheet } from '../pages/officer/_notify.jsx';
-import { compressImage } from '../pages/officer/_parts.jsx';
+import { uploadPhoto } from '../pages/officer/_parts.jsx';
 import { ROLE_LABEL } from './nav.js';
 import { SideSwitch } from './SideSwitch.jsx';
 import { InstallSheet, usePwa } from '../ui/pwa.jsx';
@@ -21,11 +21,11 @@ export function AccountSheet({ open, onClose }) {
   const nav = useNavigate();
   const pwa = usePwa();
   const close = () => { setView('main'); onClose(); };
-  const setPhoto = (getKey, msg) => runPhoto(async () => { await api('auth.updateMe', { photo_key: await getKey() }); await refresh(); }, msg).catch(() => {});
+  const setPhoto = (getKeys, msg) => runPhoto(async () => { await api('auth.updateMe', await getKeys()); await refresh(); }, msg).catch(() => {});
   const pick = (e) => {
     const f = e.target.files?.[0];
     e.target.value = '';
-    if (f) setPhoto(async () => upload(await compressImage(f, 800, 0.85), 'photo'), 'Photo updated');
+    if (f) setPhoto(async () => { const { photo_key, photo_thumb_key } = await uploadPhoto(f, 800); return { photo_key, photo_thumb_key }; }, 'Photo updated');
   };
   return (
     <>
@@ -34,7 +34,7 @@ export function AccountSheet({ open, onClose }) {
           <div className="space-y-5">
             <div className="flex items-center gap-3">
               <Pressable press onClick={() => file.current?.click()} className="relative shrink-0 rounded-full" aria-label="Change photo">
-                <Avatar name={user.name} src={user.photo_url} size={56} />
+                <Avatar name={user.name} src={[user.photo_thumb_url, user.photo_url]} size={56} />
                 <span className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-blue text-white ring-4 ring-surface">{photoBusy ? <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-white" /> : <Camera size={14} />}</span>
               </Pressable>
               <input ref={file} type="file" accept="image/*" className="hidden" onChange={pick} />

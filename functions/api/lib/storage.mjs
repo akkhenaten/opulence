@@ -61,3 +61,24 @@ export async function checkOwnPhoto(user, key, fail) {
   if (h.size > 10 * 1024 * 1024) fail(400, 'The photo must be under 10 MB');
   return key;
 }
+
+// The small (256px) version of a photo lives next to it, so no column is needed and old photos simply have none
+export const thumbKeyOf = (key) => (key ? `${key}.sm.jpg` : null);
+
+// Moves the uploaded small version (tmpKey) next to the saved photo. A missing or bad small version never blocks
+// the save: lists then fall back to the large photo.
+export async function saveThumb(user, photoKey, tmpKey) {
+  if (!photoKey || !tmpKey || tmpKey === photoKey) return;
+  try {
+    if (!String(tmpKey).startsWith(`docs/photos/${user.id.slice(0, 8)}/`)) return;
+    const h = await headObject(tmpKey);
+    if (!h || !/^image\/(jpeg|png|webp)$/.test(h.mime) || h.size > 1024 * 1024) return;
+    await putObject(thumbKeyOf(photoKey), await getObjectBytes(tmpKey), 'image/jpeg');
+    await deleteObject(tmpKey);
+  } catch (e) {
+    console.error('saveThumb', e.message);
+  }
+}
+
+// Signed links for a photo and its small version
+export const photoUrls = async (key) => ({ photo_url: await downloadUrl(key), photo_thumb_url: await downloadUrl(thumbKeyOf(key)) });

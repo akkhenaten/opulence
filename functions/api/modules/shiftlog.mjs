@@ -3,7 +3,7 @@ import { one, q, tx } from '../lib/db.mjs';
 import { fail, required, need } from '../lib/http.mjs';
 import { assertVenue, venueScope } from '../lib/scope.mjs';
 import { notify, managersFor, venueContacts, officerUser } from '../lib/notify.mjs';
-import { downloadUrl } from '../lib/storage.mjs';
+import { downloadUrl, photoUrls } from '../lib/storage.mjs';
 import { cleanFiles, signFiles } from '../lib/files.mjs';
 import { ensureThread, opsUser } from '../lib/threads.mjs';
 import { fmtDate, fmtTime } from '../lib/time.mjs';
@@ -134,7 +134,7 @@ export const actions = {
       me: { access: ax.access, can_write: ax.canWrite && log.status === 'open' || ax.access === 'mgr', can_curate: canCurate(ax), assignment_id: ax.a?.id || null, assignment_status: ax.a?.status || null, is_lead: !!ax.a?.is_lead, clock,
         can_count: canCount({ access: ax.access, endsAt: sh.ends_at, clockedIn: clock.some((c) => c.kind === 'in' && ['ok', 'approved', 'manual'].includes(c.status)) }) },
       team: await Promise.all(team.map(async ({ photo_key, phone, roles, user_id, ...m }) => ({
-        ...m, photo_url: await downloadUrl(photo_key), head_door: (roles || []).includes('head_door'), ...(venue ? {} : { phone, user_id }),
+        ...m, ...(await photoUrls(photo_key)), head_door: (roles || []).includes('head_door'), ...(venue ? {} : { phone, user_id }),
       }))),
       log,
       entries: showEntries ? await entries(sh.id, { keptOnly: venue }) : [],

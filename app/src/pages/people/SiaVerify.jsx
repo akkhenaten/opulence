@@ -159,7 +159,7 @@ function Assistant({ d, onClose, onSaved }) {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <Avatar name={d.name} src={d.photo_url} size={48} />
+        <Avatar name={d.name} src={[d.photo_thumb_url, d.photo_url]} size={48} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-headline font-semibold">{d.name}</div>
           <SiaCheckPill status={d.sia_status} at={d.sia_last_verified_at} by={d.sia_last_verified_by_name} className="mt-1" />

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Megaphone, MessagesSquare, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
-  Button, Empty, KV, List, Load, Page, Pill, Row, Segmented, Sheet, dayLabel, range, relative, useApi,
+  Button, Callout, Empty, KV, List, Load, Page, Pill, Row, Segmented, Sheet, dayLabel, range, relative, useApi,
 } from '../../ui/index.jsx';
 import { ChangeSheet, describeChange, LABEL, RepeatTag, RequestForm, statusOf } from './_cover.jsx';
 
@@ -64,7 +64,7 @@ function Detail({ c, onClose, onDone }) {
       footer={live && !waiting ? <><Button variant="secondary" icon={Trash2} onClick={() => setChange('delete')}>Cancel</Button><Button icon={Pencil} onClick={() => setChange('edit')}>Change</Button></> : null}>
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-2"><Pill status={st}>{LABEL[st]}</Pill><RepeatTag c={c} /></div>
-        {waiting && <p className="rounded-2xl bg-amber-soft px-3 py-2 text-footnote text-amber"><b>Waiting for approval:</b> {describeChange(c)}. The booking stays as it is until Orb approves.</p>}
+        {waiting && <Callout tone="warning" title="Waiting for approval">{describeChange(c)}. The booking stays as it is until Orb approves.</Callout>}
         {c.change_status === 'declined' && c.change_reason && <p className="rounded-2xl bg-red-soft px-3 py-2 text-footnote text-red">Your last change wasn't approved: {c.change_reason}</p>}
         <KV items={[
           ['Venue', c.venue_name],

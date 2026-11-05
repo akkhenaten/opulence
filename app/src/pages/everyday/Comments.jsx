@@ -69,7 +69,7 @@ export function WhoReacted({ target, onClose, onPerson }) {
                 <div className="space-y-1">
                   {shown.map((r) => (
                     <Pressable press key={r.person.id} onClick={() => onPerson(r.person.id)} className="flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-bg">
-                      <span className="relative"><Avatar name={r.person.name} src={r.person.photo_url} size={36} /><span className="absolute -bottom-1 -right-1 text-subhead">{reaction(r.kind)?.emoji}</span></span>
+                      <span className="relative"><Avatar name={r.person.name} src={[r.person.photo_thumb_url, r.person.photo_url]} size={36} /><span className="absolute -bottom-1 -right-1 text-subhead">{reaction(r.kind)?.emoji}</span></span>
                       <span className="min-w-0 flex-1"><span className="block truncate text-body font-medium">{r.person.name}</span><span className="block text-caption text-muted">{ROLE_LABEL[r.person.role]}</span></span>
                     </Pressable>
                   ))}
@@ -161,7 +161,7 @@ function Comment({ c, onReply, onChanged, onPerson, onPhoto, highlight, reply })
   const n = total(item.reactions);
   return (
     <div ref={el} className={cx('flex gap-2', reply && 'ml-10')}>
-      <Pressable press onClick={() => onPerson(c.author.id)} className="shrink-0"><Avatar name={c.author.name} src={c.author.photo_url} size={reply ? 26 : 32} /></Pressable>
+      <Pressable press onClick={() => onPerson(c.author.id)} className="shrink-0"><Avatar name={c.author.name} src={[c.author.photo_thumb_url, c.author.photo_url]} size={reply ? 26 : 32} /></Pressable>
       <div className="min-w-0 flex-1">
         <div className={cx('relative inline-block max-w-full rounded-2xl px-3 py-2', highlight ? 'bg-blue-soft' : 'bg-bg', c.hidden_at && 'opacity-70', editing && 'w-full')}>
           <Pressable press onClick={() => onPerson(c.author.id)} className="block text-footnote font-semibold">{c.author.name}</Pressable>
@@ -242,12 +242,12 @@ export function CommentBox({ post, parent, onSent, onCancel, autoFocus }) {
   };
   return (
     <div className={cx('flex items-end gap-2', parent && 'ml-10')}>
-      <Avatar name={user.name} src={user.photo_url} size={parent ? 26 : 32} />
+      <Avatar name={user.name} src={[user.photo_thumb_url, user.photo_url]} size={parent ? 26 : 32} />
       <div className="min-w-0 flex-1 rounded-2xl bg-bg py-1 pl-3 pr-1">
         {photo && (
           <div className="relative mb-1 mt-1 h-20 w-20 overflow-hidden rounded-xl bg-surface">
             {photo === 'busy' ? <Spinner className="h-full py-0" /> : <img src={photo.url} alt="" className="h-full w-full object-cover" />}
-            {photo !== 'busy' && <Pressable press aria-label="Remove photo" onClick={() => setPhoto(null)} className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white"><X size={14} /></Pressable>}
+            {photo !== 'busy' && <Pressable press aria-label="Remove photo" onClick={() => setPhoto(null)} className="absolute right-1 top-1 grid h-6 w-6 before:absolute before:-inset-2.5 place-items-center rounded-full bg-black/60 text-white"><X size={14} /></Pressable>}
           </div>
         )}
         <div className="flex items-end gap-1">

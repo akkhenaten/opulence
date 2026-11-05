@@ -218,7 +218,7 @@ function Team({ team, venue }) {
         <div className="divide-y divide-sep overflow-hidden rounded-tile bg-surface shadow-tile">
           {team.map((m) => (
             <div key={m.assignment_id} className="flex items-center gap-3 px-4 py-3">
-              <Avatar name={m.name} src={m.photo_url} size={36} />
+              <Avatar name={m.name} src={[m.photo_thumb_url, m.photo_url]} size={36} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 truncate text-body font-semibold">{m.name}{m.is_lead && <Crown size={14} className="shrink-0 text-amber" aria-label="Shift lead" />}</div>
                 <div className="truncate text-caption text-muted">
@@ -324,7 +324,7 @@ function Composer({ shiftId, onAdded }) {
           {ph.files.map((f, i) => (
             <div key={f.key} className="relative h-16 w-16 overflow-hidden rounded-xl bg-bg">
               <img src={f.preview} alt="" className="h-full w-full object-cover" />
-              <Pressable press aria-label="Remove photo" onClick={() => ph.setFiles((x) => x.filter((_, k) => k !== i))} className="absolute right-0.5 top-0.5 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white"><X size={14} /></Pressable>
+              <Pressable press aria-label="Remove photo" onClick={() => ph.setFiles((x) => x.filter((_, k) => k !== i))} className="absolute right-0.5 top-0.5 grid h-6 w-6 before:absolute before:-inset-2.5 place-items-center rounded-full bg-black/60 text-white"><X size={14} /></Pressable>
             </div>
           ))}
         </div>

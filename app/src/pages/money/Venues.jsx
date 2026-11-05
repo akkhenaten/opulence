@@ -60,7 +60,7 @@ function VenueGrid({ rows, onAdd }) {
           <div className="flex gap-1">
             {[['active', 'Active'], ['inactive', `Inactive (${inactive})`], ['all', 'All']].map(([v, l]) => (
               <Pressable press key={v} onClick={() => setShow(v)}
-                className={cx('rounded-full px-3 py-1.5 text-footnote font-semibold transition', show === v ? 'bg-ink text-white' : 'bg-surface text-muted hover:text-ink')}>{l}</Pressable>
+                className={cx('relative rounded-full px-3 py-1.5 text-footnote font-semibold transition before:absolute before:inset-x-0 before:-inset-y-2', show === v ? 'bg-ink text-white' : 'bg-surface text-muted hover:text-ink')}>{l}</Pressable>
             ))}
           </div>
         )}

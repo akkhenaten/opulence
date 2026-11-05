@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, ClipboardList, Pencil, Sparkles, Star, X } from 'lucide-react';
 import {
-  Button, cx, dateTime, dayLabel, Empty, hours, Input, Load, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
+  Button, Callout, cx, dateTime, dayLabel, Empty, hours, Input, Load, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
@@ -131,7 +131,7 @@ function CoverBody({ it }) {
             </li>
           ))}
         </ul>
-      ) : <div className="rounded-xl bg-amber-soft px-3 py-2 text-footnote text-amber">No one eligible is free.</div>}
+      ) : <Callout tone="warning">No one eligible is free.</Callout>}
     </div>
   );
 }

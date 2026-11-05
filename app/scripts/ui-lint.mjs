@@ -18,6 +18,8 @@ const RULES = [
   ['raw <button', /<button\b/g, (_, f) => !f.includes(`${path.sep}ui${path.sep}`)],
   ['raw <input', /<input\b(?![^>]*type="(?:file|checkbox|radio|range|hidden)")/g, (_, f) => !f.includes(`${path.sep}ui${path.sep}`)],
   ['vh unit', /\b\d+vh\b|h-screen/g],
+  // A button or Pressable shrunk below 44px with no invisible `before:` tap area
+  ['small tap', /<(?:button|Pressable)\b[^>]*?className=(?:"|\{cx\(')([^"']*)/g, (m) => /(?:^|\s)(?:[hw]-[4-8]|p-0\.5|p-1)(?=\s|$)/.test(m[1]) && !/\bbefore:/.test(m[1])],
 ];
 
 const files = [];

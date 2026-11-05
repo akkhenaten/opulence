@@ -3,7 +3,7 @@ import { fail, required, pick } from '../lib/http.mjs';
 import { goesBy, randomToken } from '../lib/auth.mjs';
 import { sendRawEmail, emailHtml } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
-import { downloadUrl } from '../lib/storage.mjs';
+import { photoUrls } from '../lib/storage.mjs';
 import { CO, ALL, def } from './_def.mjs';
 import { getBrand } from '../lib/brand.mjs';
 import { seedOnboarding } from './hr.mjs';
@@ -44,7 +44,7 @@ async function checkClient(t, role, clientId) {
   return clientId;
 }
 
-const withPhotos = (rows) => Promise.all(rows.map(async ({ photo_key, ...u }) => ({ ...u, photo_url: await downloadUrl(photo_key) })));
+const withPhotos = (rows) => Promise.all(rows.map(async ({ photo_key, ...u }) => ({ ...u, ...(await photoUrls(photo_key)) })));
 
 export const actions = {
   'users.list': def(CO, async (b) => withPhotos(await q(

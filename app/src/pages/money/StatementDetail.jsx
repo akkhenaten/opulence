@@ -62,11 +62,11 @@ export default function StatementDetail() {
 
         return (
           <Page title={st.officer_name} subtitle={`Remittance statement · ${date(st.period_start)} – ${date(st.period_end)}`} back={{ to: `${base}/pay`, label: 'Pay runs' }}
-            actions={<>
-              <Button variant="secondary" icon={Download} busy={pdfBusy} onClick={() => pdf(() => downloadAction('pay.pdf', { id: st.id })).catch(() => {})}>{st.pdf_document_id ? 'Saved PDF' : 'PDF'}</Button>
-              {canIssue && <Button icon={Send} busy={busy} onClick={issue}>Issue</Button>}
-              {isCo && st.status === 'issued' && <Button icon={CheckIcon} busy={busy} onClick={markPaid}>Mark paid</Button>}
-            </>}>
+            actions={[
+              { label: st.pdf_document_id ? 'Saved PDF' : 'PDF', icon: Download, busy: pdfBusy, onClick: () => pdf(() => downloadAction('pay.pdf', { id: st.id })).catch(() => {}) },
+              canIssue && { label: 'Issue', icon: Send, variant: 'primary', busy, onClick: issue },
+              isCo && st.status === 'issued' && { label: 'Mark paid', icon: CheckIcon, variant: 'primary', busy, onClick: markPaid },
+            ]}>
             <Bento className="mb-2">
               <Tile tone="blue" className="col-span-2">
                 <div className="flex items-start justify-between gap-3">

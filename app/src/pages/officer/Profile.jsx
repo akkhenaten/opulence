@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
 import { Award, Camera, MessageSquareText, Plus, Save, Smartphone, Trash2 } from 'lucide-react';
-import { api, upload } from '../../api.js';
+import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { Avatar, Button, date, Input, KV, List, Load, Page, Pill, Pressable, Row, Section, Tile, titleCase, Toggle, useAction, useApi } from '../../ui/index.jsx';
-import { compressImage, NotLinked } from './_parts.jsx';
+import { NotLinked, uploadPhoto } from './_parts.jsx';
 
 const FIELDS = ['goes_by', 'phone', 'address', 'postcode', 'dob', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account'];
 
@@ -54,9 +54,8 @@ function Editor({ o, reload, notes }) {
     e.target.value = '';
     if (!f) return;
     runPhoto(async () => {
-      const c = await compressImage(f, 800, 0.85);
-      const key = await upload(c, 'photo');
-      await api('officers.save', { photo_key: key });
+      const { photo_key, photo_thumb_key, file: c } = await uploadPhoto(f, 800);
+      await api('officers.save', { photo_key, photo_thumb_key });
       setPhoto(URL.createObjectURL(c));
       refresh?.();
     }, 'Photo updated').catch(() => {});

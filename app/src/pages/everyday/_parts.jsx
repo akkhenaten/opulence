@@ -133,7 +133,7 @@ export function MentionBox({ value, onChange, mentions, placeholder, rows = 3, a
         <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-2xl border border-line bg-surface shadow-lg">
           {list.map((p) => (
             <Pressable press key={p.id} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(p)} className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-bg">
-              <Avatar name={p.name} src={p.photo_url} size={30} />
+              <Avatar name={p.name} src={[p.photo_thumb_url, p.photo_url]} size={30} />
               <span className="min-w-0 flex-1 truncate text-body font-medium">{displayName(p)}</span>
               <span className="text-caption text-muted">{ROLE_LABEL[p.role]}</span>
             </Pressable>
@@ -238,7 +238,7 @@ export function LinkCard({ link, onRemove, className }) {
         </div>
       </a>
       {onRemove && (
-        <Pressable press aria-label="Remove link preview" onClick={onRemove} className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white"><X size={16} /></Pressable>
+        <Pressable press aria-label="Remove link preview" onClick={onRemove} className="absolute right-2 top-2 grid h-8 w-8 place-items-center before:absolute before:-inset-1.5 rounded-full bg-black/60 text-white"><X size={16} /></Pressable>
       )}
     </div>
   );
@@ -288,7 +288,7 @@ export function PersonSheet({ userId, onClose }) {
           {(d) => (
             <div>
               <div className="flex items-center gap-4">
-                <Avatar name={d.person.name} src={d.person.photo_url} size={72} />
+                <Avatar name={d.person.name} src={[d.person.photo_thumb_url, d.person.photo_url]} size={72} />
                 <div className="min-w-0">
                   <div className="text-title3 font-bold leading-tight">{d.person.name}</div>
                   <div className="text-subhead text-muted">{ROLE_LABEL[d.person.role]} · with the team since {d.since}</div>
@@ -398,7 +398,7 @@ export function PeoplePicker({ open, title, value, onChange, onClose, excludeMe 
       <div className="mt-3 space-y-0.5">
         {shown.map((p) => (
           <Pressable press key={p.id} onClick={() => toggle(p.id)} className={cx('flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left', value.includes(p.id) ? 'bg-blue-soft' : 'hover:bg-bg')}>
-            <Avatar name={p.name} src={p.photo_url} size={36} />
+            <Avatar name={p.name} src={[p.photo_thumb_url, p.photo_url]} size={36} />
             <span className="min-w-0 flex-1"><span className="block truncate text-body font-medium">{displayName(p)}</span><span className="block text-caption text-muted">{ROLE_LABEL[p.role]}</span></span>
             <span className={cx('grid h-6 w-6 place-items-center rounded-full border-2 text-caption font-bold', value.includes(p.id) ? 'border-blue bg-blue text-white' : 'border-line')}>{value.includes(p.id) ? '✓' : ''}</span>
           </Pressable>
