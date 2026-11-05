@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, CalendarDays, Hash, Newspaper, X } from 'lucide-react';
+import { ArrowUp, CalendarDays, Flag, Hash, Newspaper, Search, X } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useRealtime } from '../../realtime.js';
-import { Button, cx, Empty, ErrorBox, Load, Page, Pressable, SearchInput, Segmented, Sheet, Spinner, useApi, usePullRefresh, useToast } from '../../ui/index.jsx';
+import { Button, cx, Empty, ErrorBox, IconButton, Load, Page, Pressable, SearchInput, Sheet, Spinner, useApi, usePullRefresh, useToast } from '../../ui/index.jsx';
 import Composer from './Composer.jsx';
 import Moderation from './Moderation.jsx';
 import PostCard from './PostCard.jsx';
@@ -19,8 +19,21 @@ export default function Feed() {
   );
 }
 
-/** The feed itself; managers see it as a Dashboard tab, so other URL params (like ?tab=everyday) are kept */
-export function FeedBody() {
+/** Search as an icon that opens into the field; stays open while there is text */
+function ExpandSearch({ value, onChange, onOpenChange }) {
+  const [open, setOpen] = useState(!!value);
+  useEffect(() => { if (value) setOpen(true); }, [value]);
+  useEffect(() => onOpenChange(open), [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!open) return <IconButton icon={Search} label="Search" size="sm" onClick={() => setOpen(true)} />;
+  return (
+    <SearchInput autoFocus className="min-w-0 flex-1 anim-pop" value={value} onChange={onChange}
+      onBlur={() => !value && setOpen(false)} placeholder="Search posts, comments and people" />
+  );
+}
+
+/** The feed itself; managers see it on the Dashboard, so other URL params (like ?tab=everyday) are kept.
+ *  lead: shown at the left of the toolbar (the Dashboard's back to Overview) */
+export function FeedBody({ lead }) {
   const { user } = useAuth();
   const [sp, setSp] = useSearchParams();
   const patch = (changes) => setSp((cur) => {
@@ -32,12 +45,31 @@ export function FeedBody() {
   const view = mgr && sp.get('view') === 'moderation' ? 'moderation' : 'feed';
   const reports = useApi('everyday.reports', {}, { skip: !mgr });
   const open = reports.data?.reports?.length || 0;
+  const search = sp.get('q') || '';
+  const [text, setText] = useState(search);
+  const [searching, setSearching] = useState(false);
+  useEffect(() => setText(search), [search]);
+  // Search as you type (after a pause), kept in the address so Back works
+  useEffect(() => {
+    if (text.trim() === search) return undefined;
+    const t = setTimeout(() => patch({ q: text.trim() || null }), 450);
+    return () => clearTimeout(t);
+  }, [text]); // eslint-disable-line react-hooks/exhaustive-deps
+  const canSearch = view === 'feed' && !sp.get('person');
+  const wide = canSearch && searching;
   return (
     <>
-      {mgr && (
-        <Segmented className="mb-4" value={view} onChange={(v) => patch({ view: v === 'feed' ? null : v })}
-          options={[{ value: 'feed', label: 'Feed' }, { value: 'moderation', label: open ? `Moderation (${open})` : 'Moderation' }]} />
-      )}
+      <div className="mb-4 flex min-h-9 items-center gap-2">
+        {!wide && lead}
+        {!wide && <div className="flex-1" />}
+        {canSearch && <ExpandSearch value={text} onChange={(e) => setText(e.target.value)} onOpenChange={setSearching} />}
+        {mgr && (
+          <div className="flex shrink-0 items-center gap-1">
+            <IconButton icon={Newspaper} label="Feed" size="sm" active={view === 'feed'} onClick={() => patch({ view: null })} />
+            <IconButton icon={Flag} label="Moderation" size="sm" active={view === 'moderation'} badge={open} badgeTone="red" onClick={() => patch({ view: 'moderation' })} />
+          </div>
+        )}
+      </div>
       {view === 'feed' ? <Stream sp={sp} patch={patch} /> : <Moderation onChanged={reports.reload} />}
     </>
   );
@@ -66,7 +98,6 @@ function Stream({ sp, patch }) {
   const search = sp.get('q') || '';
   const person = sp.get('person');
   const postId = sp.get('post');
-  const [text, setText] = useState(search);
   const q = useApi('everyday.feed', { filter, topic: topic || undefined, q: search || undefined }, { skip: !!person });
   const topics = useApi('everyday.topics', {}, { skip: !!person });
   const events = useApi('everyday.events', {}, { skip: !!person });
@@ -83,13 +114,6 @@ function Stream({ sp, patch }) {
 
   useEffect(() => { api('everyday.seen').catch(() => {}); }, []);
   useEffect(() => { if (q.data) { setOlder([]); setNext(q.data.next); setPatched({}); setFresh(0); } }, [q.data]);
-  useEffect(() => setText(search), [search]);
-  // Search as you type (after a pause), kept in the address so Back works
-  useEffect(() => {
-    if (text.trim() === search) return undefined;
-    const t = setTimeout(() => patch({ q: text.trim() || null }), 450);
-    return () => clearTimeout(t);
-  }, [text]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onScreen = () => [...(q.data?.pinned || []), ...(q.data?.posts || []), ...older].map((p) => p.id);
   // Live: a new post from someone else shows a pill; changes to posts on screen refresh just those cards
@@ -147,7 +171,6 @@ function Stream({ sp, patch }) {
           </Pressable>
         </div>
       )}
-      <SearchInput value={text} onChange={(e) => setText(e.target.value)} placeholder="Search posts, comments and people" />
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {FILTERS.map((f) => <Pill key={f.value} on={filter === f.value} onClick={() => patch({ filter: f.value === 'all' ? null : f.value })}>{f.label}</Pill>)}
       </div>

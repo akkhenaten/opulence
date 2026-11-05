@@ -1,9 +1,9 @@
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, Banknote, CalendarClock, CalendarDays, CalendarOff, ClipboardCheck, Clock, Hand, Megaphone, Radio, ShieldAlert, ShieldCheck, TriangleAlert, Users,
+  AlertTriangle, Banknote, CalendarClock, CalendarDays, CalendarOff, ChevronLeft, ClipboardCheck, Clock, Hand, Megaphone, Newspaper, Radio, ShieldAlert, ShieldCheck, TriangleAlert, Users,
 } from 'lucide-react';
 import {
-  Bento, confirmState, Dot, Load, Page, Pill, Stat, Tabs, Tile, cx, dateShort, daysUntil, hours, money0, range, relative, dayLabel, isoDate, titleCase, useApi,
+  Bento, Button, confirmState, Dot, Load, Page, Pill, Stat, Tile, cx, dateShort, daysUntil, hours, money0, range, relative, dayLabel, isoDate, titleCase, useApi,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 import { FeedBody } from '../everyday/Feed.jsx';
@@ -55,12 +55,16 @@ export default function Dashboard() {
 
   return (
     <Page title={`${greet}${first ? `, ${first}` : ''}`} subtitle={dayLabel(isoDate())} wide photo="door">
-      {feedOn && (
-        <Tabs value={tab} onChange={(t) => setSp(t === 'overview' ? {} : { tab: t }, { replace: true })}
-          tabs={[{ value: 'overview', label: 'Overview' }, { value: 'everyday', label: 'Everyday', count: unread.data?.unread || undefined }]} />
+      {feedOn && tab !== 'everyday' && (
+        <div className="mb-4">
+          <Button size="sm" variant="secondary" icon={Newspaper} onClick={() => setSp({ tab: 'everyday' }, { replace: true })}>
+            Everyday
+            {unread.data?.unread > 0 && <span className="num min-w-[18px] rounded-full bg-blue px-1 text-center text-caption2 font-bold leading-[18px] text-white">{unread.data.unread > 99 ? '99+' : unread.data.unread}</span>}
+          </Button>
+        </div>
       )}
       {tab !== 'everyday' && <InstallCard className="mb-4" />}
-      {tab === 'everyday' ? <FeedBody /> : <Load q={q}>{(d) => <Body d={d} base={base} isCompany={user.role === 'company'} />}</Load>}
+      {tab === 'everyday' ? <FeedBody lead={<Button size="sm" variant="ghost" icon={ChevronLeft} onClick={() => setSp({}, { replace: true })}>Overview</Button>} /> : <Load q={q}>{(d) => <Body d={d} base={base} isCompany={user.role === 'company'} />}</Load>}
     </Page>
   );
 }
