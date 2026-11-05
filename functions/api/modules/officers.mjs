@@ -9,7 +9,7 @@ import { createInvite, sendInvite } from './users.mjs';
 import { seedOnboarding } from './hr.mjs';
 import { guardSelf } from '../lib/selfcheck.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
-import { NOT_CLEARED, STATUS_LABEL } from '../lib/sia.mjs';
+import { NOT_CLEARED, STATUS_LABEL, siaCheckOn } from '../lib/sia.mjs';
 
 const NON_SIA = new Set(['steward']);
 const PRIVATE = ['ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account', 'dob'];
@@ -26,7 +26,7 @@ export function compliance(o, today = londonDate(new Date())) {
   if (needsSia) {
     if (!o.sia_number || !o.sia_expiry) issues.push('No SIA licence on file');
     else if (o.sia_expiry < today) issues.push('SIA licence expired');
-    if (NOT_CLEARED.includes(o.sia_status)) issues.push(`SIA register shows the licence as ${STATUS_LABEL[o.sia_status]}`);
+    if (siaCheckOn() && NOT_CLEARED.includes(o.sia_status)) issues.push(`SIA register shows the licence as ${STATUS_LABEL[o.sia_status]}`);
   }
   if (!o.rtw_verified) issues.push('Right to work not verified');
   else if (o.rtw_expiry && o.rtw_expiry < today) issues.push('Right to work expired');

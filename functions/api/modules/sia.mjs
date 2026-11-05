@@ -7,10 +7,13 @@ import { downloadUrl } from '../lib/storage.mjs';
 import { audit } from '../lib/audit.mjs';
 import { notify, companyManagers } from '../lib/notify.mjs';
 import { SIA_TYPES } from '../lib/licences.mjs';
-import { CHECK_STATUSES, NOT_CLEARED, STATUS_LABEL, cleanSia, validSia, siaGroups, ukDate, maskDob } from '../lib/sia.mjs';
+import { CHECK_STATUSES, NOT_CLEARED, STATUS_LABEL, cleanSia, validSia, siaGroups, ukDate, maskDob, siaCheckOn } from '../lib/sia.mjs';
 import { autoCheckEnabled, lookupLicence, quotaUsage } from '../lib/siaChecker.mjs';
 import { shapeOfficer } from './officers.mjs';
 import { MGR, def } from './_def.mjs';
+
+// Register checks are switched off for now; history stays readable
+const switchedOn = () => { if (!siaCheckOn()) fail(403, 'SIA register checks are switched off'); };
 
 const history = (id) => q(
   `SELECT c.id, c.status, c.expiry, c.sector, c.licence_number, c.notes, c.source, c.created_at, u.name AS checked_by_name
@@ -19,6 +22,7 @@ const history = (id) => q(
 export const actions = {
   // What the manager needs to search the register; every call is logged because it includes the date of birth
   'sia.details': def(MGR, async (b, { user }) => {
+    switchedOn();
     required(b, 'officer_id');
     await assertOfficerAccess(user, b.officer_id);
     const o = need(await one(
@@ -40,12 +44,14 @@ export const actions = {
 
   // Automatic checks left this month (and whether the key works)
   'sia.quota': def(MGR, async () => {
+    switchedOn();
     const enabled = autoCheckEnabled();
     return { enabled, ...(enabled ? await quotaUsage() : {}) };
   }),
 
   // Ask the register automatically (SIA Checker); nothing is saved until the manager confirms with sia.record
   'sia.lookup': def(MGR, async (b, { user }) => {
+    switchedOn();
     required(b, 'officer_id');
     await assertOfficerAccess(user, b.officer_id);
     if (!autoCheckEnabled()) fail(503, "Automatic checks aren't set up");
@@ -69,6 +75,7 @@ export const actions = {
 
   // Record what the register shows; anything other than Active blocks rostering and alerts company managers
   'sia.record': def(MGR, async (b, { user }) => {
+    switchedOn();
     required(b, 'officer_id', 'status');
     if (!CHECK_STATUSES.includes(b.status)) fail(400, 'Pick the status the register shows');
     const expiry = b.expiry || null;

@@ -1,9 +1,11 @@
 // The company user guide: one source for the in-app Help page and the PDF manual.
 // body: paragraphs separated by a blank line; "- " lines are bullets, "1. " lines are steps.
 // {company} is replaced with the company's name. Images live in the app under /app/help/.
+import { siaCheckOn } from './sia.mjs';
 
 const ALL = ['company', 'security', 'venue', 'officer'];
 const MGR = ['company', 'security'];
+const OFF = () => (siaCheckOn() ? [] : ['sia_check']); // sections for features that are switched off
 
 export const CHAPTERS = [
   {
@@ -92,7 +94,7 @@ On the venue page you can:
 
 For new starters use Recruitment: add an applicant, tick off onboarding tasks (right to work, documents, training), then activate them. You can email them an app login when they are ready.
 
-Online applications: the "Join our team" button on the website opens the Apply page (/app/apply). Applicants upload a CV and a photo of their SIA badge; AI reads both and the person appears in Recruitment → Applicants marked New, with a summary, the SIA details from the badge and any flags (expired badge, name mismatch, licence not covering the role, possible duplicate). Open the card and tap Verify SIA licence to check it on the SIA public register and record the result, then Invite to onboarding (sends their app login and copies the SIA details to their profile) or Reject (optionally with a polite email). Applications not taken forward are deleted after 6 months.`,
+Online applications: the "Join our team" button on the website opens the Apply page (/app/apply). Applicants upload a CV and a photo of their SIA badge; AI reads both and the person appears in Recruitment → Applicants marked New, with a summary, the SIA details from the badge and any flags (expired badge, name mismatch, licence not covering the role, possible duplicate). Open the card and check the SIA details, then Invite to onboarding (sends their app login and copies the SIA details to their profile) or Reject (optionally with a polite email). Applications not taken forward are deleted after 6 months.`,
       },
       {
         id: 'users', title: 'Invite managers and venue users',
@@ -383,5 +385,5 @@ export function guideFor(role, companyName) {
   const list = CHAPTERS.filter((c) => role === 'company' || c.roles.includes(role));
   // The person's own role chapter comes first, then install, then the rest in order
   list.sort((a, b) => (b.id === own) - (a.id === own));
-  return list.map((c) => ({ ...c, sections: c.sections.map((s) => ({ ...s, title: fill(s.title), body: fill(s.body) })) }));
+  return list.map((c) => ({ ...c, sections: c.sections.filter((s) => !OFF().includes(s.id)).map((s) => ({ ...s, title: fill(s.title), body: fill(s.body) })) }));
 }

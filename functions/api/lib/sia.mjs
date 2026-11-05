@@ -7,6 +7,8 @@ export const STATUS_LABEL = {
   investigation: 'Under investigation', not_found: 'Not found',
 };
 export const RECHECK_DAYS = 90;
+// Register checks are switched off for now (set SIA_CHECK=on to bring them back); the licence details stay
+export const siaCheckOn = () => process.env.SIA_CHECK === 'on';
 
 export const cleanSia = (n) => String(n || '').replace(/\D/g, '');
 export const validSia = (n) => /^\d{16}$/.test(cleanSia(n));

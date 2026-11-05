@@ -14,6 +14,7 @@ import StartSheet from './contracts/StartSheet.jsx';
 import { AMEND_KIND, ENGAGEMENT, JUR_SHORT } from './contracts/_shared.jsx';
 import { PackPill } from '../shared/PackPaper.jsx';
 import { SiaCheckPill, SiaVerifyButton, useSiaVerify } from './SiaVerify.jsx';
+import { SIA_CHECK_ON } from '../../ui/sia.js';
 
 // useApi that reports 403 to the parent so the tab can be hidden
 function useTabApi(action, body, onForbidden, opts) {
@@ -152,13 +153,13 @@ export function ComplianceTab({ o, reload, isCo, user }) {
       <Bento className="lg:grid-cols-2">
         <Tile title="SIA licence" icon={BadgeCheck} className="col-span-2 lg:col-span-1" action={isCo && <Button size="sm" variant="ghost" onClick={() => setEdit(true)}>Edit</Button>}>
           <div className="mb-3"><ExpiryPill date={o.sia_expiry} missing="No licence" /></div>
-          <SiaCheckPill status={o.sia_status} at={o.sia_last_verified_at} by={o.sia_last_verified_by_name} className="mb-3" />
+          {SIA_CHECK_ON && <SiaCheckPill status={o.sia_status} at={o.sia_last_verified_at} by={o.sia_last_verified_by_name} className="mb-3" />}
           <KV items={[
             ['Licence number', <span className="num">{o.sia_number}</span>],
             ['Type', o.sia_type],
             ['Expiry', o.sia_expiry && `${date(o.sia_expiry)}${c.sia_days != null ? ` (${c.sia_days < 0 ? `${-c.sia_days} days ago` : `in ${c.sia_days} days`})` : ''}`],
           ]} />
-          {isMgr && <div className="mt-3"><SiaVerifyButton o={o} onSaved={reload} /></div>}
+          {SIA_CHECK_ON && isMgr && <div className="mt-3"><SiaVerifyButton o={o} onSaved={reload} /></div>}
         </Tile>
         <Tile title="Right to work" icon={BadgeCheck} className="col-span-2 lg:col-span-1" action={isCo && <Button size="sm" variant="ghost" onClick={() => setEdit(true)}>Edit</Button>}>
           <div className="mb-3">{o.rtw_verified ? <ExpiryPill date={o.rtw_expiry} missing="Verified, no expiry" /> : <Pill tone="red">Not verified</Pill>}</div>
@@ -298,7 +299,7 @@ export function DocumentsTab({ o, isCo, user, reload, onForbidden }) {
                     {d.system ? <Pill tone="blue">Saved copy</Pill> : d.verified_at ? <Pill tone="green" className="max-w-[160px] truncate">Verified{d.verified_by_name ? ` · ${d.verified_by_name}` : ''}</Pill> : <Pill tone="amber">Unverified</Pill>}
                     {d.expiry && <ExpiryPill date={d.expiry} />}
                     {d.s3_key && <IconButton icon={Eye} label="Open" onClick={() => open(d)} />}
-                    {isMgr && d.kind === 'sia' && <IconButton icon={ShieldCheck} label="Verify on SIA register" onClick={() => verifySia({ id: o.id, sia_number: o.sia_number || d.number })} className="text-blue" />}
+                    {SIA_CHECK_ON && isMgr && d.kind === 'sia' && <IconButton icon={ShieldCheck} label="Verify on SIA register" onClick={() => verifySia({ id: o.id, sia_number: o.sia_number || d.number })} className="text-blue" />}
                     {isCo && !d.system && !d.verified_at && <IconButton icon={Check} label="Verify" onClick={() => verify(d)} className="text-green" />}
                     {isCo && !d.system && <IconButton icon={Trash2} label="Delete" onClick={() => remove(d)} className="text-red" />}
                   </div>
@@ -308,7 +309,7 @@ export function DocumentsTab({ o, isCo, user, reload, onForbidden }) {
           ) : <Empty icon={FileText} title="No documents" body="SIA licence, right to work, ID and proof of address will show here." />}
           <OfficerPacks officerId={o.id} />
           {adding && <DocSheet o={o} onClose={() => setAdding(false)} onDone={q.reload} />}
-          {siaSheet}
+          {SIA_CHECK_ON && siaSheet}
         </>
       )}
     </TabLoad>

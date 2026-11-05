@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { cleanSia, validSia, siaGroups, ukDate, maskDob, checkDue } from '../lib/sia.mjs';
 import { compliance } from '../modules/officers.mjs';
@@ -12,6 +12,22 @@ const base = {
 };
 const shift = { assignment_id: 'a1', role: 'door', venue_name: 'Club', role_name: 'Door Supervisor', starts_at: '2026-11-07T20:00:00Z', ends_at: '2026-11-08T03:00:00Z' };
 const keys = (o, ctx = {}) => officerIssues(o, { today, roles, ...ctx }).map((i) => i.key);
+
+// Register checks are switched off in production for now; these tests cover the switched-on rules
+before(() => { process.env.SIA_CHECK = 'on'; });
+after(() => { delete process.env.SIA_CHECK; });
+
+test('register checks switched off: no block, no Ops AI cards, no Help section', async () => {
+  delete process.env.SIA_CHECK;
+  try {
+    assert.equal(compliance({ ...base, sia_status: 'suspended' }, today).ok, true);
+    assert.ok(!keys({ ...base, sia_status: 'suspended' }, { shifts: [shift] }).includes('register:sia'));
+    assert.ok(!keys({ ...base, sia_last_verified_at: null, sia_status: 'pending' }, { shifts: [shift] }).includes('recheck:sia'));
+    assert.ok(keys({ ...base, sia_number: null }, { shifts: [shift] }).includes('missing:sia'));
+    const { guideFor } = await import('../lib/guide.mjs');
+    assert.ok(!guideFor('company').some((c) => c.sections.some((x) => x.id === 'sia_check')));
+  } finally { process.env.SIA_CHECK = 'on'; }
+});
 
 test('licence number and dates for the register search', () => {
   assert.equal(cleanSia(' 1234-5678 9012 3456 '), '1234567890123456');

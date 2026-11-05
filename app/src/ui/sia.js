@@ -8,6 +8,8 @@ export const CHECK_STATUSES = [
 export const STATUS_LABEL = { pending: 'Not checked', ...Object.fromEntries(CHECK_STATUSES.map((s) => [s.value, s.label])) };
 export const NOT_CLEARED = ['expired', 'suspended', 'revoked', 'investigation', 'not_found'];
 export const RECHECK_DAYS = 90;
+// Register checks are switched off for now (backend: SIA_CHECK=on); the licence details stay
+export const SIA_CHECK_ON = false;
 
 export const cleanSia = (n) => String(n || '').replace(/\D/g, '');
 export const validSia = (n) => /^\d{16}$/.test(cleanSia(n));

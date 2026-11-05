@@ -6,6 +6,7 @@ import { api } from '../../api.js';
 import { Button, date, dateTime, KV, List, Load, Pill, Row, Section, Sheet, Toggle, useAction, useApi } from '../../ui/index.jsx';
 import { CopyLink, openUrl } from './_parts.jsx';
 import { SiaCheckPill, SiaVerifyButton } from './SiaVerify.jsx';
+import { SIA_CHECK_ON } from '../../ui/sia.js';
 
 const AVAIL = { weekdays: 'Weekdays', weekends: 'Weekends', nights: 'Nights', events: 'Events' };
 const TONE = { critical: 'red', warning: 'amber' };
@@ -108,10 +109,10 @@ export function ApplicationSheet({ id, onClose, onDone }) {
                 ['Expires', a.ai?.badge?.expiry ? date(a.ai.badge.expiry) : null],
                 ['Name on badge', a.ai?.badge?.name],
               ]} />
-              <div className="mt-3 flex flex-wrap items-center gap-2">
+              {SIA_CHECK_ON && <div className="mt-3 flex flex-wrap items-center gap-2">
                 <SiaVerifyButton o={{ id, sia_number: a.sia_number || a.ai?.badge?.number }} onSaved={q.reload} />
                 <SiaCheckPill status={a.sia_status} at={a.sia_last_verified_at} by={a.sia_last_verified_by_name} />
-              </div>
+              </div>}
             </Section>
 
             <Section title="Files">
