@@ -4,10 +4,10 @@ import { Plus, ShieldCheck, Users } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Bento, Button, Empty, List, Load, Page, Row, SearchInput, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useForm, withGoesBy,
+  Bento, Button, Empty, Load, Page, PhotoCard, SearchInput, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useForm, displayName,
 } from '../../ui/index.jsx';
 import {
-  ComplianceBadge, CopyLink, OFFICER_STATUSES, OfficerCoreFields, cleanOfficer, complianceState, emptyOfficer, useBase, useRoles,
+  CopyLink, OFFICER_STATUSES, OfficerCoreFields, cleanOfficer, complianceState, emptyOfficer, useBase, useRoles,
 } from './_parts.jsx';
 
 export default function Staff() {
@@ -29,12 +29,11 @@ export default function Staff() {
     return all.filter((o) => o.status === status
       && (!role || (o.roles || []).includes(role))
       && (comp === 'all' || complianceState(o.compliance).tone === comp)
-      && (!s || `${o.name} ${o.goes_by || ''} ${o.email} ${o.phone} ${o.sia_number}`.toLowerCase().includes(s)));
+      && (!s || `${o.name} ${o.full_name || ''} ${o.email} ${o.phone} ${o.sia_number}`.toLowerCase().includes(s)));
   }, [all, status, role, comp, search]);
 
   const active = all.filter((o) => o.status === 'active');
   const states = active.map((o) => complianceState(o.compliance).tone);
-  const half = Math.ceil(rows.length / 2);
 
   return (
     <Page2 isCo={isCo} onAdd={() => setAdding(true)}>
@@ -65,18 +64,14 @@ export default function Staff() {
                 body={all.length ? 'Try a different filter or search.' : isCo ? 'Add your first officer to start building the rota.' : 'Officers will appear here once the company adds them.'}
                 action={isCo && !all.length && <Button icon={Plus} onClick={() => setAdding(true)}>Add officer</Button>} />
             ) : (
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start">
-                {[rows.slice(0, half), rows.slice(half)].filter((c) => c.length).map((col, i) => (
-                  <List key={i}>
-                    {col.map((o) => (
-                      <Row key={o.id} to={`${base}/staff/${o.id}`}
-                        left={<Avatar name={o.name} src={o.photo_url} size={44} />}
-                        title={withGoesBy(o.name, o.goes_by)}
-                        subtitle={[(o.roles || []).map(roleName).join(', ') || 'No roles', o.sia_number && `SIA ${o.sia_number}`].filter(Boolean).join(' · ')}
-                        right={<ComplianceBadge c={o.compliance} />} />
-                    ))}
-                  </List>
-                ))}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+                {rows.map((o) => {
+                  const c = complianceState(o.compliance);
+                  return (
+                    <PhotoCard key={o.id} to={`${base}/staff/${o.id}`} srcs={[o.photo_url]} name={displayName(o)}
+                      dot={{ tone: c.tone, label: c.detail ? `${c.label}: ${c.detail}` : c.label }} />
+                  );
+                })}
               </div>
             )}
             <p className="mt-3 px-1 text-footnote text-faint num">{rows.length} of {counts[status] || 0} {status} officers</p>

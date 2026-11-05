@@ -7,6 +7,7 @@ import { notify, companyManagers } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
 import { SITE_CLIENTS, isSiteClient } from '../lib/siteClients.mjs';
 import { def, pub } from './_def.mjs';
+import { userName } from '../lib/names.mjs';
 
 const STATUSES = ['pending', 'published', 'hidden'];
 const VIEW = ['company', 'security', 'venue'];
@@ -68,7 +69,7 @@ export const actions = {
   'reviews.list': def(VIEW, async (b, { user }) => {
     const seen = await visibleClients(user);
     return q(
-      `SELECT r.*, u.name AS created_by_name, a.name AS approved_by_name, v.name AS venue_name
+      `SELECT r.*, ${userName('u')} AS created_by_name, ${userName('a')} AS approved_by_name, v.name AS venue_name
          FROM reviews r LEFT JOIN users u ON u.id = r.created_by LEFT JOIN users a ON a.id = r.approved_by LEFT JOIN venues v ON v.id = r.venue_id
         WHERE ($1::text[] IS NULL OR r.client = ANY($1)) AND ($2::text IS NULL OR r.client = $2) AND ($3::text IS NULL OR r.status = $3)
           AND ($4::text = '' OR r.quote ILIKE '%' || $4 || '%' OR r.reviewer ILIKE '%' || $4 || '%')

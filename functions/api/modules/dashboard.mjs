@@ -5,6 +5,7 @@ import { addDays, londonDate } from '../lib/time.mjs';
 import { actions as clock } from './clock.mjs';
 import { compliance } from './officers.mjs';
 import { ALL, def } from './_def.mjs';
+import { officerDisplay, officerName } from '../lib/names.mjs';
 
 const count = async (sql, params) => (await one(sql, params)).n;
 
@@ -63,9 +64,9 @@ async function managerDash(ctx) {
 
   if (user.role === 'company') {
     const officers = await q("SELECT * FROM officers WHERE status IN ('active','onboarding','applicant')");
-    const nonCompliant = officers.filter((o) => o.status === 'active' && !compliance(o, today).ok).map((o) => ({ id: o.id, name: `${o.first_name} ${o.last_name}`, issues: compliance(o, today).issues }));
+    const nonCompliant = officers.filter((o) => o.status === 'active' && !compliance(o, today).ok).map((o) => ({ id: o.id, name: officerDisplay(o), issues: compliance(o, today).issues }));
     const [expiring, timeOff, pipeline] = await Promise.all([
-      q(`SELECT id, first_name || ' ' || last_name AS name, sia_expiry, rtw_expiry FROM officers WHERE status = 'active'
+      q(`SELECT id, ${officerName('')} AS name, sia_expiry, rtw_expiry FROM officers WHERE status = 'active'
           AND ((sia_expiry BETWEEN $1 AND $1::date + 60) OR (rtw_expiry BETWEEN $1 AND $1::date + 60)) ORDER BY LEAST(sia_expiry, rtw_expiry) LIMIT 10`, [today]),
       count("SELECT count(*)::int AS n FROM time_off WHERE status = 'pending'"),
       q("SELECT status, count(*)::int AS n FROM officers GROUP BY status"),

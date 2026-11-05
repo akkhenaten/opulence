@@ -193,12 +193,21 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
 }
 @keyframes pulse-dot { 0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,.45); } 50% { box-shadow: 0 0 0 6px rgba(22,163,74,0); } }
 .live-dot { animation: pulse-dot 2s infinite; }
+/* The company's logo in polished silver, with a slow glint: the way back to the website */
+.silver-mark { position: relative; display: block; width: 22px; height: 22px; overflow: hidden;
+  -webkit-mask: url(/app/brand/logo-white-192.png) center / contain no-repeat; mask: url(/app/brand/logo-white-192.png) center / contain no-repeat;
+  background: linear-gradient(135deg, #f7f9fb 0%, #b4bbc3 38%, #eef1f4 54%, #8f979f 78%, #d9dee3 100%); }
+.silver-mark::after { content: ''; position: absolute; inset: -50%; background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.95) 50%, transparent 60%);
+  transform: translateX(-100%); animation: silver-glint 6s ease-in-out infinite; }
+@keyframes silver-glint { 0%, 70% { transform: translateX(-100%); } 85%, 100% { transform: translateX(100%); } }
+.silver-btn { background: linear-gradient(160deg, #3a3f45, #1d2024); }
+.silver-btn:hover .silver-mark::after { animation-duration: 1.6s; }
 /* Reduced motion: keep fades, drop movement; spinners still turn so loading stays visible */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; scroll-behavior: auto !important; }
   .bento > *, .page-in-right, .page-in-left, .page-fade, .anim-pop, .anim-sheet-in, .anim-toast-in, .anim-bar-in, .anim-fade-in { animation: fade var(--dur-1) both !important; }
   .anim-sheet-out, .anim-toast-out, .anim-fade-out { animation: fade-out var(--dur-1) both !important; }
-  .live-dot, .skeleton, .orb-voice-halo, .orb-voice-speaking, .orb-voice-turn { animation: none !important; }
+  .live-dot, .skeleton, .silver-mark::after, .orb-voice-halo, .orb-voice-speaking, .orb-voice-turn { animation: none !important; }
   .pressable:active, .pressable-card:active { transform: none; }
 }
 

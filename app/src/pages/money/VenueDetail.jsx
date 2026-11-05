@@ -36,9 +36,7 @@ export default function VenueDetail() {
           <Bento className="mb-6">
             <Tile className="col-span-2" tone="soft">
               <div className="flex items-start gap-4">
-                {v.photo_url
-                  ? <img src={v.photo_url} alt="" className="h-14 w-14 shrink-0 rounded-2xl object-cover" />
-                  : <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-paper text-blue"><Building2 size={26} /></div>}
+                <VenuePhoto v={v} canEdit={isCo || user.role === 'security'} onSaved={q.reload} />
                 <div className="min-w-0">
                   <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Venue</div>
                   <div className="truncate text-title3 font-bold">{v.name}</div>
@@ -205,6 +203,39 @@ const PROOF_RULES = [
   { value: 'two_of_three', label: '2 of 3 checks (recommended)' },
   { value: 'all_three', label: 'All 3 checks (strictest)' },
 ];
+
+// The venue's picture on its cards: an uploaded photo, else its picture on the website, else an icon
+function VenuePhoto({ v, canEdit, onSaved }) {
+  const [run, busy] = useAction();
+  const confirm = useConfirm();
+  const file = useRef(null);
+  const [broken, setBroken] = useState(false);
+  const src = v.photo_url || (v.site_client && !broken ? `/img/opulence/clients/${v.site_client}-480.jpg` : null);
+  const save = (photo_key, msg) => run(() => api('venues.save', { id: v.id, photo_key }), msg).then(onSaved).catch(() => {});
+  const pick = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    const key = f && await run(() => upload(f, 'photo')).catch(() => null);
+    if (key) save(key, 'Venue photo updated');
+  };
+  const remove = async () => {
+    if (await confirm({ title: 'Remove the venue photo?', body: 'The venue card goes back to its website picture or initials.', confirm: 'Remove', danger: true })) save(null, 'Venue photo removed');
+  };
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1.5">
+      {src
+        ? <img src={src} alt="" onError={() => setBroken(true)} className="h-20 w-20 rounded-2xl object-cover" />
+        : <div className="grid h-20 w-20 place-items-center rounded-2xl bg-paper text-blue"><Building2 size={24} /></div>}
+      {canEdit && (
+        <div className="flex gap-1">
+          <IconButton icon={Upload} label={v.photo_url ? 'Change photo' : 'Add photo'} size="sm" disabled={busy} onClick={() => file.current?.click()} />
+          {v.photo_url && <IconButton icon={Trash2} label="Remove photo" size="sm" disabled={busy} onClick={remove} />}
+          <input ref={file} type="file" accept="image/png,image/jpeg,image/webp,image/heic" className="hidden" onChange={pick} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 function DetailsTab({ v, clients, isCo, onSaved }) {
   const [run, busy] = useAction();

@@ -5,7 +5,7 @@ import { Ban, Mail, Pencil, Phone, Send, UserCheck } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Button, Input, Load, Page, Pill, Select, Sheet, Tabs, Textarea, Tile, Toggle, date, useAction, useApi, useConfirm, useForm, withGoesBy,
+  Avatar, Button, Input, Load, Page, Pill, Select, Sheet, Tabs, Textarea, Tile, Toggle, date, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { ComplianceBadge, CopyLink, ExpiryPill, LoginPill, OFFICER_STATUSES, SIA_TYPES, Chips, canPay, useBase, useRoles } from './_parts.jsx';
 import {
@@ -71,7 +71,7 @@ function Profile({ o, reload, user, base }) {
   const props = { o, reload, user, isCo, roles, roleName, onForbidden: forbid };
 
   return (
-    <Page title={withGoesBy(o.name, o.goes_by)} back={{ to: `${base}/staff`, label: isCo ? 'Staff' : 'Officers' }}
+    <Page title={o.full_name || o.name} subtitle={o.goes_by?.trim() ? `Goes by ${o.goes_by.trim()}` : undefined} back={{ to: `${base}/staff`, label: isCo ? 'Staff' : 'Officers' }}
       actions={isCo && (
         <>
           <Button variant="secondary" icon={Pencil} onClick={() => setEditing(true)}>Edit</Button>

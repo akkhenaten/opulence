@@ -12,6 +12,7 @@ import { verifySun, newKey } from '../lib/sun.mjs';
 import { faceMatch } from '../lib/face.mjs';
 import { getSettings } from './settings.mjs';
 import { MGR, CO, def } from './_def.mjs';
+import { officerName, userName } from '../lib/names.mjs';
 
 const SELFIE_DAYS = 90;
 const DEVICE_COLS = 'id, officer_id, label, status, created_at, last_used_at, decided_at';
@@ -151,8 +152,8 @@ export const actions = {
   'device.list': def(MGR, async (b) => {
     if (!b.officer_id && !b.pending) fail(400, 'officer_id or pending is required');
     return q(
-      `SELECT d.id, d.officer_id, d.label, d.status, d.created_at, d.last_used_at, d.decided_at, u.name AS decided_by_name,
-              o.first_name || ' ' || o.last_name AS officer_name,
+      `SELECT d.id, d.officer_id, d.label, d.status, d.created_at, d.last_used_at, d.decided_at, ${userName('u')} AS decided_by_name,
+              ${officerName('o')} AS officer_name,
               (SELECT label FROM officer_devices x WHERE x.officer_id = d.officer_id AND x.status = 'active' LIMIT 1) AS current_label
          FROM officer_devices d JOIN officers o ON o.id = d.officer_id LEFT JOIN users u ON u.id = d.decided_by
         WHERE ${b.pending ? "d.status = 'pending'" : "d.officer_id = $1 AND d.status IN ('active','pending')"}
@@ -287,6 +288,6 @@ export const actions = {
         WHERE ce.kind = 'in' AND ce.status <> 'manual' AND ce.ts >= $1::date AND ce.ts < $2::date + 1
           AND ($3::uuid[] IS NULL OR s.venue_id = ANY($3)) AND ($4::uuid IS NULL OR s.venue_id = $4)
         GROUP BY 1, 2 ORDER BY exceptions DESC, punches DESC LIMIT 300`, [from, to, scope, b.venue_id || null]);
-    return { from, to, officers: await agg('o.id', "o.first_name || ' ' || o.last_name"), venues: await agg('v.id', 'v.name') };
+    return { from, to, officers: await agg('o.id', "COALESCE(NULLIF(btrim(o.goes_by), ''), o.first_name || ' ' || o.last_name)"), venues: await agg('v.id', 'v.name') };
   }),
 };

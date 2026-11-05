@@ -138,21 +138,19 @@
     /* Services */
     .alt-bg { background: var(--ink-2); border-block: 1px solid var(--line); }
     .services { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 56px; }
-    .service { display: flex; flex-direction: column; padding: 0 30px 34px; border-radius: 22px; border: 1px solid var(--line); background: var(--ink); overflow: hidden; }
-    .service .ph { margin: 0 -30px; aspect-ratio: 4 / 3; border-bottom: 1px solid rgba(201,164,92,.28); }
-    .service .ph img { width: 100%; height: 100%; object-fit: cover; }
-    .service h3 { margin-top: 26px; font-size: 28px; }
-    .service p { margin-top: 12px; color: var(--muted); flex: 1; }
-    .service button { margin-top: 24px; align-self: flex-start; background: none; border: 0; padding: 0; color: var(--gold-2); font: 600 13px var(--sans); letter-spacing: .16em; text-transform: uppercase; cursor: pointer; border-bottom: 1px solid rgba(201,164,92,.45); padding-bottom: 3px; }
-    @media (max-width: 900px) { .services { grid-template-columns: 1fr; } }
+    .svc { aspect-ratio: 4 / 5; }
+    .svc .cap b { font-size: 26px; }
+    .svc .back .about p { font-size: 16px; }
+    .svc .back button { margin-top: 18px; background: none; border: 0; padding: 0 0 3px; color: var(--gold-2); font: 600 13px var(--sans); letter-spacing: .16em; text-transform: uppercase; cursor: pointer; border-bottom: 1px solid rgba(201,164,92,.45); }
+    @media (max-width: 900px) { .services { grid-template-columns: 1fr; max-width: 520px; margin-inline: auto; } .services .svc { aspect-ratio: 4 / 4.4; } }
 
     /* Clients: photo tiles; hover tints them gold, a click flips one over to its reviews */
     .cities { display: grid; gap: 56px; margin-top: 56px; }
     .city h3 { font: 600 12px var(--sans); letter-spacing: .24em; text-transform: uppercase; color: var(--gold); padding-bottom: 14px; border-bottom: 1px solid var(--line); }
     .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 24px; }
-    .vt { position: relative; aspect-ratio: 4 / 5; perspective: 1400px; cursor: pointer; border-radius: 20px; outline: none; transition: transform .45s var(--spring); }
-    .vt .inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .8s var(--spring); }
-    .vt.flip .inner { transform: rotateY(180deg); }
+    :is(.vt, .svc) { position: relative; aspect-ratio: 4 / 5; perspective: 1400px; cursor: pointer; border-radius: 20px; outline: none; transition: transform .45s var(--spring); }
+    :is(.vt, .svc) .inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .8s var(--spring); }
+    :is(.vt, .svc).flip .inner { transform: rotateY(180deg); }
     .face { position: absolute; inset: 0; border-radius: 20px; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; border: 1px solid var(--line); }
     .front picture, .front img { width: 100%; height: 100%; object-fit: cover; }
     .front img { transition: transform 1.2s var(--spring), filter .4s; }
@@ -162,12 +160,12 @@
     .cap b { display: block; font: 500 21px/1.15 var(--serif); }
     .cap small { display: block; margin-top: 4px; font: 600 11px var(--sans); letter-spacing: .22em; text-transform: uppercase; color: var(--gold-2); }
     @media (hover: hover) {
-      .vt:hover { transform: translateY(-4px); }
-      .vt:hover .front::after { opacity: 1; }
-      .vt:hover .front img { transform: scale(1.04); filter: sepia(.25) saturate(1.1); }
+      :is(.vt, .svc):hover { transform: translateY(-4px); }
+      :is(.vt, .svc):hover .front::after { opacity: 1; }
+      :is(.vt, .svc):hover .front img { transform: scale(1.04); filter: sepia(.25) saturate(1.1); }
     }
-    .vt:focus-visible { box-shadow: 0 0 0 2px var(--ink-2), 0 0 0 4px var(--gold); }
-    .vt:focus-visible .front::after { opacity: 1; }
+    :is(.vt, .svc):focus-visible { box-shadow: 0 0 0 2px var(--ink-2), 0 0 0 4px var(--gold); }
+    :is(.vt, .svc):focus-visible .front::after { opacity: 1; }
     .back { transform: rotateY(180deg); display: flex; flex-direction: column; padding: 22px 20px 18px; border-color: rgba(201,164,92,.35);
       background: radial-gradient(130% 90% at 0% 0%, rgba(201,164,92,.16), transparent 60%), var(--ink); }
     .about b, .rv-head b { display: block; font: 500 21px/1.15 var(--serif); }
@@ -191,10 +189,10 @@
     @media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, 1fr); gap: 12px; } .cap b { font-size: 18px; } }
     @media (max-width: 480px) { .tiles { grid-template-columns: 1fr; } .vt { aspect-ratio: 4 / 4.2; } }
     @media (prefers-reduced-motion: reduce) {
-      .vt .inner { transition: none; transform: none !important; }
+      :is(.vt, .svc) .inner { transition: none; transform: none !important; }
       .back { transform: none; opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
-      .vt.flip .back { opacity: 1; visibility: visible; }
-      .vt.flip .front { visibility: hidden; }
+      :is(.vt, .svc).flip .back { opacity: 1; visibility: visible; }
+      :is(.vt, .svc).flip .front { visibility: hidden; }
     }
 
     /* Awards */
@@ -383,25 +381,25 @@
           <h2>Our services.</h2>
           <p>Licensed, vetted and trained officers who deliver safety and service in equal measure.</p>
         </div>
-        <div class="services">
-          <article class="service" data-reveal>
-            <picture class="ph"><source type="image/webp" srcset="/img/opulence/services/manned-guarding-600.webp 600w, /img/opulence/services/manned-guarding-1200.webp 1200w" sizes="(max-width: 900px) 92vw, 380px"><img src="/img/opulence/services/manned-guarding-1200.jpg" width="1200" height="900" alt="Door supervisor at a venue entrance" loading="lazy" decoding="async"></picture>
-            <h3>Manned Guarding</h3>
-            <p>Professional door supervisors trained to deliver both safety and service for licensed venues, hotels and retail. Our team combines up-to-date security expertise with a clear understanding of licensing requirements, so your venue runs smoothly and securely.</p>
-            <button type="button" data-cover="Manned guarding / door supervision">Request cover</button>
-          </article>
-          <article class="service" data-reveal>
-            <picture class="ph"><source type="image/webp" srcset="/img/opulence/services/mobile-response-600.webp 600w, /img/opulence/services/mobile-response-1200.webp 1200w" sizes="(max-width: 900px) 92vw, 380px"><img src="/img/opulence/services/mobile-response-1200.jpg" width="1200" height="900" alt="Mobile response officer" loading="lazy" decoding="async"></picture>
-            <h3>Mobile Response</h3>
-            <p>Immediate deployment of security teams in emergency situations. Our rapid response units are strategically positioned across Scotland for the fastest response times.</p>
-            <button type="button" data-cover="Mobile response">Request cover</button>
-          </article>
-          <article class="service" data-reveal>
-            <picture class="ph"><source type="image/webp" srcset="/img/opulence/services/event-security-600.webp 600w, /img/opulence/services/event-security-1200.webp 1200w" sizes="(max-width: 900px) 92vw, 380px"><img src="/img/opulence/services/event-security-1200.jpg" width="1200" height="900" alt="Event security team" loading="lazy" decoding="async"></picture>
-            <h3>Event Security</h3>
-            <p>Crowd management and door supervision for festivals and landmark events, from Days Festival to The Royal Yacht Britannia. Every officer is briefed on your event before the first shift.</p>
-            <button type="button" data-cover="Event security">Request cover</button>
-          </article>
+        <div class="services" data-reveal>
+          <div class="svc" role="button" tabindex="0" aria-pressed="false" aria-label="Manned Guarding, tap for details">
+            <div class="inner">
+              <div class="face front"><picture class="ph"><source type="image/webp" srcset="/img/opulence/services/manned-guarding-600.webp 600w, /img/opulence/services/manned-guarding-1200.webp 1200w" sizes="(max-width: 900px) 92vw, 380px"><img src="/img/opulence/services/manned-guarding-1200.jpg" width="1200" height="900" alt="Door supervisor at a venue entrance" loading="lazy" decoding="async"></picture><span class="cap"><b>Manned Guarding</b><small>Tap for details</small></span></div>
+              <div class="face back" aria-hidden="true"><div class="about"><b>Manned Guarding</b><p>Professional door supervisors trained to deliver both safety and service for licensed venues, hotels and retail. Our team combines up-to-date security expertise with a clear understanding of licensing requirements, so your venue runs smoothly and securely.</p><button type="button" data-cover="Manned guarding / door supervision">Request cover</button></div></div>
+            </div>
+          </div>
+          <div class="svc" role="button" tabindex="0" aria-pressed="false" aria-label="Mobile Response, tap for details">
+            <div class="inner">
+              <div class="face front"><picture class="ph"><source type="image/webp" srcset="/img/opulence/services/mobile-response-600.webp 600w, /img/opulence/services/mobile-response-1200.webp 1200w" sizes="(max-width: 900px) 92vw, 380px"><img src="/img/opulence/services/mobile-response-1200.jpg" width="1200" height="900" alt="Mobile response officer" loading="lazy" decoding="async"></picture><span class="cap"><b>Mobile Response</b><small>Tap for details</small></span></div>
+              <div class="face back" aria-hidden="true"><div class="about"><b>Mobile Response</b><p>Immediate deployment of security teams in emergency situations. Our rapid response units are strategically positioned across Scotland for the fastest response times.</p><button type="button" data-cover="Mobile response">Request cover</button></div></div>
+            </div>
+          </div>
+          <div class="svc" role="button" tabindex="0" aria-pressed="false" aria-label="Event Security, tap for details">
+            <div class="inner">
+              <div class="face front"><picture class="ph"><source type="image/webp" srcset="/img/opulence/services/event-security-600.webp 600w, /img/opulence/services/event-security-1200.webp 1200w" sizes="(max-width: 900px) 92vw, 380px"><img src="/img/opulence/services/event-security-1200.jpg" width="1200" height="900" alt="Event security team" loading="lazy" decoding="async"></picture><span class="cap"><b>Event Security</b><small>Tap for details</small></span></div>
+              <div class="face back" aria-hidden="true"><div class="about"><b>Event Security</b><p>Crowd management and door supervision for festivals and landmark events, from Days Festival to The Royal Yacht Britannia. Every officer is briefed on your event before the first shift.</p><button type="button" data-cover="Event security">Request cover</button></div></div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -837,9 +835,8 @@
         }, { rootMargin: '0px 0px -6% 0px' });
         document.querySelectorAll('[data-reveal]').forEach(function (el) { io.observe(el); });
       }
-      // Venue tiles: a click flips one over (one at a time). Its back shows the client's published reviews as a
+      // Venue tiles and service cards flip over on click. A venue's back shows the client's published reviews as a
       // carousel, or their description and website when there are none yet (and when the reviews can't load).
-      var tiles = [].slice.call(document.querySelectorAll('.vt'));
       function setFlip(t, on) {
         t.classList.toggle('flip', on);
         t.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -847,19 +844,26 @@
         back.setAttribute('aria-hidden', on ? 'false' : 'true');
         back.inert = !on;
       }
-      tiles.forEach(function (t) {
-        t.querySelector('.back').inert = true;
-        var toggle = function () {
-          var on = !t.classList.contains('flip');
-          tiles.forEach(function (o) { if (o !== t && o.classList.contains('flip')) setFlip(o, false); });
-          setFlip(t, on);
-        };
-        t.addEventListener('click', function (e) { if (!e.target.closest('a, button')) toggle(); });
-        t.addEventListener('keydown', function (e) {
-          if (e.key === 'Escape' && t.classList.contains('flip')) { setFlip(t, false); t.focus(); }
-          else if (e.target === t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(); }
+      // Cards in one group flip one at a time; clicks on links and buttons on the back do their own thing
+      function flippers(sel) {
+        var cards = [].slice.call(document.querySelectorAll(sel));
+        cards.forEach(function (t) {
+          t.querySelector('.back').inert = true;
+          var toggle = function () {
+            var on = !t.classList.contains('flip');
+            cards.forEach(function (o) { if (o !== t && o.classList.contains('flip')) setFlip(o, false); });
+            setFlip(t, on);
+          };
+          t.addEventListener('click', function (e) { if (!e.target.closest('a, button')) toggle(); });
+          t.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && t.classList.contains('flip')) { setFlip(t, false); t.focus(); }
+            else if (e.target === t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(); }
+          });
         });
-      });
+        return cards;
+      }
+      var tiles = flippers('.vt');
+      flippers('.svc');
       function el(tag, cls, text) {
         var n = document.createElement(tag);
         if (cls) n.className = cls;

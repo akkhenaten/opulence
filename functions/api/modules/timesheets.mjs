@@ -8,10 +8,11 @@ import { audit } from '../lib/audit.mjs';
 import { getSettings } from './settings.mjs';
 import { guardSelf, markOwn, otherApprover, SELF_MSG } from '../lib/selfcheck.mjs';
 import { MGR, def } from './_def.mjs';
+import { officerName, userName } from '../lib/names.mjs';
 
 const BASE_SQL = `
   SELECT t.*, a.officer_id, s.id AS shift_id, s.starts_at, s.ends_at, s.role, r.name AS role_name, s.venue_id, v.name AS venue_name,
-         o.first_name || ' ' || o.last_name AS officer_name, ua.name AS approved_by_name, us.name AS signed_by_name,
+         ${officerName('o')} AS officer_name, ${userName('ua')} AS approved_by_name, ${userName('us')} AS signed_by_name,
          (t.statement_id IS NOT NULL OR t.invoice_id IS NOT NULL) AS locked
     FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
     JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role JOIN officers o ON o.id = a.officer_id
@@ -119,7 +120,7 @@ export const actions = {
   'timesheets.missing': def(MGR, async (_b, { user }) => {
     const scope = await venueScope(user);
     return q(
-      `SELECT a.id AS assignment_id, s.starts_at, s.ends_at, v.name AS venue_name, s.venue_id, o.first_name || ' ' || o.last_name AS officer_name
+      `SELECT a.id AS assignment_id, s.starts_at, s.ends_at, v.name AS venue_name, s.venue_id, ${officerName('o')} AS officer_name
          FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id
         WHERE s.status = 'published' AND a.status IN ('assigned','accepted') AND s.ends_at < now() AND s.ends_at > now() - interval '30 days'
           AND NOT EXISTS (SELECT 1 FROM timesheets t WHERE t.assignment_id = a.id)

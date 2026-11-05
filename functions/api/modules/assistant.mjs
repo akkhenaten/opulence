@@ -15,6 +15,7 @@ import { getSettings } from './settings.mjs';
 import { CHAT_TOOLS, runTool, jobOn, logActivity } from './ops.mjs';
 import { getShift, filledCount } from './rota.mjs';
 import { MGR, def } from './_def.mjs';
+import { officerName, userName } from '../lib/names.mjs';
 
 let ACTIONS = {};
 /** index.mjs hands over the action table so Orb goes through the same code as the app. */
@@ -142,7 +143,7 @@ async function runRead(name, input, user) {
       if (!canSeePay(user)) return { error: 'No access to pay' };
       const st = input.status || 'open';
       return q(
-        `SELECT d.id, d.status, d.line_description AS line, d.comment, d.resolution, d.created_at, o.first_name || ' ' || o.last_name AS officer, st.pay_run_id
+        `SELECT d.id, d.status, d.line_description AS line, d.comment, d.resolution, d.created_at, ${officerName('o')} AS officer, st.pay_run_id
            FROM statement_disputes d JOIN statements st ON st.id = d.statement_id JOIN officers o ON o.id = st.officer_id
           WHERE ($1 = 'all' OR d.status = $1) ORDER BY d.created_at DESC LIMIT 30`, [st]);
     }
@@ -156,7 +157,7 @@ async function runRead(name, input, user) {
     case 'search_messages': {
       const days = Math.min(Math.max(Number(input.days) || 30, 1), 365);
       return q(
-        `SELECT m.body, m.created_at, u.name AS sender, COALESCE(NULLIF(c.title, ''), c.kind) AS conversation
+        `SELECT m.body, m.created_at, ${userName('u')} AS sender, COALESCE(NULLIF(c.title, ''), c.kind) AS conversation
            FROM messages m JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = $1
            JOIN conversations c ON c.id = m.conversation_id JOIN users u ON u.id = m.sender_id
           WHERE m.deleted_at IS NULL AND m.body ILIKE $2 AND m.created_at > now() - make_interval(days => $3)
@@ -185,7 +186,7 @@ async function prepare(name, input, user) {
         steps: [{ action: 'payRuns.sendForReview', body: { id: r.id, deadline_days: days, via: 'ai' } }] };
     }
     case 'resolve_dispute': {
-      const d = need(await one(`SELECT d.*, o.first_name || ' ' || o.last_name AS officer FROM statement_disputes d JOIN statements st ON st.id = d.statement_id
+      const d = need(await one(`SELECT d.*, ${officerName('o')} AS officer FROM statement_disputes d JOIN statements st ON st.id = d.statement_id
                                   JOIN officers o ON o.id = st.officer_id WHERE d.id = $1`, [input.dispute_id]), 'Query not found');
       const extra = [input.line_hours != null && `set the hours on "${d.line_description}" to ${input.line_hours}`,
         input.adjustment?.amount && `add a ${input.adjustment.kind || 'bonus'} of ${gbp(Math.abs(input.adjustment.amount))}`].filter(Boolean);
@@ -280,7 +281,7 @@ const linkFor = (user, entry, res, body) => {
 
 // Rota lines are checked before they reach the card: assign only fills empty places, and a swap's line is
 // written from the data, so the card can never say "reassign" over a step that only adds someone
-const ON_SHIFT = `SELECT o.first_name || ' ' || o.last_name AS name FROM shift_assignments a JOIN officers o ON o.id = a.officer_id
+const ON_SHIFT = `SELECT ${officerName('o')} AS name FROM shift_assignments a JOIN officers o ON o.id = a.officer_id
   WHERE a.shift_id = $1 AND a.status IN ('assigned','accepted') AND ($2::uuid IS NULL OR a.id = $2) AND ($3::uuid IS NULL OR a.officer_id = $3)`;
 export async function rotaLine(name, body) {
   if (!['shifts.assign', 'shifts.reassign'].includes(name) || !body.shift_id) return {};
@@ -292,7 +293,7 @@ export async function rotaLine(name, body) {
     }
     const from = await one(ON_SHIFT, [s.id, body.assignment_id || null, body.from_officer_id || null]);
     if (!from) return { error: 'The officer being replaced is not on this shift. Use find_shifts to get their officer_id.' };
-    const to = await one("SELECT first_name || ' ' || last_name AS name FROM officers WHERE id = $1", [body.officer_id]);
+    const to = await one("SELECT COALESCE(NULLIF(btrim(goes_by), ''), first_name || ' ' || last_name) AS name FROM officers WHERE id = $1", [body.officer_id]);
     if (!to) return { error: 'The new officer was not found. Look them up first.' };
     return { label: `${s.venue_name} · ${fmtDate(s.starts_at)} ${fmtTime(s.starts_at)}–${fmtTime(s.ends_at)}: ${from.name} → ${to.name}` };
   } catch (e) {

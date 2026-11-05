@@ -5,7 +5,7 @@ import { canSeePay } from '../lib/auth.mjs';
 import { venueScope, assertVenue } from '../lib/scope.mjs';
 import { qrPayload } from '../lib/qr.mjs';
 import { qrPosterPdf } from '../lib/pdf.mjs';
-import { downloadUrl } from '../lib/storage.mjs';
+import { checkOwnPhoto, downloadUrl } from '../lib/storage.mjs';
 import { audit } from '../lib/audit.mjs';
 import { CO, MGR, def } from './_def.mjs';
 import { getSettings } from './settings.mjs';
@@ -60,6 +60,11 @@ export const actions = {
     if (f.site_client && !isSiteClient(f.site_client)) fail(400, 'Unknown website client');
     if (f.proof_rule !== undefined && !RULES[f.proof_rule]) fail(400, 'Unknown clock-in rule');
     if (b.id) await assertVenue(user, b.id);
+    // A new venue photo must be an image this manager just uploaded; an unchanged key passes through
+    if (f.photo_key !== undefined) {
+      const cur = b.id ? await one('SELECT photo_key FROM venues WHERE id = $1', [b.id]) : null;
+      if (f.photo_key !== (cur?.photo_key ?? null)) f.photo_key = await checkOwnPhoto(user, f.photo_key, fail);
+    }
     let v;
     if (b.id) v = await update('venues', b.id, f);
     else {

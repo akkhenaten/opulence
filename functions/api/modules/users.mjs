@@ -8,6 +8,7 @@ import { CO, ALL, def } from './_def.mjs';
 import { getBrand } from '../lib/brand.mjs';
 import { seedOnboarding } from './hr.mjs';
 import { disconnectUser } from './email.mjs';
+import { officerName, userName } from '../lib/names.mjs';
 
 const ROLE_LABEL = { company: 'Company Manager', security: 'Security Manager', venue: 'Venue Manager', officer: 'Security Officer' };
 
@@ -45,7 +46,7 @@ export const actions = {
             COALESCE(array_agg(DISTINCT v.id) FILTER (WHERE v.id IS NOT NULL), '{}') AS venue_ids,
             CASE WHEN u.status = 'invited' THEN '/app/invite/' || u.invite_token END AS invite_link,
             (SELECT o.id FROM officers o WHERE o.user_id = u.id LIMIT 1) AS officer_id,
-            (SELECT o.first_name || ' ' || o.last_name FROM officers o WHERE o.user_id = u.id LIMIT 1) AS officer_name
+            (SELECT ${officerName('o')} FROM officers o WHERE o.user_id = u.id LIMIT 1) AS officer_name
        FROM users u
        LEFT JOIN venue_contacts vc ON vc.user_id = u.id AND u.role = 'venue'
        LEFT JOIN security_venues sv ON sv.user_id = u.id AND u.role = 'security'
@@ -187,7 +188,7 @@ export const actions = {
   'users.managers': def(ALL, async () => q("SELECT id, name, role FROM users WHERE role IN ('company','security') AND status = 'active' ORDER BY name")),
 
   'audit.list': def(CO, async (b) => q(
-    `SELECT a.*, u.name AS user_name FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
+    `SELECT a.*, ${userName('u')} AS user_name FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
       WHERE ($1::text IS NULL OR a.entity = $1) AND ($2::text IS NULL OR a.entity_id = $2)
       ORDER BY a.created_at DESC LIMIT $3`, [b.entity || null, b.entity_id || null, Math.min(b.limit || 200, 500)])),
 };

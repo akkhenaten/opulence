@@ -9,6 +9,7 @@ import { audit } from '../lib/audit.mjs';
 import { getSettings } from './settings.mjs';
 import { ALL, MGR, def } from './_def.mjs';
 import { summarySig } from './incidentAi.mjs';
+import { officerName, userName } from '../lib/names.mjs';
 
 export const TYPES = ['ejection', 'refused_entry', 'assault', 'theft', 'drugs', 'weapon', 'medical', 'damage', 'fire', 'disorder', 'lost_child', 'vulnerable_person', 'other'];
 const SEVERITIES = ['low', 'medium', 'high', 'critical'];
@@ -16,7 +17,7 @@ const FIELDS = ['type', 'severity', 'occurred_at', 'location', 'description', 'p
   'force_used', 'force_justification', 'police_called', 'police_ref', 'ambulance_called', 'ambulance_ref'];
 
 const BASE_SQL = `
-  SELECT i.*, v.name AS venue_name, o.first_name || ' ' || o.last_name AS officer_name, ur.name AS reported_by_name, uv.name AS reviewed_by_name,
+  SELECT i.*, v.name AS venue_name, ${officerName('o')} AS officer_name, ${userName('ur')} AS reported_by_name, ${userName('uv')} AS reviewed_by_name,
          (SELECT count(*) FROM incident_attachments x WHERE x.incident_id = i.id AND x.removed_at IS NULL)::int AS attachment_count
     FROM incidents i JOIN venues v ON v.id = i.venue_id LEFT JOIN officers o ON o.id = i.officer_id
     LEFT JOIN users ur ON ur.id = i.reported_by LEFT JOIN users uv ON uv.id = i.reviewed_by`;
@@ -100,8 +101,8 @@ export async function loadFull(id) {
   const inc = need(await one(`${BASE_SQL} WHERE i.id = $1`, [id]));
   const [witnesses, attachments, versions] = await Promise.all([
     q('SELECT * FROM incident_witnesses WHERE incident_id = $1 ORDER BY name', [id]),
-    q('SELECT x.*, u.name AS uploaded_by_name, ur.name AS removed_by_name FROM incident_attachments x LEFT JOIN users u ON u.id = x.uploaded_by LEFT JOIN users ur ON ur.id = x.removed_by WHERE incident_id = $1 ORDER BY x.created_at', [id]),
-    q('SELECT v.id, v.version, v.created_at, u.name AS edited_by_name FROM incident_versions v LEFT JOIN users u ON u.id = v.edited_by WHERE incident_id = $1 ORDER BY version', [id]),
+    q(`SELECT x.*, ${userName('u')} AS uploaded_by_name, ${userName('ur')} AS removed_by_name FROM incident_attachments x LEFT JOIN users u ON u.id = x.uploaded_by LEFT JOIN users ur ON ur.id = x.removed_by WHERE incident_id = $1 ORDER BY x.created_at`, [id]),
+    q(`SELECT v.id, v.version, v.created_at, ${userName('u')} AS edited_by_name FROM incident_versions v LEFT JOIN users u ON u.id = v.edited_by WHERE incident_id = $1 ORDER BY version`, [id]),
   ]);
   return {
     ...inc, witnesses, versions, attachments: attachments.filter((a) => !a.removed_at),

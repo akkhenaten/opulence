@@ -10,6 +10,7 @@ import { fmtDate, fmtTime } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { ALL, MGR, def } from './_def.mjs';
 import { activeBans, shiftEjections } from './bans.mjs';
+import { officerName, userName } from '../lib/names.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const KINDS = ['note', 'handover', 'incident', 'ban', 'ejection'];
@@ -48,13 +49,13 @@ export async function shiftThread(sh) {
 
 async function getLog(shiftId) {
   return (await one(
-    `SELECT l.*, u.name AS signed_by_name FROM shift_logs l LEFT JOIN users u ON u.id = l.signed_by WHERE l.shift_id = $1`, [shiftId]))
+    `SELECT l.*, ${userName('u')} AS signed_by_name FROM shift_logs l LEFT JOIN users u ON u.id = l.signed_by WHERE l.shift_id = $1`, [shiftId]))
     || { shift_id: shiftId, status: 'open', handover_summary: '', signed_by: null, signed_at: null };
 }
 
 async function entries(shiftId, { keptOnly = false } = {}) {
   const rows = await q(
-    `SELECT e.*, u.name AS author_name, ${PHOTO} AS author_photo, cu.name AS curated_by_name, i.ref AS incident_ref, b.status AS ban_status
+    `SELECT e.*, ${userName('u')} AS author_name, ${PHOTO} AS author_photo, ${userName('cu')} AS curated_by_name, i.ref AS incident_ref, b.status AS ban_status
        FROM shift_log_entries e JOIN users u ON u.id = e.author_user_id LEFT JOIN users cu ON cu.id = e.curated_by
        LEFT JOIN incidents i ON i.id = e.incident_id LEFT JOIN customer_bans b ON b.id = e.ban_id
       WHERE e.shift_id = $1 ${keptOnly ? "AND e.state = 'kept'" : ''} ORDER BY e.created_at`, [shiftId]);
@@ -79,14 +80,14 @@ export const actions = {
     const { sh } = ax;
     const venue = ax.access === 'venue';
     const team = await q(
-      `SELECT a.id AS assignment_id, a.officer_id, a.status, a.is_lead, o.first_name || ' ' || o.last_name AS name, o.photo_key, o.phone, o.roles, o.user_id,
+      `SELECT a.id AS assignment_id, a.officer_id, a.status, a.is_lead, ${officerName('o')} AS name, o.photo_key, o.phone, o.roles, o.user_id,
               (SELECT min(ts) FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status IN ('ok','approved','manual')) AS clocked_in,
               (SELECT max(ts) FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'out' AND ce.status IN ('ok','approved','manual')) AS clocked_out
          FROM shift_assignments a JOIN officers o ON o.id = a.officer_id
         WHERE a.shift_id = $1 AND a.status IN ${ACTIVE} ORDER BY a.is_lead DESC, o.first_name`, [sh.id]);
     const log = await getLog(sh.id);
     const prev = await one(
-      `SELECT s.id AS shift_id, s.starts_at, s.ends_at, l.handover_summary, l.signed_at, u.name AS signed_by_name
+      `SELECT s.id AS shift_id, s.starts_at, s.ends_at, l.handover_summary, l.signed_at, ${userName('u')} AS signed_by_name
          FROM shifts s JOIN shift_logs l ON l.shift_id = s.id LEFT JOIN users u ON u.id = l.signed_by
         WHERE s.venue_id = $1 AND s.id <> $2 AND l.status = 'signed' AND s.starts_at < $3 ORDER BY s.starts_at DESC LIMIT 1`, [sh.venue_id, sh.id, sh.starts_at]);
     const showEntries = !venue || log.status === 'signed';
@@ -216,7 +217,7 @@ export const actions = {
     const scope = await venueScope(user);
     if (b.venue_id) await assertVenue(user, b.venue_id);
     return q(
-      `SELECT s.id AS shift_id, s.venue_id, v.name AS venue_name, s.starts_at, s.ends_at, r.name AS role_name, l.status, l.handover_summary, l.signed_at, u.name AS signed_by_name,
+      `SELECT s.id AS shift_id, s.venue_id, v.name AS venue_name, s.starts_at, s.ends_at, r.name AS role_name, l.status, l.handover_summary, l.signed_at, ${userName('u')} AS signed_by_name,
               (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept')::int AS entries,
               (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept' AND e.kind = 'incident')::int AS incidents,
               (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept' AND e.kind = 'ban')::int AS bans,

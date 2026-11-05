@@ -13,6 +13,7 @@ import { publishConv, realtimeToken } from '../lib/realtime.mjs';
 import { REACTION_KINDS, PIN_MAX, MANAGER_ROLES, mentionable, cleanMentions, canPin, canRequireConfirm, confirmSummary, reactionSummary, isAudio } from '../lib/chat.mjs';
 import { officerReply, offerRespond, packReply } from './ops.mjs';
 import { ALL, def } from './_def.mjs';
+import { userName } from '../lib/names.mjs';
 
 const PAGE = 40;
 const EDIT_MINUTES = 15;
@@ -123,7 +124,7 @@ async function transcribeVoice(msg) {
   const a = (msg.attachments || []).find(isAudio);
   if (!a) return null;
   const names = await q(
-    `(SELECT u.name AS w FROM conversation_members cm JOIN users u ON u.id = cm.user_id WHERE cm.conversation_id = $1 AND NOT u.system)
+    `(SELECT ${userName('u')} AS w FROM conversation_members cm JOIN users u ON u.id = cm.user_id WHERE cm.conversation_id = $1 AND NOT u.system)
      UNION (SELECT u.goes_by FROM conversation_members cm JOIN users u ON u.id = cm.user_id WHERE cm.conversation_id = $1 AND u.goes_by <> '')
      UNION (SELECT name FROM venues WHERE active ORDER BY name LIMIT 60)`, [msg.conversation_id]);
   const { text } = await transcribe({ url: await downloadUrl(a.key, a.name), vocabulary: [...TERMS, ...names.map((r) => r.w).filter(Boolean)], module: 'messages' });
@@ -527,7 +528,7 @@ export const actions = {
   // Remind only the people who haven't confirmed yet (once an hour at most)
   'messages.confirmChase': def(ALL, async (b, { user }) => {
     required(b, 'id');
-    const msg = need(await one('SELECT m.*, u.name AS sender_name FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = $1 AND m.deleted_at IS NULL', [b.id]), 'Message not found');
+    const msg = need(await one(`SELECT m.*, ${userName('u')} AS sender_name FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = $1 AND m.deleted_at IS NULL`, [b.id]), 'Message not found');
     const { c } = await canRead(user, msg.conversation_id);
     if (!msg.must_confirm) fail(400, 'This message doesn\'t need confirming');
     if (msg.sender_id !== user.id && !MANAGER_ROLES.includes(user.role)) fail(403, 'Only the sender or a manager can chase');
@@ -557,7 +558,7 @@ export const actions = {
     if (text.length < 2) return { results: [] };
     const like = `%${text.replace(/[\\%_]/g, (x) => `\\${x}`)}%`;
     const rows = await q(
-      `SELECT m.id, m.conversation_id, m.body, m.transcript, m.attachments, m.created_at, m.sender_id, u.name AS sender
+      `SELECT m.id, m.conversation_id, m.body, m.transcript, m.attachments, m.created_at, m.sender_id, ${userName('u')} AS sender
          FROM messages m JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = $1 AND cm.left_at IS NULL
          JOIN users u ON u.id = m.sender_id
         WHERE m.deleted_at IS NULL AND m.created_at >= cm.joined_at AND ($3::uuid IS NULL OR m.conversation_id = $3)

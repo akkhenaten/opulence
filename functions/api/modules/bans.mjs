@@ -11,6 +11,7 @@ import { addDays, fmtDate, londonDate } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { def } from './_def.mjs';
 import { shiftAccess } from './shiftlog.mjs';
+import { userName } from '../lib/names.mjs';
 
 const PURGE_DAYS = 90;
 export const CATEGORIES = ['violence', 'drugs', 'theft', 'intoxication', 'abusive', 'underage_id', 'other'];
@@ -21,7 +22,7 @@ const SCOPE_TEXT = { venue: '', client: ", all the client's venues", all: ', eve
 // Bans that apply at any of the venues in the uuid[] parameter p: their own venue, or wider by scope (v = the ban's venue)
 export const COVERS = (p) => `(b.venue_id = ANY(${p}) OR (b.kind = 'ban' AND (b.scope = 'all'
   OR (b.scope = 'client' AND v.client_id IS NOT NULL AND v.client_id IN (SELECT client_id FROM venues WHERE id = ANY(${p}))))))`;
-const COLS = `b.*, v.name AS venue_name, pu.name AS proposed_by_name, cu.name AS confirmed_by_name, ru.name AS revoked_by_name`;
+const COLS = `b.*, v.name AS venue_name, ${userName('pu')} AS proposed_by_name, ${userName('cu')} AS confirmed_by_name, ${userName('ru')} AS revoked_by_name`;
 const FROM = `customer_bans b JOIN venues v ON v.id = b.venue_id LEFT JOIN users pu ON pu.id = b.proposed_by
   LEFT JOIN users cu ON cu.id = b.confirmed_by LEFT JOIN users ru ON ru.id = b.revoked_by`;
 

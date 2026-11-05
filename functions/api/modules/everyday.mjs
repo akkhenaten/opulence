@@ -20,6 +20,7 @@ import {
   promoteWaitlist, sniffMime, VIDEO_MAX_BYTES, VIDEO_MAX_S,
 } from '../lib/feed.mjs';
 import { MGR, def } from './_def.mjs';
+import { userName } from '../lib/names.mjs';
 
 const STAFF = ['company', 'security', 'officer'];
 const KINDS = ['like', 'love', 'laugh', 'wow', 'sad', 'clap'];
@@ -973,20 +974,20 @@ export const actions = {
 
   'everyday.reports': def(MGR, async () => {
     await requireModule('everyday');
-    const reports = await q(`SELECT r.id, r.target_type, r.target_id, r.reason, r.created_at, ru.name AS reporter_name,
+    const reports = await q(`SELECT r.id, r.target_type, r.target_id, r.reason, r.created_at, ${userName('ru')} AS reporter_name,
         coalesce(p.body, c.body) AS body, coalesce(p.id, c.post_id) AS post_id, coalesce(p.hidden_at, c.hidden_at) AS hidden_at,
-        au.id AS author_id, au.name AS author_name
+        au.id AS author_id, ${userName('au')} AS author_name
       FROM feed_reports r LEFT JOIN users ru ON ru.id = r.reporter_id
       LEFT JOIN posts p ON r.target_type = 'post' AND p.id = r.target_id
       LEFT JOIN post_comments c ON r.target_type = 'comment' AND c.id = r.target_id
       LEFT JOIN users au ON au.id = coalesce(p.author_id, c.author_id)
       WHERE r.status = 'open' AND coalesce(p.deleted_at, c.deleted_at) IS NULL ORDER BY r.created_at DESC`);
-    const hidden = await q(`SELECT 'post' AS target_type, p.id, p.id AS post_id, p.body, p.hidden_at, p.hidden_reason AS reason, u.name AS author_name, h.name AS hidden_by_name
+    const hidden = await q(`SELECT 'post' AS target_type, p.id, p.id AS post_id, p.body, p.hidden_at, p.hidden_reason AS reason, ${userName('u')} AS author_name, ${userName('h')} AS hidden_by_name
         FROM posts p JOIN users u ON u.id = p.author_id LEFT JOIN users h ON h.id = p.hidden_by WHERE p.hidden_at IS NOT NULL AND p.deleted_at IS NULL
       UNION ALL SELECT 'comment', c.id, c.post_id, c.body, c.hidden_at, coalesce(c.hidden_reason, ''), u.name, coalesce(h.name, 'Orb AI')
         FROM post_comments c JOIN users u ON u.id = c.author_id LEFT JOIN users h ON h.id = c.hidden_by WHERE c.hidden_at IS NOT NULL AND c.deleted_at IS NULL
       ORDER BY hidden_at DESC LIMIT 50`);
-    const mutes = await q('SELECT m.user_id, m.until, m.reason, u.name, b.name AS by_name FROM feed_mutes m JOIN users u ON u.id = m.user_id LEFT JOIN users b ON b.id = m.by WHERE m.until > now() ORDER BY m.until');
+    const mutes = await q(`SELECT m.user_id, m.until, m.reason, u.name, ${userName('b')} AS by_name FROM feed_mutes m JOIN users u ON u.id = m.user_id LEFT JOIN users b ON b.id = m.by WHERE m.until > now() ORDER BY m.until`);
     return { reports, hidden, mutes };
   }),
 

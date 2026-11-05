@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { Bell, BellOff, BookOpen, Briefcase, ChevronRight, LogOut, MessagesSquare, MoreHorizontal, Newspaper } from 'lucide-react';
+import { Bell, BellOff, BookOpen, Briefcase, ChevronRight, Globe, LogOut, MessagesSquare, MoreHorizontal, Newspaper } from 'lucide-react';
 import { api } from '../api.js';
 import { startRealtime, useRealtime, useRealtimeConnected } from '../realtime.js';
 import { portalLink, useAuth } from '../auth.jsx';
@@ -99,6 +99,19 @@ function NotificationBell() {
         )}
       </Sheet>
     </>
+  );
+}
+
+// The company's logo in silver: opens the public website in a new tab. A globe stands in if the logo can't load.
+function WebsiteButton() {
+  const { brand } = useAuth();
+  const [ok, setOk] = useState(true);
+  return (
+    <a href="/" target="_blank" rel="noopener" aria-label={`Open the ${brand.name} website`} title="Open the website"
+      className="pressable silver-btn grid h-10 w-10 shrink-0 place-items-center rounded-full shadow-tile ring-1 ring-white/15">
+      {ok ? <span className="silver-mark" aria-hidden="true" /> : <Globe size={20} className="text-white/80" aria-hidden="true" />}
+      <img src="/app/brand/logo-white-192.png" alt="" hidden onError={() => setOk(false)} />
+    </a>
   );
 }
 
@@ -273,6 +286,7 @@ export default function Shell() {
             <HeaderTitle />
             <div className={cx('flex min-w-0', !isOfficer && 'lg:invisible')}><Logo tone={darkBar ? 'light' : 'dark'} faded={header.collapsed && !!header.title} /></div>
             <div className="flex items-center gap-2">
+              <WebsiteButton />
               {feedOn && <EverydayButton to={isOfficer ? '/officer/everyday' : `/${user.role}?tab=everyday`} unread={badges.everyday} />}
               {user.role !== 'venue' && (
                 <span className={cx(!isOfficer && 'lg:hidden')}>

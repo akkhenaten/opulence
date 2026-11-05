@@ -17,12 +17,13 @@ import { evidenceScan } from './incidentAi.mjs';
 import { afterShiftChange, FRESH } from './shiftSync.mjs';
 import { opsMessage, closeQuick, ensureThread, post, opsUser, syncMembers } from '../lib/threads.mjs';
 import { statusesFor, pairKey, packDue, OK } from '../lib/venuePack.mjs';
+import { officerDisplay, officerName, userName } from '../lib/names.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const NO_CLOCK_IN = "NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')";
 export const jobOn = (s, key) => (s.ops_jobs || {})[key] !== false;
 const when = (sh) => `${fmtDate(sh.starts_at)} ${fmtTime(sh.starts_at)}–${fmtTime(sh.ends_at)}`;
-const firstLast = (o) => `${o.first_name} ${o.last_name}`;
+const firstLast = officerDisplay;
 
 // ---------- Helpers ----------
 export async function logActivity(kind, text, { ref_type = null, ref_id = null, venue_id = null, credits = 0 } = {}) {
@@ -86,7 +87,7 @@ function reasonLine({ rel, venueShifts, officerPostcode, venuePostcode, warnings
 export async function rankCover(shift, { exclude = [] } = {}) {
   const v = await one('SELECT postcode FROM venues WHERE id = $1', [shift.venue_id]);
   const pool = await q(
-    `SELECT o.id, o.first_name, o.last_name, o.postcode FROM officers o
+    `SELECT o.id, o.first_name, o.last_name, o.goes_by, o.postcode FROM officers o
       WHERE o.status = 'active' AND NOT (o.id = ANY($2::uuid[]))
         AND NOT EXISTS (SELECT 1 FROM shift_assignments a WHERE a.shift_id = $1 AND a.officer_id = o.id) -- already on it, or dropped out of it
         AND NOT EXISTS (SELECT 1 FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id WHERE a.officer_id = o.id AND a.status IN ${ACTIVE}
@@ -278,7 +279,7 @@ export async function runReconcile(start, end) {
   const s = await getSettings();
   const rows = await q(
     `SELECT t.id, t.hours, t.flags, t.break_minutes, t.statement_id, t.invoice_id, a.id AS assignment_id, a.officer_id, s.starts_at, s.ends_at, s.venue_id, s.role,
-            v.name AS venue_name, o.first_name, o.last_name,
+            v.name AS venue_name, o.first_name, o.last_name, o.goes_by,
             extract(epoch FROM (s.ends_at - s.starts_at)) / 3600 - s.break_minutes / 60.0 AS rota_h,
             (SELECT min(ts) FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status IN ('ok','approved','manual')) AS cin,
             (SELECT max(ts) FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'out' AND ce.status IN ('ok','approved','manual')) AS cout,
@@ -318,7 +319,7 @@ async function escalate(a, s) {
   const done = await one('UPDATE shift_assignments SET escalated_at = now() WHERE id = $1 AND escalated_at IS NULL RETURNING id', [a.id]);
   if (!done) return;
   const sh = await getShift(a.shift_id);
-  const name = `${a.first_name} ${a.last_name}`;
+  const name = officerDisplay(a);
   const why = a.reply === 'cant_make_it' ? `says they can't make it${a.reply_reason ? `: "${a.reply_reason}"` : ''}` : a.reply === 'on_my_way' ? `said on my way (${a.reply_eta_min} min) but still not clocked in` : 'has not replied or clocked in';
   if (a.reply === 'cant_make_it') {
     await q("UPDATE shift_assignments SET status = 'cancelled' WHERE id = $1", [a.id]);
@@ -352,7 +353,7 @@ async function packCheck(s) {
   const settled = await packSettle();
   const rows = await q(
     `SELECT a.id, a.shift_id, a.officer_id, a.pack_chase1_at, a.pack_chase2_at, a.pack_escalated_at, a.pack_cover_at, a.pack_signing_at,
-            s.venue_id, s.starts_at, s.ends_at, v.name AS venue_name, o.first_name, o.last_name
+            s.venue_id, s.starts_at, s.ends_at, v.name AS venue_name, o.first_name, o.last_name, o.goes_by
        FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id
       WHERE a.status IN ${ACTIVE} AND s.status = 'published' AND s.ends_at > now() AND NOT a.late_alerted AND a.pack_settled_at IS NULL AND ${NO_CLOCK_IN}
         AND s.starts_at + make_interval(mins => $1::int) <= now()
@@ -405,7 +406,7 @@ async function packCheck(s) {
  */
 async function packSettle() {
   const rows = await q(
-    `SELECT a.id, a.shift_id, a.officer_id, a.status, a.pack_cover_at, s.venue_id, s.starts_at, s.ends_at, s.headcount, v.name AS venue_name, o.first_name, o.last_name
+    `SELECT a.id, a.shift_id, a.officer_id, a.status, a.pack_cover_at, s.venue_id, s.starts_at, s.ends_at, s.headcount, v.name AS venue_name, o.first_name, o.last_name, o.goes_by
        FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id
       WHERE a.pack_settled_at IS NULL AND (a.pack_chase1_at IS NOT NULL OR a.pack_chase2_at IS NOT NULL OR a.pack_cover_at IS NOT NULL)
         AND s.status = 'published' AND s.ends_at > now() LIMIT 200`);
@@ -436,7 +437,7 @@ async function packSettle() {
     }
     // A manager approved cover and they were stood down. Has anyone taken the shift since?
     const taken = await q(
-      `SELECT o.first_name, o.last_name FROM cover_offers c JOIN officers o ON o.id = c.officer_id
+      `SELECT o.first_name, o.last_name, o.goes_by FROM cover_offers c JOIN officers o ON o.id = c.officer_id
         WHERE c.shift_id = $1 AND c.status = 'accepted' AND c.responded_at > $2`, [a.shift_id, a.pack_cover_at]);
     const filled = await filledCount(a.shift_id);
     if (taken.length || filled >= a.headcount) {
@@ -474,7 +475,7 @@ export async function packReply(b, user) {
   required(b, 'assignment_id', 'reply');
   if (!['signing_now', 'cant_make_it'].includes(b.reply)) fail(400, 'Unknown reply');
   const a = need(await one(
-    `SELECT a.*, s.venue_id, s.starts_at, v.name AS venue_name, o.first_name, o.last_name FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
+    `SELECT a.*, s.venue_id, s.starts_at, v.name AS venue_name, o.first_name, o.last_name, o.goes_by FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
        JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id
       WHERE a.id = $1 AND a.officer_id = $2 AND a.status IN ${ACTIVE} AND s.status = 'published' AND s.ends_at > now()`, [b.assignment_id, user.officer_id]), 'Shift not found');
   await closeQuick(user.id, { ref: `pack:${a.id}`, used: b.reply });
@@ -499,7 +500,7 @@ const JOBS = {
   async escalate(s) {
     if (!jobOn(s, 'chase')) return 'off';
     const rows = await q(
-      `SELECT a.*, o.first_name, o.last_name FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN officers o ON o.id = a.officer_id
+      `SELECT a.*, o.first_name, o.last_name, o.goes_by FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN officers o ON o.id = a.officer_id
         WHERE a.chased_at IS NOT NULL AND a.escalated_at IS NULL AND a.status IN ${ACTIVE} AND s.status = 'published' AND s.ends_at > now() AND ${NO_CLOCK_IN}
           AND ((a.reply IS NULL AND GREATEST(s.starts_at + make_interval(mins => $1::int), a.chased_at) + make_interval(mins => $2::int) < now())
             OR a.reply = 'cant_make_it'
@@ -907,13 +908,13 @@ export async function officerReply(b, user) {
   required(b, 'assignment_id', 'reply');
   if (!['on_my_way', 'cant_make_it'].includes(b.reply)) fail(400, 'Unknown reply');
   const a = need(await one(
-    `SELECT a.*, o.first_name, o.last_name FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN officers o ON o.id = a.officer_id
+    `SELECT a.*, o.first_name, o.last_name, o.goes_by FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN officers o ON o.id = a.officer_id
       WHERE a.id = $1 AND a.officer_id = $2 AND a.status IN ${ACTIVE} AND s.status = 'published' AND s.ends_at > now()`, [b.assignment_id, user.officer_id]), 'Shift not found');
   const eta = b.reply === 'on_my_way' ? Math.min(Math.max(Number(b.eta_min) || 15, 1), 120) : null;
   const reason = String(b.reason || '').slice(0, 300);
   await q('UPDATE shift_assignments SET reply = $2, reply_eta_min = $3, reply_reason = $4, replied_at = now(), chased_at = COALESCE(chased_at, now()) WHERE id = $1', [a.id, b.reply, eta, reason]);
   const sh = await getShift(a.shift_id);
-  const name = `${a.first_name} ${a.last_name}`;
+  const name = officerDisplay(a);
   await closeQuick(user.id, { ref: `chase:${a.id}`, used: b.reply });
   await opsMessage(user.id, b.reply === 'cant_make_it'
     ? `Thanks for letting us know. We'll arrange cover for ${sh.venue_name} — no need to do anything else.`
@@ -934,7 +935,7 @@ export async function offerRespond(b, user) {
   if (offer.status === 'filled_by_other') fail(409, 'Already filled — thanks for looking');
   if (offer.status !== 'offered') fail(409, `Offer ${offer.status}`);
   const sh = await getShift(offer.shift_id);
-  const o = await one('SELECT first_name, last_name FROM officers WHERE id = $1', [offer.officer_id]);
+  const o = await one('SELECT first_name, last_name, goes_by FROM officers WHERE id = $1', [offer.officer_id]);
   await closeQuick(user.id, { ref: `offer:${offer.id}`, used: b.accept ? 'accept' : 'decline' });
   if (!b.accept) {
     await q("UPDATE cover_offers SET status = 'declined', responded_at = now() WHERE id = $1", [offer.id]);
@@ -986,7 +987,7 @@ export const actions = {
   'ops.inbox': def(MGR, async (b, { user }) => {
     const scope = await venueScope(user);
     const items = await q(
-      `SELECT i.*, v.name AS venue_name, u.name AS decided_by_name FROM ops_items i LEFT JOIN venues v ON v.id = i.venue_id LEFT JOIN users u ON u.id = i.decided_by
+      `SELECT i.*, v.name AS venue_name, ${userName('u')} AS decided_by_name FROM ops_items i LEFT JOIN venues v ON v.id = i.venue_id LEFT JOIN users u ON u.id = i.decided_by
         WHERE ($1::uuid[] IS NULL OR i.venue_id = ANY($1)) AND (CASE WHEN $2 = 'pending' THEN i.status = 'pending' ELSE i.status <> 'pending' END)
         ORDER BY i.created_at DESC LIMIT 80`, [scope, b.status === 'decided' ? 'decided' : 'pending']);
     const shiftIds = [...new Set(items.filter((i) => i.shift_id).map((i) => i.shift_id))];
@@ -994,7 +995,7 @@ export const actions = {
       `SELECT s.id, s.starts_at, s.ends_at, s.headcount, s.status, (SELECT count(*)::int FROM shift_assignments a WHERE a.shift_id = s.id AND a.status IN ${ACTIVE}) AS filled
          FROM shifts s WHERE s.id = ANY($1::uuid[])`, [shiftIds]) : [];
     const offers = shiftIds.length ? await q(
-      `SELECT c.item_id, c.status, o.first_name || ' ' || o.last_name AS name FROM cover_offers c JOIN officers o ON o.id = c.officer_id WHERE c.shift_id = ANY($1::uuid[])`, [shiftIds]) : [];
+      `SELECT c.item_id, c.status, ${officerName('o')} AS name FROM cover_offers c JOIN officers o ON o.id = c.officer_id WHERE c.shift_id = ANY($1::uuid[])`, [shiftIds]) : [];
     const reqIds = items.map((i) => i.payload?.request_id).filter(Boolean);
     const reqs = reqIds.length ? await q('SELECT id, text, status, created_at FROM venue_requests WHERE id = ANY($1::uuid[])', [reqIds]) : [];
     return items.map((i) => ({
@@ -1238,7 +1239,7 @@ If the date, times or number of officers are missing or ambiguous, use intent "u
   'venueRequests.list': def(['venue', 'company', 'security'], async (_b, { user }) => {
     const scope = await venueScope(user);
     return q(
-      `SELECT r.id, r.text, r.parsed, r.status, r.decline_reason, r.created_at, v.name AS venue_name, u.name AS user_name FROM venue_requests r
+      `SELECT r.id, r.text, r.parsed, r.status, r.decline_reason, r.created_at, v.name AS venue_name, ${userName('u')} AS user_name FROM venue_requests r
          JOIN venues v ON v.id = r.venue_id LEFT JOIN users u ON u.id = r.user_id
         WHERE ($1::uuid[] IS NULL OR r.venue_id = ANY($1)) ORDER BY r.created_at DESC LIMIT 50`, [scope]);
   }),
@@ -1281,7 +1282,7 @@ If the date, times or number of officers are missing or ambiguous, use intent "u
           credits = x.credits;
         } catch { /* cap reached or AI down: keep the rating-based rule */ }
       }
-      const o = await one('SELECT first_name, last_name FROM officers WHERE id = $1', [r.officer_id]);
+      const o = await one('SELECT first_name, last_name, goes_by FROM officers WHERE id = $1', [r.officer_id]);
       if (problem) {
         await createItem({ kind: 'feedback', venue_id: sh.venue_id, shift_id: sh.id, officer_id: r.officer_id, severity: 'warning',
           title: `Feedback: ${firstLast(o)} rated ${rating}/5 at ${sh.venue_name}`, reason: note ? `"${note}" — ${user.name}` : `Rated ${rating}/5 by ${user.name} for ${when(sh)}.`,
@@ -1321,7 +1322,7 @@ If the date, times or number of officers are missing or ambiguous, use intent "u
       `INSERT INTO venue_feedback (shift_id, venue_id, officer_id, rating, note, answered_at, answered_by, adhoc) VALUES ($1,$2,$3,$4,$5,now(),$6,true)
        ON CONFLICT (shift_id, officer_id) DO UPDATE SET rating = EXCLUDED.rating, note = EXCLUDED.note, answered_at = now(), answered_by = EXCLUDED.answered_by
        RETURNING *`, [sh.id, sh.venue_id, b.officer_id, rating, note, user.id]);
-    const o = await one('SELECT first_name, last_name FROM officers WHERE id = $1', [b.officer_id]);
+    const o = await one('SELECT first_name, last_name, goes_by FROM officers WHERE id = $1', [b.officer_id]);
     if (rating <= 2) {
       await createItem({ kind: 'feedback', venue_id: sh.venue_id, shift_id: sh.id, officer_id: b.officer_id, severity: 'warning',
         title: `Feedback: ${firstLast(o)} rated ${rating}/5 at ${sh.venue_name}`, reason: note ? `"${note}" — ${user.name}` : `Rated ${rating}/5 by ${user.name}.`,

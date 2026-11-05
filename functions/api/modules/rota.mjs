@@ -9,6 +9,7 @@ import { ALL, MGR, def } from './_def.mjs';
 import { statusFor, statusesFor, pairKey, OK, STATUS_LABEL } from '../lib/venuePack.mjs';
 import { remindPack } from './venuePacks.mjs';
 import { afterShiftChange, FRESH } from './shiftSync.mjs';
+import { officerDisplay, officerName } from '../lib/names.mjs';
 
 const WEEKDAY = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
 
@@ -53,7 +54,7 @@ export async function checkOfficerForShift(officerId, shift, { ignoreAssignment 
   const notes = [];
   const pk = await statusFor(o.id, shift.venue_id);
   if (pk && !OK.has(pk.status)) notes.push(pk.status === 'unsigned' ? 'Not worked here before: they will read and sign the site pack before clock-in' : `Site pack: ${STATUS_LABEL[pk.status].toLowerCase()} before clock-in`);
-  return { blocking, warnings, notes, officer: { id: o.id, name: `${o.first_name} ${o.last_name}`, goes_by: o.goes_by || '' } };
+  return { blocking, warnings, notes, officer: { id: o.id, name: officerDisplay(o), full_name: `${o.first_name} ${o.last_name}`, goes_by: o.goes_by || '' } };
 }
 
 export async function getShift(id) {
@@ -70,7 +71,7 @@ export async function shiftsWithAssignments(where, params, user) {
     `SELECT s.*, v.name AS venue_name, r.name AS role_name,
        COALESCE(json_agg(json_build_object(
          'id', a.id, 'officer_id', a.officer_id, 'status', a.status, 'is_lead', a.is_lead,
-         'name', o.first_name || ' ' || o.last_name, 'goes_by', o.goes_by, 'sia_number', o.sia_number,
+         'name', ${officerName('o')}, 'goes_by', o.goes_by, 'sia_number', o.sia_number,
          'clocked_in', (SELECT min(ts) FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status IN ('ok','approved','manual')),
          'clocked_out', (SELECT max(ts) FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'out' AND ce.status IN ('ok','approved','manual'))
        ) ORDER BY o.first_name) FILTER (WHERE a.id IS NOT NULL AND a.status NOT IN ('cancelled','rejected')), '[]') AS assignments
@@ -302,7 +303,7 @@ export const actions = {
     await assertVenue(user, s.venue_id);
     if (s.status === 'cancelled') fail(400, 'Shift is cancelled');
     const old = need(await one(
-      `SELECT a.*, o.first_name || ' ' || o.last_name AS name FROM shift_assignments a JOIN officers o ON o.id = a.officer_id
+      `SELECT a.*, ${officerName('o')} AS name FROM shift_assignments a JOIN officers o ON o.id = a.officer_id
         WHERE a.shift_id = $1 AND a.status IN ('assigned','accepted') AND ($2::uuid IS NULL OR a.id = $2) AND ($3::uuid IS NULL OR a.officer_id = $3)`,
       [s.id, b.assignment_id || null, b.from_officer_id || null]), 'That officer is not on this shift');
     if (old.officer_id === b.officer_id) fail(400, 'That officer is already on this shift');
@@ -354,7 +355,7 @@ export const actions = {
   'shifts.pendingRequests': def(MGR, async (_b, { user }) => {
     const scope = await venueScope(user);
     return q(
-      `SELECT a.id, a.created_at, s.id AS shift_id, s.starts_at, s.ends_at, s.role, v.name AS venue_name, o.id AS officer_id, o.first_name || ' ' || o.last_name AS officer_name
+      `SELECT a.id, a.created_at, s.id AS shift_id, s.starts_at, s.ends_at, s.role, v.name AS venue_name, o.id AS officer_id, ${officerName('o')} AS officer_name
          FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id
         WHERE a.status = 'requested' AND s.status = 'published' AND s.starts_at > now() AND ($1::uuid[] IS NULL OR s.venue_id = ANY($1))
         ORDER BY s.starts_at`, [scope]);

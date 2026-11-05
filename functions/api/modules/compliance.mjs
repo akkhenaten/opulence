@@ -21,6 +21,7 @@ import { lawAlerts } from '../lib/contractContent.mjs';
 import { CO, MGR, def } from './_def.mjs';
 import { statusesFor, pairKey, OK } from '../lib/venuePack.mjs';
 import { NOT_CLEARED, STATUS_LABEL, RECHECK_DAYS, daysSinceCheck, siaCheckOn } from '../lib/sia.mjs';
+import { officerDisplay } from '../lib/names.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const NO_CLOCK_IN = "NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')";
@@ -375,7 +376,7 @@ async function advise(o, issues) {
   }
 }
 
-const cardTitle = (o, issues) => `${o.first_name} ${o.last_name}: ${issues[0].title}${issues.length > 1 ? ` (+${issues.length - 1} more)` : ''}`;
+const cardTitle = (o, issues) => `${officerDisplay(o)}: ${issues[0].title}${issues.length > 1 ? ` (+${issues.length - 1} more)` : ''}`;
 
 /** Open cards that no longer have an issue behind them. officerIds: only those people were checked. */
 export const clearedCards = (open, results, officerIds = null) =>
@@ -397,7 +398,7 @@ export async function runCompliance({ manual = false, officerIds = null } = {}) 
     if (card && card.payload.sig === issuesSig) continue;
     const advice = await advise(o, issues);
     credits += advice.credits;
-    const payload = { officer_id: o.id, officer_name: `${o.first_name} ${o.last_name}`, severity, issues, sig: issuesSig };
+    const payload = { officer_id: o.id, officer_name: officerDisplay(o), severity, issues, sig: issuesSig };
     if (card) {
       await q('UPDATE ops_items SET title = $2, reason = $3, payload = $4, venue_id = $5 WHERE id = $1', [card.id, cardTitle(o, issues), advice.text, payload, at?.venue_id || null]);
       updated++;
@@ -625,7 +626,7 @@ function area(key) {
 // ---------- Weekly digest email to company managers ----------
 export async function buildDigest() {
   const [results, law] = await Promise.all([computeIssues(), lawAlerts(90).catch(() => [])]);
-  const all = results.flatMap(({ officer: o, issues }) => issues.map((i) => ({ ...i, name: `${o.first_name} ${o.last_name}` })))
+  const all = results.flatMap(({ officer: o, issues }) => issues.map((i) => ({ ...i, name: officerDisplay(o) })))
     .sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity]);
   const count = (s) => all.filter((i) => i.severity === s).length;
   const { name } = await getBrand();

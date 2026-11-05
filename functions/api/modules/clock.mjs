@@ -16,6 +16,7 @@ import { evaluate } from '../lib/proof.mjs';
 import { checkPhone, findTap, spendTap, checkSelfie, scoreSelfie } from './clockProof.mjs';
 import { statusFor, statusesFor, pairKey, livePack, venuePack, OK, STATUS_LABEL } from '../lib/venuePack.mjs';
 import crypto from 'node:crypto';
+import { officerName, userName } from '../lib/names.mjs';
 
 const VALID = ['ok', 'approved', 'manual'];
 const EARLY_MIN = 30;
@@ -218,7 +219,7 @@ export const actions = {
   'clock.exceptions': def(MGR, async (b, { user }) => {
     const scope = await venueScope(user);
     const rows = await q(
-      `SELECT ce.*, a.officer_id, s.venue_id, o.first_name || ' ' || o.last_name AS officer_name, v.name AS venue_name, v.radius_m, s.starts_at, s.ends_at, u.name AS decided_by_name, o.photo_key,
+      `SELECT ce.*, a.officer_id, s.venue_id, ${officerName('o')} AS officer_name, v.name AS venue_name, v.radius_m, s.starts_at, s.ends_at, ${userName('u')} AS decided_by_name, o.photo_key,
               (SELECT label FROM venue_tags vt WHERE vt.id = ce.tag_id) AS tag_label
          FROM clock_events ce JOIN shift_assignments a ON a.id = ce.assignment_id JOIN shifts s ON s.id = a.shift_id
          JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id LEFT JOIN users u ON u.id = ce.decided_by
@@ -272,7 +273,7 @@ export const actions = {
     const s = await getSettings();
     const rows = await q(
       `SELECT a.id AS assignment_id, a.status AS assignment_status, s.id AS shift_id, s.starts_at, s.ends_at, s.role, r.name AS role_name, v.id AS venue_id, v.name AS venue_name,
-              o.id AS officer_id, o.first_name || ' ' || o.last_name AS officer_name, o.sia_number, o.phone, o.photo_key,
+              o.id AS officer_id, ${officerName('o')} AS officer_name, o.sia_number, o.phone, o.photo_key,
               COALESCE((SELECT json_agg(json_build_object('kind', kind, 'ts', ts, 'status', status, 'geo_ok', geo_ok, 'distance_m', distance_m, 'device_ok', device_ok,
                    'venue_code', venue_code, 'face_result', face_result, 'flags', flags, 'selfie_key', selfie_key, 'qr_ok', qr_ok, 'proof_rule', proof_rule, 'face_note', face_note) ORDER BY ts)
                  FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.status <> 'rejected'), '[]') AS events,

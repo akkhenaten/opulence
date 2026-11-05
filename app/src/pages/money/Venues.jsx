@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import RecentEmail from '../email/_recent.jsx';
-import { Building2, CalendarDays, MapPin, Plus, Search, ShieldAlert, Users } from 'lucide-react';
+import { Building2, Plus, Search, Users } from 'lucide-react';
 import { api } from '../../api.js';
 import {
-  Avatar, Button, cx, Empty, Input, List, Load, Page, Pill, Pressable, Row, SearchInput, Select, Sheet, Textarea, useAction, useApi, useForm,
+  Avatar, Button, cx, Empty, Input, List, Load, Page, PhotoCard, Pill, Pressable, Row, SearchInput, Select, Sheet, Textarea, useAction, useApi, useForm,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 import { useAuth } from '../../auth.jsx';
@@ -66,36 +66,11 @@ function VenueGrid({ rows, onAdd }) {
         )}
       </div>
       {!list.length ? <Empty icon={Search} title="No matching venues" /> : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
           {list.map((v) => (
-            <Link key={v.id} to={`${base}/venues/${v.id}`}
-              className="group block min-w-0 rounded-tile border border-hairline bg-surface p-5 shadow-tile transition hover:-translate-y-0.5 active:scale-[0.99]">
-              <div className="flex items-start gap-3">
-                {v.photo_url
-                  ? <img src={v.photo_url} alt="" className="h-12 w-12 shrink-0 rounded-2xl object-cover" />
-                  : <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-blue-soft text-blue"><Building2 size={24} /></div>}
-                <div className="min-w-0 flex-1">
-                  <div className="line-clamp-2 break-words text-headline font-bold leading-snug">{v.name}</div>
-                  <div className="mt-0.5 flex min-w-0 items-center gap-2">
-                    <span className="truncate text-footnote text-muted">{v.client_name || 'No client'}</span>
-                    {!v.active && <Pill status="closed" className="shrink-0">Inactive</Pill>}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-footnote text-muted">
-                <span className="inline-flex items-center gap-1"><MapPin size={14} />{v.postcode || 'No postcode'}</span>
-                <span className={cx('inline-flex items-center gap-1', v.lat == null && 'text-amber')}>
-                  <span className={cx('h-2 w-2 rounded-full', v.lat == null ? 'bg-amber' : 'bg-green')} />
-                  {v.lat == null ? 'No geofence' : `${v.radius_m}m geofence`}
-                </span>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3 text-footnote">
-                <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-bg px-2.5 py-1 font-semibold"><CalendarDays size={14} className="text-blue" /><span className="num">{v.upcoming_shifts}</span> upcoming</span>
-                <span className={cx('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 font-semibold', Number(v.open_incidents) ? 'bg-red-soft text-red' : 'bg-bg')}>
-                  <ShieldAlert size={14} /><span className="num">{v.open_incidents}</span> open
-                </span>
-              </div>
-            </Link>
+            <PhotoCard key={v.id} to={`${base}/venues/${v.id}`} name={v.name}
+              srcs={[v.photo_url, v.site_client && `/img/opulence/clients/${v.site_client}-480.jpg`]}
+              sub={<><span className="truncate">{v.client_name || 'No client'}</span>{!v.active && <Pill status="closed" className="shrink-0">Inactive</Pill>}</>} />
           ))}
         </div>
       )}

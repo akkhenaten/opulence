@@ -10,6 +10,7 @@ import { ensureThread, post } from '../lib/threads.mjs';
 import { londonToUtc } from './rota.mjs';
 import { afterShiftChange } from './shiftSync.mjs';
 import { MGR, def } from './_def.mjs';
+import { userName } from '../lib/names.mjs';
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -263,7 +264,7 @@ export const actions = {
   'cover.list': def(['company', 'security', 'venue'], async (b, { user }) => {
     const scope = await venueScope(user);
     const rows = await q(
-      `SELECT c.*, v.name AS venue_name, r.name AS role_name, u.name AS requested_by_name, cu.name AS change_by_name,
+      `SELECT c.*, v.name AS venue_name, r.name AS role_name, ${userName('u')} AS requested_by_name, ${userName('cu')} AS change_by_name,
               s.kind, s.frequency, s.days, s.start_date, s.end_date, s.accepted_all, s.status AS series_status, COALESCE(s.root_id, s.id) AS root_id,
               (SELECT id FROM conversations x WHERE x.kind = 'cover' AND x.ref_id = COALESCE(s.root_id, c.series_id)) AS conversation_id,
               (SELECT count(*) FROM shifts sh WHERE sh.cover_request_id = c.id AND sh.status <> 'cancelled') AS shift_count,

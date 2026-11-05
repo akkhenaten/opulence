@@ -19,6 +19,7 @@ import { transcriptSweep } from './messages.mjs';
 import { feedJobs } from './everydayJobs.mjs';
 import { emailSync } from './email.mjs';
 import { applicantJobs } from './apply.mjs';
+import { officerName } from '../lib/names.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in.
 // Officers whose site pack isn't signed are left to the Orb pack check until they sign.
@@ -37,7 +38,7 @@ async function lateAlerts(s) {
     `UPDATE shift_assignments a SET late_alerted = true, chased_at = now()
        FROM shifts s, officers o, venues v
       WHERE s.id = a.shift_id AND o.id = a.officer_id AND v.id = s.venue_id AND a.id = ANY($1::uuid[]) AND NOT a.late_alerted
-      RETURNING a.id, a.officer_id, s.venue_id, s.starts_at, v.name AS venue_name, o.first_name || ' ' || o.last_name AS officer_name`, [due.map((r) => r.id)]);
+      RETURNING a.id, a.officer_id, s.venue_id, s.starts_at, v.name AS venue_name, ${officerName('o')} AS officer_name`, [due.map((r) => r.id)]);
   for (const r of rows) {
     await notify(await managersFor(r.venue_id), {
       kind: 'late', severity: 'warning', title: `${r.officer_name} not clocked in`, body: `${r.venue_name} · shift started ${fmtTime(r.starts_at)}`,
@@ -92,10 +93,10 @@ async function expiryAlerts() {
   const marks = [60, 30, 7, 0];
   const dates = marks.map((d) => addDays(today, d));
   const officers = await q(
-    `SELECT id, first_name || ' ' || last_name AS name, sia_expiry, rtw_expiry FROM officers
+    `SELECT id, ${officerName('')} AS name, sia_expiry, rtw_expiry FROM officers
       WHERE status IN ('active','onboarding') AND (sia_expiry = ANY($1::date[]) OR rtw_expiry = ANY($1::date[]))`, [dates]);
   const docs = await q(
-    `SELECT d.id, d.title, d.expiry, d.owner_id, o.first_name || ' ' || o.last_name AS name FROM documents d JOIN officers o ON o.id = d.owner_id
+    `SELECT d.id, d.title, d.expiry, d.owner_id, ${officerName('o')} AS name FROM documents d JOIN officers o ON o.id = d.owner_id
       WHERE d.owner_type = 'officer' AND d.kind NOT IN ('sia','rtw') AND o.status IN ('active','onboarding') AND d.expiry = ANY($1::date[])`, [dates]);
   const company = await companyManagers();
   let n = 0;
