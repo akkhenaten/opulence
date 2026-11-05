@@ -71,7 +71,6 @@ export default function Live() {
     <Page title={venue ? 'On site' : 'Live operations'} wide photo="control"
       subtitle={isManager ? <>Board updates every 15 seconds · Orb checks every 5 minutes{lastChecked && <> · last checked <span className="num">{time(lastChecked)}</span></>}</> : 'Updates every 15 seconds'}
       actions={<>
-        {isManager && <Button variant="secondary" icon={Sparkles} onClick={() => window.dispatchEvent(new Event('orb:askorb'))}>Orb</Button>}
         <IconButton icon={RefreshCw} label={isManager ? 'Run Orb checks and refresh' : 'Refresh'} onClick={refresh} disabled={busy}
           className={cx('bg-surface shadow-tile', busy && '[&>svg]:animate-spin')} />
       </>}>

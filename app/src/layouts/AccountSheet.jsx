@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Bell, BookOpen, Camera, Download, KeyRound, LogOut, UserPen } from 'lucide-react';
+import { Bell, BookOpen, Camera, Download, Globe, KeyRound, LogOut, UserPen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
@@ -56,6 +56,7 @@ export function AccountSheet({ open, onClose }) {
             </List>
             <List>
               <Row left={<BookOpen size={20} className="text-blue" />} title="Help & user guide" subtitle="How to use the app, step by step" chevron onClick={() => { close(); nav(`/${user.role}/help`); }} />
+              <Row left={<Globe size={20} className="text-blue" />} title="Our website" subtitle="Opens in a new tab" onClick={() => window.open('/', '_blank', 'noopener')} />
               {!pwa.installed && <Row left={<Download size={20} className="text-blue" />} title="Install the app" subtitle="Open Orb from your home screen or desktop" chevron onClick={() => setView('install')} />}
             </List>
             <Button variant="danger" icon={LogOut} className="w-full" onClick={signOut}>Sign out</Button>

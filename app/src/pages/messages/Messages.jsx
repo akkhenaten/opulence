@@ -58,7 +58,7 @@ function Inbox({ q, current }) {
         </div>
         <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search messages" />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+      <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(16px+var(--fab-room))]">
         <Load q={q} skeleton="rows">
           {() => (list.length ? list.map((c) => {
             const own = c.last?.sender_id === user.id;

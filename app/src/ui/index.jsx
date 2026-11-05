@@ -138,7 +138,7 @@ export function Page({ title, subtitle, actions, back, children, wide, photo }) 
   );
   const actionBox = Array.isArray(actions) ? <PageActions items={actions} /> : actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>;
   return (
-    <div className={cx('mx-auto w-full pb-[calc(var(--tabbar-h)+32px)] pt-4 [--px:1rem] sm:[--px:1.5rem] lg:pt-8 safe-x', wide ? 'max-w-[1400px]' : 'max-w-6xl')}>
+    <div className={cx('mx-auto w-full pb-[calc(var(--tabbar-h)+var(--fab-room)+32px)] pt-4 [--px:1rem] sm:[--px:1.5rem] lg:pt-8 safe-x', wide ? 'max-w-[1400px]' : 'max-w-6xl')}>
       {back && (
         <Link to={back.to} onClick={goBack} className="pressable -ml-2 mb-0.5 inline-flex h-11 items-center pr-3 text-body font-semibold text-blue">
           <ChevronLeft size={24} className="-mr-0.5" />{back.label}

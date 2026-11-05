@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { Bell, BellOff, BookOpen, Briefcase, ChevronRight, Globe, LogOut, MessagesSquare, MoreHorizontal, Newspaper } from 'lucide-react';
+import { Bell, BellOff, BookOpen, Briefcase, ChevronRight, ExternalLink, Globe, LogOut, MessagesSquare, MoreHorizontal, Newspaper } from 'lucide-react';
 import { api } from '../api.js';
 import { startRealtime, useRealtime, useRealtimeConnected } from '../realtime.js';
 import { portalLink, useAuth } from '../auth.jsx';
@@ -102,12 +102,15 @@ function NotificationBell() {
   );
 }
 
+// The public website, opened in a new tab (top bar on desktop, More menu and account on phones)
+export const WEBSITE = { href: '/', target: '_blank', rel: 'noopener' };
+
 // The company's logo in silver: opens the public website in a new tab. A globe stands in if the logo can't load.
 function WebsiteButton() {
   const { brand } = useAuth();
   const [ok, setOk] = useState(true);
   return (
-    <a href="/" target="_blank" rel="noopener" aria-label={`Open the ${brand.name} website`} title="Open the website"
+    <a {...WEBSITE} aria-label={`Open the ${brand.name} website`} title="Open the website"
       className="pressable silver-btn relative grid h-10 w-10 shrink-0 before:absolute before:-inset-0.5 place-items-center rounded-full shadow-tile ring-1 ring-white/15">
       {ok ? <span className="silver-mark" aria-hidden="true" /> : <Globe size={20} className="text-white/80" aria-hidden="true" />}
       <img src="/app/brand/logo-white-192.png" alt="" hidden onError={() => setOk(false)} />
@@ -122,10 +125,10 @@ function EverydayButton({ to, unread }) {
 }
 
 // Compact page title in the top bar, shown once the large title has scrolled away
-function HeaderTitle() {
+function HeaderTitle({ wide }) {
   const { title, collapsed } = usePageHeader();
   return (
-    <div aria-hidden="true" className={cx('pointer-events-none absolute inset-x-0 top-0 flex h-14 items-center justify-start pl-[calc(var(--px)+env(safe-area-inset-left))] pr-[13rem] transition-[opacity,transform] duration-[var(--dur-2)] ease-ios', collapsed && title ? 'opacity-100' : 'translate-y-1 opacity-0')}>
+    <div aria-hidden="true" className={cx('pointer-events-none absolute inset-x-0 top-0 flex h-14 items-center justify-start pl-[calc(var(--px)+env(safe-area-inset-left))] transition-[opacity,transform] duration-[var(--dur-2)] ease-ios', wide ? 'pr-[13rem]' : 'pr-[7rem] lg:pr-[13rem]', collapsed && title ? 'opacity-100' : 'translate-y-1 opacity-0')}>
       <span className="truncate text-headline font-semibold">{title}</span>
     </div>
   );
@@ -135,6 +138,10 @@ function HeaderTitle() {
 const NAV_ITEM = 'pressable relative flex min-h-9 items-center gap-3 rounded-xl px-3 py-1.5 text-subhead font-semibold';
 const NAV_ON = 'bg-blue-soft text-blue before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-[var(--accent-fill)]';
 const NAV_OFF = 'text-ink/70 hover:bg-fill hover:text-ink';
+
+// Rows in the phone More menu
+const MORE_ROW = 'pressable flex min-h-[52px] items-center gap-3 rounded-xl px-3 text-body font-semibold';
+const MORE_ICON = 'grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-bg text-blue';
 
 // Count badge for a nav item (Orb inbox)
 const Badge = ({ n, className }) => (n > 0 ? <span className={cx('rounded-full bg-blue px-1.5 text-caption2 font-bold leading-[18px] text-white', className)}>{n > 99 ? '99+' : n}</span> : null);
@@ -208,6 +215,8 @@ export default function Shell() {
   const all = groups.flatMap((g) => g.items);
   const tabs = all.filter((i) => i.tab);
   const extra = all.filter((i) => !i.tab);
+  // More menu on phones: the sidebar sections, without what's already in the tab bar
+  const moreGroups = groups.map((g) => ({ ...g, items: g.items.filter((i) => !i.tab) })).filter((g) => g.items.length);
   const isOfficer = user.role === 'officer';
   useEffect(() => { setMore(false); setAccount(false); }, [loc.pathname]);
   useScrollMemory();
@@ -238,11 +247,12 @@ export default function Shell() {
     const apply = () => {
       html.classList.toggle('has-tabbar', isOfficer || !mq.matches);
       html.classList.toggle('has-sidebar', !isOfficer);
+      html.classList.toggle('has-orb', isMgr);
     };
     apply();
     mq.addEventListener('change', apply);
-    return () => { mq.removeEventListener('change', apply); html.classList.remove('has-tabbar', 'has-sidebar'); };
-  }, [isOfficer]);
+    return () => { mq.removeEventListener('change', apply); html.classList.remove('has-tabbar', 'has-sidebar', 'has-orb'); };
+  }, [isOfficer, isMgr]);
   const isActive = (it) => (it.end ? loc.pathname === it.to : loc.pathname === it.to || loc.pathname.startsWith(`${it.to}/`));
   // Tapping the tab you're already on scrolls back to the top
   const tabTap = (it) => (e) => { if (loc.pathname === it.to) { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); } };
@@ -283,11 +293,14 @@ export default function Shell() {
         {/* Top bar */}
         <header data-style={darkBar ? 'control' : undefined} className={cx('sticky top-0 z-30 border-b border-line/50 bg-bg/80 backdrop-blur-xl safe-t', !isOfficer && !scrolled && 'lg:border-transparent lg:bg-transparent lg:backdrop-blur-none', 'transition-[background-color,border-color] duration-200')}>
           <div className={cx('relative mx-auto flex h-14 items-center justify-between [--px:1rem] sm:[--px:1.5rem] safe-x', isOfficer ? 'max-w-2xl' : header.wide ? 'max-w-[1400px]' : 'max-w-6xl')}>
-            <HeaderTitle />
+            <HeaderTitle wide={isOfficer} />
             <div className={cx('flex min-w-0', !isOfficer && 'lg:invisible')}><Logo tone={darkBar ? 'light' : 'dark'} faded={header.collapsed && !!header.title} /></div>
             <div className="flex items-center gap-2">
-              <WebsiteButton />
-              {feedOn && <EverydayButton to={isOfficer ? '/officer/everyday' : `/${user.role}?tab=everyday`} unread={badges.everyday} />}
+              {/* Phones: managers reach the website from More and Everyday from the Dashboard tab */}
+              {!isOfficer && <span className="hidden lg:block"><WebsiteButton /></span>}
+              {feedOn && (isOfficer
+                ? <EverydayButton to="/officer/everyday" unread={badges.everyday} />
+                : <span className="hidden lg:block"><EverydayButton to={`/${user.role}?tab=everyday`} unread={badges.everyday} /></span>)}
               {user.role !== 'venue' && (
                 <span className={cx(!isOfficer && 'lg:hidden')}>
                   <IconButton icon={MessagesSquare} tone="solid" to={`/${user.role}/messages`} active={loc.pathname.startsWith(`/${user.role}/messages`)} badge={badges.messages} label={`Messages${badges.messages ? `, ${badges.messages} unread` : ''}`} />
@@ -328,12 +341,26 @@ export default function Shell() {
       </nav>
       <Sheet open={more} onClose={() => setMore(false)} title="More">
         <SideSwitch full className="mb-4" />
-        <div className="grid grid-cols-3 gap-2">
-          {extra.map((it) => (
-            <NavLink key={it.to} to={it.to} className={cx('pressable flex flex-col items-center gap-2 rounded-2xl px-2 py-4 text-center text-footnote font-semibold', isActive(it) ? 'bg-blue-soft text-blue' : 'bg-bg')}>
-              <span className="relative grid h-11 w-11 place-items-center rounded-2xl bg-surface text-blue shadow-tile"><it.icon size={20} /><Badge n={badges[it.badge]} className="absolute -right-2 -top-1.5" /></span>{it.label}
-            </NavLink>
+        <div className="-mx-2 space-y-4">
+          {moreGroups.map((g, i) => (
+            <div key={i}>
+              {g.title && <div className="mb-1 px-3 text-caption2 font-semibold uppercase tracking-wider text-faint">{g.title}</div>}
+              {g.items.map((it) => (
+                <NavLink key={it.to} to={it.to} end={it.end} className={({ isActive: on }) => cx(MORE_ROW, on ? 'bg-blue-soft text-blue' : 'text-ink')}>
+                  <span className={MORE_ICON}><it.icon size={20} /></span>
+                  <span className="min-w-0 flex-1 truncate">{it.label}</span><Badge n={badges[it.badge]} /><ChevronRight size={18} className="text-faint" />
+                </NavLink>
+              ))}
+            </div>
           ))}
+          <div className="border-t border-line pt-3">
+            <NavLink to={`/${user.role}/help`} className={({ isActive: on }) => cx(MORE_ROW, on ? 'bg-blue-soft text-blue' : 'text-ink')}>
+              <span className={MORE_ICON}><BookOpen size={20} /></span><span className="flex-1">Help & user guide</span><ChevronRight size={18} className="text-faint" />
+            </NavLink>
+            <a {...WEBSITE} className={cx(MORE_ROW, 'text-ink')}>
+              <span className={MORE_ICON}><Globe size={20} /></span><span className="flex-1">Our website</span><ExternalLink size={16} className="text-faint" />
+            </a>
+          </div>
         </div>
         <Pressable press onClick={() => { setMore(false); setAccount(true); }} className="mt-4 flex items-center gap-3 rounded-2xl bg-bg p-3">
           <Avatar name={user.name} src={[user.photo_thumb_url, user.photo_url]} size={36} />

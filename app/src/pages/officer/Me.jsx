@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Award, BadgeCheck, Bell, BookOpen, Download, Newspaper, Target, CalendarOff, GraduationCap, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
+  Award, BadgeCheck, Bell, BookOpen, Download, Globe, Newspaper, Target, CalendarOff, GraduationCap, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -42,6 +42,7 @@ export default function Me() {
         <Row left={<Ico icon={KeyRound} tone="grey" />} title="Change password" onClick={() => setPw(true)} chevron />
         {!pwa.installed && <Row left={<Ico icon={Download} />} title="Install the app" subtitle="Open Orb from your home screen" onClick={() => setInst(true)} chevron />}
         <Row to="/officer/help" left={<Ico icon={BookOpen} tone="green" />} title="Help & user guide" />
+        <Row left={<Ico icon={Globe} tone="grey" />} title="Our website" subtitle="Opens in a new tab" onClick={() => window.open('/', '_blank', 'noopener')} />
         <Row left={<Ico icon={LogOut} tone="red" />} title={<span className="text-red">Sign out</span>} subtitle={user.email} onClick={out} />
       </List>
     </Section>

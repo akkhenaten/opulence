@@ -123,7 +123,7 @@ function Inbox({ acc, accounts, folder, current, onAccount, onFolder, onOpen, on
         <div className="no-scrollbar -mx-4 mt-3 overflow-x-auto px-4"><Segmented value={folder} onChange={onFolder} options={FOLDERS} /></div>
       </div>
       {reconnect && <div className="px-4 pb-2"><ReconnectBanner acc={acc} /></div>}
-      <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+      <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(16px+var(--fab-room))]">
         {reconnect && !q.data ? null : (
           <Load q={q} skeleton="rows">
             {() => (threads.length ? (

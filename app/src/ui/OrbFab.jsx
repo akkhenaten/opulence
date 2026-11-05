@@ -1,5 +1,6 @@
 // The floating Orb button: bottom right on every manager page, above the tab bar and any action bar.
 // Drag it anywhere; it stays where it was left (saved on this device).
+// On phones it slips out of the way while you scroll down, and comes back on scroll up, a pause, or the end of the page.
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { cx } from './index.jsx';
@@ -33,6 +34,35 @@ function clamp({ right, bottom }) {
   };
 }
 
+// True while the page (or a list inside it) is being scrolled down, phones and tablets only
+function useScrollAway(pathname) {
+  const [away, setAway] = useState(false);
+  useEffect(() => {
+    setAway(false);
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const last = new WeakMap(); // scroll position at the last change of direction, per scroller
+    let timer, frame;
+    const check = (el) => {
+      frame = null;
+      if (mq.matches) return setAway(false);
+      const win = el === document || el === document.documentElement || el === document.body;
+      const node = win ? document.documentElement : el;
+      const y = win ? window.scrollY : node.scrollTop;
+      const end = (win ? window.innerHeight : node.clientHeight) + y >= node.scrollHeight - 4;
+      const from = last.get(node) ?? y;
+      if (end || y - from < -8) { setAway(false); last.set(node, y); }
+      else if (y - from > 8 && y > 80) { setAway(true); last.set(node, y); }
+      else if (!last.has(node)) last.set(node, y);
+      clearTimeout(timer);
+      timer = setTimeout(() => setAway(false), 900);
+    };
+    const on = (e) => { if (!frame) { const el = e.target; frame = requestAnimationFrame(() => check(el)); } };
+    document.addEventListener('scroll', on, { capture: true, passive: true });
+    return () => { document.removeEventListener('scroll', on, { capture: true }); clearTimeout(timer); if (frame) cancelAnimationFrame(frame); };
+  }, [pathname]);
+  return away;
+}
+
 export default function OrbFab({ onClick, hidden, dot }) {
   const { pathname } = useLocation();
   const [pos, setPos] = useState(saved);
@@ -41,6 +71,11 @@ export default function OrbFab({ onClick, hidden, dot }) {
   const moved = useRef(false);
   // A message thread has its own composer at the bottom
   const thread = /\/messages\/[^/]+/.test(pathname);
+  const away = useScrollAway(pathname) && !dragging;
+  // Slides off the nearest side edge; fades in place when it was left in the middle of the screen
+  const awayClass = !away ? null
+    : pos && pos.bottom > window.innerHeight * 0.4 ? 'orb-fab-away'
+      : pos && pos.right > window.innerWidth / 2 ? 'orb-fab-away orb-fab-away-l' : 'orb-fab-away orb-fab-away-r';
 
   // Back on screen after a rotation or a smaller window
   useEffect(() => {
@@ -80,7 +115,7 @@ export default function OrbFab({ onClick, hidden, dot }) {
     <button type="button" onClick={click} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
       aria-label={dot ? 'Orb, your assistant (something new)' : 'Orb, your assistant'} title="Orb"
       style={pos ? { right: pos.right, bottom: pos.bottom } : undefined}
-      className={cx('orb-fab pressable fixed z-40 grid h-14 w-14 place-items-center rounded-full', !pos && 'right-4 sm:right-6 lg:right-8', dragging && 'orb-fab-drag', (hidden || thread) && 'orb-fab-hidden')}>
+      className={cx('orb-fab pressable fixed z-40 grid h-14 w-14 place-items-center rounded-full', !pos && 'right-4 sm:right-6 lg:right-8', dragging && 'orb-fab-drag', (hidden || thread) && 'orb-fab-hidden', awayClass)}>
       <img src="/app/brand/logo-gold-192.png" alt="" className="h-7 w-auto" draggable={false} />
       {dot && <span className="absolute right-0.5 top-0.5 h-3.5 w-3.5 rounded-full bg-red ring-2 ring-[var(--color-surface,#fff)]" />}
     </button>

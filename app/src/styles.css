@@ -74,6 +74,7 @@
   --shimmer: #F9F7F2;
   --hover-shadow: 0 1px 2px rgba(40,30,10,.05), 0 14px 30px -14px rgba(40,30,10,.20);
   --tabbar-h: 0px;
+  --fab-room: 0px;
 }
 html.has-tabbar { --tabbar-h: calc(58px + env(safe-area-inset-bottom)); }
 html {
@@ -142,6 +143,12 @@ html:not(.has-tabbar) .orb-fab { bottom: calc(env(safe-area-inset-bottom) + 24px
 body:has(.action-bar) .orb-fab { bottom: calc(var(--tabbar-h) + 84px); }
 html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-area-inset-bottom) + 96px); }
 .orb-fab-hidden, html.scroll-locked .orb-fab { opacity: 0; visibility: hidden; transform: scale(.6); pointer-events: none; }
+/* Out of the way while scrolling down (phones); fades on its own when reduced motion is on */
+.orb-fab-away { opacity: 0; transform: scale(.6); pointer-events: none; }
+.orb-fab-away-r { transform: translateX(calc(100% + 24px)); }
+.orb-fab-away-l { transform: translateX(calc(-100% - 24px)); }
+/* Pages leave room under the last row so the button never sits on it */
+@media (max-width: 1023.98px) { html.has-orb { --fab-room: 72px; } }
 /* While it's being dragged it follows the finger exactly */
 .orb-fab-drag { transition: none; transform: scale(1.08); cursor: grabbing; box-shadow: 0 0 0 1.5px #C9A45C, 0 16px 32px -8px rgb(201 164 92 / .7), 0 4px 10px rgb(0 0 0 / .3); }
 @media print { .orb-fab { display: none; } }
