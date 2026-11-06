@@ -1,12 +1,22 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, FilePen, FileSignature, Fingerprint, Globe, GraduationCap, MessageSquareHeart,
-  MessagesSquare, Newspaper, Palette, Radar, ShieldAlert, Sparkles, Users, Wallet,
+  BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, FilePen, FileSignature, Fingerprint, Globe, GraduationCap, LayoutGrid, MessageSquareHeart,
+  MessagesSquare, Newspaper, Palette, Radar, ShieldAlert, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { Pill } from '../../ui/index.jsx';
 
 // Newest first; the first card is the latest release
 export const UPDATES = [
+  {
+    month: 'November 2026', icon: Smartphone, title: 'A calmer app on your phone',
+    lede: 'The frame around every screen has been pared back, so on a phone you see your work first and the buttons second. Nothing has gone; it is simply where you expect it.',
+    points: ['A clean top bar: just your messages and alerts', 'A More menu laid out like the desktop, in clear sections with live counts', 'Orb slips out of the way while you scroll and returns the moment you stop', 'The last row of every list always stays in clear view'],
+  },
+  {
+    month: 'November 2026', icon: LayoutGrid, title: 'Designed for the phone in your pocket',
+    lede: 'Every page has been reworked for the phone, so a manager on the door gets the same clarity as one at the desk.',
+    points: ['Page actions tucked into a tidy … menu', 'Lighter, edge-to-edge panels and slimmer photo headers', 'Long tab lists become a simple picker', 'Tables turn into compact, readable rows', 'Photos load in a fraction of the time'],
+  },
   {
     month: 'November 2026', icon: FilePen, title: 'Incident reports that wait for you',
     lede: 'A report can now be started in the moment and finished when the night is over. Nothing is lost if the signal drops or the phone locks.',
