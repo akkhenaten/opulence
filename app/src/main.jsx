@@ -84,6 +84,7 @@ const Everyday = P(() => import('./pages/everyday/Feed.jsx'));
 const ToolboxAdmin = P(() => import('./pages/team/ToolboxAdmin.jsx'));
 const CardEditor = P(() => import('./pages/team/CardEditor.jsx'));
 const Help = P(() => import('./pages/shared/Help.jsx'));
+const Platform = P(() => import('./pages/platform/Platform.jsx'));
 
 function Guard({ role }) {
   const { user, ready } = useAuth();
@@ -125,6 +126,12 @@ function Open() {
   const path = to.replace(/^\/app/, '');
   const role = !user.dual ? user.role : /^\/officer(\/|$)/.test(path) ? 'officer' : /^\/(company|security)(\/|$)/.test(path) ? user.login_role || user.role : user.role;
   return <Navigate to={portalLink(path, role) || HOME[user.role]} replace />;
+}
+// A reply to app feedback (email or bell) opens My feedback in the person's own portal
+function MyFeedback() {
+  const { user, ready } = useAuth();
+  if (!ready) return <Spinner className="min-h-dvh" />;
+  return <Navigate to={user ? `${HOME[user.role]}?feedback=mine` : '/login'} replace />;
 }
 function PublicOnly({ children }) {
   const { user, ready } = useAuth();
@@ -176,6 +183,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Root />} />
         <Route path="/open" element={<Open />} />
+        <Route path="/my-feedback" element={<MyFeedback />} />
         <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
         <Route path="/forgot" element={<Forgot />} />
         <Route path="/reset/:token" element={<Reset />} />
@@ -211,6 +219,7 @@ function App() {
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings />} />
             <Route path="audit" element={<Audit />} />
+            <Route path="platform" element={<Platform />} />
           </Route>
         </Route>
 

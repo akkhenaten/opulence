@@ -9,6 +9,7 @@ import { getBrand } from '../lib/brand.mjs';
 import { seedOnboarding } from './hr.mjs';
 import { disconnectUser } from './email.mjs';
 import { officerName, userName } from '../lib/names.mjs';
+import { guardPlatformAccount, isPlatformAdmin, isPlatformEmail } from '../lib/platform.mjs';
 
 const ROLE_LABEL = { company: 'Company Manager', security: 'Security Manager', venue: 'Venue Manager', officer: 'Security Officer' };
 
@@ -26,6 +27,8 @@ export async function sendInvite(u) {
   const { name } = await getBrand();
   await sendRawEmail(u.email, `You're invited to ${name}`,
     await emailHtml(`Welcome, ${u.name}`, `You've been invited to ${name} as a ${ROLE_LABEL[u.role]}. Set your password to get started.`, `/invite/${u.invite_token}`));
+  // The platform admin's invite only ever goes to their own mailbox
+  if (isPlatformEmail(u.email)) return null;
   return `/app/invite/${u.invite_token}`;
 }
 
@@ -47,7 +50,7 @@ async function checkClient(t, role, clientId) {
 const withPhotos = (rows) => Promise.all(rows.map(async ({ photo_key, ...u }) => ({ ...u, ...(await photoUrls(photo_key)) })));
 
 export const actions = {
-  'users.list': def(CO, async (b) => withPhotos(await q(
+  'users.list': def(CO, async (b, { user }) => withPhotos((await q(
     `SELECT u.id, u.email, u.name, u.goes_by, u.phone, u.role, COALESCE((SELECT o.photo_key FROM officers o WHERE o.user_id = u.id LIMIT 1), u.photo_key) AS photo_key, u.status, u.can_see_pay, u.last_login, u.created_at,
             u.client_id, (SELECT c.name FROM clients c WHERE c.id = u.client_id) AS client_name,
             COALESCE(array_agg(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS venues,
@@ -60,7 +63,9 @@ export const actions = {
        LEFT JOIN security_venues sv ON sv.user_id = u.id AND u.role = 'security'
        LEFT JOIN venues v ON v.id = COALESCE(vc.venue_id, sv.venue_id)
       WHERE NOT u.system AND ($1::text IS NULL OR u.role = $1)
-      GROUP BY u.id ORDER BY u.role, u.name`, [b.role || null]))),
+      GROUP BY u.id ORDER BY u.role, u.name`, [b.role || null]))
+    // Only the platform admin sees the link to the platform admin's own invite
+    .map((u) => (isPlatformEmail(u.email) && !isPlatformAdmin(user) ? { ...u, invite_link: null } : u)))),
 
   'users.invite': def(CO, async (b, { user }) => {
     required(b, 'email', 'name', 'role');
@@ -79,6 +84,10 @@ export const actions = {
   'users.update': def(CO, async (b, { user }) => {
     required(b, 'id');
     if (b.id === user.id && b.status === 'disabled') fail(400, "You can't disable yourself");
+    const target = await one('SELECT email FROM users WHERE id = $1', [b.id]);
+    if ((b.email !== undefined && String(b.email).trim().toLowerCase() !== target?.email) || b.status === 'disabled') {
+      guardPlatformAccount(user, target?.email, b.email);
+    }
     const fields = pick(b, ['name', 'goes_by', 'phone', 'can_see_pay', 'email']);
     if (fields.goes_by !== undefined) fields.goes_by = goesBy(fields.goes_by);
     if (b.status === 'disabled' || b.status === 'active') fields.status = b.status;
@@ -122,6 +131,7 @@ export const actions = {
   }),
 
   'users.resetLink': def(CO, async (b, { user }) => {
+    guardPlatformAccount(user, (await one('SELECT email FROM users WHERE id = $1', [b.id]))?.email);
     const token = randomToken();
     const u = await one("UPDATE users SET reset_token = $2, reset_expires = now() + interval '48 hours' WHERE id = $1 RETURNING id, status, invite_token", [b.id, token]);
     if (!u) fail(404, 'User not found');
@@ -182,6 +192,7 @@ export const actions = {
     if (!m) fail(404, 'Manager login not found');
     const ou = await one("SELECT * FROM users WHERE id = $1 AND role = 'officer'", [b.officer_user_id]);
     if (!ou) fail(404, 'Officer login not found');
+    guardPlatformAccount(user, m.email, ou.email);
     if (await one('SELECT 1 FROM officers WHERE user_id = $1', [m.id])) fail(409, 'This manager already has a staff record');
     const o = await one('SELECT id FROM officers WHERE user_id = $1', [ou.id]);
     if (!o) fail(400, 'That officer login has no staff record');

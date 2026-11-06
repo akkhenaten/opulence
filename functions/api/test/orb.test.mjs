@@ -94,6 +94,8 @@ test('the guide search finds the latest features', () => {
   finds('company', 'show a venue on the website', /Show on website/);
   finds('officer', 'where is my clock history', /Clock history at the top of Shifts/);
   finds('officer', 'add a handover note', /Add handover note/);
+  finds('venue', 'how do I report a problem with the app', /Send feedback/);
+  finds('officer', 'send feedback or suggest an idea', /My feedback/);
 });
 
 test('a spoken yes cannot approve money or anything sent to people', () => {

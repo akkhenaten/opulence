@@ -1,7 +1,7 @@
 import {
   BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
   Radio, ReceiptText, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText,
-  GraduationCap, BookOpenCheck, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck, MessageSquareHeart, LineChart,
+  GraduationCap, BookOpenCheck, Crown, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck, MessageSquareHeart, LineChart,
 } from 'lucide-react';
 
 // Sidebar sections per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
@@ -48,6 +48,8 @@ export const NAV = {
     { title: 'Administration', items: [
       { to: '/company/settings', label: 'Settings', icon: Settings },
       { to: '/company/audit', label: 'Audit log', icon: ScrollText },
+      // The platform admin only (set by the platform); shows the count of new app feedback
+      { to: '/company/platform', label: 'Platform', icon: Crown, perm: 'platform', badge: 'platform', tag: 'Admin' },
     ] },
   ],
   security: [

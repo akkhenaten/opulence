@@ -12,6 +12,7 @@ import AskOrb from '../ui/AskOrb.jsx';
 import OrbFab from '../ui/OrbFab.jsx';
 import { WhatsNewSplash } from '../pages/people/_whatsnew.jsx';
 import { OfflineBanner, useUpdateToast } from '../ui/pwa.jsx';
+import { AppFeedbackSheet, FeedbackChip, FeedbackIcon } from '../ui/AppFeedback.jsx';
 
 // The Opulence horse and the company name in Playfair.
 // faded: the wordmark fades out (header shows the page title instead)
@@ -147,6 +148,9 @@ const MORE_ICON = 'grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-bg tex
 // Count badge for a nav item (Orb inbox)
 const Badge = ({ n, className }) => (n > 0 ? <span className={cx('rounded-full bg-blue px-1.5 text-caption2 font-bold leading-[18px] text-white', className)}>{n > 99 ? '99+' : n}</span> : null);
 
+// A small label on a nav item (Platform: Admin)
+const Tag = ({ t }) => (t ? <span className="rounded-md bg-gold/15 px-1.5 text-caption2 font-bold uppercase leading-[18px] tracking-wide text-gold">{t}</span> : null);
+
 // On "My shifts", a manager who also works shifts gets back to the manager side in one tap
 function ManagerButton() {
   const { switchSide } = useAuth();
@@ -174,7 +178,11 @@ export default function Shell() {
   const mail = useApi('email.accounts', {}, { poll: 120000, skip: user.role !== 'company' });
   useEffect(() => { const h = () => mail.reload(); window.addEventListener('orb:email', h); return () => window.removeEventListener('orb:email', h); });
   useEffect(() => { const h = () => opsCount.reload(); window.addEventListener('orb:ops', h); return () => window.removeEventListener('orb:ops', h); });
-  const badges = { ops: opsCount.data?.n || 0, everyday: feed.data?.unread || 0, messages: msgs.data?.unread || 0, email: (mail.data?.accounts || []).reduce((n, a) => n + (a.unread || 0), 0) };
+  // App feedback: whether the button shows, and the platform admin's count of new items
+  const fb = useApi('appFeedback.status', {}, { poll: 120000 });
+  useEffect(() => { const h = () => fb.reload(); window.addEventListener('orb:feedback-status', h); return () => window.removeEventListener('orb:feedback-status', h); });
+  const fbOn = !!fb.data?.on;
+  const badges = { ops: opsCount.data?.n || 0, everyday: feed.data?.unread || 0, messages: msgs.data?.unread || 0, email: (mail.data?.accounts || []).reduce((n, a) => n + (a.unread || 0), 0), platform: fb.data?.new || 0 };
   const loc = useLocation();
   const [more, setMore] = useState(false);
   const [account, setAccount] = useState(false);
@@ -272,7 +280,7 @@ export default function Shell() {
                 {g.items.map((it) => (
                   <NavLink key={it.to} to={it.to} end={it.end} onClick={tabTap(it)}
                     className={({ isActive: on }) => cx(NAV_ITEM, on ? NAV_ON : NAV_OFF)}>
-                    <it.icon size={18} /><span className="flex-1">{it.label}</span><Badge n={badges[it.badge]} />
+                    <it.icon size={18} /><span className="flex-1">{it.label}</span><Tag t={it.tag} /><Badge n={badges[it.badge]} />
                   </NavLink>
                 ))}
               </div>
@@ -307,6 +315,7 @@ export default function Shell() {
                   <IconButton icon={MessagesSquare} tone="solid" to={`/${user.role}/messages`} active={loc.pathname.startsWith(`/${user.role}/messages`)} badge={badges.messages} label={`Messages${badges.messages ? `, ${badges.messages} unread` : ''}`} />
                 </span>
               )}
+              {fbOn && <><FeedbackChip /><FeedbackIcon /></>}
               <NotificationBell />
               {isOfficer && user.dual && <ManagerButton />}
               {isOfficer && <span className="hidden sm:block"><Button variant="secondary" size="sm" icon={LogOut} onClick={signOut}>Sign out</Button></span>}
@@ -349,7 +358,7 @@ export default function Shell() {
               {g.items.map((it) => (
                 <NavLink key={it.to} to={it.to} end={it.end} className={({ isActive: on }) => cx(MORE_ROW, on ? 'bg-blue-soft text-blue' : 'text-ink')}>
                   <span className={MORE_ICON}><it.icon size={20} /></span>
-                  <span className="min-w-0 flex-1 truncate">{it.label}</span><Badge n={badges[it.badge]} /><ChevronRight size={18} className="text-faint" />
+                  <span className="min-w-0 flex-1 truncate">{it.label}</span><Tag t={it.tag} /><Badge n={badges[it.badge]} /><ChevronRight size={18} className="text-faint" />
                 </NavLink>
               ))}
             </div>
@@ -369,7 +378,8 @@ export default function Shell() {
           <ChevronRight size={18} className="text-faint" />
         </Pressable>
       </Sheet>
-      {!isOfficer && <AccountSheet open={account} onClose={() => setAccount(false)} />}
+      {!isOfficer && <AccountSheet open={account} onClose={() => setAccount(false)} feedback={fbOn} />}
+      <AppFeedbackSheet />
       {isMgr && <WhatsNewSplash user={user} />}
       {isMgr && <OrbFab onClick={() => setAsk(true)} hidden={ask} dot={orbDot} />}
       {isMgr && <AskOrb open={ask} onClose={() => setAsk(false)} onDot={setOrbDot} />}

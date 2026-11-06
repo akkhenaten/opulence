@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { one } from './db.mjs';
 import { fail } from './http.mjs';
+import { isPlatformAdmin } from './platform.mjs';
 
 // In Lambda a missing secret must never fall back to a guessable value
 const SECRET = () => {
@@ -81,6 +82,7 @@ export function publicUser(u) {
   return {
     id: u.id, email: u.email, name: u.name, goes_by: u.goes_by || '', phone: u.phone || '', role: u.role, officer_id: u.officer_id || null, can_see_pay: u.can_see_pay,
     login_role: u.login_role || u.role, self_officer_id: u.self_officer_id || null, dual: !!u.dual,
+    platform: isPlatformAdmin(u),
   };
 }
 

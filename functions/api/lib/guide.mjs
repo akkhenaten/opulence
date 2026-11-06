@@ -373,6 +373,14 @@ If the app can't confirm you're on site, tap Continue anyway, add a note and Sub
     id: 'faq', title: 'FAQ and troubleshooting', roles: ALL,
     sections: [
       {
+        id: 'appfeedback', title: 'Send feedback: a problem with the app, or an idea',
+        body: `While the app is being fine-tuned, anyone can tell the Orb team what's wrong or what would make it better. Tap Feedback in the top bar (the speech bubble on phones), or Send feedback in My account (officers: Me).
+
+Choose Something's wrong or I have an idea, write what happened, and add up to 3 screenshots or photos if they help. The screen you were on, your device and the app version are added for you, so you don't need to explain where you were.
+
+Only the Orb team reads feedback; your company managers don't see it. Open My feedback to see what you've sent, its status (New, Looking at it, Planned, Fixed or Not now) and any reply. You get a notification when we reply or fix it.`,
+      },
+      {
         id: 'clockfail', title: 'Clock-in is refused',
         body: `Clock-in opens 15 minutes before the shift. Make sure location is allowed for the app (phone Settings, then the browser or Orb) and that you are inside the venue. If the QR code won't scan, tap I can't scan the code. You can always submit the clock-in as an exception with a note.`,
       },

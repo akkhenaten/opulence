@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, FilePen, FileSignature, Fingerprint, Globe, GraduationCap, LayoutGrid, MessageSquareHeart,
-  MessagesSquare, Newspaper, Palette, Radar, ShieldAlert, Smartphone, Sparkles, Users, Wallet,
+  MessageCircleWarning, MessagesSquare, Newspaper, Palette, Radar, ShieldAlert, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +9,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-06', icon: MessageCircleWarning, title: 'Tell us what to fix',
+    lede: 'While the app is being fine-tuned, everyone (managers, venue teams and officers) can send problems and ideas straight to the Orb team from the Feedback button. Each report comes with the screen, device and app version, so it gets fixed faster.',
+    points: ['Feedback in the top bar, My account and Me', "Something's wrong or I have an idea, with up to 3 photos", 'My feedback shows the status and our reply', 'Only the Orb team reads it'],
+  },
   {
     month: 'November 2026', date: '2026-11-06', icon: Smartphone, title: 'Install the app from Settings',
     lede: 'Closed the Get the Orb app card on your Dashboard? It now lives in Settings, so you can install the app on another phone or computer whenever you like.',

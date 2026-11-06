@@ -45,8 +45,9 @@ import * as sia from './modules/sia.mjs';
 import * as reviews from './modules/reviews.mjs';
 import * as comments from './modules/comments.mjs';
 import * as analytics from './modules/analytics.mjs';
+import * as appFeedback from './modules/appFeedback.mjs';
 
-export const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, clockProof, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign, contractsPack, contractsUpload, signLinks, venuePacks, email, apply, sia, reviews, comments, analytics].map((m) => m.actions));
+export const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, clockProof, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign, contractsPack, contractsUpload, signLinks, venuePacks, email, apply, sia, reviews, comments, analytics, appFeedback].map((m) => m.actions));
 // Orb runs real actions on confirm, through the same table and role checks
 assistant.useActions(ACTIONS);
 
@@ -95,7 +96,7 @@ export async function handler(event) {
       if (!user) return json({ error: 'Please sign in again' }, 401);
       if (!entry.roles.includes(user.role)) return json({ error: 'You do not have access to this' }, 403);
       // An officer login not linked to a profile would turn "own records" filters into "all records"
-      if (user.role === 'officer' && !user.officer_id && !/^(auth|notifications|dashboard)\./.test(body.action)) {
+      if (user.role === 'officer' && !user.officer_id && !/^(auth|notifications|dashboard|appFeedback)\./.test(body.action)) {
         return json({ error: 'Your login is not linked to an officer profile yet. Contact the office.' }, 403);
       }
     }

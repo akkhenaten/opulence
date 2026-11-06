@@ -6,6 +6,7 @@ import { downloadUrl, checkOwnPhoto, saveThumb, photoUrls } from '../lib/storage
 import { londonDate } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { createInvite, sendInvite } from './users.mjs';
+import { guardPlatformAccount } from '../lib/platform.mjs';
 import { seedOnboarding, syncOnboarding } from './hr.mjs';
 import { guardSelf } from '../lib/selfcheck.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
@@ -143,6 +144,7 @@ export const actions = {
       const changed = (k) => f[k] !== undefined && String(f[k] || '') !== String(cur[k] || '');
       if (changed('email') || changed('sia_number')) await assertNotDuplicate({ one }, { id: b.id, email: changed('email') ? f.email : '', sia_number: changed('sia_number') ? f.sia_number : '', login: !!cur.user_id });
       if (cur.user_id && f.email === '') fail(400, 'This person signs in with their email, so it can\'t be blank');
+      if (cur.user_id && changed('email')) guardPlatformAccount(user, cur.email, f.email, (await one('SELECT email FROM users WHERE id = $1', [cur.user_id]))?.email);
       // A new photo must be an image this manager just uploaded; an unchanged key passes through
       if (changed('photo_key')) {
         f.photo_key = await checkOwnPhoto(user, f.photo_key, fail);

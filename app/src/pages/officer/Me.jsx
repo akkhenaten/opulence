@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Award, BadgeCheck, Bell, BookOpen, Download, Globe, Newspaper, Target, CalendarOff, GraduationCap, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
+  Award, BadgeCheck, Bell, BookOpen, Download, MessageCircleWarning, Globe, Newspaper, Target, CalendarOff, GraduationCap, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -13,6 +13,7 @@ import { NotificationsSheet } from './_notify.jsx';
 import { InstallSheet, usePwa } from '../../ui/pwa.jsx';
 import { expiryText, expiryTone, NotLinked } from './_parts.jsx';
 import { SideSwitch } from '../../layouts/SideSwitch.jsx';
+import { openFeedback } from '../../ui/AppFeedback.jsx';
 
 const ICON_TONE = { blue: 'bg-blue text-white', green: 'bg-green text-white', amber: 'bg-amber text-white', red: 'bg-red text-white', grey: 'bg-faint text-white', ink: 'bg-ink text-white' };
 const Ico = ({ icon: I, tone = 'blue' }) => <span className={cx('grid h-8 w-8 place-items-center rounded-lg', ICON_TONE[tone])}><I size={18} /></span>;
@@ -31,6 +32,7 @@ export default function Me() {
   const tasks = useApi('onboarding.tasks', {}, { skip: !linked });
   const fix = useApi('incidents.list', { status: 'changes_requested' }, { skip: !linked });
   const learn = useApi('academy.my', {}, { skip: !linked || !modules?.academy });
+  const fb = useApi('appFeedback.status', {});
 
   // Set-up links can point at a section (e.g. #contracts) once its data is in
   const { hash } = useLocation();
@@ -48,6 +50,8 @@ export default function Me() {
         <Row left={<Ico icon={KeyRound} tone="grey" />} title="Change password" onClick={() => setPw(true)} chevron />
         {!pwa.installed && <Row left={<Ico icon={Download} />} title="Install the app" subtitle="Open Orb from your home screen" onClick={() => setInst(true)} chevron />}
         <Row to="/officer/help" left={<Ico icon={BookOpen} tone="green" />} title="Help & user guide" />
+        {fb.data?.on && <Row left={<Ico icon={MessageCircleWarning} />} title="Send feedback" subtitle="Something wrong, or an idea? Tell us" onClick={() => openFeedback()} chevron />}
+        {fb.data?.on && <Row left={<Ico icon={MessageCircleWarning} tone="grey" />} title="My feedback" subtitle="What you've sent, and our replies" onClick={() => openFeedback('mine')} chevron />}
         <Row left={<Ico icon={Globe} tone="grey" />} title="Our website" subtitle="Opens in a new tab" onClick={() => window.open('/', '_blank', 'noopener')} />
         <Row left={<Ico icon={LogOut} tone="red" />} title={<span className="text-red">Sign out</span>} subtitle={user.email} onClick={out} />
       </List>

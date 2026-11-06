@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { Bell, BookOpen, Camera, Download, Globe, KeyRound, LogOut, UserPen } from 'lucide-react';
+import { Bell, BookOpen, Camera, Download, Globe, KeyRound, LogOut, MessageCircleWarning, UserPen } from 'lucide-react';
+import { openFeedback } from '../ui/AppFeedback.jsx';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
@@ -13,7 +14,7 @@ import { InstallSheet, usePwa } from '../ui/pwa.jsx';
 const TITLES = { password: 'Change password', details: 'My details' };
 
 /** My account for managers: who you are, photo, details, password, which alerts you get, sign out */
-export function AccountSheet({ open, onClose }) {
+export function AccountSheet({ open, onClose, feedback }) {
   const { user, signOut, refresh } = useAuth();
   const [view, setView] = useState('main');
   const [runPhoto, photoBusy] = useAction();
@@ -56,6 +57,8 @@ export function AccountSheet({ open, onClose }) {
             </List>
             <List>
               <Row left={<BookOpen size={20} className="text-blue" />} title="Help & user guide" subtitle="How to use the app, step by step" chevron onClick={() => { close(); nav(`/${user.role}/help`); }} />
+              {feedback && <Row left={<MessageCircleWarning size={20} className="text-blue" />} title="Send feedback" subtitle="Tell us what's wrong or what would be better" chevron onClick={() => { close(); openFeedback(); }} />}
+              {feedback && <Row left={<MessageCircleWarning size={20} className="text-faint" />} title="My feedback" subtitle="What you've sent, and our replies" chevron onClick={() => { close(); openFeedback('mine'); }} />}
               <Row left={<Globe size={20} className="text-blue" />} title="Our website" subtitle="Opens in a new tab" onClick={() => window.open('/', '_blank', 'noopener')} />
               {!pwa.installed && <Row left={<Download size={20} className="text-blue" />} title="Install the app" subtitle="Open Orb from your home screen or desktop" chevron onClick={() => setView('install')} />}
             </List>
