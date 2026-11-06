@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-06', icon: Smartphone, title: 'Install the app from Settings',
+    lede: 'Closed the Get the Orb app card on your Dashboard? It now lives in Settings, so you can install the app on another phone or computer whenever you like.',
+    points: ['Get the Orb app in Settings, Company details', 'Closing the Dashboard card tells you where it went', 'Officers find it under Me, other managers under My account'],
+  },
+  {
     month: 'November 2026', date: '2026-11-06', icon: Newspaper, title: 'Help is up to date',
     lede: 'Help, the downloadable guide and Orb’s answers now explain everything from the latest releases, so your team can look it up or just ask Orb.',
     points: ['The new Dashboard: Needs you, Tonight & tomorrow, This week', 'The officer app’s four tabs and the shift page', 'Moving the Orb button', 'Your website: venue tiles, welcome lines and reviews'],

@@ -70,15 +70,28 @@ function InstallBody({ pwa, onInstalled }) {
   return <p className="text-subhead text-muted">Open this page in Chrome or Edge (Android, Windows, Mac) or Safari (iPhone, iPad), then use the browser menu: <b>Install app</b> or <b>Add to Home Screen</b>.</p>;
 }
 
-/** Dashboard card: shown only in a browser tab, where installing is possible, until dismissed for 30 days */
-export function InstallCard({ className }) {
+/** Dashboard card: shown only in a browser tab, where installing is possible, until dismissed for 30 days.
+ *  `later` says where to find it again once closed (Settings, My account, Me) */
+export function InstallCard({ className, later }) {
   const pwa = usePwa();
+  const toast = useToast();
   const [hidden, setHidden] = useState(dismissedRecently);
   if (pwa.installed || hidden || !(pwa.canInstall || pwa.ios)) return null;
-  const dismiss = () => { localStorage.setItem(DISMISS_KEY, String(Date.now())); setHidden(true); };
+  const hide = () => { localStorage.setItem(DISMISS_KEY, String(Date.now())); setHidden(true); };
+  const dismiss = () => { hide(); if (later) toast(`Hidden. You can install the app any time from ${later}.`, 'info'); };
   return (
     <Tile title="Get the Orb app" icon={Download} className={className} action={<IconButton icon={X} label="Not now" onClick={dismiss} />}>
-      <InstallBody pwa={pwa} onInstalled={dismiss} />
+      <InstallBody pwa={pwa} onInstalled={hide} />
+    </Tile>
+  );
+}
+
+/** The same card for Settings: always there, with no close button */
+export function InstallTile({ className }) {
+  const pwa = usePwa();
+  return (
+    <Tile title="Get the Orb app" icon={Download} className={className}>
+      <InstallBody pwa={pwa} />
     </Tile>
   );
 }

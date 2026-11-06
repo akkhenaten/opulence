@@ -75,7 +75,7 @@ export default function Dashboard() {
 
   return (
     <Page backLabel="Dashboard" title={`${greet}${first ? `, ${first}` : ''}`} subtitle={summaryLine(tab === 'everyday' ? null : q.data, isCompany)} wide photo="door" slim actions={everyday || undefined}>
-      {tab !== 'everyday' && <InstallCard className="mb-4" />}
+      {tab !== 'everyday' && <InstallCard className="mb-4" later={isCompany ? "Settings" : "My account"} />}
       {tab === 'everyday' ? <FeedBody lead={<Button size="sm" variant="ghost" icon={ChevronLeft} onClick={() => setSp({}, { replace: true })}>Overview</Button>} /> : <Load q={q}>{(d) => <Body d={d} base={base} isCompany={isCompany} />}</Load>}
     </Page>
   );

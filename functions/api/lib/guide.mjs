@@ -15,7 +15,9 @@ export const CHAPTERS = [
         id: 'why', title: 'Why install it',
         body: `{company} runs in the browser, but installing it puts an icon on your home screen. It then opens full screen like any other app, starts faster, and can send phone notifications for shifts, alerts and messages.
 
-You only need to do this once on each phone or computer. You stay signed in.`,
+You only need to do this once on each phone or computer. You stay signed in.
+
+Closed the Get the Orb app card on your Dashboard? Company managers find it in Settings, Company details; officers under Me; everyone else under My account, Install the app.`,
       },
       {
         id: 'android', title: 'Android phones and computers (Chrome or Edge)', image: 'install-card.png',

@@ -41,7 +41,7 @@ export default function Home() {
   return (
     <Page key="home" backLabel="Home" title={`${greeting()}${first ? `, ${first}` : ''}`} subtitle={dayLabel(new Date())} photo="street">
       {pull}
-      <InstallCard className="mb-4" />
+      <InstallCard className="mb-4" later="Me" />
       <Load q={dash} skeleton="tiles">
         {(d) => (d.linked === false ? <NotLinked /> : <Body d={d} clock={clock} ops={ops} reload={reloadAll} />)}
       </Load>

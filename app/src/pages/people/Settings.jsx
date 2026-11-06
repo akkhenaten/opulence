@@ -14,6 +14,7 @@ import { previewStyle, restoreStyle, styleVars } from '../../ui/style.js';
 import { TemplatesTab } from './_esign.jsx';
 import LibraryTab from './contracts/Library.jsx';
 import { EmailTab } from '../email/_settings.jsx';
+import { InstallTile } from '../../ui/pwa.jsx';
 import { AccessFields, InviteSheet, USER_ROLES } from './_access.jsx';
 
 const TABS = [
@@ -55,7 +56,7 @@ const RULE_KEYS = ['pay_period', 'rounding_minutes', 'grace_minutes', 'auto_sign
 
 function CompanyTab() {
   const q = useApi('settings.get');
-  return <Load q={q}>{(s) => <><BrandingTile s={s} onSaved={(d) => q.setData(d)} /><AppStyleTile s={s} onSaved={(d) => q.setData(d)} /><ModulesTile s={s} onSaved={(d) => q.setData(d)} />{s.modules?.everyday !== false && <EverydayTile s={s} onSaved={(d) => q.setData(d)} />}<SettingsForm s={s} keys={COMPANY_KEYS} onSaved={(d) => q.setData(d)}>{(b) => <CompanyFields b={b} />}</SettingsForm></>}</Load>;
+  return <Load q={q}>{(s) => <><InstallTile className="mb-4" /><BrandingTile s={s} onSaved={(d) => q.setData(d)} /><AppStyleTile s={s} onSaved={(d) => q.setData(d)} /><ModulesTile s={s} onSaved={(d) => q.setData(d)} />{s.modules?.everyday !== false && <EverydayTile s={s} onSaved={(d) => q.setData(d)} />}<SettingsForm s={s} keys={COMPANY_KEYS} onSaved={(d) => q.setData(d)}>{(b) => <CompanyFields b={b} />}</SettingsForm></>}</Load>;
 }
 
 const DEFAULT_COLOR = '#C9A45C';

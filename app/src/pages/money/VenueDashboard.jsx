@@ -51,7 +51,7 @@ function Body({ d, name }) {
         { label: 'Give feedback', icon: MessageSquareHeart, onClick: () => setGive(true) },
         { label: 'Request cover', icon: Plus, variant: 'primary', main: true, to: '/venue/cover' },
       ]}>
-      <InstallCard className="mb-4" />
+      <InstallCard className="mb-4" later="My account" />
       <RateStaffSheet open={rate} onClose={() => setRate(false)} />
       <GiveFeedbackSheet open={give} onClose={() => setGive(false)} />
       <Bento>
