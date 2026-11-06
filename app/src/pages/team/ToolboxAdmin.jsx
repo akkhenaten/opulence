@@ -71,14 +71,17 @@ function GuideLevel() {
   const level = s.data?.emergency_guide || 'platform';
   const set = (v) => run(async () => { await api('toolbox.setEmergencyGuide', { level: v }); s.setData((d) => ({ ...d, emergency_guide: v })); }, 'Saved').catch(() => {});
   const setLicensed = (v) => run(async () => { await api('toolbox.setFlowLicensed', { licensed: v }); s.setData((d) => ({ ...d, flow_licensed: v })); }, 'Saved').catch(() => {});
+  const setLive = (v) => run(async () => { await api('toolbox.setFlowLive', { live: v }); s.setData((d) => ({ ...d, flow_live: v })); }, 'Saved').catch(() => {});
   return (
     <div className="mb-4 rounded-2xl border border-line bg-surface p-4">
       <div className="font-semibold">Emergency guide — who can see it</div>
       <p className="mb-3 text-footnote text-muted">The wording is not clinically approved yet. Everyone means officers and venue users too.</p>
       <Segmented value={level} onChange={(v) => !busy && v !== level && set(v)} options={LEVELS} />
-      <div className="mt-3 border-t border-line pt-3">
-        <Toggle checked={!!s.data?.flow_licensed} onChange={(v) => !busy && setLicensed(v)} label="Flowchart: ProtectUK and citizenAID permission received"
-          hint="The flowchart quotes both word for word. Until this is on, only you can open it, whatever is chosen above." />
+      <div className="mt-3 space-y-3 border-t border-line pt-3">
+        <Toggle checked={s.data?.flow_live !== false} onChange={(v) => !busy && setLive(v)} label="Emergency flowchart live"
+          hint="On: everyone sees it on every shift card and in the Toolbox. Off: only you can open it. Separate from the guide setting above." />
+        <Toggle checked={!!s.data?.flow_licensed} onChange={(v) => !busy && setLicensed(v)} label="ProtectUK and citizenAID permission received"
+          hint="A record only: the flowchart quotes both word for word and went live before their written permission arrived." />
       </div>
     </div>
   );

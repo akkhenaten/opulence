@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency flowchart: on every shift card', image: 'emergency-flowchart-live',
+    lede: "The text-only Emergency flowchart is now live for everyone. A red Emergency flowchart button sits at the top of every shift card, for officers, managers and venue users, and it's in the Toolbox too. One tap takes you to the situation, and Leave brings you back to the shift.",
+    points: ['A red button at the top of every shift card', 'Knife, firearms, vehicle, explosion, items, bomb threats and injuries', "I'm in danger and Call 999 always on screen; it never dials for you", 'Word for word from ProtectUK and citizenAID', 'The platform admin can take it offline with one switch in Toolbox'],
+  },
+  {
     month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency guide: a text-only flowchart to compare', image: 'emergency-flowchart',
     lede: "Beside the illustrated Emergency guide there is now a text-only flowchart, quoted word for word from the police's ProtectUK advice and citizenAID first aid. Each answer stays on screen as a trail, so you can see the whole path and tap any step to go back. A map view lays out every card on one page for review and printing.",
     points: ['Nine situations, including a bomb threat by phone, in person, in writing or online', 'Every line quoted word for word, with its source; Orb notes kept apart', "I'm in danger jumps to the safety card for your situation", 'A full map for reviewers, printable as an outline', 'Platform admin only until ProtectUK and citizenAID give permission'],

@@ -6,5 +6,6 @@ const OPEN = { platform: [], managers: ['company', 'security'], everyone: ['comp
 
 export const canSeeGuide = (user, level = 'platform') => isPlatformAdmin(user) || (OPEN[level] || []).includes(user?.role);
 
-// The flowchart quotes ProtectUK and citizenAID verbatim; without both permissions recorded it stays platform admin only, whatever the guide level
-export const canSeeFlow = (user, level = 'platform', licensed = false) => canSeeGuide(user, licensed ? level : 'platform');
+// The flowchart (ProtectUK and citizenAID verbatim) is live for every signed-in user on every shift card, unless the platform admin takes it offline.
+// The owner chose to go live before both permissions were in (6 Nov 2026); flow_licensed only records when they arrive.
+export const canSeeFlow = (user, live = true) => isPlatformAdmin(user) || (!!live && !!user);

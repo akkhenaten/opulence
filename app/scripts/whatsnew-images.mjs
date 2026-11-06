@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'emergency-flowchart-live': 'A security officer at night by a venue entrance holding a phone that shows a shift card with one bold red button at the top, warm gold door lights behind, dark navy sky, calm and ready.',
   'emergency-flowchart': 'A phone on a dark navy desk showing a clean flowchart of plain text cards joined by thin gold arrows, one card highlighted, a trail of earlier answers above it, soft gold light, no pictures on the cards.',
   'emergency-injuries': 'A phone on a dark surface showing a calm step-by-step first aid guide with large buttons, beside an open first aid kit with bandages and gloves, an ambulance light glowing softly blue in the distance, gold accents.',
   'emergency-protectuk': 'A security officer seen from behind at night calmly guiding people back from a taped-off area around a small abandoned bag far in the distance, a phone in their hand showing a simple checklist, soft blue and gold light.',

@@ -29,15 +29,11 @@ test('only the platform admin can change who sees the guide', async () => {
   await assert.rejects(() => a.fn({ level: 'nobody' }, { user: admin }), (e) => e.status === 400);
 });
 
-test('the flowchart stays platform admin only until both permissions are recorded', () => {
-  for (const level of GUIDE_LEVELS) {
-    assert.ok(canSeeFlow(admin, level, false));
-    for (const u of [boss, sec, officer, venue]) assert.equal(canSeeFlow(u, level, false), false);
-  }
-  assert.ok(canSeeFlow(boss, 'managers', true) && canSeeFlow(sec, 'managers', true));
-  assert.equal(canSeeFlow(officer, 'managers', true), false);
-  assert.ok(canSeeFlow(officer, 'everyone', true) && canSeeFlow(venue, 'everyone', true));
-  assert.equal(canSeeFlow(boss, 'platform', true), false);
+test('the flowchart is live for everyone unless the platform admin takes it offline', () => {
+  for (const u of [admin, boss, sec, officer, venue]) assert.ok(canSeeFlow(u, true));
+  assert.ok(canSeeFlow(admin, false));
+  for (const u of [boss, sec, officer, venue]) assert.equal(canSeeFlow(u, false), false);
+  assert.equal(canSeeFlow(null, true), false);
 });
 
 test('only the platform admin can record the flowchart permissions', async () => {
@@ -46,4 +42,12 @@ test('only the platform admin can record the flowchart permissions', async () =>
   await assert.rejects(() => a.fn({ licensed: true }, { user: boss }), (e) => e.status === 403);
   await assert.rejects(() => a.fn({ licensed: true }, { user: sec }), (e) => e.status === 403);
   await assert.rejects(() => a.fn({ licensed: 'yes' }, { user: admin }), (e) => e.status === 400);
+});
+
+test('only the platform admin can take the flowchart offline', async () => {
+  const a = ACTIONS['toolbox.setFlowLive'];
+  assert.ok(a);
+  await assert.rejects(() => a.fn({ live: false }, { user: boss }), (e) => e.status === 403);
+  await assert.rejects(() => a.fn({ live: false }, { user: officer }), (e) => e.status === 403);
+  await assert.rejects(() => a.fn({ live: 'no' }, { user: admin }), (e) => e.status === 400);
 });

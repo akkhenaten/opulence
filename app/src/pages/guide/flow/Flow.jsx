@@ -8,7 +8,7 @@ import { SOURCES } from './sources.js';
 
 // The Emergency flowchart: text-only cards quoting ProtectUK (citizenAID for first aid) word for word, beside the illustrated guide
 // so the owner can compare. Each answer stays on screen as a trail step; tapping a step goes back to it.
-// Platform admin only until ProtectUK and citizenAID give permission (settings flow_visible). Nothing here ever dials.
+// Live for everyone on every shift card unless the platform admin takes it offline (settings flow_visible). Nothing here ever dials.
 const KEY = 'orb.flow';
 const fresh = () => ({ trail: [], at: START, interruptions: 0, firstCall: null, from: null });
 const load = () => { try { return { ...fresh(), ...JSON.parse(sessionStorage.getItem(KEY) || '{}') }; } catch { return fresh(); } };

@@ -17,6 +17,7 @@ import {
 import { BanList, BanSheet, isEjection } from './_bans.jsx';
 import { SitePackCard } from '../officer/VenuePack.jsx';
 import { GiveFeedbackSheet } from '../venue/_feedback.jsx';
+import FlowEntry from '../guide/flow/Entry.jsx';
 
 const KINDS = [
   { value: 'note', label: 'Note' },
@@ -116,6 +117,7 @@ export function ShiftPanel({ id }) {
 function Body({ d, reload, role, live, preview }) {
   const { shift: s, me, team, log } = d;
   const [banning, setBanning] = useState(false);
+  const loc = useLocation();
   // "Add handover note" sets the composer to handover and moves to it
   const composer = useRef(null);
   const venue = me.access === 'venue';
@@ -132,6 +134,8 @@ function Body({ d, reload, role, live, preview }) {
     <div className="@container"><div className="grid grid-cols-1 gap-5 @4xl:grid-cols-[minmax(0,1fr)_380px] @4xl:items-start">
       <div className="space-y-5">
         <Header s={s} me={me} officer={officer} signed={signed} live={live} phone={d.office_phone} />
+        {/* The Emergency flowchart on every shift card, for everyone who can open it; Leave comes back here */}
+        <FlowEntry shift from={loc.pathname + loc.search} />
         {officer && <PinnedInstructions d={d} reload={reload} />}
         {officer && <QuickActions s={s} d={d} onBan={me.can_write && !signed ? () => setBanning(true) : null} />}
         {manager && <ManagerActions s={s} d={d} role={role} />}

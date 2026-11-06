@@ -27,7 +27,7 @@ export const actions = {
   'settings.get': def(ALL, async (_b, { user }) => {
     const s = await getSettings();
     const emergency_visible = canSeeGuide(user, s.emergency_guide);
-    const flow_visible = canSeeFlow(user, s.emergency_guide, s.flow_licensed);
+    const flow_visible = canSeeFlow(user, s.flow_live);
     if (user.role === 'company') return { ...forClient(s), emergency_visible, flow_visible };
     return { company_name: s.company_name, grace_minutes: s.grace_minutes, pay_period: s.pay_period, modules: s.modules, logo_url: s.logo_url, brand_color: s.brand_color, ui_style: s.ui_style, everyday: s.everyday, emergency_visible, flow_visible };
   }),

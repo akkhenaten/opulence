@@ -177,4 +177,10 @@ export const actions = {
     await audit(user, 'emergency_flow.licensed', 'settings', 1, { licensed: b.licensed });
     return { flow_licensed: b.licensed };
   }),
+  'toolbox.setFlowLive': plat(async (b, { user }) => {
+    if (typeof b.live !== 'boolean') fail(400, 'Say whether the flowchart is live');
+    await q('UPDATE settings SET flow_live = $1 WHERE id = 1', [b.live]);
+    await audit(user, 'emergency_flow.live', 'settings', 1, { live: b.live });
+    return { flow_live: b.live };
+  }),
 };
