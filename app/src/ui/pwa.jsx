@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { Download, Share, SquarePlus, WifiOff, X } from 'lucide-react';
+import { Download, Share, RefreshCw, SquarePlus, WifiOff, X } from 'lucide-react';
 import { Button, IconButton, Sheet, Tile, useToast } from './index.jsx';
 
 // Installing the app on a phone or computer (PWA), offline state and "new version" prompt.
@@ -117,12 +117,20 @@ export function OfflineBanner() {
   );
 }
 
-/** "New version available" toast after a release, when a new service worker takes over an open app */
-export function useUpdateToast() {
-  const toast = useToast();
+/** Banner under the top bar once a newer release is out, so an open tab doesn't stay on the old app */
+export function UpdateBanner() {
+  const [ready, setReady] = useState(false);
   useEffect(() => {
-    const show = () => toast('A new version of Orb is available', 'info', { action: { label: 'Refresh', onClick: () => window.location.reload() }, duration: 60000 });
+    const show = () => setReady(true);
     window.addEventListener('orb:update', show);
     return () => window.removeEventListener('orb:update', show);
-  }, [toast]);
+  }, []);
+  if (!ready) return null;
+  return (
+    <div role="status" className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-20 flex items-center justify-center gap-2 bg-blue py-1.5 text-center text-footnote font-semibold text-white [--px:1rem] safe-x">
+      <RefreshCw size={16} className="shrink-0" /> A new version of the app is ready.
+      <Button size="sm" variant="secondary" onClick={() => window.location.reload()}>Reload</Button>
+      <IconButton icon={X} label="Dismiss" className="text-white hover:bg-white/15" onClick={() => setReady(false)} />
+    </div>
+  );
 }

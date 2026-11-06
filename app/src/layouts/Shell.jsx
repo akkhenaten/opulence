@@ -11,7 +11,7 @@ import { AccountSheet } from './AccountSheet.jsx';
 import AskOrb from '../ui/AskOrb.jsx';
 import OrbFab from '../ui/OrbFab.jsx';
 import { WhatsNewSplash } from '../pages/people/_whatsnew.jsx';
-import { OfflineBanner, useUpdateToast } from '../ui/pwa.jsx';
+import { OfflineBanner, UpdateBanner } from '../ui/pwa.jsx';
 import { AppFeedbackSheet, FeedbackChip, FeedbackIcon } from '../ui/AppFeedback.jsx';
 
 // The Opulence horse and the company name in Playfair.
@@ -229,7 +229,6 @@ export default function Shell() {
   const isOfficer = user.role === 'officer';
   useEffect(() => { setMore(false); setAccount(false); }, [loc.pathname]);
   useScrollMemory();
-  useUpdateToast();
   const header = usePageHeader();
   // Black top bar on phones and for officers; managers on desktop keep the light see-through bar
   const narrow = useNarrow();
@@ -323,6 +322,7 @@ export default function Shell() {
           </div>
         </header>
         <OfflineBanner />
+        <UpdateBanner />
         <main className={cx(isOfficer && 'mx-auto max-w-2xl')}>
           <Suspense fallback={<SkeletonPage />}>
             <div key={loc.pathname} className={pageAnim}><Outlet /></div>

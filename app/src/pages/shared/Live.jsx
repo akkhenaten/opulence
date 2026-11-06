@@ -127,6 +127,7 @@ function Board({ rows, filter, setFilter, onOpen, base, venue, narrow }) {
       if (!m.has(r.venue_id)) m.set(r.venue_id, { name: r.venue_name, rows: [] });
       m.get(r.venue_id).rows.push(r);
     }
+    for (const g of m.values()) g.shifts = [...new Map(g.rows.filter((r) => r.shift_id).map((r) => [r.shift_id, r])).values()];
     return [...m.entries()];
   }, [shown]);
 
@@ -151,7 +152,15 @@ function Board({ rows, filter, setFilter, onOpen, base, venue, narrow }) {
         {groups.map(([id, g]) => {
           const on = g.rows.filter((r) => ON.includes(r.state)).length;
           return (
-            <Section key={id} title={g.name} action={<span className="num text-footnote font-semibold text-muted">{on} on site</span>}>
+            <Section key={id} title={g.name} action={
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                {base !== '/venue' && g.shifts.map((r) => (
+                  <Button key={r.shift_id} size="sm" variant="soft" icon={ClipboardList} to={`${base}/shifts/${r.shift_id}`} state={{ from: 'live' }}>
+                    Shift card{g.shifts.length > 1 && <span className="num">&nbsp;{range(r.starts_at, r.ends_at)}</span>}
+                  </Button>
+                ))}
+                <span className="num text-footnote font-semibold text-muted">{on} on site</span>
+              </div>}>
               <List>
                 {g.rows.map((r) => (
                   <Row key={r.assignment_id}
@@ -193,6 +202,7 @@ function Detail({ row, onClose, onDone, base }) {
       {manual ? <ManualForm row={row} onCancel={() => setManual(false)} onDone={onDone} /> : (
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2"><Pill status={row.state} /><PackPill r={row} />{row.has_exception && <Pill tone="red">Exception</Pill>}</div>
+          {base !== '/venue' && row.shift_id && <Button className="w-full" to={`${base}/shifts/${row.shift_id}`} state={{ from: 'live' }} icon={ClipboardList}>Open shift card</Button>}
           <KV items={[
             ['Venue', row.venue_name], ['Shift', <span className="num">{range(row.starts_at, row.ends_at)}</span>], ['Role', row.role_name],
             ['SIA', row.sia_number], ['Phone', row.phone], ['Clocked in', row.clocked_in && <span className="num">{time(row.clocked_in)}</span>],
@@ -219,7 +229,6 @@ function Detail({ row, onClose, onDone, base }) {
               {row.selfie_url && <div className="mt-3"><SelfieCompare e={{ ...inEv, selfie_url: row.selfie_url, profile_photo_url: row.photo_url, officer_name: row.officer_name }} /></div>}
             </div>
           )}
-          {base !== '/venue' && row.shift_id && <Button to={`${base}/shifts/${row.shift_id}`} state={{ from: 'live' }} icon={ClipboardList}>Open shift card</Button>}
           {row.has_exception && <Button variant="secondary" to={`${base}/exceptions`} icon={TriangleAlert}>Review exception</Button>}
           {row.pack !== 'none' && <Button variant="secondary" to={`${base}/venues/${row.venue_id}?tab=pack`} icon={FileSignature}>Open site pack</Button>}
         </div>

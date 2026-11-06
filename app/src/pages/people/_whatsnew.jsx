@@ -1,6 +1,6 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  ArrowRightLeft, BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, FilePen, FileSignature, Fingerprint, Globe, GraduationCap, LayoutGrid, MessageSquareHeart,
+  ArrowRightLeft, BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, GraduationCap, LayoutGrid, MessageSquareHeart,
   Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Radar, ShieldAlert, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -9,6 +9,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-06', icon: ClipboardList, title: 'Shift cards on the Live board',
+    lede: 'Every venue on Live now has a Shift card button next to its name, and Open shift card is the first button when you tap an officer. When a new version of the app is out, a bar under the top bar offers Reload, so an open tab never stays on the old app.',
+    points: ['Shift card on every venue on Live', "Open shift card at the top of an officer's details", 'The app tells you when a new version is ready, with Reload'],
+  },
   {
     month: 'November 2026', date: '2026-11-06', icon: Megaphone, title: 'See the live shift card and send instructions',
     lede: 'From Live, tap an officer on shift and choose Open shift card. Switch to Officer\'s view to see their card exactly as they do, and send an instruction to the whole team or one officer: they get a notification, and it stays on top of their card until they tap Got it.',

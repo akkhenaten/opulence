@@ -323,3 +323,27 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) window.dispatchEvent(new Event('orb:update')); });
   navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' }).then((r) => r.update()).catch(() => {});
 }
+
+if (import.meta.env.PROD) {
+  // A release changes the entry script's hashed name: look now and then, and offer a reload once
+  const current = document.querySelector('script[type="module"][src*="/assets/index-"]')?.getAttribute('src')?.match(/index-[\w-]+\.js/)?.[0];
+  let told = false;
+  const check = async () => {
+    if (told || !current || document.hidden) return;
+    try {
+      const html = await (await fetch(import.meta.env.BASE_URL, { cache: 'no-store' })).text();
+      const latest = html.match(/assets\/(index-[\w-]+\.js)/)?.[1];
+      if (latest && latest !== current) { told = true; window.dispatchEvent(new Event('orb:update')); }
+    } catch { /* offline: try again later */ }
+  };
+  setInterval(check, 5 * 60000);
+  document.addEventListener('visibilitychange', check);
+  // A stale tab opening a page whose old file is gone after a release: reload once onto the new build
+  window.addEventListener('vite:preloadError', (e) => {
+    if (sessionStorage.getItem('orb.reloaded')) return;
+    sessionStorage.setItem('orb.reloaded', '1');
+    e.preventDefault();
+    window.location.reload();
+  });
+  setTimeout(() => sessionStorage.removeItem('orb.reloaded'), 10000);
+}
