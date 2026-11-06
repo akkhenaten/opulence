@@ -12,6 +12,7 @@ import { ALL, MGR, def } from './_def.mjs';
 import { activeBans, shiftEjections } from './bans.mjs';
 import { officerName, userName } from '../lib/names.mjs';
 import { getSettings } from './settings.mjs';
+import { canSendInstruction, recipients, visibleEntries } from '../lib/instructions.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const KINDS = ['note', 'handover', 'incident', 'ban', 'ejection'];
@@ -95,6 +96,19 @@ async function entries(shiftId, { keptOnly = false } = {}) {
   return Promise.all(rows.map(async ({ author_photo, ...e }) => ({ ...e, author_photo_url: await downloadUrl(author_photo), photos: await signFiles(e.photos) })));
 }
 
+/** Who has tapped Got it on each instruction; managers see the names, an officer only whether they have. */
+async function withReads(list, ax, userId) {
+  const ins = list.filter((e) => e.kind === 'instruction').map((e) => e.id);
+  if (!ins.length) return list;
+  const reads = await q(`SELECT r.entry_id, r.user_id, r.read_at, ${userName('u')} AS name FROM shift_instruction_reads r JOIN users u ON u.id = r.user_id
+     WHERE r.entry_id = ANY($1::uuid[]) ORDER BY r.read_at`, [ins]);
+  return list.map((e) => {
+    if (e.kind !== 'instruction') return e;
+    const mine = reads.filter((r) => r.entry_id === e.id);
+    return { ...e, read_by_me: mine.some((r) => r.user_id === userId), ...(ax.access === 'mgr' ? { reads: mine.map(({ entry_id, ...r }) => r) } : {}) };
+  });
+}
+
 async function ensureLog(shiftId, t = { q }) {
   await t.q('INSERT INTO shift_logs (shift_id) VALUES ($1) ON CONFLICT DO NOTHING', [shiftId]);
 }
@@ -136,15 +150,16 @@ export const actions = {
       shift: {
         id: sh.id, venue_id: sh.venue_id, venue_name: sh.venue_name, venue_address: sh.venue_address, postcode: sh.postcode, lat: sh.lat, lng: sh.lng,
         venue_phone: sh.venue_phone, instructions: sh.instructions, role: sh.role, role_name: sh.role_name, starts_at: sh.starts_at, ends_at: sh.ends_at,
-        break_minutes: sh.break_minutes, headcount: sh.headcount, notes: sh.notes, status: sh.status,
+        break_minutes: sh.break_minutes, headcount: sh.headcount, notes: sh.notes, notes_updated_at: sh.notes_updated_at, status: sh.status,
       },
       me: { access: ax.access, can_write: ax.canWrite && log.status === 'open' || ax.access === 'mgr', can_curate: canCurate(ax), assignment_id: ax.a?.id || null, assignment_status: ax.a?.status || null, is_lead: !!ax.a?.is_lead, clock,
+        can_instruct: ax.access === 'mgr' && canSendInstruction(sh),
         can_count: canCount({ access: ax.access, endsAt: sh.ends_at, clockedIn: clock.some((c) => c.kind === 'in' && ['ok', 'approved', 'manual'].includes(c.status)) }) },
       team: await Promise.all(team.map(async ({ photo_key, phone, roles, user_id, ...m }) => ({
         ...m, ...(await photoUrls(photo_key)), head_door: (roles || []).includes('head_door'), ...(venue ? {} : { phone, user_id }),
       }))),
       log,
-      entries: showEntries ? await entries(sh.id, { keptOnly: venue }) : [],
+      entries: showEntries ? await withReads(visibleEntries(await entries(sh.id, { keptOnly: venue }), ax.access, user.id), ax, user.id) : [],
       previous_handover: prev,
       bans: await activeBans(sh.venue_id, { withProposed: ax.access !== 'venue' }),
       ejections: await shiftEjections(sh.id),
@@ -193,6 +208,37 @@ export const actions = {
       [b.shift_id, user.id, kind, body, JSON.stringify(photos)]);
     await audit(user, 'shiftlog.add', 'shift', b.shift_id, { entry_id: e.id, kind });
     return e;
+  }),
+
+  /** A manager's instruction to the whole team on the shift or to one officer: a push, and pinned on their card until Got it. */
+  'shiftlog.instruct': def(MGR, async (b, { user }) => {
+    required(b, 'shift_id', 'body');
+    const ax = await shiftAccess(user, b.shift_id);
+    if (!canSendInstruction(ax.sh)) fail(400, 'Instructions can be sent from two hours before the shift until it ends');
+    const body = String(b.body).trim().slice(0, 500);
+    if (!body) fail(400, 'Write the instruction');
+    const team = await q(`SELECT o.user_id FROM shift_assignments a JOIN officers o ON o.id = a.officer_id WHERE a.shift_id = $1 AND a.status IN ${ACTIVE} AND o.user_id IS NOT NULL`, [ax.sh.id]);
+    const to = b.to_user_id || null;
+    if (to && !team.some((m) => m.user_id === to)) fail(400, 'That person is not on this shift');
+    const ids = recipients({ to_user_id: to }, team);
+    if (!ids.length) fail(400, 'Nobody on this shift can receive instructions yet');
+    await ensureLog(ax.sh.id);
+    const e = await one("INSERT INTO shift_log_entries (shift_id, author_user_id, kind, body, to_user_id) VALUES ($1,$2,'instruction',$3,$4) RETURNING *",
+      [ax.sh.id, user.id, body, to]);
+    await notify(ids, { kind: 'shift', severity: 'warning', title: 'From your manager', body: body.slice(0, 160), link: `/officer/shifts/${ax.sh.id}`, dedupe: `instr:${e.id}` });
+    await audit(user, 'shiftlog.instruct', 'shift', ax.sh.id, { entry_id: e.id, to: to || 'team', recipients: ids.length });
+    return { ...e, recipients: ids.length };
+  }),
+
+  /** The officer's Got it on an instruction sent to them. */
+  'shiftlog.ack': def(['officer'], async (b, { user }) => {
+    required(b, 'id');
+    const { e, ax } = await loadEntry(user, b.id);
+    if (e.kind !== 'instruction') fail(400, 'That is not an instruction');
+    if (e.to_user_id && e.to_user_id !== user.id) fail(403, 'This instruction was not sent to you');
+    await q('INSERT INTO shift_instruction_reads (entry_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [e.id, user.id]);
+    await audit(user, 'shiftlog.ack', 'shift', ax.sh.id, { entry_id: e.id });
+    return { ok: true };
   }),
 
   'shiftlog.update': def(['officer', 'company', 'security'], async (b, { user }) => {
@@ -268,7 +314,7 @@ export const actions = {
     if (b.venue_id) await assertVenue(user, b.venue_id);
     return q(
       `SELECT s.id AS shift_id, s.venue_id, v.name AS venue_name, s.starts_at, s.ends_at, r.name AS role_name, l.status, l.handover_summary, l.customers, l.signed_at, ${userName('u')} AS signed_by_name,
-              (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept')::int AS entries,
+              (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept' AND NOT ($6::boolean AND e.kind = 'instruction'))::int AS entries,
               (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept' AND e.kind = 'incident')::int AS incidents,
               (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept' AND e.kind = 'ban')::int AS bans,
               (SELECT count(*) FROM shift_log_entries e WHERE e.shift_id = s.id AND e.state = 'kept' AND e.kind = 'ejection')::int AS ejections
@@ -276,6 +322,6 @@ export const actions = {
         WHERE ($1::uuid[] IS NULL OR s.venue_id = ANY($1)) AND ($2::uuid IS NULL OR s.venue_id = $2)
           AND ($3::text = 'all' OR l.status = 'signed') AND ($4::timestamptz IS NULL OR s.starts_at >= $4) AND ($5::timestamptz IS NULL OR s.starts_at < $5)
         ORDER BY s.starts_at DESC LIMIT 200`,
-      [scope, b.venue_id || null, user.role === 'venue' ? 'signed' : (b.status || 'all'), b.from || null, b.to || null]);
+      [scope, b.venue_id || null, user.role === 'venue' ? 'signed' : (b.status || 'all'), b.from || null, b.to || null, user.role === 'venue']);
   }),
 };

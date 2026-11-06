@@ -1,16 +1,17 @@
 // One shift, for everyone on it: details, team, last handover, bans, the shift log and sign-off.
 // Officers open it at /officer/shifts/:id, managers at /<role>/shifts/:id, the venue at /venue/logs/:id (signed logs only).
+// Managers can switch to the officer's view, and send instructions that pin on the officer's card until they tap Got it.
 import { useImperativeHandle, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowRightLeft, Ban, BookOpen, Camera, Check, Clock3, Crown, DoorOpen, EyeOff, FilePen, FileSignature, HeartPulse, Hammer, LockOpen, MapPin,
+  ArrowRightLeft, Ban, BookOpen, Camera, Check, Clock3, Crown, DoorOpen, EyeOff, FilePen, FileSignature, HeartPulse, Hammer, LockOpen, MapPin, Megaphone,
   MessagesSquare, Pencil, Phone, Plus, MessageSquareHeart, Scale, ShieldAlert, ShoppingBag, Undo2, Users, X,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { clockOpensAt, compressImage, DeclineSheet } from '../officer/_parts.jsx';
 import {
-  Avatar, Button, cx, dateTime, dayLabel, Empty, IconButton, Input, Lightbox, Load, Page, Pill, range, relative, Section, Segmented, Sheet, Textarea, time,
+  Avatar, Button, cx, dateTime, dayLabel, Empty, IconButton, Input, Lightbox, Load, Page, Pill, range, relative, Section, Segmented, Select, Sheet, Textarea, time,
   useAction, useApi, useConfirm, Pressable,
 } from '../../ui/index.jsx';
 import { BanList, BanSheet, isEjection } from './_bans.jsx';
@@ -27,7 +28,11 @@ const KIND = {
   incident: { label: 'Incident', tone: 'red' },
   ban: { label: 'Ban', tone: 'red' },
   ejection: { label: 'Ejection', tone: 'amber' },
+  instruction: { label: 'Instruction', tone: 'amber' },
 };
+const VIEWS = [{ value: 'mgr', label: 'Manager view' }, { value: 'officer', label: "Officer's view" }];
+// Instructions sent to this person (or to everyone) that are still waiting for Got it
+const unreadFor = (d) => d.entries.filter((e) => e.kind === 'instruction' && e.state === 'kept' && !e.read_by_me && new Date(d.shift.ends_at) > new Date()).reverse();
 // One tap starts a report of that type (IncidentForm reads ?type=)
 const REPORTS = [
   { type: 'ejection', label: 'Ejection / refused entry', icon: DoorOpen, tone: 'bg-amber-soft text-amber' },
@@ -45,13 +50,59 @@ const TOOLBOX = [
 export default function ShiftView() {
   const { id } = useParams();
   const { user } = useAuth();
+  const loc = useLocation();
   const q = useApi('shifts.detail', { id }, { poll: 30000 });
+  const mgr = user.role !== 'officer' && user.role !== 'venue';
   const back = user.role === 'officer' ? { to: '/officer/shifts', label: 'Shifts' }
-    : user.role === 'venue' ? { to: '/venue/logs', label: 'Shift logs' } : { to: `/${user.role}/rota`, label: 'Rota' };
+    : user.role === 'venue' ? { to: '/venue/logs', label: 'Shift logs' }
+      : loc.state?.from === 'live' ? { to: `/${user.role}/live`, label: 'Live' } : { to: `/${user.role}/rota`, label: 'Rota' };
   return (
     <Page backLabel="Shift" title={q.data?.shift.venue_name || 'Shift'} subtitle={q.data ? <>{dayLabel(q.data.shift.starts_at)} · <span className="num">{range(q.data.shift.starts_at, q.data.shift.ends_at)}</span></> : null} back={back}>
-      <Load q={q} skeleton="rows">{(d) => <Body d={d} reload={q.reload} role={user.role} />}</Load>
+      <Load q={q} skeleton="rows">{(d) => (mgr && d.me.access === 'mgr' ? <ManagerShift d={d} reload={q.reload} role={user.role} /> : <Body d={d} reload={q.reload} role={user.role} />)}</Load>
     </Page>
+  );
+}
+
+// The manager's page, or the same card exactly as one officer on the shift sees it (look only, nothing can be pressed)
+function ManagerShift({ d, reload, role }) {
+  const [view, setView] = useState('mgr');
+  const people = d.team.filter((m) => m.user_id);
+  const [who, setWho] = useState(null);
+  const m = people.find((x) => x.user_id === who) || people[0];
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Segmented value={view} onChange={setView} options={VIEWS} />
+        {view === 'officer' && people.length > 1 && <Segmented value={m.user_id} onChange={setWho} options={people.map((x) => ({ value: x.user_id, label: x.name }))} />}
+      </div>
+      {view === 'mgr' ? <Body d={d} reload={reload} role={role} />
+        : !m ? <Empty icon={Users} title="Nobody to show" body="No one on this shift has the app yet." />
+          : <OfficerPreview d={d} m={m} />}
+    </div>
+  );
+}
+
+function OfficerPreview({ d, m }) {
+  const pd = {
+    ...d,
+    me: {
+      ...d.me, access: m.is_lead ? 'lead' : 'officer', can_write: true, can_curate: m.is_lead, can_count: false, can_instruct: false, is_lead: m.is_lead,
+      assignment_id: m.assignment_id, assignment_status: m.status,
+      clock: [m.clocked_in && { kind: 'in', ts: m.clocked_in, status: 'ok' }, m.clocked_out && { kind: 'out', ts: m.clocked_out, status: 'ok' }].filter(Boolean),
+    },
+    entries: d.entries.filter((e) => e.kind !== 'instruction' || !e.to_user_id || e.to_user_id === m.user_id)
+      .map((e) => (e.kind === 'instruction' ? { ...e, read_by_me: (e.reads || []).some((r) => r.user_id === m.user_id) } : e)),
+  };
+  const onShift = !!m.clocked_in && !m.clocked_out;
+  return (
+    <div className="space-y-4">
+      <div className="rounded-tile bg-blue-soft p-3 text-subhead text-blue">
+        <span className="font-semibold">This is what {m.name} sees.</span> {onShift ? 'They are clocked in, so this is their Home.' : m.clocked_out ? 'They have clocked out.' : 'Not started yet: they have not clocked in.'} Nothing here can be pressed.
+      </div>
+      <div inert="" className="pointer-events-none select-none" aria-hidden="true">
+        <Body d={pd} reload={() => {}} role="officer" live={onShift} preview />
+      </div>
+    </div>
   );
 }
 
@@ -62,13 +113,14 @@ export function ShiftPanel({ id }) {
   return <Load q={q} skeleton="rows">{(d) => <Body d={d} reload={q.reload} role={user.role} live />}</Load>;
 }
 
-function Body({ d, reload, role, live }) {
+function Body({ d, reload, role, live, preview }) {
   const { shift: s, me, team, log } = d;
   const [banning, setBanning] = useState(false);
   // "Add handover note" sets the composer to handover and moves to it
   const composer = useRef(null);
   const venue = me.access === 'venue';
   const officer = role === 'officer';
+  const manager = me.access === 'mgr';
   const signed = log.status === 'signed';
   const started = new Date(s.starts_at) <= new Date();
   const proposed = d.bans.filter((b) => b.status === 'proposed');
@@ -80,11 +132,16 @@ function Body({ d, reload, role, live }) {
     <div className="@container"><div className="grid grid-cols-1 gap-5 @4xl:grid-cols-[minmax(0,1fr)_380px] @4xl:items-start">
       <div className="space-y-5">
         <Header s={s} me={me} officer={officer} signed={signed} live={live} phone={d.office_phone} />
+        {officer && <PinnedInstructions d={d} reload={reload} />}
         {officer && <QuickActions s={s} d={d} onBan={me.can_write && !signed ? () => setBanning(true) : null} />}
-        {officer && <ReportTiles s={s} />}
+        {manager && <ManagerActions s={s} d={d} role={role} />}
+        {manager && <InstructionsCard d={d} reload={reload} />}
+        {officer && <ReportTiles s={s} preview={preview} />}
         {venue && started && <VenueActions s={s} />}
         {!venue && <HandoverBlock d={d} onAdd={me.can_write && !signed ? () => composer.current?.handover() : null} />}
-        {officer && me.assignment_id && <SitePackCard venueId={s.venue_id} />}
+        {officer && me.assignment_id && (preview
+          ? <div className="flex items-center gap-3 rounded-tile bg-surface p-4 shadow-tile"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><FileSignature size={20} /></span><span className="font-semibold">Site pack</span></div>
+          : <SitePackCard venueId={s.venue_id} />)}
         {started && (me.can_count || log.customers != null) && <CustomersCard d={d} reload={reload} />}
         <LogSection d={d} reload={reload} composer={composer} />
       </div>
@@ -153,6 +210,7 @@ function Header({ s, me, officer, signed, live: onShift, phone }) {
         <div className="mt-3 space-y-1.5 rounded-2xl bg-bg/70 p-3 text-subhead">
           {s.instructions && <p className="whitespace-pre-line">{s.instructions}</p>}
           {s.notes && <p className="whitespace-pre-line text-muted">{s.notes}</p>}
+          {s.notes && s.notes_updated_at && <p className="text-footnote font-semibold text-amber">Notes updated <span className="num">{time(s.notes_updated_at)}</span></p>}
         </div>
       )}
       {officer && !onShift && me.assignment_status === 'accepted' && (
@@ -195,9 +253,9 @@ function QuickActions({ s, d, onBan }) {
 }
 
 // Report types as tiles, always visible; they open an hour before the shift. A draft for this shift shows on top.
-function ReportTiles({ s }) {
+function ReportTiles({ s, preview }) {
   const w = reportWindow(s);
-  const drafts = useApi('incidents.drafts', {});
+  const drafts = useApi('incidents.drafts', {}, { skip: preview });
   const mine = (drafts.data || []).filter((x) => x.shift_id === s.id);
   return (
     <Section title="Report an incident" action={w !== 'open' && <span className="text-footnote text-muted">{w === 'early' ? 'Opens 1 hour before the shift' : 'Reporting closed after 30 days'}</span>}>
@@ -219,6 +277,93 @@ function ReportTiles({ s }) {
           </Button>
         ))}
       </div>
+    </Section>
+  );
+}
+
+// Instructions from a manager, pinned on top of the officer's card until they tap Got it
+function PinnedInstructions({ d, reload }) {
+  const [run, busy] = useAction();
+  const list = unreadFor(d);
+  if (!list.length) return null;
+  const ack = (id) => run(() => api('shiftlog.ack', { id })).then(reload).catch(() => {});
+  return (
+    <div className="space-y-2">
+      {list.map((e) => (
+        <div key={e.id} role="alert" className="rounded-tile border border-amber/40 bg-amber-soft p-4 shadow-tile">
+          <div className="flex items-center gap-2 text-caption font-semibold uppercase tracking-wide text-amber"><Megaphone size={16} />From your manager</div>
+          <p className="mt-1.5 whitespace-pre-line text-body font-semibold">{e.body}</p>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <span className="text-footnote text-muted">{e.author_name} · <span className="num">{time(e.created_at)}</span></span>
+            <Button size="sm" icon={Check} disabled={busy} onClick={() => ack(e.id)}>Got it</Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ManagerActions({ s, d, role }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {d.thread_id && <Button variant="secondary" icon={MessagesSquare} to={`/${role}/messages/${d.thread_id}`}>Shift chat</Button>}
+      <Button variant="secondary" icon={FileSignature} to={`/${role}/venues/${s.venue_id}?tab=pack`}>Site pack</Button>
+    </div>
+  );
+}
+
+// Send an instruction to the whole team or one officer, and see who has read each one
+function InstructionsCard({ d, reload }) {
+  const { me, team } = d;
+  const people = team.filter((m) => m.user_id);
+  const [text, setText] = useState('');
+  const [to, setTo] = useState('');
+  const [open, setOpen] = useState(null);
+  const [run, busy] = useAction();
+  const sent = d.entries.filter((e) => e.kind === 'instruction').reverse();
+  const send = () => run(() => api('shiftlog.instruct', { shift_id: d.shift.id, body: text.trim(), to_user_id: to || null }),
+    (r) => `Sent to ${r.recipients} officer${r.recipients === 1 ? '' : 's'}`).then(() => { setText(''); setTo(''); reload(); }).catch(() => {});
+  const nameOf = (id) => team.find((m) => m.user_id === id)?.name || 'one officer';
+  if (!me.can_instruct && !sent.length) return null;
+  return (
+    <Section title="Instructions">
+      {me.can_instruct ? (
+        <div className="rounded-tile bg-surface p-3 shadow-tile">
+          <Textarea rows={2} maxLength={500} placeholder="e.g. Close the side door at 23:00 and send the queue to the front" value={text} onChange={(e) => setText(e.target.value)} />
+          <div className="mt-2 flex flex-wrap items-end justify-between gap-2">
+            <Select className="min-w-0 flex-1" aria-label="Send to" value={to} onChange={(e) => setTo(e.target.value)}
+              options={[{ value: '', label: `Whole team (${people.length})` }, ...people.map((m) => ({ value: m.user_id, label: m.name }))]} />
+            <Button icon={Megaphone} busy={busy} disabled={!text.trim() || !people.length} onClick={send}>Send instruction</Button>
+          </div>
+          <p className="mt-1.5 text-footnote text-muted">They get a notification, and it stays on top of their shift card until they tap Got it. <span className="num">{text.length}/500</span></p>
+        </div>
+      ) : <p className="text-footnote text-muted">Instructions can be sent from two hours before the shift until it ends.</p>}
+      {sent.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {sent.map((e) => {
+            const reads = e.reads || [];
+            const total = e.to_user_id ? 1 : people.length;
+            const done = reads.length >= total && total > 0;
+            return (
+              <div key={e.id} className={cx('rounded-tile border p-3 shadow-tile', done ? 'border-hairline bg-surface' : 'border-amber/40 bg-amber-soft', e.state === 'removed' && 'opacity-60')}>
+                <p className="whitespace-pre-line text-body">{e.body}</p>
+                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-footnote text-muted">
+                  <span>{e.to_user_id ? `To ${nameOf(e.to_user_id)}` : 'To the whole team'} · {e.author_name} · <span className="num">{time(e.created_at)}</span></span>
+                  <Button size="sm" variant="link" onClick={() => setOpen(open === e.id ? null : e.id)}><span>Read by <span className="num">{reads.length}</span> of <span className="num">{total}</span></span></Button>
+                </div>
+                {open === e.id && (
+                  <ul className="mt-2 space-y-1 border-t border-sep pt-2 text-footnote">
+                    {(e.to_user_id ? people.filter((m) => m.user_id === e.to_user_id) : people).map((m) => {
+                      const r = reads.find((x) => x.user_id === m.user_id);
+                      return <li key={m.user_id} className="flex justify-between gap-2"><span>{m.name}</span>{r ? <span className="text-green">Got it <span className="num">{time(r.read_at)}</span></span> : <span className="text-amber">Not yet</span>}</li>;
+                    })}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </Section>
   );
 }
@@ -355,7 +500,7 @@ function LogSection({ d, reload, composer }) {
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const removed = entries.filter((e) => e.state === 'removed').length;
-  const shown = entries.filter((e) => showRemoved || e.state === 'kept');
+  const shown = entries.filter((e) => (showRemoved || e.state === 'kept') && (e.kind !== 'instruction' || me.access === 'mgr' || e.read_by_me || new Date(d.shift.ends_at) <= new Date()));
   const reopen = async () => {
     if (!(await confirm({ title: 'Reopen this log?', body: 'The lead can add and tidy entries again, then sign it off.', confirm: 'Reopen' }))) return;
     run(() => api('shiftlog.reopen', { shift_id: d.shift.id }), 'Log reopened').then(reload).catch(() => {});

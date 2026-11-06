@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { FileSignature, Lock, MapPin, Phone, QrCode, Radio, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
+import { ClipboardList, FileSignature, Lock, MapPin, Phone, QrCode, Radio, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
 import {
   Avatar, Button, Empty, IconButton, Input, KV, List, Load, Page, Pill, Row, Section, Segmented, Sheet, Tabs, Textarea, Tile, cx, range, time, titleCase, useAction, useApi, useForm, useToast,
 } from '../../ui/index.jsx';
@@ -219,6 +219,7 @@ function Detail({ row, onClose, onDone, base }) {
               {row.selfie_url && <div className="mt-3"><SelfieCompare e={{ ...inEv, selfie_url: row.selfie_url, profile_photo_url: row.photo_url, officer_name: row.officer_name }} /></div>}
             </div>
           )}
+          {base !== '/venue' && row.shift_id && <Button to={`${base}/shifts/${row.shift_id}`} state={{ from: 'live' }} icon={ClipboardList}>Open shift card</Button>}
           {row.has_exception && <Button variant="secondary" to={`${base}/exceptions`} icon={TriangleAlert}>Review exception</Button>}
           {row.pack !== 'none' && <Button variant="secondary" to={`${base}/venues/${row.venue_id}?tab=pack`} icon={FileSignature}>Open site pack</Button>}
         </div>

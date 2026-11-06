@@ -162,6 +162,12 @@ export const actions = {
           for (const a of team) await notifyAssigned(a, { ...s, venue_name: v.name }, 'changed');
         }
       }
+      // Notes changed once the team is on: tell them, and the card shows when they changed
+      if ('notes' in f && (f.notes || '') !== (before.notes || '') && s.status === 'published' && new Date(s.starts_at) <= new Date()) {
+        s = await one('UPDATE shifts SET notes_updated_at = now() WHERE id = $1 RETURNING *', [s.id]);
+        const users = (await q("SELECT o.user_id FROM shift_assignments a JOIN officers o ON o.id = a.officer_id WHERE a.shift_id = $1 AND a.status IN ('assigned','accepted') AND o.user_id IS NOT NULL", [s.id])).map((r) => r.user_id);
+        await notify(users, { kind: 'shift', title: 'Shift notes updated', body: String(s.notes || 'The notes were cleared.').slice(0, 160), link: `/officer/shifts/${s.id}`, dedupe: `notes:${s.id}:${Math.floor(Date.now() / 60000)}` });
+      }
       await audit(user, 'shift.update', 'shift', s.id, f);
     } else {
       s = await insert('shifts', { ...f, status: f.status || 'draft', created_by: user.id });

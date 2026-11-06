@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, FilePen, FileSignature, Fingerprint, Globe, GraduationCap, LayoutGrid, MessageSquareHeart,
-  MessageCircleWarning, MessagesSquare, Newspaper, Palette, Radar, ShieldAlert, Siren, Smartphone, Sparkles, Users, Wallet,
+  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Radar, ShieldAlert, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +9,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-06', icon: Megaphone, title: 'See the live shift card and send instructions',
+    lede: 'From Live, tap an officer on shift and choose Open shift card. Switch to Officer\'s view to see their card exactly as they do, and send an instruction to the whole team or one officer: they get a notification, and it stays on top of their card until they tap Got it.',
+    points: ['Open shift card from Live', "Officer's view: their card, as they see it", 'Send to the whole team or one officer, with a notification', 'Read by n of m, with names and times', 'Officers are told when shift notes change during the shift'],
+  },
   {
     month: 'November 2026', date: '2026-11-06', icon: ClipboardCheck, title: 'Face check notes are readable again',
     lede: 'In Exceptions and Live, the note explaining a face check (for example, a selfie too dark to compare) now sits next to the profile photo and selfie as normal text, instead of being squeezed into a thin column.',
