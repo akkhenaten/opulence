@@ -8,8 +8,8 @@ const ROOT = path.resolve(import.meta.dirname, '../src');
 const only = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const SHOW_FILES = process.argv.includes('--files');
 const ICON_OK = new Set([14, 16, 18, 20, 24]);
-// The printable certificate keeps its own fixed print sizes; the Emergency guide follows its handover pack's own design
-const SKIP = [/learn[\\/]Certificate\.jsx$/, /guide[\\/]emergency[\\/]/];
+// The printable certificate keeps its own fixed print sizes; the Emergency guide and its flowchart follow the handover pack's own design
+const SKIP = [/learn[\\/]Certificate\.jsx$/, /guide[\\/](emergency|flow)[\\/]/];
 
 const RULES = [
   ['text-[px]', /\btext-\[(\d+(?:\.\d+)?)px\]/g, (m) => Number(m[1]) < 36],

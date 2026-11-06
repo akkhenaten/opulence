@@ -14,6 +14,8 @@ const art = (f) => f && !existsSync(join(root, 'public/emergency', f)) && bad.pu
 
 for (const c of CARDS) { art(c.art); if (c.to && !SCREENS[c.to]) bad.push(`card ${c.key} -> ${c.to}`); }
 if (CARDS.find((c) => c.key === 'knife')?.to !== 'K01') bad.push('the Knife card no longer opens K01');
+// M03's pack injuries stay; only its unwritten "outside" button may change
+for (const b of PACK.M03.buttons) if (b.to !== '@unwritten' && !SCREENS.M03.buttons.some((x) => x.to === b.to && x.label === b.label)) bad.push(`M03 lost ${b.label}`);
 // Anything not from the pack is an AI draft and must say so on screen
 for (const s of Object.values(SCREENS)) if (!PACK[s.id] && !s.aiDraft) bad.push(`${s.id} is not from the pack and not marked as an AI draft`);
 // Every situation's danger and police screens exist; drafts don't repeat the bottom bar's Police arriving

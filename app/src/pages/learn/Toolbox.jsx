@@ -5,6 +5,7 @@ import { Button, cx, Empty, ErrorBox, List, Page, Row, SearchInput, Segmented, S
 import { CATEGORIES, category, searchCards, useToolbox } from './_parts.jsx';
 import Suggest from './Suggest.jsx';
 import EmergencyEntry from '../guide/emergency/Entry.jsx';
+import FlowEntry from '../guide/flow/Entry.jsx';
 
 export default function Toolbox() {
   const [sp, setSp] = useSearchParams();
@@ -22,6 +23,7 @@ export default function Toolbox() {
     <Page title="Toolbox" subtitle="Quick guides for first aid and common situations" back={{ to: '/officer/learn', label: 'Learn' }}
       actions={<Button variant="soft" icon={Sparkles} onClick={() => setAsk(true)}>What should I do?</Button>}>
       <EmergencyEntry from="/officer/learn/toolbox" />
+      <FlowEntry from="/officer/learn/toolbox" />
       <SearchInput value={text} onChange={(e) => setText(e.target.value)} placeholder="Search guides" />
       {tb.offline && <div className="mt-2 flex items-center gap-2 px-1 text-footnote font-semibold text-amber"><WifiOff size={14} /> Offline — showing your saved copy</div>}
       <div className="no-scrollbar -mx-4 my-3 overflow-x-auto px-4 sm:mx-0 sm:px-0"><Segmented value={cat} onChange={setCat} options={opts} /></div>

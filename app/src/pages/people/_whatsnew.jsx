@@ -11,9 +11,19 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency guide: a text-only flowchart to compare', image: 'emergency-flowchart',
+    lede: "Beside the illustrated Emergency guide there is now a text-only flowchart, quoted word for word from the police's ProtectUK advice and citizenAID first aid. Each answer stays on screen as a trail, so you can see the whole path and tap any step to go back. A map view lays out every card on one page for review and printing.",
+    points: ['Nine situations, including a bomb threat by phone, in person, in writing or online', 'Every line quoted word for word, with its source; Orb notes kept apart', "I'm in danger jumps to the safety card for your situation", 'A full map for reviewers, printable as an outline', 'Platform admin only until ProtectUK and citizenAID give permission'],
+  },
+  {
     month: 'November 2026', date: '2026-11-06', icon: Images, title: 'Every upgrade, in pictures', image: 'whatsnew-pictures',
     lede: 'What’s new now tells its story in pictures. Every upgrade has its own illustration, so you can see at a glance how far the platform has come.',
     points: ['A picture for every upgrade, made to match it', 'Designed in the Opulence navy and gold', 'Pictures in the welcome after each release too', 'Light and quick to load, even on a phone'],
+  },
+  {
+    month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency guide: more injuries, and help for every casualty', image: 'emergency-injuries',
+    lede: "Other injuries in the Emergency guide now covers blast, crush and chest injuries, and an injury the guide doesn't cover gets clear steps instead of a dead end. Multiple casualties and Help an injured person have their own Get yourself safe and Police and ambulance arriving screens. All new wording is an AI draft waiting for clinical review.",
+    points: ['Blast, crush and chest injuries, severe bleeding always first', "Outside what this guide covers: call 999 on speaker and stay with them", "I'm in danger fits a casualty scene: traffic, fire, gas, falling objects", 'Police and ambulance arriving: who you helped and what you did', 'Still an AI draft, waiting for clinical review'],
   },
   {
     month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency guide: checked against ProtectUK', image: 'emergency-protectuk',

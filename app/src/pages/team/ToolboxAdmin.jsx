@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpenCheck, Plus, Sparkles } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, cx, date, Empty, Input, Load, Page, Pill, Pressable, SearchInput, Segmented, Select, Sheet, Table, Textarea, useAction, useApi } from '../../ui/index.jsx';
+import { Button, cx, date, Empty, Input, Load, Page, Pill, Pressable, SearchInput, Segmented, Select, Sheet, Table, Textarea, Toggle, useAction, useApi } from '../../ui/index.jsx';
 import { CATEGORIES, category, searchCards } from '../learn/_parts.jsx';
 import EmergencyEntry from '../guide/emergency/Entry.jsx';
+import FlowEntry from '../guide/flow/Entry.jsx';
 
 // Ideas for the first cards, so a new company is not starting from a blank page
 const IDEAS = {
@@ -34,6 +35,7 @@ export default function ToolboxAdmin() {
     <Page title="Toolbox" subtitle="Quick guides officers can open on shift, even offline" wide
       actions={co && <><Button variant="secondary" icon={Plus} to={`${base}/new`}>Blank card</Button><Button icon={Sparkles} onClick={() => setAdd(true)}>Draft with AI</Button></>}>
       <EmergencyEntry from={base} />
+      <FlowEntry from={base} />
       {user.platform && <GuideLevel />}
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <SearchInput className="min-w-0 flex-1 sm:max-w-sm" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search cards" />
@@ -68,11 +70,16 @@ function GuideLevel() {
   const [run, busy] = useAction();
   const level = s.data?.emergency_guide || 'platform';
   const set = (v) => run(async () => { await api('toolbox.setEmergencyGuide', { level: v }); s.setData((d) => ({ ...d, emergency_guide: v })); }, 'Saved').catch(() => {});
+  const setLicensed = (v) => run(async () => { await api('toolbox.setFlowLicensed', { licensed: v }); s.setData((d) => ({ ...d, flow_licensed: v })); }, 'Saved').catch(() => {});
   return (
     <div className="mb-4 rounded-2xl border border-line bg-surface p-4">
       <div className="font-semibold">Emergency guide — who can see it</div>
       <p className="mb-3 text-footnote text-muted">The wording is not clinically approved yet. Everyone means officers and venue users too.</p>
       <Segmented value={level} onChange={(v) => !busy && v !== level && set(v)} options={LEVELS} />
+      <div className="mt-3 border-t border-line pt-3">
+        <Toggle checked={!!s.data?.flow_licensed} onChange={(v) => !busy && setLicensed(v)} label="Flowchart: ProtectUK and citizenAID permission received"
+          hint="The flowchart quotes both word for word. Until this is on, only you can open it, whatever is chosen above." />
+      </div>
     </div>
   );
 }

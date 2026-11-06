@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ACTIONS } from '../index.mjs';
-import { canSeeGuide, GUIDE_LEVELS } from '../lib/emergency.mjs';
+import { canSeeGuide, canSeeFlow, GUIDE_LEVELS } from '../lib/emergency.mjs';
 
 const admin = { id: 'a1', role: 'company', email: 'info@orbsolutions.co.uk', status: 'active' };
 const boss = { id: 'c1', role: 'company', email: 'boss@opulence.co.uk', status: 'active' };
@@ -27,4 +27,23 @@ test('only the platform admin can change who sees the guide', async () => {
   await assert.rejects(() => a.fn({ level: 'everyone' }, { user: boss }), (e) => e.status === 403);
   await assert.rejects(() => a.fn({ level: 'everyone' }, { user: venue }), (e) => e.status === 403);
   await assert.rejects(() => a.fn({ level: 'nobody' }, { user: admin }), (e) => e.status === 400);
+});
+
+test('the flowchart stays platform admin only until both permissions are recorded', () => {
+  for (const level of GUIDE_LEVELS) {
+    assert.ok(canSeeFlow(admin, level, false));
+    for (const u of [boss, sec, officer, venue]) assert.equal(canSeeFlow(u, level, false), false);
+  }
+  assert.ok(canSeeFlow(boss, 'managers', true) && canSeeFlow(sec, 'managers', true));
+  assert.equal(canSeeFlow(officer, 'managers', true), false);
+  assert.ok(canSeeFlow(officer, 'everyone', true) && canSeeFlow(venue, 'everyone', true));
+  assert.equal(canSeeFlow(boss, 'platform', true), false);
+});
+
+test('only the platform admin can record the flowchart permissions', async () => {
+  const a = ACTIONS['toolbox.setFlowLicensed'];
+  assert.ok(a);
+  await assert.rejects(() => a.fn({ licensed: true }, { user: boss }), (e) => e.status === 403);
+  await assert.rejects(() => a.fn({ licensed: true }, { user: sec }), (e) => e.status === 403);
+  await assert.rejects(() => a.fn({ licensed: 'yes' }, { user: admin }), (e) => e.status === 400);
 });

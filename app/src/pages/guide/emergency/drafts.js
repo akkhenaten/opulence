@@ -17,9 +17,12 @@ export const JOURNEYS = {
   explosion: { start: 'EX00', safe: 'EX00', police: 'EX05' },
   unattended: { start: 'UN01', safe: 'SU01', police: 'SU04' },
   suspicious: { start: 'SU01', safe: 'SU01', police: 'SU04' },
-  casualties: { start: 'MC01', safe: 'K01', police: 'K10' },
-  injured: { start: 'HI01', safe: 'K01', police: 'K10' },
+  casualties: { start: 'MC01', safe: 'MC02', police: 'MC03' },
+  injured: { start: 'HI01', safe: 'HI02', police: 'HI03' },
 };
+// M03 (Other injuries, pack): the AI-drafted injuries join its picker, and "outside what this guide covers" gets a screen
+export const M03_EXTRA = [{ label: 'Blast, crush or chest injury', to: 'IN00' }];
+export const M03_OUTSIDE = 'IN04';
 // The pack's Knife safety screens: arriving on one means you are now in the Knife journey.
 // Not K03a (Staying hidden): Firearms shares it, so it keeps the journey you came from.
 export const KNIFE_SAFETY = ['K01', 'K02', 'K02a', 'K03'];
@@ -104,13 +107,44 @@ const LIST = [
     'Stay where you are, well away from the item. Keep your hands visible and do what officers tell you straight away. Tell them where the item is, what it looks like, when it was found, and which witnesses you kept.',
     [{ label: 'Keep people away', to: 'SU03' }, { label: 'Aftercare and support', to: 'K12' }]),
 
-  // Multiple casualties and Help an injured person: a safety check, then the pack's own casualty screens
+  // Multiple casualties and Help an injured person: a safety check, then the pack's own casualty screens.
+  // Their own Get yourself safe (danger is whatever hurt them, not only an attacker) and Police arriving (often with an ambulance)
   screen('MC01', 'journey screen', 'Check it is safe first', 'card-casualties.png',
     'Before you go to anyone, look around. Is whatever hurt them still a danger? If you do not know what happened, or it is not safe, stay back and call 999.',
-    [{ label: 'It is safe to help', to: 'C01' }, { label: 'It is not safe', to: 'K01' }]),
+    [{ label: 'It is safe to help', to: 'C01' }, { label: 'It is not safe', to: 'MC02' }]),
+  screen('MC02', 'journey screen', 'Get yourself safe', 'k01-safety-entry.png',
+    'If whatever hurt them could still hurt you, such as traffic, fire, smoke, a smell of gas, something falling or a person, get yourself and others away from it first. You cannot help anyone if you are hurt too. Call 999 from somewhere safe and tell them what you can see. Tell your control room.',
+    [{ label: 'It is safe now', to: 'MC01' }, { label: 'Someone is attacking people', to: 'K01' }]),
+  screen('MC03', 'journey screen', 'Police and ambulance arriving', 'k10-police-arriving.png',
+    'Police, ambulance and fire crews may arrive together and will take charge. Keep your hands visible and do what they tell you straight away. Tell them how many people are hurt and where, who you have helped and what you did, and anything that is still dangerous.',
+    [{ label: 'Handing over', to: 'K11' }, { label: 'Who to help first', to: 'C02' }, { label: 'Aftercare and support', to: 'K12' }]),
   screen('HI01', 'journey screen', 'Check it is safe first', 'card-injured.png',
     'Before you go to them, check it is safe for you: traffic, fire, or someone who could hurt you. If it is safe, go to them and find out what is wrong.',
-    [{ label: 'It is safe to help', to: 'K08' }, { label: 'It is not safe', to: 'K01' }, { label: 'Several people hurt', to: 'C01' }]),
+    [{ label: 'It is safe to help', to: 'K08' }, { label: 'It is not safe', to: 'HI02' }, { label: 'Several people hurt', to: 'C01' }]),
+  screen('HI02', 'journey screen', 'Get yourself safe', 'k01-safety-entry.png',
+    'If something could still hurt you, such as traffic, fire, something falling or a person, keep back or move away from it. Do not become a second casualty. Call 999 from somewhere safe and tell them where the injured person is. Go to them only when it is safe.',
+    [{ label: 'It is safe now', to: 'HI01' }, { label: 'Someone is attacking people', to: 'K01' }]),
+  screen('HI03', 'journey screen', 'Police and ambulance arriving', 'k10-police-arriving.png',
+    'When the ambulance or police arrive, wave them over or send someone to meet them and bring them to you. Keep your hands visible and do what they tell you. Stay with the injured person until they take over.',
+    [{ label: 'Medical handover', to: 'M05' }, { label: 'Monitor and reassess', to: 'M04' }, { label: 'Aftercare and support', to: 'K12' }]),
+
+  // More injuries for M03 (Other injuries). Severe bleeding first, as in the pack (citizenAID's order).
+  // No art yet: the pack has none for these, and borrowing another injury's picture would mislead.
+  screen('IN00', 'clinical module', 'Blast, crush or chest injury', null,
+    'Choose the injury. If there is bleeding that will not stop, deal with that first.',
+    [{ label: 'Blast injury', to: 'IN01' }, { label: 'Crush injury', to: 'IN02' }, { label: 'Chest injury', to: 'IN03' }, { label: 'Severe bleeding', to: 'M01' }]),
+  screen('IN01', 'clinical module', 'Blast injury', null,
+    'Deal with any bleeding that will not stop first.\n- Someone close to a blast can be badly hurt inside with little to see: chest, belly and ears. Treat anyone who was close as seriously hurt, even if they say they are fine.\n- Look for wounds on the back, armpits, groin and under clothing.\n- Do not pull out anything stuck in a wound. Press around it.\n- Keep them still and warm. Tell the ambulance crew how close they were to the blast.',
+    [{ label: 'Severe bleeding', to: 'M01' }, { label: 'Chest injury', to: 'IN03' }, { label: 'Monitor and reassess', to: 'M04' }]),
+  screen('IN02', 'clinical module', 'Crush injury', null,
+    'Do not try to lift something heavy on your own or put yourself in danger. Call 999 and tell them someone is trapped, by what, and since when.\n- If you can free them safely and quickly, do.\n- Once they are free they can become very unwell quickly. Keep them lying still and warm and deal with any bleeding.\n- Watch their breathing. If they stop responding or breathing normally, go to Unresponsive.',
+    [{ label: 'Severe bleeding', to: 'M01' }, { label: 'Unresponsive or abnormal breathing', to: 'M02' }, { label: 'Monitor and reassess', to: 'M04' }]),
+  screen('IN03', 'clinical module', 'Chest injury', null,
+    'If there is a wound to the chest that is bleeding, press on it with a pad, or your gloved hand.\n- Do not seal the wound with tape, plastic or anything airtight.\n- Do not pull out anything stuck in it. Press around it.\n- If they are struggling to breathe, let them sit in the position they find easiest, often sitting up and leaning towards the injured side.\n- If they stop responding or breathing normally, go to Unresponsive.',
+    [{ label: 'Unresponsive or abnormal breathing', to: 'M02' }, { label: 'Severe bleeding', to: 'M01' }, { label: 'Monitor and reassess', to: 'M04' }]),
+  screen('IN04', 'clinical module', 'Outside what this guide covers', null,
+    'This guide does not cover this injury. Call 999 on speaker and do what the call handler tells you. Stay with them, keep them still and warm, and watch their breathing. If they stop responding or breathing normally, go to Unresponsive.',
+    [{ label: 'Unresponsive or abnormal breathing', to: 'M02' }, { label: 'Monitor and reassess', to: 'M04' }, { label: 'Medical handover', to: 'M05' }]),
 ];
 
 export const DRAFT_SCREENS = Object.fromEntries(LIST.map((s) => [s.id, s]));

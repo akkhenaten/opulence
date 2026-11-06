@@ -169,4 +169,12 @@ export const actions = {
     await audit(user, 'emergency_guide.level', 'settings', 1, { level: b.level });
     return { emergency_guide: b.level };
   }),
+
+  // The platform admin records that ProtectUK and citizenAID have given written permission; only then can the flowchart follow the guide level
+  'toolbox.setFlowLicensed': plat(async (b, { user }) => {
+    if (typeof b.licensed !== 'boolean') fail(400, 'Say whether both permissions are in');
+    await q('UPDATE settings SET flow_licensed = $1 WHERE id = 1', [b.licensed]);
+    await audit(user, 'emergency_flow.licensed', 'settings', 1, { licensed: b.licensed });
+    return { flow_licensed: b.licensed };
+  }),
 };
