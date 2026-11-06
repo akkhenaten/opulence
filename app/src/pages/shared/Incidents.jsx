@@ -71,7 +71,7 @@ export default function Incidents() {
       {officer && !user.officer_id ? <NotLinked /> : <Load q={q}>
         {(rows) => (!rows.length ? (
           <Empty photo="kit" icon={ShieldAlert} title={Object.keys(body).length ? 'No incidents match' : 'No incidents yet'}
-            body={officer ? 'To report something, open the shift it happened on and tap Report incident. Your reports then appear here.' : 'Incident reports from officers appear here.'}
+            body={officer ? 'To report something, open the shift it happened on and tap a report tile (Ejection, Injury, Damage, Theft or Other). Your reports then appear here.' : 'Incident reports from officers appear here.'}
             action={officer && user.officer_id && !Object.keys(body).length && <Button to="/officer/shifts?tab=mine">Open my shifts</Button>} />
         ) : (
           <div className={cx('grid gap-2', !officer && 'lg:grid-cols-2')}>

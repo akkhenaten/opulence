@@ -42,7 +42,7 @@ Shift and safety alerts always come through. You can switch the others (mentions
       },
       {
         id: 'updates', title: 'Updates and working offline',
-        body: `When a new version of the app is released, a "A new version of Orb is available" message appears. Tap Refresh to start using it.
+        body: `When a new version of the app is released, a "A new version of Orb is available" message appears. Tap Refresh to start using it. After a release, managers also see a short What's new card when they sign in (for two days), and every release is listed under Audit log, then What's new.
 
 If your phone loses signal, an amber "You're offline" bar appears under the top bar. The app still opens, but nothing is saved until you are back online. Clocking in and sending reports need a connection.`,
       },
@@ -52,8 +52,8 @@ If your phone loses signal, an amber "You're offline" bar appears under the top 
     id: 'start', title: 'Getting started (company)', roles: ['company'],
     sections: [
       {
-        id: 'first', title: 'First sign-in and company details', image: 'company-dashboard.png',
-        body: `Sign in with the email and password you were given. Your Dashboard shows what needs attention today: who is on site, unfilled shifts, timesheets to approve, open incidents and money owed.
+        id: 'first', title: 'First sign-in, your Dashboard and company details', image: 'company-dashboard.png',
+        body: `Sign in with the email and password you were given. Your Dashboard leads with Needs you: only what's waiting for you, most urgent first. A one-line summary sits under your greeting, Tonight & tomorrow shows cover at a glance (short shifts first), and This week shows hours, shifts and money. On a quiet night it simply says all clear.
 
 Open Settings, then Company details, and fill in your company name, address, company number and VAT details. These appear on invoices, pay statements and reports.`,
       },
@@ -87,6 +87,18 @@ On the venue page you can:
 - print the venue's QR poster for officers to scan when they clock in;
 - add instructions for officers (who to report to, radios, capacity);
 - add venue managers, who get their own login to see their site.`,
+      },
+      {
+        id: 'website', title: 'Your website: venue tiles and reviews',
+        body: `Every active venue has its own tile in Clients on your website, grouped by city. Visitors tap a tile (or one of the Our services tiles) and it turns over like an airport departure board to show the details and reviews.
+
+On the venue page, under Details:
+- Show on website hides or shows the venue's tile;
+- City puts the tile under that city, and Website link appears on the tile as Visit venue;
+- Welcome line greets visitors until reviews arrive. Tap Write with AI or write your own;
+- the venue photo becomes the tile's picture.
+
+Praise from a venue appears in its Feedback tab. Switch Show on website on a praise card to put the quote on the venue's tile. It shows under the venue's name, never a person's, and you can take it down again at any time.`,
       },
       {
         id: 'staff', title: 'Add your officers', image: 'staff.png',
@@ -148,7 +160,7 @@ Exceptions appear under Exceptions. Approve or Reject each one. Approved times g
       },
       {
         id: 'log', title: 'Shift page and shift log',
-        body: `Each shift has its own page with a shift log. Officers and managers add notes and photos as things happen, and can mark notes For handover so the next team sees them. The shift lead signs off the log at the end of the shift, and the venue can read it under Shift logs.`,
+        body: `Each shift has its own page with a shift log. Officers and managers add notes and photos as things happen, and can mark notes For handover so the next team sees them. On the shift page, tap Add handover note to write one straight away; the next team sees the last team's handover notes and photos at the top of their shift. The shift lead signs off the log at the end of the shift, and the venue can read it under Shift logs.`,
       },
       {
         id: 'incidents', title: 'Incidents', image: 'incident.png',
@@ -272,12 +284,13 @@ Use the filters for Announcements, Shout-outs, Events, Polls, My venues and Save
       },
       {
         id: 'ask', title: 'Orb, your assistant',
-        body: `Tap the round Orb button at the bottom right of any page to ask in plain English or to get something done, for example "Who is working at Harbour Arena on Saturday?", "Add a draft door shift there on Friday 21:00 to 03:00" or "How do I send a policy to everyone?".
+        body: `Tap the round Orb button (the Opulence mark, bottom right at first) on any page to ask in plain English or to get something done, for example "Who is working at Harbour Arena on Saturday?", "Add a draft door shift there on Friday 21:00 to 03:00" or "How do I send a policy to everyone?".
 
 - Orb knows this guide and looks up live data. It only sees and does what you can.
 - Small, internal changes such as draft shifts, HR notes, onboarding ticks, assigning training and reminders happen straight away. They show as Done, with Undo where possible.
 - Anything involving money, anything sent to people, deleting, bans, HR outcomes, settings and logins goes on a Confirm card. Untick any line you don't want, then tap Confirm.
-- Everything Orb does is in the activity log, marked as done by Orb, under your name. Previous chats are under the clock icon.`,
+- Everything Orb does is in the activity log, marked as done by Orb, under your name. Previous chats are under the clock icon.
+- If the button is in the way, drag it anywhere on the screen. It stays where you leave it.`,
       },
       {
         id: 'photos', title: 'Incident photo checks and AI drafts',
@@ -292,7 +305,7 @@ AI features use credits from your plan. The usage is shown in Settings.`,
     sections: [
       {
         id: 'day', title: 'Your day',
-        body: `Your Dashboard shows today's shifts, people on site, exceptions and incidents. Use Live operations during the shift, Rota for planning, and Exceptions and Timesheets to tidy up clock times. You see pay runs only if a company manager gives you access.`,
+        body: `Your Dashboard leads with Needs you (only what's waiting, most urgent first), then Tonight & tomorrow (cover at a glance, short shifts first) and This week (hours and shifts). Use Live operations during the shift, Rota for planning, and Exceptions and Timesheets to tidy up clock times. You see pay runs only if a company manager gives you access.`,
       },
     ],
   },
@@ -323,11 +336,15 @@ AI features use credits from your plan. The usage is shown in Settings.`,
     sections: [
       {
         id: 'home', title: 'Your home screen', image: 'officer-home.png',
-        body: `Home shows your next shift, whether you need to confirm it, your hours, open shifts you can pick up, and any warnings (for example a licence about to expire).`,
+        body: `The app has four tabs at the bottom: Home, Shifts, Learn and Me.
+
+Home shows what you need to answer first (offers, shifts to confirm and your To do list), then what's booked, open shifts you can pick up, and any warnings (for example a licence about to expire). From 15 minutes before your shift, Home becomes your shift card: clock in there, then use the log, the report tiles and Log ejection or ban.
+
+Back always takes you to where you came from.`,
       },
       {
-        id: 'shifts', title: 'Shifts and picking up work', image: 'officer-shifts.png',
-        body: `Shifts shows your calendar and list. Accept or Decline offers, and use Find open shifts to Request extra work. Set your Availability so managers know when you can work. Open a confirmed shift to see everything for it: handover notes, report tiles, the shift log and the site pack. If you can't make a confirmed shift, tap I can't work this on the shift page (under 24 hours, call the office too). Clock history lists your past clock-ins.`,
+        id: 'shifts', title: 'Shifts, handover, clock history and picking up work', image: 'officer-shifts.png',
+        body: `Shifts shows your calendar and list. Accept or Decline offers, and use Find open shifts to Request extra work. Set your Availability so managers know when you can work. Open a confirmed shift to see everything for it: the last team's handover notes and photos, report tiles, the shift log and the site pack. Tap Add handover note to leave one for the next team. If you can't make a confirmed shift, tap I can't work this on the shift page (under 24 hours, call the office too). Tap Clock history at the top of Shifts to see your past clock-ins.`,
       },
       {
         id: 'clock', title: 'Clock in and out', image: 'officer-clock.png',
@@ -339,7 +356,7 @@ If the app can't confirm you're on site, tap Continue anyway, add a note and Sub
       },
       {
         id: 'report', title: 'Report an incident',
-        body: `Reports start from the shift. While you are clocked in, Home is your shift card: tap a report tile (Ejection, Injury, Damage, Theft or Other) or Log ejection or ban there. A report you start saves itself as a draft and waits on the shift page until you finish it. For a shift that has finished, open it from Shifts, then List (up to 30 days back). Follow the steps: what happened, people, injuries, police or ambulance, force, witnesses and photos. Managers and the venue are alerted straight away. If your manager asks for changes, the report appears in your To do list on Home. Me, then Reports, lists every incident report and ejection you have logged.`,
+        body: `Reports start from the shift. While you are clocked in, Home is your shift card: tap a report tile (Ejection / refused entry, Injury / first aid, Damage, Theft or Other) or Log ejection or ban there. A report you start saves itself as a draft and waits on the shift page until you finish it. For a shift that has finished, open it from Shifts, then List (up to 30 days back). Follow the steps: what happened, people, injuries, police or ambulance, force, witnesses and photos. Managers and the venue are alerted straight away. If your manager asks for changes, the report appears in your To do list on Home. Me, then Reports, lists every incident report and ejection you have logged.`,
       },
       {
         id: 'me', title: 'Pay, time off, training and documents',

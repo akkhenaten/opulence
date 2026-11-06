@@ -78,7 +78,7 @@ function DraftLoader({ manager }) {
   if (!manager && !draftId && !shiftParam && !readLocal(null)?.snapshot?.data?.shift_id) {
     return (
       <Page title="Report incident" back={{ to: '/officer/incidents', label: 'Reports' }}>
-        <Empty icon={ShieldAlert} title="Reports start from the shift" body="Open the shift the incident happened on and tap Report incident. On shift now? It's on your Home screen. For an earlier shift, find it under Shifts."
+        <Empty icon={ShieldAlert} title="Reports start from the shift" body="Open the shift the incident happened on and tap a report tile (Ejection, Injury, Damage, Theft or Other). On shift now? They're on your Home screen. For an earlier shift, find it under Shifts."
           action={<Button to="/officer/shifts?tab=mine">Open my shifts</Button>} />
       </Page>
     );

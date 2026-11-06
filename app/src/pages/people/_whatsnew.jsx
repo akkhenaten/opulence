@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-06', icon: Newspaper, title: 'Help is up to date',
+    lede: 'Help, the downloadable guide and Orb’s answers now explain everything from the latest releases, so your team can look it up or just ask Orb.',
+    points: ['The new Dashboard: Needs you, Tonight & tomorrow, This week', 'The officer app’s four tabs and the shift page', 'Moving the Orb button', 'Your website: venue tiles, welcome lines and reviews'],
+  },
+  {
     month: 'November 2026', date: '2026-11-06', icon: Globe, title: 'Your website tiles flip like a departure board',
     lede: 'On your public website, the Our services and venue tiles now split into a grid when tapped and turn over in a wave, like an old airport board, then join up again to show the details and reviews. Visitors who prefer less motion get a gentle fade.',
     points: ['Services and venue tiles turn over in a diagonal wave', 'Fewer, bigger cells on phones', 'Links, reviews and Request cover work as before', 'A simple fade for visitors who prefer less motion'],

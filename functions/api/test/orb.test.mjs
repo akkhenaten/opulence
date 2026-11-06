@@ -87,6 +87,15 @@ test('the guide search finds how to send a policy', () => {
   assert.ok(hits.some((h) => /polic/i.test(`${h.section} ${h.body}`)));
 });
 
+test('the guide search finds the latest features', () => {
+  const finds = (role, q, re) => assert.ok(searchGuide(role, 'Acme', q).some((h) => re.test(`${h.section} ${h.body}`)), q);
+  finds('company', 'what is needs you on the dashboard', /Needs you/);
+  finds('company', 'move the Orb button', /drag it anywhere/i);
+  finds('company', 'show a venue on the website', /Show on website/);
+  finds('officer', 'where is my clock history', /Clock history at the top of Shifts/);
+  finds('officer', 'add a handover note', /Add handover note/);
+});
+
 test('a spoken yes cannot approve money or anything sent to people', () => {
   for (const action of ['pay.generate', 'payRuns.issue', 'invoices.issue', 'payAgreements.send', 'messages.send', 'shifts.publish', 'contracts.send', 'everyday.create', 'users.invite']) {
     assert.ok(needsTap({ action, body: {} }), action);
