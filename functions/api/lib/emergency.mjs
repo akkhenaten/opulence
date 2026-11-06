@@ -1,4 +1,4 @@
-// The Emergency guide (Knife attack journey) is draft clinical copy: the platform admin decides who sees it
+// The Emergency guide (Knife journey plus seven AI-drafted ones) is draft clinical copy: the platform admin decides who sees it
 import { isPlatformAdmin } from './platform.mjs';
 
 export const GUIDE_LEVELS = ['platform', 'managers', 'everyone'];

@@ -3,13 +3,13 @@ import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } 
 import { ChevronLeft, Home } from 'lucide-react';
 import { HOME, useAuth } from '../../../auth.jsx';
 import { Spinner, useApi } from '../../../ui/index.jsx';
-import { CARDS, SCREENS } from './journeys.js';
+import { CARDS, JOURNEYS, SCREENS, journeyOf } from './journeys.js';
 import Screen, { Art } from './Screen.jsx';
 
 // The Emergency guide: the Knife attack journey from the pack, plus AI-drafted journeys for the other situations. Draft copy: shown only to whoever the platform admin allows.
 // Controls on every screen that never move: I'm in danger, Back and Start (top), Call 999 and Police arriving (bottom).
 const KEY = 'orb.eg';
-const fresh = () => ({ interruptions: 0, firstCall: null, resume: null, venue: 'home', from: null });
+const fresh = () => ({ interruptions: 0, firstCall: null, resume: null, venue: 'home', from: null, journey: 'knife' });
 const load = () => { try { return { ...fresh(), ...JSON.parse(sessionStorage.getItem(KEY) || '{}') }; } catch { return fresh(); } };
 
 export default function Guide() {
@@ -43,12 +43,20 @@ function Journey({ user }) {
   // Where Leave guide and End return to, kept from the moment the guide opens
   useEffect(() => { const from = sp.get('from'); if (from) save((x) => ({ ...x, from })); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The situation you are in. The pack's shared screens send Get yourself safe to K01 and Police arriving to K10 (Knife);
+  // from another situation those go to its own screens instead. AI-drafted screens already link where they mean to.
+  const j = JOURNEYS[journeyOf(id) || st.journey] || JOURNEYS.knife;
+  const follow = (to) => (to === 'K01' ? j.safe : to === 'K10' ? j.police : to);
+
   // Each move inside the guide marks its history entry, so Back steps one screen and never leaves the guide by accident
   const go = (to) => { setOverlay(null); if (to !== id) nav(`/guide/emergency/${to}`, { state: { eg: true } }); };
+  // Arriving on a situation's own screen (by a button, Back or a link) makes it the current one
+  useEffect(() => { const journey = journeyOf(id); if (journey) save((x) => (x.journey === journey ? x : { ...x, journey })); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   const back = () => (loc.state?.eg ? nav(-1) : nav('/guide/emergency/S00', { replace: true, state: null }));
   const leave = () => nav(st.from || HOME[user.role]);
   const act = (to) => {
     if (to === '@back') return back();
+    if (to === '@start') return go('S00');
     if (to === '@end') { const from = st.from; save(fresh); return nav(from || HOME[user.role]); }
     if (to === '@resume') return setOverlay(null);
     if (to === '@dial') {
@@ -75,13 +83,13 @@ function Journey({ user }) {
       </div>
       {id === 'S00'
         ? <Opening platform={user.platform} onPick={go} onNotes={() => setOverlay('notes')} />
-        : <Screen key={id} s={SCREENS[id]} st={st} onAct={act} onVenue={(v) => save((x) => ({ ...x, venue: v }))} />}
+        : <Screen key={id} s={SCREENS[id]} st={st} onAct={(to) => act(SCREENS[id].aiDraft ? to : follow(to))} onVenue={(v) => save((x) => ({ ...x, venue: v }))} />}
       <div className="eg-bottom">
         <button type="button" className="eg-btn eg-outline" onClick={() => setOverlay('call')}>Call 999</button>
-        <button type="button" className="eg-btn eg-outline" onClick={() => go('K10')}>Police arriving</button>
+        <button type="button" className="eg-btn eg-outline" onClick={() => go(j.police)}>Police arriving</button>
       </div>
       {overlay === 'call' && <Overlay s={SCREENS['G-CALL']} title="Call 999" big="999" onAct={act} onClose={() => setOverlay(null)} />}
-      {overlay === 'danger' && <Overlay s={SCREENS['G-DANGER']} title={SCREENS['G-DANGER'].title} big={SCREENS['G-DANGER'].text} onAct={act} onClose={() => setOverlay(null)} />}
+      {overlay === 'danger' && <Overlay s={SCREENS['G-DANGER']} title={SCREENS['G-DANGER'].title} big={SCREENS['G-DANGER'].text} onAct={(to) => act(follow(to))} onClose={() => setOverlay(null)} />}
       {overlay === 'notes' && <ReviewNotes onClose={() => setOverlay(null)} />}
     </div>
   );
@@ -138,8 +146,9 @@ const NOTES = [
   'C03 is 7 taps from K01 and only leads back to C02.',
   'The call follow-ups G-CALL → X05 and X05 → X06 were added without clinical input.',
   'Firearms, Vehicle, Explosion, Unattended item, Suspicious item, Multiple casualties and Help an injured person are AI drafts, not from the handover pack. Every line needs review; they link into the Knife screens for calling, casualties, police arriving and aftercare.',
-  "AI drafts: I'm in danger still leads to the Knife K01 (Get yourself safe), and Police arriving to K10, from every journey.",
-  'AI drafts: Unattended and Suspicious item say not to use a phone or radio close to the item. Confirm the distance wording with whoever owns the venue procedures.',
+  "AI drafts: I'm in danger and Police arriving follow the situation you are in (Firearms → FA01 and FA06, Vehicle → VE01, Explosion → EX00 and EX05, both item journeys → SU01 and SU04). Multiple casualties and Help an injured person still use the Knife K01 and K10.",
+  'AI drafts were checked against ProtectUK (Run Hide Tell, HOT, the 4Cs) on 6 Nov 2026 and are written for Orb officers: control room, supervisor, lost property procedure. The distances (100/200/400 m, 15 m for phones and radios) are ProtectUK\'s.',
+  'AI drafts: Vehicle has no ProtectUK public advice of its own; its wording follows Run Hide Tell and ProtectUK\'s note that street furniture gives some protection.',
 ];
 function ReviewNotes({ onClose }) {
   return (

@@ -11,7 +11,7 @@ export default function EmergencyEntry({ from }) {
       <Siren size={24} />
       <span className="min-w-0 flex-1">
         <span className="block font-bold">Emergency guide</span>
-        <span className="block text-footnote opacity-80">Knife attack · Draft, not clinically approved</span>
+        <span className="block text-footnote opacity-80">Knife, firearms, vehicle and more · Draft, not clinically approved</span>
       </span>
       <ChevronRight size={18} />
     </Link>

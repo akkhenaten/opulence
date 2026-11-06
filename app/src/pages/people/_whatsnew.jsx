@@ -16,6 +16,16 @@ export const UPDATES = [
     points: ['A picture for every upgrade, made to match it', 'Designed in the Opulence navy and gold', 'Pictures in the welcome after each release too', 'Light and quick to load, even on a phone'],
   },
   {
+    month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency guide: checked against ProtectUK', image: 'emergency-protectuk',
+    lede: "The AI-drafted Emergency guide journeys now follow the police's own ProtectUK advice and speak to Orb officers: the HOT test and the 4Cs for unattended and suspicious items, with the safe distances, Run Hide Tell for firearms, and a first question for an explosion: inside or outside this building?",
+    points: ['Unattended items: the HOT test, CCTV via your control room, lost property procedure', 'Suspicious items: Clear, Communicate, Control, with 100/200/400 m and no radio within 15 m', 'Firearms: cover from bullets means heavy walls, and what to expect from armed police', 'Explosion: inside, get out; outside, stay in away from glass', 'Still an AI draft, waiting for clinical review'],
+  },
+  {
+    month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency guide: help that fits the situation', image: 'emergency-fits-situation',
+    lede: "In the Emergency guide, I'm in danger and Police arriving now take you to the advice for the situation you chose, so a firearms incident says to get behind something solid and a suspicious item says to move away. Vehicle has a gun option, Explosion warns about a second device on its first screen, and the Toolbox button lists every situation.",
+    points: ["I'm in danger and Police arriving follow your situation", 'Own Police arriving screens for Explosion and suspicious items', 'Vehicle: someone got out with a knife or with a gun', 'Explosion: second device warning first, cover your nose and mouth', 'Fewer repeated buttons; Someone owns it goes back to Choose the situation'],
+  },
+  {
     month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency guide: every situation can be opened', image: 'emergency-all-situations',
     lede: 'Firearms, Vehicle, Explosion, Unattended item, Suspicious item, Multiple casualties and Help an injured person can now be chosen in the Emergency guide. Their wording is an AI first draft for review, marked on every screen; the Knife journey is unchanged, and the guide is still shown only to the Orb team.',
     points: ['All eight situations open from Choose the situation', 'AI draft, for review on every new card and screen', "I'm in danger, Call 999 and Police arriving still on every screen", 'Nothing dials by itself: you tap to call'],

@@ -6,9 +6,9 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'src/pages/guide/emergency');
-const { CARDS, SCREENS } = await import(join(dir, 'journeys.js'));
+const { CARDS, JOURNEYS, SCREENS } = await import(join(dir, 'journeys.js'));
 const { SCREENS: PACK } = await import(join(dir, 'screens.js'));
-const TOKENS = ['@dial', '@back', '@resume', '@end', '@unwritten'];
+const TOKENS = ['@dial', '@back', '@resume', '@end', '@unwritten', '@start'];
 const bad = [];
 const art = (f) => f && !existsSync(join(root, 'public/emergency', f)) && bad.push(`missing art ${f}`);
 
@@ -16,6 +16,9 @@ for (const c of CARDS) { art(c.art); if (c.to && !SCREENS[c.to]) bad.push(`card 
 if (CARDS.find((c) => c.key === 'knife')?.to !== 'K01') bad.push('the Knife card no longer opens K01');
 // Anything not from the pack is an AI draft and must say so on screen
 for (const s of Object.values(SCREENS)) if (!PACK[s.id] && !s.aiDraft) bad.push(`${s.id} is not from the pack and not marked as an AI draft`);
+// Every situation's danger and police screens exist; drafts don't repeat the bottom bar's Police arriving
+for (const [k, j] of Object.entries(JOURNEYS)) for (const t of ['start', 'safe', 'police']) if (!SCREENS[j[t]]) bad.push(`journey ${k} ${t} -> ${j[t]}`);
+for (const s of Object.values(SCREENS)) if (s.aiDraft && s.buttons.some((b) => b.label === 'Police arriving')) bad.push(`${s.id} repeats Police arriving`);
 for (const s of Object.values(SCREENS)) {
   if (!s.buttons.length) bad.push(`${s.id} has no buttons`);
   for (const b of s.buttons) if (!TOKENS.includes(b.to) && !SCREENS[b.to]) bad.push(`${s.id} "${b.label}" -> ${b.to}`);
@@ -24,7 +27,7 @@ for (const s of Object.values(SCREENS)) {
 }
 // The persistent controls are reachable from every screen, so they seed the walk too, with every card's first screen
 const seen = new Set();
-const walk = ['K01', 'G-CALL', 'G-DANGER', 'G-POLICE', ...CARDS.map((c) => c.to).filter(Boolean)];
+const walk = ['K01', 'G-CALL', 'G-DANGER', 'G-POLICE', ...CARDS.map((c) => c.to).filter(Boolean), ...Object.values(JOURNEYS).flatMap((j) => [j.safe, j.police])];
 while (walk.length) {
   const id = walk.pop();
   if (seen.has(id) || !SCREENS[id]) continue;
