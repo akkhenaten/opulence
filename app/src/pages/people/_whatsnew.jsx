@@ -8,6 +8,11 @@ import { Pill } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release
 export const UPDATES = [
   {
+    month: 'November 2026', icon: Building2, title: 'Venue tiles that fill themselves in',
+    lede: 'A venue’s tile on your website now takes everything it needs from the venue’s own details. Add the venue once and it appears in the right city, wearing its own photo.',
+    points: ['The venue photo becomes the tile picture, even for venues added before tiles existed', 'The right city worked out from the postcode or address', 'Hand-made tiles keep their own pictures', 'A warm welcome on the back until the first praise is ticked'],
+  },
+  {
     month: 'November 2026', icon: Smartphone, title: 'A calmer app on your phone',
     lede: 'The frame around every screen has been pared back, so on a phone you see your work first and the buttons second. Nothing has gone; it is simply where you expect it.',
     points: ['A clean top bar: just your messages and alerts', 'A More menu laid out like the desktop, in clear sections with live counts', 'Orb slips out of the way while you scroll and returns the moment you stop', 'The last row of every list always stays in clear view'],

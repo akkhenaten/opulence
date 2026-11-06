@@ -6,12 +6,12 @@ import { venueScope, assertVenue } from '../lib/scope.mjs';
 import { qrPayload } from '../lib/qr.mjs';
 import { qrPosterPdf } from '../lib/pdf.mjs';
 import crypto from 'node:crypto';
-import { checkOwnPhoto, saveThumb, downloadUrl, getObjectBytes, headObject, publicUrl, putObject, photoUrls } from '../lib/storage.mjs';
+import { checkOwnPhoto, saveThumb, downloadUrl, getObjectBytes, headObject, publicUrl, putObject, photoUrls, thumbKeyOf } from '../lib/storage.mjs';
 import { audit } from '../lib/audit.mjs';
 import { CO, MGR, def, pub } from './_def.mjs';
 import { getSettings } from './settings.mjs';
 import { isSiteClient } from '../lib/siteClients.mjs';
-import { cleanBlurb, publicTile, webUrl } from '../lib/siteVenues.mjs';
+import { cleanBlurb, cityOf, publicTile, webUrl } from '../lib/siteVenues.mjs';
 import { extract, HAIKU } from '../lib/ai.mjs';
 import { feedbackShape, groupPublic, mergePublic, tickedPraise } from './reviews.mjs';
 
@@ -20,15 +20,31 @@ const VENUE_FIELDS = ['client_id', 'name', 'address', 'postcode', 'lat', 'lng', 
 const WEBSITE_FIELDS = ['site_client', 'on_website', 'city', 'website_blurb', 'website_url'];
 const PHOTO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
-// A public copy of the venue photo for its tile on the landing page; HEIC and big files stay app-only
+// A public copy of the venue photo for its tile on the landing page; HEIC and big files fall back to the small copy
 async function publishPhoto(key) {
   if (!key) return null;
-  const h = await headObject(key);
-  const ext = h && PHOTO_TYPES[h.mime];
-  if (!ext || h.size > 5 * 1024 * 1024) return null;
-  const pubKey = `media/venues/${crypto.randomUUID()}.${ext}`;
-  await putObject(pubKey, await getObjectBytes(key), h.mime);
-  return publicUrl(pubKey);
+  for (const k of [key, thumbKeyOf(key)]) {
+    const h = await headObject(k);
+    const ext = h && PHOTO_TYPES[h.mime];
+    if (!ext || h.size > 5 * 1024 * 1024) continue;
+    const pubKey = `media/venues/${crypto.randomUUID()}.${ext}`;
+    await putObject(pubKey, await getObjectBytes(k), h.mime);
+    return publicUrl(pubKey);
+  }
+  return null;
+}
+
+// A venue whose photo predates its website tile gets the public copy the first time the tile is needed
+async function websitePhoto(v) {
+  if (v.website_photo_url || !v.photo_key) return v.website_photo_url || null;
+  try {
+    const url = await publishPhoto(v.photo_key);
+    if (url) await q('UPDATE venues SET website_photo_url = $2 WHERE id = $1 AND website_photo_url IS NULL', [v.id, url]);
+    return url;
+  } catch (e) {
+    console.warn('[venues] website photo', e.message);
+    return null;
+  }
 }
 
 const TILE_TOOL = {
@@ -136,9 +152,10 @@ export const actions = {
     if (v.on_website && !v.website_blurb) {
       try {
         const w = await writeWebsite(v);
-        if (w.blurb) v = await one('UPDATE venues SET website_blurb = $2, city = COALESCE(city, $3) WHERE id = $1 RETURNING *', [v.id, w.blurb, w.city]);
+        if (w.blurb) v = await one('UPDATE venues SET website_blurb = $2, city = COALESCE(city, $3) WHERE id = $1 RETURNING *', [v.id, w.blurb, cityOf(v) || w.city]);
       } catch (e) { console.warn('[venues] website text', e.message); }
     }
+    if (v.on_website && !v.site_client && v.photo_key && !v.website_photo_url) v.website_photo_url = await websitePhoto(v);
     return v;
   }),
 
@@ -156,9 +173,11 @@ export const actions = {
     const [published, praise, venues] = await Promise.all([
       q("SELECT * FROM reviews WHERE status = 'published'"),
       tickedPraise(),
-      q('SELECT id, name, city, site_client, active, on_website, website_blurb, website_url, website_photo_url FROM venues ORDER BY name'),
+      q('SELECT id, name, city, address, postcode, photo_key, site_client, active, on_website, website_blurb, website_url, website_photo_url FROM venues ORDER BY name'),
     ]);
     const shown = (v) => v.active && v.on_website;
+    // An automatic tile uses the venue's own photo from its details; hand-made tiles keep their pictures
+    await Promise.all(venues.filter((v) => shown(v) && !v.site_client).map(async (v) => { v.website_photo_url = await websitePhoto(v); }));
     const linked = venues.filter((v) => v.site_client);
     const photos = {};
     for (const v of linked) if (shown(v) && v.website_photo_url) photos[v.site_client] ||= v.website_photo_url;

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanBlurb, DEFAULT_BLURB, publicTile, webUrl } from '../lib/siteVenues.mjs';
+import { cityOf, cleanBlurb, DEFAULT_BLURB, publicTile, webUrl } from '../lib/siteVenues.mjs';
 
 test('only plain web links reach the landing page', () => {
   assert.equal(webUrl('example.com'), 'https://example.com/');
@@ -25,4 +25,14 @@ test('the welcome line is one short paragraph', () => {
   assert.equal(cleanBlurb('  "Proud to   look after\n the Dome."  '), 'Proud to look after the Dome.');
   assert.equal(cleanBlurb('x'.repeat(400)).length, 220);
   assert.equal(cleanBlurb('   '), null);
+});
+
+test('the tile town comes from the venue details when no city is set', () => {
+  assert.equal(cityOf({ city: ' Leith ', postcode: 'EH6 6JJ' }), 'Leith');
+  assert.equal(cityOf({ postcode: 'eh1 1rf' }), 'Edinburgh');
+  assert.equal(cityOf({ postcode: 'G1 3AH' }), 'Glasgow');
+  assert.equal(cityOf({ postcode: 'GL1 2AB' }), null);
+  assert.equal(cityOf({ address: '29 Niddry Street, Edinburgh' }), 'Edinburgh');
+  assert.equal(cityOf({ address: '1 High Street' }), null);
+  assert.equal(publicTile({ name: 'Banshee', postcode: 'EH1 1SR', address: '29 Niddry St' }).city, 'Edinburgh');
 });

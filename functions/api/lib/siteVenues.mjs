@@ -19,9 +19,23 @@ export function webUrl(s) {
 /** The welcome line, one short paragraph without wrapping quotes */
 export const cleanBlurb = (s) => String(s ?? '').replace(/\s+/g, ' ').trim().replace(/^["“'‘]+|["”'’]+$/g, '').trim().slice(0, 220) || null;
 
+// Postcode areas to the town shown on the tile (Scotland first; the rest of the UK can be added as venues arrive)
+const AREAS = { EH: 'Edinburgh', G: 'Glasgow', AB: 'Aberdeen', DD: 'Dundee', IV: 'Inverness', PH: 'Perth', KY: 'Fife', FK: 'Stirling', KA: 'Ayrshire', ML: 'Lanarkshire', PA: 'Paisley', DG: 'Dumfries', TD: 'Borders' };
+const TOWNS = ['Edinburgh', 'Glasgow', 'Aberdeen', 'Dundee', 'Inverness', 'Perth', 'Stirling', 'Paisley', 'Falkirk', 'St Andrews', 'Ayr', 'Dumfries'];
+
+/** The tile's town: the one set on the venue, else from its postcode, else a town named in its address */
+export function cityOf(v) {
+  const set = String(v.city ?? '').trim();
+  if (set) return set;
+  const area = String(v.postcode ?? '').trim().toUpperCase().match(/^([A-Z]{1,2})\d/)?.[1];
+  if (area && AREAS[area]) return AREAS[area];
+  const addr = String(v.address ?? '');
+  return TOWNS.find((t) => new RegExp(`\\b${t}\\b`, 'i').test(addr)) || null;
+}
+
 export const publicTile = (v, reviews = []) => ({
   name: v.name,
-  city: v.city?.trim() || null,
+  city: cityOf(v),
   blurb: v.website_blurb || DEFAULT_BLURB(v.name),
   photo: v.website_photo_url || null,
   url: v.website_url || null,
