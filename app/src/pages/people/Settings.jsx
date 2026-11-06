@@ -15,7 +15,7 @@ import { TemplatesTab } from './_esign.jsx';
 import LibraryTab from './contracts/Library.jsx';
 import { EmailTab } from '../email/_settings.jsx';
 import { InstallTile } from '../../ui/pwa.jsx';
-import { AccessFields, InviteSheet, USER_ROLES } from './_access.jsx';
+import { AccessFields, InviteSheet, inviteHint, USER_ROLES } from './_access.jsx';
 
 const TABS = [
   { value: 'company', label: 'Company details' }, { value: 'users', label: 'Users & access' }, { value: 'rules', label: 'Workforce rules' },
@@ -527,7 +527,12 @@ function UserSheet({ u, me, all = [], venues, clients, onClientCreated, onClose,
     onClose();
   };
   const reset = async () => setLink((await run(() => api('users.resetLink', { id: u.id }), 'Link created')).link);
-  const resend = async () => setLink((await run(() => api('users.resendInvite', { id: u.id }), 'Invite sent again')).invite_link);
+  const [emailed, setEmailed] = useState(null);
+  const resend = async () => {
+    const r = await run(() => api('users.resendInvite', { id: u.id }), (x) => (x.emailed === false ? "Email didn't send — share the link below" : 'Invite sent again'));
+    setEmailed(r.emailed !== false);
+    setLink(r.invite_link);
+  };
   return (
     <Sheet open onClose={onClose} title={u.name}
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={save}>Save</Button></>}>
@@ -545,7 +550,7 @@ function UserSheet({ u, me, all = [], venues, clients, onClientCreated, onClose,
         {u.role === 'security' && <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.can_see_pay} onChange={(x) => set('can_see_pay', x)} label="Can see pay" hint="Officer rates and pay statements" /></div>}
         {['company', 'security'].includes(u.role) && u.status !== 'disabled' && <WorksShifts u={u} all={all} onDone={() => { onDone(); onClose(); }} />}
         {u.officer_id && <Link to={`/company/staff/${u.officer_id}`} className="inline-flex items-center gap-1.5 text-subhead font-semibold text-blue"><Users size={16} />Staff profile<ChevronRight size={16} /></Link>}
-        {link ? <CopyLink link={link} label={u.status === 'invited' ? 'Invite link' : 'Password reset link'} hint="Valid for 48 hours. Share it directly." /> : u.status === 'invited' && u.invite_link && <CopyLink link={u.invite_link} />}
+        {link ? <CopyLink link={link} label={u.status === 'invited' ? 'Invite link' : 'Password reset link'} hint={emailed === null ? 'Valid for 48 hours. Share it directly.' : inviteHint(emailed, u.email)} /> : u.status === 'invited' && u.invite_link && <CopyLink link={u.invite_link} />}
         <div className="flex flex-wrap gap-2 border-t border-line pt-4">
           {u.status === 'invited' && <Button variant="soft" onClick={resend}>Resend invite</Button>}
           {u.status === 'active' && <Button variant="soft" icon={KeyRound} onClick={reset}>Password reset link</Button>}

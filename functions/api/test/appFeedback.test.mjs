@@ -5,6 +5,7 @@ import { CATALOG } from '../lib/orbCatalog.mjs';
 import { guardPlatformAccount, isPlatformAdmin, isPlatformEmail } from '../lib/platform.mjs';
 import { publicUser } from '../lib/auth.mjs';
 import { checkFeedback, taskText, toCsv } from '../modules/appFeedback.mjs';
+import { resetGuardNeeded, sendInviteMail } from '../modules/users.mjs';
 
 const admin = { id: 'a1', role: 'company', email: 'info@orbsolutions.co.uk', name: 'Owner', status: 'active' };
 const manager = { id: 'c1', role: 'company', email: 'boss@opulence.co.uk', name: 'Boss', status: 'active' };
@@ -39,6 +40,13 @@ test('a company manager cannot put a platform email on an account or take one ov
   assert.throws(() => guardPlatformAccount(manager, 'info@orbsolutions.co.uk'), (e) => e.status === 403);
   assert.doesNotThrow(() => guardPlatformAccount(manager, 'a@x.com', 'b@x.com'));
   assert.doesNotThrow(() => guardPlatformAccount(admin, 'info@orbsolutions.co.uk'));
+});
+
+test('a pending platform admin invite can be shared; an active account is still protected', () => {
+  assert.equal(resetGuardNeeded('invited'), false);
+  assert.equal(resetGuardNeeded('active'), true);
+  assert.equal(resetGuardNeeded(undefined), true);
+  assert.equal(typeof sendInviteMail, 'function');
 });
 
 test('feedback is checked and trimmed', () => {

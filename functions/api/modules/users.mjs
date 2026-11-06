@@ -9,7 +9,7 @@ import { getBrand } from '../lib/brand.mjs';
 import { seedOnboarding } from './hr.mjs';
 import { disconnectUser } from './email.mjs';
 import { officerName, userName } from '../lib/names.mjs';
-import { guardPlatformAccount, isPlatformAdmin, isPlatformEmail } from '../lib/platform.mjs';
+import { guardPlatformAccount } from '../lib/platform.mjs';
 
 const ROLE_LABEL = { company: 'Company Manager', security: 'Security Manager', venue: 'Venue Manager', officer: 'Security Officer' };
 
@@ -23,14 +23,17 @@ export async function createInvite(t, { email, name, role, phone = '', can_see_p
   return u;
 }
 
-export async function sendInvite(u) {
+/** Emails the invite; `emailed` is false when the mail service didn't take it, so the screen says to share the link */
+export async function sendInviteMail(u) {
   const { name } = await getBrand();
-  await sendRawEmail(u.email, `You're invited to ${name}`,
+  const emailed = await sendRawEmail(u.email, `You're invited to ${name}`,
     await emailHtml(`Welcome, ${u.name}`, `You've been invited to ${name} as a ${ROLE_LABEL[u.role]}. Set your password to get started.`, `/invite/${u.invite_token}`));
-  // The platform admin's invite only ever goes to their own mailbox
-  if (isPlatformEmail(u.email)) return null;
-  return `/app/invite/${u.invite_token}`;
+  return { link: `/app/invite/${u.invite_token}`, emailed };
 }
+export const sendInvite = async (u) => (await sendInviteMail(u)).link;
+
+// A pending invite link works once, so anyone may share it; an active platform admin account is never reset by others
+export const resetGuardNeeded = (status) => status !== 'invited';
 
 async function setVenues(t, userId, role, venueIds) {
   if (!Array.isArray(venueIds)) return;
@@ -50,7 +53,7 @@ async function checkClient(t, role, clientId) {
 const withPhotos = (rows) => Promise.all(rows.map(async ({ photo_key, ...u }) => ({ ...u, ...(await photoUrls(photo_key)) })));
 
 export const actions = {
-  'users.list': def(CO, async (b, { user }) => withPhotos((await q(
+  'users.list': def(CO, async (b) => withPhotos(await q(
     `SELECT u.id, u.email, u.name, u.goes_by, u.phone, u.role, COALESCE((SELECT o.photo_key FROM officers o WHERE o.user_id = u.id LIMIT 1), u.photo_key) AS photo_key, u.status, u.can_see_pay, u.last_login, u.created_at,
             u.client_id, (SELECT c.name FROM clients c WHERE c.id = u.client_id) AS client_name,
             COALESCE(array_agg(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS venues,
@@ -63,9 +66,7 @@ export const actions = {
        LEFT JOIN security_venues sv ON sv.user_id = u.id AND u.role = 'security'
        LEFT JOIN venues v ON v.id = COALESCE(vc.venue_id, sv.venue_id)
       WHERE NOT u.system AND ($1::text IS NULL OR u.role = $1)
-      GROUP BY u.id ORDER BY u.role, u.name`, [b.role || null]))
-    // Only the platform admin sees the link to the platform admin's own invite
-    .map((u) => (isPlatformEmail(u.email) && !isPlatformAdmin(user) ? { ...u, invite_link: null } : u)))),
+      GROUP BY u.id ORDER BY u.role, u.name`, [b.role || null]))),
 
   'users.invite': def(CO, async (b, { user }) => {
     required(b, 'email', 'name', 'role');
@@ -78,7 +79,8 @@ export const actions = {
       return created;
     });
     await audit(user, 'user.invite', 'user', u.id, { role: b.role, client_id: b.client_id || null });
-    return { id: u.id, invite_link: await sendInvite(u) };
+    const { link, emailed } = await sendInviteMail(u);
+    return { id: u.id, invite_link: link, emailed };
   }),
 
   'users.update': def(CO, async (b, { user }) => {
@@ -131,7 +133,8 @@ export const actions = {
   }),
 
   'users.resetLink': def(CO, async (b, { user }) => {
-    guardPlatformAccount(user, (await one('SELECT email FROM users WHERE id = $1', [b.id]))?.email);
+    const target = await one('SELECT email, status FROM users WHERE id = $1', [b.id]);
+    if (resetGuardNeeded(target?.status)) guardPlatformAccount(user, target?.email);
     const token = randomToken();
     const u = await one("UPDATE users SET reset_token = $2, reset_expires = now() + interval '48 hours' WHERE id = $1 RETURNING id, status, invite_token", [b.id, token]);
     if (!u) fail(404, 'User not found');
@@ -143,7 +146,8 @@ export const actions = {
   'users.resendInvite': def(CO, async (b) => {
     const u = await one("SELECT * FROM users WHERE id = $1 AND status = 'invited'", [b.id]);
     if (!u) fail(404, 'No pending invite');
-    return { invite_link: await sendInvite(u) };
+    const { link, emailed } = await sendInviteMail(u);
+    return { invite_link: link, emailed };
   }),
 
   // A company or security manager who also works shifts: create or link their staff record (one login, two sides)

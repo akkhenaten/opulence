@@ -42,6 +42,11 @@ export function AccessFields({ role, v, set, venues, clients, onClientCreated })
 }
 
 /** Invite a manager or venue user. `preset` fills in the role, client and venues (from a venue or client page). */
+/** Under an invite link: whether the email went, so a failed one is never silent */
+export const inviteHint = (emailed, email) => (emailed
+  ? `Sent to ${email}. You can also share this link.`
+  : "The email didn't go through. Copy this link and open it, or send it to them.");
+
 export function InviteSheet({ preset = {}, onClose, onDone }) {
   const { user } = useAuth();
   const venues = useApi('venues.list');
@@ -49,19 +54,21 @@ export function InviteSheet({ preset = {}, onClose, onDone }) {
   const { v, bind, set } = useForm({ name: '', email: '', phone: '', role: 'security', venue_ids: [], client_id: '', can_see_pay: false, ...preset });
   const [run, busy] = useAction();
   const [link, setLink] = useState(null);
+  const [emailed, setEmailed] = useState(true);
   const send = async () => {
     const office = v.role === 'company';
     const r = await run(() => api('users.invite', {
       ...v, venue_ids: office ? undefined : v.venue_ids, client_id: office ? null : v.client_id || null, can_see_pay: v.role === 'security' && v.can_see_pay,
-    }), 'Invite sent');
+    }), (x) => (x.emailed === false ? "Email didn't send — share the link below" : 'Invite sent'));
     setLink(r.invite_link);
+    setEmailed(r.emailed !== false);
     onDone();
   };
   return (
     <Sheet open onClose={onClose} title={link ? 'Invite sent' : 'Invite manager or venue user'}
       footer={link ? <Button onClick={onClose}>Done</Button>
         : <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!v.name || !v.email} onClick={send}>Send invite</Button></>}>
-      {link ? <CopyLink link={link} /> : (
+      {link ? <CopyLink link={link} hint={inviteHint(emailed, v.email)} /> : (
         <div className="space-y-4">
           <Segmented value={v.role} onChange={(r) => set('role', r)} options={USER_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))} />
           <p className="text-footnote text-muted">{ROLE_HINT[v.role]}</p>
