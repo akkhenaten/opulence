@@ -251,7 +251,7 @@ They then switch between Manager and My shifts at the top of the menu or in My a
         id: 'training', title: 'Academy, Toolbox and compliance', image: 'training.png',
         body: `Training (the Academy) holds courses with lessons and quizzes. Assign courses to officers and track who has passed. Certificates are issued automatically.
 
-The Toolbox holds quick guides for officers (first aid, situations, the law at a glance).
+The Toolbox holds quick guides for officers (first aid, situations, the law at a glance). The Emergency guide (a step-by-step Knife attack journey with "I'm in danger", Call 999 and Police arriving always on screen) is a draft waiting for clinical sign-off, so only the people the platform admin allows can open it.
 
 Compliance checks licences, right to work, documents and training against the rota. Tap Run check now, or turn on the weekly compliance email.`,
       },

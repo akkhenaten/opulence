@@ -219,7 +219,7 @@ export default function Shell() {
   reloadFeed.current = feed.reload;
   useRealtime('feed.post', (d) => { if (feedOn && !onFeed && d.author_id !== user.id) reloadFeed.current(); });
   const groups = NAV[user.role]
-    .map((g) => ({ ...g, items: g.items.filter((it) => (!it.module || on(it.module)) && (!it.moduleAny || it.moduleAny.some(on)) && (!it.perm || user[it.perm])) }))
+    .map((g) => ({ ...g, items: g.items.filter((it) => (!it.module || on(it.module)) && (!it.moduleAny || it.moduleAny.some(on)) && (!it.perm || user[it.perm]) && (!it.gate || settings.data?.[it.gate])) }))
     .filter((g) => g.items.length);
   const all = groups.flatMap((g) => g.items);
   const tabs = all.filter((i) => i.tab);

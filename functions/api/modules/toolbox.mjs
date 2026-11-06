@@ -8,6 +8,8 @@ import { extract, SONNET, HAIKU } from '../lib/ai.mjs';
 import { requireModule } from '../lib/modules.mjs';
 import { CONTENT_RULES, officerVenues, reviewDate } from '../lib/learn.mjs';
 import { CO, def } from './_def.mjs';
+import { plat } from '../lib/platform.mjs';
+import { GUIDE_LEVELS } from '../lib/emergency.mjs';
 
 const STAFF = ['company', 'security', 'officer'];
 const CATEGORIES = ['first_aid', 'situations', 'law', 'venue'];
@@ -158,5 +160,13 @@ export const actions = {
       emergency: !!input?.emergency,
       note: matches.length ? '' : 'No card matches that. In an emergency call 999, otherwise call your supervisor.',
     };
+  }),
+
+  // Who can open the Emergency guide: only the platform admin decides, while the wording awaits clinical sign-off
+  'toolbox.setEmergencyGuide': plat(async (b, { user }) => {
+    if (!GUIDE_LEVELS.includes(b.level)) fail(400, 'Choose who can see the guide');
+    await q('UPDATE settings SET emergency_guide = $1 WHERE id = 1', [b.level]);
+    await audit(user, 'emergency_guide.level', 'settings', 1, { level: b.level });
+    return { emergency_guide: b.level };
   }),
 };

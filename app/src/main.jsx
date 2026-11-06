@@ -85,6 +85,7 @@ const ToolboxAdmin = P(() => import('./pages/team/ToolboxAdmin.jsx'));
 const CardEditor = P(() => import('./pages/team/CardEditor.jsx'));
 const Help = P(() => import('./pages/shared/Help.jsx'));
 const Platform = P(() => import('./pages/platform/Platform.jsx'));
+const EmergencyGuide = P(() => import('./pages/guide/emergency/Guide.jsx'));
 
 function Guard({ role }) {
   const { user, ready } = useAuth();
@@ -193,6 +194,7 @@ function App() {
         <Route path="/verify/:ref" element={<Verify />} />
         <Route path="/sign/:token" element={<PublicSign />} />
         <Route path="/apply" element={<Apply />} />
+        <Route path="/guide/emergency/:screen?" element={<EmergencyGuide />} />
 
         <Route element={<Guard role={['company']} />}>
           <Route path="/company" element={<Shell />}>

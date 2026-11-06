@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/ui-lint.mjs --report && vite build"
+    "build": "node scripts/ui-lint.mjs --report && node scripts/emergency-check.mjs && vite build"
   },
   "dependencies": {
     "html5-qrcode": "^2.3.8",

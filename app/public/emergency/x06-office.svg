@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+<rect width="1200" height="1200" fill="#FFFFFF"/>
+<defs>
+<clipPath id="blk0"><rect x="500" y="480" width="200" height="240"/></clipPath>
+<clipPath id="dot0"><rect x="180" y="510" width="320" height="180"/></clipPath>
+<clipPath id="dot1"><rect x="720" y="510" width="300" height="180"/></clipPath>
+</defs>
+<rect x="500" y="480" width="200" height="240" fill="#FFFFFF"/>
+<g clip-path="url(#blk0)" stroke="#3D4450" stroke-width="2.4">
+<line x1="260" y1="480" x2="500" y2="720"/>
+<line x1="272" y1="480" x2="512" y2="720"/>
+<line x1="284" y1="480" x2="524" y2="720"/>
+<line x1="296" y1="480" x2="536" y2="720"/>
+<line x1="308" y1="480" x2="548" y2="720"/>
+<line x1="320" y1="480" x2="560" y2="720"/>
+<line x1="332" y1="480" x2="572" y2="720"/>
+<line x1="344" y1="480" x2="584" y2="720"/>
+<line x1="356" y1="480" x2="596" y2="720"/>
+<line x1="368" y1="480" x2="608" y2="720"/>
+<line x1="380" y1="480" x2="620" y2="720"/>
+<line x1="392" y1="480" x2="632" y2="720"/>
+<line x1="404" y1="480" x2="644" y2="720"/>
+<line x1="416" y1="480" x2="656" y2="720"/>
+<line x1="428" y1="480" x2="668" y2="720"/>
+<line x1="440" y1="480" x2="680" y2="720"/>
+<line x1="452" y1="480" x2="692" y2="720"/>
+<line x1="464" y1="480" x2="704" y2="720"/>
+<line x1="476" y1="480" x2="716" y2="720"/>
+<line x1="488" y1="480" x2="728" y2="720"/>
+<line x1="500" y1="480" x2="740" y2="720"/>
+<line x1="512" y1="480" x2="752" y2="720"/>
+<line x1="524" y1="480" x2="764" y2="720"/>
+<line x1="536" y1="480" x2="776" y2="720"/>
+<line x1="548" y1="480" x2="788" y2="720"/>
+<line x1="560" y1="480" x2="800" y2="720"/>
+<line x1="572" y1="480" x2="812" y2="720"/>
+<line x1="584" y1="480" x2="824" y2="720"/>
+<line x1="596" y1="480" x2="836" y2="720"/>
+<line x1="608" y1="480" x2="848" y2="720"/>
+<line x1="620" y1="480" x2="860" y2="720"/>
+<line x1="632" y1="480" x2="872" y2="720"/>
+<line x1="644" y1="480" x2="884" y2="720"/>
+<line x1="656" y1="480" x2="896" y2="720"/>
+<line x1="668" y1="480" x2="908" y2="720"/>
+<line x1="680" y1="480" x2="920" y2="720"/>
+<line x1="692" y1="480" x2="932" y2="720"/>
+<line x1="704" y1="480" x2="944" y2="720"/>
+<line x1="716" y1="480" x2="956" y2="720"/>
+<line x1="728" y1="480" x2="968" y2="720"/>
+<line x1="740" y1="480" x2="980" y2="720"/>
+<line x1="752" y1="480" x2="992" y2="720"/>
+<line x1="764" y1="480" x2="1004" y2="720"/>
+<line x1="776" y1="480" x2="1016" y2="720"/>
+<line x1="788" y1="480" x2="1028" y2="720"/>
+<line x1="800" y1="480" x2="1040" y2="720"/>
+<line x1="812" y1="480" x2="1052" y2="720"/>
+<line x1="824" y1="480" x2="1064" y2="720"/>
+<line x1="836" y1="480" x2="1076" y2="720"/>
+<line x1="848" y1="480" x2="1088" y2="720"/>
+<line x1="860" y1="480" x2="1100" y2="720"/>
+<line x1="872" y1="480" x2="1112" y2="720"/>
+<line x1="884" y1="480" x2="1124" y2="720"/>
+<line x1="896" y1="480" x2="1136" y2="720"/>
+<line x1="908" y1="480" x2="1148" y2="720"/>
+<line x1="920" y1="480" x2="1160" y2="720"/>
+<line x1="932" y1="480" x2="1172" y2="720"/>
+</g>
+<rect x="500" y="480" width="200" height="240" fill="none" stroke="#15181D" stroke-width="9"/>
+<g clip-path="url(#dot0)" fill="#3D4450">
+<circle cx="202" cy="532" r="2.6"/>
+<circle cx="246" cy="532" r="2.6"/>
+<circle cx="290" cy="532" r="2.6"/>
+<circle cx="334" cy="532" r="2.6"/>
+<circle cx="378" cy="532" r="2.6"/>
+<circle cx="422" cy="532" r="2.6"/>
+<circle cx="466" cy="532" r="2.6"/>
+<circle cx="202" cy="576" r="2.6"/>
+<circle cx="246" cy="576" r="2.6"/>
+<circle cx="290" cy="576" r="2.6"/>
+<circle cx="334" cy="576" r="2.6"/>
+<circle cx="378" cy="576" r="2.6"/>
+<circle cx="422" cy="576" r="2.6"/>
+<circle cx="466" cy="576" r="2.6"/>
+<circle cx="202" cy="620" r="2.6"/>
+<circle cx="246" cy="620" r="2.6"/>
+<circle cx="290" cy="620" r="2.6"/>
+<circle cx="334" cy="620" r="2.6"/>
+<circle cx="378" cy="620" r="2.6"/>
+<circle cx="422" cy="620" r="2.6"/>
+<circle cx="466" cy="620" r="2.6"/>
+<circle cx="202" cy="664" r="2.6"/>
+<circle cx="246" cy="664" r="2.6"/>
+<circle cx="290" cy="664" r="2.6"/>
+<circle cx="334" cy="664" r="2.6"/>
+<circle cx="378" cy="664" r="2.6"/>
+<circle cx="422" cy="664" r="2.6"/>
+<circle cx="466" cy="664" r="2.6"/>
+</g>
+<g clip-path="url(#dot1)" fill="#3D4450">
+<circle cx="742" cy="532" r="2.6"/>
+<circle cx="786" cy="532" r="2.6"/>
+<circle cx="830" cy="532" r="2.6"/>
+<circle cx="874" cy="532" r="2.6"/>
+<circle cx="918" cy="532" r="2.6"/>
+<circle cx="962" cy="532" r="2.6"/>
+<circle cx="1006" cy="532" r="2.6"/>
+<circle cx="742" cy="576" r="2.6"/>
+<circle cx="786" cy="576" r="2.6"/>
+<circle cx="830" cy="576" r="2.6"/>
+<circle cx="874" cy="576" r="2.6"/>
+<circle cx="918" cy="576" r="2.6"/>
+<circle cx="962" cy="576" r="2.6"/>
+<circle cx="1006" cy="576" r="2.6"/>
+<circle cx="742" cy="620" r="2.6"/>
+<circle cx="786" cy="620" r="2.6"/>
+<circle cx="830" cy="620" r="2.6"/>
+<circle cx="874" cy="620" r="2.6"/>
+<circle cx="918" cy="620" r="2.6"/>
+<circle cx="962" cy="620" r="2.6"/>
+<circle cx="1006" cy="620" r="2.6"/>
+<circle cx="742" cy="664" r="2.6"/>
+<circle cx="786" cy="664" r="2.6"/>
+<circle cx="830" cy="664" r="2.6"/>
+<circle cx="874" cy="664" r="2.6"/>
+<circle cx="918" cy="664" r="2.6"/>
+<circle cx="962" cy="664" r="2.6"/>
+<circle cx="1006" cy="664" r="2.6"/>
+</g>
+<line x1="500" y1="240" x2="500" y2="480" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="700" y1="240" x2="700" y2="480" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="500" y1="720" x2="500" y2="960" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="700" y1="720" x2="700" y2="960" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="150" y1="480" x2="500" y2="480" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="700" y1="480" x2="1050" y2="480" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="150" y1="720" x2="500" y2="720" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="700" y1="720" x2="1050" y2="720" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="150" y1="240" x2="1050" y2="240" stroke="#15181D" stroke-width="16" stroke-linecap="square"/>
+<line x1="150" y1="960" x2="1050" y2="960" stroke="#15181D" stroke-width="16" stroke-linecap="square"/>
+<line x1="150" y1="240" x2="150" y2="960" stroke="#15181D" stroke-width="16" stroke-linecap="square"/>
+<line x1="1050" y1="240" x2="1050" y2="960" stroke="#15181D" stroke-width="16" stroke-linecap="square"/>
+<rect x="555" y="947" width="90" height="26" fill="#1B5FD1"/>
+<rect x="1037" y="287" width="26" height="90" fill="#1B5FD1"/>
+<circle cx="330" cy="610" r="24" fill="#FFFFFF" stroke="#15181D" stroke-width="6"/>
+<circle cx="330" cy="610" r="10" fill="#15181D"/>
+</svg>

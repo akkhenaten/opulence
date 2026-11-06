@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+<rect width="1200" height="1200" fill="#FFFFFF"/>
+<defs>
+<clipPath id="dot0"><rect x="340" y="560" width="520" height="100"/></clipPath>
+<clipPath id="dot1"><rect x="520" y="700" width="160" height="190"/></clipPath>
+</defs>
+<g clip-path="url(#dot0)" fill="#3D4450">
+<circle cx="364" cy="584" r="2.6"/>
+<circle cx="412" cy="584" r="2.6"/>
+<circle cx="460" cy="584" r="2.6"/>
+<circle cx="508" cy="584" r="2.6"/>
+<circle cx="556" cy="584" r="2.6"/>
+<circle cx="604" cy="584" r="2.6"/>
+<circle cx="652" cy="584" r="2.6"/>
+<circle cx="700" cy="584" r="2.6"/>
+<circle cx="748" cy="584" r="2.6"/>
+<circle cx="796" cy="584" r="2.6"/>
+<circle cx="844" cy="584" r="2.6"/>
+<circle cx="364" cy="632" r="2.6"/>
+<circle cx="412" cy="632" r="2.6"/>
+<circle cx="460" cy="632" r="2.6"/>
+<circle cx="508" cy="632" r="2.6"/>
+<circle cx="556" cy="632" r="2.6"/>
+<circle cx="604" cy="632" r="2.6"/>
+<circle cx="652" cy="632" r="2.6"/>
+<circle cx="700" cy="632" r="2.6"/>
+<circle cx="748" cy="632" r="2.6"/>
+<circle cx="796" cy="632" r="2.6"/>
+<circle cx="844" cy="632" r="2.6"/>
+</g>
+<g clip-path="url(#dot1)" fill="#3D4450">
+<circle cx="544" cy="724" r="2.6"/>
+<circle cx="592" cy="724" r="2.6"/>
+<circle cx="640" cy="724" r="2.6"/>
+<circle cx="544" cy="772" r="2.6"/>
+<circle cx="592" cy="772" r="2.6"/>
+<circle cx="640" cy="772" r="2.6"/>
+<circle cx="544" cy="820" r="2.6"/>
+<circle cx="592" cy="820" r="2.6"/>
+<circle cx="640" cy="820" r="2.6"/>
+<circle cx="544" cy="868" r="2.6"/>
+<circle cx="592" cy="868" r="2.6"/>
+<circle cx="640" cy="868" r="2.6"/>
+</g>
+<line x1="150" y1="540" x2="1050" y2="540" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="150" y1="680" x2="1050" y2="680" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="300" y1="280" x2="300" y2="540" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="470" y1="280" x2="470" y2="540" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="640" y1="280" x2="640" y2="540" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="810" y1="280" x2="810" y2="540" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="300" y1="680" x2="300" y2="920" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="470" y1="680" x2="470" y2="920" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="640" y1="680" x2="640" y2="920" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="810" y1="680" x2="810" y2="920" stroke="#15181D" stroke-width="9" stroke-linecap="square"/>
+<line x1="150" y1="280" x2="1050" y2="280" stroke="#15181D" stroke-width="16" stroke-linecap="square"/>
+<line x1="150" y1="920" x2="1050" y2="920" stroke="#15181D" stroke-width="16" stroke-linecap="square"/>
+<line x1="150" y1="280" x2="150" y2="920" stroke="#15181D" stroke-width="16" stroke-linecap="square"/>
+<line x1="1050" y1="280" x2="1050" y2="920" stroke="#15181D" stroke-width="16" stroke-linecap="square"/>
+<rect x="137" y="557" width="26" height="80" fill="#1B5FD1"/>
+<rect x="1037" y="557" width="26" height="80" fill="#1B5FD1"/>
+<circle cx="360" cy="610" r="24" fill="#FFFFFF" stroke="#15181D" stroke-width="6"/>
+<circle cx="360" cy="610" r="10" fill="#15181D"/>
+</svg>

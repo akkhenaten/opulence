@@ -10,6 +10,7 @@ import { MODULES } from '../lib/modules.mjs';
 import { monthKey } from '../lib/ai.mjs';
 import { OPTIONAL_KINDS } from '../lib/notify.mjs';
 import { cleanEverydaySettings } from '../lib/feed.mjs';
+import { canSeeGuide } from '../lib/emergency.mjs';
 
 const FIELDS = ['company_name', 'company_address', 'company_email', 'company_phone', 'vat_number', 'vat_rate', 'company_number', 'bank_name',
   'bank_sort_code', 'bank_account', 'invoice_prefix', 'invoice_cycle', 'payment_terms_days', 'pay_period', 'grace_minutes', 'auto_signoff_days',
@@ -25,8 +26,9 @@ const forClient = ({ nfc_meta_key, nfc_file_key, ...s }) => ({ ...s, nfc_ready: 
 export const actions = {
   'settings.get': def(ALL, async (_b, { user }) => {
     const s = await getSettings();
-    if (user.role === 'company') return forClient(s);
-    return { company_name: s.company_name, grace_minutes: s.grace_minutes, pay_period: s.pay_period, modules: s.modules, logo_url: s.logo_url, brand_color: s.brand_color, ui_style: s.ui_style, everyday: s.everyday };
+    const emergency_visible = canSeeGuide(user, s.emergency_guide);
+    if (user.role === 'company') return { ...forClient(s), emergency_visible };
+    return { company_name: s.company_name, grace_minutes: s.grace_minutes, pay_period: s.pay_period, modules: s.modules, logo_url: s.logo_url, brand_color: s.brand_color, ui_style: s.ui_style, everyday: s.everyday, emergency_visible };
   }),
 
   // Name, logo and colour for the sign-in page (no login needed)

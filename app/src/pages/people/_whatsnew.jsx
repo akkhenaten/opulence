@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, FilePen, FileSignature, Fingerprint, Globe, GraduationCap, LayoutGrid, MessageSquareHeart,
-  MessageCircleWarning, MessagesSquare, Newspaper, Palette, Radar, ShieldAlert, Smartphone, Sparkles, Users, Wallet,
+  MessageCircleWarning, MessagesSquare, Newspaper, Palette, Radar, ShieldAlert, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +9,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency guide (draft)',
+    lede: 'A step-by-step Emergency guide is coming to the Toolbox, starting with a knife attack: get safe, call 999, help the injured and hand over. Its wording is still being clinically reviewed, so for now only the Orb team can open it; it will reach managers, officers and venue teams once it is approved.',
+    points: ["I'm in danger, Call 999 and Police arriving on every screen", 'Big pictures and short steps made for a phone', 'Nothing dials by itself: you tap to call', 'Shown only to the Orb team until approved'],
+  },
   {
     month: 'November 2026', date: '2026-11-06', icon: MessageCircleWarning, title: 'Tell us what to fix',
     lede: 'While the app is being fine-tuned, everyone (managers, venue teams and officers) can send problems and ideas straight to the Orb team from the glowing App feedback button next to the bell. Each report comes with the screen, device and app version, so it gets fixed faster.',

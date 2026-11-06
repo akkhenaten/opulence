@@ -1,7 +1,7 @@
 import {
   BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
   Radio, ReceiptText, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText,
-  GraduationCap, BookOpenCheck, Crown, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck, MessageSquareHeart, LineChart,
+  GraduationCap, BookOpenCheck, Crown, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck, MessageSquareHeart, LineChart, Siren,
 } from 'lucide-react';
 
 // Sidebar sections per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
@@ -97,6 +97,7 @@ export const NAV = {
       { to: '/venue/timesheets', label: 'Timesheets', icon: ClipboardCheck },
       { to: '/venue/incidents', label: 'Incidents', icon: ShieldAlert, tab: true },
       { to: '/venue/invoices', label: 'Invoices', icon: ReceiptText },
+      { to: '/guide/emergency/S00?from=/venue', label: 'Emergency guide', icon: Siren, gate: 'emergency_visible' },
     ] },
   ],
   officer: [
