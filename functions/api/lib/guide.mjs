@@ -331,7 +331,7 @@ AI features use credits from your plan. The usage is shown in Settings.`,
       },
       {
         id: 'clock', title: 'Clock in and out', image: 'officer-clock.png',
-        body: `1. Tap the big Clock button. Clock-in opens 30 minutes before your shift.
+        body: `1. Tap the big Clock button. Clock-in opens 15 minutes before your shift.
 2. Allow location when asked, then Scan QR code (the venue poster).
 3. Use Start break and End break during the shift, and Clock out at the end.
 
@@ -339,7 +339,7 @@ If the app can't confirm you're on site, tap Continue anyway, add a note and Sub
       },
       {
         id: 'report', title: 'Report an incident',
-        body: `From the shift or Me, tap Incident reports and start a new report. Follow the steps: what happened, people, injuries, police or ambulance, force, witnesses and photos. Managers and the venue are alerted straight away. If your manager asks for changes, the report appears under Needs your attention.`,
+        body: `Reports start from the shift. While you are clocked in, Home is your shift card: tap Report incident or Log ejection there. For a shift that has finished, open it from Shifts, then List (up to 30 days back). Follow the steps: what happened, people, injuries, police or ambulance, force, witnesses and photos. Managers and the venue are alerted straight away. If your manager asks for changes, the report appears in your To do list on Home. Me, then Reports, lists every incident report and ejection you have logged.`,
       },
       {
         id: 'me', title: 'Pay, time off, training and documents',
@@ -355,7 +355,7 @@ If the app can't confirm you're on site, tap Continue anyway, add a note and Sub
     sections: [
       {
         id: 'clockfail', title: 'Clock-in is refused',
-        body: `Clock-in opens 30 minutes before the shift. Make sure location is allowed for the app (phone Settings, then the browser or Orb) and that you are inside the venue. If the QR code won't scan, tap I can't scan the code. You can always submit the clock-in as an exception with a note.`,
+        body: `Clock-in opens 15 minutes before the shift. Make sure location is allowed for the app (phone Settings, then the browser or Orb) and that you are inside the venue. If the QR code won't scan, tap I can't scan the code. You can always submit the clock-in as an exception with a note.`,
       },
       {
         id: 'password', title: 'I forgot my password',

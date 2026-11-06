@@ -1,8 +1,29 @@
 // Helpers shared by the officer screens and the incident screens
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, Clock3, MapPin, UserX } from 'lucide-react';
-import { cx, dayLabel, Empty, Pill, range, titleCase } from '../../ui/index.jsx';
-import { upload } from '../../api.js';
+import { Button, cx, dayLabel, Empty, Pill, range, Sheet, Textarea, time, titleCase, useAction } from '../../ui/index.jsx';
+import { api, upload } from '../../api.js';
+
+// Clock-in opens this many minutes before a shift (the API enforces the same, clock.mjs EARLY_MIN)
+export const CLOCK_EARLY_MIN = 15;
+export const clockOpensAt = (startsAt) => new Date(new Date(startsAt).getTime() - CLOCK_EARLY_MIN * 60000);
+
+// Decline an offered shift, or give back a confirmed one, with an optional reason for the office
+export function DeclineSheet({ s, onClose, onDone }) {
+  const [reason, setReason] = useState('');
+  const [run, busy] = useAction();
+  const close = () => { setReason(''); onClose(); };
+  const decline = () => run(() => api('shifts.respond', { assignment_id: s.assignment_id, accept: false, reason }), 'Shift declined')
+    .then(() => { setReason(''); onDone(); }).catch(() => {});
+  return (
+    <Sheet open={!!s} onClose={close} title={s?.assignment_status === 'accepted' ? "Can't work this shift" : 'Decline shift'} size="sm"
+      footer={<><Button variant="secondary" onClick={close}>Keep it</Button><Button variant="danger" busy={busy} onClick={decline}>Decline shift</Button></>}>
+      {s && <p className="mb-3 text-body text-muted">{s.venue_name}, {time(s.starts_at)}–{time(s.ends_at)}. The office will be told so they can find cover.</p>}
+      <Textarea label="Reason (optional)" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Unwell, family emergency" />
+    </Sheet>
+  );
+}
 
 // Shrink camera photos before upload (night-time signal at a venue door is often poor).
 // Returns a JPEG File (keeps PDFs and non-images untouched). PDFs embed only PNG/JPEG, so JPEG is ideal.

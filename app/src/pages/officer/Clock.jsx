@@ -9,9 +9,8 @@ import { createPasskey, getPasskey, passkeySupported } from '../../lib/passkey.j
 import {
   Button, cx, dayLabel, Empty, Load, Page, Pressable, range, Sheet, Spinner, Textarea, time, titleCase, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
-import { distanceM, NotLinked, until } from './_parts.jsx';
+import { CLOCK_EARLY_MIN, distanceM, NotLinked, until } from './_parts.jsx';
 
-const EARLY_MIN = 30;
 const STATE_LABEL = { not_started: 'Not clocked in', on_shift: 'On shift', on_break: 'On break', finished: 'Shift complete' };
 const NEED = { any_one: 1, two_of_three: 2, all_three: 3 };
 const FLAG_NOTE = {
@@ -75,14 +74,14 @@ function ClockScreen({ data, reload }) {
 
   if (!a) {
     return (
-      <Empty icon={ScanLine} title="No shift to clock in to" body="Clocking opens 30 minutes before a shift you're booked on. Check your shifts for what's coming up."
+      <Empty icon={ScanLine} title="No shift to clock in to" body="Clocking opens 15 minutes before a shift you're booked on. Check your shifts for what's coming up."
         action={<Button to="/officer/shifts">My shifts</Button>} />
     );
   }
 
   const state = a.state;
   const packVenue = state === 'not_started' && (packBlock === a.venue_id || (data.pack && !data.pack.ok && data.pack.venue_id === a.venue_id)) ? a.venue_id : null;
-  const opensAt = new Date(a.starts_at).getTime() - EARLY_MIN * 60000;
+  const opensAt = new Date(a.starts_at).getTime() - CLOCK_EARLY_MIN * 60000;
   const tooEarly = state === 'not_started' && now < opensAt;
   const valid = (a.events || []).filter((e) => e.status !== 'rejected');
   const since = valid.at(-1)?.ts;

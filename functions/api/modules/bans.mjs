@@ -131,6 +131,10 @@ export const actions = {
     return Promise.all(rows.map(shape));
   }),
 
+  /** An officer's own ejections, refusals and bans, newest first: the look-back list on their Reports page */
+  'bans.mine': def(['officer'], async (b, { user }) => q(
+    `SELECT ${COLS} FROM ${FROM} WHERE b.proposed_by = $1 ORDER BY COALESCE(b.occurred_at, b.created_at) DESC LIMIT 200`, [user.id]).then((rows) => Promise.all(rows.map(shape)))),
+
   /** From the shift page: someone on the shift proposes; if they lead the shift it is active straight away. */
   'bans.propose': def(['officer', 'company', 'security'], async (b, { user }) => {
     required(b, 'shift_id');

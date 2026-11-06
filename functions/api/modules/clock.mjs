@@ -19,7 +19,9 @@ import crypto from 'node:crypto';
 import { officerName, userName } from '../lib/names.mjs';
 
 const VALID = ['ok', 'approved', 'manual'];
-const EARLY_MIN = 30;
+export const EARLY_MIN = 15;
+/** Clock-in opens EARLY_MIN minutes before the shift */
+export const tooEarly = (startsAt, now = Date.now()) => new Date(startsAt) - now > EARLY_MIN * 60000;
 
 /** (Re)build the timesheet for an assignment from its clock events. Locked/signed timesheets are left alone. */
 export async function buildTimesheet(assignmentId, { force = false } = {}) {
@@ -148,7 +150,7 @@ export const actions = {
       officer = await one('SELECT * FROM officers WHERE id = $1', [user.officer_id]);
       const c = compliance(officer);
       if (!c.ok) fail(403, `You can't clock in: ${c.issues.join(', ')}. Contact the office.`);
-      if (new Date(a.starts_at) - Date.now() > EARLY_MIN * 60000) fail(400, `Too early — clock-in opens ${EARLY_MIN} minutes before the shift (${fmtTime(new Date(new Date(a.starts_at) - EARLY_MIN * 60000))})`);
+      if (tooEarly(a.starts_at)) fail(400, `Too early — clock-in opens ${EARLY_MIN} minutes before the shift (${fmtTime(new Date(new Date(a.starts_at) - EARLY_MIN * 60000))})`);
       const venue = await one('SELECT qr_version, proof_rule FROM venues WHERE id = $1', [a.venue_id]);
       const notes = [];
       // Venue code: the QR poster or a fresh tap on one of the venue's NFC tags

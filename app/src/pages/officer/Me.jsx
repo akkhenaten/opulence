@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Award, BadgeCheck, Bell, BookOpen, Download, Globe, Newspaper, Target, CalendarOff, GraduationCap, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
 } from 'lucide-react';
@@ -31,6 +31,12 @@ export default function Me() {
   const tasks = useApi('onboarding.tasks', {}, { skip: !linked });
   const fix = useApi('incidents.list', { status: 'changes_requested' }, { skip: !linked });
   const learn = useApi('academy.my', {}, { skip: !linked || !modules?.academy });
+
+  // Set-up links can point at a section (e.g. #contracts) once its data is in
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash && me.data && contracts.data) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth' });
+  }, [hash, me.data, contracts.data]);
 
   const out = async () => { if (await confirm({ title: 'Sign out?', body: 'You will need your email and password to sign in again.', confirm: 'Sign out', danger: true })) signOut(); };
 
@@ -107,17 +113,18 @@ export default function Me() {
                 </Section>
               )}
 
-              <Section title="My details">
-                <List>
-                  <Row to="/officer/profile" left={<Ico icon={UserRound} />} title="Personal and bank details" subtitle={[o.phone, o.postcode].filter(Boolean).join(' · ') || 'Phone, address, NI, UTR, bank'} />
-                  <Row to="/officer/documents" left={<Ico icon={BadgeCheck} tone="green" />} title="Documents" subtitle="Licence, right to work, certificates" />
-                  <Row to="/officer/time-off" left={<Ico icon={CalendarOff} tone="ink" />} title="Time off and availability" />
-                  <Row to="/officer/incidents" left={<Ico icon={ShieldAlert} tone="red" />} title="Incident reports" right={toFix.length ? <Pill tone="amber">{toFix.length} to fix</Pill> : null} />
-                  <Row to="/officer/pay" left={<Ico icon={FileText} />} title="Pay statements" />
-                  <Row to="/officer/me/growth" left={<Ico icon={Target} tone="green" />} title="Goals and one-to-ones" subtitle="What you're working on, notes and pay rises" />
-                  <Row to="/officer/everyday" left={<Ico icon={Newspaper} tone="amber" />} title="Everyday" subtitle="News and updates from the team" />
-                </List>
-              </Section>
+              {openTasks.length > 0 && (
+                <Section title="Getting set up">
+                  <List>
+                    {(tasks.data || []).map((t) => (
+                      <Row key={t.code} to={!t.done && !t.office ? t.to : undefined} left={t.done ? <CircleCheck size={24} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
+                        title={<span className={cx(t.done && 'text-muted line-through')}>{t.title}</span>}
+                        subtitle={t.done ? null : t.office ? 'Waiting on the office' : 'Tap to finish'} />
+                    ))}
+                  </List>
+                  <p className="mt-2 px-1 text-footnote text-muted"><ListChecks size={14} className="mr-1 inline" />Tap an item to finish it. Ticks appear as soon as it's done.</p>
+                </Section>
+              )}
 
               {modules?.academy && learn.data && (learn.data.courses.length > 0 || learn.data.certificates.length > 0) && (
                 <Section title="Training" action={<Link to="/officer/learn" className="-my-2.5 inline-block py-2.5 text-subhead font-semibold text-blue">Open Learn</Link>}>
@@ -134,20 +141,9 @@ export default function Me() {
                 </Section>
               )}
 
-              {openTasks.length > 0 && (
-                <Section title="Getting set up">
-                  <List>
-                    {(tasks.data || []).map((t) => (
-                      <Row key={t.code} left={t.done ? <CircleCheck size={24} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
-                        title={<span className={cx(t.done && 'text-muted line-through')}>{t.title}</span>} />
-                    ))}
-                  </List>
-                  <p className="mt-2 px-1 text-footnote text-muted"><ListChecks size={14} className="mr-1 inline" />The office ticks these off as you complete them.</p>
-                </Section>
-              )}
-
               {(contracts.data || []).length > 0 && (
                 <Section title="Contracts">
+                  <span id="contracts" className="block scroll-mt-24" />
                   <List>
                     {contracts.data.map((x) => (
                       <Row key={x.id} to={`/officer/contracts/${x.id}`} left={<Ico icon={FileSignature} tone={x.status === 'signed' ? 'green' : x.status === 'sent' ? 'amber' : 'grey'} />}
@@ -157,6 +153,18 @@ export default function Me() {
                   </List>
                 </Section>
               )}
+
+              <Section title="My details">
+                <List>
+                  <Row to="/officer/profile" left={<Ico icon={UserRound} />} title="Personal and bank details" subtitle={[o.phone, o.postcode].filter(Boolean).join(' · ') || 'Phone, address, NI, UTR, bank'} />
+                  <Row to="/officer/documents" left={<Ico icon={BadgeCheck} tone="green" />} title="Documents" subtitle="Licence, right to work, certificates" />
+                  <Row to="/officer/time-off" left={<Ico icon={CalendarOff} tone="ink" />} title="Time off and availability" />
+                  <Row to="/officer/incidents" left={<Ico icon={ShieldAlert} tone="red" />} title="Reports" subtitle="Incident reports and ejections you logged" right={toFix.length ? <Pill tone="amber">{toFix.length} to fix</Pill> : null} />
+                  <Row to="/officer/pay" left={<Ico icon={FileText} />} title="Pay statements" />
+                  <Row to="/officer/me/growth" left={<Ico icon={Target} tone="green" />} title="Goals and one-to-ones" subtitle="What you're working on, notes and pay rises" />
+                  <Row to="/officer/everyday" left={<Ico icon={Newspaper} tone="amber" />} title="Everyday" subtitle="News and updates from the team" />
+                </List>
+              </Section>
 
               {account}
             </>

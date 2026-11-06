@@ -47,7 +47,14 @@ export default function ShiftView() {
   );
 }
 
-function Body({ d, reload, role }) {
+// The same shift card without the page around it: the officer's Home while they are clocked in
+export function ShiftPanel({ id }) {
+  const { user } = useAuth();
+  const q = useApi('shifts.detail', { id }, { poll: 30000 });
+  return <Load q={q} skeleton="rows">{(d) => <Body d={d} reload={q.reload} role={user.role} live />}</Load>;
+}
+
+function Body({ d, reload, role, live }) {
   const { shift: s, me, team, log } = d;
   const [banning, setBanning] = useState(false);
   const venue = me.access === 'venue';
@@ -59,10 +66,11 @@ function Body({ d, reload, role }) {
   const tonight = (d.ejections || []).filter(isEjection);
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+    // Two columns only when the page itself is wide enough (the officer app stays one column on a desktop)
+    <div className="@container"><div className="grid grid-cols-1 gap-5 @4xl:grid-cols-[minmax(0,1fr)_380px] @4xl:items-start">
       <div className="space-y-5">
-        <Header s={s} me={me} officer={officer} signed={signed} />
-        {officer && <QuickActions s={s} d={d} />}
+        <Header s={s} me={me} officer={officer} signed={signed} live={live} />
+        {officer && <QuickActions s={s} d={d} onBan={me.can_write && !signed ? () => setBanning(true) : null} />}
         {venue && started && <VenueActions s={s} />}
         {officer && me.assignment_id && <SitePackCard venueId={s.venue_id} />}
         {d.previous_handover && !venue && (
@@ -106,11 +114,11 @@ function Body({ d, reload, role }) {
         )}
       </div>
       {banning && <BanSheet open shiftId={s.id} direct={me.can_curate} onClose={() => setBanning(false)} onDone={() => { setBanning(false); reload(); }} />}
-    </div>
+    </div></div>
   );
 }
 
-function Header({ s, me, officer, signed }) {
+function Header({ s, me, officer, signed, live: onShift }) {
   const ins = me.clock.filter((e) => e.kind === 'in' && e.status !== 'rejected');
   const outs = me.clock.filter((e) => e.kind === 'out' && e.status !== 'rejected');
   const live = new Date(s.starts_at) <= new Date() && new Date(s.ends_at) > new Date();
@@ -139,7 +147,7 @@ function Header({ s, me, officer, signed }) {
           {s.notes && <p className="whitespace-pre-line text-muted">{s.notes}</p>}
         </div>
       )}
-      {officer && me.assignment_status === 'accepted' && (
+      {officer && !onShift && me.assignment_status === 'accepted' && (
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-sep pt-3">
           <span className="text-subhead text-muted">
             {ins.length ? <>Clocked in <span className="num font-semibold text-ink">{time(ins[0].ts)}</span>{outs.length ? <> · out <span className="num font-semibold text-ink">{time(outs.at(-1).ts)}</span></> : null}</> : 'Not clocked in yet'}
@@ -151,12 +159,13 @@ function Header({ s, me, officer, signed }) {
   );
 }
 
-function QuickActions({ s, d }) {
+function QuickActions({ s, d, onBan }) {
   // Officers can report up to 30 days after a shift ends
   const started = new Date(s.starts_at).getTime() - 3600000 <= Date.now() && Date.now() - new Date(s.ends_at).getTime() < 30 * 86400000;
   return (
     <div className="flex flex-wrap gap-2">
       {started && <Button variant="soft" icon={ShieldAlert} to={`/officer/incidents/new?shift=${s.id}`}>Report incident</Button>}
+      {started && onBan && <Button variant="soft" icon={Ban} onClick={onBan}>Log ejection</Button>}
       {d.thread_id && <Button variant="secondary" icon={MessagesSquare} to={`/officer/messages/${d.thread_id}`}>Shift chat</Button>}
     </div>
   );

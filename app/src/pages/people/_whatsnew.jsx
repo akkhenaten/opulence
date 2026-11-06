@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-06', icon: Smartphone, title: 'Your shift, all in one place',
+    lede: 'Your officers’ app is now built around the shift. Home shows what they need to answer and what’s booked, and once they clock in the shift card takes over, with the log, incident reports and ejections in one place.',
+    points: ['Home shows what to answer, what’s confirmed and what’s open', 'Clock in from 15 minutes before', 'Once you’re on, the shift card is your Home: log, incidents, ejections', 'Set-up items tick themselves and link to the fix', 'Every report and ejection in one Reports page'],
+  },
+  {
     month: 'November 2026', date: '2026-11-06', icon: LayoutGrid, title: 'A Dashboard that tells you what matters',
     lede: 'Your Dashboard now leads with what needs you, then tonight’s cover, then the week in numbers. On a quiet night it simply says all clear.',
     points: ['A Needs you list with only what’s waiting, most urgent first', 'A one-line summary under your greeting', 'Tonight’s cover at a glance, short shifts first', 'Hours, shifts and money for the week in one strip', 'Clearer numbers across the app'],

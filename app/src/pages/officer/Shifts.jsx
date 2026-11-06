@@ -5,9 +5,9 @@ import { CalendarDays, CalendarOff, Check, ChevronRight, Hand, Info, Megaphone, 
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  addDays, Button, Empty, isoDate, Load, Page, Section, Sheet, Tabs, Textarea, time, useAction, useApi, useConfirm, usePullRefresh,
+  addDays, Button, Empty, isoDate, Load, Page, Section, Tabs, time, useAction, useApi, useConfirm, usePullRefresh,
 } from '../../ui/index.jsx';
-import { ASSIGN_LABEL, assignTone, NotLinked, ShiftCard } from './_parts.jsx';
+import { ASSIGN_LABEL, assignTone, DeclineSheet, NotLinked, ShiftCard } from './_parts.jsx';
 import ShiftCalendar from './ShiftCalendar.jsx';
 
 export default function Shifts() {
@@ -40,10 +40,9 @@ function Mine() {
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const [declining, setDeclining] = useState(null);
-  const [reason, setReason] = useState('');
 
-  const respond = (s, accept, extra = {}) => run(() => api('shifts.respond', { assignment_id: s.assignment_id, accept, ...extra }),
-    accept ? 'Shift confirmed' : s.assignment_status === 'requested' ? 'Request withdrawn' : 'Shift declined').then(() => { q.reload(); setDeclining(null); setReason(''); }).catch(() => {});
+  const respond = (s, accept) => run(() => api('shifts.respond', { assignment_id: s.assignment_id, accept }),
+    accept ? 'Shift confirmed' : 'Request withdrawn').then(q.reload).catch(() => {});
 
   const withdraw = async (s) => {
     if (await confirm({ title: 'Withdraw request?', body: `${s.venue_name}, ${time(s.starts_at)}. You can request it again while it is still open.`, confirm: 'Withdraw', danger: true })) respond(s, false);
@@ -105,17 +104,14 @@ function Mine() {
                     const ins = (s.clock || []).filter((e) => e.kind === 'in' && e.status !== 'rejected');
                     const outs = (s.clock || []).filter((e) => e.kind === 'out' && e.status !== 'rejected');
                     const worked = ins.length ? `Worked ${time(ins[0].ts)}${outs.length ? `–${time(outs.at(-1).ts)}` : ''}` : 'No clock-in recorded';
-                    return <ShiftCard key={s.assignment_id} s={s} to={`/officer/shifts/${s.id}`} status={ins.length ? 'Worked' : 'Not clocked'} statusTone={ins.length ? 'grey' : 'amber'}><p className="mt-2 text-footnote text-muted">{worked}</p></ShiftCard>;
+                    const canReport = now - new Date(s.ends_at).getTime() < 30 * 86400000;
+                    return <ShiftCard key={s.assignment_id} s={s} to={`/officer/shifts/${s.id}`} status={ins.length ? 'Worked' : 'Not clocked'} statusTone={ins.length ? 'grey' : 'amber'}><p className="mt-2 text-footnote text-muted">{worked}{canReport && <span className="font-semibold text-blue"> · Report or log an ejection ›</span>}</p></ShiftCard>;
                   })}
                 </div>
               </Section>
             )}
 
-            <Sheet open={!!declining} onClose={() => setDeclining(null)} title={declining?.assignment_status === 'accepted' ? "Can't work this shift" : 'Decline shift'} size="sm"
-              footer={<><Button variant="secondary" onClick={() => setDeclining(null)}>Keep it</Button><Button variant="danger" busy={busy} onClick={() => respond(declining, false, { reason })}>Decline shift</Button></>}>
-              {declining && <p className="mb-3 text-body text-muted">{declining.venue_name}, {time(declining.starts_at)}–{time(declining.ends_at)}. The office will be told so they can find cover.</p>}
-              <Textarea label="Reason (optional)" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Unwell, family emergency" />
-            </Sheet>
+            <DeclineSheet s={declining} onClose={() => setDeclining(null)} onDone={() => { setDeclining(null); q.reload(); }} />
           </>
         );
       }}

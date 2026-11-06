@@ -110,7 +110,7 @@ async function officerDash({ user }) {
     one('SELECT * FROM officers WHERE id = $1', [oid]),
     q(`SELECT a.id AS assignment_id, a.status AS assignment_status, a.is_lead, s.id AS shift_id, s.starts_at, s.ends_at, v.name AS venue_name, v.address, v.postcode, r.name AS role_name
          FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role
-        WHERE a.officer_id = $1 AND a.status IN ('assigned','accepted') AND s.status = 'published' AND s.ends_at > now() ORDER BY s.starts_at LIMIT 5`, [oid]),
+        WHERE a.officer_id = $1 AND a.status IN ('assigned','accepted') AND s.status = 'published' AND s.ends_at > now() ORDER BY s.starts_at LIMIT 8`, [oid]),
     count(`SELECT count(*)::int AS n FROM shifts s WHERE s.status = 'published' AND s.open AND s.starts_at > now()
              AND s.headcount > (SELECT count(*) FROM shift_assignments a WHERE a.shift_id = s.id AND a.status IN ('assigned','accepted'))
              AND NOT EXISTS (SELECT 1 FROM shift_assignments a WHERE a.shift_id = s.id AND a.officer_id = $1)`, [oid]),

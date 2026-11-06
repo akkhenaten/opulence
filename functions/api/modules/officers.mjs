@@ -6,7 +6,7 @@ import { downloadUrl, checkOwnPhoto, saveThumb, photoUrls } from '../lib/storage
 import { londonDate } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { createInvite, sendInvite } from './users.mjs';
-import { seedOnboarding } from './hr.mjs';
+import { seedOnboarding, syncOnboarding } from './hr.mjs';
 import { guardSelf } from '../lib/selfcheck.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
 import { NOT_CLEARED, STATUS_LABEL, siaCheckOn } from '../lib/sia.mjs';
@@ -131,6 +131,7 @@ export const actions = {
       if (keys.length) await q(`UPDATE officers SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [user.officer_id, ...keys.map((k) => f[k])]);
       if (f.phone !== undefined) await q('UPDATE users SET phone = $2 WHERE id = $1', [user.id, f.phone || '']);
       if (f.goes_by !== undefined) await q('UPDATE users SET goes_by = $2 WHERE id = $1', [user.id, f.goes_by]);
+      await syncOnboarding(user.officer_id);
       await audit(user, 'officer.self_update', 'officer', user.officer_id, Object.keys(f));
       return { ok: true };
     }

@@ -35,6 +35,22 @@ export async function tickOnboarding(officerId, code) {
   await q('UPDATE onboarding_tasks SET done = true, done_at = now() WHERE officer_id = $1 AND code = $2 AND NOT done', [officerId, code]);
 }
 
+// Items the officer finishes themselves tick from their profile; the rest tick on upload or signing, or by the office
+const filled = (...v) => v.every((x) => x != null && String(x).trim() !== '');
+export const profileDone = (o) => [
+  filled(o.first_name, o.last_name, o.phone, o.address, o.postcode, o.dob, o.ni_number) && 'profile',
+  filled(o.bank_sort_code, o.bank_account, o.utr) && 'bank',
+  filled(o.sia_number, o.sia_expiry) && 'sia',
+].filter(Boolean);
+export async function syncOnboarding(officerId) {
+  const o = await one('SELECT * FROM officers WHERE id = $1', [officerId]);
+  if (!o) return;
+  for (const code of profileDone(o)) await tickOnboarding(officerId, code);
+}
+
+// Where the officer finishes each item; office items have nowhere to go
+const ONBOARD_LINK = { profile: '/officer/profile', bank: '/officer/profile', sia: '/officer/documents', rtw: '/officer/documents', id: '/officer/documents', poa: '/officer/documents', contract: '/officer/me#contracts' };
+
 const ownOrManager = (user, officerId) => (user.role === 'officer' ? user.officer_id : officerId);
 
 // Pack contracts already carry the name in their title
@@ -161,7 +177,9 @@ export const actions = {
 
   'onboarding.tasks': def(['company', 'officer'], async (b, { user }) => {
     const id = ownOrManager(user, b.officer_id);
-    return q('SELECT * FROM onboarding_tasks WHERE officer_id = $1 ORDER BY sort', [id]);
+    if (id) await syncOnboarding(id);
+    const rows = await q('SELECT * FROM onboarding_tasks WHERE officer_id = $1 ORDER BY sort', [id]);
+    return rows.map((t) => ({ ...t, to: ONBOARD_LINK[t.code] || null, office: !ONBOARD_LINK[t.code] }));
   }),
 
   'onboarding.toggle': def(CO, async (b) => {

@@ -74,6 +74,15 @@ function DraftLoader({ manager }) {
       </Page>
     );
   }
+  // Officers start a report from the shift card; drafts (and this phone's copy of one) still open here
+  if (!manager && !draftId && !shiftParam && !readLocal(null)?.snapshot?.data?.shift_id) {
+    return (
+      <Page title="Report incident" back={{ to: '/officer/incidents', label: 'Reports' }}>
+        <Empty icon={ShieldAlert} title="Reports start from the shift" body="Open the shift the incident happened on and tap Report incident. On shift now? It's on your Home screen. For an earlier shift, find it under Shifts."
+          action={<Button to="/officer/shifts?tab=mine">Open my shifts</Button>} />
+      </Page>
+    );
+  }
   if ((draftId && !q.data) || (!draftId && shiftParam && !manager && others.loading)) return <Page title="Report incident"><Spinner className="py-16" /></Page>;
   // The server copy, unless this phone holds newer changes that never reached it
   let initial = null;
@@ -161,6 +170,7 @@ function Wizard({ existing, manager, initial, draftId, onCreated }) {
     else setWhen('earlier');
   }, [shifts, recent, edit, manager, shiftId]);
   const shift = shifts.find((s) => s.id === shiftId);
+  const locked = !edit && !manager && !!(d0.shift_id || sp.get('shift'));
   useEffect(() => {
     if (shift && !recent.includes(shift)) { setWhen('earlier'); pickShift(shift); }
   }, [shift, recent]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -305,7 +315,7 @@ function Wizard({ existing, manager, initial, draftId, onCreated }) {
             {step === 2 && (manager
               ? <ManagerWhen v={v} set={set} m={m} setM={setM} at={at} future={future} venues={venuesQ} />
               : <StepWhen v={v} set={set} edit={edit} existing={existing} shifts={shifts} recent={recent} when={when} setWhen={setWhen} shift={shift}
-                loading={shiftsQ.loading} shiftId={shiftId} pickShift={pickShift} future={future} outsideShift={outsideShift} tooOld={tooOld} />)}
+                loading={shiftsQ.loading} shiftId={shiftId} pickShift={pickShift} future={future} outsideShift={outsideShift} tooOld={tooOld} locked={locked} />)}
             {step === 3 && <StepPeople v={v} set={set} witnesses={witnesses} setWitnesses={setWitnesses} />}
             {step === 4 && <StepActions v={v} set={set} setV={setV} />}
             {step === 5 && <StepReview v={v} at={at} venueName={venueName} existing={existing} witnesses={witnesses} files={uploads.done.length + draftFiles.length} saved={saved.length} aiAssisted={aiAssisted} problems={problems} goTo={go} />}
@@ -424,7 +434,7 @@ function ShiftChoice({ s, on, onPick }) {
   );
 }
 
-function StepWhen({ v, set, edit, existing, shifts, recent, when, setWhen, shift, loading, shiftId, pickShift, future, outsideShift, tooOld }) {
+function StepWhen({ v, set, edit, existing, shifts, recent, when, setWhen, shift, loading, shiftId, pickShift, future, outsideShift, tooOld, locked }) {
   const [shown, setShown] = useState(PAGE);
   const earlier = when === 'earlier';
   const list = earlier ? shifts : recent;
@@ -449,9 +459,11 @@ function StepWhen({ v, set, edit, existing, shifts, recent, when, setWhen, shift
     </Card>
   );
   const shiftCard = (
-    <Card key="shift" title={earlier ? 'Which shift was it?' : 'Which shift?'} hint={edit ? undefined : earlier ? `Shifts you worked in the last ${BACKDATE_DAYS} days.` : 'Incidents are filed against the venue you were working at.'}>
+    <Card key="shift" title={locked ? 'Shift' : earlier ? 'Which shift was it?' : 'Which shift?'} hint={edit || locked ? undefined : earlier ? `Shifts you worked in the last ${BACKDATE_DAYS} days.` : 'Incidents are filed against the venue you were working at.'}>
       {edit ? (
         <div className="rounded-2xl bg-bg px-4 py-3 text-body font-semibold">{existing.venue_name}</div>
+      ) : locked && shift ? (
+        <div className="rounded-2xl bg-bg px-4 py-3"><div className="truncate text-body font-semibold">{shift.venue_name}</div><div className="num text-footnote text-muted">{dayLabel(shift.starts_at)} · {range(shift.starts_at, shift.ends_at)}</div></div>
       ) : loading && !shifts.length ? <Spinner className="py-6" /> : !list.length ? (
         <p className="rounded-2xl bg-amber-soft px-4 py-3 text-subhead font-semibold text-amber">
           {earlier || !shifts.length
@@ -468,7 +480,7 @@ function StepWhen({ v, set, edit, existing, shifts, recent, when, setWhen, shift
   );
   return (
     <>
-      {!edit && (
+      {!edit && !locked && (
         <Segmented full value={when} onChange={choose} options={[{ value: 'now', label: 'Tonight / just now' }, { value: 'earlier', label: 'Earlier' }]} />
       )}
       {earlier ? [shiftCard, timeCard] : [timeCard, shiftCard]}

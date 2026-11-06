@@ -214,6 +214,8 @@ export const actions = {
     let shiftId = b.shift_id || null;
     if (user.role === 'officer') {
       if (!officerId) fail(403, 'Officer profile not linked');
+      // Reports start from the shift card
+      if (!shiftId) fail(400, 'Open the shift and report from there');
       // Officer must be (or have been) rostered at the venue around the incident time
       const a = await officerShift(officerId, shiftId, venueId, b.occurred_at);
       venueId = a.venue_id;

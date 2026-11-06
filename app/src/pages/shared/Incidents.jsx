@@ -3,7 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Camera, ChevronRight, FilePen, MapPin, Plus, ShieldAlert, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, cx, dateTime, dayLabel, Empty, IconButton, List, Load, Page, Pill, SearchInput, Section, Segmented, Select, time, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { Button, cx, dateTime, dayLabel, Empty, IconButton, List, Load, Page, Pill, SearchInput, Section, Segmented, Select, Tabs, time, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { BanList } from '../shift/_bans.jsx';
 import { clearLocal } from '../officer/_draft.js';
 import { INCIDENT_STATUS, INCIDENT_TYPES, LatePill, NotLinked, SEVERITIES, typeLabel } from '../officer/_parts.jsx';
 
@@ -30,9 +31,25 @@ export default function Incidents() {
   const counts = useApi('incidents.list', { status: 'changes_requested' }, { skip: officer && !user.officer_id });
   const toFix = counts.data?.length || 0;
 
+  // Officers look back here at what they reported and logged; new reports start from the shift card
+  const tab = officer && sp.get('tab') === 'ejections' ? 'ejections' : 'reports';
+  const setTab = (t) => { const n = new URLSearchParams(); if (t === 'ejections') n.set('tab', t); setSp(n, { replace: true }); };
+  const tabs = officer && user.officer_id && (
+    <Tabs value={tab} onChange={setTab} tabs={[{ value: 'reports', label: 'Incident reports', count: toFix }, { value: 'ejections', label: 'Ejections' }]} />
+  );
+  if (tab === 'ejections') {
+    return (
+      <Page title="Reports" subtitle="Ejections you logged on shift">
+        {tabs}
+        <MyEjections />
+      </Page>
+    );
+  }
+
   return (
-    <Page title="Incidents" subtitle={officer ? 'Your incident reports' : undefined} wide={!officer}
-      actions={((officer && user.officer_id) || ['company', 'security'].includes(user.role)) && <Button icon={Plus} to={`${base}/incidents/new`}>{officer ? 'Report' : 'Report incident'}</Button>}>
+    <Page title={officer ? 'Reports' : 'Incidents'} subtitle={officer ? 'Your incident reports and ejections' : undefined} wide={!officer}
+      actions={['company', 'security'].includes(user.role) && <Button icon={Plus} to={`${base}/incidents/new`}>Report incident</Button>}>
+      {tabs}
       {((officer && user.officer_id) || !officer) && <Drafts base={base} officer={officer} />}
       <div className="mb-3 space-y-2">
         <div className="no-scrollbar -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
@@ -54,8 +71,8 @@ export default function Incidents() {
       {officer && !user.officer_id ? <NotLinked /> : <Load q={q}>
         {(rows) => (!rows.length ? (
           <Empty photo="kit" icon={ShieldAlert} title={Object.keys(body).length ? 'No incidents match' : 'No incidents yet'}
-            body={officer ? 'Report anything that happens on shift: ejections, injuries, damage, refusals.' : 'Incident reports from officers appear here.'}
-            action={officer && user.officer_id && !Object.keys(body).length && <Button icon={Plus} to={`${base}/incidents/new`}>Report incident</Button>} />
+            body={officer ? 'To report something, open the shift it happened on and tap Report incident. Your reports then appear here.' : 'Incident reports from officers appear here.'}
+            action={officer && user.officer_id && !Object.keys(body).length && <Button to="/officer/shifts?tab=mine">Open my shifts</Button>} />
         ) : (
           <div className={cx('grid gap-2', !officer && 'lg:grid-cols-2')}>
             {rows.map((r) => (
@@ -91,6 +108,11 @@ export default function Incidents() {
       </Load>}
     </Page>
   );
+}
+
+function MyEjections() {
+  const q = useApi('bans.mine', {});
+  return <Load q={q}>{(bans) => <BanList bans={bans} onChanged={q.reload} empty="No ejections logged yet. Log one from the shift card while you're on shift." />}</Load>;
 }
 
 // Reports the writer started and has not sent yet; only they see them
