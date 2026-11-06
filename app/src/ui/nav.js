@@ -16,6 +16,23 @@ let prevPath = null;
 let curPath = null;
 export const previousPath = () => prevPath;
 
+/* The trail of pages in this tab, one per history entry, so Back returns to where the person came from and names it */
+const TRAIL = 'orb:trail';
+let trail = (() => { try { return JSON.parse(sessionStorage.getItem(TRAIL)) || []; } catch { return []; } })();
+const keepTrail = () => { try { sessionStorage.setItem(TRAIL, JSON.stringify(trail.slice(-60))); } catch { /* private mode */ } };
+// A new page drops anything ahead of it; going back keeps the trail; a replace on the same page keeps its name
+export function stepTrail(list, idx, type, path) {
+  const t = type === 'PUSH' ? list.slice(0, idx) : list.slice();
+  const same = t[idx] && t[idx].path.split('?')[0] === path.split('?')[0];
+  if (type === 'POP' && same) return t;
+  t[idx] = { path, title: same ? t[idx].title : '' };
+  return t;
+}
+const histIdx = () => (typeof window !== 'undefined' && window.history.state?.idx) || 0;
+// Page names its history entry; the next page's Back shows that name
+export const setTrailTitle = (title) => { const i = histIdx(); if (trail[i]) { trail[i] = { ...trail[i], title }; keepTrail(); } };
+export const previousEntry = () => { const i = histIdx(); return i > 0 ? trail[i - 1] || null : null; };
+
 // Remembers scroll per history entry: back/forward returns to the same spot, new pages start at the top
 const KEY = 'orb:scroll';
 const read = () => { try { return JSON.parse(sessionStorage.getItem(KEY)) || {}; } catch { return {}; } };
@@ -27,6 +44,10 @@ export function useScrollMemory() {
   useLayoutEffect(() => {
     if (loc.pathname !== curPath) { prevPath = curPath; curPath = loc.pathname; }
   }, [loc.pathname]);
+  useLayoutEffect(() => {
+    trail = stepTrail(trail, histIdx(), type, loc.pathname + loc.search);
+    keepTrail();
+  }, [loc.key]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const key = `${loc.key}:${loc.pathname}`;
     if (type !== 'POP') window.scrollTo(0, 0);

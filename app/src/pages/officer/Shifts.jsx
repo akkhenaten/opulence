@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { OffersList, useOps } from './_ops.jsx';
-import { CalendarDays, CalendarOff, Check, ChevronRight, Hand, Info, Megaphone, X } from 'lucide-react';
+import { CalendarDays, CalendarOff, Check, ChevronRight, Hand, History, Info, Megaphone, X } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -21,7 +21,7 @@ export default function Shifts() {
   const pull = usePullRefresh(() => Promise.all([open.reload(), ops.reload()]), !['mine', 'calendar'].includes(tab) && !!user.officer_id);
 
   return (
-    <Page title="Shifts" actions={<Button size="sm" variant="secondary" icon={CalendarOff} to="/officer/time-off">Availability</Button>}>
+    <Page title="Shifts" actions={<><Button size="sm" variant="ghost" icon={History} to="/officer/clock">Clock history</Button><Button size="sm" variant="secondary" icon={CalendarOff} to="/officer/time-off">Availability</Button></>}>
       {pull}
       {!user.officer_id ? <NotLinked /> : (
         <>

@@ -1,7 +1,7 @@
 // Helpers shared by the officer screens and the incident screens
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarDays, Clock3, MapPin, UserX } from 'lucide-react';
+import { CalendarDays, Clock3, MapPin, Phone, UserX } from 'lucide-react';
 import { Button, cx, dayLabel, Empty, Pill, range, Sheet, Textarea, time, titleCase, useAction } from '../../ui/index.jsx';
 import { api, upload } from '../../api.js';
 
@@ -10,7 +10,10 @@ export const CLOCK_EARLY_MIN = 15;
 export const clockOpensAt = (startsAt) => new Date(new Date(startsAt).getTime() - CLOCK_EARLY_MIN * 60000);
 
 // Decline an offered shift, or give back a confirmed one, with an optional reason for the office
-export function DeclineSheet({ s, onClose, onDone }) {
+// Under a day's notice the office also needs a call, not just an alert
+export const shortNotice = (startsAt) => new Date(startsAt).getTime() - Date.now() < 24 * 3600000;
+
+export function DeclineSheet({ s, phone, onClose, onDone }) {
   const [reason, setReason] = useState('');
   const [run, busy] = useAction();
   const close = () => { setReason(''); onClose(); };
@@ -20,6 +23,12 @@ export function DeclineSheet({ s, onClose, onDone }) {
     <Sheet open={!!s} onClose={close} title={s?.assignment_status === 'accepted' ? "Can't work this shift" : 'Decline shift'} size="sm"
       footer={<><Button variant="secondary" onClick={close}>Keep it</Button><Button variant="danger" busy={busy} onClick={decline}>Decline shift</Button></>}>
       {s && <p className="mb-3 text-body text-muted">{s.venue_name}, {time(s.starts_at)}–{time(s.ends_at)}. The office will be told so they can find cover.</p>}
+      {s && shortNotice(s.starts_at) && (
+        <div className="mb-3 rounded-2xl bg-amber-soft p-3 text-subhead">
+          <p className="font-semibold text-amber">This is short notice. Please call the office as well.</p>
+          {phone && <Button className="mt-2" size="sm" variant="secondary" icon={Phone} href={`tel:${phone.replace(/\s+/g, '')}`}>Call {phone}</Button>}
+        </div>
+      )}
       <Textarea label="Reason (optional)" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Unwell, family emergency" />
     </Sheet>
   );

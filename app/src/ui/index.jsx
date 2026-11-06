@@ -5,7 +5,7 @@ import { AlertCircle, AlertTriangle, CheckCircle2, Check as CheckIcon, ChevronLe
 import { api } from '../api.js';
 import { initials, titleCase } from './format.js';
 import { usePresence, useScrollLock } from './motion.js';
-import { pageHeader, previousPath } from './nav.js';
+import { pageHeader, previousEntry, previousPath, setTrailTitle } from './nav.js';
 import { Photo } from './Photo.jsx';
 
 export * from './format.js';
@@ -109,13 +109,15 @@ export function ToastProvider({ children }) {
 /* ---------- Layout primitives ---------- */
 
 // photo: a brand photo name (ui/Photo.jsx) behind the title
-export function Page({ title, subtitle, actions, back, children, wide, photo, slim }) {
+// backLabel: what the next page's Back calls this one when the title is long or not text (e.g. "Home" for a greeting)
+export function Page({ title, subtitle, actions, back, backLabel, children, wide, photo, slim }) {
   const nav = useNavigate();
   const sentinel = useRef(null);
   useEffect(() => {
     pageHeader.set({ title: typeof title === 'string' ? title : '', wide: !!wide });
+    setTrailTitle(backLabel || (typeof title === 'string' ? title : ''));
     return () => pageHeader.set({ title: '', collapsed: false, wide: false });
-  }, [title, wide]);
+  }, [title, wide, backLabel]);
   // The large title hands over to the compact one in the top bar once it scrolls under it
   useEffect(() => {
     const el = sentinel.current;
@@ -125,7 +127,10 @@ export function Page({ title, subtitle, actions, back, children, wide, photo, sl
     return () => io.disconnect();
   }, []);
   // Back uses history when it leads to the same page, so the list keeps its scroll position
+  // Back returns to the page the person came from and says its name; opened fresh, it falls back to `back`
+  const prev = back ? previousEntry() : null;
   const goBack = (e) => {
+    if (prev) { e.preventDefault(); nav(-1); return; }
     const to = String(back.to).split('?')[0];
     if (window.history.state?.idx > 0 && previousPath() && (previousPath() === to || previousPath().endsWith(to))) { e.preventDefault(); nav(-1); }
   };
@@ -141,7 +146,7 @@ export function Page({ title, subtitle, actions, back, children, wide, photo, sl
     <div className={cx('mx-auto w-full pb-[calc(var(--tabbar-h)+var(--fab-room)+32px)] pt-4 [--px:1rem] sm:[--px:1.5rem] lg:pt-8 safe-x', wide ? 'max-w-[1400px]' : 'max-w-6xl')}>
       {back && (
         <Link to={back.to} onClick={goBack} className="pressable -ml-2 mb-0.5 inline-flex h-11 items-center pr-3 text-body font-semibold text-blue">
-          <ChevronLeft size={24} className="-mr-0.5" />{back.label}
+          <ChevronLeft size={24} className="-mr-0.5" /><span className="max-w-[60vw] truncate">{prev ? prev.title || 'Back' : back.label}</span>
         </Link>
       )}
       {photo ? (

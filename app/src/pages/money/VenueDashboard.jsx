@@ -38,14 +38,14 @@ function Body({ d, name }) {
 
   if (!d.venues.length) {
     return (
-      <Page title={`${greeting()}${name ? `, ${name}` : ''}`}>
+      <Page backLabel="Home" title={`${greeting()}${name ? `, ${name}` : ''}`}>
         <Tile><p className="text-body text-muted">Your account is not linked to a venue yet. Ask your security provider to give you access.</p></Tile>
       </Page>
     );
   }
 
   return (
-    <Page title={`${greeting()}${name ? `, ${name}` : ''}`} subtitle={multi ? `${d.venues.length} venues` : d.venues[0].name}
+    <Page backLabel="Home" title={`${greeting()}${name ? `, ${name}` : ''}`} subtitle={multi ? `${d.venues.length} venues` : d.venues[0].name}
       actions={[
         { label: 'Rate staff', icon: Star, onClick: () => setRate(true) },
         { label: 'Give feedback', icon: MessageSquareHeart, onClick: () => setGive(true) },

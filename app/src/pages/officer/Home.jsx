@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AlertTriangle, CalendarDays, Check, Clock3, Coffee, FileSignature, GraduationCap, ListChecks, LogIn, LogOut, MapPin, Megaphone, Newspaper, NotebookPen, PencilLine,
   ShieldAlert, ShieldCheck, X,
@@ -29,7 +30,7 @@ export default function Home() {
 
   if (onShift) {
     return (
-      <Page key="live" title={cur.venue_name} subtitle={<>{dayLabel(cur.starts_at)} · <span className="num">{range(cur.starts_at, cur.ends_at)}</span></>}>
+      <Page key="live" backLabel="Home" title={cur.venue_name} subtitle={<>{dayLabel(cur.starts_at)} · <span className="num">{range(cur.starts_at, cur.ends_at)}</span></>}>
         {pull}
         <LiveBar cur={cur} />
         <div className="mt-4"><ShiftPanel id={cur.shift_id} /></div>
@@ -38,7 +39,7 @@ export default function Home() {
   }
 
   return (
-    <Page key="home" title={`${greeting()}${first ? `, ${first}` : ''}`} subtitle={dayLabel(new Date())} photo="street">
+    <Page key="home" backLabel="Home" title={`${greeting()}${first ? `, ${first}` : ''}`} subtitle={dayLabel(new Date())} photo="street">
       {pull}
       <InstallCard className="mb-4" />
       <Load q={dash} skeleton="tiles">
@@ -125,7 +126,7 @@ function Body({ d, clock, ops, reload }) {
       <Section title="Confirmed">
         {confirmed.length === 0 ? <Nothing /> : (
           <div className="space-y-2.5">
-            <Hero s={confirmed[0]} clockable={cur?.assignment_id === confirmed[0].assignment_id} blocked={d.issues?.length > 0} />
+            <Hero s={confirmed[0]} clockable={cur?.assignment_id === confirmed[0].assignment_id} clockedIn={cur?.assignment_id === confirmed[0].assignment_id && (cur.events || []).some((e) => e.status !== 'rejected')} blocked={d.issues?.length > 0} onDecline={() => setDeclining(confirmed[0])} />
             {confirmed.slice(1).map((s) => <ShiftCard key={s.assignment_id} s={s} to={`/officer/shifts/${s.shift_id}`} status="Confirmed" statusTone="green" />)}
           </div>
         )}
@@ -134,7 +135,7 @@ function Body({ d, clock, ops, reload }) {
       <OpenShifts />
       <ToDo d={d} />
       <Everyday />
-      <DeclineSheet s={declining} onClose={() => setDeclining(null)} onDone={() => { setDeclining(null); reload(); }} />
+      <DeclineSheet s={declining} phone={d.office_phone} onClose={() => setDeclining(null)} onDone={() => { setDeclining(null); reload(); }} />
     </div>
   );
 }
@@ -151,12 +152,14 @@ function Nothing() {
 }
 
 // The next confirmed shift; it turns into Clock in 15 minutes before the start
-function Hero({ s, clockable, blocked }) {
+function Hero({ s, clockable, clockedIn, blocked, onDecline }) {
   const opens = clockOpensAt(s.starts_at);
   const open = Date.now() >= opens.getTime() && (clockable || new Date(s.ends_at) > new Date());
   const started = new Date(s.starts_at) <= new Date();
   return (
     <Tile tone="blue" className="!p-6">
+      {/* The top of the card opens the shift page, the buttons below do their own thing */}
+      <Link to={`/officer/shifts/${s.shift_id}`} className="pressable block">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-footnote font-semibold uppercase tracking-wide opacity-80"><Clock3 size={16} />Next shift</div>
         <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-caption font-semibold">{started ? 'Started' : `Starts ${until(s.starts_at)}`}</span>
@@ -172,6 +175,7 @@ function Hero({ s, clockable, blocked }) {
         </div>
         {s.role_name && <span className="min-w-0 truncate rounded-full bg-white/15 px-3 py-1 text-footnote font-semibold">{s.role_name}</span>}
       </div>
+      </Link>
       {blocked ? (
         <p className="mt-5 rounded-2xl bg-white/12 p-3 text-subhead font-semibold">You can't clock in until the items above are sorted.</p>
       ) : open ? (
@@ -180,6 +184,7 @@ function Hero({ s, clockable, blocked }) {
         <div className="mt-5 flex h-12 items-center justify-center gap-2 rounded-2xl bg-white/12 text-subhead font-semibold"><LogIn size={18} />Clock-in opens at <span className="num">{time(opens)}</span>{dayLabel(opens) !== dayLabel(new Date()) && ` ${dayLabel(opens)}`}</div>
       )}
       <Button className="mt-2 w-full !bg-white/15 !text-white !shadow-none" icon={NotebookPen} to={`/officer/shifts/${s.shift_id}`}>{s.is_lead ? 'Shift page · you lead' : 'Shift page'}</Button>
+      {!started && !clockedIn && <Button variant="plain" className="mt-1 w-full !text-white/80 !shadow-none" onClick={onDecline}>I can't work this</Button>}
     </Tile>
   );
 }

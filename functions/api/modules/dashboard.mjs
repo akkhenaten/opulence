@@ -6,6 +6,7 @@ import { actions as clock } from './clock.mjs';
 import { compliance } from './officers.mjs';
 import { ALL, def } from './_def.mjs';
 import { officerDisplay, officerName } from '../lib/names.mjs';
+import { getSettings } from './settings.mjs';
 
 const count = async (sql, params) => (await one(sql, params)).n;
 
@@ -123,6 +124,7 @@ async function officerDash({ user }) {
   return {
     role: 'officer', linked: true, officer: { id: officer.id, first_name: officer.first_name, status: officer.status, sia_expiry: officer.sia_expiry },
     issues: compliance(officer, today).issues, next, openCount, hoursWeek, lastStatement, incidentsToFix: incidents, expiringDocs: docs,
+    office_phone: (await getSettings())?.company_phone || null,
   };
 }
 

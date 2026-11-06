@@ -128,11 +128,12 @@ function Wizard({ existing, manager, initial, draftId, onCreated }) {
   const toast = useToast();
   const edit = !!existing;
   const d0 = initial?.data || {};
+  const [sp] = useSearchParams();
   const [step, setStep] = useState(() => Math.min(initial?.step || 0, STEPS.length - 1));
   const [seen, setSeen] = useState(() => new Set(Array.from({ length: (initial?.step || 0) + 1 }, (_, i) => i)));
   const [v, setV] = useState(() => (edit
     ? { ...BLANK, ...Object.fromEntries(Object.keys(BLANK).map((k) => [k, existing[k] ?? BLANK[k]])), occurred_at: toLocalInput(existing.occurred_at) }
-    : { ...BLANK, occurred_at: toLocalInput(new Date()), ...Object.fromEntries(Object.keys(BLANK).filter((k) => d0[k] != null).map((k) => [k, d0[k]])) }));
+    : { ...BLANK, occurred_at: toLocalInput(new Date()), type: INCIDENT_TYPES.some((t) => t.value === sp.get('type')) ? sp.get('type') : '', ...Object.fromEntries(Object.keys(BLANK).filter((k) => d0[k] != null).map((k) => [k, d0[k]])) }));
   const [witnesses, setWitnesses] = useState(() => (existing?.witnesses || d0.witnesses || []).map(({ name, contact, statement }) => ({ name, contact: contact || '', statement: statement || '' })));
   const [saved, setSaved] = useState(existing?.attachments || []);
   // Files uploaded into the draft earlier: they join the report when it is sent
@@ -141,7 +142,6 @@ function Wizard({ existing, manager, initial, draftId, onCreated }) {
   const [notes, setNotes] = useState(d0.notes || '');
   const [aiAssisted, setAiAssisted] = useState(!!(existing?.ai_assisted || d0.ai_assisted));
   // From the shift page: ?shift= picks the shift, ?entry= links the report to a shift log entry and starts from its words
-  const [sp] = useSearchParams();
   const entryId = edit ? null : sp.get('entry');
   const [shiftId, setShiftId] = useState(() => (edit ? null : d0.shift_id || sp.get('shift')));
   const fromLog = useApi('shifts.detail', { id: sp.get('shift') }, { skip: !entryId || !sp.get('shift') });

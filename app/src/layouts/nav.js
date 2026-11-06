@@ -1,6 +1,6 @@
 import {
   BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
-  Radio, ReceiptText, ScanLine, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText,
+  Radio, ReceiptText, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText,
   GraduationCap, BookOpenCheck, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck, MessageSquareHeart, LineChart,
 } from 'lucide-react';
 
@@ -101,7 +101,6 @@ export const NAV = {
     { items: [
       { to: '/officer', label: 'Home', icon: Home, end: true, tab: true },
       { to: '/officer/shifts', label: 'Shifts', icon: CalendarDays, tab: true },
-      { to: '/officer/clock', label: 'Clock', icon: ScanLine, tab: true, primary: true },
       { to: '/officer/learn', label: 'Learn', icon: GraduationCap, tab: true, moduleAny: ['academy', 'toolbox'] },
       { to: '/officer/me', label: 'Me', icon: CircleUserRound, tab: true },
     ] },

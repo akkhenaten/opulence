@@ -1,14 +1,14 @@
 // One shift, for everyone on it: details, team, last handover, bans, the shift log and sign-off.
 // Officers open it at /officer/shifts/:id, managers at /<role>/shifts/:id, the venue at /venue/logs/:id (signed logs only).
-import { useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useImperativeHandle, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Ban, BookOpen, Camera, Check, Clock3, Crown, EyeOff, FileSignature, HeartPulse, LockOpen, MapPin, MessagesSquare, Pencil, Phone, Plus,
-  MessageSquareHeart, Scale, ShieldAlert, Undo2, Users, X,
+  ArrowRightLeft, Ban, BookOpen, Camera, Check, Clock3, Crown, DoorOpen, EyeOff, FilePen, FileSignature, HeartPulse, Hammer, LockOpen, MapPin,
+  MessagesSquare, Pencil, Phone, Plus, MessageSquareHeart, Scale, ShieldAlert, ShoppingBag, Undo2, Users, X,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { compressImage } from '../officer/_parts.jsx';
+import { clockOpensAt, compressImage, DeclineSheet } from '../officer/_parts.jsx';
 import {
   Avatar, Button, cx, dateTime, dayLabel, Empty, IconButton, Input, Lightbox, Load, Page, Pill, range, relative, Section, Segmented, Sheet, Textarea, time,
   useAction, useApi, useConfirm, Pressable,
@@ -28,6 +28,14 @@ const KIND = {
   ban: { label: 'Ban', tone: 'red' },
   ejection: { label: 'Ejection', tone: 'amber' },
 };
+// One tap starts a report of that type (IncidentForm reads ?type=)
+const REPORTS = [
+  { type: 'ejection', label: 'Ejection / refused entry', icon: DoorOpen, tone: 'bg-amber-soft text-amber' },
+  { type: 'medical', label: 'Injury / first aid', icon: HeartPulse, tone: 'bg-red-soft text-red' },
+  { type: 'damage', label: 'Damage', icon: Hammer, tone: 'bg-blue-soft text-blue' },
+  { type: 'theft', label: 'Theft', icon: ShoppingBag, tone: 'bg-blue-soft text-blue' },
+  { type: 'other', label: 'Other', icon: ShieldAlert, tone: 'bg-fill text-ink' },
+];
 const TOOLBOX = [
   { cat: 'first_aid', label: 'First aid', icon: HeartPulse, tone: 'bg-red-soft text-red' },
   { cat: 'situations', label: 'Situations', icon: BookOpen, tone: 'bg-amber-soft text-amber' },
@@ -41,7 +49,7 @@ export default function ShiftView() {
   const back = user.role === 'officer' ? { to: '/officer/shifts', label: 'Shifts' }
     : user.role === 'venue' ? { to: '/venue/logs', label: 'Shift logs' } : { to: `/${user.role}/rota`, label: 'Rota' };
   return (
-    <Page title={q.data?.shift.venue_name || 'Shift'} subtitle={q.data ? <>{dayLabel(q.data.shift.starts_at)} · <span className="num">{range(q.data.shift.starts_at, q.data.shift.ends_at)}</span></> : null} back={back}>
+    <Page backLabel="Shift" title={q.data?.shift.venue_name || 'Shift'} subtitle={q.data ? <>{dayLabel(q.data.shift.starts_at)} · <span className="num">{range(q.data.shift.starts_at, q.data.shift.ends_at)}</span></> : null} back={back}>
       <Load q={q} skeleton="rows">{(d) => <Body d={d} reload={q.reload} role={user.role} />}</Load>
     </Page>
   );
@@ -57,6 +65,8 @@ export function ShiftPanel({ id }) {
 function Body({ d, reload, role, live }) {
   const { shift: s, me, team, log } = d;
   const [banning, setBanning] = useState(false);
+  // "Add handover note" sets the composer to handover and moves to it
+  const composer = useRef(null);
   const venue = me.access === 'venue';
   const officer = role === 'officer';
   const signed = log.status === 'signed';
@@ -69,20 +79,14 @@ function Body({ d, reload, role, live }) {
     // Two columns only when the page itself is wide enough (the officer app stays one column on a desktop)
     <div className="@container"><div className="grid grid-cols-1 gap-5 @4xl:grid-cols-[minmax(0,1fr)_380px] @4xl:items-start">
       <div className="space-y-5">
-        <Header s={s} me={me} officer={officer} signed={signed} live={live} />
+        <Header s={s} me={me} officer={officer} signed={signed} live={live} phone={d.office_phone} />
         {officer && <QuickActions s={s} d={d} onBan={me.can_write && !signed ? () => setBanning(true) : null} />}
+        {officer && <ReportTiles s={s} />}
         {venue && started && <VenueActions s={s} />}
+        {!venue && <HandoverBlock d={d} onAdd={me.can_write && !signed ? () => composer.current?.handover() : null} />}
         {officer && me.assignment_id && <SitePackCard venueId={s.venue_id} />}
-        {d.previous_handover && !venue && (
-          <Section title="Last handover here">
-            <div className="rounded-tile bg-blue-soft/60 p-4">
-              <p className="whitespace-pre-line text-body">{d.previous_handover.handover_summary || 'No summary written.'}</p>
-              <p className="mt-2 text-footnote text-muted">{dayLabel(d.previous_handover.starts_at)} · signed by {d.previous_handover.signed_by_name || 'the lead'}</p>
-            </div>
-          </Section>
-        )}
         {started && (me.can_count || log.customers != null) && <CustomersCard d={d} reload={reload} />}
-        <LogSection d={d} reload={reload} />
+        <LogSection d={d} reload={reload} composer={composer} />
       </div>
 
       <div className="space-y-5">
@@ -118,7 +122,11 @@ function Body({ d, reload, role, live }) {
   );
 }
 
-function Header({ s, me, officer, signed, live: onShift }) {
+function Header({ s, me, officer, signed, live: onShift, phone }) {
+  const nav = useNavigate();
+  const [declining, setDeclining] = useState(false);
+  const opens = clockOpensAt(s.starts_at);
+  const canClock = Date.now() >= opens.getTime();
   const ins = me.clock.filter((e) => e.kind === 'in' && e.status !== 'rejected');
   const outs = me.clock.filter((e) => e.kind === 'out' && e.status !== 'rejected');
   const live = new Date(s.starts_at) <= new Date() && new Date(s.ends_at) > new Date();
@@ -152,22 +160,116 @@ function Header({ s, me, officer, signed, live: onShift }) {
           <span className="text-subhead text-muted">
             {ins.length ? <>Clocked in <span className="num font-semibold text-ink">{time(ins[0].ts)}</span>{outs.length ? <> · out <span className="num font-semibold text-ink">{time(outs.at(-1).ts)}</span></> : null}</> : 'Not clocked in yet'}
           </span>
-          {!outs.length && <Button size="sm" variant={ins.length ? 'secondary' : 'primary'} to="/officer/clock">{ins.length ? 'Clock out' : 'Clock in'}</Button>}
+          {!outs.length && (ins.length || canClock
+            ? <Button size="sm" variant={ins.length ? 'secondary' : 'primary'} to="/officer/clock">{ins.length ? 'Clock out' : 'Clock in'}</Button>
+            : <span className="text-footnote font-semibold text-muted">Clock-in opens at <span className="num">{time(opens)}</span>{dayLabel(opens) !== dayLabel(new Date()) && ` ${dayLabel(opens)}`}</span>)}
         </div>
+      )}
+      {officer && me.assignment_status === 'accepted' && !ins.length && new Date(s.starts_at) > new Date() && (
+        <>
+          <Button className="mt-2 w-full" variant="ghost" icon={X} onClick={() => setDeclining(true)}>I can't work this</Button>
+          <DeclineSheet s={declining ? { ...s, assignment_id: me.assignment_id, assignment_status: 'accepted' } : null} phone={phone}
+            onClose={() => setDeclining(false)} onDone={() => { setDeclining(false); nav('/officer', { replace: true }); }} />
+        </>
       )}
     </div>
   );
 }
 
+// Officers can report from an hour before a shift until 30 days after it ends
+const reportWindow = (s) => {
+  if (new Date(s.starts_at).getTime() - 3600000 > Date.now()) return 'early';
+  if (Date.now() - new Date(s.ends_at).getTime() >= 30 * 86400000) return 'closed';
+  return 'open';
+};
+
 function QuickActions({ s, d, onBan }) {
-  // Officers can report up to 30 days after a shift ends
-  const started = new Date(s.starts_at).getTime() - 3600000 <= Date.now() && Date.now() - new Date(s.ends_at).getTime() < 30 * 86400000;
+  const open = reportWindow(s) === 'open';
+  if (!(open && onBan) && !d.thread_id) return null;
   return (
     <div className="flex flex-wrap gap-2">
-      {started && <Button variant="soft" icon={ShieldAlert} to={`/officer/incidents/new?shift=${s.id}`}>Report incident</Button>}
-      {started && onBan && <Button variant="soft" icon={Ban} onClick={onBan}>Log ejection</Button>}
+      {open && onBan && <Button variant="soft" icon={Ban} onClick={onBan}>Log ejection or ban</Button>}
       {d.thread_id && <Button variant="secondary" icon={MessagesSquare} to={`/officer/messages/${d.thread_id}`}>Shift chat</Button>}
     </div>
+  );
+}
+
+// Report types as tiles, always visible; they open an hour before the shift. A draft for this shift shows on top.
+function ReportTiles({ s }) {
+  const w = reportWindow(s);
+  const drafts = useApi('incidents.drafts', {});
+  const mine = (drafts.data || []).filter((x) => x.shift_id === s.id);
+  return (
+    <Section title="Report an incident" action={w !== 'open' && <span className="text-footnote text-muted">{w === 'early' ? 'Opens 1 hour before the shift' : 'Reporting closed after 30 days'}</span>}>
+      {mine.map((x) => (
+        <Pressable key={x.id} press to={`/officer/incidents/new?draft=${x.id}`} className="mb-2 flex items-center gap-3 rounded-tile bg-amber-soft p-3 text-left">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber text-white"><FilePen size={18} /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">Draft report: carry on</span>
+            <span className="block text-footnote text-muted">{x.type ? REPORTS.find((r) => r.type === x.type)?.label || 'Incident' : 'Incident'} · saved <span className="num">{time(x.updated_at)}</span>{dayLabel(x.updated_at) !== dayLabel(new Date()) && ` ${dayLabel(x.updated_at)}`}</span>
+          </span>
+        </Pressable>
+      ))}
+      <div className={cx('grid grid-cols-3 gap-2 @lg:grid-cols-5', w !== 'open' && 'pointer-events-none opacity-60 grayscale')} aria-disabled={w !== 'open'}>
+        {REPORTS.map((r) => (
+          <Button key={r.type} variant="plain" tabIndex={w !== 'open' ? -1 : undefined} to={w === 'open' ? `/officer/incidents/new?shift=${s.id}&type=${r.type}` : undefined}
+            className="!h-auto flex-col !gap-1.5 rounded-tile bg-surface !px-1 !py-3 text-center shadow-tile">
+            <span className={cx('grid h-9 w-9 place-items-center rounded-xl', r.tone)}><r.icon size={18} /></span>
+            <span className="whitespace-normal text-caption font-semibold leading-tight">{r.label}</span>
+          </Button>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+// What the last team left, plus what this shift is leaving for the next one
+function HandoverBlock({ d, onAdd }) {
+  const [photo, setPhoto] = useState(null);
+  const prev = d.previous_handover;
+  const mine = d.entries.filter((e) => e.kind === 'handover' && e.state === 'kept');
+  if (!prev && !mine.length && !onAdd) return null;
+  return (
+    <Section title="Handover">
+      <div className="rounded-tile bg-surface p-4 shadow-tile">
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><ArrowRightLeft size={20} /></span>
+          <div className="min-w-0 flex-1">
+            <div className="text-caption font-semibold uppercase tracking-wide text-muted">Left for you</div>
+            {prev ? (
+              <>
+                <p className="mt-1 whitespace-pre-line text-body">{prev.handover_summary || 'No summary written.'}</p>
+                {prev.photos?.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {prev.photos.map((p, i) => (
+                      <Pressable key={p.key || i} press aria-label="Open photo" onClick={() => setPhoto(i)} className="h-16 w-16 overflow-hidden rounded-xl bg-bg">
+                        <img src={p.url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      </Pressable>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-1.5 text-footnote text-muted">{dayLabel(prev.starts_at)} · signed by {prev.signed_by_name || 'the lead'}</p>
+              </>
+            ) : <p className="mt-1 text-subhead text-muted">No handover from the last shift here.</p>}
+          </div>
+        </div>
+        {(mine.length > 0 || onAdd) && (
+          <div className="mt-4 border-t border-sep pt-3">
+            <div className="text-caption font-semibold uppercase tracking-wide text-muted">For the next team</div>
+            {mine.map((e) => (
+              <div key={e.id} className="mt-2 flex items-start gap-2 text-subhead">
+                <span className="num shrink-0 text-muted">{time(e.created_at)}</span>
+                <span className="min-w-0 flex-1 whitespace-pre-line">{e.body || 'Photo'}</span>
+                {e.photos?.[0]?.url && <img src={e.photos[0].url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" loading="lazy" />}
+              </div>
+            ))}
+            {!mine.length && <p className="mt-1 text-subhead text-muted">Nothing yet. Anything the next team should know goes here.</p>}
+            {onAdd && <Button className="mt-3" size="sm" variant="soft" icon={Plus} onClick={onAdd}>Add handover note</Button>}
+          </div>
+        )}
+      </div>
+      <Lightbox photos={prev?.photos || []} index={photo} onClose={() => setPhoto(null)} />
+    </Section>
   );
 }
 
@@ -244,7 +346,7 @@ function Team({ team, venue }) {
   );
 }
 
-function LogSection({ d, reload }) {
+function LogSection({ d, reload, composer }) {
   const { me, log, entries } = d;
   const venue = me.access === 'venue';
   const signed = log.status === 'signed';
@@ -276,7 +378,7 @@ function LogSection({ d, reload }) {
         <Empty icon={FileSignature} title="Not signed off yet" body="You can read the log once the shift lead signs it off." />
       ) : (
         <>
-          {me.can_write && !signed && <Composer shiftId={d.shift.id} onAdded={reload} />}
+          {me.can_write && !signed && <Composer handle={composer} shiftId={d.shift.id} onAdded={reload} />}
           {!shown.length ? (
             <p className="py-4 text-center text-subhead text-muted">{signed ? 'Nothing was logged.' : 'Nothing logged yet. Notes, photos and anything the next team should know go here.'}</p>
           ) : (
@@ -318,16 +420,24 @@ function usePhotos() {
   return { files, setFiles, uploading, open: () => picker.current?.click(), input };
 }
 
-function Composer({ shiftId, onAdded }) {
+function Composer({ handle, shiftId, onAdded }) {
   const [text, setText] = useState('');
   const [kind, setKind] = useState('note');
+  const box = useRef(null);
+  useImperativeHandle(handle, () => ({
+    handover: () => {
+      setKind('handover');
+      box.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => box.current?.querySelector('textarea')?.focus({ preventScroll: true }), 300);
+    },
+  }), []);
   const ph = usePhotos();
   const [run, busy] = useAction();
   const add = () => run(() => api('shiftlog.add', { shift_id: shiftId, kind, body: text.trim(), photos: ph.files.map(({ key, name, mime }) => ({ key, name, mime })) }), 'Added to the log')
     .then(() => { setText(''); ph.setFiles([]); setKind('note'); onAdded(); }).catch(() => {});
   return (
-    <div className="rounded-tile bg-surface p-3 shadow-tile">
-      <Textarea rows={3} placeholder="What happened? e.g. 23:10 queue busy, fire exit B checked and clear" value={text} onChange={(e) => setText(e.target.value)} />
+    <div ref={box} className="scroll-mt-24 rounded-tile bg-surface p-3 shadow-tile">
+      <Textarea rows={3} placeholder={kind === 'handover' ? 'For the next team, e.g. fire exit B sticks, regulars to watch' : 'What happened? e.g. 23:10 queue busy, fire exit B checked and clear'} value={text} onChange={(e) => setText(e.target.value)} />
       {ph.files.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
           {ph.files.map((f, i) => (

@@ -411,13 +411,16 @@ export const actions = {
     if (!b.accept) {
       await afterShiftChange({ removed: [a], shiftIds: [a.shift_id] });
       await notify(await managersFor(a.venue_id), {
-        kind: 'shift', title: 'Shift declined', body: `${user.name} can't work ${a.venue_name} · ${fmtDateTime(a.starts_at)}${b.reason ? ` — ${b.reason}` : ''}`,
-        link: '/company/rota', severity: 'warning', email: new Date(a.starts_at) - Date.now() < 48 * 3600000,
+        kind: 'shift', title: 'Shift declined', body: `${user.name}${a.is_lead ? ' (shift lead)' : ''} can't work ${a.venue_name} · ${fmtDateTime(a.starts_at)}${b.reason ? ` — ${b.reason}` : ''}`,
+        link: '/company/rota', severity: shortNotice(a.starts_at) ? 'critical' : 'warning', email: new Date(a.starts_at) - Date.now() < 48 * 3600000,
       });
     }
     return { ok: true, status };
   }),
 };
+
+// Pulling out of a shift that starts within a day needs cover fast: the alert is urgent
+export const shortNotice = (startsAt, now = Date.now()) => new Date(startsAt).getTime() - now < 24 * 3600000;
 
 // London wall-clock (YYYY-MM-DD, HH:MM) → UTC Date
 export function londonToUtc(dateStr, hhmm) {

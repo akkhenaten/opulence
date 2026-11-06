@@ -11,6 +11,7 @@ import { audit } from '../lib/audit.mjs';
 import { ALL, MGR, def } from './_def.mjs';
 import { activeBans, shiftEjections } from './bans.mjs';
 import { officerName, userName } from '../lib/names.mjs';
+import { getSettings } from './settings.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const KINDS = ['note', 'handover', 'incident', 'ban', 'ejection'];
@@ -122,6 +123,12 @@ export const actions = {
       `SELECT s.id AS shift_id, s.starts_at, s.ends_at, l.handover_summary, l.signed_at, ${userName('u')} AS signed_by_name
          FROM shifts s JOIN shift_logs l ON l.shift_id = s.id LEFT JOIN users u ON u.id = l.signed_by
         WHERE s.venue_id = $1 AND s.id <> $2 AND l.status = 'signed' AND s.starts_at < $3 ORDER BY s.starts_at DESC LIMIT 1`, [sh.venue_id, sh.id, sh.starts_at]);
+    // Photos the last team attached to their handover notes
+    if (prev) {
+      const ph = await one(`SELECT COALESCE(jsonb_agg(p), '[]') AS photos FROM shift_log_entries e, jsonb_array_elements(COALESCE(e.photos, '[]')) p
+         WHERE e.shift_id = $1 AND e.kind = 'handover' AND e.state = 'kept'`, [prev.shift_id]);
+      prev.photos = await signFiles(ph?.photos || []);
+    }
     const showEntries = !venue || log.status === 'signed';
     const thread = venue ? null : await shiftThread(sh);
     const clock = ax.a ? await q('SELECT kind, ts, status FROM clock_events WHERE assignment_id = $1 ORDER BY ts', [ax.a.id]) : [];
@@ -142,6 +149,7 @@ export const actions = {
       bans: await activeBans(sh.venue_id, { withProposed: ax.access !== 'venue' }),
       ejections: await shiftEjections(sh.id),
       thread_id: thread?.id || null,
+      office_phone: venue ? null : (await getSettings())?.company_phone || null,
     };
   }),
 
