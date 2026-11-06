@@ -109,7 +109,7 @@ export function ToastProvider({ children }) {
 /* ---------- Layout primitives ---------- */
 
 // photo: a brand photo name (ui/Photo.jsx) behind the title
-export function Page({ title, subtitle, actions, back, children, wide, photo }) {
+export function Page({ title, subtitle, actions, back, children, wide, photo, slim }) {
   const nav = useNavigate();
   const sentinel = useRef(null);
   useEffect(() => {
@@ -146,7 +146,7 @@ export function Page({ title, subtitle, actions, back, children, wide, photo }) 
       )}
       {photo ? (
         <Photo name={photo} priority className="mb-5 rounded-tile text-cream [--color-muted:#DDD6C8]">
-          <div className="flex min-h-[96px] flex-wrap items-end justify-between gap-3 p-4 sm:min-h-[180px] sm:p-6">{head}{actionBox}</div>
+          <div className={cx('flex min-h-[96px] flex-wrap items-end justify-between gap-3 p-4 sm:p-6', slim ? 'sm:min-h-[120px]' : 'sm:min-h-[180px]')}>{head}{actionBox}</div>
         </Photo>
       ) : (
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">{head}{actionBox}</div>

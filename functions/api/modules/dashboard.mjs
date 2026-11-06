@@ -44,7 +44,7 @@ async function managerDash(ctx) {
   const weekStart = addDays(today, -((new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7));
   const p = [scope];
   const scoped = (col) => `($1::uuid[] IS NULL OR ${col} = ANY($1))`;
-  const [live, shifts, incidents, pendingCover, unfilled, exceptions, toApprove, disputed, openIncidents, requests, hoursWeek] = await Promise.all([
+  const [live, shifts, incidents, pendingCover, unfilled, exceptions, toApprove, disputed, openIncidents, requests, hoursWeek, shiftsWeek] = await Promise.all([
     liveSummary(ctx),
     upcomingShifts(scope),
     recentIncidents(scope),
@@ -59,8 +59,10 @@ async function managerDash(ctx) {
     count(`SELECT count(*)::int AS n FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id WHERE a.status = 'requested' AND s.starts_at > now() AND ${scoped('s.venue_id')}`, p),
     one(`SELECT COALESCE(sum(t.hours), 0) AS n FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
           WHERE (s.starts_at AT TIME ZONE 'Europe/London')::date >= $2 AND ${scoped('s.venue_id')}`, [scope, weekStart]).then((r) => Number(r.n)),
+    count(`SELECT count(*)::int AS n FROM shifts s WHERE s.status = 'published'
+             AND (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $2::date AND $2::date + 6 AND ${scoped('s.venue_id')}`, [scope, weekStart]),
   ]);
-  const out = { role: user.role, live, shifts, incidents, counts: { pendingCover, unfilled, exceptions, toApprove, disputed, openIncidents, requests }, hoursWeek };
+  const out = { role: user.role, live, shifts, incidents, counts: { pendingCover, unfilled, exceptions, toApprove, disputed, openIncidents, requests, shiftsWeek }, hoursWeek };
 
   if (user.role === 'company') {
     const officers = await q("SELECT * FROM officers WHERE status IN ('active','onboarding','applicant')");

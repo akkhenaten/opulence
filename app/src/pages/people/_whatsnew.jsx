@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-06', icon: LayoutGrid, title: 'A Dashboard that tells you what matters',
+    lede: 'Your Dashboard now leads with what needs you, then tonight’s cover, then the week in numbers. On a quiet night it simply says all clear.',
+    points: ['A Needs you list with only what’s waiting, most urgent first', 'A one-line summary under your greeting', 'Tonight’s cover at a glance, short shifts first', 'Hours, shifts and money for the week in one strip', 'Clearer numbers across the app'],
+  },
+  {
     month: 'November 2026', date: '2026-11-06', icon: Sparkles, title: 'Never miss an upgrade',
     lede: 'New features now greet you when you open the app, and your website comes alive as visitors scroll.',
     points: ['A What’s new welcome for managers for two days after each release', 'One tap to see every upgrade', 'Venue and service cards glide in from the sides', 'Numbers that count up and headings underlined in gold'],

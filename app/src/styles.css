@@ -99,7 +99,8 @@ body {
   h3 { letter-spacing: -0.01em; }
   input, select, textarea, button { font: inherit; color: inherit; }
 }
-.num { font-variant-numeric: tabular-nums; }
+.num { font-variant-numeric: lining-nums tabular-nums; }
+.display { font-variant-numeric: lining-nums; }
 /* Solid accent: buttons, active chips and badges fill with the true brand colour (gold); text and icons on it
    switch to whatever reads best (dark on gold). --color-blue stays the darker, text-safe shade. */
 .bg-blue { background-color: var(--accent-fill); }
