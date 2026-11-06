@@ -40,6 +40,9 @@ test('a company manager cannot put a platform email on an account or take one ov
   assert.throws(() => guardPlatformAccount(manager, 'info@orbsolutions.co.uk'), (e) => e.status === 403);
   assert.doesNotThrow(() => guardPlatformAccount(manager, 'a@x.com', 'b@x.com'));
   assert.doesNotThrow(() => guardPlatformAccount(admin, 'info@orbsolutions.co.uk'));
+  // users.update / setWorksShifts: any edit of the platform account by someone else is refused, even with no email change
+  assert.throws(() => guardPlatformAccount(manager, 'info@orbsolutions.co.uk', undefined), (e) => e.status === 403);
+  assert.doesNotThrow(() => guardPlatformAccount(admin, 'info@orbsolutions.co.uk', undefined));
 });
 
 test('the platform admin is always a Company manager, whatever role the login was made with', () => {

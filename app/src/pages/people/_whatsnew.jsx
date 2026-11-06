@@ -11,8 +11,8 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 export const UPDATES = [
   {
     month: 'November 2026', date: '2026-11-06', icon: MessageCircleWarning, title: 'Tell us what to fix',
-    lede: 'While the app is being fine-tuned, everyone (managers, venue teams and officers) can send problems and ideas straight to the Orb team from the Feedback button. Each report comes with the screen, device and app version, so it gets fixed faster.',
-    points: ['Feedback in the top bar, My account and Me', "Something's wrong or I have an idea, with up to 3 photos", 'My feedback shows the status and our reply', 'Only the Orb team reads it'],
+    lede: 'While the app is being fine-tuned, everyone (managers, venue teams and officers) can send problems and ideas straight to the Orb team from the glowing App feedback button next to the bell. Each report comes with the screen, device and app version, so it gets fixed faster.',
+    points: ['App feedback (the rainbow button) in the top bar, My account and Me', "Something's wrong or I have an idea, with up to 3 photos", 'My feedback shows the status and our reply', 'Only the Orb team reads it'],
   },
   {
     month: 'November 2026', date: '2026-11-06', icon: Smartphone, title: 'Install the app from Settings',

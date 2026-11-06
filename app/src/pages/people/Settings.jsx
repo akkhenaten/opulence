@@ -4,7 +4,7 @@ import { Bell, Building2, ImageUp, MonitorSmartphone, Nfc, Palette, CalendarDays
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  ActionBar, Avatar, Button, cx, dayLabel, Empty, IconButton, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Row, Section, Segmented, Select, Sheet, Table, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm, useToast,
+  ActionBar, Avatar, Button, Callout, cx, dayLabel, Empty, IconButton, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Row, Section, Segmented, Select, Sheet, Table, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm, useToast,
 } from '../../ui/index.jsx';
 import { Chips, CopyLink, DOC_KINDS, docKindLabel, SIA_TYPES } from './_parts.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
@@ -497,7 +497,7 @@ function UsersTab({ openId }) {
                     left={<Avatar name={u.name} src={[u.photo_thumb_url, u.photo_url]} size={40} />}
                     title={<span>{u.name}{u.id === me.id && <span className="ml-1.5 text-caption font-semibold text-faint">You</span>}</span>}
                     subtitle={[u.officer_id ? (u.role === 'officer' ? 'Staff record linked' : 'Also works shifts') : null, u.email, u.client_name ? `Client: ${u.client_name}` : null, u.venues?.length ? u.venues.join(', ') : null, u.last_login ? `Seen ${relative(u.last_login)}` : null].filter(Boolean).join(' · ')}
-                    right={<div className="flex flex-col items-end gap-1"><Pill tone="grey">{ROLE_LABEL[u.role]}</Pill>{u.status !== 'active' && <Pill status={u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : 'Disabled'}</Pill>}</div>} />
+                    right={<div className="flex flex-col items-end gap-1">{u.platform && <Pill tone="amber">Platform admin</Pill>}<Pill tone="grey">{ROLE_LABEL[u.role]}</Pill>{u.status !== 'active' && <Pill status={u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : 'Disabled'}</Pill>}</div>} />
                 ))}
               </List>
             ) : <Empty title="No users" />}
@@ -515,6 +515,8 @@ function UserSheet({ u, me, all = [], venues, clients, onClientCreated, onClose,
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const [link, setLink] = useState(null);
+  // Only the platform admin changes their own account
+  const locked = u.platform && !me.platform;
   const save = async () => {
     await run(() => api('users.update', { id: u.id, ...v, email: u.officer_id || v.email === u.email ? undefined : v.email, ...(['security', 'venue'].includes(u.role) ? { venue_ids: v.venue_ids, client_id: v.client_id || null } : { venue_ids: undefined, client_id: undefined }) }), 'User updated');
     onDone();
@@ -535,9 +537,11 @@ function UserSheet({ u, me, all = [], venues, clients, onClientCreated, onClose,
   };
   return (
     <Sheet open onClose={onClose} title={u.name}
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={save}>Save</Button></>}>
+      footer={locked ? <Button variant="secondary" onClick={onClose}>Close</Button> : <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={save}>Save</Button></>}>
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2"><Pill tone="grey">{ROLE_LABEL[u.role]}</Pill><Pill status={u.status === 'active' ? 'active' : u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : u.status === 'active' ? 'Active' : 'Disabled'}</Pill><span className="text-footnote text-muted">{u.email}</span></div>
+        {locked && <Callout tone="warning" title="Platform admin">Only they can change this account.</Callout>}
+        <div className="flex flex-wrap items-center gap-2">{u.platform && <Pill tone="amber">Platform admin</Pill>}<Pill tone="grey">{ROLE_LABEL[u.role]}</Pill><Pill status={u.status === 'active' ? 'active' : u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : u.status === 'active' ? 'Active' : 'Disabled'}</Pill><span className="text-footnote text-muted">{u.email}</span></div>
+        <fieldset disabled={locked} className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Name" {...bind('name')} />
           <Input label="Phone" type="tel" {...bind('phone')} />
@@ -548,15 +552,16 @@ function UserSheet({ u, me, all = [], venues, clients, onClientCreated, onClose,
           : <Input label="Sign-in email" type="email" hint={v.email !== u.email ? 'They will sign in with the new email from now on' : undefined} {...bind('email')} />}
         {['security', 'venue'].includes(u.role) && <AccessFields role={u.role} v={v} set={set} venues={venues} clients={clients} onClientCreated={onClientCreated} />}
         {u.role === 'security' && <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.can_see_pay} onChange={(x) => set('can_see_pay', x)} label="Can see pay" hint="Officer rates and pay statements" /></div>}
-        {['company', 'security'].includes(u.role) && u.status !== 'disabled' && <WorksShifts u={u} all={all} onDone={() => { onDone(); onClose(); }} />}
+        </fieldset>
+        {['company', 'security'].includes(u.role) && u.status !== 'disabled' && !locked && <WorksShifts u={u} all={all} onDone={() => { onDone(); onClose(); }} />}
         {u.officer_id && <Link to={`/company/staff/${u.officer_id}`} className="inline-flex items-center gap-1.5 text-subhead font-semibold text-blue"><Users size={16} />Staff profile<ChevronRight size={16} /></Link>}
         {link ? <CopyLink link={link} label={u.status === 'invited' ? 'Invite link' : 'Password reset link'} hint={emailed === null ? 'Valid for 48 hours. Share it directly.' : inviteHint(emailed, u.email)} /> : u.status === 'invited' && u.invite_link && <CopyLink link={u.invite_link} />}
-        <div className="flex flex-wrap gap-2 border-t border-line pt-4">
+        {(!locked || u.status === 'invited') && <div className="flex flex-wrap gap-2 border-t border-line pt-4">
           {u.status === 'invited' && <Button variant="soft" onClick={resend}>Resend invite</Button>}
-          {u.status === 'active' && <Button variant="soft" icon={KeyRound} onClick={reset}>Password reset link</Button>}
-          {u.status !== 'disabled' && u.id !== me.id && <Button variant="danger" onClick={() => setStatus('disabled')}>Deactivate</Button>}
-          {u.status === 'disabled' && <Button variant="secondary" onClick={() => setStatus('active')}>Reactivate</Button>}
-        </div>
+          {u.status === 'active' && !locked && <Button variant="soft" icon={KeyRound} onClick={reset}>Password reset link</Button>}
+          {u.status !== 'disabled' && u.id !== me.id && !locked && <Button variant="danger" onClick={() => setStatus('disabled')}>Deactivate</Button>}
+          {u.status === 'disabled' && !locked && <Button variant="secondary" onClick={() => setStatus('active')}>Reactivate</Button>}
+        </div>}
       </div>
     </Sheet>
   );

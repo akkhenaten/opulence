@@ -35,15 +35,15 @@ export function deviceLine() {
   return `${os}, ${br}${app}, ${window.innerWidth}×${window.innerHeight}`;
 }
 
-/** The speech-bubble chip in the top bar, next to the bell */
+/** The glowing chip in the top bar, next to the bell (the rainbow ring keeps it apart from the venue Feedback page) */
 export function FeedbackChip() {
   return (
-    <span className="hidden sm:block"><Button variant="secondary" size="sm" icon={MessageCircleWarning} onClick={() => openFeedback()}>Feedback</Button></span>
+    <span className="hidden sm:block"><span className="fb-glow"><Button variant="secondary" size="sm" icon={MessageCircleWarning} onClick={() => openFeedback()}>App feedback</Button></span></span>
   );
 }
 /** Phones: just the icon, so the top bar stays tidy */
 export function FeedbackIcon() {
-  return <span className="sm:hidden"><IconButton icon={MessageCircleWarning} tone="solid" onClick={() => openFeedback()} label="Send feedback" /></span>;
+  return <span className="sm:hidden"><span className="fb-glow"><IconButton icon={MessageCircleWarning} tone="solid" onClick={() => openFeedback()} label="Send feedback" /></span></span>;
 }
 
 /** Mounted once in the app frame; listens for openFeedback() and ?feedback=mine (from a reply notification) */

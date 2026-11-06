@@ -9,7 +9,7 @@ import { getBrand } from '../lib/brand.mjs';
 import { seedOnboarding } from './hr.mjs';
 import { disconnectUser } from './email.mjs';
 import { officerName, userName } from '../lib/names.mjs';
-import { guardPlatformAccount, inviteRole } from '../lib/platform.mjs';
+import { guardPlatformAccount, inviteRole, isPlatformEmail } from '../lib/platform.mjs';
 
 const ROLE_LABEL = { company: 'Company Manager', security: 'Security Manager', venue: 'Venue Manager', officer: 'Security Officer' };
 
@@ -66,7 +66,8 @@ export const actions = {
        LEFT JOIN security_venues sv ON sv.user_id = u.id AND u.role = 'security'
        LEFT JOIN venues v ON v.id = COALESCE(vc.venue_id, sv.venue_id)
       WHERE NOT u.system AND ($1::text IS NULL OR u.role = $1)
-      GROUP BY u.id ORDER BY u.role, u.name`, [b.role || null]))),
+      GROUP BY u.id ORDER BY u.role, u.name`, [b.role || null]))
+    .then((rows) => rows.map((u) => ({ ...u, platform: isPlatformEmail(u.email) })))),
 
   'users.invite': def(CO, async (b, { user }) => {
     required(b, 'email', 'name', 'role');
@@ -88,9 +89,8 @@ export const actions = {
     required(b, 'id');
     if (b.id === user.id && b.status === 'disabled') fail(400, "You can't disable yourself");
     const target = await one('SELECT email FROM users WHERE id = $1', [b.id]);
-    if ((b.email !== undefined && String(b.email).trim().toLowerCase() !== target?.email) || b.status === 'disabled') {
-      guardPlatformAccount(user, target?.email, b.email);
-    }
+    // Only the platform admin changes their own account (access, venues, pay, status); nobody gives another account their email
+    guardPlatformAccount(user, target?.email, b.email);
     const fields = pick(b, ['name', 'goes_by', 'phone', 'can_see_pay', 'email']);
     if (fields.goes_by !== undefined) fields.goes_by = goesBy(fields.goes_by);
     if (b.status === 'disabled' || b.status === 'active') fields.status = b.status;
@@ -156,6 +156,7 @@ export const actions = {
     required(b, 'id');
     const u = await one("SELECT * FROM users WHERE id = $1 AND NOT system", [b.id]);
     if (!u) fail(404, 'User not found');
+    guardPlatformAccount(user, u.email);
     if (!['company', 'security'].includes(u.role)) fail(400, 'Only company and security managers can also work shifts');
     const linked = await one('SELECT id FROM officers WHERE user_id = $1', [u.id]);
     if (!b.on) {

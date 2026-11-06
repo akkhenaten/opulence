@@ -217,12 +217,21 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
 @keyframes silver-glint { 0%, 70% { transform: translateX(-100%); } 85%, 100% { transform: translateX(100%); } }
 .silver-btn { background: linear-gradient(160deg, #3a3f45, #1d2024); }
 .silver-btn:hover .silver-mark::after { animation-duration: 1.6s; }
+/* The App feedback button: a slowly turning rainbow ring and halo, so it never reads as the venue Feedback page */
+@property --fb-a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.fb-glow { --fb-rainbow: conic-gradient(from var(--fb-a), #ef4444, #f59e0b, #eab308, #22c55e, #06b6d4, #3b82f6, #8b5cf6, #ec4899, #ef4444);
+  position: relative; isolation: isolate; display: inline-flex; border-radius: 9999px; padding: 2px; background: var(--fb-rainbow);
+  animation: fb-spin 4s linear infinite; }
+.fb-glow::before { content: ''; position: absolute; inset: -2px; z-index: -1; border-radius: inherit; background: var(--fb-rainbow);
+  filter: blur(8px); opacity: .55; animation: inherit; }
+.fb-glow > * { border-radius: 9999px; }
+@keyframes fb-spin { to { --fb-a: 360deg; } }
 /* Reduced motion: keep fades, drop movement; spinners still turn so loading stays visible */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; scroll-behavior: auto !important; }
   .bento > *, .page-in-right, .page-in-left, .page-fade, .anim-pop, .anim-sheet-in, .anim-toast-in, .anim-bar-in, .anim-fade-in { animation: fade var(--dur-1) both !important; }
   .anim-sheet-out, .anim-toast-out, .anim-fade-out { animation: fade-out var(--dur-1) both !important; }
-  .live-dot, .skeleton, .silver-mark::after, .orb-voice-halo, .orb-voice-speaking, .orb-voice-turn { animation: none !important; }
+  .live-dot, .skeleton, .silver-mark::after, .fb-glow, .fb-glow::before, .orb-voice-halo, .orb-voice-speaking, .orb-voice-turn { animation: none !important; }
   .pressable:active, .pressable-card:active { transform: none; }
 }
 
