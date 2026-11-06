@@ -148,10 +148,23 @@
     .cities { display: grid; gap: 56px; margin-top: 56px; }
     .city h3 { font: 600 12px var(--sans); letter-spacing: .24em; text-transform: uppercase; color: var(--gold); padding-bottom: 14px; border-bottom: 1px solid var(--line); }
     .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 24px; }
-    :is(.vt, .svc) { position: relative; aspect-ratio: 4 / 5; perspective: 1400px; cursor: pointer; border-radius: 20px; outline: none; transition: transform .45s var(--spring); }
-    :is(.vt, .svc) .inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .8s var(--spring); }
-    :is(.vt, .svc).flip .inner { transform: rotateY(180deg); }
-    .face { position: absolute; inset: 0; border-radius: 20px; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; border: 1px solid var(--line); }
+    :is(.vt, .svc) { position: relative; aspect-ratio: 4 / 5; cursor: pointer; border-radius: 20px; outline: none; transition: transform .45s var(--spring); }
+    :is(.vt, .svc) .inner { position: absolute; inset: 0; }
+    .face { position: absolute; inset: 0; border-radius: 20px; overflow: hidden; border: 1px solid var(--line); }
+    .back, :is(.vt, .svc).flip .front { visibility: hidden; }
+    :is(.vt, .svc).flip .back { visibility: visible; }
+    /* Departure-board flip: while it plays, the faces hide under a grid of cells that each turn top-over-bottom */
+    [data-busy] > .inner > .face { visibility: hidden; }
+    .gf { position: absolute; inset: 0; z-index: 3; display: grid; grid-template: repeat(var(--r), 1fr) / repeat(var(--c), 1fr); perspective: 1100px; pointer-events: none; }
+    .gf-cell { position: relative; transform-style: preserve-3d; transition: transform var(--cd) cubic-bezier(.45, .05, .25, 1) var(--dl); }
+    .gf.go .gf-cell { transform: rotateX(-180deg); }
+    .gf-side { position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.45); }
+    .gf-side.to { transform: rotateX(180deg); }
+    .gf .gf-side > .face { inset: auto; left: var(--x); top: var(--y); width: var(--w); height: var(--h); visibility: visible !important; opacity: 1 !important; }
+    .gf-side::after { content: ""; position: absolute; inset: 0; z-index: 4; background: linear-gradient(180deg, rgba(0,0,0,.7), rgba(0,0,0,.25)); opacity: 0; transition: opacity calc(var(--cd) / 2) ease-in var(--dl); }
+    .gf.go .gf-side.from::after { opacity: 1; }
+    .gf-side.to::after { opacity: .85; background: linear-gradient(0deg, rgba(0,0,0,.7), rgba(0,0,0,.25)); transition-timing-function: ease-out; }
+    .gf.go .gf-side.to::after { opacity: 0; transition-delay: calc(var(--dl) + var(--cd) / 2); }
     .front picture, .front img { width: 100%; height: 100%; object-fit: cover; }
     .front img { transition: transform 1.2s var(--spring), filter .4s; }
     .front::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, transparent 45%, rgba(11,11,12,.88)); }
@@ -166,7 +179,7 @@
     }
     :is(.vt, .svc):focus-visible { box-shadow: 0 0 0 2px var(--ink-2), 0 0 0 4px var(--gold); }
     :is(.vt, .svc):focus-visible .front::after { opacity: 1; }
-    .back { transform: rotateY(180deg); display: flex; flex-direction: column; padding: 22px 20px 18px; border-color: rgba(201,164,92,.35);
+    .back { display: flex; flex-direction: column; padding: 22px 20px 18px; border-color: rgba(201,164,92,.35);
       background: radial-gradient(130% 90% at 0% 0%, rgba(201,164,92,.16), transparent 60%), var(--ink); }
     .about b, .rv-head b { display: block; font: 500 21px/1.15 var(--serif); }
     .about p { margin-top: 10px; color: var(--muted); font-size: 15px; line-height: 1.5; }
@@ -191,10 +204,9 @@
     @media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, 1fr); gap: 12px; } .cap b { font-size: 18px; } }
     @media (max-width: 480px) { .tiles { grid-template-columns: 1fr; } .vt { aspect-ratio: 4 / 4.2; } }
     @media (prefers-reduced-motion: reduce) {
-      :is(.vt, .svc) .inner { transition: none; transform: none !important; }
-      .back { transform: none; opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
-      :is(.vt, .svc).flip .back { opacity: 1; visibility: visible; }
-      :is(.vt, .svc).flip .front { visibility: hidden; }
+      .face { transition: opacity .25s, visibility .25s; }
+      .back, :is(.vt, .svc).flip .front { opacity: 0; }
+      :is(.vt, .svc).flip .back { opacity: 1; }
     }
 
     /* Awards */
@@ -918,25 +930,78 @@
       }
       // Venue tiles and service cards flip over on click. A venue's back shows the client's published reviews as a
       // carousel, or their description and website when there are none yet (and when the reviews can't load).
-      function setFlip(t, on) {
+      function apply(t, on) {
         t.classList.toggle('flip', on);
         t.setAttribute('aria-pressed', on ? 'true' : 'false');
         var back = t.querySelector('.back');
+        if (!back) return;
         back.setAttribute('aria-hidden', on ? 'false' : 'true');
         back.inert = !on;
       }
-      // Cards in one group flip one at a time; clicks on links and buttons on the back do their own thing
+      // Departure-board flip: the tile splits into cells that turn top-over-bottom in a diagonal wave from the
+      // top left, each showing its slice of the other side, then the grid goes and the tile is one surface again.
+      // Fewer cells on phones; a plain fade when the visitor prefers less motion.
+      var still = matchMedia('(prefers-reduced-motion: reduce)');
+      function gridFlip(t, on, done) {
+        var inner = t.querySelector('.inner');
+        if (still.matches || !inner) { done(); return; }
+        var from = t.querySelector(on ? '.front' : '.back') || t.querySelector('.face');
+        var to = t.querySelector(on ? '.back' : '.front') || from;
+        var w = inner.offsetWidth, h = inner.offsetHeight, small = innerWidth <= 760;
+        var c = small ? 3 : 4, r = small ? 4 : 5, cd = 500, step = (1000 - cd) / (r + c - 2);
+        var gf = el('div', 'gf'), last;
+        gf.setAttribute('aria-hidden', 'true'); gf.inert = true;
+        gf.style.cssText = '--r:' + r + ';--c:' + c + ';--w:' + w + 'px;--h:' + h + 'px;--cd:' + cd + 'ms';
+        var slice = function (face, side, x, y) {
+          var s = el('div', 'gf-side ' + side), copy = face.cloneNode(true);
+          copy.removeAttribute('aria-hidden');
+          s.style.cssText = '--x:' + x + 'px;--y:' + y + 'px';
+          s.append(copy);
+          return s;
+        };
+        for (var i = 0; i < r; i++) {
+          for (var j = 0; j < c; j++) {
+            var cell = el('div', 'gf-cell'), x = -j * w / c, y = -i * h / r;
+            cell.style.setProperty('--dl', Math.round((i + j) * step) + 'ms');
+            cell.append(slice(from, 'from', x, y), slice(to, 'to', x, y));
+            gf.append(cell); last = cell;
+          }
+        }
+        // Copies of a reviews carousel start on the slide the visitor was reading
+        [[from, 'from'], [to, 'to']].forEach(function (p) {
+          var tr = p[0].querySelector('.track');
+          if (tr) gf.querySelectorAll('.' + p[1] + ' .track').forEach(function (k) { k.scrollLeft = tr.scrollLeft; });
+        });
+        inner.append(gf);
+        t.setAttribute('data-busy', '');
+        var finish = function () {
+          if (!gf.parentNode) return;
+          done(); gf.remove(); t.removeAttribute('data-busy');
+        };
+        last.addEventListener('transitionend', function (e) { if (e.target === last && e.propertyName === 'transform') finish(); });
+        setTimeout(finish, 1000 + cd + 200);
+        void gf.offsetWidth;
+        requestAnimationFrame(function () { gf.classList.add('go'); });
+      }
+      function setFlip(t, on, then) {
+        gridFlip(t, on, function () { apply(t, on); if (then) then(); });
+      }
+      // Cards in one group flip one at a time; clicks on links and buttons on the back do their own thing.
+      // A tile with data-href plays the flip and then goes to the link.
       function wire(t, cards) {
         cards.push(t);
-        t.querySelector('.back').inert = true;
+        var back = t.querySelector('.back');
+        if (back) back.inert = true;
         var toggle = function () {
+          if (t.hasAttribute('data-busy')) return;
+          if (t.dataset.href) { setFlip(t, true, function () { location.href = t.dataset.href; }); return; }
           var on = !t.classList.contains('flip');
-          cards.forEach(function (o) { if (o !== t && o.classList.contains('flip')) setFlip(o, false); });
+          cards.forEach(function (o) { if (o !== t && o.classList.contains('flip') && !o.hasAttribute('data-busy')) setFlip(o, false); });
           setFlip(t, on);
         };
         t.addEventListener('click', function (e) { if (!e.target.closest('a, button')) toggle(); });
         t.addEventListener('keydown', function (e) {
-          if (e.key === 'Escape' && t.classList.contains('flip')) { setFlip(t, false); t.focus(); }
+          if (e.key === 'Escape' && t.classList.contains('flip')) { if (!t.hasAttribute('data-busy')) setFlip(t, false); t.focus(); }
           else if (e.target === t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(); }
         });
       }

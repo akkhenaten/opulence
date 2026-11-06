@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-06', icon: Globe, title: 'Your website tiles flip like a departure board',
+    lede: 'On your public website, the Our services and venue tiles now split into a grid when tapped and turn over in a wave, like an old airport board, then join up again to show the details and reviews. Visitors who prefer less motion get a gentle fade.',
+    points: ['Services and venue tiles turn over in a diagonal wave', 'Fewer, bigger cells on phones', 'Links, reviews and Request cover work as before', 'A simple fade for visitors who prefer less motion'],
+  },
+  {
     month: 'November 2026', date: '2026-11-06', icon: ArrowRightLeft, title: 'Everything for the shift, on the shift',
     lede: 'Once an officer confirms a shift, its page holds the whole night: what the last team left them, report tiles that start the right form, their saved draft, and a way to say they can’t make it. Back now always returns to where they came from.',
     points: ['Back takes you to where you came from', 'Handover notes inside the shift', 'One tap to start a report by type, and your draft is waiting', 'Can’t make it? Say so from the shift', 'Clock in from Home'],
