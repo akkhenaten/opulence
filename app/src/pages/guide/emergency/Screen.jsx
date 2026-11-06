@@ -55,6 +55,7 @@ export default function Screen({ s, st, onAct, onVenue }) {
   return (
     <>
       {(s.scopeUndecided || picker) && <div className="eg-red">Scope not decided — this injury may not stay in the guide. Shown for review.</div>}
+      {s.aiDraft && <div className="eg-red">AI draft — written by AI, for review.</div>}
       {s.unwritten && !picker && <div className="eg-red">Not written yet — this screen has no wording.</div>}
       <div className="eg-scroll" ref={scroll}>
         {art && <div className={`eg-hero ${hero(n)}`}><Art file={art} className="eg-hero-img" /></div>}

@@ -3,10 +3,10 @@ import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } 
 import { ChevronLeft, Home } from 'lucide-react';
 import { HOME, useAuth } from '../../../auth.jsx';
 import { Spinner, useApi } from '../../../ui/index.jsx';
-import { CARDS, SCREENS } from './screens.js';
+import { CARDS, SCREENS } from './journeys.js';
 import Screen, { Art } from './Screen.jsx';
 
-// The Emergency guide (Knife attack journey). Draft clinical copy: shown only to whoever the platform admin allows.
+// The Emergency guide: the Knife attack journey from the pack, plus AI-drafted journeys for the other situations. Draft copy: shown only to whoever the platform admin allows.
 // Controls on every screen that never move: I'm in danger, Back and Start (top), Call 999 and Police arriving (bottom).
 const KEY = 'orb.eg';
 const fresh = () => ({ interruptions: 0, firstCall: null, resume: null, venue: 'home', from: null });
@@ -99,6 +99,7 @@ function Opening({ platform, onPick, onNotes }) {
               <Art file={c.art} className="eg-card-art" />
               <span className="eg-card-label">{c.title}</span>
               {!c.to && <span className="eg-card-soon">Not written yet</span>}
+              {c.aiDraft && <span className="eg-card-soon">AI draft, for review</span>}
             </button>
           ))}
         </div>
@@ -136,6 +137,9 @@ const NOTES = [
   'M02 is long and scrolls (accepted, with the "More steps below" hint).',
   'C03 is 7 taps from K01 and only leads back to C02.',
   'The call follow-ups G-CALL → X05 and X05 → X06 were added without clinical input.',
+  'Firearms, Vehicle, Explosion, Unattended item, Suspicious item, Multiple casualties and Help an injured person are AI drafts, not from the handover pack. Every line needs review; they link into the Knife screens for calling, casualties, police arriving and aftercare.',
+  "AI drafts: I'm in danger still leads to the Knife K01 (Get yourself safe), and Police arriving to K10, from every journey.",
+  'AI drafts: Unattended and Suspicious item say not to use a phone or radio close to the item. Confirm the distance wording with whoever owns the venue procedures.',
 ];
 function ReviewNotes({ onClose }) {
   return (

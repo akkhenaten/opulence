@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency guide: every situation can be opened',
+    lede: 'Firearms, Vehicle, Explosion, Unattended item, Suspicious item, Multiple casualties and Help an injured person can now be chosen in the Emergency guide. Their wording is an AI first draft for review, marked on every screen; the Knife journey is unchanged, and the guide is still shown only to the Orb team.',
+    points: ['All eight situations open from Choose the situation', 'AI draft, for review on every new card and screen', "I'm in danger, Call 999 and Police arriving still on every screen", 'Nothing dials by itself: you tap to call'],
+  },
+  {
     month: 'November 2026', date: '2026-11-06', icon: ClipboardList, title: 'Shift cards on the Live board',
     lede: 'Every venue on Live now has a Shift card button next to its name, and Open shift card is the first button when you tap an officer. When a new version of the app is out, a bar under the top bar offers Reload, so an open tab never stays on the old app.',
     points: ['Shift card on every venue on Live', "Open shift card at the top of an officer's details", 'The app tells you when a new version is ready, with Reload'],
