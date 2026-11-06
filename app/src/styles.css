@@ -331,6 +331,8 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
   max-width: 520px; margin: 0 auto; font-family: inherit; }
 .eg-danger { flex: none; min-height: 48px; width: 100%; background: var(--eg-ink); color: var(--eg-paper); font-weight: 700; font-size: 17px; padding-top: env(safe-area-inset-top); }
 .eg-draft { flex: none; background: var(--eg-amber); color: var(--eg-ink); font-size: 13px; font-weight: 600; text-align: center; padding: 6px 12px; line-height: 1.3; }
+.eg-nav { flex: none; display: flex; justify-content: space-between; align-items: center; padding: 0 8px; border-bottom: 1px solid var(--eg-blue-tint); }
+.eg-navbtn { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 10px; font-size: 16px; font-weight: 700; color: var(--eg-blue); }
 .eg-red { flex: none; background: var(--eg-red); color: var(--eg-paper); font-size: 13px; font-weight: 600; text-align: center; padding: 6px 12px; line-height: 1.3; }
 .eg-note { border-radius: 10px; margin-top: 12px; font-size: 15px; }
 .eg-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }

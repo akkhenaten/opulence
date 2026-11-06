@@ -32,7 +32,9 @@ function Wording({ text }) {
     : <p key={i}>{b}</p>));
 }
 
-export default function Screen({ s, st, note, onAct, onVenue }) {
+export default function Screen({ s, st, onAct, onVenue }) {
+  const [note, setNote] = useState('');
+  const tap = (to) => (to === '@unwritten' ? setNote("This part of the guide hasn't been written yet.") : onAct(to));
   const scroll = useRef(null);
   const end = useRef(null);
   const [more, setMore] = useState(false);
@@ -80,7 +82,7 @@ export default function Screen({ s, st, note, onAct, onVenue }) {
       {more && <div className="eg-more">More steps below</div>}
       <div className="eg-actions">
         {s.buttons.map((b, i) => (
-          <button key={b.label} type="button" className={`eg-btn ${i ? 'eg-outline' : 'eg-primary'}`} onClick={() => onAct(b.to)}>{b.label}</button>
+          <button key={b.label} type="button" className={`eg-btn ${i ? 'eg-outline' : 'eg-primary'}`} onClick={() => tap(b.to)}>{b.label}</button>
         ))}
       </div>
     </>

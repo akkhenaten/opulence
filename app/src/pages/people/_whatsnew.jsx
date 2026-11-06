@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency guide: Back and Start on every screen',
+    lede: 'Every screen of the Emergency guide now has Back and Start at the top, so you can always step back or return to Choose the situation, and the opening screen has Leave guide to get back to the app.',
+    points: ['Back on every screen, always one step', 'Start returns to Choose the situation', 'Leave guide on the opening screen', 'Your danger taps and call time are kept'],
+  },
+  {
     month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency guide (draft)',
     lede: 'A step-by-step Emergency guide is coming to the Toolbox, starting with a knife attack: get safe, call 999, help the injured and hand over. Its wording is still being clinically reviewed, so for now only the Orb team can open it; it will reach managers, officers and venue teams once it is approved.',
     points: ["I'm in danger, Call 999 and Police arriving on every screen", 'Big pictures and short steps made for a phone', 'Nothing dials by itself: you tap to call', 'Shown only to the Orb team until approved'],

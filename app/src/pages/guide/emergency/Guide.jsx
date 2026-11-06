@@ -1,14 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ChevronLeft, Home } from 'lucide-react';
 import { HOME, useAuth } from '../../../auth.jsx';
 import { Spinner, useApi } from '../../../ui/index.jsx';
 import { CARDS, SCREENS } from './screens.js';
 import Screen, { Art } from './Screen.jsx';
 
 // The Emergency guide (Knife attack journey). Draft clinical copy: shown only to whoever the platform admin allows.
-// Three controls sit on every screen and never move: I'm in danger (top), Call 999 and Police arriving (bottom).
+// Controls on every screen that never move: I'm in danger, Back and Start (top), Call 999 and Police arriving (bottom).
 const KEY = 'orb.eg';
-const fresh = () => ({ path: [], interruptions: 0, firstCall: null, resume: null, venue: 'home', from: null });
+const fresh = () => ({ interruptions: 0, firstCall: null, resume: null, venue: 'home', from: null });
 const load = () => { try { return { ...fresh(), ...JSON.parse(sessionStorage.getItem(KEY) || '{}') }; } catch { return fresh(); } };
 
 export default function Guide() {
@@ -33,29 +34,23 @@ export default function Guide() {
 function Journey({ user }) {
   const { screen = 'S00' } = useParams();
   const [sp] = useSearchParams();
+  const loc = useLocation();
   const nav = useNavigate();
-  const [st, setSt] = useState(() => { const x = load(); if (sp.get('from')) x.from = sp.get('from'); return x; });
+  const [st, setSt] = useState(load);
   const [overlay, setOverlay] = useState(null); // 'call' | 'danger' | 'notes' | null
-  const [note, setNote] = useState('');
-  const prev = useRef(null);
   const id = screen === 'S00' || SCREENS[screen] ? screen : 'S00';
   const save = (fn) => setSt((x) => { const n = fn(x); try { sessionStorage.setItem(KEY, JSON.stringify(n)); } catch { /* private mode */ } return n; });
+  // Where Leave guide and End return to, kept from the moment the guide opens
+  useEffect(() => { const from = sp.get('from'); if (from) save((x) => ({ ...x, from })); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keep our own path of screens, so "Back" works and the browser back button agrees with it
-  useEffect(() => {
-    const p = prev.current;
-    prev.current = id;
-    setNote('');
-    if (!p || p === id) return;
-    save((x) => (x.path.at(-1) === id ? { ...x, path: x.path.slice(0, -1) } : { ...x, path: [...x.path, p].slice(-50) }));
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const go = (to) => { setOverlay(null); if (to !== id) nav(`/guide/emergency/${to}`); };
+  // Each move inside the guide marks its history entry, so Back steps one screen and never leaves the guide by accident
+  const go = (to) => { setOverlay(null); if (to !== id) nav(`/guide/emergency/${to}`, { state: { eg: true } }); };
+  const back = () => (loc.state?.eg ? nav(-1) : nav('/guide/emergency/S00', { replace: true, state: null }));
+  const leave = () => nav(st.from || HOME[user.role]);
   const act = (to) => {
-    if (to === '@back') return st.path.length ? nav(-1) : go('S00');
-    if (to === '@end') { save(fresh); return nav(st.from || HOME[user.role]); }
+    if (to === '@back') return back();
+    if (to === '@end') { const from = st.from; save(fresh); return nav(from || HOME[user.role]); }
     if (to === '@resume') return setOverlay(null);
-    if (to === '@unwritten') return setNote("This part of the guide hasn't been written yet.");
     if (to === '@dial') {
       save((x) => ({ ...x, firstCall: x.firstCall || new Date().toISOString() }));
       // Only ever from this explicit tap: nothing in the guide dials by itself
@@ -70,9 +65,17 @@ function Journey({ user }) {
     <div className="eg">
       <button type="button" className="eg-danger" onClick={danger}>I'm in danger</button>
       <div className="eg-draft">Draft — not clinically approved. Do not use in a real emergency.</div>
+      <div className="eg-nav">
+        {id === 'S00'
+          ? <button type="button" className="eg-navbtn" onClick={leave}><ChevronLeft size={20} /> Leave guide</button>
+          : <>
+            <button type="button" className="eg-navbtn" onClick={back}><ChevronLeft size={20} /> Back</button>
+            <button type="button" className="eg-navbtn" onClick={() => go('S00')}><Home size={18} /> Start</button>
+          </>}
+      </div>
       {id === 'S00'
         ? <Opening platform={user.platform} onPick={go} onNotes={() => setOverlay('notes')} />
-        : <Screen key={id} s={SCREENS[id]} st={st} note={note} onAct={act} onVenue={(v) => save((x) => ({ ...x, venue: v }))} />}
+        : <Screen key={id} s={SCREENS[id]} st={st} onAct={act} onVenue={(v) => save((x) => ({ ...x, venue: v }))} />}
       <div className="eg-bottom">
         <button type="button" className="eg-btn eg-outline" onClick={() => setOverlay('call')}>Call 999</button>
         <button type="button" className="eg-btn eg-outline" onClick={() => go('K10')}>Police arriving</button>

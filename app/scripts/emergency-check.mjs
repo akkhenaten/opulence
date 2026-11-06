@@ -29,6 +29,9 @@ while (walk.length) {
 }
 for (const id of Object.keys(SCREENS)) if (!seen.has(id)) bad.push(`${id} is not reachable from K01`);
 for (const f of readdirSync(dir).filter((x) => x.endsWith('.jsx'))) if (/\btel:/i.test(readFileSync(join(dir, f), 'utf8'))) bad.push(`${f} contains tel:`);
+// Back and Start sit on every screen (the pack only has Back on four), so they must not get lost in an edit
+const guide = readFileSync(join(dir, 'Guide.jsx'), 'utf8');
+for (const [what, re] of [['the navigation row', /eg-nav"/], ['Back', /> Back</], ['Start', /> Start</], ['Leave guide', /> Leave guide</]]) if (!re.test(guide)) bad.push(`Guide.jsx lost ${what}`);
 
 if (bad.length) { console.error(`Emergency guide check failed:\n  ${bad.join('\n  ')}`); process.exit(1); }
 console.log(`emergency guide: ${Object.keys(SCREENS).length} screens OK`);
