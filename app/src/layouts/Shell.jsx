@@ -10,6 +10,7 @@ import { SideSwitch } from './SideSwitch.jsx';
 import { AccountSheet } from './AccountSheet.jsx';
 import AskOrb from '../ui/AskOrb.jsx';
 import OrbFab from '../ui/OrbFab.jsx';
+import { WhatsNewSplash } from '../pages/people/_whatsnew.jsx';
 import { OfflineBanner, useUpdateToast } from '../ui/pwa.jsx';
 
 // The Opulence horse and the company name in Playfair.
@@ -369,6 +370,7 @@ export default function Shell() {
         </Pressable>
       </Sheet>
       {!isOfficer && <AccountSheet open={account} onClose={() => setAccount(false)} />}
+      {isMgr && <WhatsNewSplash user={user} />}
       {isMgr && <OrbFab onClick={() => setAsk(true)} hidden={ask} dot={orbDot} />}
       {isMgr && <AskOrb open={ask} onClose={() => setAsk(false)} onDot={setOrbDot} />}
     </div>

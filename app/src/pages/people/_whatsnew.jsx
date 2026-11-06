@@ -3,10 +3,17 @@ import {
   BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, FilePen, FileSignature, Fingerprint, Globe, GraduationCap, LayoutGrid, MessageSquareHeart,
   MessagesSquare, Newspaper, Palette, Radar, ShieldAlert, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
-import { Pill } from '../../ui/index.jsx';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button, Pill, Sheet } from '../../ui/index.jsx';
 
-// Newest first; the first card is the latest release
+// Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-06', icon: Sparkles, title: 'Never miss an upgrade',
+    lede: 'New features now greet you when you open the app, and your website comes alive as visitors scroll.',
+    points: ['A What’s new welcome for managers for two days after each release', 'One tap to see every upgrade', 'Venue and service cards glide in from the sides', 'Numbers that count up and headings underlined in gold'],
+  },
   {
     month: 'November 2026', icon: Building2, title: 'Venue tiles that fill themselves in',
     lede: 'A venue’s tile on your website now takes everything it needs from the venue’s own details. Add the venue once and it appears in the right city, wearing its own photo.',
@@ -132,24 +139,67 @@ export function WhatsNew() {
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {UPDATES.map((u, i) => (
-          <div key={u.title} className="flex flex-col rounded-tile bg-surface p-4 shadow-tile">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue/10 text-blue"><u.icon size={18} aria-hidden /></span>
-              <div className="min-w-0 flex-1 text-subhead font-semibold">{u.title}</div>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {i === 0 && <Pill tone="green">New</Pill>}
-              <Pill>{u.month}</Pill>
-            </div>
-            <p className="mt-2 text-body">{u.lede}</p>
-            <ul className="mt-2.5 space-y-1">
-              {u.points.map((p) => (
-                <li key={p} className="flex gap-2 text-footnote text-muted"><Check size={14} className="mt-0.5 shrink-0 text-green" aria-hidden />{p}</li>
-              ))}
-            </ul>
-          </div>
+          <UpdateCard key={u.title} u={u} isNew={i === 0} />
         ))}
       </div>
     </div>
+  );
+}
+
+export function UpdateCard({ u, isNew }) {
+  return (
+    <div className="flex flex-col rounded-tile bg-surface p-4 shadow-tile">
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue/10 text-blue"><u.icon size={18} aria-hidden /></span>
+        <div className="min-w-0 flex-1 text-subhead font-semibold">{u.title}</div>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {isNew && <Pill tone="green">New</Pill>}
+        <Pill>{u.month}</Pill>
+      </div>
+      <p className="mt-2 text-body">{u.lede}</p>
+      <ul className="mt-2.5 space-y-1">
+        {u.points.map((p) => (
+          <li key={p} className="flex gap-2 text-footnote text-muted"><Check size={14} className="mt-0.5 shrink-0 text-green" aria-hidden />{p}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const SPLASH_DAYS = 2;
+const seenKey = (id) => `orb.whatsnew.seen.${id}`;
+// Dated cards released in the last two days, newest first
+export const freshUpdates = (now = Date.now()) =>
+  UPDATES.filter((u) => u.date && now >= Date.parse(u.date) && now - Date.parse(u.date) < SPLASH_DAYS * 864e5).slice(0, 3);
+
+/** Greets managers with the latest upgrades for two days after a release, until they tap Got it */
+export function WhatsNewSplash({ user }) {
+  const nav = useNavigate();
+  const [fresh] = useState(() => freshUpdates());
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!fresh.length) return undefined;
+    let seen = null;
+    try { seen = localStorage.getItem(seenKey(user.id)); } catch { /* private mode */ }
+    if (seen === fresh[0].title) return undefined;
+    const t = setTimeout(() => setOpen(true), 1200);
+    return () => clearTimeout(t);
+  }, [fresh, user.id]);
+  if (!fresh.length) return null;
+  const close = () => {
+    try { localStorage.setItem(seenKey(user.id), fresh[0].title); } catch { /* private mode */ }
+    setOpen(false);
+  };
+  return (
+    <Sheet open={open} onClose={close} title="What’s new"
+      footer={<>
+        {user.role === 'company' && <Button variant="secondary" onClick={() => { close(); nav('/company/audit?tab=new'); }}>See every upgrade</Button>}
+        <Button onClick={close}>Got it</Button>
+      </>}>
+      <div className="flex items-center gap-2 text-footnote font-semibold uppercase tracking-wide text-blue"><Sparkles size={16} aria-hidden /> {fresh[0].month}</div>
+      <p className="mt-1 text-body text-muted">Fresh upgrades to your platform, ready to use today.</p>
+      <div className="mt-3 space-y-3">{fresh.map((u) => <UpdateCard key={u.title} u={u} isNew />)}</div>
+    </Sheet>
   );
 }

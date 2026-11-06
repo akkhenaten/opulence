@@ -257,10 +257,32 @@
     /* Content is always visible; on-screen sections only add a soft entrance */
     .play { animation: rise .9s var(--spring) both; animation-delay: var(--d, 0s); }
     @keyframes rise { from { opacity: 0; transform: translateY(22px); } }
+    /* Scroll motion. Hidden states only apply to elements the script has marked, so nothing hides if it never runs */
+    main > section { overflow-x: clip; }
+    [data-slide] { opacity: 0; transform: translateX(var(--from, -48px)); }
+    [data-slide="r"] { --from: 48px; }
+    @media (max-width: 760px) { [data-slide] { --from: -24px; } [data-slide="r"] { --from: 24px; } }
+    :is(.vt, .svc, .pillar, .award)[data-slide].in { opacity: 1; transform: none; transition: opacity .8s ease-out, transform 1.1s var(--spring); transition-delay: var(--d, 0s); }
+    /* A gold line draws itself under each section title */
+    .lead h2::after { content: ""; display: block; width: 64px; height: 1px; margin-top: 22px; background: var(--gold); transform-origin: left; }
+    .close .lead h2::after { margin-inline: auto; transform-origin: center; }
+    html.anim .lead h2::after { transform: scaleX(0); }
+    html.anim :is(.lead.play, .play .lead) h2::after { transform: none; transition: transform 1.1s var(--spring) .35s; }
+    /* How it works: the steps light up one after another */
+    .steps[data-light] .step::before { opacity: .25; transition: opacity .6s ease-out var(--ld, 0s); }
+    .steps[data-light] .step::after { opacity: .35; transform: scale(.6); transition: opacity .5s var(--ld, 0s), transform .7s var(--spring) var(--ld, 0s); }
+    .steps[data-light].lit .step::before { opacity: 1; }
+    .steps[data-light].lit .step::after { opacity: 1; transform: none; animation: glow 1.4s ease-out both; animation-delay: var(--ld, 0s); }
+    @keyframes glow { 40% { box-shadow: 0 0 0 7px rgba(201,164,92,.22); } }
+    /* The hero photo settles in; award photos drift a little slower than the page on desktop */
+    html.anim .hero picture img { animation: settle 2.4s var(--spring) both; }
+    @keyframes settle { from { scale: 1.08; } }
+    html.px .award .ph img { scale: 1.12; translate: 0 var(--py, 0px); will-change: translate; }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
     }
   </style>
+  <script>if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('anim');</script>
 </head>
 <body>
   <div class="top">
@@ -309,7 +331,7 @@
         </div>
         <div class="platform">
           <div class="pillars">
-            <article class="pillar" data-reveal>
+            <article class="pillar">
               <header><span class="n">i.</span><h3>Up to date, you and us</h3></header>
               <p>See what’s happening on your door as it happens.</p>
               <ul>
@@ -318,7 +340,7 @@
                 <li>Request extra cover or a new event from your phone, and see who’s booked.</li>
               </ul>
             </article>
-            <article class="pillar" data-reveal>
+            <article class="pillar">
               <header><span class="n">ii.</span><h3>More efficient</h3></header>
               <p>Less admin and fewer surprises, for both of us.</p>
               <ul>
@@ -327,7 +349,7 @@
                 <li>Contracts and assignment instructions are signed electronically, so every officer arrives briefed on your venue.</li>
               </ul>
             </article>
-            <article class="pillar" data-reveal>
+            <article class="pillar">
               <header><span class="n">iii.</span><h3>Compliant &amp; secure</h3></header>
               <p>Ready for your licensing board, every night.</p>
               <ul>
@@ -383,7 +405,7 @@
           <h2>Our services.</h2>
           <p>Licensed, vetted and trained officers who deliver safety and service in equal measure.</p>
         </div>
-        <div class="services" data-reveal>
+        <div class="services">
           <div class="svc" role="button" tabindex="0" aria-pressed="false" aria-label="Manned Guarding, tap for details">
             <div class="inner">
               <div class="face front"><picture class="ph"><source type="image/webp" srcset="/img/opulence/services/manned-guarding-600.webp 600w, /img/opulence/services/manned-guarding-1200.webp 1200w" sizes="(max-width: 900px) 92vw, 380px"><img src="/img/opulence/services/manned-guarding-1200.jpg" width="1200" height="900" alt="Door supervisor at a venue entrance" loading="lazy" decoding="async"></picture><span class="cap"><b>Manned Guarding</b><small>Tap for details</small></span></div>
@@ -414,7 +436,7 @@
           <p>Tap a venue to read what they say about working with us.</p>
         </div>
         <div class="cities">
-        <div class="city" data-reveal>
+        <div class="city">
           <h3>Edinburgh</h3>
           <div class="tiles">
             <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="angels-share" aria-label="Angels Share, tap for more">
@@ -635,7 +657,7 @@
             </div>
           </div>
         </div>
-        <div class="city" data-reveal>
+        <div class="city">
           <h3>Glasgow</h3>
           <div class="tiles">
             <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="shilling-brewing-co" aria-label="Shilling Brewing Co., tap for more">
@@ -676,7 +698,7 @@
             </div>
           </div>
         </div>
-        <div class="city" data-reveal>
+        <div class="city">
           <h3>Across Scotland</h3>
           <div class="tiles">
             <div class="vt" role="button" tabindex="0" aria-pressed="false" data-client="carbon-lounge" aria-label="Carbon Lounge, tap for more">
@@ -714,7 +736,7 @@
           <h2>Award-winning, from year one.</h2>
         </div>
         <div class="awards">
-          <article class="award" data-reveal>
+          <article class="award">
             <picture class="ph"><source type="image/webp" srcset="/img/opulence/awards/40-under-40-400.webp 400w, /img/opulence/awards/40-under-40-800.webp 800w" sizes="160px"><img src="/img/opulence/awards/40-under-40-800.jpg" width="800" height="800" alt="40 Under 40 Global award" loading="lazy" decoding="async"></picture>
             <div>
             <div class="k">Winner</div>
@@ -722,7 +744,7 @@
             <p>Recognised among the world’s top 40 young business leaders for innovation in the security industry.</p>
             </div>
           </article>
-          <article class="award" data-reveal>
+          <article class="award">
             <picture class="ph"><source type="image/webp" srcset="/img/opulence/awards/innovation-400.webp 400w, /img/opulence/awards/innovation-800.webp 800w" sizes="160px"><img src="/img/opulence/awards/innovation-800.jpg" width="800" height="800" alt="Innovation in Business award" loading="lazy" decoding="async"></picture>
             <div>
             <div class="k">Shortlisted · Innovation in Business</div>
@@ -828,14 +850,71 @@
       var onScroll = function () { top.classList.toggle('scrolled', window.scrollY > 8); };
       onScroll(); window.addEventListener('scroll', onScroll, { passive: true });
       // Soft entrance for sections as they come into view; nothing is hidden before that
-      document.querySelectorAll('.pillars [data-reveal], .steps [data-reveal], .services [data-reveal], .awards [data-reveal]').forEach(function (c, i, all) {
+      document.querySelectorAll('.steps [data-reveal]').forEach(function (c, i) {
         c.style.setProperty('--d', ((i % 4) * 0.08) + 's');
+        c.style.setProperty('--ld', (0.2 + i * 0.25) + 's');
       });
-      if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        var io = new IntersectionObserver(function (es) {
-          es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('play'); io.unobserve(e.target); } });
-        }, { rootMargin: '0px 0px -6% 0px' });
-        document.querySelectorAll('[data-reveal]').forEach(function (el) { io.observe(el); });
+      var motion = document.documentElement.classList.contains('anim');
+      var once = function (cb, opts) {
+        return motion ? new IntersectionObserver(function (es, o) {
+          es.forEach(function (e) { if (e.isIntersecting) { o.unobserve(e.target); cb(e.target); } });
+        }, opts || { rootMargin: '0px 0px -6% 0px' }) : null;
+      };
+      var io = once(function (t) { t.classList.add('play'); if (t.matches('.proof')) countUp(t); });
+      if (io) document.querySelectorAll('[data-reveal]').forEach(function (el) { io.observe(el); });
+      // Cards glide in from the left and right in turn; the mark comes off once they land, so hover and flip behave as before
+      var so = once(function (t) {
+        t.classList.add('in');
+        t.addEventListener('transitionend', function done(e) {
+          if (e.target !== t || e.propertyName !== 'transform') return;
+          t.removeEventListener('transitionend', done); t.removeAttribute('data-slide'); t.classList.remove('in'); t.style.removeProperty('--d');
+        });
+      });
+      function slide(el, i) {
+        if (!so) return;
+        el.setAttribute('data-slide', i % 2 ? 'r' : 'l');
+        el.style.setProperty('--d', ((i % 4) * 0.08) + 's');
+        so.observe(el);
+      }
+      ['.pillars', '.services', '.awards'].concat([].slice.call(document.querySelectorAll('#clients .tiles'))).forEach(function (g) {
+        g = typeof g === 'string' ? document.querySelector(g) : g;
+        if (g) [].forEach.call(g.children, slide);
+      });
+      // The hero's numbers count up from nought
+      var counts = motion ? [].filter.call(document.querySelectorAll('.proof b'), function (b) { return /^\d+\+?$/.test(b.textContent.trim()); }) : [];
+      counts.forEach(function (b) { b.dataset.to = b.textContent.trim(); b.textContent = '0'; });
+      function countUp() {
+        counts.forEach(function (b) {
+          var to = parseInt(b.dataset.to, 10), plus = /\+$/.test(b.dataset.to), t0 = 0;
+          var step = function (ts) {
+            t0 = t0 || ts;
+            var k = Math.min(1, (ts - t0) / 1200), n = Math.round(to * (1 - Math.pow(1 - k, 3)));
+            b.textContent = n + (plus && k === 1 ? '+' : '');
+            if (k < 1) requestAnimationFrame(step);
+          };
+          setTimeout(function () { requestAnimationFrame(step); }, 350);
+        });
+      }
+      // How it works lights up step by step
+      var steps = document.querySelector('.steps');
+      var lo = once(function (t) { t.classList.add('lit'); }, { threshold: 0.3 });
+      if (steps && lo) { steps.setAttribute('data-light', ''); lo.observe(steps); }
+      // Award photos drift slightly against the scroll, on desktop only
+      if (motion && matchMedia('(hover: hover) and (pointer: fine)').matches) {
+        var drift = [].slice.call(document.querySelectorAll('.award .ph img')), ticking = false;
+        if (drift.length) {
+          document.documentElement.classList.add('px');
+          var paint = function () {
+            ticking = false;
+            drift.forEach(function (img) {
+              var r = img.parentNode.getBoundingClientRect();
+              if (r.bottom < 0 || r.top > innerHeight) return;
+              img.style.setProperty('--py', ((r.top + r.height / 2 - innerHeight / 2) * -0.06).toFixed(1) + 'px');
+            });
+          };
+          window.addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(paint); } }, { passive: true });
+          paint();
+        }
       }
       // Venue tiles and service cards flip over on click. A venue's back shows the client's published reviews as a
       // carousel, or their description and website when there are none yet (and when the reviews can't load).
@@ -986,7 +1065,9 @@
               if (!v || !v.name) return;
               if (v.photo && !/^(https:\/\/|\/[^/])/.test(v.photo)) v.photo = null;
               var t = makeTile(v);
-              cityGrid(v.city).append(t);
+              var grid = cityGrid(v.city);
+              grid.append(t);
+              slide(t, grid.children.length - 1);
               wire(t, tiles);
               reviewed(t, v.reviews);
             });
