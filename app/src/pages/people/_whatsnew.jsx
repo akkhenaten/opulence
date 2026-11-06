@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency flowchart: a clear first line', image: 'emergency-flowchart-banner',
+    lede: "The banner at the top of the Emergency flowchart now says what it is and what to do first: Guidance from ProtectUK and citizenAID. Always call 999 and follow the call handler.",
+    points: ['Says where the advice comes from', 'Puts calling 999 first, every time', "The call handler's instructions come before the flowchart"],
+  },
+  {
     month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency flowchart: on every shift card', image: 'emergency-flowchart-live',
     lede: "The text-only Emergency flowchart is now live for everyone. A red Emergency flowchart button sits at the top of every shift card, for officers, managers and venue users, and it's in the Toolbox too. One tap takes you to the situation, and Leave brings you back to the shift.",
     points: ['A red button at the top of every shift card', 'Knife, firearms, vehicle, explosion, items, bomb threats and injuries', "I'm in danger and Call 999 always on screen; it never dials for you", 'Word for word from ProtectUK and citizenAID', 'The platform admin can take it offline with one switch in Toolbox'],

@@ -71,7 +71,7 @@ function Chart({ user }) {
   return (
     <div className="eg">
       <button type="button" className="eg-danger" onClick={danger}>I'm in danger</button>
-      <div className="eg-draft">Draft — not approved. Do not use in a real emergency.</div>
+      <div className="eg-draft">Guidance from ProtectUK and citizenAID. Always call 999 and follow the call handler.</div>
       <div className="eg-nav">
         {at === START && !st.trail.length
           ? <button type="button" className="eg-navbtn" onClick={leave}><ChevronLeft size={20} /> Leave</button>
