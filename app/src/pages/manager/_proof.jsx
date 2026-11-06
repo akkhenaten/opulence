@@ -50,7 +50,7 @@ export function SelfieCompare({ e, size = 72 }) {
   if (!e.selfie_url) return null;
   const photos = [{ url: e.selfie_url, name: 'Clock-in selfie' }, ...(e.profile_photo_url ? [{ url: e.profile_photo_url, name: 'Profile photo' }] : [])];
   const pic = (p, i, label) => (
-    <Pressable key={label} onClick={() => setOpen(i)} className="flex flex-col items-center gap-1" aria-label={`Open ${label.toLowerCase()}`}>
+    <Pressable press key={label} onClick={() => setOpen(i)} className="flex shrink-0 flex-col items-center gap-1" aria-label={`Open ${label.toLowerCase()}`}>
       <img src={p.url} alt={label} className="rounded-2xl object-cover shadow-tile" style={{ width: size, height: size }} />
       <span className="text-caption2 font-semibold text-muted">{label}</span>
     </Pressable>
@@ -58,7 +58,7 @@ export function SelfieCompare({ e, size = 72 }) {
   return (
     <div className="flex items-start gap-3">
       {e.profile_photo_url ? pic(photos[1], 1, 'Profile') : (
-        <div className="flex flex-col items-center gap-1"><Avatar name={e.officer_name} size={size} /><span className="text-caption2 font-semibold text-muted">No photo</span></div>
+        <div className="flex shrink-0 flex-col items-center gap-1"><Avatar name={e.officer_name} size={size} /><span className="text-caption2 font-semibold text-muted">No photo</span></div>
       )}
       {pic(photos[0], 0, 'Selfie')}
       {e.face_note && <p className="min-w-0 flex-1 self-center text-footnote text-muted">{e.face_note}</p>}

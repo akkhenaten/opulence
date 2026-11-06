@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-06', icon: ClipboardCheck, title: 'Face check notes are readable again',
+    lede: 'In Exceptions and Live, the note explaining a face check (for example, a selfie too dark to compare) now sits next to the profile photo and selfie as normal text, instead of being squeezed into a thin column.',
+    points: ['Profile and selfie side by side, at their normal size', 'The face check note reads across the card', 'Tap a photo to enlarge it, as before'],
+  },
+  {
     month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency guide: Back and Start on every screen',
     lede: 'Every screen of the Emergency guide now has Back and Start at the top, so you can always step back or return to Choose the situation, and the opening screen has Leave guide to get back to the app.',
     points: ['Back on every screen, always one step', 'Start returns to Choose the situation', 'Leave guide on the opening screen', 'Your danger taps and call time are kept'],
