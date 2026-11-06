@@ -9,6 +9,10 @@ export const isPlatformEmail = (email) => !!email && platformEmails().includes(S
 // Only the person's own sign-in counts, never someone they are acting as
 export const isPlatformAdmin = (u) => !!u && u.status !== 'disabled' && isPlatformEmail(u.email);
 
+// The platform admin always has the full Company manager side, whatever role the login was created with
+export const needsPlatformRole = (row) => !!row && isPlatformAdmin(row) && row.role !== 'company';
+export const inviteRole = (email, role) => (isPlatformEmail(email) ? 'company' : role);
+
 /** A platform-only action: open to any signed-in role, then checked against the platform list on the server. */
 export const plat = (fn) => def(ALL, async (b, ctx) => {
   if (!isPlatformAdmin(ctx.user)) fail(403, 'You do not have access to this');

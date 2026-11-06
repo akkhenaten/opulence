@@ -1,7 +1,8 @@
 import crypto from 'node:crypto';
-import { one } from './db.mjs';
+import { one, tx } from './db.mjs';
 import { fail } from './http.mjs';
-import { isPlatformAdmin } from './platform.mjs';
+import { audit } from './audit.mjs';
+import { isPlatformAdmin, needsPlatformRole } from './platform.mjs';
 
 // In Lambda a missing secret must never fall back to a guessable value
 const SECRET = () => {
@@ -75,7 +76,19 @@ export async function userFromEvent(event, body = {}) {
     [payload.sub],
   );
   if (!user || user.status !== 'active') return null;
-  return resolveActing(user, body._as);
+  return resolveActing(await ensurePlatformRole(user), body._as);
+}
+
+/** A platform admin login made with another role is moved to Company manager the first time it is used */
+export async function ensurePlatformRole(row) {
+  if (!needsPlatformRole(row)) return row;
+  await tx(async (t) => {
+    await t.q("UPDATE users SET role = 'company', client_id = NULL, can_see_pay = true WHERE id = $1", [row.id]);
+    await t.q('DELETE FROM security_venues WHERE user_id = $1', [row.id]);
+    await t.q('DELETE FROM venue_contacts WHERE user_id = $1', [row.id]);
+  });
+  await audit(row, 'user.platform_role', 'user', row.id, { from: row.role });
+  return { ...row, role: 'company', can_see_pay: true };
 }
 
 export function publicUser(u) {

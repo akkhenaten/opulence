@@ -1,6 +1,6 @@
 import { one, q, tx } from '../lib/db.mjs';
 import { fail, required } from '../lib/http.mjs';
-import { hashPassword, verifyPassword, signToken, randomToken, publicUser, resolveActing, ownOfficer, goesBy } from '../lib/auth.mjs';
+import { hashPassword, verifyPassword, signToken, randomToken, publicUser, resolveActing, ownOfficer, goesBy, ensurePlatformRole } from '../lib/auth.mjs';
 import { sendRawEmail, emailHtml } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
 import { checkOwnPhoto, saveThumb, photoUrls } from '../lib/storage.mjs';
@@ -8,8 +8,8 @@ import { ALL, pub, def } from './_def.mjs';
 import { getBrand } from '../lib/brand.mjs';
 
 // A new session always starts on the manager side; the app picks "My shifts" with auth.landing
-const loadUser = async (userId, as) => resolveActing(await one(
-  'SELECT u.*, o.id AS officer_id, COALESCE(o.photo_key, u.photo_key) AS photo_key FROM users u LEFT JOIN officers o ON o.user_id = u.id WHERE u.id = $1', [userId]), as);
+const loadUser = async (userId, as) => resolveActing(await ensurePlatformRole(await one(
+  'SELECT u.*, o.id AS officer_id, COALESCE(o.photo_key, u.photo_key) AS photo_key FROM users u LEFT JOIN officers o ON o.user_id = u.id WHERE u.id = $1', [userId])), as);
 // The signed-in person as the app sees them, with a short-lived link to their photo
 const me = async (u) => ({ ...publicUser(u), ...(await photoUrls(u.photo_key)) });
 

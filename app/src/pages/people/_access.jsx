@@ -41,12 +41,15 @@ export function AccessFields({ role, v, set, venues, clients, onClientCreated })
   );
 }
 
-/** Invite a manager or venue user. `preset` fills in the role, client and venues (from a venue or client page). */
 /** Under an invite link: whether the email went, so a failed one is never silent */
 export const inviteHint = (emailed, email) => (emailed
   ? `Sent to ${email}. You can also share this link.`
   : "The email didn't go through. Copy this link and open it, or send it to them.");
 
+// The platform admin's login is always a Company manager (the server enforces it; this just shows it)
+const PLATFORM_EMAILS = ['info@orbsolutions.co.uk'];
+
+/** Invite a manager or venue user. `preset` fills in the role, client and venues (from a venue or client page). */
 export function InviteSheet({ preset = {}, onClose, onDone }) {
   const { user } = useAuth();
   const venues = useApi('venues.list');
@@ -55,10 +58,12 @@ export function InviteSheet({ preset = {}, onClose, onDone }) {
   const [run, busy] = useAction();
   const [link, setLink] = useState(null);
   const [emailed, setEmailed] = useState(true);
+  const platform = PLATFORM_EMAILS.includes(v.email.trim().toLowerCase());
+  const role = platform ? 'company' : v.role;
   const send = async () => {
-    const office = v.role === 'company';
+    const office = role === 'company';
     const r = await run(() => api('users.invite', {
-      ...v, venue_ids: office ? undefined : v.venue_ids, client_id: office ? null : v.client_id || null, can_see_pay: v.role === 'security' && v.can_see_pay,
+      ...v, role, venue_ids: office ? undefined : v.venue_ids, client_id: office ? null : v.client_id || null, can_see_pay: role === 'security' && v.can_see_pay,
     }), (x) => (x.emailed === false ? "Email didn't send — share the link below" : 'Invite sent'));
     setLink(r.invite_link);
     setEmailed(r.emailed !== false);
@@ -70,15 +75,15 @@ export function InviteSheet({ preset = {}, onClose, onDone }) {
         : <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!v.name || !v.email} onClick={send}>Send invite</Button></>}>
       {link ? <CopyLink link={link} hint={inviteHint(emailed, v.email)} /> : (
         <div className="space-y-4">
-          <Segmented value={v.role} onChange={(r) => set('role', r)} options={USER_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))} />
-          <p className="text-footnote text-muted">{ROLE_HINT[v.role]}</p>
+          <Segmented value={role} onChange={(r) => set('role', r)} options={USER_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))} />
+          <p className="text-footnote text-muted">{platform ? 'This is the platform admin — always a Company manager.' : ROLE_HINT[role]}</p>
           <Input label="Full name" {...bind('name')} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="Email" type="email" {...bind('email')} />
             <Input label="Phone" type="tel" {...bind('phone')} />
           </div>
-          <AccessFields role={v.role} v={v} set={set} venues={venues.data || []} clients={clients.data || []} onClientCreated={clients.reload} />
-          {v.role === 'security' && <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.can_see_pay} onChange={(x) => set('can_see_pay', x)} label="Can see pay" hint="Officer rates and pay statements" /></div>}
+          <AccessFields role={role} v={v} set={set} venues={venues.data || []} clients={clients.data || []} onClientCreated={clients.reload} />
+          {role === 'security' && <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.can_see_pay} onChange={(x) => set('can_see_pay', x)} label="Can see pay" hint="Officer rates and pay statements" /></div>}
           <p className="text-caption text-faint">Officers are added from People → Staff, with App access turned on.</p>
         </div>
       )}

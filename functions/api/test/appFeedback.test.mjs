@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ACTIONS } from '../index.mjs';
 import { CATALOG } from '../lib/orbCatalog.mjs';
-import { guardPlatformAccount, isPlatformAdmin, isPlatformEmail } from '../lib/platform.mjs';
+import { guardPlatformAccount, inviteRole, isPlatformAdmin, isPlatformEmail, needsPlatformRole } from '../lib/platform.mjs';
 import { publicUser } from '../lib/auth.mjs';
 import { checkFeedback, taskText, toCsv } from '../modules/appFeedback.mjs';
 import { resetGuardNeeded, sendInviteMail } from '../modules/users.mjs';
@@ -40,6 +40,17 @@ test('a company manager cannot put a platform email on an account or take one ov
   assert.throws(() => guardPlatformAccount(manager, 'info@orbsolutions.co.uk'), (e) => e.status === 403);
   assert.doesNotThrow(() => guardPlatformAccount(manager, 'a@x.com', 'b@x.com'));
   assert.doesNotThrow(() => guardPlatformAccount(admin, 'info@orbsolutions.co.uk'));
+});
+
+test('the platform admin is always a Company manager, whatever role the login was made with', () => {
+  assert.ok(needsPlatformRole({ ...admin, role: 'security' }));
+  assert.ok(needsPlatformRole({ ...admin, role: 'venue' }));
+  assert.ok(!needsPlatformRole(admin));
+  assert.ok(!needsPlatformRole({ ...admin, role: 'security', status: 'disabled' }));
+  assert.ok(!needsPlatformRole({ ...manager, role: 'security' }));
+  assert.ok(!needsPlatformRole(null));
+  assert.equal(inviteRole('INFO@orbsolutions.co.uk ', 'security'), 'company');
+  assert.equal(inviteRole('a@x.com', 'venue'), 'venue');
 });
 
 test('a pending platform admin invite can be shared; an active account is still protected', () => {

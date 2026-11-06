@@ -9,7 +9,7 @@ import { getBrand } from '../lib/brand.mjs';
 import { seedOnboarding } from './hr.mjs';
 import { disconnectUser } from './email.mjs';
 import { officerName, userName } from '../lib/names.mjs';
-import { guardPlatformAccount } from '../lib/platform.mjs';
+import { guardPlatformAccount, inviteRole } from '../lib/platform.mjs';
 
 const ROLE_LABEL = { company: 'Company Manager', security: 'Security Manager', venue: 'Venue Manager', officer: 'Security Officer' };
 
@@ -70,6 +70,7 @@ export const actions = {
 
   'users.invite': def(CO, async (b, { user }) => {
     required(b, 'email', 'name', 'role');
+    b.role = inviteRole(b.email, b.role);
     if (b.role === 'officer') fail(400, 'Invite officers from Staff → Add officer');
     const u = await tx(async (t) => {
       const created = await createInvite(t, b);
