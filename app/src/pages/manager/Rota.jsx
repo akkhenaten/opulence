@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Crown, Hand, NotebookPen, Plus, Repeat, Send, Trash2, UserMinus, UserPlus, X,
+  CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Copy, Crown, Hand, NotebookPen, Plus, Printer, Repeat, Rows2, Rows4, Send, Trash2, UserMinus, UserPlus, X,
 } from 'lucide-react';
 import {
-  ActionBar, addDays, AssignPill, Avatar, Button, confirmState, cx, dateShort, dayLabel, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, SplitButton, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useToast, useUrlState, nameMatches, displayName,
+  ActionBar, addDays, AssignPill, Avatar, Button, Chip, confirmState, cx, dateShort, dayLabel, Dot, Empty, ErrorBox, FilterBar, IconButton, Input, isoDate, KV, List, Load, mondayOf, MoreMenu, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useMedia, useToast, useUrlState, nameMatches, displayName,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -12,11 +12,28 @@ import { PackPill } from '../shared/PackPaper.jsx';
 
 const dayOf = (iso) => londonParts(iso).date;
 const ACTIVE = ['assigned', 'accepted'];
+const VIEWS = [{ value: 'venues', label: 'By venue' }, { value: 'days', label: 'By day' }, { value: 'officers', label: 'By officer' }];
+
+// Quick filters above the grid; more than one shows shifts matching any of them
+const FILTERS = [
+  { key: 'unfilled', label: 'Unfilled', tone: 'red', test: (s) => places(s) > 0 },
+  { key: 'drafts', label: 'Drafts', tone: 'grey', test: (s) => s.status === 'draft' },
+  { key: 'unconfirmed', label: 'Unconfirmed', tone: 'amber', test: (s) => shiftState(s) === 'unconfirmed' },
+  { key: 'requests', label: 'Requests', tone: 'amber', test: (s) => s.assignments.some((a) => a.status === 'requested') },
+];
+
+// Comfortable or compact cards, remembered on this device
+const DENSITY_KEY = 'rota.density';
+function useDensity() {
+  const [d, setD] = useState(() => { try { return localStorage.getItem(DENSITY_KEY) === 'compact' ? 'compact' : 'comfortable'; } catch { return 'comfortable'; } });
+  const set = (v) => { setD(v); try { localStorage.setItem(DENSITY_KEY, v); } catch { /* private browsing */ } };
+  return [d, set];
+}
 
 export default function Rota() {
-  // Tab, open shift, week, venue and view live in the address, so Back and shared links land on the same view
+  // Tab, open shift, week, venue, view and filters live in the address, so Back and shared links land on the same view
   const thisWeek = mondayOf(isoDate());
-  const [url, setUrl] = useUrlState({ tab: 'rota', shift: '', week: thisWeek, venue: '', view: 'days' });
+  const [url, setUrl] = useUrlState({ tab: 'rota', shift: '', week: thisWeek, venue: '', view: 'venues', f: '', empty: '1' });
   const tab = url.tab === 'requests' ? 'requests' : 'rota';
   const setTab = (t) => setUrl({ tab: t });
   const openId = url.shift || null;
@@ -24,9 +41,12 @@ export default function Rota() {
   const week = /^\d{4}-\d{2}-\d{2}$/.test(url.week) ? mondayOf(url.week) : thisWeek;
   const setWeek = (w) => setUrl({ week: w });
   const venueId = url.venue;
-  const setVenueId = (v) => setUrl({ venue: v });
-  const view = ['days', 'venues', 'officers'].includes(url.view) ? url.view : 'days';
-  const setView = (v) => setUrl({ view: v });
+  const view = VIEWS.some((v) => v.value === url.view) ? url.view : 'venues';
+  const on = (url.f || '').split(',').filter((k) => FILTERS.some((f) => f.key === k));
+  const toggleFilter = (k) => setUrl({ f: (on.includes(k) ? on.filter((x) => x !== k) : [...on, k]).join(',') });
+  const hideEmpty = url.empty !== '0';
+  const [density, setDensity] = useDensity();
+  const wide = useMedia('(min-width: 640px)');
   const [form, setForm] = useState(null); // { shift? , date? , repeat? }
 
   const venues = useApi('venues.list', {});
@@ -38,11 +58,25 @@ export default function Rota() {
   const confirm = useConfirm();
 
   const roleName = (code) => roles.data?.find((r) => r.code === code)?.name || titleCase(code);
-  const drafts = (shifts.data || []).filter((s) => s.status === 'draft');
+  const rows = useMemo(() => shifts.data || [], [shifts.data]);
+  const shown = useMemo(() => (on.length ? rows.filter((s) => FILTERS.some((f) => on.includes(f.key) && f.test(s))) : rows), [rows, url.f]); // eslint-disable-line react-hooks/exhaustive-deps
+  const counts = Object.fromEntries(FILTERS.map((f) => [f.key, rows.filter(f.test).length]));
+  const drafts = rows.filter((s) => s.status === 'draft');
+  const hiddenDrafts = drafts.length - shown.filter((s) => s.status === 'draft').length;
   const reload = () => { shifts.reload(); reqs.reload(); };
 
+  // Venues in the grid: with a filter on, or "Hide empty venues", only the ones with shifts showing
+  const activeVenues = (venues.data || []).filter((v) => v.active && (!venueId || v.id === venueId));
+  const gridVenues = hideEmpty || on.length ? activeVenues.filter((v) => shown.some((s) => s.venue_id === v.id)) : orderVenues(shown, activeVenues);
+  // The shifts in the order they sit on screen, so ‹ › in the drawer walks the board
+  const order = view === 'venues'
+    ? gridVenues.flatMap((v) => DAYS(week).flatMap((d) => cellShifts(shown, d, v.id)))
+    : DAYS(week).flatMap((d) => cellShifts(shown, d));
+  const at = order.findIndex((s) => String(s.id) === String(openId));
+  const step = (i) => (at >= 0 && order[i] ? () => setOpenId(order[i].id) : undefined);
+
   const publish = async () => {
-    if (!(await confirm({ title: `Publish ${drafts.length} draft shift${drafts.length > 1 ? 's' : ''}?`, body: 'Assigned officers are notified, and open shifts are offered to officers.', confirm: 'Publish' }))) return;
+    if (!(await confirm({ title: `Publish ${drafts.length} draft shift${drafts.length > 1 ? 's' : ''}?`, body: `Assigned officers are notified, and open shifts are offered to officers.${hiddenDrafts ? ` This includes ${hiddenDrafts} hidden by your filters.` : ''}`, confirm: 'Publish' }))) return;
     run(() => api('shifts.publish', { ids: drafts.map((s) => s.id) }), (r) => `${r.published} published`).then(reload).catch(() => {});
   };
   const copyWeek = async () => {
@@ -53,49 +87,69 @@ export default function Rota() {
 
   const weekLabel = `${dateShort(week)} – ${dateShort(addDays(week, 6))}`;
   const isThisWeek = week === thisWeek;
+  const more = [
+    { label: 'Repeat shift…', icon: Repeat, hint: 'Same times on several days or weeks', onClick: () => setForm({ repeat: true }) },
+    { label: 'Copy last week', icon: Copy, hint: 'All of last week\'s shifts as drafts', onClick: copyWeek, busy },
+    { label: 'Print this week', icon: Printer, onClick: () => window.print() },
+  ];
+  const pubItem = drafts.length > 0 && { label: `Publish ${drafts.length}`, icon: Send, hint: hiddenDrafts ? `${hiddenDrafts} hidden by filters` : 'Send the drafts to officers', onClick: publish, busy };
 
   return (
     <Page title="Rota" subtitle={tab === 'rota' ? `Week of ${dayLabel(week)}` : 'Officer requests for open shifts'} wide
       actions={tab === 'rota' && <>
-        {drafts.length > 0 && <Button variant="soft" icon={Send} onClick={publish} busy={busy}>Publish {drafts.length}</Button>}
-        <SplitButton icon={Plus} onClick={() => setForm({})} label="More ways to add shifts" title="Add shifts" items={[
-          { label: 'Repeat shift…', icon: Repeat, hint: 'Same times on several days or weeks', onClick: () => setForm({ repeat: true }) },
-          { label: 'Copy last week', icon: Copy, hint: 'All of last week\'s shifts as drafts', onClick: copyWeek, busy },
-        ]}>New shift</SplitButton>
+        <div className="hidden items-center gap-2 sm:flex">
+          {pubItem && <Button variant="soft" icon={Send} onClick={publish} busy={busy}>Publish {drafts.length}{hiddenDrafts > 0 && <span className="font-medium opacity-75"> ({hiddenDrafts} hidden by filters)</span>}</Button>}
+          <MoreMenu items={more} label="More ways to add shifts" title="Rota" />
+        </div>
+        <div className="sm:hidden"><MoreMenu items={[pubItem, ...more]} title="Rota" /></div>
+        <Button icon={Plus} onClick={() => setForm({})}>New shift</Button>
       </>}>
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'rota', label: 'Rota' }, { value: 'requests', label: 'Requests', count: reqs.data?.length }]} />
 
       {tab === 'requests' ? <Requests q={reqs} roleName={roleName} onChanged={reload} onOpen={setOpenId} /> : (
         <>
-          <div className="mb-4 flex flex-wrap items-center gap-2">
+          <FilterBar className="mb-3" onChange={(k, v) => setUrl({ [k]: v })} filters={[
+            { key: 'venue', label: 'Venue', value: venueId, options: [{ value: '', label: 'All venues' }, ...(venues.data || []).filter((v) => v.active).map((v) => ({ value: v.id, label: v.name }))] },
+            !wide && { key: 'view', label: 'View', value: view, empty: 'venues', options: VIEWS },
+          ]}>
             <div className="flex items-center gap-1 rounded-xl bg-surface p-1 shadow-tile">
               <IconButton icon={ChevronLeft} label="Previous week" onClick={() => setWeek(addDays(week, -7))} />
-              <span className="num min-w-[132px] text-center text-subhead font-semibold">{weekLabel}</span>
+              <span className="num min-w-[124px] text-center text-subhead font-semibold">{weekLabel}</span>
               <IconButton icon={ChevronRight} label="Next week" onClick={() => setWeek(addDays(week, 7))} />
             </div>
             {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(thisWeek)}>Today</Button>}
-            <Select className="w-full md:w-auto md:min-w-[200px] md:max-w-[240px]" value={venueId} onChange={(e) => setVenueId(e.target.value)} placeholder="All venues"
-              options={(venues.data || []).filter((v) => v.active).map((v) => ({ value: v.id, label: v.name }))} />
-            <Segmented full value={view} onChange={setView} className="w-full md:ml-auto md:w-auto"
-              options={[{ value: 'days', label: 'By day' }, { value: 'venues', label: 'By venue' }, { value: 'officers', label: 'By officer' }]} />
+            <div className="hidden sm:block"><Segmented value={view} onChange={(v) => setUrl({ view: v })} options={VIEWS} /></div>
+            <div className="hidden lg:block" title="Card size">
+              <Segmented value={density} onChange={setDensity} options={[
+                { value: 'comfortable', label: <span className="flex items-center gap-1.5"><Rows2 size={16} aria-hidden />Comfortable</span> },
+                { value: 'compact', label: <span className="flex items-center gap-1.5"><Rows4 size={16} aria-hidden />Compact</span> },
+              ]} />
+            </div>
+          </FilterBar>
+          <div className="-mx-4 mb-4 flex items-center gap-2 overflow-x-auto px-4 py-1 no-scrollbar sm:mx-0 sm:flex-wrap sm:px-0">
+            {FILTERS.map((f) => <Chip key={f.key} label={f.label} value={counts[f.key]} tone={f.tone} quiet={!counts[f.key]} active={on.includes(f.key)} onClick={() => toggleFilter(f.key)} />)}
+            {view === 'venues' && <div className="ml-auto hidden md:block"><Toggle checked={hideEmpty} onChange={(v) => setUrl({ empty: v ? '1' : '0' })} label="Hide empty venues" /></div>}
           </div>
-          <Load q={shifts}>{(rows) => {
-            const props = { rows, week, onOpen: (s) => setOpenId(s.id), onAdd: (date, vid) => setForm({ date, venue_id: vid }) };
-            if (view === 'venues') {
-              const vs = (venues.data || []).filter((v) => v.active && (!venueId || v.id === venueId));
-              if (!vs.length) return <Empty icon={CalendarDays} title="No venues" />;
-              return <><VenueGrid {...props} venues={vs} /><VenueAgenda {...props} venues={vs} /></>;
-            }
+          <Load q={shifts}>{() => {
+            const props = { rows: shown, all: rows, week, density, onOpen: (s) => setOpenId(s.id), onAdd: (date, vid) => setForm({ date, venue_id: vid }), onUnfilled: () => setUrl({ f: 'unfilled' }) };
+            const none = on.length
+              ? <Empty icon={CalendarDays} title="No shifts match these filters" action={<Button variant="secondary" onClick={() => setUrl({ f: '' })}>Clear filters</Button>} />
+              : <Empty photo="kit" icon={CalendarDays} title="No shifts this week" action={<Button icon={Plus} onClick={() => setForm({})}>New shift</Button>} />;
+            const phone = <PhoneDay {...props} venues={activeVenues} />;
             if (view === 'officers') {
-              if (!rows.length) return <Empty photo="kit" icon={CalendarDays} title="No shifts this week" />;
+              if (!shown.length) return none;
               return <><OfficerGrid {...props} /><OfficerAgenda {...props} /></>;
             }
-            return <DayList {...props} />;
+            if (view === 'venues') {
+              if (!activeVenues.length) return <Empty icon={CalendarDays} title="No venues" />;
+              return <>{gridVenues.length ? <VenueGrid {...props} venues={gridVenues} /> : <div className="hidden md:block">{none}</div>}{phone}</>;
+            }
+            return <><DayGrid {...props} />{phone}</>;
           }}</Load>
         </>
       )}
 
-      {openId && <ShiftDetail id={openId} roleName={roleName} onClose={() => setOpenId(null)} onChanged={reload}
+      {openId && <ShiftDetail id={openId} roleName={roleName} onClose={() => setOpenId(null)} onChanged={reload} onPrev={step(at - 1)} onNext={step(at + 1)}
         onEdit={(s) => { setOpenId(null); setForm({ shift: s }); }} />}
       {form && <ShiftForm init={form} venues={(venues.data || []).filter((v) => v.active)} roles={roles.data || []} onClose={() => setForm(null)}
         onSaved={(d) => { setForm(null); if (d && (d >= addDays(week, 7) || d < week)) setWeek(mondayOf(d)); reload(); }} />}
@@ -105,29 +159,22 @@ export default function Rota() {
 
 /* ---------- Shared helpers ---------- */
 
-// Same columns in every row (minmax(0,1fr) stops wide cards from stretching one row's columns)
-const COLS = 'grid-cols-[150px_repeat(7,minmax(0,1fr))]';
+// Venue column then seven day columns. 128 + 7 × 116 fits a 1280 laptop with the sidebar pinned; wider screens share out the rest
+const COLS = 'grid-cols-[128px_repeat(7,minmax(116px,1fr))]';
+const DAY_COLS = 'grid-cols-[repeat(7,minmax(116px,1fr))]';
 const STICKY = 'sticky left-0 z-10 bg-surface shadow-[1px_0_0_var(--color-line)]';
 const DAYS = (week) => Array.from({ length: 7 }, (_, i) => addDays(week, i));
-const isShort = (s) => s.filled < s.headcount;
+const places = (s) => (s.status === 'cancelled' ? 0 : Math.max(0, s.headcount - s.filled));
+const byTime = (a, b) => a.starts_at.localeCompare(b.starts_at);
+const cellShifts = (rows, d, vid) => rows.filter((s) => dayOf(s.starts_at) === d && (vid == null || s.venue_id === vid)).sort(byTime);
 // Drafts have not been sent to anyone yet, so only published shifts can be waiting on confirmations
 const shiftState = (s) => {
   const st = confirmState({ filled: s.filled, headcount: s.headcount, statuses: s.assignments.filter((a) => ACTIVE.includes(a.status)).map((a) => a.status) });
   return st === 'unconfirmed' && s.status !== 'published' ? 'confirmed' : st;
 };
 const [wdOf, dateOf] = [(d) => dayLabel(d).split(' ')[0], (d) => dayLabel(d).split(' ').slice(1).join(' ')];
-
-// Folds runs of empty days into one group so phone lists stay short
-function foldDays(days, has) {
-  const out = [];
-  for (const d of days) {
-    const last = out[out.length - 1];
-    if (!has(d) && last?.empty) last.days.push(d);
-    else out.push({ days: [d], empty: !has(d) });
-  }
-  return out;
-}
-const foldLabel = (g) => (g.days.length > 1 ? `${dayLabel(g.days[0])} – ${dayLabel(g.days[g.days.length - 1])}` : dayLabel(g.days[0]));
+// Today's column is tinted, past days step back
+const cellTone = (d, today) => (d === today ? 'bg-blue-soft/40' : d < today ? 'bg-fill/30' : '');
 
 function DayTag({ days, today }) {
   const first = days[0];
@@ -159,39 +206,74 @@ const orderVenues = (rows, venues) => {
 
 /* ---------- Shift card ---------- */
 
-function ShiftCard({ s, onOpen, showVenue = true, compact }) {
+// Who is on it, for the hover preview
+const whoTitle = (s) => {
+  const people = s.assignments.filter((a) => [...ACTIVE, 'requested'].includes(a.status));
+  const say = (a) => (a.status === 'requested' ? 'requested' : a.status === 'accepted' ? 'confirmed' : s.status === 'published' ? 'unconfirmed' : 'draft');
+  return [`${range(s.starts_at, s.ends_at)} · ${s.role_name || ''}`, ...(people.length ? people.map((a) => `${a.name} — ${say(a)}`) : ['Nobody assigned yet']),
+    places(s) ? `${places(s)} place${places(s) > 1 ? 's' : ''} open` : ''].filter(Boolean).join('\n');
+};
+
+// Up to three faces then +N, and a dashed circle for each open place (then +N)
+function Faces({ people, open, size = 20 }) {
+  // Four circles at most, so the row fits the narrowest cell
+  const gaps = Math.min(open, Math.max(1, 4 - Math.min(people.length, 3)));
+  return (
+    <span className="flex items-center">
+      {people.slice(0, 3).map((a, i) => <Avatar key={a.id} name={a.name} size={size} className={cx('ring-2 ring-surface', i > 0 && '-ml-1.5')} />)}
+      {people.length > 3 && <span className="num ml-1 text-caption2 font-semibold text-muted">+{people.length - 3}</span>}
+      {Array.from({ length: gaps }, (_, i) => <span key={i} aria-hidden className="ml-1 inline-block shrink-0 rounded-full border-[1.5px] border-dashed border-faint" style={{ width: size, height: size }} />)}
+      {open > gaps && <span className="num ml-1 text-caption2 text-faint">+{open - gaps}</span>}
+    </span>
+  );
+}
+
+/* Each state has a shape or word as well as a colour: short → red bar and the count, unconfirmed → amber bar and a clock,
+   draft → dashed edge and "Draft". Compact is one line (time, role when it fits, count); comfortable adds role, faces and labels. */
+function ShiftCard({ s, onOpen, showVenue = true, density = 'comfortable', flat }) {
   const state = shiftState(s);
+  const compact = density === 'compact';
+  const draft = s.status === 'draft';
   const requested = s.assignments.filter((a) => a.status === 'requested').length;
   const people = s.assignments.filter((a) => ACTIVE.includes(a.status));
+  const tone = draft ? 'text-muted' : state === 'short' ? 'text-red' : state === 'unconfirmed' ? 'text-amber' : 'text-green';
+  // Narrow cells drop the :00s so time and count both fit
+  const short = range(s.starts_at, s.ends_at).replace(/:00/g, '');
+  const clock = <Clock size={14} className="shrink-0 text-amber" aria-label="Unconfirmed" />;
+  const count = (
+    <span className="flex shrink-0 items-center gap-1">
+      {requested > 0 && compact && <Hand size={14} className="text-amber" aria-label={`${requested} requested`} />}
+      {state === 'unconfirmed' && compact && clock}
+      <span className={cx('num text-caption font-bold', tone)}>{s.filled}/{s.headcount}</span>
+    </span>
+  );
   return (
-    <Pressable press onClick={() => onOpen(s)}
-      className={cx('relative block w-full overflow-hidden rounded-2xl border bg-surface text-left shadow-tile transition hover:-translate-y-0.5 active:scale-[0.99]',
-        compact ? 'py-2 pl-2.5 pr-2' : 'p-3 pl-3.5', s.status === 'draft' ? 'border-dashed border-faint/60' : 'border-hairline')}>
+    <Pressable press onClick={() => onOpen(s)} title={whoTitle(s)}
+      className={cx('@container relative block w-full overflow-hidden rounded-xl border bg-surface text-left transition hover:border-faint active:scale-[0.99]',
+        compact ? 'min-h-8 py-1.5 pl-2.5 pr-2' : 'min-h-14 py-2 pl-2.5 pr-2', draft ? 'border-dashed border-faint/70' : 'border-hairline', !flat && 'shadow-tile')}>
       {s.status === 'published' && state !== 'confirmed' && <span aria-hidden className={cx('absolute inset-y-0 left-0 w-[3px]', state === 'short' ? 'bg-red' : 'bg-amber')} />}
-      <div className={cx('num whitespace-nowrap font-bold', compact ? 'text-footnote' : 'text-body')}>{range(s.starts_at, s.ends_at)}</div>
-      {showVenue && <div className="mt-0.5 truncate text-subhead font-semibold">{s.venue_name}</div>}
-      <div className="mt-1 flex items-center justify-between gap-1.5">
-        <span className={cx('min-w-0 truncate text-muted', compact ? 'text-caption' : 'text-footnote')}>{s.role_name}</span>
-        <Pill tone={state === 'short' ? (s.status === 'draft' ? 'grey' : 'red') : state === 'unconfirmed' ? 'amber' : 'green'} className="num shrink-0">
-          {s.filled}/{s.headcount}{state === 'unconfirmed' && !compact && ' · Unconfirmed'}
-        </Pill>
-      </div>
-      {(s.status === 'draft' || s.open || requested > 0) && (
-        <div className="mt-1.5 flex flex-wrap gap-1">
-          {s.status === 'draft' && <Pill status="draft" />}
-          {s.open && <Pill tone="blue">Open</Pill>}
-          {requested > 0 && <Pill tone="amber">{requested} request{requested > 1 ? 's' : ''}</Pill>}
+      {compact ? (
+        <div className="flex items-center gap-1.5">
+          <span className="num whitespace-nowrap text-footnote font-bold">{short}</span>
+          <span className="hidden min-w-0 flex-1 truncate text-caption text-muted @[200px]:block">{s.role_name}</span>
+          {draft && <span className="sr-only">Draft</span>}
+          <span className="ml-auto">{count}</span>
         </div>
-      )}
-      {!compact && people.length > 0 && (
-        <div className="mt-2 truncate text-caption text-muted">
-          {people.map((a, i) => (
-            <span key={a.id}>{i > 0 && ', '}
-              {s.status === 'published' && <span aria-hidden className={cx('mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle', a.status === 'accepted' ? 'bg-green' : 'bg-amber')} />}
-              {a.is_self ? `${a.name} (You)` : a.name}
-            </span>
-          ))}
-        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-1.5">
+            <span className="num whitespace-nowrap text-footnote font-bold"><span className="@[100px]:hidden">{short}</span><span className="hidden @[100px]:inline">{range(s.starts_at, s.ends_at)}</span></span>
+            <span className="ml-auto">{count}</span>
+          </div>
+          <div className="mt-0.5 truncate text-caption text-muted">{showVenue && <span className="font-semibold text-ink">{s.venue_name} · </span>}{s.role_name}</div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            {state === 'unconfirmed' && clock}
+            <Faces people={people} open={places(s)} />
+            {draft && <Pill status="draft" />}
+            {s.open && <Pill tone="blue">Open</Pill>}
+            {requested > 0 && <Pill tone="amber">{requested} req</Pill>}
+          </div>
+        </>
       )}
     </Pressable>
   );
@@ -200,7 +282,7 @@ function ShiftCard({ s, onOpen, showVenue = true, compact }) {
 function OfficerChip({ s, oid, onOpen }) {
   const a = s.assignments.find((x) => x.officer_id === oid);
   return (
-    <Pressable press onClick={() => onOpen(s)} className={cx('block w-full rounded-xl p-2 text-left text-caption transition hover:-translate-y-0.5', a.status === 'requested' || (a.status === 'assigned' && s.status === 'published') ? 'bg-amber-soft' : s.status === 'draft' ? 'bg-bg' : 'bg-green-soft')}>
+    <Pressable press onClick={() => onOpen(s)} title={whoTitle(s)} className={cx('block w-full rounded-xl p-2 text-left text-caption transition hover:-translate-y-0.5', a.status === 'requested' || (a.status === 'assigned' && s.status === 'published') ? 'bg-amber-soft' : s.status === 'draft' ? 'bg-bg' : 'bg-green-soft')}>
       <div className="num whitespace-nowrap font-bold">{range(s.starts_at, s.ends_at)}</div>
       <div className="truncate text-muted">{s.venue_name}</div>
       {a.status !== 'accepted' && <div className="font-semibold">{a.status === 'assigned' ? (s.status === 'published' ? 'Unconfirmed' : 'Draft') : titleCase(a.status)}</div>}
@@ -208,120 +290,132 @@ function OfficerChip({ s, oid, onOpen }) {
   );
 }
 
-/* ---------- By day ---------- */
-
-function DayList({ rows, week, onOpen, onAdd }) {
-  const today = isoDate();
-  const days = DAYS(week);
-  const byDay = useMemo(() => {
-    const m = {};
-    for (const s of rows) (m[dayOf(s.starts_at)] ||= []).push(s);
-    return m;
-  }, [rows]);
-  const todayRef = useRef(null);
-  useEffect(() => {
-    // On phones, jump to today when it isn't the first day shown
-    if (todayRef.current && today !== week && window.matchMedia('(max-width: 767px)').matches) todayRef.current.scrollIntoView({ block: 'start' });
-  }, [week]); // eslint-disable-line react-hooks/exhaustive-deps
-
+function AddCell({ label, onClick }) {
   return (
-    <>
-      {/* Phone: agenda with sticky day headers */}
-      <div className="md:hidden">
-        {foldDays(days, (d) => byDay[d]?.length).map((g) => {
-          const d = g.days[0];
-          return (
-            <section key={d} className="mb-1">
-              <div ref={d === today ? todayRef : undefined}
-                className="sticky-below-header sticky z-10 -mx-4 flex scroll-mt-14 items-center justify-between bg-bg/90 px-4 py-2 backdrop-blur">
-                <span className={cx('text-footnote font-semibold uppercase tracking-wide', g.days.includes(today) ? 'text-blue' : 'text-muted')}>
-                  {foldLabel(g)}{d === today ? ' · Today' : ''}
-                </span>
-                <Pressable press onClick={() => onAdd(d)} className="-my-2 px-1 py-2 text-footnote font-semibold text-blue" aria-label={`Add shift ${dayLabel(d)}`}>+ Add</Pressable>
-              </div>
-              {g.empty
-                ? <div className="mb-2 rounded-2xl border border-dashed border-line px-4 py-3 text-footnote text-faint">No shifts</div>
-                : <div className="mb-2 space-y-2">{byDay[d].map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} />)}</div>}
-            </section>
-          );
-        })}
-      </div>
-
-      {/* Tablet/desktop: week board, one column per day */}
-      <div className="hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-        {days.map((d) => (
-          <div key={d} className={cx('min-w-0 rounded-tile p-2', d === today ? 'bg-blue-soft/60' : 'bg-fill/60')}>
-            <div className="mb-2 flex items-center justify-between pl-1.5">
-              <span className={cx('whitespace-nowrap text-caption font-semibold uppercase tracking-wide', d === today ? 'text-blue' : 'text-muted')}>{dayLabel(d)}</span>
-              <Pressable press onClick={() => onAdd(d)} aria-label={`Add shift ${dayLabel(d)}`} className="-m-1.5 grid h-10 w-10 place-items-center rounded-full text-blue transition hover:bg-surface"><Plus size={16} /></Pressable>
-            </div>
-            {byDay[d]?.length
-              ? <div className="space-y-2">{byDay[d].map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} />)}</div>
-              : <div className="rounded-2xl border border-dashed border-line px-3 py-3 text-footnote text-faint">No shifts</div>}
-          </div>
-        ))}
-      </div>
-    </>
+    <Pressable press onClick={onClick} aria-label={label}
+      className="w-full rounded-lg py-0.5 text-footnote font-semibold text-faint opacity-40 transition hover:bg-blue-soft hover:text-blue hover:opacity-100 group-hover:opacity-100 focus:opacity-100 print:hidden">+</Pressable>
   );
 }
 
 /* ---------- Week grids (tablet/desktop) ---------- */
 
-function GridFrame({ week, children }) {
+/* One frame for every week grid. From 1280 the grid fits the page, so the day names stick under the top bar and the totals
+   to the bottom of the window; narrower, it scrolls inside its own box with the first column kept in view. */
+function GridFrame({ week, children, totals, lead = true }) {
   const today = isoDate();
   return (
-    <div className="hidden overflow-x-auto rounded-tile border border-hairline bg-surface shadow-tile md:block">
-      <div className="min-w-[860px]">
-        <div className={cx('grid border-b border-line text-caption font-semibold uppercase tracking-wide text-faint', COLS)}>
-          <div className={cx(STICKY, 'px-3 py-2.5')} />
+    <div className="hidden max-h-[calc(100dvh-var(--header-h)-5rem)] overflow-auto rounded-tile border border-hairline bg-surface md:block xl:max-h-none xl:overflow-visible print:max-h-none print:overflow-visible">
+      <div className={lead ? 'min-w-[940px]' : 'min-w-[812px]'}>
+        <div className={cx('sticky top-0 z-20 grid rounded-t-tile border-b border-line bg-surface text-caption font-semibold uppercase tracking-wide xl:top-[calc(var(--header-h)+env(safe-area-inset-top))]', lead ? COLS : DAY_COLS)}>
+          {lead && <div className={cx(STICKY, 'z-30 rounded-tl-tile px-3 py-2.5')} />}
           {DAYS(week).map((d) => (
-            <div key={d} className={cx('whitespace-nowrap border-l border-line px-2 py-2.5', d === today && 'text-blue')}>{dayLabel(d)}</div>
+            <div key={d} className={cx('whitespace-nowrap px-2 py-2.5', (lead || d !== week) && 'border-l border-line', d === today ? 'bg-blue-soft/40 text-blue' : d < today ? 'text-faint' : 'text-muted')}>
+              {dayLabel(d)}{d === today && <span className="sr-only"> (today)</span>}
+            </div>
           ))}
         </div>
         <div className="divide-y divide-line">{children}</div>
+        {totals}
       </div>
     </div>
   );
 }
 
-function VenueGrid({ rows, week, venues, onOpen, onAdd }) {
+// Per day: open places (tap to show only unfilled), drafts and hours booked. The whole week, whatever the filters
+function TotalsRow({ rows, week, onUnfilled, lead = true }) {
+  const today = isoDate();
+  const sum = (list) => ({
+    n: list.length,
+    open: list.reduce((n, s) => n + places(s), 0),
+    drafts: list.filter((s) => s.status === 'draft').length,
+    hours: Math.round(list.reduce((n, s) => n + durationH(s.starts_at, s.ends_at) * Math.min(s.filled, s.headcount), 0) * 10) / 10,
+  });
+  const live = rows.filter((s) => s.status !== 'cancelled');
+  const cell = (t) => (!t.n ? <div className="text-caption text-faint">No shifts</div> : (
+    <div className="space-y-0.5 text-caption">
+      {t.open > 0
+        ? <Pressable press onClick={onUnfilled} className="flex items-center gap-1.5 font-semibold text-red hover:underline"><Dot tone="red" /><span><span className="num">{t.open}</span> unfilled</span></Pressable>
+        : <div className="flex items-center gap-1.5 text-green"><Check size={14} aria-hidden />All filled</div>}
+      {t.drafts > 0 && <div className="flex items-center gap-1.5 text-muted"><span aria-hidden className="h-2.5 w-2.5 rounded-full border border-dashed border-faint" /><span><span className="num">{t.drafts}</span> draft{t.drafts > 1 ? 's' : ''}</span></div>}
+      <div className="num text-muted">{t.hours}h booked</div>
+    </div>
+  ));
   return (
-    <GridFrame week={week}>
-      {orderVenues(rows, venues).map((v) => (
-        <div key={v.id} className={cx('grid', COLS)}>
-          <div className={cx(STICKY, 'px-3 py-3 text-subhead font-semibold')}>{v.name}</div>
-          {DAYS(week).map((d) => (
-            <div key={d} className="group min-w-0 space-y-1.5 border-l border-line p-1.5">
-              {rows.filter((s) => s.venue_id === v.id && dayOf(s.starts_at) === d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} compact />)}
-              <Pressable press onClick={() => onAdd(d, v.id)} className="w-full rounded-xl py-1 text-footnote font-semibold text-faint opacity-40 transition hover:bg-blue-soft hover:text-blue hover:opacity-100 group-hover:opacity-100 focus:opacity-100" aria-label="Add shift">+</Pressable>
-            </div>
-          ))}
-        </div>
+    <div className={cx('sticky bottom-0 z-20 grid rounded-b-tile border-t border-line bg-surface', lead ? COLS : DAY_COLS)} aria-label="Totals">
+      {lead && <div className={cx(STICKY, 'rounded-bl-tile px-3 py-2.5')}><div className="mb-0.5 text-caption font-semibold uppercase tracking-wide text-faint">Week</div>{cell(sum(live))}</div>}
+      {DAYS(week).map((d) => (
+        <div key={d} className={cx('px-2 py-2.5', (lead || d !== week) && 'border-l border-line', cellTone(d, today))}>{cell(sum(live.filter((s) => dayOf(s.starts_at) === d)))}</div>
       ))}
+    </div>
+  );
+}
+
+function VenueGrid({ rows, all, week, venues, density, onOpen, onAdd, onUnfilled }) {
+  const today = isoDate();
+  return (
+    <GridFrame week={week} totals={<TotalsRow rows={all} week={week} onUnfilled={onUnfilled} />}>
+      {venues.map((v) => {
+        const mine = rows.filter((s) => s.venue_id === v.id);
+        const open = mine.reduce((n, s) => n + places(s), 0);
+        return (
+          <div key={v.id} className={cx('grid', COLS)}>
+            <div className={cx(STICKY, 'px-3 py-2.5')}>
+              <div className="line-clamp-2 text-subhead font-semibold leading-snug">{v.name}</div>
+              <div className="num mt-0.5 text-caption text-muted">{mine.length} shift{mine.length === 1 ? '' : 's'}{open > 0 && <span className="font-semibold text-red"> · {open} open</span>}</div>
+            </div>
+            {DAYS(week).map((d) => (
+              <div key={d} className={cx('group min-w-0 space-y-1.5 border-l border-line p-1.5', cellTone(d, today))}>
+                {cellShifts(mine, d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} density={density} flat />)}
+                <AddCell label={`Add shift at ${v.name}, ${dayLabel(d)}`} onClick={() => onAdd(d, v.id)} />
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </GridFrame>
   );
 }
 
-function OfficerGrid({ rows, week, onOpen }) {
-  const officers = useOfficerRows(rows);
-  const unfilled = rows.filter(isShort);
-  const days = DAYS(week);
+// By day: the whole week in one row of seven columns
+function DayGrid({ rows, all, week, density, onOpen, onAdd, onUnfilled }) {
+  const today = isoDate();
   return (
-    <GridFrame week={week}>
-      <div className={cx('grid bg-red-soft/40', COLS)}>
-        <div className={cx(STICKY, 'bg-red-soft/70 px-3 py-3')}><div className="text-subhead font-semibold text-red">Unfilled</div><div className="num text-caption text-muted">{((n) => `${n} place${n === 1 ? '' : 's'}`)(unfilled.reduce((n, s) => n + s.headcount - s.filled, 0))}</div></div>
-        {days.map((d) => (
-          <div key={d} className="min-w-0 space-y-1.5 border-l border-line p-1.5">
-            {unfilled.filter((s) => dayOf(s.starts_at) === d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} compact />)}
+    <GridFrame week={week} lead={false} totals={<TotalsRow rows={all} week={week} lead={false} onUnfilled={onUnfilled} />}>
+      <div className={cx('grid min-h-[240px]', DAY_COLS)}>
+        {DAYS(week).map((d) => (
+          <div key={d} className={cx('group min-w-0 space-y-1.5 p-1.5', d !== week && 'border-l border-line', cellTone(d, today))}>
+            {cellShifts(rows, d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} density={density} flat />)}
+            <AddCell label={`Add shift ${dayLabel(d)}`} onClick={() => onAdd(d)} />
           </div>
         ))}
       </div>
-      {officers.map((o) => (
-        <div key={o.id} className={cx('grid', COLS)}>
-          <div className={cx(STICKY, 'flex items-center gap-2 px-3 py-3')}><Avatar name={o.name} size={30} /><div className="min-w-0"><div className="truncate text-subhead font-semibold">{o.name}</div><div className="num text-caption text-muted">{o.hours}h</div></div></div>
+    </GridFrame>
+  );
+}
+
+function OfficerGrid({ rows, all, week, density, onOpen, onUnfilled }) {
+  const today = isoDate();
+  const officers = useOfficerRows(rows);
+  const unfilled = rows.filter((s) => places(s) > 0);
+  const days = DAYS(week);
+  return (
+    <GridFrame week={week} totals={<TotalsRow rows={all} week={week} onUnfilled={onUnfilled} />}>
+      {unfilled.length > 0 && (
+        <div className={cx('grid bg-red-soft/40', COLS)}>
+          <div className={cx(STICKY, 'bg-red-soft px-3 py-3')}><div className="text-subhead font-semibold text-red">Unfilled</div><div className="num text-caption text-muted">{((n) => `${n} place${n === 1 ? '' : 's'}`)(unfilled.reduce((n, s) => n + places(s), 0))}</div></div>
           {days.map((d) => (
             <div key={d} className="min-w-0 space-y-1.5 border-l border-line p-1.5">
-              {o.mine.filter((s) => dayOf(s.starts_at) === d).map((s) => <OfficerChip key={s.id} s={s} oid={o.id} onOpen={onOpen} />)}
+              {cellShifts(unfilled, d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} density={density} flat />)}
+            </div>
+          ))}
+        </div>
+      )}
+      {officers.map((o) => (
+        <div key={o.id} className={cx('grid', COLS)}>
+          <div className={cx(STICKY, 'flex items-center gap-2 px-3 py-3')}><Avatar name={o.name} size={28} /><div className="min-w-0"><div className="truncate text-subhead font-semibold">{o.name}</div><div className="num text-caption text-muted">{o.hours}h</div></div></div>
+          {days.map((d) => (
+            <div key={d} className={cx('min-w-0 space-y-1.5 border-l border-line p-1.5', cellTone(d, today))}>
+              {cellShifts(o.mine, d).map((s) => <OfficerChip key={s.id} s={s} oid={o.id} onOpen={onOpen} />)}
             </div>
           ))}
         </div>
@@ -330,38 +424,57 @@ function OfficerGrid({ rows, week, onOpen }) {
   );
 }
 
-/* ---------- Phone agendas ---------- */
+/* ---------- Phone ---------- */
 
-function VenueAgenda({ rows, week, venues, onOpen, onAdd }) {
+/* A day at a time: a strip of the week's days (a red dot where places are open), then that day's shifts by venue,
+   venues with open places first and short shifts at the top of each. */
+function PhoneDay({ rows, week, venues, onOpen, onAdd }) {
   const today = isoDate();
   const days = DAYS(week);
-  const addDay = days.includes(today) ? today : week;
+  const first = days.includes(today) ? today : week;
+  const [day, setDay] = useState(first);
+  useEffect(() => { setDay(first); }, [week]); // eslint-disable-line react-hooks/exhaustive-deps
+  const list = cellShifts(rows, day);
+  const groups = [...new Set(list.map((s) => s.venue_id))].map((id) => {
+    const mine = list.filter((s) => s.venue_id === id).sort((a, b) => (places(b) > 0) - (places(a) > 0) || byTime(a, b));
+    return { id, name: venues.find((v) => v.id === id)?.name || mine[0].venue_name, list: mine, open: mine.reduce((n, s) => n + places(s), 0) };
+  }).sort((a, b) => (b.open > 0) - (a.open > 0) || a.name.localeCompare(b.name));
   return (
-    <div className="space-y-3 md:hidden">
-      {orderVenues(rows, venues).map((v) => {
-        const at = (d) => rows.filter((s) => s.venue_id === v.id && dayOf(s.starts_at) === d);
-        const count = rows.filter((s) => s.venue_id === v.id).length;
-        return (
-          <section key={v.id} className="overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile">
-            <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4">
-              <div className="min-w-0"><div className="truncate text-headline font-semibold">{v.name}</div><div className="text-footnote text-muted">{count ? `${count} shift${count > 1 ? 's' : ''} this week` : 'No shifts this week'}</div></div>
-              <IconButton icon={Plus} label={`Add shift at ${v.name}`} onClick={() => onAdd(addDay, v.id)} />
-            </div>
-            <div className="divide-y divide-line">
-              {foldDays(days, (d) => at(d).length).map((g) => (
-                <div key={g.days[0]} className="flex gap-3 px-4 py-2.5">
-                  <DayTag days={g.days} today={today} />
-                  <div className="min-w-0 flex-1">
-                    {g.empty
-                      ? <Pressable press onClick={() => onAdd(g.days[0], v.id)} className="py-2 text-footnote text-faint">No shifts · <span className="font-semibold text-blue">Add</span></Pressable>
-                      : <div className="space-y-2">{at(g.days[0]).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} />)}</div>}
-                  </div>
+    <div className="md:hidden">
+      <div className="sticky-below-header sticky z-10 -mx-4 mb-2 grid grid-cols-7 gap-1 bg-bg/90 px-4 py-2 backdrop-blur" role="tablist" aria-label="Day of the week">
+        {days.map((d) => {
+          const ds = cellShifts(rows, d);
+          const open = ds.reduce((n, s) => n + places(s), 0);
+          return (
+            <Pressable key={d} press role="tab" aria-selected={d === day} onClick={() => setDay(d)}
+              aria-label={`${dayLabel(d)}: ${ds.length} shift${ds.length === 1 ? '' : 's'}${open ? `, ${open} unfilled` : ''}`}
+              className={cx('flex min-h-[54px] flex-col items-center justify-center rounded-xl', d === day ? 'bg-blue text-white' : d === today ? 'bg-blue-soft text-blue' : 'bg-surface text-ink shadow-tile')}>
+              <span className="text-caption2 font-semibold uppercase opacity-80">{wdOf(d).slice(0, 3)}</span>
+              <span className="num text-callout font-bold leading-tight">{Number(d.slice(8))}</span>
+              <span aria-hidden className={cx('mt-0.5 h-1.5 w-1.5 rounded-full', open ? 'bg-red' : 'bg-transparent', open && d === day && 'ring-2 ring-white')} />
+            </Pressable>
+          );
+        })}
+      </div>
+      <div className="mb-2 flex items-center justify-between">
+        <span className={cx('text-footnote font-semibold uppercase tracking-wide', day === today ? 'text-blue' : 'text-muted')}>{dayLabel(day)}{day === today ? ' · Today' : ''}</span>
+        <Pressable press onClick={() => onAdd(day)} className="-my-2 px-1 py-2 text-footnote font-semibold text-blue" aria-label={`Add shift ${dayLabel(day)}`}>+ Add</Pressable>
+      </div>
+      {!groups.length
+        ? <Pressable press onClick={() => onAdd(day)} className="block w-full rounded-2xl border border-dashed border-line px-4 py-6 text-center text-footnote text-faint">No shifts · <span className="font-semibold text-blue">Add one</span></Pressable>
+        : (
+          <div className="space-y-4">
+            {groups.map((g) => (
+              <section key={g.id}>
+                <div className="mb-1.5 flex items-baseline justify-between gap-3 px-1">
+                  <span className="truncate text-subhead font-semibold">{g.name}</span>
+                  {g.open > 0 && <span className="num shrink-0 text-caption font-semibold text-red">{g.open} unfilled</span>}
                 </div>
-              ))}
-            </div>
-          </section>
-        );
-      })}
+                <div className="space-y-2">{g.list.map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} />)}</div>
+              </section>
+            ))}
+          </div>
+        )}
     </div>
   );
 }
@@ -369,13 +482,13 @@ function VenueAgenda({ rows, week, venues, onOpen, onAdd }) {
 function OfficerAgenda({ rows, onOpen }) {
   const today = isoDate();
   const officers = useOfficerRows(rows);
-  const unfilled = rows.filter(isShort);
-  const places = unfilled.reduce((n, s) => n + s.headcount - s.filled, 0);
+  const unfilled = rows.filter((s) => places(s) > 0);
+  const open = unfilled.reduce((n, s) => n + places(s), 0);
   return (
     <div className="space-y-3 md:hidden">
       {unfilled.length > 0 && (
         <section className="rounded-tile bg-red-soft/70 p-4">
-          <div className="mb-3 flex items-baseline justify-between"><span className="text-headline font-semibold text-red">Unfilled</span><span className="num text-footnote text-muted">{places} place{places === 1 ? '' : 's'}</span></div>
+          <div className="mb-3 flex items-baseline justify-between"><span className="text-headline font-semibold text-red">Unfilled</span><span className="num text-footnote text-muted">{open} place{open === 1 ? '' : 's'}</span></div>
           <div className="space-y-2">
             {unfilled.map((s) => (
               <div key={s.id} className="flex gap-3"><DayTag days={[dayOf(s.starts_at)]} today={today} /><div className="min-w-0 flex-1"><ShiftCard s={s} onOpen={onOpen} /></div></div>
@@ -466,7 +579,7 @@ function Requests({ q, roleName, onChanged, onOpen }) {
 
 /* ---------- Shift detail ---------- */
 
-function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
+function ShiftDetail({ id, roleName, onClose, onChanged, onEdit, onPrev, onNext }) {
   const q = useApi('shifts.get', { id });
   const [run, busy] = useAction();
   const confirm = useConfirm();
@@ -506,7 +619,7 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
   );
 
   return (
-    <Sheet open side onClose={onClose} title={s ? s.venue_name : 'Shift'} footer={footer} size="md">
+    <Sheet open side onClose={onClose} title={s ? s.venue_name : 'Shift'} footer={footer} size="md" onPrev={onPrev} onNext={onNext}>
       {q.loading && !s ? <Spinner /> : q.error && !s ? <ErrorBox error={q.error} retry={q.reload} /> : !s ? null : (
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2">
@@ -556,13 +669,11 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
                       </div>
                     ) : null}
                     {ACTIVE.includes(a.status) && s.status !== 'cancelled' && (
-                      <IconButton icon={Crown} label={a.is_lead ? `Remove ${a.name} as lead` : `Make ${a.name} the shift lead`} className={a.is_lead ? 'text-amber' : ''} disabled={busy} onClick={() => setLead(a)} />
-                    )}
-                    {ACTIVE.includes(a.status) && !a.clocked_in && s.status !== 'cancelled' && a.status !== 'requested' && (
-                      <>
-                        <IconButton icon={Repeat} label={`Replace ${a.name}`} onClick={() => setReplacing(a)} />
-                        <IconButton icon={UserMinus} label={`Remove ${a.name}`} onClick={() => unassign(a)} />
-                      </>
+                      <MoreMenu label={`Actions for ${a.name}`} title={a.name} items={[
+                        { label: a.is_lead ? 'Remove as shift lead' : 'Make shift lead', icon: Crown, onClick: () => setLead(a), disabled: busy },
+                        !a.clocked_in && { label: 'Replace with someone else', icon: Repeat, onClick: () => setReplacing(a) },
+                        !a.clocked_in && { label: 'Remove from shift', icon: UserMinus, danger: true, onClick: () => unassign(a) },
+                      ]} />
                     )}
                   </div>
                 ))}
