@@ -78,7 +78,10 @@ export function linkableManager(db, email) {
 }
 
 // Create an app login for a staff record and link it (used by "Invite to app" and when hiring)
-export async function inviteOfficerLogin(id) {
+export const inviteOfficerLogin = async (id) => sendInvite(await createOfficerLogin(id));
+
+/** The invited login for a staff record, linked to it; the caller sends the invite */
+export async function createOfficerLogin(id) {
   const o = need(await one('SELECT * FROM officers WHERE id = $1', [id]));
   if (o.user_id) fail(409, 'Officer already has a login');
   if (!o.email) fail(400, 'Add an email address first');
@@ -89,7 +92,7 @@ export async function inviteOfficerLogin(id) {
     await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [o.id, created.id]);
     return created;
   });
-  return sendInvite(u);
+  return u;
 }
 
 export const actions = {

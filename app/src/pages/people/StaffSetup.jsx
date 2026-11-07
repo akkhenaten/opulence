@@ -3,7 +3,7 @@
 // by hand here, or by asking Orb.
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Eye, FileText, RefreshCw, Sparkles, Store, Trash2, UserPlus } from 'lucide-react';
+import { Eye, FileText, RefreshCw, Send, Sparkles, Store, Trash2, UserPlus } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -93,14 +93,17 @@ function SubmissionSheet({ id, onClose, onDone }) {
   const confirm = useConfirm();
   const [show, setShow] = useState(false);
   const [venues, setVenues] = useState(null);
+  const [sent, setSent] = useState(null);
   const s = q.data;
   const d = s?.details || {};
   const venue = s?.kind === 'venue';
   const picked = venues ?? s?.matched ?? [];
-  const close = () => { onClose(); setTimeout(() => { setShow(false); setVenues(null); }, 300); };
+  const close = () => { if (sent) onDone(); onClose(); setTimeout(() => { setShow(false); setVenues(null); setSent(null); }, 300); };
   const done = () => { onDone(); close(); };
-  const create = () => run(() => api('staffSetup.create', venue ? { id, venue_ids: picked } : { id }),
-    (r) => (r.kind === 'venue' ? `${r.name} added as a Venue Manager` : `${r.name} added to Staff`)).then(done).catch(() => {});
+  const added = (r) => (r.kind === 'venue' ? `${r.name} added as a Venue Manager` : `${r.name} added to Staff`);
+  const create = (invite) => run(() => api('staffSetup.create', { id, ...(venue && { venue_ids: picked }), ...(invite && { invite: true }) }),
+    (r) => (!invite ? added(r) : r.emailed ? `${added(r)} — invite sent` : `${added(r)} — invite not sent`))
+    .then((r) => (invite ? setSent(r) : done())).catch(() => {});
   const discard = async () => {
     if (!(await confirm({ title: 'Discard these details?', body: 'The submission and its files are deleted.', confirm: 'Discard', danger: true }))) return;
     run(() => api('staffSetup.discard', { id }), 'Discarded').then(done).catch(() => {});
@@ -108,11 +111,12 @@ function SubmissionSheet({ id, onClose, onDone }) {
   const priv = (v) => (show ? v : mask(v));
   return (
     <Sheet open={!!id} onClose={close} title={s?.name || 'Staff details'} size="lg"
-      footer={s && <>
+      footer={sent ? <Button onClick={close}>Done</Button> : s && <>
         <Button variant="secondary" icon={Trash2} onClick={discard} disabled={busy}>Discard</Button>
-        <Button icon={UserPlus} busy={busy} onClick={create} disabled={venue && !picked.length}>{venue ? 'Create login' : 'Create profile'}</Button>
+        <Button variant="secondary" icon={UserPlus} busy={busy} onClick={() => create(false)} disabled={venue && !picked.length}>{venue ? 'Create login' : 'Create profile'}</Button>
+        <Button icon={Send} busy={busy} onClick={() => create(true)} disabled={venue && !picked.length}>Create and send invite</Button>
       </>}>
-      <Load q={q}>
+      {sent ? <Sent r={sent} /> : <Load q={q}>
         {() => (venue ? (
           <div className="space-y-5">
             {s.duplicate && <Callout tone="warning">{s.duplicate.name} already has a login with this email ({s.duplicate.status}). Discard this one, or change their access in Settings → Users.</Callout>}
@@ -128,7 +132,7 @@ function SubmissionSheet({ id, onClose, onDone }) {
             )}
             <Chips label="Link them to" options={(s.venues || []).map((x) => ({ value: x.id, label: x.name }))} value={picked} onChange={setVenues} />
             {!picked.length && <p className="text-caption text-muted">Their venue name didn't match one of yours. Pick it above; if it isn't there yet, add it in Venues first.</p>}
-            <p className="text-caption text-muted">Create login adds them as a Venue Manager for these venues, with their photo and no email. Send the invite from Settings → Users when you're ready.</p>
+            <p className="text-caption text-muted">Create login adds them as a Venue Manager for these venues, with their photo and no email; send the invite later from Settings → Users. Create and send invite also emails them a link to set their password.</p>
           </div>
         ) : (
           <div className="space-y-5">
@@ -161,10 +165,30 @@ function SubmissionSheet({ id, onClose, onDone }) {
                 </List>
               ) : <p className="text-callout text-muted">No files sent.</p>}
             </div>
-            <p className="text-caption text-muted">Create profile adds them to Staff as active, with no login invite. Documents arrive unverified.</p>
+            <p className="text-caption text-muted">Create profile adds them to Staff as active, with no login invite. Create and send invite also emails them a link to set up the app. Documents arrive unverified.</p>
           </div>
         ))}
-      </Load>
+      </Load>}
     </Sheet>
+  );
+}
+
+// After Create and send invite: the invite link to share, and what to do if the email or the login didn't happen
+function Sent({ r }) {
+  const where = r.kind === 'venue' ? 'Settings → Users' : 'their profile in Staff';
+  return (
+    <div className="space-y-4">
+      {r.invite_error ? (
+        <Callout tone="warning">{r.name} was added, but no invite went out: {r.invite_error} Sort it out from {where}.</Callout>
+      ) : (
+        <>
+          <Callout tone={r.emailed ? 'success' : 'warning'}>
+            {r.emailed ? `${r.name} was added and emailed a link to set their password.` : `${r.name} was added, but the email didn't send. Share this link with them instead.`}
+          </Callout>
+          <CopyLink link={r.invite_link} hint={r.emailed ? 'Already emailed. Copy it to send by WhatsApp or text too.' : undefined} />
+          <p className="text-caption text-muted">The link works once. Until they use it, you can send it again from {where} with Resend invite.</p>
+        </>
+      )}
+    </div>
   );
 }

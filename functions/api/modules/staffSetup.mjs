@@ -13,8 +13,8 @@ import { plat, platformEmails, isPlatformEmail } from '../lib/platform.mjs';
 import { officerName } from '../lib/names.mjs';
 import { cleanStaffDetails, cleanVenueManager, withoutPrivate, officerFromDetails, SETUP_FILES, DOC_KIND, SETUP_TYPES, PHOTO_TYPES, MAX_SETUP_FILE } from '../lib/staffSetup.mjs';
 import { seedOnboarding, tickOnboarding, syncOnboarding } from './hr.mjs';
-import { assertNotDuplicate } from './officers.mjs';
-import { createInvite, setVenues } from './users.mjs';
+import { assertNotDuplicate, createOfficerLogin } from './officers.mjs';
+import { createInvite, setVenues, sendInviteMail } from './users.mjs';
 import { pub } from './_def.mjs';
 
 // The connection's own address: a forwarded-for header can be set by the visitor
@@ -63,8 +63,18 @@ export async function staffSetupJobs() {
   return { purged: old.length, orphans: orphans.length };
 }
 
-/** Turn one submission into an active staff profile (no login), with its contact and documents; then delete it */
-export async function createFromSubmission(id, user) {
+/** The invite email, with its link to share when the email didn't go; never undoes what was created */
+async function inviteOf(makeLogin) {
+  try {
+    const { link, emailed } = await sendInviteMail(await makeLogin());
+    return { invite_link: link, emailed };
+  } catch (e) {
+    return { invite_error: e.message };
+  }
+}
+
+/** Turn one submission into an active staff profile with its contact and documents, then delete it; with `invite`, also email them a login */
+export async function createFromSubmission(id, user, invite = false) {
   const s = need(await one("SELECT * FROM staff_setup_submissions WHERE id = $1 AND kind = 'officer'", [id]), 'Submission not found — it may already be a staff profile');
   const d = s.details;
   const files = s.files || {};
@@ -85,11 +95,11 @@ export async function createFromSubmission(id, user) {
   for (const kind of Object.keys(files)) if (DOC_KIND[kind]) await tickOnboarding(officerId, DOC_KIND[kind]);
   await syncOnboarding(officerId);
   await audit(user, 'officer.create', 'officer', officerId, { from: 'staff_setup' });
-  return { id: officerId, name: nameOf(d) };
+  return { id: officerId, name: nameOf(d), ...(invite ? await inviteOf(() => createOfficerLogin(officerId)) : {}) };
 }
 
-/** Turn a venue manager's submission into an invited Venue Manager login for their venues, with their photo (no email); then delete it */
-export async function createVenueManager(id, venueIds, user) {
+/** Turn a venue manager's submission into an invited Venue Manager login for their venues, with their photo, then delete it; the invite is emailed only with `invite` */
+export async function createVenueManager(id, venueIds, user, invite = false) {
   const s = need(await one("SELECT * FROM staff_setup_submissions WHERE id = $1 AND kind = 'venue'", [id]), 'Submission not found — it may already have a login');
   const d = s.details;
   const given = Array.isArray(venueIds) && venueIds.length ? venueIds : matchVenue(d, await activeVenues()).map((v) => v.id);
@@ -107,8 +117,9 @@ export async function createVenueManager(id, venueIds, user) {
     await t.q('DELETE FROM staff_setup_submissions WHERE id = $1', [id]);
     return created;
   });
-  await audit(user, 'user.invite', 'user', u.id, { role: 'venue', from: 'staff_setup', emailed: false });
-  return { id: u.id, name: nameOf(d), kind: 'venue' };
+  const sent = invite ? await inviteOf(async () => u) : {};
+  await audit(user, 'user.invite', 'user', u.id, { role: 'venue', from: 'staff_setup', emailed: !!sent.emailed });
+  return { id: u.id, name: nameOf(d), kind: 'venue', ...sent };
 }
 
 export const actions = {
@@ -208,11 +219,12 @@ export const actions = {
     return { id: s.id, kind: s.kind, name: nameOf(s.details), details: s.details, files, created_at: s.created_at, duplicate: await duplicateOf(s), venues, matched };
   }),
 
-  // venue_ids: for a venue manager, the venues to link (defaults to the venue their typed name matches)
+  // venue_ids: for a venue manager, the venues to link (defaults to the venue their typed name matches).
+  // invite: also email them their login invite (invite_link comes back to share; invite_error if it couldn't be made)
   'staffSetup.create': plat(async (b, { user }) => {
     required(b, 'id');
     const s = need(await one('SELECT kind FROM staff_setup_submissions WHERE id = $1', [b.id]), 'Submission not found — it may already have been set up');
-    return s.kind === 'venue' ? createVenueManager(b.id, b.venue_ids, user) : createFromSubmission(b.id, user);
+    return s.kind === 'venue' ? createVenueManager(b.id, b.venue_ids, user, b.invite === true) : createFromSubmission(b.id, user, b.invite === true);
   }),
 
   'staffSetup.discard': plat(async (b, { user }) => {

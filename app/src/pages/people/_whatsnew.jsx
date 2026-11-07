@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, ReceiptText, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
+  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, ReceiptText, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-07', icon: Send, title: 'Staff setup: create and send the invite in one tap', image: 'staff-setup-invite',
+    lede: "When an officer or venue manager sends their details, the Orb team can now set them up and email them their app invite in one go. They get a link to set their password straight away, with no second trip to their profile.",
+    points: ['Create and send invite: the profile or login is made and the invite email goes out', 'Create profile (or Create login) still sets them up with no email, for when you are not ready', 'If the email does not arrive, the invite link is shown to send by WhatsApp or text'],
+  },
   {
     month: 'November 2026', date: '2026-11-07', icon: ClipboardCheck, title: 'Staff setup: every form now becomes a profile', image: 'staff-setup-fix',
     lede: "Some officers' forms could not be turned into a staff profile when the officer had left \"Known as\" blank. That is fixed: Create profile now works for every form, and the forms that were stuck are still waiting, untouched.",
