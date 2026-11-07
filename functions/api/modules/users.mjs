@@ -35,7 +35,7 @@ export const sendInvite = async (u) => (await sendInviteMail(u)).link;
 // A pending invite link works once, so anyone may share it; an active platform admin account is never reset by others
 export const resetGuardNeeded = (status) => status !== 'invited';
 
-async function setVenues(t, userId, role, venueIds) {
+export async function setVenues(t, userId, role, venueIds) {
   if (!Array.isArray(venueIds)) return;
   const table = role === 'venue' ? 'venue_contacts' : role === 'security' ? 'security_venues' : null;
   if (!table) return;

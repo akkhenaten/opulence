@@ -1,6 +1,7 @@
-// Staff setup: a one-off shared link the platform admin sends to a company's officers when setting up the app.
-// Each officer fills in their own details (no login); submissions wait on a page only the platform admin sees,
-// and become staff profiles (by hand, or through Orb) — active, with no login invite. The submission is then deleted.
+// Staff setup: one-off shared links the platform admin sends when setting up a company's app — one for officers,
+// one for venue managers. Each person fills in their own details (no login); submissions wait on a page only the
+// platform admin sees and are turned (by hand, or through Orb) into staff profiles — active, with no login invite —
+// or invited Venue Manager logins, with no email sent. The submission is then deleted.
 import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, need, required } from '../lib/http.mjs';
 import { uploadUrl, headObject, deleteObject, downloadUrl } from '../lib/storage.mjs';
@@ -8,27 +9,38 @@ import { notify } from '../lib/notify.mjs';
 import { newToken } from '../lib/signLinks.mjs';
 import { audit } from '../lib/audit.mjs';
 import { londonDate } from '../lib/time.mjs';
-import { plat, platformEmails } from '../lib/platform.mjs';
+import { plat, platformEmails, isPlatformEmail } from '../lib/platform.mjs';
 import { officerName } from '../lib/names.mjs';
-import { cleanStaffDetails, withoutPrivate, officerFromDetails, SETUP_FILES, DOC_KIND, SETUP_TYPES, PHOTO_TYPES, MAX_SETUP_FILE } from '../lib/staffSetup.mjs';
+import { cleanStaffDetails, cleanVenueManager, withoutPrivate, officerFromDetails, SETUP_FILES, DOC_KIND, SETUP_TYPES, PHOTO_TYPES, MAX_SETUP_FILE } from '../lib/staffSetup.mjs';
 import { seedOnboarding, tickOnboarding, syncOnboarding } from './hr.mjs';
 import { assertNotDuplicate } from './officers.mjs';
+import { createInvite, setVenues } from './users.mjs';
 import { pub } from './_def.mjs';
 
 // The connection's own address: a forwarded-for header can be set by the visitor
 const ipOf = (ctx) => ctx.event?.requestContext?.http?.sourceIp || ctx.ip || '';
 const nameOf = (d) => `${d.first_name} ${d.last_name}`.trim();
 
-/** The link, only while it is switched on and the token is the current one */
+// Row 1 is the officers' link, row 2 the venue managers'
+const LINK_ID = { officer: 1, venue: 2 };
+const kindOf = (k) => (k === 'venue' ? 'venue' : 'officer');
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const activeVenues = () => q('SELECT id, name FROM venues WHERE active ORDER BY name');
+
+/** The link's kind, only while it is switched on and the token is the current one */
 async function openLink(token) {
-  const l = token ? await one('SELECT token FROM staff_setup_link WHERE enabled AND token = $1', [String(token)]) : null;
+  const l = token ? await one('SELECT id FROM staff_setup_link WHERE enabled AND token = $1', [String(token)]) : null;
   if (!l) fail(410, 'This form is closed. Please contact the office.');
+  return l.id === LINK_ID.venue ? 'venue' : 'officer';
 }
 
 const dropFiles = (keys) => Promise.all(keys.filter(Boolean).map((k) => deleteObject(k).catch((e) => console.warn('[staff setup] delete failed', k, e.message))));
 
-// An existing staff record with the same email or SIA number
-const duplicateOf = (d) => one(
+// An existing staff record with the same email or SIA number; for a venue manager, an existing login
+const duplicateOf = (s) => (s.kind === 'venue'
+  ? one('SELECT id, name, status FROM users WHERE lower(email) = $1 LIMIT 1', [s.details.email || ''])
+  : officerDuplicate(s.details));
+const officerDuplicate = (d) => one(
   `SELECT id, ${officerName('')} AS name, status FROM officers
     WHERE ($1 <> '' AND lower(email) = $1) OR ($2 <> '' AND replace(coalesce(sia_number, ''), ' ', '') = $2) LIMIT 1`,
   [d.email || '', d.sia_number || '']);
@@ -49,7 +61,7 @@ export async function staffSetupJobs() {
 
 /** Turn one submission into an active staff profile (no login), with its contact and documents; then delete it */
 export async function createFromSubmission(id, user) {
-  const s = need(await one('SELECT * FROM staff_setup_submissions WHERE id = $1', [id]), 'Submission not found — it may already be a staff profile');
+  const s = need(await one("SELECT * FROM staff_setup_submissions WHERE id = $1 AND kind = 'officer'", [id]), 'Submission not found — it may already be a staff profile');
   const d = s.details;
   const files = s.files || {};
   await assertNotDuplicate({ one }, { email: d.email, sia_number: d.sia_number || '' });
@@ -72,15 +84,39 @@ export async function createFromSubmission(id, user) {
   return { id: officerId, name: nameOf(d) };
 }
 
+/** Turn a venue manager's submission into an invited Venue Manager login for their venues (no email); then delete it */
+export async function createVenueManager(id, venueIds, user) {
+  const s = need(await one("SELECT * FROM staff_setup_submissions WHERE id = $1 AND kind = 'venue'", [id]), 'Submission not found — it may already have a login');
+  const d = s.details;
+  const ids = [...new Set((Array.isArray(venueIds) && venueIds.length ? venueIds : d.venue_ids || []).map(String))].filter((v) => UUID.test(v));
+  if (!ids.length) fail(400, `${nameOf(d)} wrote a venue that isn't listed (${d.other_venue || 'no name'}) — pick their venue in Staff setup first`);
+  if (isPlatformEmail(d.email)) fail(400, 'This email belongs to the platform admin');
+  const venues = await q('SELECT id, client_id FROM venues WHERE id = ANY($1::uuid[])', [ids]);
+  if (venues.length !== ids.length) fail(400, 'Venue not found');
+  const clients = [...new Set(venues.map((v) => v.client_id).filter(Boolean))];
+  const u = await tx(async (t) => {
+    const created = await createInvite(t, { email: d.email, name: nameOf(d), role: 'venue', phone: d.phone, goes_by: d.goes_by || '' });
+    if (clients.length === 1) await t.q('UPDATE users SET client_id = $2 WHERE id = $1', [created.id, clients[0]]);
+    await setVenues(t, created.id, 'venue', ids);
+    await t.q('DELETE FROM staff_setup_submissions WHERE id = $1', [id]);
+    return created;
+  });
+  await audit(user, 'user.invite', 'user', u.id, { role: 'venue', from: 'staff_setup', emailed: false });
+  return { id: u.id, name: nameOf(d), kind: 'venue' };
+}
+
 export const actions = {
   // The public form: is the link open?
+  // The public form: is the link open, and which form is it? The venue managers' form lists the venues to tick.
   'staffSetup.info': pub(async (b) => {
-    const l = b.token ? await one('SELECT 1 FROM staff_setup_link WHERE enabled AND token = $1', [String(b.token)]) : null;
-    return { open: !!l };
+    const l = b.token ? await one('SELECT id FROM staff_setup_link WHERE enabled AND token = $1', [String(b.token)]) : null;
+    if (!l) return { open: false };
+    if (l.id !== LINK_ID.venue) return { open: true, kind: 'officer' };
+    return { open: true, kind: 'venue', venues: await activeVenues() };
   }),
 
   'staffSetup.uploadUrl': pub(async (b, ctx) => {
-    await openLink(b.token);
+    if ((await openLink(b.token)) !== 'officer') fail(400, 'This form takes no files');
     const ip = ipOf(ctx);
     if (!SETUP_FILES[b.kind]) fail(400, 'Unknown file');
     const type = String(b.content_type || '');
@@ -94,9 +130,9 @@ export const actions = {
 
   'staffSetup.submit': pub(async (b, ctx) => {
     if (b.website) return { ok: true }; // honeypot: bots fill every field
-    await openLink(b.token);
+    const kind = await openLink(b.token);
     const ip = ipOf(ctx);
-    const c = cleanStaffDetails(b, londonDate(new Date()));
+    const c = kind === 'venue' ? cleanVenueManager(b, (await activeVenues()).map((v) => v.id)) : cleanStaffDetails(b, londonDate(new Date()));
     if (c.error) fail(400, c.error);
     const { n } = await one("SELECT count(*)::int AS n FROM staff_setup_submissions WHERE ip = $1 AND created_at > now() - interval '1 hour'", [ip]);
     if (n >= 5) fail(429, 'Too many forms sent — please try again later');
@@ -107,45 +143,53 @@ export const actions = {
       if (!h) fail(400, 'Please upload your files again');
       if (h.size > MAX_SETUP_FILE) fail(400, `${SETUP_FILES[kind]} must be under 10 MB`);
     }
-    const s = await one('INSERT INTO staff_setup_submissions (details, files, ip) VALUES ($1,$2,$3) RETURNING id', [c.details, c.files, ip]);
+    const s = await one('INSERT INTO staff_setup_submissions (details, files, ip, kind) VALUES ($1,$2,$3,$4) RETURNING id', [c.details, c.files, ip, kind]);
     await q('DELETE FROM staff_setup_uploads WHERE key = ANY($1)', [Object.values(c.files)]);
     const admins = (await q("SELECT id FROM users WHERE lower(email) = ANY($1) AND status = 'active'", [platformEmails()])).map((u) => u.id);
-    await notify(admins, { kind: 'staff_setup', title: `Staff details from ${nameOf(c.details)}`, body: 'Ready to become a staff profile in Staff setup.', link: '/company/staff-setup' });
-    await audit(null, 'staff_setup.submit', 'staff_setup', s.id, { ip });
+    await notify(admins, kind === 'venue'
+      ? { kind: 'staff_setup', title: `Venue manager details from ${nameOf(c.details)}`, body: 'Ready to become a Venue Manager login in Staff setup.', link: '/company/staff-setup' }
+      : { kind: 'staff_setup', title: `Staff details from ${nameOf(c.details)}`, body: 'Ready to become a staff profile in Staff setup.', link: '/company/staff-setup' });
+    await audit(null, 'staff_setup.submit', 'staff_setup', s.id, { ip, kind });
     return { ok: true };
   }),
 
-  // The platform admin's page
-  'staffSetup.link': plat(async () => {
-    const l = await one('SELECT token, enabled, created_at FROM staff_setup_link WHERE id = 1');
-    const { n } = await one('SELECT count(*)::int AS n FROM staff_setup_submissions');
+  // The platform admin's page: kind officer (default) | venue
+  'staffSetup.link': plat(async (b) => {
+    const kind = kindOf(b.kind);
+    const l = await one('SELECT token, enabled, created_at FROM staff_setup_link WHERE id = $1', [LINK_ID[kind]]);
+    const { n } = await one('SELECT count(*)::int AS n FROM staff_setup_submissions WHERE kind = $1', [kind]);
     return { link: l || null, waiting: n };
   }),
 
   'staffSetup.toggle': plat(async (b, { user }) => {
+    const kind = kindOf(b.kind);
     const on = b.enabled !== false;
     const l = await one(
-      `INSERT INTO staff_setup_link (id, token, enabled, created_by) VALUES (1, $1, $2, $3)
-       ON CONFLICT (id) DO UPDATE SET enabled = $2 RETURNING token, enabled, created_at`, [newToken(), on, user.id]);
-    await audit(user, on ? 'staff_setup.open' : 'staff_setup.close', 'staff_setup', null);
+      `INSERT INTO staff_setup_link (id, token, enabled, created_by) VALUES ($4, $1, $2, $3)
+       ON CONFLICT (id) DO UPDATE SET enabled = $2 RETURNING token, enabled, created_at`, [newToken(), on, user.id, LINK_ID[kind]]);
+    await audit(user, on ? 'staff_setup.open' : 'staff_setup.close', 'staff_setup', null, { kind });
     return { link: l };
   }),
 
   // A new link: the old one stops working at once
   'staffSetup.rotate': plat(async (b, { user }) => {
+    const kind = kindOf(b.kind);
     const l = await one(
-      `INSERT INTO staff_setup_link (id, token, enabled, created_by) VALUES (1, $1, true, $2)
-       ON CONFLICT (id) DO UPDATE SET token = $1, created_at = now(), created_by = $2 RETURNING token, enabled, created_at`, [newToken(), user.id]);
-    await audit(user, 'staff_setup.rotate', 'staff_setup', null);
+      `INSERT INTO staff_setup_link (id, token, enabled, created_by) VALUES ($3, $1, true, $2)
+       ON CONFLICT (id) DO UPDATE SET token = $1, created_at = now(), created_by = $2 RETURNING token, enabled, created_at`, [newToken(), user.id, LINK_ID[kind]]);
+    await audit(user, 'staff_setup.rotate', 'staff_setup', null, { kind });
     return { link: l };
   }),
 
-  // Waiting submissions, without date of birth, NI or bank details (this is also what Orb reads)
+  // Waiting submissions (kind officer | venue), without date of birth, NI or bank details (this is also what Orb reads).
+  // A venue manager's venues come by name; an empty list means they wrote one that isn't listed (other_venue).
   'staffSetup.list': plat(async () => {
     const rows = await q('SELECT * FROM staff_setup_submissions ORDER BY created_at');
+    const names = Object.fromEntries((await q('SELECT id, name FROM venues')).map((v) => [v.id, v.name]));
     return Promise.all(rows.map(async (s) => ({
-      id: s.id, name: nameOf(s.details), ...withoutPrivate(s.details), created_at: s.created_at,
-      files: Object.keys(s.files || {}).map((k) => SETUP_FILES[k] || k), duplicate: await duplicateOf(s.details),
+      id: s.id, kind: s.kind, name: nameOf(s.details), ...withoutPrivate(s.details), created_at: s.created_at,
+      ...(s.kind === 'venue' ? { venues: (s.details.venue_ids || []).map((v) => names[v]).filter(Boolean) } : {}),
+      files: Object.keys(s.files || {}).map((k) => SETUP_FILES[k] || k), duplicate: await duplicateOf(s),
     })));
   }),
 
@@ -153,12 +197,15 @@ export const actions = {
     required(b, 'id');
     const s = need(await one('SELECT * FROM staff_setup_submissions WHERE id = $1', [b.id]), 'Submission not found');
     const files = await Promise.all(Object.entries(s.files || {}).map(async ([kind, key]) => ({ kind, title: SETUP_FILES[kind] || kind, url: await downloadUrl(key, SETUP_FILES[kind]) })));
-    return { id: s.id, name: nameOf(s.details), details: s.details, files, created_at: s.created_at, duplicate: await duplicateOf(s.details) };
+    const venues = s.kind === 'venue' ? await activeVenues() : undefined;
+    return { id: s.id, kind: s.kind, name: nameOf(s.details), details: s.details, files, created_at: s.created_at, duplicate: await duplicateOf(s), venues };
   }),
 
+  // venue_ids: for a venue manager, the venues to link (defaults to the ones they ticked)
   'staffSetup.create': plat(async (b, { user }) => {
     required(b, 'id');
-    return createFromSubmission(b.id, user);
+    const s = need(await one('SELECT kind FROM staff_setup_submissions WHERE id = $1', [b.id]), 'Submission not found — it may already have been set up');
+    return s.kind === 'venue' ? createVenueManager(b.id, b.venue_ids, user) : createFromSubmission(b.id, user);
   }),
 
   'staffSetup.discard': plat(async (b, { user }) => {

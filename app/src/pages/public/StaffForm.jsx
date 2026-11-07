@@ -1,12 +1,12 @@
-// Staff details: the one-off shared link the platform admin sends to officers when setting up the app. No login.
-// Each officer fills in their own details; the submission waits in Staff setup (platform admin only) until it
-// becomes a staff profile.
+// Staff details: the one-off shared links the platform admin sends when setting up the app — one for officers, one
+// for venue managers. No login. Each person fills in their own details; the submission waits in Staff setup (platform
+// admin only) until it becomes a staff profile, or a Venue Manager login.
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { CheckCircle2, FileText, IdCard, Lock, UserRound } from 'lucide-react';
 import { api, staffFormUpload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, Check, ErrorBox, Input, Load, useApi, useForm } from '../../ui/index.jsx';
+import { Button, Check, Chips, ErrorBox, Input, Load, useApi, useForm } from '../../ui/index.jsx';
 import { Card, FilePick, Frame } from './Apply.jsx';
 
 const MAX = 10 * 1024 * 1024;
@@ -30,13 +30,13 @@ function Closed() {
   );
 }
 
-function Done({ name }) {
+function Done({ name, venue }) {
   return (
     <Frame>
       <div className="mx-auto mt-10 max-w-md rounded-tile bg-surface p-7 text-center shadow-tile">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-green-soft text-green"><CheckCircle2 size={28} /></div>
         <h1 className="mt-3 text-title2 font-bold">Thanks, {name}</h1>
-        <p className="mt-2 text-body text-muted">Your details have been sent to the office.</p>
+        <p className="mt-2 text-body text-muted">{venue ? "Your details have been sent to the office. The office will email you a link to set up your login." : 'Your details have been sent to the office.'}</p>
       </div>
     </Frame>
   );
@@ -45,7 +45,76 @@ function Done({ name }) {
 export default function StaffForm() {
   const { token } = useParams();
   const info = useApi('staffSetup.info', { token });
-  return <Load q={info}>{(d) => (d.open ? <Form token={token} /> : <Closed />)}</Load>;
+  return <Load q={info}>{(d) => (!d.open ? <Closed /> : d.kind === 'venue' ? <VenueForm token={token} venues={d.venues || []} /> : <Form token={token} />)}</Load>;
+}
+
+// Venue managers: who they are and which venue(s) they look after; their login is set up from this
+function VenueForm({ token, venues }) {
+  const { brand } = useAuth();
+  const { v, bind, set } = useForm({ first_name: '', last_name: '', goes_by: '', email: '', phone: '', job_title: '', venue_ids: [], other_venue: '', consent: false, website: '' });
+  const [notListed, setNotListed] = useState(!venues.length);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr('');
+    setBusy(true);
+    try {
+      await api('staffSetup.submit', { ...v, other_venue: notListed ? v.other_venue : '', token });
+      setDone(true);
+    } catch (x) {
+      setErr(x.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (done) return <Done name={v.goes_by || v.first_name} venue />;
+  return (
+    <Frame hero={<>
+      <div className="text-caption font-semibold uppercase tracking-[0.14em] text-gold-light">Venue manager details</div>
+      <h1 className="display text-title1 font-semibold leading-tight">Your details for {brand.name}</h1>
+    </>}>
+      <p className="mb-5 text-body text-muted">We're setting up your venue on our app. Fill this in so the office can create your venue manager login. It takes a minute.</p>
+      <form onSubmit={submit} className="space-y-4" noValidate>
+        <Card title="You">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input label="First name" autoComplete="given-name" {...bind('first_name')} />
+            <Input label="Last name" autoComplete="family-name" {...bind('last_name')} />
+            <Input label="Known as (optional)" hint="If you go by another name" {...bind('goes_by')} />
+            <Input label="Job title (optional)" hint="Like General Manager" autoComplete="organization-title" {...bind('job_title')} />
+            <Input label="Email" type="email" autoComplete="email" inputMode="email" hint="Your login is sent here" {...bind('email')} />
+            <Input label="Mobile" type="tel" autoComplete="tel" {...bind('phone')} />
+          </div>
+          <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden"><Input label="Website" tabIndex={-1} autoComplete="off" {...bind('website')} /></div>
+        </Card>
+
+        <Card title="Your venue">
+          {venues.length > 0 && <Chips label="Tick the venue or venues you manage" options={venues.map((x) => ({ value: x.id, label: x.name }))} value={v.venue_ids} onChange={(x) => set('venue_ids', x)} />}
+          {venues.length > 0 && (
+            <div className="flex items-center gap-3">
+              <Check checked={notListed} onChange={setNotListed} label="My venue isn't listed" />
+              <span className="text-callout">My venue isn't listed</span>
+            </div>
+          )}
+          {notListed && <Input label="Venue name" {...bind('other_venue')} />}
+        </Card>
+
+        <Card>
+          <div className="flex items-start gap-3">
+            <Check checked={v.consent} onChange={(x) => set('consent', x)} label="Consent" className="mt-0.5" />
+            <span className="text-callout">I agree to {brand.name} storing these details to set up my login.</span>
+          </div>
+          <p className="text-caption text-muted">Privacy: only the office can see what you send. If they aren't used, they are deleted after 60 days.</p>
+        </Card>
+
+        {err && <ErrorBox error={{ message: err }} />}
+        <Button type="submit" size="lg" className="w-full" busy={busy}>{busy ? 'Sending…' : 'Send my details'}</Button>
+      </form>
+    </Frame>
+  );
 }
 
 function Form({ token }) {

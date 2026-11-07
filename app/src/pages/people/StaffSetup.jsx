@@ -1,12 +1,13 @@
-// Staff setup (platform admin only, checked on the server too): the one-off shared link officers use to send their
-// own details, and the submissions waiting to become staff profiles — by hand here, or by asking Orb.
+// Staff setup (platform admin only, checked on the server too): the one-off shared links officers and venue managers
+// use to send their own details, and the submissions waiting to become staff profiles or Venue Manager logins —
+// by hand here, or by asking Orb.
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Eye, FileText, RefreshCw, Sparkles, Trash2, UserPlus } from 'lucide-react';
+import { Eye, FileText, RefreshCw, Sparkles, Store, Trash2, UserPlus } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Button, Callout, date, dateTime, Empty, KV, List, Load, Page, Pill, Row, Section, Sheet, SkeletonRows, Toggle, useAction, useApi, useConfirm,
+  Avatar, Button, Callout, Chips, date, dateTime, Empty, KV, List, Load, Page, Pill, Row, Section, Sheet, SkeletonRows, Toggle, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { CopyLink, openUrl } from './_parts.jsx';
 
@@ -16,19 +17,24 @@ const mask = (s) => (s ? `•••• ${String(s).slice(-2)}` : '');
 export default function StaffSetup() {
   const { user } = useAuth();
   const link = useApi('staffSetup.link');
+  const venueLink = useApi('staffSetup.link', { kind: 'venue' });
   const list = useApi('staffSetup.list');
   const [open, setOpen] = useState(null);
   if (!user.platform) return <Navigate to={`/${user.role}`} replace />;
-  const reload = () => { link.reload(); list.reload(); };
+  const reload = () => { link.reload(); venueLink.reload(); list.reload(); };
+  const of = (kind) => (list.data || []).filter((s) => (s.kind || 'officer') === kind);
   return (
     <Page title="Staff setup" subtitle="Only you can see this — platform admin">
-      <LinkCard q={link} onChange={reload} />
-      <Callout icon={Sparkles} className="mt-4">Ask Orb: “Create profiles for the staff setup submissions”. Each one shows on a card for you to confirm.</Callout>
-      <Section title={`Waiting${list.data?.length ? ` · ${list.data.length}` : ''}`}>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <LinkCard q={link} onChange={reload} label="Officers link" />
+        <LinkCard q={venueLink} onChange={reload} kind="venue" label="Venue managers link" />
+      </div>
+      <Callout icon={Sparkles} className="mt-4">Ask Orb: “Set up the staff setup submissions”. Each one shows on a card for you to confirm.</Callout>
+      <Section title={`Officers${of('officer').length ? ` · ${of('officer').length}` : ''}`}>
         <Load q={list} skeleton="rows" n={3}>
-          {(rows) => (rows.length ? (
+          {() => (of('officer').length ? (
             <List>
-              {rows.map((s) => (
+              {of('officer').map((s) => (
                 <Row key={s.id} onClick={() => setOpen(s.id)} chevron left={<Avatar name={s.name} size={36} />}
                   title={s.name}
                   subtitle={[s.sia_number ? `SIA ${siaFmt(s.sia_number)}` : 'No SIA number', `sent ${date(s.created_at)}`].join(' · ')}
@@ -38,28 +44,42 @@ export default function StaffSetup() {
           ) : <Empty icon={UserPlus} title="Nothing waiting" body="When officers send the form, their details show here." />)}
         </Load>
       </Section>
+      <Section title={`Venue managers${of('venue').length ? ` · ${of('venue').length}` : ''}`}>
+        <Load q={list} skeleton="rows" n={2}>
+          {() => (of('venue').length ? (
+            <List>
+              {of('venue').map((s) => (
+                <Row key={s.id} onClick={() => setOpen(s.id)} chevron left={<Avatar name={s.name} size={36} />}
+                  title={s.name}
+                  subtitle={[s.venues?.length ? s.venues.join(', ') : `Not listed: ${s.other_venue || '—'}`, `sent ${date(s.created_at)}`].join(' · ')}
+                  right={s.duplicate ? <Pill tone="amber">Already has a login</Pill> : !s.venues?.length && <Pill tone="amber">Pick venue</Pill>} />
+              ))}
+            </List>
+          ) : <Empty icon={Store} title="Nothing waiting" body="When venue managers send the form, their details show here." />)}
+        </Load>
+      </Section>
       <SubmissionSheet id={open} onClose={() => setOpen(null)} onDone={reload} />
     </Page>
   );
 }
 
-function LinkCard({ q, onChange }) {
+function LinkCard({ q, onChange, kind = 'officer', label }) {
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const l = q.data?.link;
-  const toggle = (on) => run(() => api('staffSetup.toggle', { enabled: on }), on ? 'Link switched on' : 'Link switched off').then(onChange).catch(() => {});
+  const toggle = (on) => run(() => api('staffSetup.toggle', { enabled: on, kind }), on ? 'Link switched on' : 'Link switched off').then(onChange).catch(() => {});
   const rotate = async () => {
-    if (!(await confirm({ title: 'Replace the link?', body: 'The old link stops working straight away. Officers who still have it will see that the form is closed.', confirm: 'Replace link', danger: true }))) return;
-    run(() => api('staffSetup.rotate'), 'New link ready').then(onChange).catch(() => {});
+    if (!(await confirm({ title: 'Replace the link?', body: `The old link stops working straight away. ${kind === 'venue' ? 'Venue managers' : 'Officers'} who still have it will see that the form is closed.`, confirm: 'Replace link', danger: true }))) return;
+    run(() => api('staffSetup.rotate', { kind }), 'New link ready').then(onChange).catch(() => {});
   };
   if (!q.data) return <SkeletonRows n={1} />;
   return (
     <div className="space-y-3 rounded-tile bg-surface p-5 shadow-tile">
-      <Toggle checked={!!l?.enabled} onChange={toggle} label="Staff details link"
-        hint={l?.enabled ? `On · ${q.data.waiting} waiting` : 'Off — switch it on to get a link to send to officers'} />
+      <Toggle checked={!!l?.enabled} onChange={toggle} label={label}
+        hint={l?.enabled ? `On · ${q.data.waiting} waiting` : `Off — switch it on to get a link to send to ${kind === 'venue' ? 'venue managers' : 'officers'}`} />
       {l?.enabled && (
         <>
-          <CopyLink link={`/app/staff-form/${l.token}`} label="Shared link" hint="Send this to every officer, by WhatsApp or email." />
+          <CopyLink link={`/app/staff-form/${l.token}`} label="Shared link" hint={`Send this to every ${kind === 'venue' ? 'venue manager' : 'officer'}, by WhatsApp or email.`} />
           <div className="flex justify-end"><Button variant="secondary" size="sm" icon={RefreshCw} busy={busy} onClick={rotate}>Replace link</Button></div>
         </>
       )}
@@ -72,11 +92,15 @@ function SubmissionSheet({ id, onClose, onDone }) {
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const [show, setShow] = useState(false);
+  const [venues, setVenues] = useState(null);
   const s = q.data;
   const d = s?.details || {};
-  const close = () => { onClose(); setTimeout(() => setShow(false), 300); };
+  const venue = s?.kind === 'venue';
+  const picked = venues ?? d.venue_ids ?? [];
+  const close = () => { onClose(); setTimeout(() => { setShow(false); setVenues(null); }, 300); };
   const done = () => { onDone(); close(); };
-  const create = () => run(() => api('staffSetup.create', { id }), (r) => `${r.name} added to Staff`).then(done).catch(() => {});
+  const create = () => run(() => api('staffSetup.create', venue ? { id, venue_ids: picked } : { id }),
+    (r) => (r.kind === 'venue' ? `${r.name} added as a Venue Manager` : `${r.name} added to Staff`)).then(done).catch(() => {});
   const discard = async () => {
     if (!(await confirm({ title: 'Discard these details?', body: 'The submission and its files are deleted.', confirm: 'Discard', danger: true }))) return;
     run(() => api('staffSetup.discard', { id }), 'Discarded').then(done).catch(() => {});
@@ -86,10 +110,24 @@ function SubmissionSheet({ id, onClose, onDone }) {
     <Sheet open={!!id} onClose={close} title={s?.name || 'Staff details'} size="lg"
       footer={s && <>
         <Button variant="secondary" icon={Trash2} onClick={discard} disabled={busy}>Discard</Button>
-        <Button icon={UserPlus} busy={busy} onClick={create}>Create profile</Button>
+        <Button icon={UserPlus} busy={busy} onClick={create} disabled={venue && !picked.length}>{venue ? 'Create login' : 'Create profile'}</Button>
       </>}>
       <Load q={q}>
-        {() => (
+        {() => (venue ? (
+          <div className="space-y-5">
+            {s.duplicate && <Callout tone="warning">{s.duplicate.name} already has a login with this email ({s.duplicate.status}). Discard this one, or change their access in Settings → Users.</Callout>}
+            <KV items={[
+              ['Name', `${d.first_name} ${d.last_name}${d.goes_by ? ` (${d.goes_by})` : ''}`],
+              ['Job title', d.job_title || '—'],
+              ['Email', d.email], ['Mobile', d.phone],
+              ...(d.other_venue ? [['Venue they wrote', d.other_venue]] : []),
+              ['Sent', dateTime(s.created_at)],
+            ]} />
+            <Chips label="Venues they manage" options={(s.venues || []).map((x) => ({ value: x.id, label: x.name }))} value={picked} onChange={setVenues} />
+            {d.other_venue && !picked.length && <p className="text-caption text-muted">Pick their venue above. If it isn't there yet, add it in Venues first.</p>}
+            <p className="text-caption text-muted">Create login adds them as a Venue Manager for these venues, with no email. Send the invite from Settings → Users when you're ready.</p>
+          </div>
+        ) : (
           <div className="space-y-5">
             {s.duplicate && <Callout tone="warning">Possibly already on your staff: {s.duplicate.name} ({s.duplicate.status}). Creating a profile will stop if the email or SIA number matches.</Callout>}
             <KV items={[
@@ -122,7 +160,7 @@ function SubmissionSheet({ id, onClose, onDone }) {
             </div>
             <p className="text-caption text-muted">Create profile adds them to Staff as active, with no login invite. Documents arrive unverified.</p>
           </div>
-        )}
+        ))}
       </Load>
     </Sheet>
   );

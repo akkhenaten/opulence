@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanStaffDetails, withoutPrivate, officerFromDetails } from '../lib/staffSetup.mjs';
+import { cleanStaffDetails, cleanVenueManager, withoutPrivate, officerFromDetails } from '../lib/staffSetup.mjs';
 import { catalogFor } from '../lib/orbCatalog.mjs';
 import { actions } from '../modules/staffSetup.mjs';
 
@@ -84,4 +84,37 @@ test('Orb offers staff setup only to the platform admin', () => {
   const admin = { id: 'u2', role: 'company', email: 'info@orbsolutions.co.uk', status: 'active' };
   assert.deepEqual(names(boss), []);
   assert.deepEqual(names(admin).sort(), ['staffSetup.create', 'staffSetup.list']);
+});
+
+const V1 = '11111111-1111-4111-8111-111111111111';
+const V2 = '22222222-2222-4222-8222-222222222222';
+const vm = { first_name: 'Ana', last_name: 'Reid', email: 'Ana@Venue.co.uk', phone: '07700 900789', job_title: 'General Manager', venue_ids: [V1, V1, 'nope'], consent: true };
+
+test('a venue manager ticks known venues only, or writes one that is not listed', () => {
+  const { details: d, files, error } = cleanVenueManager(vm, [V1, V2]);
+  assert.equal(error, undefined);
+  assert.equal(d.email, 'ana@venue.co.uk');
+  assert.deepEqual(d.venue_ids, [V1]);
+  assert.equal(d.job_title, 'General Manager');
+  assert.deepEqual(files, {});
+  const other = cleanVenueManager({ ...vm, venue_ids: [], other_venue: 'The Loft' }, [V1]);
+  assert.deepEqual(other.details.venue_ids, []);
+  assert.equal(other.details.other_venue, 'The Loft');
+});
+
+test('a venue manager needs a name, contact, a venue and consent', () => {
+  const err = (patch) => cleanVenueManager({ ...vm, ...patch }, [V1]).error;
+  assert.match(err({ first_name: '' }), /name/);
+  assert.match(err({ email: 'x' }), /email/);
+  assert.match(err({ phone: '12' }), /phone/);
+  assert.match(err({ venue_ids: [] }), /venue/);
+  assert.match(err({ venue_ids: [V2] }), /venue/);
+  assert.match(err({ consent: false }), /agree/);
+});
+
+test('the venue managers link is platform admin only too', async () => {
+  const boss = { id: 'u1', role: 'company', email: 'boss@example.com', status: 'active' };
+  for (const k of ['staffSetup.link', 'staffSetup.toggle', 'staffSetup.rotate']) {
+    await assert.rejects(actions[k].fn({ kind: 'venue' }, { user: boss }), (e) => e.status === 403, k);
+  }
 });

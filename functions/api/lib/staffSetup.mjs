@@ -70,3 +70,22 @@ export function officerFromDetails(d, photoKey = null) {
     photo_key: photoKey, status: 'active',
   };
 }
+
+/**
+ * A venue manager's details, or { error }. venueIds: the active venues they may tick; a venue that isn't listed
+ * comes as free text, and the admin picks it before the account is made.
+ */
+export function cleanVenueManager(b, venueIds = []) {
+  const s = {
+    first_name: str(b.first_name, 80), last_name: str(b.last_name, 80), goes_by: str(b.goes_by, 80) || null,
+    email: str(b.email, 200).toLowerCase(), phone: str(b.phone, 40), job_title: str(b.job_title, 80) || null,
+    venue_ids: [...new Set((Array.isArray(b.venue_ids) ? b.venue_ids : []).map(String).filter((v) => venueIds.includes(v)))],
+    other_venue: str(b.other_venue, 120) || null,
+  };
+  if (!s.first_name || !s.last_name) return { error: 'Please add your first and last name' };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email)) return { error: 'Please check your email address' };
+  if (digits(s.phone).length < 10) return { error: 'Please check your phone number' };
+  if (!s.venue_ids.length && !s.other_venue) return { error: 'Please tick the venue you manage, or write its name' };
+  if (b.consent !== true) return { error: 'Please tick the box to agree to us storing your details' };
+  return { details: s, files: {} };
+}
