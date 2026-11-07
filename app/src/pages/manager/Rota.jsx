@@ -1,30 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
   CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Crown, Hand, NotebookPen, Plus, Repeat, Send, Trash2, UserMinus, UserPlus, X,
 } from 'lucide-react';
 import {
-  addDays, AssignPill, Avatar, Button, confirmState, cx, dateShort, dayLabel, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useToast, nameMatches, displayName,
+  ActionBar, addDays, AssignPill, Avatar, Button, confirmState, cx, dateShort, dayLabel, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, SplitButton, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useToast, useUrlState, nameMatches, displayName,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { WEEKDAYS, durationH, londonIso, londonParts, shiftTimes, useBase } from './_parts.jsx';
+import { Check as Tick, WEEKDAYS, durationH, londonIso, londonParts, shiftTimes, useBase } from './_parts.jsx';
 import { PackPill } from '../shared/PackPaper.jsx';
 
 const dayOf = (iso) => londonParts(iso).date;
 const ACTIVE = ['assigned', 'accepted'];
 
 export default function Rota() {
-  const [sp, setSp] = useSearchParams();
-  const tab = sp.get('tab') === 'requests' ? 'requests' : 'rota';
-  const setTab = (t) => { const n = new URLSearchParams(sp); if (t === 'rota') n.delete('tab'); else n.set('tab', t); setSp(n, { replace: true }); };
-  const openId = sp.get('shift');
-  const setOpenId = (id) => { const n = new URLSearchParams(sp); if (id) n.set('shift', id); else n.delete('shift'); setSp(n, { replace: true }); };
-
-  const [week, setWeek] = useState(() => mondayOf(isoDate()));
-  const [venueId, setVenueId] = useState('');
-  const [view, setView] = useState('days');
-  const [form, setForm] = useState(null); // { shift? , date? }
+  // Tab, open shift, week, venue and view live in the address, so Back and shared links land on the same view
+  const thisWeek = mondayOf(isoDate());
+  const [url, setUrl] = useUrlState({ tab: 'rota', shift: '', week: thisWeek, venue: '', view: 'days' });
+  const tab = url.tab === 'requests' ? 'requests' : 'rota';
+  const setTab = (t) => setUrl({ tab: t });
+  const openId = url.shift || null;
+  const setOpenId = (id) => setUrl({ shift: id || '' });
+  const week = /^\d{4}-\d{2}-\d{2}$/.test(url.week) ? mondayOf(url.week) : thisWeek;
+  const setWeek = (w) => setUrl({ week: w });
+  const venueId = url.venue;
+  const setVenueId = (v) => setUrl({ venue: v });
+  const view = ['days', 'venues', 'officers'].includes(url.view) ? url.view : 'days';
+  const setView = (v) => setUrl({ view: v });
+  const [form, setForm] = useState(null); // { shift? , date? , repeat? }
 
   const venues = useApi('venues.list', {});
   const roles = useApi('roles.list', {});
@@ -49,15 +52,17 @@ export default function Rota() {
   };
 
   const weekLabel = `${dateShort(week)} – ${dateShort(addDays(week, 6))}`;
-  const isThisWeek = week === mondayOf(isoDate());
+  const isThisWeek = week === thisWeek;
 
   return (
     <Page title="Rota" subtitle={tab === 'rota' ? `Week of ${dayLabel(week)}` : 'Officer requests for open shifts'} wide
-      actions={tab === 'rota' ? [
-        { label: 'Copy last week', icon: Copy, onClick: copyWeek, busy },
-        drafts.length > 0 && { label: `Publish ${drafts.length}`, icon: Send, variant: 'soft', onClick: publish, busy },
-        { label: 'New shift', icon: Plus, variant: 'primary', main: true, onClick: () => setForm({}) },
-      ] : undefined}>
+      actions={tab === 'rota' && <>
+        {drafts.length > 0 && <Button variant="soft" icon={Send} onClick={publish} busy={busy}>Publish {drafts.length}</Button>}
+        <SplitButton icon={Plus} onClick={() => setForm({})} label="More ways to add shifts" title="Add shifts" items={[
+          { label: 'Repeat shift…', icon: Repeat, hint: 'Same times on several days or weeks', onClick: () => setForm({ repeat: true }) },
+          { label: 'Copy last week', icon: Copy, hint: 'All of last week\'s shifts as drafts', onClick: copyWeek, busy },
+        ]}>New shift</SplitButton>
+      </>}>
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'rota', label: 'Rota' }, { value: 'requests', label: 'Requests', count: reqs.data?.length }]} />
 
       {tab === 'requests' ? <Requests q={reqs} roleName={roleName} onChanged={reload} onOpen={setOpenId} /> : (
@@ -68,7 +73,7 @@ export default function Rota() {
               <span className="num min-w-[132px] text-center text-subhead font-semibold">{weekLabel}</span>
               <IconButton icon={ChevronRight} label="Next week" onClick={() => setWeek(addDays(week, 7))} />
             </div>
-            {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(mondayOf(isoDate()))}>Today</Button>}
+            {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(thisWeek)}>Today</Button>}
             <Select className="w-full md:w-auto md:min-w-[200px] md:max-w-[240px]" value={venueId} onChange={(e) => setVenueId(e.target.value)} placeholder="All venues"
               options={(venues.data || []).filter((v) => v.active).map((v) => ({ value: v.id, label: v.name }))} />
             <Segmented full value={view} onChange={setView} className="w-full md:ml-auto md:w-auto"
@@ -398,30 +403,64 @@ function OfficerAgenda({ rows, onOpen }) {
 /* ---------- Officer requests ---------- */
 
 function Requests({ q, roleName, onChanged, onOpen }) {
-  const [run] = useAction();
+  const [run, busy] = useAction();
   const [busyId, setBusyId] = useState(null);
+  const [picking, setPicking] = useState(false);
+  const [sel, setSel] = useState(() => new Set());
   const decide = (r, approve) => {
     setBusyId(r.id);
     run(() => api('shifts.decideRequest', { id: r.id, approve }), approve ? 'Request approved' : 'Request declined').then(onChanged).catch(() => {}).finally(() => setBusyId(null));
   };
+  const stop = () => { setPicking(false); setSel(new Set()); };
+  // Several at once: the same call per request, one after another; whatever went through is kept if one fails
+  const decideAll = (list, approve) => run(async () => {
+    let n = 0;
+    let err = null;
+    for (const r of list) {
+      try { await api('shifts.decideRequest', { id: r.id, approve }); n++; } catch (e) { err = e; }
+    }
+    if (err && !n) throw err;
+    return { n, failed: list.length - n };
+  }, ({ n, failed }) => `${n} request${n === 1 ? '' : 's'} ${approve ? 'approved' : 'declined'}${failed ? ` · ${failed} failed` : ''}`)
+    .then(() => { stop(); onChanged(); }).catch(() => onChanged());
   return (
-    <Load q={q}>{(rows) => !rows.length ? <Empty icon={Hand} title="No requests" body="When officers ask to work an open shift, it shows here." /> : (
-      <List>
-        {rows.map((r) => (
-          <div key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-            <Avatar name={r.officer_name} size={40} />
-            <Pressable press className="min-w-0 flex-1 text-left" onClick={() => onOpen(r.shift_id)}>
-              <div className="truncate text-body font-semibold">{r.officer_name}</div>
-              <div className="truncate text-footnote text-muted">{r.venue_name} · {dayLabel(r.starts_at)} <span className="num">{range(r.starts_at, r.ends_at)}</span> · {roleName(r.role)}</div>
-            </Pressable>
-            <div className="flex gap-2">
-              <Button size="sm" variant="secondary" icon={X} disabled={busyId === r.id} onClick={() => decide(r, false)}>Decline</Button>
-              <Button size="sm" icon={Check} busy={busyId === r.id} onClick={() => decide(r, true)}>Approve</Button>
-            </div>
+    <Load q={q}>{(rows) => {
+      if (!rows.length) return <Empty icon={Hand} title="No requests" body="When officers ask to work an open shift, it shows here." />;
+      const chosen = rows.filter((r) => sel.has(r.id));
+      const toggle = (id) => setSel((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+      const allOn = chosen.length === rows.length;
+      return (
+        <>
+          <div className="mb-2 flex justify-end gap-2">
+            {picking && <Button variant="ghost" size="sm" onClick={() => setSel(allOn ? new Set() : new Set(rows.map((r) => r.id)))}>{allOn ? 'Clear selection' : `Select all ${rows.length}`}</Button>}
+            {rows.length > 1 && <Button variant={picking ? 'secondary' : 'ghost'} size="sm" onClick={() => (picking ? stop() : setPicking(true))}>{picking ? 'Done' : 'Select'}</Button>}
           </div>
-        ))}
-      </List>
-    )}</Load>
+          <List>
+            {rows.map((r) => (
+              <div key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                {picking && <Tick checked={sel.has(r.id)} onChange={() => toggle(r.id)} label={`Select ${r.officer_name}`} />}
+                <Avatar name={r.officer_name} size={40} />
+                <Pressable press className="min-w-0 flex-1 text-left" onClick={() => (picking ? toggle(r.id) : onOpen(r.shift_id))}>
+                  <div className="truncate text-body font-semibold">{r.officer_name}</div>
+                  <div className="truncate text-footnote text-muted">{r.venue_name} · {dayLabel(r.starts_at)} <span className="num">{range(r.starts_at, r.ends_at)}</span> · {roleName(r.role)}</div>
+                </Pressable>
+                {!picking && (
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="secondary" icon={X} disabled={busyId === r.id} onClick={() => decide(r, false)}>Decline</Button>
+                    <Button size="sm" icon={Check} busy={busyId === r.id} onClick={() => decide(r, true)}>Approve</Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </List>
+          <ActionBar show={picking && chosen.length > 0}>
+            <span className="num mr-2 text-subhead font-semibold">{chosen.length} selected</span>
+            <Button variant="secondary" size="sm" icon={X} disabled={busy} onClick={() => decideAll(chosen, false)}>Decline {chosen.length}</Button>
+            <Button size="sm" icon={Check} busy={busy} onClick={() => decideAll(chosen, true)}>Approve {chosen.length}</Button>
+          </ActionBar>
+        </>
+      );
+    }}</Load>
   );
 }
 
@@ -436,7 +475,9 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
   const changed = () => { q.reload(); onChanged(); };
-  const s = q.data;
+  // The drawer stays open beside the board; picking another shift starts it afresh
+  useEffect(() => { setAssigning(false); setReplacing(null); setCancelling(false); setReason(''); }, [id]);
+  const s = q.data && String(q.data.id) === String(id) ? q.data : null;
   const { base } = useBase();
   const toast = useToast();
 
@@ -465,7 +506,7 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit }) {
   );
 
   return (
-    <Sheet open onClose={onClose} title={s ? s.venue_name : 'Shift'} footer={footer} size="md">
+    <Sheet open side onClose={onClose} title={s ? s.venue_name : 'Shift'} footer={footer} size="md">
       {q.loading && !s ? <Spinner /> : q.error && !s ? <ErrorBox error={q.error} retry={q.reload} /> : !s ? null : (
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2">
@@ -594,12 +635,13 @@ function AssignSheet({ shift, replace, onClose, onDone }) {
 function ShiftForm({ init, venues, roles, onClose, onSaved }) {
   const s = init.shift;
   const start = s ? londonParts(s.starts_at) : null;
-  const f = useForm({
+  const [first] = useState(() => ({
     venue_id: s?.venue_id || init.venue_id || (venues.length === 1 ? venues[0].id : ''),
     role: s?.role || '', date: start?.date || init.date || isoDate(), start: start?.time || '19:00', end: s ? londonParts(s.ends_at).time : '03:00',
     break_minutes: s?.break_minutes ?? 0, headcount: s?.headcount ?? 1, open: s?.open ?? false, notes: s?.notes || '',
-  });
-  const [repeat, setRepeat] = useState(false);
+  }));
+  const f = useForm(first);
+  const [repeat, setRepeat] = useState(!s && !!init.repeat);
   const [days, setDays] = useState(() => new Set());
   const [weeks, setWeeks] = useState(1);
   const [run, busy] = useAction();
@@ -616,6 +658,12 @@ function ShiftForm({ init, venues, roles, onClose, onSaved }) {
   }, [repeat, v.date, days, weeks]);
 
   const ok = v.venue_id && v.role && v.date && v.start && v.end && Number(v.headcount) >= 1;
+  // Changed from how it opened: closing asks before throwing it away
+  const dirty = Object.keys(first).some((k) => String(v[k]) !== String(first[k])) || repeat !== (!s && !!init.repeat) || days.size > 0 || weeks !== 1;
+  const confirm = useConfirm();
+  const cancel = async () => {
+    if (!dirty || await confirm({ title: 'Discard changes?', body: "What you've changed here won't be saved.", confirm: 'Discard', cancel: 'Keep editing', danger: true })) onClose();
+  };
   const save = (status) => {
     const common = { venue_id: v.venue_id, role: v.role, break_minutes: Number(v.break_minutes) || 0, headcount: Number(v.headcount) || 1, open: !!v.open, notes: v.notes };
     let p;
@@ -627,8 +675,8 @@ function ShiftForm({ init, venues, roles, onClose, onSaved }) {
   };
 
   return (
-    <Sheet open onClose={onClose} title={s ? 'Edit shift' : 'New shift'}
-      footer={s ? <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={() => save()} busy={busy} disabled={!ok}>Save</Button></>
+    <Sheet open full dirty={dirty && !busy} onClose={onClose} title={s ? 'Edit shift' : 'New shift'}
+      footer={s ? <><Button variant="secondary" onClick={cancel}>Cancel</Button><Button onClick={() => save()} busy={busy} disabled={!ok}>Save</Button></>
         : <><Button variant="secondary" onClick={() => save('draft')} busy={busy} disabled={!ok}>Save draft</Button><Button icon={Send} onClick={() => save('published')} busy={busy} disabled={!ok}>Publish{dates.length > 1 ? ` ${dates.length}` : ''}</Button></>}>
       <div className="space-y-3">
         <Select label="Venue" value={v.venue_id} onChange={(e) => f.set('venue_id', e.target.value)} placeholder="Choose venue" options={venues.map((x) => ({ value: x.id, label: x.name }))} />

@@ -1,10 +1,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, Ban, Check, ChevronLeft, ChevronRight, ClipboardCheck, Clock, History, Lock, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
+  AlertTriangle, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Clock, History, Lock, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
 } from 'lucide-react';
 import {
-  ActionBar, addDays, Avatar, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, useAction, useApi, useConfirm, useForm,
+  ActionBar, addDays, Avatar, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, MoreMenu, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, useAction, useApi, useConfirm, useForm, useUrlState,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useVenue } from '../../venue.jsx';
@@ -48,20 +47,23 @@ export default function Timesheets() {
   const isVenue = user.role === 'venue';
   const isCo = user.role === 'company';
   const canSign = isCo || isVenue;
-  const [sp, setSp] = useSearchParams();
+  // Week, venue, officer and view live in the address, so Back and shared links land on the same view
+  const thisWeek = mondayOf(isoDate());
+  const [url, setUrl] = useUrlState({ week: thisWeek, venue: '', officer: '', show: 'all', status: '' });
   // Venues open on the whole week: who worked, who is on site now, and what is waiting for their signature
-  const filter = FROM_STATUS[sp.get('status')] || sp.get('show') || 'all';
-  const setFilter = (f) => { const n = new URLSearchParams(sp); n.delete('status'); if (f === 'all') n.delete('show'); else n.set('show', f); setSp(n, { replace: true }); setSel(new Set()); };
+  const filter = FROM_STATUS[url.status] || url.show || 'all';
+  const setFilter = (f) => { setUrl({ show: f, status: '' }); setSel(new Set()); };
+  const week = /^\d{4}-\d{2}-\d{2}$/.test(url.week) ? mondayOf(url.week) : thisWeek;
+  const setWeek = (w) => { setUrl({ week: w }); setSel(new Set()); };
 
-  const [week, setWeek] = useState(() => mondayOf(isoDate()));
   // A venue manager's chosen venue is shared across their pages; managers filter here only
   const shared = useVenue();
-  const [localVenue, setLocalVenue] = useState('');
-  const venueId = isVenue ? shared.venueId : localVenue;
-  const setVenueId = isVenue ? shared.setVenueId : setLocalVenue;
-  const [officerId, setOfficerId] = useState('');
+  const venueId = isVenue ? shared.venueId : url.venue;
+  const setVenueId = isVenue ? shared.setVenueId : (v) => setUrl({ venue: v });
+  const officerId = url.officer;
+  const setOfficerId = (v) => setUrl({ officer: v });
   const [sel, setSel] = useState(() => new Set());
-  const [open, setOpen] = useState(null);
+  const [openId, setOpenId] = useState(null);
   const [sheet, setSheet] = useState(null); // { kind: decline | rate | manual, rows }
   const [run, busy] = useAction();
 
@@ -88,6 +90,7 @@ export default function Timesheets() {
       times: isManager && s === 'no_clock_in',
       answer: isManager && s === 'queried',
       rate: isCo && !!r.id && !['declined', 'cancelled'].includes(s),
+      edit: isManager && !!r.id && !['cancelled', 'declined'].includes(s),
     };
   };
   const selectable = rows.filter((r) => { const c = can(r); return c.approve || c.sign || c.decline; });
@@ -97,7 +100,12 @@ export default function Timesheets() {
   const toDecline = chosen.filter((r) => can(r).decline);
   const allOn = selectable.length > 0 && selectable.every((r) => sel.has(r.assignment_id));
   const toggle = (id, on) => setSel((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n; });
-  const done = () => { setSel(new Set()); setSheet(null); setOpen(null); q.reload(); missing.reload(); };
+  const done = () => { setSel(new Set()); setSheet(null); setOpenId(null); q.reload(); missing.reload(); };
+  // The detail drawer steps through the rows in the order the table shows them (by day)
+  const order = DAYS(week).flatMap((d) => rows.filter((r) => r.date === d));
+  const at = order.findIndex((r) => r.assignment_id === openId);
+  const open = at >= 0 ? order[at] : all.find((r) => r.assignment_id === openId);
+  const onOpen = (r) => setOpenId(r.assignment_id);
 
   const approve = (list) => run(() => api('timesheets.approve', { ids: list.map((r) => r.id) }),
     (r) => `${r.approved} approved${r.message ? ` · ${r.message}` : ''}`).then(done).catch(() => {});
@@ -105,11 +113,12 @@ export default function Timesheets() {
   const act = {
     approve: (r) => approve([r]), sign: (r) => sign([r]),
     query: (r) => setSheet({ kind: 'query', rows: [r] }), decline: (r) => setSheet({ kind: 'decline', rows: [r] }),
-    times: (r) => setSheet({ kind: 'manual', rows: [r] }), answer: (r) => setOpen(r), rate: (r) => setSheet({ kind: 'rate', rows: [r] }),
+    times: (r) => setSheet({ kind: 'manual', rows: [r] }), answer: (r) => setSheet({ kind: 'answer', rows: [r] }), rate: (r) => setSheet({ kind: 'rate', rows: [r] }),
+    edit: (r) => setSheet({ kind: 'edit', rows: [r] }),
   };
 
   const weekLabel = `${dateShort(week)} – ${dateShort(addDays(week, 6))}`;
-  const isThisWeek = week === mondayOf(isoDate());
+  const isThisWeek = week === thisWeek;
   const health = q.data?.health || {};
   const wk = q.data?.week;
   const segs = isVenue
@@ -121,11 +130,11 @@ export default function Timesheets() {
     <Page title="Timesheets" subtitle={`Week of ${dayLabel(week)}`} wide>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1 rounded-xl bg-surface p-1 shadow-tile">
-          <IconButton icon={ChevronLeft} label="Previous week" onClick={() => { setWeek(addDays(week, -7)); setSel(new Set()); }} />
+          <IconButton icon={ChevronLeft} label="Previous week" onClick={() => setWeek(addDays(week, -7))} />
           <span className="num min-w-[132px] text-center text-subhead font-semibold">{weekLabel}</span>
-          <IconButton icon={ChevronRight} label="Next week" onClick={() => { setWeek(addDays(week, 7)); setSel(new Set()); }} />
+          <IconButton icon={ChevronRight} label="Next week" onClick={() => setWeek(addDays(week, 7))} />
         </div>
-        {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(mondayOf(isoDate()))}>This week</Button>}
+        {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(thisWeek)}>This week</Button>}
         {(venueList.length > 1 || !isVenue) && (
           <Select className="w-full sm:w-auto sm:min-w-[180px]" value={venueId} onChange={(e) => setVenueId(e.target.value)} placeholder="All venues"
             options={venueList.map((v) => ({ value: v.id, label: v.name }))} />
@@ -137,7 +146,7 @@ export default function Timesheets() {
 
       {earlier.length > 0 && (
         <Callout tone="warning" icon={Clock} className="mb-3" title={`${earlier.length} earlier shift${earlier.length > 1 ? 's' : ''} with no clock-in`}
-          action={<Button size="sm" variant="secondary" onClick={() => { setWeek(mondayOf(isoDate(earlier[earlier.length - 1].starts_at))); setFilter('no_clock_in'); }}>Show oldest</Button>}>
+          action={<Button size="sm" variant="secondary" onClick={() => { setUrl({ week: mondayOf(isoDate(earlier[earlier.length - 1].starts_at)), show: 'no_clock_in', status: '' }); setSel(new Set()); }}>Show oldest</Button>}>
           Set the times if they worked, or decline them, so nothing is paid twice or missed.
         </Callout>
       )}
@@ -155,7 +164,7 @@ export default function Timesheets() {
       <Load q={q}>{() => !rows.length ? (
         <Empty icon={ClipboardCheck} title={all.length ? 'Nothing matches' : 'No shifts this week'} body={all.length ? 'Try another filter.' : 'Confirmed shifts show here as soon as officers accept them.'} />
       ) : (
-        <WeekTable rows={rows} week={week} days={q.data.days} see={see} sel={sel} toggle={toggle} can={can} act={act} onOpen={setOpen} busy={busy} />
+        <WeekTable rows={rows} week={week} days={q.data.days} see={see} sel={sel} toggle={toggle} can={can} act={act} onOpen={onOpen} busy={busy} />
       )}</Load>
 
       <ActionBar show={chosen.length > 0}>
@@ -166,7 +175,9 @@ export default function Timesheets() {
         {toDecline.length > 0 && <Button size="sm" variant="danger" icon={Ban} onClick={() => setSheet({ kind: 'decline', rows: toDecline })}>Decline {toDecline.length}</Button>}
       </ActionBar>
 
-      {open && !sheet && <Detail t={open} can={can(open)} isManager={isManager} see={see} act={act} busy={busy} onClose={() => setOpen(null)} onDone={done} />}
+      {open && !sheet && <Detail t={open} can={can(open)} isManager={isManager} see={see} act={act} busy={busy} onClose={() => setOpenId(null)} onDone={done}
+        onPrev={at > 0 ? () => setOpenId(order[at - 1].assignment_id) : undefined}
+        onNext={at >= 0 && at < order.length - 1 ? () => setOpenId(order[at + 1].assignment_id) : undefined} />}
       {sheet?.kind === 'decline' && <DeclineSheet rows={sheet.rows} onClose={() => setSheet(null)} onDone={done} />}
       {sheet?.kind === 'query' && <DisputeSheet t={sheet.rows[0]} onClose={() => setSheet(null)} onDone={done} />}
       {sheet?.kind === 'rate' && <RateSheet t={sheet.rows[0]} onClose={() => setSheet(null)} onDone={done} />}
@@ -188,6 +199,24 @@ function WeekStrip({ wk, health, see, filter, setFilter, isVenue }) {
     ['no_rate', health.no_rate, 'without a rate', 'red'],
     ['unpaid_late', health.unpaid_late, 'signed, not paid yet', 'amber'],
   ].filter((c) => c && c[1] > 0);
+  // One line by default (the totals); Show breakdown opens the full strip with what still needs doing
+  const [full, setFull] = useState(false);
+  const toggle = (
+    <Button variant="ghost" size="sm" iconRight={full ? ChevronUp : ChevronDown} aria-expanded={full} onClick={() => setFull(!full)} className="ml-auto">
+      {full ? 'Hide breakdown' : 'Show breakdown'}
+    </Button>
+  );
+  if (!full) return (
+    <div className="mb-4 flex items-center gap-3 rounded-tile border border-hairline bg-surface py-1.5 pl-4 pr-1.5 shadow-tile">
+      <span className="num min-w-0 truncate text-subhead">
+        <span className="font-bold">{hours(wk.hours)}</span>
+        {see.charge && <> · Charge <span className="font-bold">{money(wk.charge)}</span></>}
+        {see.pay && <> · Pay <span className="font-bold">{money(wk.pay)}</span></>}
+      </span>
+      {chips.length > 0 && <Pill tone={chips.some((c) => c[3] === 'red') ? 'red' : 'amber'} className="hidden shrink-0 sm:inline-flex">{chips.length} to check</Pill>}
+      {toggle}
+    </div>
+  );
   return (
     <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-tile border border-hairline bg-surface px-4 py-3 shadow-tile">
       <Total label="Hours" value={hours(wk.hours)} />
@@ -203,6 +232,7 @@ function WeekStrip({ wk, health, see, filter, setFilter, isVenue }) {
           ))}
         </div>
       ) : <span className="text-footnote text-green sm:ml-auto">Nothing waiting</span>}
+      {toggle}
     </div>
   );
 }
@@ -306,7 +336,7 @@ function TableRow({ r, see, sel, toggle, can, act, onOpen, busy }) {
       <td className={cx('num px-3 py-2.5 text-right font-bold', struck && 'line-through')}>{r.id || r.state === 'live' ? hours(r.hours) : '—'}</td>
       {see.charge && <td className="px-3 py-2.5 text-right"><Rate r={r} k="charge" onEdit={c.rate && (() => act.rate(r))} /></td>}
       {see.pay && <td className="px-3 py-2.5 text-right"><Rate r={r} k="pay" onEdit={c.rate && (() => act.rate(r))} /></td>}
-      <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}><Actions r={r} c={c} act={act} busy={busy} /></td>
+      <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}><RowActions r={r} c={c} act={act} busy={busy} /></td>
     </tr>
   );
 }
@@ -337,8 +367,8 @@ function RowCard({ r, see, sel, toggle, can, act, onOpen, busy }) {
           )}
         </div>
       </div>
-      {Object.values(c).some(Boolean) && (
-        <div className="mt-2 flex flex-wrap justify-end gap-1.5" onClick={(e) => e.stopPropagation()}><Actions r={r} c={c} act={act} busy={busy} labels /></div>
+      {Object.entries(c).some(([k, on]) => on && k !== 'edit') && (
+        <div className="mt-2 flex flex-wrap justify-end gap-1.5" onClick={(e) => e.stopPropagation()}><Actions r={r} c={c} act={act} busy={busy} /></div>
       )}
     </div>
   );
@@ -401,20 +431,39 @@ function Rate({ r, k, onEdit, inline }) {
   return <Pressable press onClick={(e) => { e.stopPropagation(); onEdit(); }} aria-label={`Change the ${k === 'pay' ? 'officer' : 'charge'} rate`} className={cx('-mx-1.5 inline-flex rounded-lg px-1.5 py-1 hover:bg-fill', inline ? 'inline' : 'justify-end')}>{inner}</Pressable>;
 }
 
-function Actions({ r, c, act, busy, labels }) {
+// Phone cards: every action that applies, labelled
+function Actions({ r, c, act, busy }) {
   const b = (key, Icon, label, variant = 'secondary') => c[key] && (
-    labels
-      ? <Button key={key} size="sm" variant={variant} icon={Icon} busy={busy && key === 'approve'} onClick={() => act[key](r)}>{label}</Button>
-      : <Button key={key} size="sm" variant={variant} icon={Icon} iconOnly title={label} aria-label={`${label} ${r.officer_name}`} busy={busy && key === 'approve'} onClick={() => act[key](r)} />
+    <Button key={key} size="sm" variant={variant} icon={Icon} busy={busy && key === 'approve'} onClick={() => act[key](r)}>{label}</Button>
   );
   return (
-    <div className={cx('inline-flex justify-end gap-1.5', labels && 'flex-wrap')}>
+    <div className="inline-flex flex-wrap justify-end gap-1.5">
       {b('times', Clock, 'Set times', 'soft')}
       {b('answer', MessageSquareReply, 'Answer', 'soft')}
       {b('query', AlertTriangle, 'Query', 'danger')}
       {b('decline', Ban, 'Decline')}
       {b('approve', Check, 'Approve', 'primary')}
       {b('sign', Signature, 'Sign off', 'primary')}
+    </div>
+  );
+}
+
+// Desktop rows: one labelled main action (Approve or Sign off; Set times or Answer when that is all there is) and the rest under …
+function RowActions({ r, c, act, busy }) {
+  const main = c.approve ? ['approve', Check, 'Approve', 'primary'] : c.sign ? ['sign', Signature, 'Sign off', 'primary']
+    : c.times ? ['times', Clock, 'Set times', 'soft'] : c.answer ? ['answer', MessageSquareReply, 'Answer', 'soft'] : null;
+  const item = (key, icon, label, danger) => c[key] && key !== main?.[0] && { label, icon, danger, onClick: () => act[key](r) };
+  const more = [
+    item('answer', MessageSquareReply, 'Answer query'),
+    item('times', Clock, 'Set times'),
+    item('edit', PenLine, r.state === 'queried' ? 'Correct times' : 'Edit times'),
+    item('query', AlertTriangle, 'Query'),
+    item('decline', Ban, 'Decline', true),
+  ];
+  return (
+    <div className="inline-flex items-center justify-end gap-1.5">
+      <MoreMenu items={more} title={r.officer_name} label={`More actions for ${r.officer_name}`} size="sm" />
+      {main && <Button size="sm" variant={main[3]} icon={main[1]} busy={busy && main[0] === 'approve'} onClick={() => act[main[0]](r)}>{main[2]}</Button>}
     </div>
   );
 }
@@ -427,8 +476,9 @@ const TRAIL = {
 };
 const trailNote = (a) => a.detail?.reason || a.detail?.comment || a.detail?.reply || '';
 
-function Detail({ t, can, isManager, see, act, busy, onClose, onDone }) {
+function Detail({ t, can, isManager, see, act, busy, onClose, onDone, onPrev, onNext }) {
   const [mode, setMode] = useState(null);
+  useEffect(() => setMode(null), [t.assignment_id]);
   const trail = useApi('timesheets.trail', { id: t.id }, { skip: !t.id });
   const confirm = useConfirm();
   const [run, rbusy] = useAction();
@@ -440,20 +490,28 @@ function Detail({ t, can, isManager, see, act, busy, onClose, onDone }) {
     run(() => api('timesheets.reopen', { id: t.id }), 'Reopened').then(onDone).catch(() => {});
   };
   const editable = isManager && t.id && !t.locked && !t.self_locked && !['cancelled', 'declined'].includes(t.state);
-  const footer = (
+  const canReopen = isManager && t.state === 'declined' && !t.locked;
+  // One main action for the state, Query beside it, everything else under …
+  const actions = [
+    can.approve && { key: 'approve', label: 'Approve', icon: Check, onClick: () => act.approve(t), busy },
+    can.sign && { key: 'sign', label: 'Sign off', icon: Signature, onClick: () => act.sign(t), busy },
+    can.answer && { key: 'answer', label: 'Answer', icon: MessageSquareReply, onClick: () => setMode('answer') },
+    can.times && { key: 'times', label: 'Set times', icon: Clock, onClick: () => act.times(t) },
+    canReopen && { key: 'reopen', label: 'Reopen', icon: Undo2, onClick: reopen, busy: rbusy },
+    editable && { key: 'edit', label: t.state === 'queried' ? 'Correct' : 'Edit times', icon: PenLine, onClick: () => setMode('edit') },
+    can.decline && { key: 'decline', label: 'Decline', icon: Ban, onClick: () => act.decline(t), danger: true },
+  ].filter(Boolean);
+  const main = actions.find((a) => ['approve', 'sign', 'answer', 'times', 'reopen'].includes(a.key));
+  const more = actions.filter((a) => a !== main);
+  const footer = (main || can.query || more.length > 0) && (
     <>
-      {isManager && t.state === 'declined' && !t.locked && <Button variant="secondary" icon={Undo2} busy={rbusy} onClick={reopen}>Reopen</Button>}
-      {editable && <Button variant="secondary" icon={PenLine} onClick={() => setMode('edit')}>{t.state === 'queried' ? 'Correct' : 'Edit times'}</Button>}
-      {can.answer && <Button variant="soft" icon={MessageSquareReply} onClick={() => setMode('answer')}>Answer</Button>}
-      {can.times && <Button variant="soft" icon={Clock} onClick={() => act.times(t)}>Set times</Button>}
-      {can.query && <Button variant="danger" icon={AlertTriangle} onClick={() => act.query(t)}>Query</Button>}
-      {can.decline && <Button variant="secondary" icon={Ban} onClick={() => act.decline(t)}>Decline</Button>}
-      {can.approve && <Button icon={Check} busy={busy} onClick={() => act.approve(t)}>Approve</Button>}
-      {can.sign && <Button icon={Signature} busy={busy} onClick={() => act.sign(t)}>Sign off</Button>}
+      <MoreMenu items={more} title={t.officer_name} />
+      {can.query && <Button variant="secondary" icon={AlertTriangle} onClick={() => act.query(t)}>Query</Button>}
+      {main && <Button icon={main.icon} busy={main.busy} onClick={main.onClick}>{main.label}</Button>}
     </>
   );
   return (
-    <Sheet open onClose={onClose} title={t.officer_name} footer={footer}>
+    <Sheet open side onClose={onClose} title={t.officer_name} footer={footer} onPrev={onPrev} onNext={onNext}>
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-2">
           <Pill tone={st.tone}>{t.state === 'locked' && <Lock size={14} />}{st.label}</Pill>

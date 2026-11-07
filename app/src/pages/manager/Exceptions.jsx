@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Check, ShieldCheck, Smartphone, X } from 'lucide-react';
+import { Check, ListChecks, ShieldCheck, Smartphone, X } from 'lucide-react';
 import {
-  Avatar, Button, cx, dayLabel, Empty, Load, Page, Pill, range, relative, Tabs, time, useAction, useApi, useConfirm,
+  ActionBar, Avatar, Button, Check as Tick, cx, dayLabel, Empty, Load, Page, Pill, range, relative, Sheet, Tabs, time, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { SELF_HINT, SelfPills } from './_parts.jsx';
@@ -19,6 +19,25 @@ export default function Exceptions() {
   const [run] = useAction();
   const confirm = useConfirm();
   const [busyId, setBusyId] = useState(null);
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState([]);
+  const [rejecting, setRejecting] = useState(false);
+  const [runMany, busyMany] = useAction();
+  const open = tab === 'open' ? (q.data || []).filter((e) => e.status === 'exception' && !e.self_locked) : [];
+  const chosen = open.filter((e) => picked.includes(e.id));
+  const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const stopPicking = () => { setPicking(false); setPicked([]); setRejecting(false); };
+  const changeTab = (t) => { stopPicking(); setTab(t); };
+
+  // Several at once: the same per-event decision, one after another, then one refresh
+  const decideMany = (approve) => runMany(async () => {
+    let done = 0;
+    for (const e of chosen) {
+      try { await api('clock.decide', { id: e.id, approve }); done += 1; } catch { /* counted below */ }
+    }
+    return done;
+  }, (done) => `${done} ${approve ? 'approved' : 'rejected'}${done < chosen.length ? `, ${chosen.length - done} failed` : ''}`)
+    .then(() => { stopPicking(); q.reload(); }).catch(() => {});
 
   const decide = async (e, approve) => {
     if (!approve && !(await confirm({ title: `Reject ${e.officer_name}'s ${KIND[e.kind]?.toLowerCase() || 'clock event'}?`, body: 'The event will not count towards their timesheet. You can set the times by hand from Live.', confirm: 'Reject', danger: true }))) return;
@@ -27,8 +46,11 @@ export default function Exceptions() {
   };
 
   return (
-    <Page title="Exceptions" subtitle="Clock events that failed a check: phone, location, venue code or selfie">
-      <Tabs value={tab} onChange={setTab} tabs={[
+    <Page title="Exceptions" subtitle="Clock events that failed a check: phone, location, venue code or selfie"
+      actions={open.length > 1 && (picking
+        ? <Button variant="secondary" onClick={stopPicking}>Done</Button>
+        : <Button variant="secondary" icon={ListChecks} onClick={() => setPicking(true)}>Select</Button>)}>
+      <Tabs value={tab} onChange={changeTab} tabs={[
         { value: 'open', label: 'To review', count: tab === 'open' ? q.data?.length : undefined }, { value: 'decided', label: 'History' },
         { value: 'phones', label: 'Phones', count: phones.data?.length || undefined },
       ]} />
@@ -37,9 +59,14 @@ export default function Exceptions() {
         if (!list.length) return <Empty icon={ShieldCheck} title={tab === 'open' ? 'All clear' : 'No decisions yet'} body={tab === 'open' ? 'No clock exceptions waiting for review.' : undefined} />;
         return (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {list.map((e) => (
-              <div key={e.id} className="rounded-tile border border-hairline bg-surface p-4 shadow-tile sm:p-5">
+            {list.map((e) => {
+              const can = picking && e.status === 'exception' && !e.self_locked;
+              const on = picked.includes(e.id);
+              return (
+              <div key={e.id} onClick={can ? () => toggle(e.id) : undefined}
+                className={cx('rounded-tile border bg-surface p-4 shadow-tile sm:p-5', on ? 'border-blue ring-1 ring-blue' : 'border-hairline', can && 'cursor-pointer')}>
                 <div className="flex items-start gap-3">
+                  {can && <Tick round checked={on} onChange={() => toggle(e.id)} label={`Select ${e.officer_name}`} className="mt-2.5" />}
                   <Avatar name={e.officer_name} size={42} />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2">
@@ -61,7 +88,7 @@ export default function Exceptions() {
                 {e.status === 'exception' ? (
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <span className="text-caption text-faint">{relative(e.ts)}</span>
-                    {e.self_locked ? <span className="text-caption text-muted">{SELF_HINT}</span> : <div className="flex gap-2">
+                    {e.self_locked ? <span className="text-caption text-muted">{SELF_HINT}</span> : !picking && <div className="flex gap-2">
                       <Button size="sm" variant="secondary" icon={X} disabled={busyId === e.id} onClick={() => decide(e, false)}>Reject</Button>
                       <Button size="sm" icon={Check} busy={busyId === e.id} onClick={() => decide(e, true)}>Approve</Button>
                     </div>}
@@ -70,10 +97,21 @@ export default function Exceptions() {
                   <p className="mt-3 text-caption text-muted">{e.status === 'approved' ? 'Approved' : 'Rejected'}{e.decided_by_name ? ` by ${e.decided_by_name}` : ''}{e.decided_at ? `, ${relative(e.decided_at)}` : ''}</p>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         );
       }}</Load>}
+      <ActionBar show={picking && chosen.length > 0}>
+        <span className="num pr-1 text-subhead font-semibold">{chosen.length} selected</span>
+        <Button size="sm" variant="secondary" icon={X} disabled={busyMany} onClick={() => setRejecting(true)}>Reject {chosen.length}</Button>
+        <Button size="sm" icon={Check} busy={busyMany && !rejecting} disabled={busyMany} onClick={() => decideMany(true)}>Approve {chosen.length}</Button>
+      </ActionBar>
+      <Sheet open={rejecting} onClose={() => !busyMany && setRejecting(false)} title={`Reject ${chosen.length} clock event${chosen.length === 1 ? '' : 's'}?`} size="sm"
+        footer={<><Button variant="secondary" disabled={busyMany} onClick={() => setRejecting(false)}>Cancel</Button><Button variant="danger" busy={busyMany} onClick={() => decideMany(false)}>Reject {chosen.length}</Button></>}>
+        <p className="text-body text-muted">{[...new Set(chosen.map((e) => e.officer_name))].join(', ')}</p>
+        <p className="mt-2 text-subhead text-muted">These events will not count towards the officers' timesheets. You can set the times by hand from Live.</p>
+      </Sheet>
     </Page>
   );
 }

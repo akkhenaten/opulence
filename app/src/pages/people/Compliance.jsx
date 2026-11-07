@@ -5,7 +5,7 @@ import { Mail, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Button, date, Empty, Load, Page, Pill, Segmented, Sheet, Spinner, Tile, time, useAction, useApi,
+  Avatar, Button, date, Empty, Load, MoreMenu, Page, Pill, Segmented, Select, Sheet, Spinner, Tile, time, useAction, useApi, useUrlState,
 } from '../../ui/index.jsx';
 
 const SEV = {
@@ -14,7 +14,7 @@ const SEV = {
   advisory: { label: 'Advisory', tone: 'blue', text: 'text-blue' },
 };
 const AREAS = [
-  { value: '', label: 'All' }, { value: 'licence', label: 'Licences' }, { value: 'rtw', label: 'Right to work' },
+  { value: '', label: 'All areas' }, { value: 'licence', label: 'Licences' }, { value: 'rtw', label: 'Right to work' },
   { value: 'training', label: 'Training' }, { value: 'documents', label: 'Documents' }, { value: 'venue_pack', label: 'Site packs' },
 ];
 
@@ -22,8 +22,10 @@ export default function Compliance() {
   const { user } = useAuth();
   const nav = useNavigate();
   const q = useApi('compliance.overview');
-  const [sev, setSev] = useState('');
-  const [area, setArea] = useState('');
+  // Severity and area stay in the address so Back returns to the same view
+  const [url, setUrl] = useUrlState({ severity: '', area: '' });
+  const sev = SEV[url.severity] ? url.severity : '';
+  const area = AREAS.some((a) => a.value === url.area) ? url.area : '';
   const [preview, setPreview] = useState(false);
   const [run, busy] = useAction();
   const company = user.role === 'company';
@@ -35,12 +37,12 @@ export default function Compliance() {
     <Page title="Compliance" subtitle="Licences, right to work, documents and training, checked against the rota"
       actions={company && (
         <>
-          <Button variant="secondary" icon={Mail} onClick={() => setPreview(true)}>Weekly email</Button>
+          <MoreMenu items={[{ label: 'Weekly email preview', icon: Mail, onClick: () => setPreview(true) }]} />
           <Button icon={RefreshCw} busy={busy} onClick={check}>Run check now</Button>
         </>
       )}>
       <Load q={q} skeleton="rows">
-        {(d) => <Body d={d} sev={sev} setSev={setSev} area={area} setArea={setArea} dismiss={dismiss} busy={busy}
+        {(d) => <Body d={d} sev={sev} setSev={(v) => setUrl({ severity: v })} area={area} setArea={(v) => setUrl({ area: v })} dismiss={dismiss} busy={busy}
           openCard={() => nav(`/${user.role}/live`)} openStaff={(id) => nav(`/${user.role}/staff/${id}?tab=documents`)}
           openRtw={company ? (id) => nav(`/${user.role}/staff/${id}?tab=compliance&rtw=check`) : null} />}
       </Load>
@@ -76,7 +78,7 @@ function Body({ d, sev, setSev, area, setArea, dismiss, busy, openCard, openStaf
       </p>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Segmented value={sev} onChange={setSev} options={[{ value: '', label: 'Any' }, ...Object.entries(SEV).map(([value, s]) => ({ value, label: s.label }))]} />
-        <div className="no-scrollbar max-w-full overflow-x-auto"><Segmented value={area} onChange={setArea} options={AREAS} /></div>
+        <Select aria-label="Area" className="w-48" value={area} onChange={(e) => setArea(e.target.value)} options={AREAS} />
       </div>
       {!groups.length ? (
         <Empty icon={ShieldCheck} title={d.rows.length ? 'Nothing matches these filters' : 'Everyone is compliant'}

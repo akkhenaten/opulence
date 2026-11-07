@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Bell, Building2, ImageUp, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Newspaper, Percent, Plus, ReceiptText, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 import { api, upload } from '../../api.js';
@@ -18,27 +18,49 @@ import { InstallTile } from '../../ui/pwa.jsx';
 import { AccessFields, InviteSheet, inviteStatus, USER_ROLES } from './_access.jsx';
 
 const TABS = [
-  { value: 'company', label: 'Company details' }, { value: 'users', label: 'Users & access' }, { value: 'rules', label: 'Workforce rules' },
-  { value: 'templates', label: 'Templates' }, { value: 'library', label: 'Contract library' }, { value: 'notifications', label: 'Notifications' }, { value: 'email', label: 'Email' }, { value: 'demos', label: 'Demo requests' },
+  { value: 'company', label: 'Company' }, { value: 'users', label: 'Users & access' }, { value: 'rules', label: 'Workforce rules' },
+  { value: 'templates', label: 'Templates & contracts' }, { value: 'notifications', label: 'Notifications & email' }, { value: 'demos', label: 'Demo requests' },
 ];
-// Older links used these tab names
-const OLD_TAB = { calendar: 'rules', contracts: 'templates', account: 'company' };
+// Older links used these tab names; library and email are now a part of a shared tab
+const OLD_TAB = { calendar: 'rules', contracts: 'templates', account: 'company', library: 'templates', email: 'notifications' };
+const OLD_PART = { library: 'library', email: 'email' };
+const PARTS = {
+  templates: [{ value: 'esign', label: 'Templates' }, { value: 'library', label: 'Contract library' }],
+  notifications: [{ value: 'alerts', label: 'Notifications' }, { value: 'email', label: 'Email' }],
+};
+
+// Forms with unsaved edits mark themselves here, so switching tab asks first
+const DirtyCtx = createContext(null);
+function useMarkDirty(on) {
+  const mark = useContext(DirtyCtx);
+  const id = useId();
+  useEffect(() => { mark?.(id, on); return () => mark?.(id, false); }, [mark, id, on]);
+}
 
 export default function Settings() {
   const [sp, setSp] = useSearchParams();
+  const confirm = useConfirm();
   const raw = sp.get('tab') || 'company';
   const tab = OLD_TAB[raw] || (TABS.some((t) => t.value === raw) ? raw : 'company');
+  const part = sp.get('part') || OLD_PART[raw] || PARTS[tab]?.[0].value;
+  const dirty = useRef(new Set());
+  const mark = useCallback((id, on) => { if (on) dirty.current.add(id); else dirty.current.delete(id); }, []);
+  const go = async (next) => {
+    if (dirty.current.size && !(await confirm({ title: 'Discard changes?', body: 'You have unsaved changes on this tab.', confirm: 'Discard', cancel: 'Keep editing', danger: true }))) return;
+    setSp(next, { replace: true });
+  };
   return (
     <Page title="Settings" subtitle="Company details, access, workforce rules and templates">
-      <Tabs tabs={TABS} value={tab} onChange={(t) => setSp(t === 'company' ? {} : { tab: t }, { replace: true })} />
-      {tab === 'company' && <CompanyTab />}
-      {tab === 'users' && <UsersTab openId={sp.get('user')} />}
-      {tab === 'rules' && <RulesTab />}
-      {tab === 'templates' && <TemplatesTab />}
-      {tab === 'library' && <LibraryTab />}
-      {tab === 'notifications' && <NotificationsTab />}
-      {tab === 'email' && <EmailTab />}
-      {tab === 'demos' && <DemosTab />}
+      <DirtyCtx.Provider value={mark}>
+        <Tabs tabs={TABS} value={tab} onChange={(t) => t !== tab && go(t === 'company' ? {} : { tab: t })} />
+        {PARTS[tab] && <Segmented className="mb-4" value={part} options={PARTS[tab]} onChange={(x) => x !== part && go({ tab, part: x })} />}
+        {tab === 'company' && <CompanyTab />}
+        {tab === 'users' && <UsersTab openId={sp.get('user')} />}
+        {tab === 'rules' && <RulesTab />}
+        {tab === 'templates' && (part === 'library' ? <LibraryTab /> : <TemplatesTab />)}
+        {tab === 'notifications' && (part === 'email' ? <EmailTab /> : <NotificationsTab />)}
+        {tab === 'demos' && <DemosTab />}
+      </DirtyCtx.Provider>
     </Page>
   );
 }
@@ -56,7 +78,21 @@ const RULE_KEYS = ['pay_period', 'rounding_minutes', 'grace_minutes', 'auto_sign
 
 function CompanyTab() {
   const q = useApi('settings.get');
-  return <Load q={q}>{(s) => <><InstallTile className="mb-4" /><BrandingTile s={s} onSaved={(d) => q.setData(d)} /><AppStyleTile s={s} onSaved={(d) => q.setData(d)} /><ModulesTile s={s} onSaved={(d) => q.setData(d)} />{s.modules?.everyday !== false && <EverydayTile s={s} onSaved={(d) => q.setData(d)} />}<SettingsForm s={s} keys={COMPANY_KEYS} onSaved={(d) => q.setData(d)}>{(b) => <CompanyFields b={b} />}</SettingsForm></>}</Load>;
+  return (
+    <Load q={q}>
+      {(s) => (
+        <>
+          <InstallTile className="mb-4" />
+          <BrandingTile s={s} onSaved={(d) => q.setData(d)} />
+          <AppStyleTile s={s} onSaved={(d) => q.setData(d)} />
+          <p className="mb-2 px-1 text-footnote font-semibold uppercase tracking-wide text-muted">Changes save straight away</p>
+          <ModulesTile s={s} onSaved={(d) => q.setData(d)} />
+          {s.modules?.everyday !== false && <EverydayTile s={s} onSaved={(d) => q.setData(d)} />}
+          <SettingsForm s={s} keys={COMPANY_KEYS} onSaved={(d) => q.setData(d)}>{(b) => <CompanyFields b={b} />}</SettingsForm>
+        </>
+      )}
+    </Load>
+  );
 }
 
 const DEFAULT_COLOR = '#C9A45C';
@@ -118,6 +154,7 @@ function BrandingTile({ s, onSaved }) {
   };
   const valid = HEX.test(color);
   const current = (s.brand_color || DEFAULT_COLOR).toLowerCase();
+  useMarkDirty(color.toLowerCase() !== current);
   const shown = valid ? color : current;
   const saveColor = () => runColor(async () => saved(await api('settings.update', { brand_color: color.toLowerCase() === DEFAULT_COLOR.toLowerCase() ? '' : color })), 'Colour saved').catch(() => {});
   const name = s.company_name || 'Your company';
@@ -212,6 +249,7 @@ function AppStyleTile({ s, onSaved }) {
   const [pick, setPick] = useState(current);
   const [run, busy] = useAction();
   useEffect(() => restoreStyle, []);
+  useMarkDirty(pick !== current);
   const choose = (v) => { setPick(v); previewStyle(v); };
   const cancel = () => { setPick(current); restoreStyle(); };
   const save = async () => {
@@ -290,6 +328,7 @@ function EverydayTile({ s, onSaved }) {
   };
   const list = topics.split(/[\s,]+/).map((t) => t.replace(/^#/, '').trim()).filter(Boolean);
   const changed = list.join(' ') !== (e.featured_topics || []).join(' ');
+  useMarkDirty(changed);
   return (
     <Tile title="Everyday" icon={Newspaper} className="mb-4">
       <div className="space-y-2">
@@ -315,6 +354,7 @@ function SettingsForm({ s, keys, onSaved, children }) {
   const [dirty, setDirty] = useState(false);
   const [run, busy] = useAction();
   useEffect(() => { setDirty(keys.some((k) => String(s[k] ?? '') !== v[k])); }, [v, s]);
+  useMarkDirty(dirty);
   const save = async () => {
     const body = {};
     for (const k of keys) if (String(s[k] ?? '') !== v[k]) body[k] = NUMERIC.includes(k) ? Number(v[k] || 0) : v[k];
@@ -425,7 +465,7 @@ function ClockProofTile({ s, onSaved }) {
         {!nfc ? (
           <>
             <Button className="mt-4" variant="soft" icon={KeyRound} busy={nfcBusy} onClick={reveal}>{s.nfc_ready ? 'Show tag keys' : 'Create tag keys'}</Button>
-            <p className="mt-2 text-caption text-faint">{s.nfc_ready ? 'Keys are set up. Tags can be paired in each venue\'s Site setup.' : 'Not set up yet.'}</p>
+            <p className="mt-2 text-caption text-faint">{s.nfc_ready ? 'Keys are set up. Tags can be paired on each venue\'s Setup tab.' : 'Not set up yet.'}</p>
           </>
         ) : (
           <div className="mt-4 space-y-3">

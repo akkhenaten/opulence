@@ -4,11 +4,11 @@ import RecentEmail from '../email/_recent.jsx';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
-  Building2, Crosshair, Download, Eye, FileText, Globe, MessageSquareHeart, UserMinus, UserPlus, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, QrCode, RefreshCw, Search, Sparkles, Trash2, Upload, Users,
+  Building2, Crosshair, Download, Eye, FileText, Globe, MessageSquareHeart, UserMinus, UserPlus, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, Power, QrCode, RefreshCw, Search, Sparkles, Trash2, Upload, Users,
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
-  Avatar, Bento, Button, Check, cx, date, daysUntil, Empty, IconButton, Input, isoDate, List, Load, money, Page, Pill, Pressable, Row, Section, Select, Sheet, Stat, Table, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm, useToast,
+  ActionBar, Avatar, Bento, Button, Check, cx, date, daysUntil, Empty, IconButton, Input, isoDate, List, Load, money, MoreMenu, Page, Pill, Pressable, Row, Section, Segmented, Select, Sheet, Stat, Table, Tabs, Textarea, Tile, useAction, useApi, useConfirm, useDirtyGuard, useForm, useToast,
 } from '../../ui/index.jsx';
 import { useBase, VenueBadge } from './_parts.jsx';
 import OrbBrand from '../../ui/OrbBrand.jsx';
@@ -24,16 +24,17 @@ import { ClientSelect } from './_client.jsx';
 import { InviteSheet } from '../people/_access.jsx';
 
 const UK = [54.3, -2.6];
-// The tabs that became parts of Site setup, and the part each old link opens at
-const OLD_SETUP = { location: 'location', codes: 'codes', qr: 'codes', rates: 'rates' };
+// Old tab names and where each opens now: Site setup parts (and Details) live in Setup, documents, logs and bans in Records
+const OLD_SETUP = { location: 'location', codes: 'codes', qr: 'codes', rates: 'rates', details: 'details' };
+const OLD_RECORDS = { documents: 'docs', logs: 'logs', bans: 'bans' };
 
 export default function VenueDetail() {
   const { id } = useParams();
   const base = useBase();
   const [params, setParams] = useSearchParams();
-  // Location, Venue codes and Charge rates are one Site setup tab now; old links keep working
   const raw = params.get('tab') || 'setup';
-  const tab = OLD_SETUP[raw] ? 'setup' : raw;
+  const tab = OLD_SETUP[raw] ? 'setup' : OLD_RECORDS[raw] ? 'records' : raw;
+  const view = params.get('view') || OLD_RECORDS[raw] || 'docs';
   const { user } = useAuth();
   const isCo = user.role === 'company';
   const q = useApi('venues.get', { id });
@@ -41,55 +42,67 @@ export default function VenueDetail() {
   const analytics = useModuleOn('analytics');
   const [give, setGive] = useState(false);
   const [fbKey, setFbKey] = useState(0);
+  const [run] = useAction();
+  const confirm = useConfirm();
+  // Unsaved edits in the Details form; switching tab asks first
+  const dirty = useRef(false);
+  const go = async (t, extra) => {
+    if (dirty.current && t !== tab && !(await confirm({ title: 'Discard changes?', body: 'You have unsaved changes in Details.', confirm: 'Discard', cancel: 'Keep editing', danger: true }))) return;
+    dirty.current = false;
+    setParams({ tab: t, ...extra }, { replace: true });
+  };
+  const setActive = async (v, on) => {
+    if (!on && !(await confirm({ title: `Deactivate ${v.name}?`, body: 'Inactive venues are hidden from the rota. Nothing is deleted; you can reactivate it at any time.', confirm: 'Deactivate', danger: true }))) return;
+    run(() => api('venues.save', { id: v.id, active: on }), on ? 'Venue reactivated' : 'Venue deactivated').then(q.reload).catch(() => {});
+  };
 
   return (
     <Load q={q}>
       {(v) => (
-        <Page title={v.name} subtitle={v.client_name || 'No client'} back={{ to: `${base}/venues`, label: 'Venues' }}
+        <Page title={v.name} back={{ to: `${base}/venues`, label: 'Venues' }}
+          subtitle={(
+            <span className="mt-1 flex items-center gap-3">
+              <VenueBadge name={v.name} logo={v.logo_url} size={48} />
+              <span className="min-w-0">
+                <span className="flex items-start gap-1.5 text-subhead"><MapPin size={16} className="mt-0.5 shrink-0" /><span className="min-w-0">{[v.address, v.postcode].filter(Boolean).join(', ') || 'No address'}</span></span>
+                <span className="block text-footnote">{v.client_name || 'No client'}{v.phone && <> · <a href={`tel:${v.phone}`} className="font-semibold text-blue"><Phone size={12} className="mr-0.5 inline" aria-hidden />{v.phone}</a></>}</span>
+              </span>
+            </span>
+          )}
           actions={<><Pill status={v.active ? 'active' : 'closed'}>{v.active ? 'Active' : 'Inactive'}</Pill>
-            <Button variant="secondary" size="sm" icon={MessageSquareHeart} onClick={() => setGive(true)}>Log feedback</Button></>}>
+            <MoreMenu items={[
+              { label: 'Log feedback', icon: MessageSquareHeart, onClick: () => setGive(true) },
+              v.active ? { label: 'Deactivate', icon: Power, danger: true, hint: 'Hide it from the rota', onClick: () => setActive(v, false) }
+                : { label: 'Reactivate', icon: Power, onClick: () => setActive(v, true) },
+            ]} /></>}>
           <GiveFeedbackSheet open={give} onClose={() => setGive(false)} venueId={v.id}
             onDone={() => { setParams({ tab: 'feedback' }, { replace: true }); setFbKey((k) => k + 1); q.reload(); }} />
-          <Bento className="mb-6">
-            <Tile className="col-span-2" tone="soft">
-              <div className="flex items-start gap-4">
-                <VenuePhoto v={v} canEdit={isCo || user.role === 'security'} onSaved={q.reload} />
-                <div className="min-w-0">
-                  <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Venue</div>
-                  <div className="flex min-w-0 items-center gap-2">
-                    {v.logo_url && <VenueBadge name={v.name} logo={v.logo_url} size={32} />}
-                    <div className="truncate text-title3 font-bold">{v.name}</div>
-                  </div>
-                  <div className="mt-1 flex items-start gap-1.5 text-subhead text-muted"><MapPin size={16} className="mt-0.5 shrink-0" /><span className="min-w-0">{[v.address, v.postcode].filter(Boolean).join(', ') || 'No address'}</span></div>
-                  {v.phone && <a href={`tel:${v.phone}`} className="mt-1 flex items-center gap-1.5 text-subhead font-semibold text-blue"><Phone size={14} />{v.phone}</a>}
-                </div>
-              </div>
-            </Tile>
-            <Tile title="Geofence">
-              <Stat value={v.lat == null ? '–' : `${v.radius_m}m`} label={v.lat == null ? 'Location not set' : 'Clock-in radius'} tone={v.lat == null ? 'amber' : undefined} />
-            </Tile>
-            <Tile title="Access">
-              <Stat value={v.contacts.length} label={v.contacts.length === 1 ? 'Venue manager' : 'Venue managers'} hint={`${v.security.length} security manager${v.security.length === 1 ? '' : 's'}`} />
-            </Tile>
-          </Bento>
 
           <OrbFill v={v} isCo={isCo} fresh={params.get('new') === '1'} onSaved={q.reload} />
 
-          <Tabs value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })} tabs={[
-            { value: 'setup', label: 'Site setup' }, { value: 'details', label: 'Details' }, { value: 'people', label: 'People' }, { value: 'feedback', label: 'Feedback', count: v.feedback_open || undefined }, { value: 'pack', label: 'Instructions & procedures' }, { value: 'documents', label: 'Documents', count: v.documents.length },
-            { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Ejections & bans' }, ...(analytics ? [{ value: 'analytics', label: 'Analytics' }] : []),
+          <Tabs value={tab} onChange={(t) => go(t)} tabs={[
+            { value: 'setup', label: 'Setup' }, { value: 'people', label: 'People' }, { value: 'pack', label: 'Instructions' },
+            { value: 'feedback', label: 'Feedback', count: v.feedback_open || undefined }, { value: 'records', label: 'Records' },
+            ...(analytics ? [{ value: 'analytics', label: 'Analytics' }] : []),
           ]} />
 
-          {/* Keyed on the saved address and pin, so the forms start again from what Orb just saved */}
-          {tab === 'setup' && <SetupTab v={v} isCo={isCo} focus={OLD_SETUP[raw]} onSaved={q.reload} />}
-          {tab === 'details' && <DetailsTab key={[v.address, v.postcode, v.website_url].join('|')} v={v} clients={clients.data || []} onClientCreated={clients.reload} isCo={isCo} onSaved={q.reload} />}
+          {tab === 'setup' && <SetupTab v={v} isCo={isCo} focus={OLD_SETUP[raw]} onSaved={q.reload} canPhoto={isCo || user.role === 'security'}
+            details={<DetailsTab key={[v.address, v.postcode, v.website_url, v.active].join('|')} v={v} clients={clients.data || []} onClientCreated={clients.reload} isCo={isCo} onSaved={q.reload}
+              onDirty={(x) => { dirty.current = x; }} />} />}
           {tab === 'people' && <PeopleTab v={v} isCo={isCo} onChanged={q.reload} />}
           {tab === 'feedback' && <FeedbackList key={fbKey} venueId={v.id} fixedVenue onChanged={q.reload} />}
           {tab === 'people' && isCo && <RecentEmail type="venue" id={v.id} />}
           {tab === 'pack' && <VenuePackTab venueId={v.id} />}
-          {tab === 'documents' && <DocumentsTab venueId={v.id} />}
-          {tab === 'logs' && <ShiftLogList venueId={v.id} />}
-          {tab === 'bans' && <BanRegister venueId={v.id} />}
+          {tab === 'records' && (
+            <>
+              <Segmented className="mb-4" value={view} onChange={(x) => go('records', { view: x })} options={[
+                { value: 'docs', label: 'Documents', count: v.documents.length }, { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Ejections & bans' },
+              ]} />
+              {view === 'docs' && <DocumentsTab venueId={v.id} />}
+              {view === 'logs' && <ShiftLogList venueId={v.id} />}
+              {view === 'bans' && <BanRegister venueId={v.id} />}
+            </>
+          )}
           {tab === 'analytics' && analytics && <AnalyticsView venueId={v.id} fixedVenue />}
         </Page>
       )}
@@ -97,15 +110,16 @@ export default function VenueDetail() {
   );
 }
 
-/* ---------- Site setup ---------- */
+/* ---------- Setup ---------- */
 
 // Everything that sets the site up for shifts on one page: where officers clock in, the codes they scan or tap,
-// and (company managers only) what the venue is charged per role
-function SetupTab({ v, isCo, focus, onSaved }) {
+// (company managers only) what the venue is charged per role, then the venue's details
+function SetupTab({ v, isCo, focus, onSaved, canPhoto, details }) {
   const parts = [
     { id: 'location', label: 'Location' },
     { id: 'codes', label: 'Venue codes' },
     ...(isCo ? [{ id: 'rates', label: 'Charge rates' }] : []),
+    { id: 'details', label: 'Details' },
   ];
   const go = (id) => document.getElementById(`setup-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   useEffect(() => {
@@ -114,6 +128,20 @@ function SetupTab({ v, isCo, focus, onSaved }) {
   }, [focus]);
   return (
     <div>
+      <Bento className="mb-4">
+        <Tile title="Card photo" className="col-span-2">
+          <div className="flex items-center gap-4">
+            <VenuePhoto v={v} canEdit={canPhoto} onSaved={onSaved} />
+            <p className="min-w-0 text-subhead text-muted">Shown on the venue's cards in the app.</p>
+          </div>
+        </Tile>
+        <Tile title="Geofence">
+          <Stat value={v.lat == null ? '–' : `${v.radius_m}m`} label={v.lat == null ? 'Location not set' : 'Clock-in radius'} tone={v.lat == null ? 'amber' : undefined} />
+        </Tile>
+        <Tile title="Access">
+          <Stat value={v.contacts.length} label={v.contacts.length === 1 ? 'Venue manager' : 'Venue managers'} hint={`${v.security.length} security manager${v.security.length === 1 ? '' : 's'}`} />
+        </Tile>
+      </Bento>
       <div className="mb-4 flex flex-wrap gap-1.5">
         {parts.map((p) => (
           <Pressable key={p.id} press onClick={() => go(p.id)} className="min-h-9 rounded-full bg-fill px-3.5 py-1.5 text-footnote font-semibold text-muted hover:text-ink">{p.label}</Pressable>
@@ -132,6 +160,9 @@ function SetupTab({ v, isCo, focus, onSaved }) {
           <RatesTab venueId={v.id} />
         </section>
       )}
+      <section id="setup-details" className="scroll-mt-20">
+        <Section title="Details" className="mt-8">{details}</Section>
+      </section>
     </div>
   );
 }
@@ -298,19 +329,35 @@ function VenuePhoto({ v, canEdit, onSaved }) {
   );
 }
 
-function DetailsTab({ v, clients, onClientCreated, isCo, onSaved }) {
+// A checkbox with its label and hint; the whole row ticks it
+function CheckRow({ checked, onChange, label, hint }) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 py-2">
+      <Check checked={checked} onChange={onChange} label={label} className="mt-0.5" />
+      <span className="min-w-0"><span className="block text-body font-medium">{label}</span>{hint && <span className="block text-caption text-muted">{hint}</span>}</span>
+    </label>
+  );
+}
+
+function DetailsTab({ v, clients, onClientCreated, isCo, onSaved, onDirty }) {
   const [run, busy] = useAction();
   const f = useForm({
     client_id: v.client_id || '', name: v.name || '', address: v.address || '', postcode: v.postcode || '', phone: v.phone || '',
     instructions: v.instructions || '', notes: v.notes || '', invoice_cycle: v.invoice_cycle || '', site_client: v.site_client || '', proof_rule: v.proof_rule || 'two_of_three', active: !!v.active,
     on_website: v.on_website !== false, city: v.city || '', website_blurb: v.website_blurb || '', website_url: v.website_url || '',
   });
+  // What was last saved, so the bar goes once a save lands even when the form isn't rebuilt
+  const [saved, setSaved] = useState(f.v);
+  const dirty = JSON.stringify(f.v) !== JSON.stringify(saved);
+  useDirtyGuard(dirty);
+  useEffect(() => { onDirty?.(dirty); }, [dirty]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => onDirty?.(false), []); // eslint-disable-line react-hooks/exhaustive-deps
   const site = useApi('reviews.clients', {}, { skip: !isCo });
   // Client, invoicing and the website tile belong to the company manager; the server ignores them from anyone else
   const save = () => run(() => api('venues.save', {
     id: v.id, ...f.v, client_id: f.v.client_id || null, invoice_cycle: f.v.invoice_cycle || null, site_client: f.v.site_client || null, postcode: f.v.postcode.toUpperCase(),
     ...(isCo ? {} : { client_id: undefined, invoice_cycle: undefined, site_client: undefined, on_website: undefined, city: undefined, website_blurb: undefined, website_url: undefined }),
-  }), 'Venue saved').then(onSaved).catch(() => {});
+  }), 'Venue saved').then(() => { setSaved(f.v); onSaved(); }).catch(() => {});
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -333,15 +380,14 @@ function DetailsTab({ v, clients, onClientCreated, isCo, onSaved }) {
           <Textarea label="Internal notes" rows={3} hint="Only visible to your managers" {...f.bind('notes')} />
           <Select label="Clock-in rule" hint="Officers always confirm with their registered phone, plus this many of: location, venue code (QR or NFC tag), selfie" options={PROOF_RULES} {...f.bind('proof_rule')} />
           {isCo && <Select label="Invoice cycle" placeholder="Company default" options={[{ value: 'weekly', label: 'Weekly' }, { value: 'fortnightly', label: 'Fortnightly' }, { value: 'monthly', label: 'Monthly' }]} {...f.bind('invoice_cycle')} />}
-          <div className="rounded-xl bg-bg px-4 py-2">
-            <Toggle label="Active" hint="Inactive venues are hidden from the rota" checked={f.v.active} onChange={(x) => f.set('active', x)} />
-          </div>
+          <CheckRow label="Active" hint="Inactive venues are hidden from the rota" checked={f.v.active} onChange={(x) => f.set('active', x)} />
         </div>
       </Tile>
       <WebsiteTile v={v} f={f} isCo={isCo} sites={site.data?.clients || []} />
-      <div className="flex justify-end lg:col-span-2">
+      <ActionBar show={dirty || busy} tone="light">
+        <span className="mr-2 text-subhead font-semibold">Unsaved changes</span>
         <Button busy={busy} disabled={!f.v.name.trim()} onClick={save}>Save changes</Button>
-      </div>
+      </ActionBar>
     </div>
   );
 }
@@ -484,7 +530,7 @@ function OrbFillSheet({ v, isCo, onClose, onSaved }) {
                 <Input label="Postcode" disabled={!use.address} {...f.bind('postcode')} />
                 <p className="text-caption text-muted">
                   {found.cands.length === 1 && <>{FROM[c.source]}{c.confidence === 'low' ? ', worth checking' : ''}. </>}
-                  {v.lat == null ? (c?.lat != null ? 'The map pin goes on this address; move it to the officer entrance in Site setup.' : 'No map pin found; set it in Site setup.') : 'Your map pin stays as it is.'}
+                  {v.lat == null ? (c?.lat != null ? 'The map pin goes on this address; move it to the officer entrance in Setup.' : 'No map pin found; set it in Setup.') : 'Your map pin stays as it is.'}
                 </p>
               </div>
             </section>
@@ -540,10 +586,8 @@ function WebsiteTile({ v, f, isCo, sites }) {
       <div className="grid gap-5 md:grid-cols-[1fr_260px]">
         {isCo ? (
           <div className="space-y-4">
-            <div className="rounded-xl bg-bg px-4 py-2">
-              <Toggle label="Show on website" hint={f.v.on_website ? 'This venue has a tile in Clients on the landing page' : 'Hidden from the landing page'}
-                checked={f.v.on_website} onChange={(x) => f.set('on_website', x)} />
-            </div>
+            <CheckRow label="Show on website" hint={f.v.on_website ? 'This venue has a tile in Clients on the landing page' : 'Hidden from the landing page'}
+              checked={f.v.on_website} onChange={(x) => f.set('on_website', x)} />
             {f.v.on_website && (
               <>
                 <div className="grid gap-3 sm:grid-cols-2">

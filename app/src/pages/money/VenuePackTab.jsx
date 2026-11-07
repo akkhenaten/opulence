@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, BookText, CheckCircle2, Download, FileText, Message
 import { api, downloadAction } from '../../api.js';
 import { HOME, useAuth } from '../../auth.jsx';
 import {
-  Button, Check, Chip, cx, date, dateTime, Empty, IconButton, List, Load, Pill, Row, SearchInput, Section, Segmented, Sheet, Textarea, useAction, useApi, useToast,
+  Button, Check, Chip, cx, date, dateTime, Empty, IconButton, List, Load, Pill, Row, SearchInput, Section, Segmented, Sheet, Textarea, Toggle, useAction, useApi, useToast,
 } from '../../ui/index.jsx';
 import { docKind, PackPill } from '../shared/PackPaper.jsx';
 import { DocStatus, NewSheet } from '../people/procedures/Library.jsx';
@@ -78,13 +78,13 @@ export default function VenuePackTab({ venueId }) {
                           <IconButton size="sm" icon={ArrowUp} label="Move up" disabled={i === 0 || d.pack[i - 1].kind === 'instructions' || busy} onClick={() => move(i, -1)} />
                           <IconButton size="sm" icon={ArrowDown} label="Move down" disabled={i === d.pack.length - 1 || busy} onClick={() => move(i, 1)} />
                         </>}
-                        {p.scope === 'general' && co && <Check checked label={`Switch off ${p.title} at this venue`} onChange={() => toggle(doc, false)} />}
+                        {p.scope === 'general' && co && <Toggle checked label={<span className="sr-only">{`${p.title} at this venue`}</span>} onChange={() => toggle(doc, false)} />}
                       </div>
                     );
                   })}
                 </List>
               ) : <Empty icon={BookText} title="Nothing published yet" body="Officers are not asked to sign anything here until a document is published." />}
-              {d.pack.some((p) => p.scope === 'general') && co && <p className="mt-1.5 px-1 text-caption text-faint">Untick a company-wide procedure to switch it off at this venue only.</p>}
+              {d.pack.some((p) => p.scope === 'general') && co && <p className="mt-1.5 px-1 text-caption text-faint">Switch a company-wide procedure off to turn it off at this venue only. It saves straight away.</p>}
             </Section>
 
             {off.length > 0 && (

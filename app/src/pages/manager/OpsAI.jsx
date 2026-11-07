@@ -302,7 +302,7 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged, ra
   return (
     <div className="space-y-2">
       {p.officer_id && <Button size="sm" variant="soft" to={`${base}/staff/${p.officer_id}`}>Open {p.officer_name}</Button>}
-      {venue && it.venue_id && <Button size="sm" variant="soft" icon={MapPin} to={`${base}/venues/${it.venue_id}?tab=setup`}>Open Site setup</Button>}
+      {venue && it.venue_id && <Button size="sm" variant="soft" icon={MapPin} to={`${base}/venues/${it.venue_id}?tab=setup`}>Open Setup</Button>}
       {(p.issues || []).map((i) => {
         const folded = venue && !shown.has(i.key);
         const acts = i.actions.filter(allowed);

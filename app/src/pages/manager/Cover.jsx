@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, Megaphone, MessagesSquare, Pencil, Trash2, X } from 'lucide-react';
 import {
-  Button, dateTime, dayLabel, Empty, KV, List, Load, Page, Pill, range, relative, Row, Segmented, Sheet, Tabs, Textarea, Toggle, useAction, useApi,
+  Button, dateTime, dayLabel, Empty, isoDate, KV, List, Load, mondayOf, Page, Pill, range, relative, Row, Segmented, Sheet, Tabs, Textarea, Toggle, useAction, useApi, useUrlState,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
@@ -30,24 +30,29 @@ function group(list) {
 export default function Cover() {
   const { base } = useBase();
   const q = useApi('cover.list', {});
-  const [tab, setTab] = useState('pending');
-  const [open, setOpen] = useState(null);
+  const [url, setUrl] = useUrlState({ tab: 'pending' });
+  const tab = FILTERS[url.tab] ? url.tab : 'pending';
+  const [openKey, setOpenKey] = useState(null);
   const rows = q.data || [];
   const n = (k) => rows.filter(FILTERS[k]).length;
+  // The drawer steps through the rows of the tab in view
+  const shown = group(rows.filter(FILTERS[tab]));
+  const at = shown.findIndex((g) => g.key === openKey);
+  const open = at >= 0 ? shown[at] : null;
 
   return (
     <Page title="Cover requests" subtitle="Venues asking for extra officers">
-      <Tabs value={tab} onChange={setTab} tabs={[
+      <Tabs value={tab} onChange={(v) => setUrl({ tab: v })} tabs={[
           { value: 'pending', label: 'To decide', count: n('pending') }, { value: 'accepted', label: 'Staffing' }, { value: 'filled', label: 'Filled' },
           { value: 'declined', label: 'Declined' }, { value: 'all', label: 'All' },
       ]} />
-      <Load q={q}>{(all) => {
-        const list = group(all.filter(FILTERS[tab]));
+      <Load q={q}>{() => {
+        const list = shown;
         if (!list.length) return <Empty icon={Megaphone} title={tab === 'pending' ? 'Nothing to decide' : 'Nothing here'} body={tab === 'pending' ? 'New requests and changes from venues appear here.' : undefined} />;
         return (
           <List>
             {list.map(({ key, first: c, dates }) => (
-              <Row key={key} onClick={() => setOpen({ c, dates })} chevron
+              <Row key={key} onClick={() => setOpenKey(key)} chevron
                 title={<>{c.venue_name} <span className="font-normal text-muted">· {c.headcount} × {c.role_name}</span></>}
                 subtitle={<>{dayLabel(c.starts_at)} <span className="num">{range(c.starts_at, c.ends_at)}</span>{dates.length > 1 ? ` · +${dates.length - 1} more date${dates.length > 2 ? 's' : ''}` : ''}{c.requested_by_name ? ` · ${c.requested_by_name}` : ''}</>}
                 right={(
@@ -60,12 +65,17 @@ export default function Cover() {
           </List>
         );
       }}</Load>
-      {open && <Detail c={open.c} dates={open.dates} base={base} onClose={() => setOpen(null)} onDone={() => { setOpen(null); q.reload(); }} />}
+      {open && <Detail key={open.key} c={open.first} dates={open.dates} base={base} onClose={() => setOpenKey(null)} onDone={() => { setOpenKey(null); q.reload(); }}
+        onPrev={at > 0 ? () => setOpenKey(shown[at - 1].key) : undefined}
+        onNext={at < shown.length - 1 ? () => setOpenKey(shown[at + 1].key) : undefined} />}
     </Page>
   );
 }
 
-function Detail({ c, dates, base, onClose, onDone }) {
+// The created shift when the list knows it, otherwise the week it falls in
+const rotaLink = (base, c) => (c.shift_id ? `${base}/rota?shift=${c.shift_id}` : `${base}/rota?week=${mondayOf(isoDate(c.starts_at))}`);
+
+function Detail({ c, dates, base, onClose, onDone, onPrev, onNext }) {
   const [mode, setMode] = useState(null); // 'accept' | 'decline' | 'edit' | 'delete' | 'refuse'
   const [scope, setScope] = useState(dates.length > 1 ? 'series' : 'one');
   const [asOpen, setAsOpen] = useState(true);
@@ -89,10 +99,11 @@ function Detail({ c, dates, base, onClose, onDone }) {
   } else if (c.status === 'pending' && !mode) footer = <><Button variant="secondary" icon={X} onClick={() => setMode('decline')}>Decline</Button><Button icon={Check} onClick={() => setMode('accept')}>Accept</Button></>;
   else if (mode === 'accept') footer = <><Button variant="secondary" onClick={() => setMode(null)}>Back</Button><Button onClick={accept} busy={busy}>{many ? `Accept ${dates.length} dates` : 'Accept and create shift'}</Button></>;
   else if (mode === 'decline') footer = <><Button variant="secondary" onClick={() => setMode(null)}>Back</Button><Button variant="danger" onClick={decline} busy={busy}>Decline</Button></>;
-  else if (c.status === 'accepted') footer = <><Button variant="secondary" onClick={() => setMode('edit')} icon={Pencil} disabled={!live}>Change</Button><Button to={`${base}/rota`}>Staff it in the rota</Button></>;
+  else if (c.status === 'accepted') footer = <><Button variant="secondary" onClick={() => setMode('edit')} icon={Pencil} disabled={!live}>Change</Button><Button to={rotaLink(base, c)}>Staff it in the rota</Button></>;
 
   return (
-    <Sheet open onClose={onClose} title={c.venue_name} footer={footer}>
+    <Sheet open side onClose={onClose} title={c.venue_name} footer={footer}
+      onPrev={mode ? undefined : onPrev} onNext={mode ? undefined : onNext}>
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-2">
           <Pill status={statusOf(c)} />

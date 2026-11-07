@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
-  addDays, AssignPill, Bento, Button, cx, date, dateShort, dateTime, dayLabel, Empty, ErrorBox, hours, IconButton, Input, isoDate, KV, List, money, Pill, Pressable, range, relative, Row, Section, Segmented, Select, Sheet, Spinner, Stat, Table, Textarea, Tile, titleCase, Toggle, useAction, useApi, useConfirm, useForm,
+  ActionBar, addDays, AssignPill, Bento, Button, cx, date, dateShort, dateTime, dayLabel, Empty, ErrorBox, hours, IconButton, Input, isoDate, KV, List, money, Pill, Pressable, range, relative, Row, Section, Segmented, Select, Sheet, Spinner, Stat, Table, Textarea, Tile, titleCase, Toggle, useAction, useApi, useConfirm, useDirtyGuard, useForm,
 } from '../../ui/index.jsx';
 import { DOC_KINDS, ExpiryPill, Progress, RTW_TYPES, SIA_TYPES, TIMEOFF_KINDS, WEEKDAYS, docKindLabel, openUrl } from './_parts.jsx';
 import { CertificateSheet } from '../team/_training.jsx';
@@ -509,6 +509,7 @@ export function AvailabilityTab({ o, reload }) {
   const [days, setDays] = useState(init);
   const [dirty, setDirty] = useState(false);
   const [run, busy] = useAction();
+  useDirtyGuard(dirty);
   const upd = (i, k, val) => { setDirty(true); setDays((d) => d.map((x, j) => (j === i ? { ...x, [k]: val } : x))); };
   const save = async () => {
     await run(() => api('officers.saveAvailability', { officer_id: o.id, days }), 'Availability saved');
@@ -533,7 +534,10 @@ export function AvailabilityTab({ o, reload }) {
           </div>
         ))}
       </List>
-      <div className="mt-3 flex justify-end"><Button busy={busy} disabled={!dirty} onClick={save}>Save availability</Button></div>
+      <ActionBar show={dirty || busy} tone="light">
+        <span className="mr-2 text-subhead font-semibold">Unsaved changes</span>
+        <Button busy={busy} onClick={save}>Save availability</Button>
+      </ActionBar>
     </>
   );
 }

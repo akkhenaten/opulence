@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import RecentEmail from '../email/_recent.jsx';
 import { Ban, Mail, Pencil, Phone, Send, UserCheck } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Button, Input, Load, Page, Pill, Select, Sheet, Tabs, Textarea, Tile, Toggle, date, useAction, useApi, useConfirm, useForm,
+  Avatar, Button, Input, Load, Page, Pill, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle, date, useAction, useApi, useConfirm, useForm, useUrlState,
 } from '../../ui/index.jsx';
 import { uploadPhoto } from '../officer/_parts.jsx';
 import { inviteStatus } from './_access.jsx';
@@ -13,6 +13,17 @@ import { ComplianceBadge, CopyLink, ExpiryPill, LoginPill, OFFICER_STATUSES, SIA
 import {
   AttendanceTab, AvailabilityTab, ComplianceTab, ContractsTab, DocumentsTab, GrowthTab, HrTab, OffboardingTab, OnboardingTab, OverviewTab, RatesTab, ShiftsTab, TimeOffTab, TrainingTab,
 } from './_profileTabs.jsx';
+
+// Five groups, each a set of sub-views; the sub keys are the old tab keys so access rules and old links carry over
+const GROUPS = [
+  ['overview', 'Overview', [['overview', 'Overview']]],
+  ['compliance', 'Compliance', [['compliance', 'Compliance'], ['documents', 'Documents'], ['training', 'Training']]],
+  ['work', 'Work', [['shifts', 'Shifts'], ['attendance', 'Attendance'], ['availability', 'Availability'], ['timeoff', 'Time off']]],
+  ['pay', 'Pay', [['rates', 'Rates']]],
+  ['hr', 'HR', [['growth', 'One-to-ones'], ['hr', 'HR notes'], ['contracts', 'Contracts'], ['onboarding', 'Onboarding'], ['offboarding', 'Offboarding']]],
+];
+const GROUP_OF = Object.fromEntries(GROUPS.flatMap(([g, , subs]) => subs.map(([k]) => [k, g])));
+const CO_ONLY = ['onboarding', 'contracts', 'offboarding'];
 
 export default function StaffProfile() {
   const { id } = useParams();
@@ -35,15 +46,20 @@ function Profile({ o, reload, user, base }) {
   const [statusOpen, setStatusOpen] = useState(false);
   const [link, setLink] = useState(null);
   const [hidden, setHidden] = useState([]);
-  const [sp] = useSearchParams();
-  const [tab, setTab] = useState(sp.get('tab') || 'overview');
+  const [url, setUrl] = useUrlState({ tab: 'overview', sub: '' });
 
-  const tabs = useMemo(() => [
-    ['overview', 'Overview'], ['compliance', 'Compliance'], ['documents', 'Documents'],
-    canPay(user) && ['rates', 'Rates'], ['shifts', 'Shifts'], ['attendance', 'Attendance'], ['availability', 'Availability'], ['timeoff', 'Time off'], ['training', 'Training'], ['growth', 'One-to-ones'], ['hr', 'HR notes'],
-    isCo && ['onboarding', 'Onboarding'], isCo && ['contracts', 'Contracts'], isCo && ['offboarding', 'Offboarding'],
-  ].filter(Boolean).filter(([k]) => !hidden.includes(k)).map(([value, label]) => ({ value, label })), [user, isCo, hidden]);
-  const current = tabs.some((t) => t.value === tab) ? tab : 'overview';
+  // Every section, in its group; a sub-view goes when access rules or a 403 hide it, a group goes when it has none left
+  const groups = useMemo(() => GROUPS.map(([value, label, subs]) => ({
+    value, label,
+    subs: subs.filter(([k]) => (k !== 'rates' || canPay(user)) && (isCo || !CO_ONLY.includes(k)) && !hidden.includes(k)).map(([v, l]) => ({ value: v, label: l })),
+  })).filter((g) => g.subs.length), [user, isCo, hidden]);
+  // Old links name a section (?tab=documents); ?tab=hr alone meant HR notes
+  const legacy = !url.sub && (url.tab === 'hr' ? 'hr' : GROUP_OF[url.tab] && url.tab !== GROUP_OF[url.tab] ? url.tab : null);
+  const want = legacy ? GROUP_OF[legacy] : url.tab;
+  const group = groups.find((g) => g.value === want) || groups[0];
+  const current = (group.subs.find((x) => x.value === (legacy || url.sub)) || group.subs[0]).value;
+  const pickGroup = (g) => setUrl({ tab: g, sub: g === 'overview' ? null : groups.find((x) => x.value === g).subs[0].value });
+  const pickSub = (x) => setUrl({ tab: group.value, sub: x });
   const forbid = (k) => setHidden((h) => (h.includes(k) ? h : [...h, k]));
 
   const invite = async () => {
@@ -125,7 +141,8 @@ function Profile({ o, reload, user, base }) {
         {link && <div className="mt-4"><CopyLink link={link} hint={invited ? invited.hint : undefined} /></div>}
       </Tile>
 
-      <Tabs tabs={tabs} value={current} onChange={setTab} />
+      <Tabs tabs={groups} value={group.value} onChange={pickGroup} />
+      {group.subs.length > 1 && <Segmented value={current} onChange={pickSub} options={group.subs} className="mb-4" />}
 
       {current === 'overview' && <OverviewTab {...props} />}
       {current === 'overview' && isCo && <RecentEmail type="officer" id={o.id} />}
@@ -157,6 +174,13 @@ function EditSheet({ open, onClose, o, roles, onDone }) {
   const { v, bind, set } = form;
   const [run, busy] = useAction();
   const [photo, setPhoto] = useState(null);
+  const [start] = useState(v);
+  const dirty = !!photo || EDIT_KEYS.some((k) => JSON.stringify(v[k]) !== JSON.stringify(start[k]));
+  const confirm = useConfirm();
+  const cancel = async () => {
+    if (dirty && !(await confirm({ title: 'Discard changes?', body: "What you've changed here won't be saved.", confirm: 'Discard', cancel: 'Keep editing', danger: true }))) return;
+    onClose();
+  };
   const save = async () => {
     await run(async () => {
       const body = { id: o.id, ...v, max_weekly_hours: Number(v.max_weekly_hours) || 60 };
@@ -167,8 +191,8 @@ function EditSheet({ open, onClose, o, roles, onDone }) {
     onClose();
   };
   return (
-    <Sheet open={open} onClose={onClose} title="Edit officer" size="lg"
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={save}>Save</Button></>}>
+    <Sheet open={open} onClose={onClose} title="Edit officer" size="lg" full dirty={dirty}
+      footer={<><Button variant="secondary" onClick={cancel}>Cancel</Button><Button busy={busy} onClick={save}>Save</Button></>}>
       <div className="space-y-5">
         <Group title="Personal">
           <div className="grid grid-cols-2 gap-3">

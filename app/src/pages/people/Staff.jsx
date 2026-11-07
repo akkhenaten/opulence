@@ -4,11 +4,13 @@ import { Plus, ShieldCheck, Users } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Bento, Button, Empty, Load, Page, PhotoCard, SearchInput, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useForm, displayName,
+  Avatar, Bento, Button, date, Empty, FilterBar, Load, Page, PhotoCard, Pill, SearchInput, Segmented, Sheet, Stat, Table, Tile, useAction, useApi, useForm, useUrlState, displayName,
 } from '../../ui/index.jsx';
 import {
-  CopyLink, OFFICER_STATUSES, OfficerCoreFields, cleanOfficer, complianceState, emptyOfficer, useBase, useRoles,
+  ComplianceBadge, CopyLink, OFFICER_STATUSES, OfficerCoreFields, cleanOfficer, complianceState, emptyOfficer, useBase, useRoles,
 } from './_parts.jsx';
+
+const COMPLIANCE = [{ value: 'all', label: 'Any compliance' }, { value: 'green', label: 'Compliant' }, { value: 'amber', label: 'Expiring soon' }, { value: 'red', label: 'Not compliant' }];
 
 export default function Staff() {
   const { user } = useAuth();
@@ -16,10 +18,13 @@ export default function Staff() {
   const isCo = user.role === 'company';
   const q = useApi('officers.list');
   const { roles, name: roleName } = useRoles();
-  const [status, setStatus] = useState('active');
-  const [role, setRole] = useState('');
-  const [comp, setComp] = useState('all');
-  const [search, setSearch] = useState('');
+  const nav = useNavigate();
+  // Search, filters and Grid · List live in the address so Back returns to the same list
+  const [url, setUrl, clearUrl] = useUrlState({ q: '', role: '', compliance: 'all', status: 'active', view: 'grid' });
+  const status = OFFICER_STATUSES.includes(url.status) ? url.status : 'active';
+  const comp = COMPLIANCE.some((c) => c.value === url.compliance) ? url.compliance : 'all';
+  const { role, q: search } = url;
+  const view = url.view === 'list' ? 'list' : 'grid';
   const [adding, setAdding] = useState(false);
 
   const all = q.data || [];
@@ -47,22 +52,31 @@ export default function Staff() {
               <Tile><Stat value={counts.onboarding + counts.applicant} label="In the pipeline" hint="Applicants and onboarding" /></Tile>
             </Bento>
 
-            <div className="mb-4 space-y-3">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                <SearchInput className="flex-1" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, phone or SIA number" />
-                <div className="grid grid-cols-2 gap-3 md:flex">
-                  <Select className="md:w-48" value={role} onChange={(e) => setRole(e.target.value)} placeholder="All roles" options={roles.map((r) => ({ value: r.code, label: r.name }))} />
-                  <Select className="md:w-44" value={comp} onChange={(e) => setComp(e.target.value)}
-                    options={[{ value: 'all', label: 'Any compliance' }, { value: 'green', label: 'Compliant' }, { value: 'amber', label: 'Expiring soon' }, { value: 'red', label: 'Not compliant' }]} />
-                </div>
-              </div>
-              <Segmented value={status} onChange={setStatus} options={OFFICER_STATUSES.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1), count: s === 'active' ? null : counts[s] }))} />
+            <FilterBar
+              filters={[
+                { key: 'role', label: 'Role', value: role, options: [{ value: '', label: 'All roles' }, ...roles.map((r) => ({ value: r.code, label: r.name }))] },
+                { key: 'compliance', label: 'Compliance', value: comp, empty: 'all', options: COMPLIANCE },
+              ]}
+              onChange={(k, v) => setUrl({ [k]: v })} onClear={() => clearUrl(['role', 'compliance'])}>
+              <SearchInput className="min-w-0 flex-1 basis-64" value={search} onChange={(e) => setUrl({ q: e.target.value })} placeholder="Search name, email, phone or SIA number" />
+            </FilterBar>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <Segmented value={status} onChange={(v) => setUrl({ status: v })} options={OFFICER_STATUSES.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1), count: s === 'active' ? null : counts[s] }))} />
+              <Segmented value={view} onChange={(v) => setUrl({ view: v })} options={[{ value: 'grid', label: 'Grid' }, { value: 'list', label: 'List' }]} />
             </div>
 
             {!rows.length ? (
               <Empty icon={Users} title={all.length ? 'No officers match' : 'No officers yet'}
                 body={all.length ? 'Try a different filter or search.' : isCo ? 'Add your first officer to start building the rota.' : 'Officers will appear here once the company adds them.'}
                 action={isCo && !all.length && <Button icon={Plus} onClick={() => setAdding(true)}>Add officer</Button>} />
+            ) : view === 'list' ? (
+              <Table rows={rows} onRow={(o) => nav(`${base}/staff/${o.id}`)} columns={[
+                { key: 'name', label: 'Name', mobile: 'title', render: (o) => <span className="flex items-center gap-3"><Avatar name={displayName(o)} src={o.photo_url} size={32} className="hidden md:grid" /><span className="font-semibold">{displayName(o)}</span></span> },
+                { key: 'roles', label: 'Role', mobile: 'sub', render: (o) => (o.roles || []).map(roleName).join(', ') },
+                { key: 'sia_expiry', label: 'SIA expiry', mobile: 'sub', mobileLabel: true, render: (o) => (o.sia_expiry ? <span className="num">{date(o.sia_expiry)}</span> : '—') },
+                { key: 'status', label: 'Status', mobile: false, render: (o) => <Pill status={o.status} /> },
+                { key: 'compliance', label: 'Compliance', mobile: 'value', render: (o) => <ComplianceBadge c={o.compliance} /> },
+              ]} />
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
                 {rows.map((o) => {
