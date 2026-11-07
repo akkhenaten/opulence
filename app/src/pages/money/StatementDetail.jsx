@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Banknote, Check as CheckIcon, Download, MessageSquare, Plus, Send, Trash2 } from 'lucide-react';
+import { Banknote, Check as CheckIcon, Clock, Download, MessageSquare, Plus, RefreshCw, Send, Trash2 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Bento, Button, Empty, IconButton, Input, KV, List, Load, Page, Pill, Section, Segmented, Sheet, Stat, Tile, cx, date, dateTime, dayLabel,
+  Avatar, Bento, Button, Callout, IconButton, Input, KV, List, Load, Page, Pill, Section, Segmented, Sheet, Stat, Tile, cx, date, dateTime,
   hours, money, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 import { REVIEW_LABEL, RUN_LABEL } from './PayRuns.jsx';
+import { DayLines, signedSplit } from './_lines.jsx';
 import { SELF_HINT, SelfPills } from '../manager/_parts.jsx';
 
 const KIND = { bonus: 'Bonus', expense: 'Expense', deduction: 'Deduction' };
@@ -31,6 +32,7 @@ export default function StatementDetail() {
         const draft = st.status === 'draft';
         const shiftLines = st.lines.filter((l) => l.kind === 'hours');
         const extras = st.lines.filter((l) => l.kind !== 'hours');
+        const split = signedSplit(shiftLines);
         const shiftTotal = shiftLines.reduce((a, l) => a + Number(l.amount), 0);
         const extrasTotal = extras.reduce((a, l) => a + Number(l.amount), 0);
         // Your own statement is changed by another company manager
@@ -50,12 +52,12 @@ export default function StatementDetail() {
           q.reload();
         };
         const del = async () => {
-          if (!(await confirm({ title: 'Delete draft?', body: 'The timesheets go back into the next pay run.', confirm: 'Delete', danger: true }))) return;
+          if (!(await confirm({ title: 'Delete draft?', body: 'Only bonuses, expenses and deductions are on it; they are removed.', confirm: 'Delete', danger: true }))) return;
           const ok = await run(() => api('pay.delete', { id: st.id }), 'Draft deleted').then(() => true, () => false);
           if (ok) nav(`${base}/pay`);
         };
         const removeLine = async (l) => {
-          if (!(await confirm({ title: 'Remove line?', body: l.timesheet_id ? 'The timesheet goes back into the next pay run.' : l.description, confirm: 'Remove', danger: true }))) return;
+          if (!(await confirm({ title: 'Remove line?', body: l.description, confirm: 'Remove', danger: true }))) return;
           await run(() => api('pay.removeLine', { id: l.id }), 'Line removed').catch(() => {});
           q.reload();
         };
@@ -121,23 +123,14 @@ export default function StatementDetail() {
             </Section>
 
             <Section title="Shifts worked" action={<span className="num text-footnote font-semibold">{money(shiftTotal)}</span>}>
-              {!shiftLines.length ? <Empty title="No shifts on this statement" /> : (
-                <List>
-                  {shiftLines.map((l) => (
-                    <div key={l.id} className="flex items-start gap-3 px-4 py-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="text-body font-semibold">{l.description}</div>
-                        <div className="mt-0.5 text-footnote text-muted num">
-                          {l.work_date && `${dayLabel(l.work_date)} · `}{hours(l.hours)} × {money(l.rate)}/h
-                        </div>
-                      </div>
-                      <div className="num shrink-0 text-body font-bold">{money(l.amount)}</div>
-                      {editable && <IconButton icon={Trash2} label="Remove line" onClick={() => removeLine(l)} className="-mr-2 h-8 w-8 text-red hover:bg-red-soft" />}
-                    </div>
-                  ))}
-                </List>
+              {draft && shiftLines.length > 0 && (
+                <Callout tone={split.awaiting ? 'warning' : 'info'} icon={split.awaiting ? Clock : RefreshCw} className="mb-2">
+                  Kept up to date from approved timesheets.
+                  {split.awaiting ? ` ${split.signed} of ${split.signed + split.awaiting} shifts are signed off by the venue; only those are paid in this run, the rest move to the next one.` : ' Every shift on it is signed off by the venue.'}
+                </Callout>
               )}
-              <p className="mt-2 px-1 text-caption text-faint">Rate shown is the average hourly rate for the shift, including any night, weekend or bank holiday uplift.</p>
+              <DayLines lines={shiftLines} periodStart={draft ? st.period_start : null} showState={draft} empty="No shifts on this statement" />
+              <p className="mt-2 px-1 text-caption text-faint">Rate shown is the average hourly rate for the shift, including any night, weekend or bank holiday uplift.{editable && shiftLines.length ? ' Shift lines follow their timesheet — change them on the Timesheets page.' : ''}</p>
             </Section>
 
             <Section title="Bonuses, expenses and deductions" action={editable && <Button size="sm" variant="soft" icon={Plus} onClick={() => setAdding(true)}>Add line</Button>}>
@@ -167,7 +160,7 @@ export default function StatementDetail() {
               {isCo && draft && st.self_locked && <p className="mt-2 text-footnote text-muted">This is your own statement. {SELF_HINT}.</p>}
             </Tile>
 
-            {editable && (
+            {editable && !shiftLines.length && (
               <div className="mt-6 flex justify-center">
                 <Button variant="danger" icon={Trash2} busy={busy} onClick={del}>Delete draft</Button>
               </div>

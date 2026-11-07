@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, Ban, Check, ChevronLeft, ChevronRight, ClipboardCheck, Clock, History, Lock, MapPin, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
+  AlertTriangle, Ban, Check, ChevronLeft, ChevronRight, ClipboardCheck, Clock, History, Lock, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
 } from 'lucide-react';
 import {
   ActionBar, addDays, Avatar, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, useAction, useApi, useConfirm, useForm,
@@ -343,9 +343,17 @@ function StateLine({ r }) {
       {r.state === 'signed' && <span className="inline-flex items-center gap-0.5 font-semibold text-green"><Check size={14} />Venue signed</span>}
       {r.state === 'declined' && r.decline_reason && <span className="text-muted">{r.decline_reason}</span>}
       {r.unpaid_late && <Pill tone="amber" className="!py-0 !text-caption2">Not paid yet</Pill>}
+      <BillChip r={r} />
       <SelfPills row={r} small />
     </div>
   );
+}
+
+// Where the shift's money stands: on the venue's open draft (moves with every change) or on an issued invoice
+function BillChip({ r }) {
+  if (!r.invoice_status || ['declined', 'cancelled'].includes(r.state)) return null;
+  if (r.invoice_status === 'draft') return <Pill tone="grey" className="!py-0 !text-caption2"><ReceiptText size={14} />On draft invoice</Pill>;
+  return <Pill tone="blue" className="!py-0 !text-caption2"><ReceiptText size={14} />Invoiced{r.invoice_number ? ` ${r.invoice_number}` : ''}</Pill>;
 }
 
 function Actual({ r, compact }) {
@@ -464,7 +472,8 @@ function Detail({ t, can, isManager, see, act, busy, onClose, onDone }) {
         {t.state === 'declined' && <p className="text-footnote text-muted">Not worked: no pay and no charge.</p>}
         {t.state === 'cancelled' && <p className="text-footnote text-red">The shift was cancelled after these hours were recorded. Decline them, or put the officer back on the Rota.</p>}
         {(t.flags || []).includes('cancelled_after_billing') && <p className="text-footnote text-red">Cancelled after it was paid or invoiced — issue a credit by hand.</p>}
-        {t.locked && <p className="text-footnote text-muted">This timesheet is on a pay statement or invoice and can't be changed.</p>}
+        {t.locked && <p className="text-footnote text-muted">This timesheet is on an issued invoice or a pay run already with staff, so it can't be changed. Corrections now need a credit note.</p>}
+        {!t.locked && t.invoice_status === 'draft' && <p className="text-footnote text-muted">On the venue's draft invoice. Changes here update the draft straight away; only venue-signed shifts are invoiced.</p>}
         {!t.locked && t.self_locked && <p className="text-footnote text-muted">{SELF_HINT}.</p>}
         {t.id && (
           <div>

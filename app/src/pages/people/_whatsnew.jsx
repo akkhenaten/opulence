@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Radar, ShieldAlert, Siren, Smartphone, Sparkles, Users, Wallet,
+  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Radar, ReceiptText, ShieldAlert, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-07', icon: ReceiptText, title: 'Invoices and pay runs fill themselves', image: 'invoices-live',
+    lede: "Approve a timesheet and it goes straight onto the venue's draft invoice and the officer's draft pay statement. There's nothing to generate any more. The drafts are laid out day by day like Timesheets, and only shifts the venue has signed off are billed or paid.",
+    points: ['Approved shifts show on the draft invoice and the pay run straight away, in green once the venue signs and amber until then', 'Rate changes, queries, declines and cancelled shifts update the drafts on their own', 'Issue bills the signed shifts; the rest move to the next draft automatically', 'A late approval for a week that is already invoiced goes on the next draft, marked with its real date', 'Timesheets shows On draft invoice or Invoiced with the invoice number', 'Issued invoices never change: corrections after issue need a credit note'],
+  },
   {
     month: 'November 2026', date: '2026-11-07', icon: Globe, title: 'Every client is now a venue', image: 'website-venues',
     lede: "Every tile under Who we protect on the website now comes straight from Venues. The 22 client cards that were built into the page are now real venues with the same name, line, link and photo, so the website and the app tell one story.",

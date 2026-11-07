@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Banknote, CalendarRange, Check as CheckIcon, Download, FileText, Lock, Play, Send } from 'lucide-react';
+import { AlertTriangle, Banknote, CalendarRange, Check as CheckIcon, Download, FileText, Lock, RefreshCw, Send } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  ActionBar, Avatar, Bento, Button, cx, date, dateShort, Empty, hours, Input, isoDate, List, Load, money, Page, Pill, Section, Segmented, Select, Stat, Tile, useAction, useApi, useConfirm,
+  ActionBar, Avatar, Bento, Button, cx, date, dateShort, Empty, hours, isoDate, List, Load, money, Page, Pill, Section, Segmented, Select, Stat, Tile, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { Check, useBase } from './_parts.jsx';
 import { RunsList } from './PayRuns.jsx';
@@ -53,80 +53,32 @@ function Totals({ rows }) {
       <Tile title="Drafts" icon={FileText}><Stat value={money(sum('draft'))} label={`${cnt('draft')} to check and issue`} /></Tile>
       <Tile title="To pay" icon={Banknote} tone="blue"><Stat value={money(sum('issued'))} label={`${cnt('issued')} issued, awaiting payment`} /></Tile>
       <Tile title="Paid this month" icon={CheckIcon}><Stat value={money(paidMonth.reduce((a, r) => a + Number(r.total), 0))} label={`${paidMonth.length} statements`} tone="green" /></Tile>
-      <Tile title="Hours in drafts" icon={CalendarRange}><Stat value={hours(rows.filter((r) => r.status === 'draft').reduce((a, r) => a + Number(r.hours), 0))} label="Signed timesheets" /></Tile>
+      <Tile title="Hours in drafts" icon={CalendarRange}><Stat value={hours(rows.filter((r) => r.status === 'draft').reduce((a, r) => a + Number(r.hours), 0))} label="Approved timesheets" /></Tile>
     </Bento>
   );
 }
 
+// Draft pay runs fill themselves from approved timesheets (one per pay period); this tile explains that and can catch up straight away
 function RunTile({ onDone }) {
   const sug = useApi('pay.suggestPeriod');
-  const [range, setRange] = useState(null);
-  const r = range || sug.data?.pay || { start: '', end: '' };
-  const [preview, setPreview] = useState(null);
-  const [result, setResult] = useState(null);
   const [run, busy] = useAction();
-  const [gen, genBusy] = useAction();
-  const confirm = useConfirm();
   const nav = useNavigate();
   const base = useBase();
-
-  const set = (k, val) => { setRange({ ...r, [k]: val }); setPreview(null); setResult(null); };
-  const doPreview = () => run(() => api('pay.preview', { start: r.start, end: r.end })).then(setPreview).catch(() => {});
-  const generate = async () => {
-    if (!(await confirm({ title: 'Create draft statements?', body: `One draft remittance statement per officer for ${date(r.start)} – ${date(r.end)}. Next you can send them to staff to check, then finalise and issue.`, confirm: 'Create drafts' }))) return;
-    const res = await gen(() => api('pay.generate', { start: r.start, end: r.end }), (x) => `${x.created} draft statement${x.created === 1 ? '' : 's'} created`).catch(() => null);
+  const refresh = async () => {
+    const res = await run(() => api('pay.generate', {}), (x) => `Up to date · ${x.created} draft statement${x.created === 1 ? '' : 's'}`).catch(() => null);
     if (!res) return;
-    setResult(res);
-    setPreview(null);
     onDone();
-    if (res.pay_run_id && !res.missing_rates?.length) nav(`${base}/pay/runs/${res.pay_run_id}`);
+    if (res.pay_run_id) nav(`${base}/pay/runs/${res.pay_run_id}`);
   };
-
   return (
-    <Tile title="New pay run" icon={Play} className="mb-2">
-      <div className="flex flex-wrap items-end gap-3">
-        <Input label="From" type="date" value={r.start} onChange={(e) => set('start', e.target.value)} className="min-w-[150px] flex-1" />
-        <Input label="To" type="date" value={r.end} onChange={(e) => set('end', e.target.value)} className="min-w-[150px] flex-1" />
-        <div className="flex gap-2">
-          <Button variant="secondary" busy={busy} disabled={!r.start || !r.end} onClick={doPreview}>Preview</Button>
-          <Button icon={Play} busy={genBusy} disabled={!r.start || !r.end || (preview && !Number(preview.unpaid.n))} onClick={generate}>Create drafts</Button>
-        </div>
+    <Tile title="Live pay run" icon={RefreshCw} className="mb-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="min-w-0 flex-1 basis-64 text-subhead text-muted">
+          Approved shifts go straight onto each officer's draft statement in the pay run for their period{sug.data ? ` (${sug.data.pay_period})` : ''}, and follow any later change.
+          Only shifts the venue has signed off are paid; the rest move to the next run when you send it for review.
+        </p>
+        <Button variant="secondary" icon={RefreshCw} busy={busy} onClick={refresh}>Bring up to date</Button>
       </div>
-      {sug.data && <p className="mt-2 text-caption text-faint">Pay period: {sug.data.pay_period}. Only signed timesheets not already on a statement are included.</p>}
-
-      {preview && (
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl bg-blue-soft p-4">
-            <div className="num text-title2 font-bold leading-none">{preview.unpaid.n}</div>
-            <div className="mt-1 text-footnote font-semibold">Signed timesheets to pay</div>
-            <div className="text-caption text-muted num">{hours(preview.unpaid.hours)}</div>
-          </div>
-          <div className={cx('rounded-2xl p-4', preview.unsigned ? 'bg-amber-soft' : 'bg-bg')}>
-            <div className={cx('num text-title2 font-bold leading-none', preview.unsigned && 'text-amber')}>{preview.unsigned}</div>
-            <div className="mt-1 text-footnote font-semibold">Not yet signed</div>
-            <div className="text-caption text-muted">These are left out of this run</div>
-          </div>
-          <div className="rounded-2xl bg-bg p-4">
-            <div className="num text-title2 font-bold leading-none">{preview.uninvoiced.n}</div>
-            <div className="mt-1 text-footnote font-semibold">Not yet invoiced</div>
-            <Link to="/company/invoices" className="text-caption font-semibold text-blue">Go to invoices</Link>
-          </div>
-        </div>
-      )}
-
-      {result && (
-        <div className="mt-4 rounded-2xl bg-green-soft p-4 text-subhead">
-          <div className="font-semibold text-green">{result.created} draft statement{result.created === 1 ? '' : 's'} from {result.timesheets} timesheet{result.timesheets === 1 ? '' : 's'}</div>
-          {result.pay_run_id && <Link to={`${base}/pay/runs/${result.pay_run_id}`} className="mt-1 inline-block text-footnote font-semibold text-blue">Open the pay run</Link>}
-          {result.missing_rates?.length > 0 && (
-            <div className="mt-3 rounded-xl bg-surface p-3">
-              <div className="flex items-center gap-1.5 font-semibold text-amber"><AlertTriangle size={16} />No pay rate set — paid at £0.00</div>
-              <ul className="mt-1.5 space-y-0.5 text-footnote text-muted">{result.missing_rates.map((m) => <li key={m}>{m}</li>)}</ul>
-              <p className="mt-2 text-caption text-faint">Add the officer's rate on their profile, delete the draft and run again — or add a bonus line.</p>
-            </div>
-          )}
-        </div>
-      )}
     </Tile>
   );
 }
@@ -184,7 +136,7 @@ function Statements({ rows, isCo, status, setStatus, reload }) {
       </div>
 
       {!shown.length ? (
-        <Empty icon={FileText} title={status === 'draft' ? 'No draft statements' : 'No statements'} body={status === 'draft' && isCo ? 'Choose a period above and create drafts from signed timesheets.' : undefined} />
+        <Empty icon={FileText} title={status === 'draft' ? 'No draft statements' : 'No statements'} body={status === 'draft' && isCo ? 'Approve a timesheet and its officer gets a draft statement straight away.' : undefined} />
       ) : (
         <List>
           {isCo && (

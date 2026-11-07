@@ -176,7 +176,7 @@ async function prepare(name, input, user) {
     case 'create_pay_run': {
       const p = await ACTIONS['pay.preview'].fn({ start: input.start, end: input.end }, { user });
       if (!Number(p.unpaid.n)) return { error: `No signed, unpaid timesheets between ${range(input.start, input.end)}` };
-      return { summary: `Create a pay run for ${range(input.start, input.end)}: ${p.unpaid.n} signed timesheets, ${Number(p.unpaid.hours).toFixed(1)} hours${p.unsigned ? ` (${p.unsigned} not yet signed are left out)` : ''}.`,
+      return { summary: `Bring the draft pay run for ${range(input.start, input.end)} up to date (approved timesheets join it on their own): ${p.unpaid.n} signed timesheets, ${Number(p.unpaid.hours).toFixed(1)} hours${p.unsigned ? ` (${p.unsigned} not yet signed wait for the venue)` : ''}.`,
         steps: [{ action: 'pay.generate', body: { start: input.start, end: input.end, via: 'ai' } }] };
     }
     case 'send_for_review': {
@@ -211,7 +211,7 @@ async function prepare(name, input, user) {
         const scope = await venueScope(user);
         venueId = need(await one('SELECT id FROM venues WHERE name ILIKE $1 AND ($2::uuid[] IS NULL OR id = ANY($2)) LIMIT 1', [`%${input.venue}%`, scope]), `No venue called ${input.venue}`).id;
       }
-      return { summary: `Create draft invoices for ${range(input.start, input.end)}${input.venue ? ` for ${input.venue}` : ' for every venue'}, from hours officers have approved.`,
+      return { summary: `Bring the draft invoices for ${range(input.start, input.end)}${input.venue ? ` for ${input.venue}` : ' for every venue'} up to date from approved timesheets (they follow them on their own).`,
         steps: [{ action: 'invoices.generate', body: { start: input.start, end: input.end, venue_id: venueId, pay_run_id: input.pay_run_id || null, via: 'ai' } }] };
     }
     case 'issue_invoices': {
@@ -247,13 +247,13 @@ async function prepare(name, input, user) {
 function describe(action, r) {
   if (!r || typeof r !== 'object') return null;
   switch (action) {
-    case 'pay.generate': return r.created ? `Pay run created with ${r.created} ${r.created === 1 ? 'statement' : 'statements'}${r.missing_rates?.length ? `. Missing pay rates: ${r.missing_rates.join(', ')}` : ''}.` : 'Nothing to pay in that period.';
+    case 'pay.generate': return r.created ? `The draft pay run is up to date: ${r.created} ${r.created === 1 ? 'statement' : 'statements'}, ${r.timesheets} approved ${r.timesheets === 1 ? 'shift' : 'shifts'}.` : 'Nothing approved to pay in that period yet.';
     case 'payRuns.sendForReview': return `Sent to ${r.sent} ${r.sent === 1 ? 'officer' : 'officers'}; they have until ${fmtDateTime(r.review_deadline)}.`;
     case 'payRuns.resolveDispute': return `Query resolved${r.changes?.length ? ` (${r.changes.join(', ')})` : ''}. New total ${gbp(r.total)}.`;
     case 'payRuns.finalise': return `Pay run finalised${r.held ? `; ${r.held} held back` : ''}${r.approved_on_behalf ? `; ${r.approved_on_behalf} approved on their behalf` : ''}.`;
     case 'payRuns.issue': return `${r.issued} ${r.issued === 1 ? 'statement' : 'statements'} issued and saved.`;
     case 'payRuns.markPaid': case 'pay.markPaid': return `${r.paid} marked as paid.`;
-    case 'invoices.generate': return `${r.created} draft ${r.created === 1 ? 'invoice' : 'invoices'} created${r.skipped ? `; ${r.skipped} timesheets left out because the hours are not yet approved` : ''}.`;
+    case 'invoices.generate': return `${r.created} draft ${r.created === 1 ? 'invoice is' : 'invoices are'} up to date with ${r.timesheets} approved ${r.timesheets === 1 ? 'shift' : 'shifts'}. Issuing bills only the hours the venue has signed off.`;
     case 'invoices.issue': return `Invoice ${r.number} issued (${gbp(r.gross)}).`;
     case 'invoices.markPaid': return `Invoice ${r.number} marked as paid.`;
     case 'messages.send': return 'Message sent.';

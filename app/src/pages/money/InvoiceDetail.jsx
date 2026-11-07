@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Check as CheckIcon, Download, Pencil, Plus, Send, Trash2, Undo2 } from 'lucide-react';
+import { Check as CheckIcon, Clock, Download, Pencil, Plus, RefreshCw, Send, Trash2, Undo2 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Bento, Button, IconButton, Input, KV, Load, Page, Pill, Section, Segmented, Sheet, Stat, Table, Textarea, Tile, cx, date, dayLabel, daysUntil,
+  Bento, Button, Callout, IconButton, Input, KV, Load, Page, Pill, Section, Segmented, Sheet, Stat, Textarea, Tile, cx, date, daysUntil,
   isoDate, money, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { pct, useBase } from './_parts.jsx';
+import { DayLines, signedSplit } from './_lines.jsx';
 
 export default function InvoiceDetail() {
   const { id } = useParams();
@@ -35,47 +36,43 @@ export default function InvoiceDetail() {
         const left = daysUntil(inv.due_date);
         const canCredit = isCo && !credit && ['issued', 'paid', 'overdue'].includes(inv.status);
 
+        const split = signedSplit(inv.lines);
         const issue = async () => {
-          if (!(await confirm({ title: 'Issue invoice?', body: `${money(inv.gross)} to ${inv.client_name || inv.venue_name}. It gets a number, is emailed to the venue's managers and can no longer be edited.`, confirm: 'Issue' }))) return;
-          await run(() => api('invoices.issue', { id: inv.id }), 'Invoice issued').catch(() => {});
+          const body = split.awaiting
+            ? `${money(split.signedAmount)} net of signed-off work to ${inv.client_name || inv.venue_name}. ${split.awaiting} ${split.awaiting === 1 ? 'shift is' : 'shifts are'} still awaiting the venue's sign-off and will move to the next draft. The invoice gets a number, is emailed to the venue's managers and can no longer be edited.`
+            : `${money(inv.gross)} to ${inv.client_name || inv.venue_name}. It gets a number, is emailed to the venue's managers and can no longer be edited.`;
+          if (!(await confirm({ title: 'Issue invoice?', body, confirm: 'Issue' }))) return;
+          await run(() => api('invoices.issue', { id: inv.id }), (r) => (r.held_back ? `Invoice issued · ${r.held_back} unsigned ${r.held_back === 1 ? 'shift' : 'shifts'} moved to the next draft` : 'Invoice issued')).catch(() => {});
           q.reload();
         };
         const del = async () => {
-          if (!(await confirm({ title: 'Delete draft invoice?', body: 'Its timesheets become available to invoice again.', confirm: 'Delete', danger: true }))) return;
+          if (!(await confirm({ title: 'Delete draft invoice?', body: 'Only lines added by hand are on it; they are removed.', confirm: 'Delete', danger: true }))) return;
           const ok = await run(() => api('invoices.delete', { id: inv.id }), 'Draft deleted').then(() => true, () => false);
           if (ok) nav(`${base}/invoices`);
         };
         const removeLine = async (l) => {
-          if (!(await confirm({ title: 'Remove line?', body: l.timesheet_id ? 'The timesheet becomes available to invoice again.' : l.description, confirm: 'Remove', danger: true }))) return;
+          if (!(await confirm({ title: 'Remove line?', body: l.description, confirm: 'Remove', danger: true }))) return;
           await run(() => api('invoices.removeLine', { id: l.id }), 'Line removed').catch(() => {});
           q.reload();
         };
+        const hasTimesheets = inv.lines.some((l) => l.timesheet_id);
 
-        const columns = [
-          { key: 'description', mobile: 'title', label: 'Description', render: (l) => <span className="block whitespace-normal">{l.description}</span>, className: 'max-w-[420px]' },
-          { key: 'work_date', mobile: 'sub', label: 'Date', render: (l) => (l.work_date ? dayLabel(l.work_date) : '–'), className: 'whitespace-nowrap' },
-          { key: 'hours', mobile: 'sub', mobileLabel: true, label: 'Hours', align: 'right', render: (l) => (l.hours != null ? Number(l.hours).toFixed(2) : '–') },
-          { key: 'rate', mobile: 'sub', mobileLabel: true, label: 'Rate', align: 'right', render: (l) => (l.rate != null ? money(l.rate) : '–') },
-          { key: 'amount', mobile: 'value', label: 'Amount', align: 'right', render: (l) => <span className="num font-semibold">{money(l.amount)}</span> },
-          ...(isCo && !credit ? [
-            { key: 'pay_cost', label: 'Pay cost', align: 'right', render: (l) => <span className="num text-muted">{money(l.pay_cost)}</span> },
-            { key: 'margin', mobile: 'sub', mobileLabel: true, label: 'Margin', align: 'right', render: (l) => { const m = Number(l.amount) - Number(l.pay_cost || 0); return <span className={cx('num font-semibold', m < 0 ? 'text-red' : 'text-green')}>{money(m)}</span>; } },
-          ] : []),
-          ...(editable ? [{
-            key: 'x', mobile: 'value', label: '', align: 'right', render: (l) => (
-              <span className="inline-flex gap-0.5">
-                <IconButton icon={Pencil} label="Edit line" onClick={(e) => { e.stopPropagation(); setLine(l); }} className="h-8 w-8" />
-                <IconButton icon={Trash2} label="Remove line" onClick={(e) => { e.stopPropagation(); removeLine(l); }} className="h-8 w-8 text-red hover:bg-red-soft" />
-              </span>
-            ),
-          }] : []),
-        ];
+        const extra = isCo && !credit ? [
+          { key: 'pay_cost', label: 'Pay cost', render: (l) => <span className="num text-muted">{money(l.pay_cost)}</span> },
+          { key: 'margin', label: 'Margin', render: (l) => { const m = Number(l.amount) - Number(l.pay_cost || 0); return <span className={cx('num font-semibold', m < 0 ? 'text-red' : 'text-green')}>{money(m)}</span>; } },
+        ] : [];
+        const action = editable ? (l) => (l.timesheet_id ? null : (
+          <span className="inline-flex gap-0.5">
+            <IconButton icon={Pencil} label="Edit line" onClick={() => setLine(l)} className="h-8 w-8" />
+            <IconButton icon={Trash2} label="Remove line" onClick={() => removeLine(l)} className="h-8 w-8 text-red hover:bg-red-soft" />
+          </span>
+        )) : undefined;
 
         return (
           <Page title={title} subtitle={[inv.client_name, inv.venue_name].filter(Boolean).join(' · ')} back={{ to: `${base}/invoices`, label: 'Invoices' }}
             actions={[
               { label: inv.pdf_document_id ? 'Saved PDF' : 'PDF', icon: Download, busy: pdfBusy, onClick: () => pdf(() => downloadAction('invoices.pdf', { id: inv.id })).catch(() => {}) },
-              editable && { label: 'Issue', icon: Send, variant: 'primary', busy, disabled: !inv.lines.length, onClick: issue },
+              editable && { label: split.awaiting ? `Issue ${split.signed} signed` : 'Issue', icon: Send, variant: 'primary', busy, disabled: !split.issuable, onClick: issue },
               isCo && ['issued', 'overdue'].includes(inv.status) && !credit && { label: 'Mark paid', icon: CheckIcon, variant: 'primary', onClick: () => setPaying(true) },
             ]}>
             <Bento className="mb-2">
@@ -116,8 +113,17 @@ export default function InvoiceDetail() {
               </Tile>
             </Section>
 
+            {draft && !credit && (
+              <Callout tone={split.awaiting ? 'warning' : 'info'} icon={split.awaiting ? Clock : RefreshCw} className="mb-2">
+                Kept up to date from approved timesheets: approvals, rate changes, queries and declines show here straight away.
+                {split.awaiting ? ` ${split.signed} of ${split.signed + split.awaiting} shifts are signed off by the venue; only those are invoiced when you issue, the rest move to the next draft.` : hasTimesheets ? ' Every shift on it is signed off by the venue.' : ''}
+              </Callout>
+            )}
+
             <Section title={`Lines (${inv.lines.length})`} action={editable && <Button size="sm" variant="soft" icon={Plus} onClick={() => setLine({})}>Add line</Button>}>
-              <Table rows={inv.lines} columns={columns} empty="No lines on this invoice" onRow={editable ? (l) => setLine(l) : undefined} />
+              <DayLines lines={inv.lines} periodStart={draft ? inv.period_start : null} extra={extra} action={action} showState={draft && !credit}
+                onRow={editable ? (l) => !l.timesheet_id && setLine(l) : undefined} empty="No lines on this invoice" />
+              {editable && hasTimesheets && <p className="mt-2 text-footnote text-muted">Shift lines follow their timesheet — change them on the Timesheets page.</p>}
             </Section>
 
             <div className="mt-4 flex justify-end">
@@ -140,7 +146,7 @@ export default function InvoiceDetail() {
             {(editable || canCredit) && (
               <div className="mt-8 flex flex-wrap justify-center gap-2">
                 {canCredit && <Button variant="secondary" icon={Undo2} onClick={() => setCrediting(true)}>Raise credit note</Button>}
-                {editable && <Button variant="danger" icon={Trash2} busy={busy} onClick={del}>Delete draft</Button>}
+                {editable && !hasTimesheets && <Button variant="danger" icon={Trash2} busy={busy} onClick={del}>Delete draft</Button>}
               </div>
             )}
 

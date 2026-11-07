@@ -12,51 +12,46 @@ import { getSettings } from './settings.mjs';
 import { archivePdf, savedPdf, longDate } from '../lib/archive.mjs';
 import { guardSelf, markOwn } from '../lib/selfcheck.mjs';
 import { ALL, CO, def } from './_def.mjs';
+import { sweep, syncTimesheets, holdBackUnsigned } from './moneyFeed.mjs';
 
 const OWN_PAY = 'Another company manager needs to change your own pay statement';
 
 // ---------- Rate resolution ----------
-export async function officerRate(officerId, role, venueId, date) {
-  const r = await one(
+export async function officerRate(officerId, role, venueId, date, db = { one }) {
+  const r = await db.one(
     `SELECT rate FROM officer_rates WHERE officer_id = $1 AND role = $2 AND (venue_id = $3 OR venue_id IS NULL) AND effective_from <= $4
       ORDER BY venue_id IS NULL, effective_from DESC LIMIT 1`, [officerId, role, venueId, date]);
   return r ? Number(r.rate) : null;
 }
 
-export async function venueRate(venueId, role, date) {
-  return one('SELECT * FROM venue_rates WHERE venue_id = $1 AND role = $2 AND effective_from <= $3 ORDER BY effective_from DESC LIMIT 1', [venueId, role, date]);
+export async function venueRate(venueId, role, date, db = { one }) {
+  return db.one('SELECT * FROM venue_rates WHERE venue_id = $1 AND role = $2 AND effective_from <= $3 ORDER BY effective_from DESC LIMIT 1', [venueId, role, date]);
 }
 
 const bankHolidays = async () => new Set((await q('SELECT day FROM bank_holidays')).map((r) => r.day));
 
 export const bankHolidaySet = bankHolidays;
 
-/** Officer pay for a timesheet: the rate fixed on approval, else today's rate card */
-export async function payFor(t, s, bh) {
-  const rate = t.pay_rate != null ? Number(t.pay_rate) : await officerRate(t.officer_id, t.role, t.venue_id, londonDate(t.starts_at));
+/** Officer pay for a timesheet: the rate fixed on approval, else today's rate card (db: a transaction to read through) */
+export async function payFor(t, s, bh, db) {
+  const rate = t.pay_rate != null ? Number(t.pay_rate) : await officerRate(t.officer_id, t.role, t.venue_id, londonDate(t.starts_at), db);
   const fr = bandFractions(t.actual_start, t.actual_end, s, bh);
   return { rate, amount: payAmount(t.hours, fr, rate, s) ?? 0, fr };
 }
 
 /** Venue charge for a timesheet: the rate fixed on approval as the base, with the venue rate card's minimum hours and uplifts */
-export async function chargeFor(t, s, bh) {
-  const vr = await venueRate(t.venue_id, t.role, londonDate(t.starts_at));
+export async function chargeFor(t, s, bh, db) {
+  const vr = await venueRate(t.venue_id, t.role, londonDate(t.starts_at), db);
   const base = t.charge_rate != null ? Number(t.charge_rate) : vr ? Number(vr.rate) : null;
   const fr = bandFractions(t.actual_start, t.actual_end, s, bh);
   return { vr, base, fr, ...chargeAmount(t.hours, fr, base, vr) };
 }
 
-const TS_SQL = `
-  SELECT t.*, a.officer_id, ps.review_status AS ps_review, ps.held AS ps_held, pr.status AS pr_status, ps.pay_run_id AS ps_run, s.starts_at, s.ends_at, s.role, r.name AS role_name, s.venue_id, v.name AS venue_name, o.first_name, o.last_name
-    FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
-    JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role JOIN officers o ON o.id = a.officer_id
-    LEFT JOIN statements ps ON ps.id = t.statement_id LEFT JOIN pay_runs pr ON pr.id = ps.pay_run_id`;
-
 const periodWhere = `t.status = 'signed' AND (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $1 AND $2`;
 
-const lineDesc = (t) => `${t.role_name} · ${t.venue_name} · ${fmtDate(t.actual_start)} ${fmtTime(t.actual_start)}–${fmtTime(t.actual_end)}`;
+export const lineDesc = (t) => `${t.role_name} · ${t.venue_name} · ${fmtDate(t.actual_start)} ${fmtTime(t.actual_start)}–${fmtTime(t.actual_end)}`;
 // Explains a blended hourly rate: "£24.00/h base, incl. night +10%"
-const upliftNote = (fr, vr, base) => {
+export const upliftNote = (fr, vr, base) => {
   const ups = [['night', vr.night_uplift], ['weekend', vr.weekend_uplift], ['bank holiday', vr.bh_uplift, 'bh']]
     .filter(([k, pct, key]) => fr[key || k] > 0 && Number(pct) > 0).map(([k, pct]) => `${k} +${Number(pct)}%`);
   return ups.length ? ` · £${Number(base).toFixed(2)}/h base, incl. ${ups.join(', ')}` : '';
@@ -86,7 +81,8 @@ const statementSql = `SELECT st.*, o.first_name || ' ' || o.last_name AS officer
 
 async function loadStatement(id) {
   const st = need(await one(statementSql, [id]));
-  st.lines = await q('SELECT * FROM statement_lines WHERE statement_id = $1 ORDER BY kind = \'hours\' DESC, work_date, description', [id]);
+  st.lines = await q(`SELECT l.*, ts.status AS ts_status, ts.auto_signed AS ts_auto_signed FROM statement_lines l LEFT JOIN timesheets ts ON ts.id = l.timesheet_id
+    WHERE l.statement_id = $1 ORDER BY l.kind = 'hours' DESC, l.work_date, l.description`, [id]);
   return st;
 }
 
@@ -95,7 +91,8 @@ async function loadInvoice(id) {
     `SELECT i.*, v.name AS venue_name, v.address AS venue_address, v.postcode, c.name AS client_name, c.billing_address, c.billing_email, c.vat_number AS client_vat,
             ci.number AS credit_of_number
        FROM invoices i JOIN venues v ON v.id = i.venue_id LEFT JOIN clients c ON c.id = v.client_id LEFT JOIN invoices ci ON ci.id = i.credit_of WHERE i.id = $1`, [id]));
-  inv.lines = await q('SELECT * FROM invoice_lines WHERE invoice_id = $1 ORDER BY work_date NULLS LAST, description', [id]);
+  inv.lines = await q(`SELECT l.*, ts.status AS ts_status, ts.auto_signed AS ts_auto_signed FROM invoice_lines l LEFT JOIN timesheets ts ON ts.id = l.timesheet_id
+    WHERE l.invoice_id = $1 ORDER BY l.work_date NULLS LAST, l.description`, [id]);
   return inv;
 }
 
@@ -217,52 +214,31 @@ export const actions = {
     return { pay: suggestPeriod(s.pay_period), invoice: suggestPeriod(s.invoice_cycle), pay_period: s.pay_period, invoice_cycle: s.invoice_cycle };
   }),
 
-  // Signed timesheets in a period not yet paid / invoiced — what a run would include
+  // Signed timesheets in a period not yet paid / invoiced (drafts do not count: nothing on them has gone out)
   'pay.preview': def(CO, async (b) => {
     required(b, 'start', 'end');
+    const from = 'FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id';
     const [unpaid, uninvoiced, unsigned] = await Promise.all([
-      one(`SELECT count(*) AS n, COALESCE(sum(t.hours),0) AS hours FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id WHERE ${periodWhere} AND t.statement_id IS NULL`, [b.start, b.end]),
-      one(`SELECT count(*) AS n, COALESCE(sum(t.hours),0) AS hours FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id WHERE ${periodWhere} AND t.invoice_id IS NULL`, [b.start, b.end]),
-      one(`SELECT count(*) AS n FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
-            WHERE t.status NOT IN ('signed','declined') AND (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $1 AND $2`, [b.start, b.end]),
+      one(`SELECT count(*) AS n, COALESCE(sum(t.hours),0) AS hours ${from} WHERE ${periodWhere} AND NOT timesheet_billed(t.statement_id, NULL)`, [b.start, b.end]),
+      one(`SELECT count(*) AS n, COALESCE(sum(t.hours),0) AS hours ${from} WHERE ${periodWhere} AND NOT timesheet_billed(NULL, t.invoice_id)`, [b.start, b.end]),
+      one(`SELECT count(*) AS n ${from} WHERE t.status NOT IN ('signed','declined') AND (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $1 AND $2`, [b.start, b.end]),
     ]);
     return { unpaid, uninvoiced, unsigned: Number(unsigned.n) };
   }),
 
   // ---------- Officer statements (self-employed remittance) ----------
+  // Approved timesheets reach draft statements on their own (moneyFeed.mjs); Generate just makes sure the feed is up to date
+  // No period: every open draft is brought up to date and the latest draft run is returned
   'pay.generate': def(CO, async (b, { user }) => {
-    required(b, 'start', 'end');
-    const s = await getSettings();
-    const bh = await bankHolidays();
-    const rows = await q(`${TS_SQL} WHERE ${periodWhere} AND t.statement_id IS NULL ORDER BY o.last_name, s.starts_at`, [b.start, b.end]);
-    if (!rows.length) return { created: 0, timesheets: 0, missing_rates: [], pay_run_id: null };
-    // One run per period: a second generate for the same period adds to the run while it is still open
-    let run = await one("SELECT * FROM pay_runs WHERE period_start = $1 AND period_end = $2 AND status IN ('draft','in_review') ORDER BY created_at DESC LIMIT 1", [b.start, b.end]);
-    run ||= await one('INSERT INTO pay_runs (period_start, period_end, run_date, created_by, created_via) VALUES ($1,$2,(now() AT TIME ZONE \'Europe/London\')::date,$3,$4) RETURNING *',
-      [b.start, b.end, user.id, b.via === 'ai' ? 'ai' : 'user']);
-    const pending = run.status === 'in_review' ? 'pending' : null;
-    const byOfficer = {};
-    for (const t of rows) (byOfficer[t.officer_id] ||= []).push(t);
-    const missingRates = [];
-    let created = 0;
-    for (const [officerId, list] of Object.entries(byOfficer)) {
-      await tx(async (t) => {
-        const st = await t.one('INSERT INTO statements (officer_id, period_start, period_end, pay_run_id, review_status) VALUES ($1,$2,$3,$4,$5) RETURNING id', [officerId, b.start, b.end, run.id, pending]);
-        for (const ts of list) {
-          const p = await payFor(ts, s, bh);
-          if (p.rate == null) missingRates.push(`${ts.first_name} ${ts.last_name} (${ts.role_name})`);
-          await t.q(
-            'INSERT INTO statement_lines (statement_id, kind, timesheet_id, description, work_date, hours, rate, amount) VALUES ($1,\'hours\',$2,$3,$4,$5,$6,$7)',
-            [st.id, ts.id, lineDesc(ts), londonDate(ts.starts_at), ts.hours, Number(ts.hours) ? money(p.amount / Number(ts.hours)) : p.rate || 0, p.amount]);
-          await t.q('UPDATE timesheets SET statement_id = $2 WHERE id = $1', [ts.id, st.id]);
-        }
-        await recalcStatement(t, st.id);
-      });
-      created++;
-    }
-    await audit(user, 'pay.generate', 'pay_run', run.id, { start: b.start, end: b.end, created, via: b.via || 'user' });
-    await reconcileAfter(b.start, b.end);
-    return { created, timesheets: rows.length, missing_rates: [...new Set(missingRates)], pay_run_id: run.id };
+    await sweep();
+    const run = b.start && b.end
+      ? await one("SELECT id FROM pay_runs WHERE status = 'draft' AND period_start <= $2 AND period_end >= $1 ORDER BY period_start LIMIT 1", [b.start, b.end])
+      : await one("SELECT id, period_start, period_end FROM pay_runs WHERE status = 'draft' ORDER BY period_end DESC LIMIT 1");
+    const n = run ? await one(`SELECT count(DISTINCT st.id)::int AS statements, count(l.id)::int AS lines FROM statements st
+                                 LEFT JOIN statement_lines l ON l.statement_id = st.id AND l.timesheet_id IS NOT NULL WHERE st.pay_run_id = $1`, [run.id]) : null;
+    await audit(user, 'pay.generate', 'pay_run', run?.id || null, { start: b.start || null, end: b.end || null, via: b.via || 'user' });
+    if (run && b.start && b.end) await reconcileAfter(b.start, b.end);
+    return { created: n?.statements || 0, timesheets: n?.lines || 0, missing_rates: [], pay_run_id: run?.id || null, live: true };
   }),
 
   'pay.list': def(ALL, async (b, { user }) => {
@@ -309,8 +285,8 @@ export const actions = {
     await tx(async (t) => {
       const l = need(await t.one("SELECT l.*, st.status, st.officer_id FROM statement_lines l JOIN statements st ON st.id = l.statement_id WHERE l.id = $1", [b.id]));
       if (l.status !== 'draft') fail(400, 'Only draft statements can be changed');
+      if (l.timesheet_id) fail(400, 'This line follows its timesheet — change it on the Timesheets page');
       if ((await guardSelf(user, l.officer_id, { companyOnly: true, message: OWN_PAY })).selfApproved) await t.q('UPDATE statements SET self_approved = true WHERE id = $1', [l.statement_id]);
-      if (l.timesheet_id) await t.q('UPDATE timesheets SET statement_id = NULL WHERE id = $1', [l.timesheet_id]);
       await t.q('DELETE FROM statement_lines WHERE id = $1', [b.id]);
       await recalcStatement(t, l.statement_id);
     });
@@ -322,7 +298,9 @@ export const actions = {
     await tx(async (t) => {
       const st = need(await t.one('SELECT * FROM statements WHERE id = $1', [b.id]));
       if (st.status !== 'draft') fail(400, 'Only draft statements can be deleted');
-      await t.q('UPDATE timesheets SET statement_id = NULL WHERE statement_id = $1', [b.id]);
+      if (await t.one('SELECT 1 FROM statement_lines WHERE statement_id = $1 AND timesheet_id IS NOT NULL LIMIT 1', [b.id])) {
+        fail(400, 'This draft follows approved timesheets. Decline or query them on the Timesheets page and their lines drop off.');
+      }
       await t.q('DELETE FROM statements WHERE id = $1', [b.id]);
     });
     await audit(user, 'pay.delete', 'statement', b.id);
@@ -383,52 +361,30 @@ export const actions = {
   }),
 
   // ---------- Venue invoices ----------
+  // Approved timesheets reach draft invoices on their own (moneyFeed.mjs); Generate just makes sure the feed is up to date
   'invoices.generate': def(CO, async (b, { user }) => {
-    required(b, 'start', 'end');
-    const s = await getSettings();
-    const bh = await bankHolidays();
-    const all = await q(
-      `${TS_SQL}
-        WHERE ${periodWhere} AND t.invoice_id IS NULL AND ($3::uuid IS NULL OR s.venue_id = $3) AND ($4::uuid IS NULL OR ps.pay_run_id = $4)
-        ORDER BY v.name, s.starts_at`,
-      [b.start, b.end, b.venue_id || null, b.pay_run_id || null]);
-    const ok = (t) => t.pr_status && ['reconciled', 'issued', 'paid'].includes(t.pr_status) && ['approved', 'resolved'].includes(t.ps_review) && !t.ps_held;
-    const rows = all.filter(ok);
-    const skipped = all.length - rows.length;
-    const byVenue = {};
-    for (const t of rows) (byVenue[t.venue_id] ||= []).push(t);
-    const missing = [];
-    let created = 0;
-    for (const [venueId, list] of Object.entries(byVenue)) {
-      await tx(async (t) => {
-        const runs = [...new Set(list.map((x) => x.ps_run))];
-        const inv = await t.one('INSERT INTO invoices (venue_id, period_start, period_end, vat_rate, pay_run_id) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-          [venueId, b.start, b.end, s.vat_rate, runs.length === 1 ? runs[0] : null]);
-        for (const ts of list) {
-          const date = londonDate(ts.starts_at);
-          const c = await chargeFor(ts, s, bh);
-          if (c.base == null) missing.push(`${ts.venue_name} (${ts.role_name})`);
-          const amount = c.amount ?? 0;
-          const pay = await payFor(ts, s, bh);
-          await t.q(
-            'INSERT INTO invoice_lines (invoice_id, timesheet_id, description, work_date, hours, rate, amount, pay_cost) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-            [inv.id, ts.id, `${lineDesc(ts)} · ${ts.first_name} ${ts.last_name[0]}.${c.vr ? upliftNote(c.fr, c.vr, c.base) : ''}`, date, c.billable, c.billable ? money(amount / c.billable) : 0, amount, pay.amount]);
-          await t.q('UPDATE timesheets SET invoice_id = $2 WHERE id = $1', [ts.id, inv.id]);
-        }
-        await recalcInvoice(t, inv.id);
-      });
-      created++;
-    }
-    await audit(user, 'invoice.generate', 'invoice', null, { start: b.start, end: b.end, created, skipped, via: b.via });
-    if (created) await reconcileAfter(b.start, b.end);
-    // Skipped: signed hours not yet approved by the officer in a finalised pay run
-    return { created, timesheets: rows.length, skipped, missing_rates: [...new Set(missing)] };
+    await sweep();
+    const drafts = await q(
+      `SELECT i.id, count(l.id)::int AS lines FROM invoices i LEFT JOIN invoice_lines l ON l.invoice_id = i.id AND l.timesheet_id IS NOT NULL
+        WHERE i.status = 'draft' AND i.kind = 'invoice' AND ($1::date IS NULL OR (i.period_start <= $2 AND i.period_end >= $1)) AND ($3::uuid IS NULL OR i.venue_id = $3) GROUP BY i.id`,
+      [b.start || null, b.end || null, b.venue_id || null]);
+    await audit(user, 'invoice.generate', 'invoice', null, { start: b.start || null, end: b.end || null, drafts: drafts.length, via: b.via });
+    if (drafts.length && b.start && b.end) await reconcileAfter(b.start, b.end);
+    return { created: drafts.length, timesheets: drafts.reduce((n, d) => n + d.lines, 0), skipped: 0, missing_rates: [], live: true };
   }),
 
   'invoices.list': def(['company', 'venue'], async (b, { user }) => {
     const scope = await venueScope(user);
     return q(
-      `SELECT i.*, v.name AS venue_name, c.name AS client_name FROM invoices i JOIN venues v ON v.id = i.venue_id LEFT JOIN clients c ON c.id = v.client_id
+      `SELECT i.*, v.name AS venue_name, c.name AS client_name,
+              ls.signed, ls.awaiting, ls.signed_net, ls.late
+         FROM invoices i JOIN venues v ON v.id = i.venue_id LEFT JOIN clients c ON c.id = v.client_id
+         LEFT JOIN LATERAL (
+           SELECT count(*) FILTER (WHERE ts.status = 'signed' OR l.timesheet_id IS NULL)::int AS signed,
+                  count(*) FILTER (WHERE l.timesheet_id IS NOT NULL AND ts.status IS DISTINCT FROM 'signed')::int AS awaiting,
+                  COALESCE(sum(l.amount) FILTER (WHERE ts.status = 'signed' OR l.timesheet_id IS NULL), 0) AS signed_net,
+                  count(*) FILTER (WHERE l.work_date < i.period_start)::int AS late
+             FROM invoice_lines l LEFT JOIN timesheets ts ON ts.id = l.timesheet_id WHERE l.invoice_id = i.id AND i.status = 'draft') ls ON true
         WHERE ($1::uuid[] IS NULL OR i.venue_id = ANY($1)) AND ($2::text IS NULL OR i.status = $2) AND ($3::uuid IS NULL OR i.venue_id = $3)
           ${user.role === 'venue' ? "AND i.status NOT IN ('draft','void')" : ''}
         ORDER BY i.created_at DESC LIMIT 500`, [scope, b.status || null, b.venue_id || null]);
@@ -460,6 +416,7 @@ export const actions = {
     await tx(async (t) => {
       const l = need(await t.one('SELECT l.*, i.status FROM invoice_lines l JOIN invoices i ON i.id = l.invoice_id WHERE l.id = $1', [b.id]));
       if (l.status !== 'draft') fail(400, 'Only draft invoices can be changed');
+      if (l.timesheet_id) fail(400, 'This line follows its timesheet — change it on the Timesheets page');
       const hours = b.hours ?? l.hours;
       const rate = b.rate ?? l.rate;
       const amount = b.amount ?? (hours != null && rate != null ? money(hours * rate) : l.amount);
@@ -474,7 +431,7 @@ export const actions = {
     await tx(async (t) => {
       const l = need(await t.one('SELECT l.*, i.status FROM invoice_lines l JOIN invoices i ON i.id = l.invoice_id WHERE l.id = $1', [b.id]));
       if (l.status !== 'draft') fail(400, 'Only draft invoices can be changed');
-      if (l.timesheet_id) await t.q('UPDATE timesheets SET invoice_id = NULL WHERE id = $1', [l.timesheet_id]);
+      if (l.timesheet_id) fail(400, 'This line follows its timesheet — change it on the Timesheets page');
       await t.q('DELETE FROM invoice_lines WHERE id = $1', [b.id]);
       await recalcInvoice(t, l.invoice_id);
     });
@@ -493,18 +450,26 @@ export const actions = {
     await tx(async (t) => {
       const inv = need(await t.one('SELECT * FROM invoices WHERE id = $1', [b.id]));
       if (inv.status !== 'draft') fail(400, 'Issued invoices cannot be deleted — raise a credit note');
-      await t.q('UPDATE timesheets SET invoice_id = NULL WHERE invoice_id = $1', [b.id]);
+      if (await t.one('SELECT 1 FROM invoice_lines WHERE invoice_id = $1 AND timesheet_id IS NOT NULL LIMIT 1', [b.id])) {
+        fail(400, 'This draft follows approved timesheets. Decline or query them on the Timesheets page and their lines drop off.');
+      }
       await t.q('DELETE FROM invoices WHERE id = $1', [b.id]);
     });
     await audit(user, 'invoice.delete', 'invoice', b.id);
     return { ok: true };
   }),
 
+  // Bills only the hours the venue has signed off; the rest move to the next draft on their own
   'invoices.issue': def(CO, async (b, { user }) => {
     required(b, 'id');
+    let held = [];
     const inv = await tx(async (t) => {
+      await t.q('SELECT pg_advisory_xact_lock(424243)');
       const cur = need(await t.one('SELECT * FROM invoices WHERE id = $1 FOR UPDATE', [b.id]));
       if (cur.status !== 'draft') fail(400, 'Already issued');
+      const hold = await holdBackUnsigned(t, { invoiceId: b.id });
+      if (!hold.kept) fail(400, hold.moved.length ? 'Nothing on this draft is signed off by the venue yet' : 'This draft has no lines');
+      held = hold.moved;
       const s = await t.one('UPDATE settings SET invoice_seq = invoice_seq + 1 RETURNING invoice_prefix, invoice_seq, payment_terms_days');
       return t.one(
         `UPDATE invoices SET status = 'issued', number = $2, issue_date = (now() AT TIME ZONE 'Europe/London')::date,
@@ -515,9 +480,10 @@ export const actions = {
     await notify(await venueContacts(inv.venue_id), {
       kind: 'invoice', title: `Invoice ${inv.number}`, body: `${v.name} · ${gbp(inv.gross)} due ${fmtDate(inv.due_date)}`, link: `/venue/invoices/${inv.id}`, email: true,
     });
+    await syncTimesheets(held);
     const docId = await archiveInvoice(inv.id, user.id);
-    await audit(user, 'invoice.issue', 'invoice', inv.id, { number: inv.number, gross: inv.gross, via: b.via });
-    return { ...inv, pdf_document_id: docId };
+    await audit(user, 'invoice.issue', 'invoice', inv.id, { number: inv.number, gross: inv.gross, held_back: held.length, via: b.via });
+    return { ...inv, pdf_document_id: docId, held_back: held.length };
   }),
 
   'invoices.markPaid': def(CO, async (b, { user }) => {

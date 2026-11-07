@@ -18,6 +18,7 @@ import { statusFor, statusesFor, pairKey, livePack, venuePack, OK, STATUS_LABEL 
 import crypto from 'node:crypto';
 import { officerName, userName } from '../lib/names.mjs';
 import { afterRebuild } from '../lib/timesheetState.mjs';
+import { isBilled } from './moneyFeed.mjs';
 
 const VALID = ['ok', 'approved', 'manual'];
 export const EARLY_MIN = 15;
@@ -29,7 +30,7 @@ export async function buildTimesheet(assignmentId, { force = false } = {}) {
   const a = await one('SELECT a.*, s.starts_at, s.ends_at, s.break_minutes AS planned_break FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id WHERE a.id = $1', [assignmentId]);
   if (!a) return null;
   const existing = await one('SELECT * FROM timesheets WHERE assignment_id = $1', [assignmentId]);
-  if (existing && !force && (existing.statement_id || existing.invoice_id || existing.status === 'signed')) return existing;
+  if (existing && !force && (existing.status === 'signed' || await isBilled(existing))) return existing;
   const events = await q('SELECT * FROM clock_events WHERE assignment_id = $1 ORDER BY ts', [assignmentId]);
   const valid = events.filter((e) => VALID.includes(e.status));
   const ins = valid.filter((e) => e.kind === 'in');
@@ -257,7 +258,7 @@ export const actions = {
     await assertVenue(user, a.venue_id);
     const self = await guardSelf(user, a.officer_id, { venueId: a.venue_id });
     const ts = await one('SELECT * FROM timesheets WHERE assignment_id = $1', [a.id]);
-    if (ts && (ts.statement_id || ts.invoice_id)) fail(400, 'This timesheet is already on a statement or invoice');
+    if (await isBilled(ts)) fail(400, 'This timesheet is already on an issued invoice or a pay run in review');
     await q("UPDATE clock_events SET status = 'rejected', decided_by = $2, decided_at = now() WHERE assignment_id = $1 AND status <> 'rejected'", [a.id, user.id]);
     await q("INSERT INTO clock_events (assignment_id, kind, ts, status, exception_reason, decided_by, self_approved) VALUES ($1,'in',$2,'manual',$4,$5,$6), ($1,'out',$3,'manual',$4,$5,$6)",
       [a.id, b.start, b.end, b.reason, user.id, !!self.selfApproved]);

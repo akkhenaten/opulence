@@ -8,6 +8,7 @@ import { fmtDate, fmtDateTime } from '../lib/time.mjs';
 import { gbp, money } from '../lib/rates.mjs';
 import { audit } from '../lib/audit.mjs';
 import { actions as moneyActions, recalcStatement } from './money.mjs';
+import { holdBackUnsigned, syncTimesheets, FEED_AGAIN } from './moneyFeed.mjs';
 import { guardSelf, markOwn, otherApprover } from '../lib/selfcheck.mjs';
 import { CO, MGR, def } from './_def.mjs';
 
@@ -53,7 +54,7 @@ export const actions = {
     requirePay(user);
     required(b, 'id');
     const run = need(await runSummary(b.id), 'Pay run not found');
-    const [statements, disputes, invoices] = await Promise.all([
+    const [statements, disputes, invoices, lines] = await Promise.all([
       q(`SELECT st.id, st.officer_id, st.number, st.status, st.review_status, st.reviewed_at, st.held, st.total, st.hours, st.pdf_document_id, st.self_approved,
                 st.officer_id = $2 AS is_self,
                 o.first_name || ' ' || o.last_name AS officer_name,
@@ -63,9 +64,18 @@ export const actions = {
            FROM statement_disputes d JOIN statements st ON st.id = d.statement_id JOIN officers o ON o.id = st.officer_id
            LEFT JOIN users u ON u.id = d.resolved_by
           WHERE st.pay_run_id = $1 ORDER BY d.status = 'open' DESC, d.created_at`, [b.id, user.self_officer_id]),
-      q("SELECT id, number, status, gross, venue_id, (SELECT name FROM venues WHERE id = i.venue_id) AS venue_name FROM invoices i WHERE pay_run_id = $1 AND kind = 'invoice' ORDER BY created_at", [b.id]),
+      // Invoices billing the same hours (fed from the same timesheets), plus any made from this run before the live feed
+      q(`SELECT i.id, i.number, i.status, i.gross, i.venue_id, v.name AS venue_name FROM invoices i JOIN venues v ON v.id = i.venue_id
+          WHERE i.kind = 'invoice' AND (i.pay_run_id = $1 OR i.id IN (
+            SELECT il.invoice_id FROM invoice_lines il JOIN statement_lines sl ON sl.timesheet_id = il.timesheet_id JOIN statements st ON st.id = sl.statement_id WHERE st.pay_run_id = $1))
+          ORDER BY i.status = 'draft', v.name`, [b.id]),
+      // Every line in the run for the day table: the hours with their timesheet's state, and manual extras
+      q(`SELECT l.id, l.statement_id, l.kind, l.timesheet_id, l.description, l.work_date, l.hours, l.rate, l.amount, ts.status AS ts_status, ts.auto_signed AS ts_auto_signed,
+                st.officer_id, o.first_name || ' ' || o.last_name AS officer_name
+           FROM statement_lines l JOIN statements st ON st.id = l.statement_id JOIN officers o ON o.id = st.officer_id LEFT JOIN timesheets ts ON ts.id = l.timesheet_id
+          WHERE st.pay_run_id = $1 ORDER BY l.work_date NULLS LAST, o.last_name, l.description`, [b.id]),
     ]);
-    return { ...run, statements: await markOwn(user, statements, { companyOnly: true }), disputes: await markOwn(user, disputes, { companyOnly: true }), invoices };
+    return { ...run, statements: await markOwn(user, statements, { companyOnly: true }), disputes: await markOwn(user, disputes, { companyOnly: true }), invoices, lines };
   }),
 
   // Officers see their statement and have until the deadline to approve it or query a line
@@ -75,16 +85,21 @@ export const actions = {
     if (!(days >= 1 && days <= 7)) fail(400, 'Choose a deadline between 1 and 7 days');
     const run = await loadRun(b.id);
     if (!['draft', 'in_review'].includes(run.status)) fail(400, 'This pay run has already been finalised');
+    let held = [];
     const sent = await tx(async (t) => {
+      await t.q('SELECT pg_advisory_xact_lock(424243)');
+      // Officers check only the hours their venue has signed off; the rest move to the next draft run on their own
+      if (run.status === 'draft') held = (await holdBackUnsigned(t, { runId: b.id })).moved;
       const rows = await t.q(
         `UPDATE statements SET review_status = 'pending' WHERE pay_run_id = $1 AND status = 'draft' AND review_status IS NULL
          RETURNING id, officer_id, total, period_start, period_end`, [b.id]);
-      if (!rows.length && run.status === 'draft') fail(400, 'There are no statements in this pay run');
+      if (!rows.length && run.status === 'draft') fail(400, held.length ? 'Nothing in this pay run is signed off by the venues yet' : 'There are no statements in this pay run');
       // Short deadlines need no separate reminder: the request itself is the reminder
       await t.q(`UPDATE pay_runs SET status = 'in_review', review_deadline = now() + make_interval(days => $2),
                    reminded_at = CASE WHEN $2 <= 2 THEN now() ELSE NULL END, updated_at = now() WHERE id = $1`, [b.id, days]);
       return rows;
     });
+    await syncTimesheets(held);
     const deadline = (await loadRun(b.id)).review_deadline;
     for (const st of sent) {
       await tellOfficer(st.officer_id, {
@@ -92,8 +107,8 @@ export const actions = {
         link: `/officer/pay/${st.id}`, email: true, dedupe: `payreview:${st.id}`,
       });
     }
-    await audit(user, 'pay_run.send_for_review', 'pay_run', b.id, { days, statements: sent.length, via: b.via });
-    return { sent: sent.length, review_deadline: deadline };
+    await audit(user, 'pay_run.send_for_review', 'pay_run', b.id, { days, statements: sent.length, held_back: held.length, via: b.via });
+    return { sent: sent.length, review_deadline: deadline, held_back: held.length };
   }),
 
   // Officer: approve the statement, or query one line (or the whole statement) with a comment
@@ -197,7 +212,14 @@ export const actions = {
       }
       selfStatement = own.id;
     }
+    let heldBack = [];
     const out = await tx(async (t) => {
+      await t.q('SELECT pg_advisory_xact_lock(424243)');
+      // Straight from draft: only signed-off hours go into the run; the rest move to the next draft run
+      if (run.status === 'draft') {
+        heldBack = (await holdBackUnsigned(t, { runId: b.id })).moved;
+        if (!(await t.one('SELECT 1 FROM statements WHERE pay_run_id = $1 LIMIT 1', [b.id]))) fail(400, 'Nothing in this pay run is signed off by the venues yet');
+      }
       if (selfStatement) await t.q('UPDATE statements SET self_approved = true WHERE id = $1', [selfStatement]);
       // Never sent for review: the manager is approving every statement
       const direct = await t.q("UPDATE statements SET review_status = 'approved', reviewed_at = now() WHERE pay_run_id = $1 AND status = 'draft' AND review_status IS NULL RETURNING id", [b.id]);
@@ -207,6 +229,7 @@ export const actions = {
       await touch(t, b.id, 'reconciled');
       return { direct: direct.length, rows };
     });
+    await syncTimesheets(heldBack);
     // Orb checks rota, clock, timesheet and statement hours line up before anything is issued
     let reconcile = null;
     try {
@@ -215,8 +238,8 @@ export const actions = {
     } catch (e) {
       console.error('[payruns] reconcile failed', e);
     }
-    await audit(user, 'pay_run.finalise', 'pay_run', b.id, { no_response: b.no_response || null, affected: out.rows.length, direct: out.direct, via: b.via, ...(selfStatement ? { self_approved: selfStatement } : {}) });
-    return { ok: true, held: b.no_response === 'hold' ? out.rows.length : 0, approved_on_behalf: b.no_response === 'approve' ? out.rows.length : 0, reconcile };
+    await audit(user, 'pay_run.finalise', 'pay_run', b.id, { no_response: b.no_response || null, affected: out.rows.length, direct: out.direct, via: b.via, held_back: heldBack.length, ...(selfStatement ? { self_approved: selfStatement } : {}) });
+    return { ok: true, held: b.no_response === 'hold' ? out.rows.length : 0, approved_on_behalf: b.no_response === 'approve' ? out.rows.length : 0, held_back: heldBack.length, reconcile };
   }),
 
   'payRuns.issue': def(CO, async (b, ctx) => {
@@ -254,7 +277,11 @@ export const actions = {
       const run = need(await t.one('SELECT * FROM pay_runs WHERE id = $1 FOR UPDATE', [b.id]));
       const issued = await t.one("SELECT count(*)::int AS n FROM statements WHERE pay_run_id = $1 AND status <> 'draft'", [b.id]);
       if (issued.n || ['issued', 'paid'].includes(run.status)) fail(400, 'Issued pay runs cannot be deleted');
-      await t.q('UPDATE timesheets SET statement_id = NULL WHERE statement_id IN (SELECT id FROM statements WHERE pay_run_id = $1)', [b.id]);
+      if (run.status === 'draft' && await t.one('SELECT 1 FROM statement_lines l JOIN statements st ON st.id = l.statement_id WHERE st.pay_run_id = $1 AND l.timesheet_id IS NOT NULL LIMIT 1', [b.id])) {
+        fail(400, 'This draft run follows approved timesheets. Decline or query them on the Timesheets page and their lines drop off.');
+      }
+      // Its hours go back to the feed and land on the next draft run
+      await t.q(`UPDATE timesheets SET statement_id = NULL, ${FEED_AGAIN} WHERE statement_id IN (SELECT id FROM statements WHERE pay_run_id = $1)`, [b.id]);
       await t.q('DELETE FROM statements WHERE pay_run_id = $1', [b.id]);
       await t.q('UPDATE invoices SET pay_run_id = NULL WHERE pay_run_id = $1', [b.id]);
       await t.q('DELETE FROM pay_runs WHERE id = $1', [b.id]);

@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Clock, Download, FilePlus2, FileText, ReceiptText } from 'lucide-react';
+import { AlertTriangle, Clock, Download, FileText, ReceiptText, RefreshCw } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Bento, Button, cx, dateShort, daysUntil, Empty, Input, isoDate, List, Load, money, Page, Pill, SearchInput, Section, Segmented, Select, Sheet, Stat, Tile, useAction, useApi,
+  Bento, Button, cx, dateShort, daysUntil, Empty, Input, isoDate, List, Load, money, Page, Pill, SearchInput, Section, Segmented, Sheet, Stat, Tile, useAction, useApi,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 
@@ -23,25 +23,26 @@ function CompanyInvoices() {
   const [params, setParams] = useSearchParams();
   const status = params.get('status') || 'all';
   const setStatus = (s) => setParams(s === 'all' ? {} : { status: s }, { replace: true });
-  const [gen, setGen] = useState(false);
   const [exp, setExp] = useState(false);
+  const [run, busy] = useAction();
+  // Drafts fill themselves from approved timesheets; this only catches up anything the 5-minute sweep has not reached yet
+  const refresh = () => run(() => api('invoices.generate', {}), (x) => `Drafts up to date · ${x.created} open`).then(list.reload).catch(() => {});
 
   return (
-    <Page title="Invoices" subtitle="Bill venues for signed hours"
+    <Page title="Invoices" subtitle="Approved shifts go straight onto each venue's draft"
       actions={<>
         <Button variant="secondary" icon={Download} onClick={() => setExp(true)}>Export</Button>
-        <Button icon={FilePlus2} onClick={() => setGen(true)}>Generate</Button>
+        <Button variant="secondary" icon={RefreshCw} busy={busy} onClick={refresh}>Bring up to date</Button>
       </>}>
       <Load q={list}>
-        {(rows) => <CompanyBody rows={rows} status={status} setStatus={setStatus} onGenerate={() => setGen(true)} />}
+        {(rows) => <CompanyBody rows={rows} status={status} setStatus={setStatus} />}
       </Load>
-      {gen && <GenerateSheet onClose={() => setGen(false)} onDone={() => { list.reload(); setStatus('draft'); }} />}
       {exp && <ExportSheet onClose={() => setExp(false)} />}
     </Page>
   );
 }
 
-function CompanyBody({ rows, status, setStatus, onGenerate }) {
+function CompanyBody({ rows, status, setStatus }) {
   const [q, setQ] = useState('');
   const out = rows.filter(outstanding);
   const overdue = rows.filter((i) => i.status === 'overdue');
@@ -81,7 +82,7 @@ function CompanyBody({ rows, status, setStatus, onGenerate }) {
       </div>
 
       {!rows.length
-        ? <Empty icon={ReceiptText} title="No invoices yet" body="Generate draft invoices from signed timesheets, check them, then issue." action={<Button icon={FilePlus2} onClick={onGenerate}>Generate invoices</Button>} />
+        ? <Empty icon={ReceiptText} title="No invoices yet" body="Approve a timesheet and it goes straight onto its venue's draft invoice. Issue once the venue has signed the shifts off." />
         : <InvoiceList rows={filtered} company />}
     </>
   );
@@ -111,6 +112,13 @@ function InvoiceList({ rows, company }) {
                 {i.period_start && ` · ${dateShort(i.period_start)} – ${dateShort(i.period_end)}`}
               </div>
               {due && <div className={cx('text-caption font-semibold', left < 0 ? 'text-red' : 'text-muted')}>{due}</div>}
+              {company && i.status === 'draft' && i.kind === 'invoice' && (i.signed > 0 || i.awaiting > 0) && (
+                <div className="mt-0.5 flex flex-wrap gap-x-2 text-caption font-semibold">
+                  {i.signed > 0 && <span className="text-green">{i.signed} signed · {money(i.signed_net)} ready</span>}
+                  {i.awaiting > 0 && <span className="text-amber">{i.awaiting} awaiting venue</span>}
+                  {i.late > 0 && <span className="text-blue">{i.late} late</span>}
+                </div>
+              )}
             </div>
             <div className="shrink-0 text-right">
               <div className={cx('num text-body font-bold', Number(i.gross) < 0 && 'text-muted')}>{money(i.gross)}</div>
@@ -120,72 +128,6 @@ function InvoiceList({ rows, company }) {
         );
       })}
     </List>
-  );
-}
-
-function GenerateSheet({ onClose, onDone }) {
-  const sug = useApi('pay.suggestPeriod');
-  const venues = useApi('venues.list', {});
-  const [range, setRange] = useState(null);
-  const r = range || sug.data?.invoice || { start: '', end: '' };
-  const [venue, setVenue] = useState('');
-  const preview = useApi('pay.preview', { start: r.start, end: r.end }, { skip: !r.start || !r.end });
-  const [run, busy] = useAction();
-  const [result, setResult] = useState(null);
-
-  const generate = async () => {
-    const res = await run(() => api('invoices.generate', { start: r.start, end: r.end, venue_id: venue || undefined }), (x) => `${x.created} draft invoice${x.created === 1 ? '' : 's'} created`).catch(() => null);
-    if (!res) return;
-    setResult(res);
-    onDone();
-  };
-
-  return (
-    <Sheet open onClose={onClose} title="Generate invoices"
-      footer={result
-        ? <Button onClick={onClose}>Done</Button>
-        : <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!r.start || !r.end} onClick={generate}>Create drafts</Button></>}>
-      {result ? (
-        <div className="space-y-3">
-          <div className="rounded-2xl bg-green-soft p-4">
-            <div className="text-callout font-bold text-green">{result.created} draft invoice{result.created === 1 ? '' : 's'}</div>
-            <div className="text-subhead text-muted">from {result.timesheets} signed timesheet{result.timesheets === 1 ? '' : 's'}</div>
-            {result.skipped > 0 && <div className="text-footnote text-amber">{result.skipped} timesheet{result.skipped === 1 ? '' : 's'} left out: the hours are not yet approved in a finalised pay run</div>}
-          </div>
-          {result.missing_rates?.length > 0 && (
-            <div className="rounded-2xl bg-amber-soft p-4">
-              <div className="flex items-center gap-1.5 font-semibold text-amber"><AlertTriangle size={16} />No charge rate — billed at £0.00</div>
-              <ul className="mt-1.5 space-y-0.5 text-subhead">{result.missing_rates.map((m) => <li key={m}>{m}</li>)}</ul>
-              <p className="mt-2 text-caption text-muted">Add the rate on the venue, delete the draft and generate again, or edit the lines.</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="From" type="date" value={r.start} onChange={(e) => setRange({ ...r, start: e.target.value })} />
-            <Input label="To" type="date" value={r.end} onChange={(e) => setRange({ ...r, end: e.target.value })} />
-          </div>
-          <Select label="Venue" placeholder="All venues" value={venue} onChange={(e) => setVenue(e.target.value)}
-            options={(venues.data || []).map((v) => ({ value: v.id, label: v.name }))} />
-          {preview.data && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-blue-soft p-4">
-                <div className="num text-title2 font-bold leading-none">{preview.data.uninvoiced.n}</div>
-                <div className="mt-1 text-footnote font-semibold">Signed, not invoiced</div>
-                <div className="num text-caption text-muted">{Number(preview.data.uninvoiced.hours).toLocaleString('en-GB')}h, all venues</div>
-              </div>
-              <div className={cx('rounded-2xl p-4', preview.data.unsigned ? 'bg-amber-soft' : 'bg-bg')}>
-                <div className={cx('num text-title2 font-bold leading-none', preview.data.unsigned && 'text-amber')}>{preview.data.unsigned}</div>
-                <div className="mt-1 text-footnote font-semibold">Not yet signed</div>
-                <div className="text-caption text-muted">Left out until signed</div>
-              </div>
-            </div>
-          )}
-          <p className="text-footnote text-muted">One draft invoice per venue. {sug.data && `Default invoice cycle: ${sug.data.invoice_cycle}.`} Nothing is sent until you issue each invoice.</p>
-        </div>
-      )}
-    </Sheet>
   );
 }
 

@@ -106,17 +106,19 @@ test('pipeline: cancelled work is declined in one place, and undone if the offic
   assert.match(sql, /statement_id IS NULL AND invoice_id IS NULL/);
 });
 
-test('pipeline: only signed timesheets reach pay and invoices, at the rates fixed on approval', () => {
+test('pipeline: approved timesheets sit on drafts at the rates fixed on approval; only signed ones are billed or paid', () => {
   const money = read('../modules/money.mjs');
-  assert.match(money, /const periodWhere = `t\.status = 'signed' AND/);
+  const feed = read('../modules/moneyFeed.mjs');
   assert.match(money, /t\.pay_rate != null \? Number\(t\.pay_rate\)/);
   assert.match(money, /t\.charge_rate != null \? Number\(t\.charge_rate\)/);
-  // One line each: generate only takes timesheets not already on a statement / invoice, and links them in the same transaction
-  assert.match(money, /WHERE \$\{periodWhere\} AND t\.statement_id IS NULL ORDER BY/);
-  assert.match(money, /WHERE \$\{periodWhere\} AND t\.invoice_id IS NULL AND/);
-  // Unlocking leaves the timesheet signed (not re-sign, not editable half-way): only the link is cleared
-  for (const m of money.matchAll(/UPDATE timesheets SET (statement_id|invoice_id) = NULL[^']*/g)) assert.doesNotMatch(m[0], /status/);
-  assert.doesNotMatch(read('../modules/payruns.mjs').match(/UPDATE timesheets SET statement_id = NULL[^']*/)[0], /status/);
+  // The feed is the one way timesheets reach drafts (one line each, linked in the same transaction); generate just runs it
+  assert.match(feed, /UPDATE timesheets SET invoice_id = \$2 WHERE id = \$1/);
+  assert.match(feed, /UPDATE timesheets SET statement_id = \$2 WHERE id = \$1/);
+  assert.doesNotMatch(money, /INSERT INTO invoice_lines \(invoice_id, timesheet_id/);
+  // Unlinking never changes the timesheet's status: the link is cleared and the feed looks again
+  for (const src of [money, feed, read('../modules/payruns.mjs')]) {
+    for (const m of src.matchAll(/UPDATE timesheets SET \$?\{?[^=]*(statement_id|invoice_id)'?\}? = NULL[^'`]*/g)) assert.doesNotMatch(m[0], /status/);
+  }
 });
 
 test('pipeline: approve fixes the rates and refuses cancelled work; a rebuild uses afterRebuild', () => {

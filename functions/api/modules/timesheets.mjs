@@ -21,7 +21,7 @@ const CANCELLED = `(a.status NOT IN ('assigned','accepted') OR s.status = 'cance
 const BASE_SQL = `
   SELECT t.*, a.officer_id, s.id AS shift_id, s.starts_at, s.ends_at, s.role, r.name AS role_name, s.venue_id, v.name AS venue_name,
          ${officerName('o')} AS officer_name, ${userName('ua')} AS approved_by_name, ${userName('us')} AS signed_by_name,
-         (t.statement_id IS NOT NULL OR t.invoice_id IS NOT NULL) AS locked, ${CANCELLED} AS cancelled
+         timesheet_billed(t.statement_id, t.invoice_id) AS locked, ${CANCELLED} AS cancelled
     FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
     JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role JOIN officers o ON o.id = a.officer_id
     LEFT JOIN users ua ON ua.id = t.approved_by LEFT JOIN users us ON us.id = t.signed_by`;
@@ -67,12 +67,13 @@ export const actions = {
               s.role, r.name AS role_name, s.venue_id, v.name AS venue_name, ${officerName('o')} AS officer_name, o.photo_key,
               t.id, t.status, t.actual_start, t.actual_end, t.break_minutes, t.hours, t.flags, t.charge_rate, t.pay_rate, t.charge_rate_set, t.pay_rate_set,
               t.rate_note, t.decline_reason, t.dispute_comment, t.resolution, t.approved_at, t.signed_at, t.auto_signed, t.self_approved, t.queried_at,
-              t.statement_id, t.invoice_id, (t.statement_id IS NOT NULL OR t.invoice_id IS NOT NULL) AS locked, ${CANCELLED} AS cancelled,
+              t.statement_id, t.invoice_id, timesheet_billed(t.statement_id, t.invoice_id) AS locked, ${CANCELLED} AS cancelled,
+              inv.status AS invoice_status, inv.number AS invoice_number, timesheet_billed(t.statement_id, NULL) AS pay_billed,
               ${userName('ua')} AS approved_by_name, ${userName('us')} AS signed_by_name, ${userName('ud')} AS declined_by_name, ${userName('uq')} AS queried_by_name,
               ci.ts AS clock_in, ci.venue_code AS in_code, ci.status AS in_status, co.ts AS clock_out
          FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id
          JOIN roles r ON r.code = s.role JOIN officers o ON o.id = a.officer_id
-         LEFT JOIN timesheets t ON t.assignment_id = a.id
+         LEFT JOIN timesheets t ON t.assignment_id = a.id LEFT JOIN invoices inv ON inv.id = t.invoice_id
          LEFT JOIN users ua ON ua.id = t.approved_by LEFT JOIN users us ON us.id = t.signed_by
          LEFT JOIN users ud ON ud.id = t.declined_by LEFT JOIN users uq ON uq.id = t.queried_by
          LEFT JOIN LATERAL (SELECT ts, venue_code, status FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in'
@@ -113,7 +114,7 @@ export const actions = {
       return {
         ...r, state, date, photo_url: photos[r.officer_id] || null, how: r.in_status === 'manual' ? 'manual' : r.in_code || (r.clock_in ? 'gps' : null),
         charge_rate, pay_rate, charge_total, pay_total, charge_estimate: r.charge_rate == null, pay_estimate: r.pay_rate == null,
-        unpaid_late: state === 'signed' && !r.statement_id && closed && date <= closed.end,
+        unpaid_late: state === 'signed' && !r.pay_billed && closed && date <= closed.end,
       };
     });
 
@@ -133,7 +134,9 @@ export const actions = {
     const days = {};
     for (const r of shaped) (days[r.date] ||= []).push(r);
     const dayTotals = Object.fromEntries(Object.entries(days).map(([d, list]) => [d, totals(list)]));
-    const out = (await markSelf(user, shaped)).map((r) => redactMoney(r, user));
+    // Drafts are the office's working copy: only company managers see that a line sits on one
+    const out = (await markSelf(user, shaped)).map((r) => redactMoney(r, user)).map(({ pay_billed: _b, ...r }) => (
+      user.role !== 'company' && r.invoice_status === 'draft' ? { ...r, invoice_status: null, invoice_number: null } : r));
     const wk = totals(shaped);
     if (!see.charge) delete wk.charge;
     if (!see.pay) delete wk.pay;
@@ -274,7 +277,7 @@ export const actions = {
     required(b, 'id', 'reason');
     const [t] = await loadScoped(user, [b.id]);
     need(t);
-    if (t.locked) fail(400, 'On a statement or invoice — remove it from the draft first');
+    if (t.locked) fail(400, 'Already on an issued invoice or a pay run in review — changes now need a credit note');
     if (t.status === 'declined') fail(400, 'Declined — nothing is paid or charged');
     const num = (v) => (v == null || v === '' ? null : Number(v));
     const charge = num(b.charge_rate);
@@ -304,7 +307,7 @@ export const actions = {
     const [t] = await loadScoped(user, [b.id]);
     need(t);
     const self = await guardSelf(user, t.officer_id, { venueId: t.venue_id });
-    if (t.locked) fail(400, 'On a statement or invoice — remove it from the draft first');
+    if (t.locked) fail(400, 'Already on an issued invoice or a pay run in review — changes now need a credit note');
     if (t.cancelled) fail(400, 'The shift was cancelled — put the officer back on the Rota first');
     const start = b.actual_start || t.actual_start;
     const end = b.actual_end || t.actual_end;

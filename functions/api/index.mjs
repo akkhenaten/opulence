@@ -3,6 +3,7 @@ import { migrate as migrateDb } from './lib/db.mjs';
 import { seedLibrary } from './lib/contractContent.mjs';
 import { userFromEvent } from './lib/auth.mjs';
 import { runJobs } from './modules/jobs.mjs';
+import { syncRecent } from './modules/moneyFeed.mjs';
 import * as auth from './modules/auth.mjs';
 import * as users from './modules/users.mjs';
 import * as settings from './modules/settings.mjs';
@@ -101,6 +102,8 @@ export async function handler(event) {
       }
     }
     const result = await entry.fn(body, { user, ip, event });
+    // Whatever the action touched (approve, query, decline, a cancelled shift…), draft invoices and statements follow it now
+    await syncRecent().catch((e) => console.error('[money feed]', body.action, e));
     return json(result ?? { ok: true });
   } catch (e) {
     if (e instanceof HttpError) return json({ error: e.message, ...(e.extra || {}) }, e.status);

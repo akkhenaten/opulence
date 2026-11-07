@@ -1,14 +1,15 @@
 // Pay runs: draft → staff review → finalised → issued → paid. Officers check their statement; queries are resolved here.
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, Banknote, Check as CheckIcon, CircleDot, FileText, Lock, MessageSquare, Pause, Receipt, Send, ShieldCheck, Trash2 } from 'lucide-react';
+import { AlertTriangle, Banknote, Check as CheckIcon, CircleDot, Clock, FileText, RefreshCw, Lock, MessageSquare, Pause, Receipt, Send, ShieldCheck, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Bento, Button, cx, date, dateShort, dateTime, Empty, hours, Input, List, Load, money, Page, Pill, Row, Section, Segmented, Select, Sheet, Stat, Textarea, Tile,
+  Avatar, Bento, Button, Callout, cx, date, dateShort, dateTime, Empty, hours, Input, List, Load, money, Page, Pill, Row, Section, Segmented, Select, Sheet, Stat, Textarea, Tile,
   useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
+import { DayLines, signedSplit } from './_lines.jsx';
 import { SELF_HINT, SelfPills } from '../manager/_parts.jsx';
 
 export const RUN_LABEL = { draft: 'Draft', in_review: 'With staff', reconciled: 'Finalised', issued: 'Issued', paid: 'Paid' };
@@ -25,7 +26,7 @@ export function RunsList({ reloadKey }) {
   return (
     <Section title="Pay runs">
       <Load q={runs} skeleton="rows" n={3}>
-        {(rows) => (!rows.length ? <Empty icon={Banknote} title="No pay runs yet" body="Create drafts from signed timesheets to start a pay run." /> : (
+        {(rows) => (!rows.length ? <Empty icon={Banknote} title="No pay runs yet" body="A draft run opens by itself as soon as a timesheet is approved." /> : (
           <List>
             {rows.map((r) => (
               <Row key={r.id} to={`${base}/pay/runs/${r.id}`} chevron
@@ -66,14 +67,17 @@ function Detail({ isCo }) {
         const held = r.statements.filter((s) => s.held && s.status === 'draft');
         const open = r.disputes.filter((d) => d.status === 'open');
         const reload = q.reload;
+        const lines = r.lines || [];
+        const split = signedSplit(lines.filter((l) => l.timesheet_id));
+        const hasTimesheets = split.signed + split.awaiting > 0;
 
         const finalise = async (choice) => {
-          const res = await run(() => api('payRuns.finalise', { id: r.id, no_response: choice }), (x) => (x.held ? `Finalised · ${plural(x.held, 'statement')} held back` : 'Pay run finalised')).catch(() => null);
+          const res = await run(() => api('payRuns.finalise', { id: r.id, no_response: choice }), (x) => [x.held ? `Finalised · ${plural(x.held, 'statement')} held back` : 'Pay run finalised', x.held_back && `${plural(x.held_back, 'unsigned shift')} moved to the next run`].filter(Boolean).join(' · ')).catch(() => null);
           if (res) { setSheet(res.reconcile?.created ? { kind: 'reconcile', data: res.reconcile } : null); reload(); }
         };
         const startFinalise = async () => {
           if (waiting) return setSheet({ kind: 'finalise' });
-          if (!(await confirm({ title: 'Finalise this pay run?', body: r.status === 'draft' ? 'Statements are approved without sending them to staff first. Orb then checks rota, clock and timesheet hours line up.' : 'Orb checks rota, clock and timesheet hours line up. After this you can issue the statements.', confirm: 'Finalise' }))) return;
+          if (!(await confirm({ title: 'Finalise this pay run?', body: r.status === 'draft' ? `Statements are approved without sending them to staff first. Orb then checks rota, clock and timesheet hours line up.${split.awaiting ? ` ${plural(split.awaiting, 'shift')} still awaiting the venue's sign-off ${split.awaiting === 1 ? 'moves' : 'move'} to the next run.` : ''}` : 'Orb checks rota, clock and timesheet hours line up. After this you can issue the statements.', confirm: 'Finalise' }))) return;
           finalise();
         };
         const issue = async () => {
@@ -92,16 +96,16 @@ function Detail({ isCo }) {
           reload();
         };
         const del = async () => {
-          if (!(await confirm({ title: 'Delete this pay run?', body: 'All its draft statements are deleted and the timesheets go back into the next run.', confirm: 'Delete', danger: true }))) return;
+          if (!(await confirm({ title: 'Delete this pay run?', body: 'Only bonuses, expenses and deductions are on it; its draft statements are deleted.', confirm: 'Delete', danger: true }))) return;
           const ok = await run(() => api('payRuns.delete', { id: r.id }), 'Pay run deleted').then(() => true, () => false);
           if (ok) nav(`${base}/pay`);
         };
 
         return (
-          <Page title={periodOf(r)} subtitle={`Pay run${r.created_via === 'ai' ? ' · started by Orb' : ''}${r.created_by_name ? ` · ${r.created_by_name}` : ''}`}
+          <Page title={periodOf(r)} subtitle={`Pay run${r.created_via === 'auto' ? ' · kept up to date from timesheets' : r.created_via === 'ai' ? ' · started by Orb' : ''}${r.created_by_name ? ` · ${r.created_by_name}` : ''}`}
             back={{ to: `${base}/pay`, label: 'Pay runs' }}
             actions={isCo ? [
-              r.status === 'draft' && { label: 'Send for review', icon: Send, onClick: () => setSheet({ kind: 'review' }) },
+              r.status === 'draft' && { label: 'Send for review', icon: Send, disabled: hasTimesheets && !split.signed, hint: hasTimesheets && !split.signed ? 'Nothing is signed off by the venues yet' : undefined, onClick: () => setSheet({ kind: 'review' }) },
               ['draft', 'in_review'].includes(r.status) && { label: 'Finalise', icon: ShieldCheck, variant: 'primary', main: true, busy, disabled: open.length > 0, title: open.length ? 'Resolve the open queries first' : undefined, hint: open.length ? 'Resolve the open queries first' : undefined, onClick: startFinalise },
               ['reconciled', 'issued'].includes(r.status) && toIssue > 0 && { label: `Issue ${toIssue}`, icon: Send, variant: 'primary', main: true, busy, onClick: issue },
               r.status === 'issued' && r.issued > 0 && { label: 'Mark paid', icon: CheckIcon, variant: toIssue ? 'secondary' : 'primary', main: !toIssue, busy, onClick: markPaid },
@@ -166,6 +170,13 @@ function Detail({ isCo }) {
               </Section>
             )}
 
+            {r.status === 'draft' && hasTimesheets && (
+              <Callout tone={split.awaiting ? 'warning' : 'info'} icon={split.awaiting ? Clock : RefreshCw} className="mb-2">
+                Kept up to date from approved timesheets.
+                {split.awaiting ? ` ${split.signed} of ${split.signed + split.awaiting} shifts are signed off by the venues; only those are paid in this run. The rest move to the next run when you send it for review or finalise.` : ' Every shift on it is signed off by the venues.'}
+              </Callout>
+            )}
+
             <Section title="Statements">
               {!r.statements.length ? <Empty icon={FileText} title="No statements in this run" /> : (
                 <List>
@@ -180,9 +191,16 @@ function Detail({ isCo }) {
               )}
             </Section>
 
-            {isCo && ['reconciled', 'issued', 'paid'].includes(r.status) && (
+            {lines.length > 0 && (
+              <Section title="Shifts by day" action={<span className="num text-footnote font-semibold">{money(lines.reduce((a, l) => a + Number(l.amount || 0), 0))}</span>}>
+                <DayLines lines={lines} periodStart={r.status === 'draft' ? r.period_start : null} showState={r.status === 'draft'} who={(l) => l.officer_name}
+                  onRow={(l) => nav(`${base}/pay/${l.statement_id}`)} />
+              </Section>
+            )}
+
+            {isCo && (
               <Section title="Invoices" action={<Button size="sm" variant="soft" icon={Receipt} to={`/company/invoices?start=${r.period_start}&end=${r.period_end}`}>Invoices</Button>}>
-                {!r.invoices.length ? <p className="px-1 text-subhead text-muted">No invoices for this run yet. Only hours approved by staff in a finalised run are invoiced.</p> : (
+                {!r.invoices.length ? <p className="px-1 text-subhead text-muted">No invoices share shifts with this run yet.</p> : (
                   <List>
                     {r.invoices.map((i) => <Row key={i.id} to={`/company/invoices/${i.id}`} chevron title={i.venue_name} subtitle={i.number || 'Draft'} right={<div className="flex items-center gap-2"><span className="num font-semibold">{money(i.gross)}</span><Pill status={i.status} /></div>} />)}
                   </List>
@@ -190,7 +208,7 @@ function Detail({ isCo }) {
               </Section>
             )}
 
-            {isCo && ['draft', 'in_review', 'reconciled'].includes(r.status) && !r.issued && !r.paid && (
+            {isCo && ['draft', 'in_review', 'reconciled'].includes(r.status) && !r.issued && !r.paid && !(r.status === 'draft' && hasTimesheets) && (
               <div className="mt-6 flex justify-center"><Button variant="danger" icon={Trash2} busy={busy} onClick={del}>Delete pay run</Button></div>
             )}
 
@@ -225,7 +243,7 @@ function Timeline({ status }) {
 function ReviewSheet({ run: r, onClose, onDone }) {
   const [days, setDays] = useState('3');
   const [run, busy] = useAction();
-  const send = () => run(() => api('payRuns.sendForReview', { id: r.id, deadline_days: Number(days) }), (x) => `Sent to ${plural(x.sent, 'officer')}`)
+  const send = () => run(() => api('payRuns.sendForReview', { id: r.id, deadline_days: Number(days) }), (x) => [`Sent to ${plural(x.sent, 'officer')}`, x.held_back && `${plural(x.held_back, 'unsigned shift')} moved to the next run`].filter(Boolean).join(' · '))
     .then(() => { onDone(); onClose(); }).catch(() => {});
   return (
     <Sheet open onClose={onClose} title="Send to staff for review" size="sm"
@@ -235,7 +253,7 @@ function ReviewSheet({ run: r, onClose, onDone }) {
         <Select label="Deadline" value={days} onChange={(e) => setDays(e.target.value)}
           options={[1, 2, 3, 4, 5, 6, 7].map((n) => ({ value: String(n), label: plural(n, 'day') }))}
           hint={Number(days) > 2 ? 'A reminder goes out 48 hours before the deadline.' : 'Short deadline: no separate reminder.'} />
-        <p className="text-caption text-faint">Anyone who does not respond by the deadline is marked "No response". You then choose to approve on their behalf or hold them back.</p>
+        <p className="text-caption text-faint">Only shifts the venues have signed off go out; the rest move to the next run. Anyone who does not respond by the deadline is marked "No response". You then choose to approve on their behalf or hold them back.</p>
       </div>
     </Sheet>
   );

@@ -3,6 +3,7 @@ import { q } from '../lib/db.mjs';
 import { notify, managersFor, officerUser, companyManagers } from '../lib/notify.mjs';
 import { fmtDate, fmtTime, londonDate, addDays } from '../lib/time.mjs';
 import { buildTimesheet } from './clock.mjs';
+import { sweep } from './moneyFeed.mjs';
 import { getSettings } from './settings.mjs';
 import { runOpsJobs, jobOn } from './ops.mjs';
 import { statusesFor, pairKey, OK } from '../lib/venuePack.mjs';
@@ -178,6 +179,8 @@ export async function runJobs() {
       result[name] = `error: ${e.message}`;
     }
   }
+  // Draft invoices and statements follow their timesheets (auto sign-off, clock rebuilds, the go-live backlog, rate-card drift)
+  result.moneyFeed = await sweep().catch((e) => `error: ${e.message}`);
   result.ops = await runOpsJobs(s);
   // Training reminders and renewals, at most once an hour
   if (new Date().getUTCMinutes() < 5) result.learn = await learnJobs().catch((e) => `error: ${e.message}`);
