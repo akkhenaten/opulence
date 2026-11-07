@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { ClipboardList, FileSignature, Lock, MapPin, Phone, QrCode, Radio, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ClipboardList, Clock3, FileSignature, Lock, MapPin, Phone, QrCode, Radio, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
 import {
-  Avatar, Button, Empty, IconButton, Input, KV, List, Load, Page, Pill, Row, Section, Segmented, Sheet, Tabs, Textarea, Tile, cx, range, time, titleCase, useAction, useApi, useForm, useToast,
+  Avatar, Button, Empty, IconButton, Input, KV, List, Load, MoreMenu, Page, Pill, Row, Section, Sheet, Tabs, Textarea, cx, range, time, titleCase, useAction, useApi, useForm, useMedia, useToast, useUrlState,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useVenue } from '../../venue.jsx';
@@ -33,21 +33,37 @@ function PackPill({ r, venue }) {
   return null;
 }
 
+// One filter for the board, kept in the address (?show=) so Back returns to the same view
+const FILTERS = {
+  all: () => true,
+  on: (r) => ON.includes(r.state),
+  late: (r) => r.state === 'late',
+  no_show: (r) => r.state === 'no_show',
+  issues: (r) => ISSUE.includes(r.state) || r.has_exception,
+  upcoming: (r) => r.state === 'upcoming',
+  done: (r) => ['finished', 'left_early'].includes(r.state),
+  pack: PACK_OUT,
+};
+
 export default function Live() {
   const { base, isManager, user } = useBase();
   const venue = user.role === 'venue';
   const { venueId } = useVenue();
   const q = useApi('live.board', { venue_id: venueId || undefined }, { poll: 15000 });
   const count = useApi('ops.count', {}, { poll: 30000, skip: !isManager });
-  const [sp, setSp] = useSearchParams();
-  const raw = sp.get('tab');
-  const tab = isManager && (raw === 'activity' || (raw === 'settings' && user.role === 'company')) ? raw : 'board';
-  const [filter, setFilter] = useState('all');
-  const [open, setOpen] = useState(null);
+  const lg = useMedia('(min-width: 1024px)');
+  const [url, setUrl] = useUrlState({ tab: 'board', show: 'all' });
+  const allowed = ['board', ...(lg ? [] : ['approve']), 'activity', ...(user.role === 'company' ? ['settings'] : [])];
+  const tab = isManager && allowed.includes(url.tab) ? url.tab : 'board';
+  const filter = FILTERS[url.show] && !(venue && url.show === 'pack') ? url.show : 'all';
+  const setFilter = (v) => setUrl({ show: v });
+  const [openId, setOpenId] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [lastChecked, setLastChecked] = useState(null);
+  const [updated, setUpdated] = useState(null);
   const [run, busy] = useAction();
   const toast = useToast();
+  useEffect(() => { if (q.data) setUpdated(new Date()); }, [q.data]);
 
   // Any shift change or Orb decision anywhere in the app: the board, the count and the cards catch up
   useEffect(() => {
@@ -67,62 +83,61 @@ export default function Live() {
     }).catch(() => {});
   };
 
-  const tabs = [{ value: 'board', label: 'Board' }, { value: 'activity', label: 'Activity' }, ...(user.role === 'company' ? [{ value: 'settings', label: 'Settings' }] : [])];
-  const board = <Load q={q}>{(rows) => <Board rows={rows} filter={filter} setFilter={setFilter} onOpen={isManager ? setOpen : null} base={base} venue={venue} narrow={isManager} />}</Load>;
+  const rows = q.data || [];
+  const shown = rows.filter(FILTERS[filter]);
+  // The drawer steps through the rows in the order the board shows them (grouped by venue)
+  const order = [...new Map(shown.map((r) => [r.venue_id, null])).keys()].flatMap((v) => shown.filter((r) => r.venue_id === v));
+  const at = order.findIndex((r) => r.assignment_id === openId);
+  const open = at >= 0 ? order[at] : rows.find((r) => r.assignment_id === openId);
+  const n = count.data?.n;
+
+  const tabs = [
+    { value: 'board', label: 'Board' },
+    !lg && { value: 'approve', label: 'To approve', count: n },
+    { value: 'activity', label: 'Activity' },
+    user.role === 'company' && { value: 'settings', label: 'Settings' },
+  ];
+  const board = <Load q={q}>{() => <Board rows={rows} shown={shown} filter={filter} setFilter={setFilter} onOpen={(r) => setOpenId(r.assignment_id)} base={base} venue={venue} narrow={isManager} />}</Load>;
   return (
-    <Page title={venue ? 'On site' : 'Live operations'} wide photo="control"
-      subtitle={isManager ? <>Board updates every 15 seconds · Orb checks every 5 minutes{lastChecked && <> · last checked <span className="num">{time(lastChecked)}</span></>}</> : 'Updates every 15 seconds'}
+    <Page title={venue ? 'On site' : 'Live operations'} wide
+      subtitle={<>{updated ? <>Updated <span className="num">{time(updated)}</span></> : 'Updates every 15 seconds'}{isManager && lastChecked && <> · Orb checked <span className="num">{time(lastChecked)}</span></>}</>}
       actions={<>
         <IconButton icon={RefreshCw} label={isManager ? 'Run Orb checks and refresh' : 'Refresh'} onClick={refresh} disabled={busy}
           className={cx('bg-surface shadow-tile', busy && '[&>svg]:animate-spin')} />
       </>}>
-      {isManager && <Tabs value={tab} onChange={(v) => setSp(v === 'board' ? {} : { tab: v }, { replace: true })} tabs={tabs} />}
-      {tab === 'board' && (isManager ? (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
+      {isManager && <Tabs value={tab} onChange={(v) => setUrl({ tab: v })} tabs={tabs} />}
+      {tab === 'board' && (isManager && lg ? (
+        <div className="grid grid-cols-[minmax(0,1fr)_400px] gap-5">
           <div className="min-w-0">{board}</div>
-          <OpsPanel n={count.data?.n} reloadKey={reloadKey} onChange={count.reload} />
+          <OpsPanel n={n} reloadKey={reloadKey} onChange={count.reload} />
         </div>
       ) : board)}
+      {tab === 'approve' && <Inbox compact reloadKey={reloadKey} onChange={count.reload} />}
       {tab === 'activity' && <Activity />}
       {tab === 'settings' && <OpsSettings />}
-      {open && <Detail row={open} onClose={() => setOpen(null)} onDone={() => { setOpen(null); q.reload(); }} base={base} />}
+      {open && <Detail row={open} venue={venue} base={base} onClose={() => setOpenId(null)} onDone={() => { setOpenId(null); q.reload(); }}
+        onPrev={at > 0 ? () => setOpenId(order[at - 1].assignment_id) : undefined}
+        onNext={at >= 0 && at < order.length - 1 ? () => setOpenId(order[at + 1].assignment_id) : undefined} />}
     </Page>
   );
 }
 
-/** Orb beside the board (above it on phones, as a single line when there is nothing to approve). */
+/** Orb beside the board on wide screens; on phones and tablets it has its own To approve tab. */
 function OpsPanel({ n, reloadKey, onChange }) {
-  const [expanded, setExpanded] = useState(false);
-  const quiet = n === 0 && !expanded;
   return (
-    <aside className="order-first lg:sticky lg:top-4 lg:order-none lg:self-start">
+    <aside className="sticky top-4 self-start">
       <div className="mb-3 flex items-center gap-2">
         <Sparkles size={18} className="text-blue" />
         <h2 className="text-headline font-bold">Orb</h2>
         {n > 0 && <Pill tone="blue">{n} to approve</Pill>}
       </div>
-      {quiet ? (
-        <Tile className="flex items-center gap-3 lg:hidden">
-          <span className="min-w-0 flex-1 text-subhead text-muted">All clear. Nothing to approve.</span>
-          <Button size="sm" variant="link" onClick={() => setExpanded(true)}>Open</Button>
-        </Tile>
-      ) : null}
-      <div className={cx(quiet && 'hidden lg:block')}>
-        <Inbox compact reloadKey={reloadKey} onChange={onChange} />
-      </div>
+      <Inbox compact reloadKey={reloadKey} onChange={onChange} />
     </aside>
   );
 }
 
-function Board({ rows, filter, setFilter, onOpen, base, venue, narrow }) {
-  const n = (f) => rows.filter(f).length;
-  const counts = {
-    on: n((r) => ON.includes(r.state)), late: n((r) => r.state === 'late'), no_show: n((r) => r.state === 'no_show'),
-    upcoming: n((r) => r.state === 'upcoming'), exc: n((r) => r.has_exception), pack: n(PACK_OUT), done: n((r) => ['finished', 'left_early'].includes(r.state)),
-  };
-  const shown = rows.filter((r) => ({
-    all: true, on: ON.includes(r.state), issues: ISSUE.includes(r.state) || r.has_exception, pack: PACK_OUT(r), upcoming: r.state === 'upcoming', done: ['finished', 'left_early'].includes(r.state),
-  }[filter]));
+function Board({ rows, shown, filter, setFilter, onOpen, base, venue, narrow }) {
+  const n = (k) => rows.filter(FILTERS[k]).length;
   const groups = useMemo(() => {
     const m = new Map();
     for (const r of shown) {
@@ -132,23 +147,26 @@ function Board({ rows, filter, setFilter, onOpen, base, venue, narrow }) {
     for (const g of m.values()) g.shifts = [...new Map(g.rows.filter((r) => r.shift_id).map((r) => [r.shift_id, r])).values()];
     return [...m.entries()];
   }, [shown]);
+  const chip = (k, label, tone) => {
+    const c = n(k);
+    return <Chip key={k} label={label} value={c} tone={c ? tone : 'grey'} active={filter === k} onClick={() => setFilter(filter === k ? 'all' : k)} />;
+  };
 
   return (
     <>
-      <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
-        <Chip label="On site" value={counts.on} tone="green" active={filter === 'on'} onClick={() => setFilter(filter === 'on' ? 'all' : 'on')} />
-        <Chip label="Late" value={counts.late} tone={counts.late ? 'amber' : 'grey'} active={filter === 'issues'} onClick={() => setFilter(filter === 'issues' ? 'all' : 'issues')} />
-        <Chip label="No-show" value={counts.no_show} tone={counts.no_show ? 'red' : 'grey'} active={filter === 'issues'} onClick={() => setFilter(filter === 'issues' ? 'all' : 'issues')} />
-        {counts.exc > 0 && <Chip label="Exceptions" value={counts.exc} tone="red" active={filter === 'issues'} onClick={() => setFilter('issues')} />}
-        {!venue && counts.pack > 0 && <Chip label="Pack not signed" value={counts.pack} tone="amber" active={filter === 'pack'} onClick={() => setFilter(filter === 'pack' ? 'all' : 'pack')} />}
-        <Chip label="Due on" value={counts.upcoming} tone="blue" active={filter === 'upcoming'} onClick={() => setFilter(filter === 'upcoming' ? 'all' : 'upcoming')} />
-        <Chip label="Finished" value={counts.done} active={filter === 'done'} onClick={() => setFilter(filter === 'done' ? 'all' : 'done')} />
+      <div role="group" aria-label="Show" className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+        <Chip label="All" value={rows.length} active={filter === 'all'} onClick={() => setFilter('all')} />
+        {chip('on', 'On site', 'green')}
+        {chip('late', 'Late', 'amber')}
+        {chip('no_show', 'No-show', 'red')}
+        {chip('issues', 'Issues', 'red')}
+        {chip('upcoming', 'Due on', 'blue')}
+        {chip('done', 'Finished', 'grey')}
+        {!venue && n('pack') > 0 && chip('pack', 'Pack not signed', 'amber')}
       </div>
-      <Segmented value={filter} onChange={setFilter} className="mb-2"
-        options={[{ value: 'all', label: 'All' }, { value: 'on', label: 'On site' }, { value: 'issues', label: 'Issues' }, { value: 'upcoming', label: 'Due on' }, { value: 'done', label: 'Finished' }]} />
 
       {!rows.length && <div className="mt-4"><Empty icon={Radio} title="Nobody due on site" body="Officers on published shifts from 2 hours ago to 12 hours ahead show here." /></div>}
-      {rows.length > 0 && !shown.length && <div className="mt-4"><Empty title="Nobody in this view" /></div>}
+      {rows.length > 0 && !shown.length && <div className="mt-4"><Empty title="Nobody in this view" action={<Button variant="secondary" onClick={() => setFilter('all')}>Show everyone</Button>} /></div>}
 
       <div className={cx('grid grid-cols-1 gap-x-5', narrow ? 'xl:grid-cols-2' : 'lg:grid-cols-2')}>
         {groups.map(([id, g]) => {
@@ -156,8 +174,8 @@ function Board({ rows, filter, setFilter, onOpen, base, venue, narrow }) {
           return (
             <Section key={id} title={g.name} action={
               <div className="flex flex-wrap items-center justify-end gap-1.5">
-                {base !== '/venue' && g.shifts.map((r) => (
-                  <Button key={r.shift_id} size="sm" variant="soft" icon={ClipboardList} to={`${base}/shifts/${r.shift_id}`} state={{ from: 'live' }}>
+                {g.shifts.map((r) => (
+                  <Button key={r.shift_id} size="sm" variant="soft" icon={ClipboardList} to={shiftCard(base, r.shift_id)} state={{ from: 'live' }}>
                     Shift card{g.shifts.length > 1 && <span className="num">&nbsp;{range(r.starts_at, r.ends_at)}</span>}
                   </Button>
                 ))}
@@ -191,23 +209,33 @@ function Board({ rows, filter, setFilter, onOpen, base, venue, narrow }) {
   );
 }
 
-function Detail({ row, onClose, onDone, base }) {
+// Venues open the shift log (read only); the office opens the full shift card
+const shiftCard = (base, id) => (base === '/venue' ? `/venue/logs/${id}` : `${base}/shifts/${id}`);
+
+// One officer on the board, in a drawer beside it on wide screens: ↑ ↓ step through the rows
+function Detail({ row, venue, onClose, onDone, base, onPrev, onNext }) {
   const [manual, setManual] = useState(false);
+  useEffect(() => setManual(false), [row.assignment_id]);
   const events = row.events || [];
   const inEv = events.find((e) => e.kind === 'in' && e.status !== 'rejected');
+  const more = venue ? [] : [
+    { label: 'Set times manually', icon: Clock3, onClick: () => setManual(true) },
+    row.has_exception && { label: 'Review exception', icon: TriangleAlert, to: `${base}/exceptions` },
+    row.pack !== 'none' && { label: 'Open site pack', icon: FileSignature, to: `${base}/venues/${row.venue_id}?tab=pack` },
+  ];
   return (
-    <Sheet open onClose={onClose} title={row.officer_name}
+    <Sheet open side onClose={onClose} title={row.officer_name} onPrev={manual ? undefined : onPrev} onNext={manual ? undefined : onNext}
       footer={manual ? null : <>
-        {row.phone && <Button variant="secondary" icon={Phone} onClick={() => { window.location.href = `tel:${row.phone}`; }}>Call</Button>}
-        <Button variant="soft" onClick={() => setManual(true)}>Set times manually</Button>
+        <MoreMenu items={more} title={row.officer_name} />
+        {!venue && row.phone && <Button variant="secondary" icon={Phone} onClick={() => { window.location.href = `tel:${row.phone}`; }}>Call</Button>}
+        {row.shift_id && <Button to={shiftCard(base, row.shift_id)} state={{ from: 'live' }} icon={ClipboardList}>Open shift card</Button>}
       </>}>
       {manual ? <ManualForm row={row} onCancel={() => setManual(false)} onDone={onDone} /> : (
         <div className="space-y-5">
-          <div className="flex flex-wrap items-center gap-2"><Pill status={row.state} /><PackPill r={row} />{row.has_exception && <Pill tone="red">Exception</Pill>}</div>
-          {base !== '/venue' && row.shift_id && <Button className="w-full" to={`${base}/shifts/${row.shift_id}`} state={{ from: 'live' }} icon={ClipboardList}>Open shift card</Button>}
+          <div className="flex flex-wrap items-center gap-2"><Pill status={row.state} /><PackPill r={row} venue={venue} />{row.has_exception && <Pill tone="red">Exception</Pill>}</div>
           <KV items={[
             ['Venue', row.venue_name], ['Shift', <span className="num">{range(row.starts_at, row.ends_at)}</span>], ['Role', row.role_name],
-            ['SIA', row.sia_number], ['Phone', row.phone], ['Clocked in', row.clocked_in && <span className="num">{time(row.clocked_in)}</span>],
+            !venue && ['SIA', row.sia_number], !venue && ['Phone', row.phone], ['Clocked in', row.clocked_in && <span className="num">{time(row.clocked_in)}</span>],
             ['Site pack', PACK_LABEL[row.pack]],
             row.pack_block && ['Blocked clock-in', <>first <span className="num">{time(row.pack_block.first_at)}</span>{row.pack_block.attempts > 1 ? <>, last <span className="num">{time(row.pack_block.last_at)}</span> · {row.pack_block.attempts} attempts</> : ''}</>],
           ]} />
@@ -224,15 +252,13 @@ function Detail({ row, onClose, onDone, base }) {
               </List>
             )}
           </div>
-          {inEv && (
+          {inEv && !venue && (
             <div>
               <div className="mb-2 text-caption font-semibold uppercase tracking-wide text-faint">Clock-in checks</div>
               <div className="flex flex-wrap gap-1.5"><ProofFlags e={{ ...inEv, selfie_url: row.selfie_url }} /></div>
               {row.selfie_url && <div className="mt-3"><SelfieCompare e={{ ...inEv, selfie_url: row.selfie_url, profile_photo_url: row.photo_url, officer_name: row.officer_name }} /></div>}
             </div>
           )}
-          {row.has_exception && <Button variant="secondary" to={`${base}/exceptions`} icon={TriangleAlert}>Review exception</Button>}
-          {row.pack !== 'none' && <Button variant="secondary" to={`${base}/venues/${row.venue_id}?tab=pack`} icon={FileSignature}>Open site pack</Button>}
         </div>
       )}
     </Sheet>

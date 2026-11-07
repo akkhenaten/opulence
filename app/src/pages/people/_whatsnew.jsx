@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, Mail, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, ReceiptText, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
+  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, Radio, ReceiptText, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-07', icon: Radio, title: 'Your shift in one bar, and Live operations made easier to scan', image: 'shift-bar-live-drawer',
+    lede: "Officers now have their shift in a bar above the tab bar on every page, from the moment clock-in opens until they clock out. It holds the next step, Report an incident and the Emergency guide. In Live operations, each person opens in a panel on the right on a computer, so the board stays in view, and one row of filters remembers your choice.",
+    points: ['Officers: Clock in, Clock out or End break, one tap from any page during the shift', 'Report an incident and the Emergency guide sit beside it, one tap away', 'Officer Home opens with the next shift; offers and reminders are one-line rows below it', 'Live operations: a single filter row (On site, Late, No-show and more), kept when you go back', 'Open a person to see them in a side panel; step through people with the arrow keys; Call and Open shift card at the bottom', 'On phones, Orb\'s approvals have their own To approve tab, so the board comes first'],
+  },
   {
     month: 'November 2026', date: '2026-11-07', icon: Building2, title: 'Venue managers with several venues: a tile for each venue', image: 'multi-venue-tiles',
     lede: "Venue managers who look after more than one venue now see a tile for each venue on their home page, showing who is on site, who is late, the next shift and anything waiting for them. Tap a venue and every page shows just that venue until they switch back to All venues.",

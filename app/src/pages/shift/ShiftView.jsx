@@ -137,10 +137,10 @@ function Body({ d, reload, role, live, preview }) {
         {/* The Emergency flowchart on every shift card, for everyone who can open it; Leave comes back here */}
         <FlowEntry shift from={loc.pathname + loc.search} />
         {officer && <PinnedInstructions d={d} reload={reload} />}
+        {officer && <ReportTiles s={s} preview={preview} />}
         {officer && <QuickActions s={s} d={d} onBan={me.can_write && !signed ? () => setBanning(true) : null} />}
         {manager && <ManagerActions s={s} d={d} role={role} />}
         {manager && <InstructionsCard d={d} reload={reload} />}
-        {officer && <ReportTiles s={s} preview={preview} />}
         {venue && started && <VenueActions s={s} />}
         {!venue && <HandoverBlock d={d} onAdd={me.can_write && !signed ? () => composer.current?.handover() : null} />}
         {officer && me.assignment_id && (preview
@@ -262,7 +262,7 @@ function ReportTiles({ s, preview }) {
   const drafts = useApi('incidents.drafts', {}, { skip: preview });
   const mine = (drafts.data || []).filter((x) => x.shift_id === s.id);
   return (
-    <Section title="Report an incident" action={w !== 'open' && <span className="text-footnote text-muted">{w === 'early' ? 'Opens 1 hour before the shift' : 'Reporting closed after 30 days'}</span>}>
+    <Section title="Report an incident" action={w !== 'open' && <span className="text-footnote text-muted">{w === 'early' ? 'Opens 1 hour before your shift' : 'Reporting closed after 30 days'}</span>}>
       {mine.map((x) => (
         <Pressable key={x.id} press to={`/officer/incidents/new?draft=${x.id}`} className="mb-2 flex items-center gap-3 rounded-tile bg-amber-soft p-3 text-left">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber text-white"><FilePen size={18} /></span>

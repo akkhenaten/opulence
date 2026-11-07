@@ -119,7 +119,7 @@ function ClockScreen({ data, reload }) {
     }
   };
 
-  // What comes next on clock-in: venue code, then a selfie if the rule still needs one, then submit
+  // What comes next on clock-in (steps 1-3): location, venue code, then a selfie if the rule still needs one, then submit
   const next = (f) => {
     const have = (f.inside ? 1 : 0) + (f.qr || f.tap ? 1 : 0) + (f.selfie ? 1 : 0);
     if (f.kind === 'in' && !f.qr && !f.tap && !f.codeSkipped) return setFlow({ ...f, step: 'code' });
@@ -313,7 +313,7 @@ function LocateStep({ a, kind, busy, onNext, onCancel }) {
 
   return (
     <section className="rounded-tile bg-surface p-5 shadow-tile">
-      <StepHead title="Checking your location" body={kind === 'in' ? 'Stand at the venue. Your location is only taken when you clock.' : 'Your location is recorded with your clock-out.'} />
+      <StepHead n={kind === 'in' ? 1 : undefined} of={3} title="Checking your location" body={kind === 'in' ? 'Stand at the venue. Your location is only taken when you clock.' : 'Your location is recorded with your clock-out.'} />
       <div className="flex flex-col items-center py-4 text-center">
         <div className={cx('grid h-24 w-24 place-items-center rounded-full', st.error ? 'bg-red-soft text-red' : inside === false ? 'bg-amber-soft text-amber' : st.pos ? 'bg-green-soft text-green' : 'bg-blue-soft text-blue')}>
           {st.loading ? <Crosshair size={40} className="animate-pulse" /> : st.error ? <AlertTriangle size={40} /> : <LocateFixed size={40} />}
@@ -420,7 +420,7 @@ function ScanStep({ busy, onResult, onCantScan, onCancel }) {
   };
   return (
     <section className="rounded-tile bg-surface p-5 shadow-tile">
-      <StepHead title="Venue code" body="Point your camera at the Orb Security QR poster at the venue entrance." />
+      <StepHead n={2} of={3} title="Venue code" body="Point your camera at the Orb Security QR poster at the venue entrance." />
       {busy || scanned ? (
         <div className="flex flex-col items-center py-12"><Spinner className="py-0" /><div className="mt-3 font-semibold">Checking…</div></div>
       ) : err ? (
@@ -597,7 +597,7 @@ function SelfieStep({ busy, optional, consent, faceOn, onConsent, onDone, onSkip
   };
   return (
     <section className="rounded-tile bg-surface p-5 shadow-tile">
-      <StepHead title="Take a selfie" body={optional ? 'Optional. You already have enough checks, but a selfie helps if anything is queried.' : 'A quick photo of you at the venue.'} />
+      <StepHead n={3} of={3} title="Take a selfie" body={optional ? 'Optional. You already have enough checks, but a selfie helps if anything is queried.' : 'A quick photo of you at the venue.'} />
       <SelfieCamera busy={busy} onDone={onDone} />
       <div className="mt-4 grid gap-2">
         {onSkip && <Button size="lg" variant="secondary" disabled={busy} onClick={onSkip}>{optional ? 'Skip' : "I can't take a selfie"}</Button>}

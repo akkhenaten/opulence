@@ -10,7 +10,7 @@ import {
   Avatar, Button, cx, date, dayLabel, daysUntil, List, Load, Page, range, relative, Row, Section, Tile, time, useAction, useApi, usePullRefresh,
 } from '../../ui/index.jsx';
 import { useModules } from '../learn/_parts.jsx';
-import { ChaseBanner, OffersList, useOps } from './_ops.jsx';
+import { ChaseBanner, useOps } from './_ops.jsx';
 import { clockOpensAt, DeclineSheet, expiryText, greeting, NotLinked, ShiftCard, until } from './_parts.jsx';
 import { InstallCard } from '../../ui/pwa.jsx';
 import { ShiftPanel } from '../shift/ShiftView.jsx';
@@ -80,33 +80,32 @@ function Body({ d, clock, ops, reload }) {
 
   const accept = (a) => run(() => api('shifts.respond', { assignment_id: a.assignment_id, accept: true }), 'Shift confirmed').then(reload).catch(() => {});
 
+  const offers = (ops.data?.offers || []).filter((o) => o.status === 'offered');
+
+  // The next shift comes first; everything else waiting on the officer sits under it as one line each
   return (
     <div className="space-y-5">
-      <div className="space-y-3 empty:hidden">
-        <ChaseBanner ops={ops} />
-        <OffersList ops={ops} compact />
-        {d.issues?.length > 0 && (
-          <Tile className="border-red/20 !bg-red-soft">
-            <div className="flex gap-3 text-red">
-              <ShieldAlert size={24} className="mt-0.5 shrink-0" />
-              <div>
-                <div className="text-headline font-bold">You can't work shifts right now</div>
-                <ul className="mt-1 space-y-0.5 text-subhead font-medium">{d.issues.map((i) => <li key={i}>{i}</li>)}</ul>
-                <p className="mt-2 text-footnote text-red/80">Upload the missing documents or contact the office.</p>
-                <Button size="sm" variant="secondary" className="mt-3" to="/officer/documents">My documents</Button>
-              </div>
-            </div>
-          </Tile>
+      <Section title="Next shift">
+        {confirmed.length === 0 ? <Nothing /> : (
+          <Hero s={confirmed[0]} clockable={cur?.assignment_id === confirmed[0].assignment_id} clockedIn={cur?.assignment_id === confirmed[0].assignment_id && (cur.events || []).some((e) => e.status !== 'rejected')} blocked={d.issues?.length > 0} onDecline={() => setDeclining(confirmed[0])} />
         )}
-        {!d.issues?.length && siaDays != null && siaDays <= 60 && (
-          <Tile className="border-amber/20 !bg-amber-soft" to="/officer/documents">
-            <div className="flex items-center gap-3 text-amber">
-              <AlertTriangle size={24} className="shrink-0" />
-              <div><div className="font-bold">SIA licence: {expiryText(siaDays).toLowerCase()}</div><div className="text-footnote">Renew it and upload the new licence.</div></div>
-            </div>
-          </Tile>
-        )}
-      </div>
+      </Section>
+
+      <ChaseBanner ops={ops} />
+      {(offers.length > 0 || d.issues?.length > 0 || (siaDays != null && siaDays <= 60)) && (
+        <List>
+          {d.issues?.length > 0 && (
+            <Row to="/officer/documents" left={<Ico icon={ShieldAlert} tone="red" />} title="You can't work shifts right now" subtitle={d.issues.join(' · ')} />
+          )}
+          {offers.length > 0 && (
+            <Row to="/officer/shifts?tab=offers" left={<Ico icon={Megaphone} tone="blue" />}
+              title={`${offers.length} cover offer${offers.length === 1 ? '' : 's'}`} subtitle="First to accept gets the shift" />
+          )}
+          {!d.issues?.length && siaDays != null && siaDays <= 60 && (
+            <Row to="/officer/documents" left={<Ico icon={AlertTriangle} tone="amber" />} title={`SIA licence: ${expiryText(siaDays).toLowerCase()}`} subtitle="Renew it and upload the new licence" />
+          )}
+        </List>
+      )}
 
       {ask.length > 0 && (
         <Section title={`Needs your answer · ${ask.length}`}>
@@ -123,14 +122,13 @@ function Body({ d, clock, ops, reload }) {
         </Section>
       )}
 
-      <Section title="Confirmed">
-        {confirmed.length === 0 ? <Nothing /> : (
+      {confirmed.length > 1 && (
+        <Section title="Also confirmed">
           <div className="space-y-2.5">
-            <Hero s={confirmed[0]} clockable={cur?.assignment_id === confirmed[0].assignment_id} clockedIn={cur?.assignment_id === confirmed[0].assignment_id && (cur.events || []).some((e) => e.status !== 'rejected')} blocked={d.issues?.length > 0} onDecline={() => setDeclining(confirmed[0])} />
             {confirmed.slice(1).map((s) => <ShiftCard key={s.assignment_id} s={s} to={`/officer/shifts/${s.shift_id}`} status="Confirmed" statusTone="green" />)}
           </div>
-        )}
-      </Section>
+        </Section>
+      )}
 
       <OpenShifts />
       <ToDo d={d} />

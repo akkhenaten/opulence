@@ -294,23 +294,35 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged, ra
   const [run, busy] = useAction();
   const toggle = (id, on) => setPicked((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n; });
   const venue = it.kind === 'venue_setup';
+  // Venue setup cards list several issues: each shows its title, the detail and choices open on Show details
+  const [shown, setShown] = useState(() => new Set());
+  const expand = (k) => setShown((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const doDismiss = () => run(() => api(venue ? 'ops.dismissVenueIssue' : 'ops.dismissIssue', { id: it.id, key: dismiss.key, reason: reason.trim() }), 'Dismissed')
     .then(() => { setDismiss(null); setReason(''); onChanged(); }).catch(() => {});
   return (
     <div className="space-y-2">
       {p.officer_id && <Button size="sm" variant="soft" to={`${base}/staff/${p.officer_id}`}>Open {p.officer_name}</Button>}
       {venue && it.venue_id && <Button size="sm" variant="soft" icon={MapPin} to={`${base}/venues/${it.venue_id}?tab=setup`}>Open Site setup</Button>}
-      {(p.issues || []).map((i) => (
+      {(p.issues || []).map((i) => {
+        const folded = venue && !shown.has(i.key);
+        const acts = i.actions.filter(allowed);
+        const on = acts.filter((a) => picked.has(a.id)).length;
+        return (
         <div key={i.key} className="rounded-2xl border border-line p-3">
           <div className="flex items-start gap-2">
             <span className={cx('mt-1.5 h-2 w-2 shrink-0 rounded-full', i.severity === 'urgent' ? 'bg-red' : i.severity === 'soon' ? 'bg-amber' : 'bg-faint')} />
             <div className="min-w-0 flex-1">
               <div className="text-subhead font-semibold">{i.title}</div>
-              {i.detail && <p className="text-footnote text-muted">{i.detail}</p>}
+              {i.detail && !folded && <p className="text-footnote text-muted">{i.detail}</p>}
+              {venue && (i.detail || (pending && acts.length > 0)) && (
+                <button type="button" onClick={() => expand(i.key)} aria-expanded={!folded} className="mt-0.5 text-footnote font-semibold text-blue hover:underline">
+                  {folded ? `Show details${pending && acts.length ? ` · ${on} of ${acts.length} selected` : ''}` : 'Hide details'}
+                </button>
+              )}
             </div>
             {pending && <Pressable press onClick={() => setDismiss(i)} className="shrink-0 -my-2 rounded-lg px-2 py-2.5 text-caption font-semibold text-muted hover:bg-bg">Dismiss</Pressable>}
           </div>
-          {pending && i.actions.filter(allowed).length > 0 && (
+          {pending && !folded && acts.length > 0 && (
             <div className="mt-2 space-y-1 pl-4">
               {i.actions.filter(allowed).map((a) => (
                 <div key={a.id}>
@@ -331,7 +343,8 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged, ra
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
       {!pending && it.result?.done?.length > 0 && (
         <ul className="space-y-0.5 text-footnote text-green">{it.result.done.map((d) => <li key={d} className="flex gap-1.5"><Check size={14} className="mt-0.5 shrink-0" />{d}</li>)}</ul>
       )}

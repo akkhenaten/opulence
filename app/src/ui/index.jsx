@@ -1,7 +1,7 @@
 import { createContext, Fragment, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, AlertTriangle, CheckCircle2, Check as CheckIcon, ChevronLeft, ChevronRight, Inbox, Info, Loader2, MoreHorizontal, Search, X, XCircle } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, Check as CheckIcon, ChevronDown, ChevronLeft, ChevronRight, Inbox, Info, Loader2, MoreHorizontal, Search, SlidersHorizontal, X, XCircle } from 'lucide-react';
 import { api } from '../api.js';
 import { initials, titleCase } from './format.js';
 import { usePresence, useScrollLock } from './motion.js';
@@ -10,7 +10,7 @@ import { Photo } from './Photo.jsx';
 
 export * from './format.js';
 export { usePresence, useScrollLock } from './motion.js';
-export { usePageHeader, useScrollMemory } from './nav.js';
+export { usePageHeader, useScrollMemory, useUrlState } from './nav.js';
 export { usePullRefresh } from './usePullRefresh.js';
 export { Lightbox } from './Lightbox.jsx';
 const cx = (...c) => c.filter(Boolean).join(' ');
@@ -187,33 +187,39 @@ export function PageActions({ items }) {
 /** The one "…" menu: a round button that opens a sheet of labelled actions. Destructive ones are red and last. */
 export function MoreMenu({ items, label = 'More actions', title, tone = 'ghost', size = 'md', className }) {
   const [open, setOpen] = useState(false);
-  const list = items.filter(Boolean).sort((a, b) => !!a.danger - !!b.danger);
-  if (!list.length) return null;
-  const pick = (a) => { setOpen(false); a.onClick?.(); };
+  if (!items.filter(Boolean).length) return null;
   return (
     <>
       <IconButton icon={MoreHorizontal} label={label} tone={tone} size={size} className={className} aria-haspopup="dialog" onClick={(e) => { e.stopPropagation(); setOpen(true); }} />
-      <Sheet open={open} onClose={() => setOpen(false)} title={title || label} size="sm">
-        <div className="-mx-2 divide-y divide-line">
-          {list.map((a) => {
-            const cls = cx('flex min-h-[52px] w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-bg active:bg-fill disabled:opacity-50',
-              a.danger ? 'text-red' : 'text-ink');
-            const inner = (
-              <>
-                {a.busy ? <Loader2 size={20} className="shrink-0 animate-spin" /> : a.icon ? <a.icon size={20} className={cx('shrink-0', !a.danger && 'text-muted')} aria-hidden /> : null}
-                <span className="min-w-0 flex-1">
-                  <span className="block text-body font-semibold">{a.label}</span>
-                  {a.hint && <span className="block text-footnote text-muted">{a.hint}</span>}
-                </span>
-              </>
-            );
-            if (a.to) return <Link key={a.label} to={a.to} onClick={() => setOpen(false)} className={cls}>{inner}</Link>;
-            if (a.href) return <a key={a.label} href={a.href} target="_blank" rel="noopener" onClick={() => setOpen(false)} className={cls}>{inner}</a>;
-            return <button key={a.label} type="button" disabled={a.disabled || a.busy} onClick={() => pick(a)} className={cls}>{inner}</button>;
-          })}
-        </div>
-      </Sheet>
+      <SheetMenu open={open} onClose={() => setOpen(false)} items={items} title={title || label} />
     </>
+  );
+}
+// The sheet of labelled actions behind … and ▾
+function SheetMenu({ open, onClose, items, title }) {
+  const list = items.filter(Boolean).sort((a, b) => !!a.danger - !!b.danger);
+  const pick = (a) => { onClose(); a.onClick?.(); };
+  return (
+    <Sheet open={open} onClose={onClose} title={title} size="sm">
+      <div className="-mx-2 divide-y divide-line">
+        {list.map((a) => {
+          const cls = cx('flex min-h-[52px] w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-bg active:bg-fill disabled:opacity-50',
+            a.danger ? 'text-red' : 'text-ink');
+          const inner = (
+            <>
+              {a.busy ? <Loader2 size={20} className="shrink-0 animate-spin" /> : a.icon ? <a.icon size={20} className={cx('shrink-0', !a.danger && 'text-muted')} aria-hidden /> : null}
+              <span className="min-w-0 flex-1">
+                <span className="block text-body font-semibold">{a.label}</span>
+                {a.hint && <span className="block text-footnote text-muted">{a.hint}</span>}
+              </span>
+            </>
+          );
+          if (a.to) return <Link key={a.label} to={a.to} onClick={onClose} className={cls}>{inner}</Link>;
+          if (a.href) return <a key={a.label} href={a.href} target="_blank" rel="noopener" onClick={onClose} className={cls}>{inner}</a>;
+          return <button key={a.label} type="button" disabled={a.disabled || a.busy} onClick={() => pick(a)} className={cls}>{inner}</button>;
+        })}
+      </div>
+    </Sheet>
   );
 }
 
@@ -226,6 +232,79 @@ export const PoweredBy = ({ className }) => (
     </a>
   </div>
 );
+
+/** Main action with its close alternatives behind a ▾ (e.g. New shift ▾ Repeat shift…, Copy last week). */
+export function SplitButton({ items, label = 'More options', title, className, ...main }) {
+  const [open, setOpen] = useState(false);
+  const list = items.filter(Boolean);
+  return (
+    <div className={cx('inline-flex items-stretch', className)}>
+      <Button {...main} className={cx(list.length && 'rounded-r-none!', main.className)} />
+      {list.length > 0 && (
+        <>
+          <Button variant={main.variant || 'primary'} size={main.size} iconOnly icon={ChevronDown} aria-label={label} title={label} aria-haspopup="dialog" aria-expanded={open}
+            className="rounded-l-none! border-l border-black/10" onClick={() => setOpen(true)} />
+          <SheetMenu open={open} onClose={() => setOpen(false)} items={list} title={title || label} />
+        </>
+      )}
+    </div>
+  );
+}
+
+/* Filters for a list. From sm up each one is an inline picker; on phones they fold into one "Filters (n)" button
+   that opens a sheet. Active filters show underneath as chips that remove themselves, with Clear all.
+   filters: [{ key, label, value, options: [{ value, label }], empty = '' }] */
+export function FilterBar({ filters, onChange, onClear, children, className }) {
+  const list = filters.filter(Boolean);
+  const isOn = (f) => String(f.value ?? '') !== String(f.empty ?? '');
+  const on = list.filter(isOn);
+  const name = (f) => f.display || (f.options.find((o) => String(typeof o === 'string' ? o : o.value) === String(f.value))?.label ?? f.value);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState({});
+  const start = () => { setDraft(Object.fromEntries(list.map((f) => [f.key, f.value ?? '']))); setOpen(true); };
+  const apply = () => { list.forEach((f) => { if (String(draft[f.key]) !== String(f.value ?? '')) onChange(f.key, draft[f.key]); }); setOpen(false); };
+  const clearAll = () => (onClear ? onClear() : list.forEach((f) => onChange(f.key, f.empty ?? '')));
+  const pick = (f, val, onPick) => (
+    <Select key={f.key} aria-label={f.label} value={val ?? ''} onChange={(e) => onPick(e.target.value)} options={f.options} />
+  );
+  return (
+    <div className={cx('mb-4', className)}>
+      <div className="flex flex-wrap items-center gap-2">
+        {children}
+        <div className="hidden flex-wrap items-center gap-2 sm:flex">
+          {list.map((f) => <div key={f.key} className="w-48">{pick(f, f.value, (v) => onChange(f.key, v))}</div>)}
+        </div>
+        {list.length > 0 && (
+          <Button variant="secondary" icon={SlidersHorizontal} className="sm:hidden" onClick={start} aria-haspopup="dialog">
+            Filters{on.length > 0 && ` (${on.length})`}
+          </Button>
+        )}
+      </div>
+      {on.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {on.map((f) => (
+            <button key={f.key} type="button" onClick={() => onChange(f.key, f.empty ?? '')} aria-label={`Remove filter: ${f.label} ${name(f)}`}
+              className="pressable relative inline-flex min-h-9 items-center gap-1.5 rounded-full border border-blue bg-blue-soft px-3 py-1 text-footnote font-semibold text-blue before:absolute before:inset-x-0 before:-inset-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue">
+              {name(f)}<X size={14} aria-hidden />
+            </button>
+          ))}
+          {on.length > 1 && <Button variant="link" size="sm" onClick={clearAll}>Clear all</Button>}
+        </div>
+      )}
+      <Sheet open={open} onClose={() => setOpen(false)} title="Filters" size="sm"
+        footer={<><Button variant="secondary" onClick={() => { clearAll(); setOpen(false); }}>Clear all</Button><Button onClick={apply}>Apply</Button></>}>
+        <div className="space-y-4">
+          {list.map((f) => (
+            <div key={f.key}>
+              <div className="mb-1.5 text-footnote font-semibold text-muted">{f.label}</div>
+              {pick(f, draft[f.key], (v) => setDraft((d) => ({ ...d, [f.key]: v })))}
+            </div>
+          ))}
+        </div>
+      </Sheet>
+    </div>
+  );
+}
 
 export const Bento = ({ className, children }) => <div className={cx('bento grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4', className)}>{children}</div>;
 
@@ -307,6 +386,7 @@ const ICON_T = {
   solid: 'bg-surface text-ink shadow-tile border border-hairline hover:bg-bg',
   dark: 'bg-white/15 text-white hover:bg-white/25',
   primary: 'bg-blue text-white hover:bg-blue/90',
+  danger: 'bg-red text-white hover:bg-red/90',
 };
 const ICON_S = { sm: 'h-9 w-9 before:absolute before:-inset-1', md: 'h-10 w-10 before:absolute before:-inset-0.5', lg: 'h-12 w-12' };
 // Round icon-only button. badge: a count shown top-right
@@ -466,7 +546,7 @@ export function Segmented({ value, onChange, options, className, full }) {
         const l = typeof o === 'string' ? titleCase(o) : o.label;
         return (
           <button key={v} type="button" role="tab" aria-selected={value === v} onClick={() => onChange(v)}
-            className={cx(full && 'flex-1', 'relative min-h-[38px] whitespace-nowrap rounded-lg before:absolute before:inset-x-0 before:-inset-y-[3px] px-3.5 py-1.5 text-footnote font-semibold transition-colors', value === v ? 'text-ink' : 'text-muted hover:text-ink', !thumb && value === v && 'bg-raised shadow-sm')}>
+            className={cx(full && 'flex-1', 'relative min-h-[44px] whitespace-nowrap rounded-lg before:absolute before:inset-x-0 before:-inset-y-[3px] px-3.5 py-1.5 text-footnote font-semibold transition-colors', value === v ? 'text-ink' : 'text-muted hover:text-ink', !thumb && value === v && 'bg-raised shadow-sm')}>
             {l}{o.count != null && o.count > 0 && <span className="ml-1.5 rounded-full bg-blue px-1.5 text-caption2 text-white">{o.count}</span>}
           </button>
         );
@@ -714,25 +794,64 @@ export function Load({ q, children, skeleton, n }) {
 
 /* ---------- Sheet (bottom sheet on mobile, centred modal on desktop) ---------- */
 
-export function Sheet({ open, onClose, title, children, footer, size = 'md' }) {
+export function useMedia(query) {
+  const get = () => typeof window !== 'undefined' && window.matchMedia(query).matches;
+  const [on, setOn] = useState(get);
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    const f = () => setOn(m.matches);
+    m.addEventListener('change', f);
+    return () => m.removeEventListener('change', f);
+  }, [query]);
+  return on;
+}
+const typing = (el) => !!el?.closest?.('input,textarea,select,[contenteditable="true"]');
+
+// side: from lg up a drawer on the right that leaves the page usable (pick another row and the drawer follows);
+//   onPrev / onNext step through the list with the arrows or ↑ ↓.
+// full: a full-screen page on phones, for long forms.
+// dirty: closing asks before throwing away what was typed.
+export function Sheet({ open, onClose, title, children, footer, size = 'md', side, full, dirty, onPrev, onNext, layer }) {
   const { mounted, closing } = usePresence(open, 240);
   const panel = useRef(null);
   const drag = useRef(null);
   const dragged = useRef(false);
-  useScrollLock(open);
+  const asking = useRef(false);
+  const confirm = useConfirm();
+  const lg = useMedia('(min-width: 1024px)');
+  const drawer = side && lg;
+  useScrollLock(open && !drawer);
+  const leave = async (then = onClose) => {
+    if (asking.current) return false;
+    if (dirty) {
+      asking.current = true;
+      const ok = await confirm({ title: 'Discard changes?', body: "What you've changed here won't be saved.", confirm: 'Discard', cancel: 'Keep editing', danger: true });
+      asking.current = false;
+      if (!ok) return false;
+    }
+    then?.();
+    return true;
+  };
+  const latest = useRef(leave);
+  latest.current = leave;
   useEffect(() => {
     if (!open) return undefined;
     dragged.current = false;
-    const k = (e) => e.key === 'Escape' && onClose();
+    const k = (e) => {
+      if (asking.current) return;
+      if (e.key === 'Escape') latest.current();
+      else if (!typing(e.target) && e.key === 'ArrowUp' && onPrev) { e.preventDefault(); latest.current(onPrev); }
+      else if (!typing(e.target) && e.key === 'ArrowDown' && onNext) { e.preventDefault(); latest.current(onNext); }
+    };
     document.addEventListener('keydown', k);
     return () => document.removeEventListener('keydown', k);
-  }, [open, onClose]);
+  }, [open, onClose, onPrev, onNext]);
   if (!mounted) return null;
   const w = { sm: 'sm:max-w-md', md: 'sm:max-w-xl', lg: 'sm:max-w-3xl' }[size];
 
   // Drag the handle or title down to close (phones)
   const down = (e) => {
-    if (e.pointerType === 'mouse' || window.innerWidth >= 640 || e.target.closest('button,a,input,select,textarea')) return;
+    if (full || e.pointerType === 'mouse' || window.innerWidth >= 640 || e.target.closest('button,a,input,select,textarea')) return;
     drag.current = { y: e.clientY, t: performance.now(), dy: 0 };
   };
   const move = (e) => {
@@ -748,30 +867,68 @@ export function Sheet({ open, onClose, title, children, footer, size = 'md' }) {
     const fast = d.dy / Math.max(1, performance.now() - d.t) > 0.6;
     panel.current.style.transition = 'transform var(--dur-2) var(--ease-ios)';
     if (d.dy > 120 || (fast && d.dy > 30)) {
+      if (dirty) { panel.current.style.transform = ''; leave(); return; }
       dragged.current = true;
       panel.current.style.transform = 'translateY(100%)';
       onClose();
     } else panel.current.style.transform = '';
   };
   const grab = { onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up };
+  const close = () => leave();
+  const stepper = (onPrev || onNext) && (
+    <div className="flex items-center gap-1">
+      <IconButton icon={ChevronLeft} label="Previous" tone="ghost" disabled={!onPrev} onClick={() => leave(onPrev)} className="rotate-90" />
+      <IconButton icon={ChevronRight} label="Next" tone="ghost" disabled={!onNext} onClick={() => leave(onNext)} className="rotate-90" />
+    </div>
+  );
 
   return createPortal(
-    <div className={cx('fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6', closing && 'pointer-events-none')} role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : undefined}>
-      <div className={cx('absolute inset-0 bg-ink/30 backdrop-blur-[2px]', closing ? 'anim-fade-out' : 'anim-fade-in')} onClick={onClose} />
-      <div ref={panel} className={cx('relative flex max-h-[92dvh] w-full flex-col rounded-t-sheet bg-surface shadow-sheet sm:rounded-sheet safe-x', w, closing ? (!dragged.current && 'anim-sheet-out') : 'anim-sheet-in')}>
+    <div className={cx('fixed flex', layer === 'top' ? 'z-[60]' : 'z-50', drawer ? 'inset-y-0 right-0 w-[480px] max-w-full' : 'inset-0 items-end justify-center sm:items-center sm:p-6'
+      , closing && 'pointer-events-none')}
+      role="dialog" aria-modal={drawer ? undefined : 'true'} aria-label={typeof title === 'string' ? title : undefined}>
+      {!drawer && <div className={cx('absolute inset-0 bg-ink/30 backdrop-blur-[2px]', closing ? 'anim-fade-out' : 'anim-fade-in')} onClick={close} />}
+      <div ref={panel} className={cx('relative flex w-full flex-col bg-surface shadow-sheet safe-x',
+        drawer ? 'h-full border-l border-line' : cx('max-h-[92dvh] rounded-t-sheet sm:rounded-sheet', w, full && 'max-sm:h-dvh max-sm:max-h-none max-sm:rounded-none max-sm:pt-[env(safe-area-inset-top)]'),
+        closing ? (!dragged.current && (drawer ? 'anim-drawer-out' : 'anim-sheet-out')) : (drawer ? 'anim-drawer-in' : 'anim-sheet-in'))}>
         <div className="touch-none" {...grab}>
-          <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-line sm:hidden" />
-          <div className="flex items-center justify-between gap-3 px-5 pb-2 pt-3 sm:pt-5">
-            <h2 className="text-title3 font-bold">{title}</h2>
-            <IconButton icon={X} label="Close" tone="soft" onClick={onClose} />
+          {!drawer && !full && <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-line sm:hidden" />}
+          <div className={cx('flex items-center justify-between gap-3 px-5 pb-2 pt-3', drawer ? 'pt-5' : 'sm:pt-5')}>
+            <h2 className="min-w-0 text-title3 font-bold">{title}</h2>
+            <div className="flex shrink-0 items-center gap-1">
+              {stepper}
+              <IconButton icon={X} label="Close" tone="soft" onClick={close} />
+            </div>
           </div>
         </div>
         <div className={cx('flex-1 overflow-y-auto overscroll-contain px-5', footer ? 'pb-5' : 'pb-[calc(1.25rem+env(safe-area-inset-bottom))]')}>{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-line px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3">{footer}</div>}
+        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3">{footer}</div>}
       </div>
     </div>,
     document.body,
   );
+}
+
+/* Unsaved edits on a page: leaving the tab, reloading or following an in-app link asks first.
+   (BrowserRouter has no route blocker, so links are caught on the way out.) */
+export function useDirtyGuard(dirty, message = "You have unsaved changes. Leave without saving?") {
+  const confirm = useConfirm();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const unload = (e) => { e.preventDefault(); e.returnValue = ''; };
+    const click = async (e) => {
+      const a = e.target.closest?.('a[href]');
+      if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || a.target === '_blank') return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin || !url.pathname.startsWith('/app')) return;
+      e.preventDefault(); e.stopPropagation();
+      const ok = await confirm({ title: 'Discard changes?', body: message, confirm: 'Discard', cancel: 'Keep editing', danger: true });
+      if (ok) { window.removeEventListener('beforeunload', unload); navigate(url.pathname.replace(/^\/app/, '') + url.search + url.hash); }
+    };
+    window.addEventListener('beforeunload', unload);
+    document.addEventListener('click', click, true);
+    return () => { window.removeEventListener('beforeunload', unload); document.removeEventListener('click', click, true); };
+  }, [dirty, confirm, navigate, message]);
 }
 
 // Promise-based confirm dialog
@@ -786,7 +943,7 @@ export function ConfirmProvider({ children }) {
   return (
     <ConfirmCtx.Provider value={confirm}>
       {children}
-      <Sheet open={shown} onClose={() => close(false)} title={st?.title} size="sm"
+      <Sheet open={shown} onClose={() => close(false)} title={st?.title} size="sm" layer="top"
         footer={<><Button variant="secondary" onClick={() => close(false)}>{st?.cancel || 'Cancel'}</Button><Button variant={st?.danger ? 'danger' : 'primary'} onClick={() => close(true)}>{st?.confirm || 'Confirm'}</Button></>}>
         {st?.body && <p className="text-body text-muted">{st.body}</p>}
       </Sheet>
@@ -803,19 +960,13 @@ export function useForm(initial) {
   return { v, setV, set: (k, val) => setV((s) => ({ ...s, [k]: val })), bind };
 }
 
-// More than five tabs: a full-width picker on phones, the sliding tab row from sm up
+// Section tabs: one sliding row at every width; on phones it scrolls sideways and fades at the edge
 export function Tabs({ tabs, value, onChange }) {
-  const opts = tabs.filter(Boolean).map((t) => (typeof t === 'string' ? { value: t, label: titleCase(t) } : t));
-  const row = <div className="no-scrollbar -mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0"><Segmented value={value} onChange={onChange} options={tabs} /></div>;
-  if (opts.length <= 5) return row;
+  const opts = tabs.filter(Boolean);
   return (
-    <>
-      <div className="mb-4 sm:hidden">
-        <Select aria-label="Section" value={value} onChange={(e) => onChange(e.target.value)}
-          options={opts.map((o) => ({ value: o.value, label: o.count > 0 ? `${o.label} (${o.count})` : o.label }))} />
-      </div>
-      <div className="hidden sm:block">{row}</div>
-    </>
+    <div className="-mx-4 mb-4 px-4 edge-fade sm:mx-0 sm:px-0">
+      <Segmented value={value} onChange={onChange} options={opts} />
+    </div>
   );
 }
 
@@ -854,7 +1005,7 @@ export function Chip({ label, value, tone = 'grey', active, onClick }) {
   return (
     <Tag type={onClick ? 'button' : undefined} onClick={onClick} aria-pressed={onClick ? !!active : undefined}
       className={cx('relative inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-footnote font-semibold shadow-tile', onClick && 'before:absolute before:inset-x-0 before:-inset-y-1',
-        tones[tone], active ? 'border-blue ring-2 ring-blue/15' : 'border-hairline', onClick && 'pressable')}>
+        tones[tone], active ? 'border-blue ring-2 ring-blue/15' : 'border-hairline', onClick && 'pressable focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue')}>
       <span className="num text-body font-bold">{value}</span>{label}
     </Tag>
   );
@@ -870,6 +1021,7 @@ export function Chips({ options, value = [], onChange, label }) {
         {options.map((o) => (
           <button key={o.value} type="button" onClick={() => toggle(o.value)} aria-pressed={value.includes(o.value)}
             className={cx('pressable relative min-h-9 rounded-full border px-3.5 py-1.5 text-footnote font-semibold before:absolute before:inset-x-0 before:-inset-y-1',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-offset-2',
               value.includes(o.value) ? 'border-blue bg-blue text-white' : 'border-line bg-surface text-ink hover:bg-bg')}>
             {o.label}
           </button>

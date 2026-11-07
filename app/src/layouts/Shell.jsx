@@ -12,6 +12,7 @@ import { SideSwitch } from './SideSwitch.jsx';
 import { AccountSheet } from './AccountSheet.jsx';
 import AskOrb from '../ui/AskOrb.jsx';
 import OrbFab from '../ui/OrbFab.jsx';
+import ShiftBar from './ShiftBar.jsx';
 import { WhatsNewSplash } from '../pages/people/_whatsnew.jsx';
 import { OfflineBanner, UpdateBanner } from '../ui/pwa.jsx';
 import { AppFeedbackSheet, FeedbackChip, FeedbackIcon } from '../ui/AppFeedback.jsx';
@@ -423,6 +424,7 @@ export default function Shell() {
         </main>
       </div>
 
+      {isOfficer && <ShiftBar />}
       {/* Mobile tab bar (and officer tab bar on all sizes) */}
       <nav aria-label="Main" className={cx('fixed inset-x-0 bottom-0 z-40 border-t border-line/70 bg-surface/85 backdrop-blur-xl safe-b safe-x', !isOfficer && 'lg:hidden')}>
         <div className="mx-auto flex max-w-2xl items-stretch justify-around px-2">

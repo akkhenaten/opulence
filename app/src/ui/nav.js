@@ -1,5 +1,22 @@
-import { useEffect, useLayoutEffect, useSyncExternalStore } from 'react';
-import { useLocation, useNavigationType } from 'react-router-dom';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useSyncExternalStore } from 'react';
+import { useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
+
+/* Filters and views kept in the address, so Back returns to the same list with the same filters.
+   Values equal to their default stay out of the URL; changes replace the entry, so Back still leaves the page. */
+export function useUrlState(defaults) {
+  const [sp, setSp] = useSearchParams();
+  const keys = Object.keys(defaults);
+  const state = useMemo(() => Object.fromEntries(keys.map((k) => [k, sp.get(k) ?? defaults[k]])), [sp]); // eslint-disable-line react-hooks/exhaustive-deps
+  const set = useCallback((patch) => setSp((cur) => {
+    const next = new URLSearchParams(cur);
+    Object.entries(patch).forEach(([k, v]) => {
+      if (v == null || v === '' || String(v) === String(defaults[k] ?? '')) next.delete(k); else next.set(k, String(v));
+    });
+    return next;
+  }, { replace: true }), [setSp]); // eslint-disable-line react-hooks/exhaustive-deps
+  const clear = useCallback((only) => set(Object.fromEntries((only || keys).map((k) => [k, defaults[k]]))), [set]); // eslint-disable-line react-hooks/exhaustive-deps
+  return [state, set, clear];
+}
 
 /* Page header store: Page publishes its title, the Shell header shows it once the large title scrolls away */
 let state = { title: '', collapsed: false, wide: false };

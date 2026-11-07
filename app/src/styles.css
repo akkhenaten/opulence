@@ -77,6 +77,9 @@
   --fab-room: 0px;
 }
 html.has-tabbar { --tabbar-h: calc(58px + env(safe-area-inset-bottom)); }
+/* Officer shift bar sits on top of the tab bar; everything that docks above the tab bar moves up with it */
+html.has-tabbar.has-shiftbar { --tabbar-h: calc(58px + var(--shiftbar-h) + env(safe-area-inset-bottom)); }
+html { --shiftbar-h: 60px; }
 html {
   touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
@@ -198,6 +201,15 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
   .anim-sheet-in { animation: modal-in var(--dur-2) var(--ease-ios) both; }
   .anim-sheet-out { animation: modal-out var(--dur-1) var(--ease-out) both; }
 }
+/* Side drawer (lg and up): slides in from the right, the list behind stays readable */
+@keyframes drawer-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes drawer-out { from { transform: none; } to { transform: translateX(100%); } }
+@media (min-width: 1024px) {
+  .anim-drawer-in { animation: drawer-in var(--dur-3) var(--ease-ios) both; }
+  .anim-drawer-out { animation: drawer-out var(--dur-2) var(--ease-ios) both; }
+}
+/* On phones a row of options that scrolls sideways fades at the edge, so it reads as "more this way" */
+@media (max-width: 639.98px) { .edge-fade { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); } }
 .anim-toast-in { animation: toast-in var(--dur-2) var(--ease-ios) both; }
 .anim-toast-out { animation: toast-out var(--dur-1) var(--ease-out) both; }
 .anim-bar-in { animation: bar-in var(--dur-2) var(--ease-ios) both; }
@@ -298,8 +310,8 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
 /* Reduced motion: keep fades, drop movement; spinners still turn so loading stays visible */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; scroll-behavior: auto !important; }
-  .bento > *, .page-in-right, .page-in-left, .page-fade, .anim-pop, .anim-sheet-in, .anim-toast-in, .anim-bar-in, .anim-fade-in { animation: fade var(--dur-1) both !important; }
-  .anim-sheet-out, .anim-toast-out, .anim-fade-out { animation: fade-out var(--dur-1) both !important; }
+  .bento > *, .page-in-right, .page-in-left, .page-fade, .anim-pop, .anim-sheet-in, .anim-drawer-in, .anim-toast-in, .anim-bar-in, .anim-fade-in { animation: fade var(--dur-1) both !important; }
+  .anim-sheet-out, .anim-drawer-out, .anim-toast-out, .anim-fade-out { animation: fade-out var(--dur-1) both !important; }
   .nav-ic svg, .nav-ic svg *, .live-dot, .skeleton, .silver-mark::after, .fb-glow, .fb-glow::before, .orb-voice-halo, .orb-voice-speaking, .orb-voice-turn { animation: none !important; }
   .pressable:active, .pressable-card:active { transform: none; }
 }
