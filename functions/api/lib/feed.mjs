@@ -76,6 +76,16 @@ export function celebrationsDue(people, today) {
   return out;
 }
 
+/**
+ * Whether someone who just signed in for the first time gets a welcome post: staff who can see Everyday
+ * (not venue users, the Orb system user or the platform admin), unless they said no.
+ */
+export function welcomeDue(u, { platform = false } = {}) {
+  if (!u || u.system || platform) return false;
+  if (!['company', 'security', 'officer'].includes(u.role)) return false;
+  return u.feed_prefs?.welcome !== false;
+}
+
 /** Words for a celebration post. */
 export function celebrationText(c) {
   const first = String(c.name || '').split(' ')[0];

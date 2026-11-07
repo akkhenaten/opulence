@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-07', icon: UserRound, title: 'New staff get a welcome post with their photo', image: 'welcome-post',
+    lede: "The moment a new officer or manager signs in for the first time, Everyday welcomes them to the team with a post everyone sees. Their profile photo sits at the centre of the post, and if they add one later, it appears there by itself.",
+    points: ['Posted on their first sign-in, not the next morning', 'Their profile photo, name and role on the post', 'No photo yet: their initials, then their photo once they add it', 'Every new joiner who uses the app, including people hired from applications', 'They are notified, and can take the post down themselves'],
+  },
+  {
     month: 'November 2026', date: '2026-11-07', icon: BadgeCheck, title: 'Right to work checks, from share code to saved record', image: 'rtw-check',
     lede: "Officers can now send their right to work share code from the app or the staff setup form. It goes straight to Compliance, ready to check. Check right to work takes you to GOV.UK with the code and date of birth to copy. You then upload the GOV.UK page, the AI reads the result, and the check is saved as your record.",
     points: ['Officers type their share code, or send a screenshot and the AI picks the code out', 'Compliance shows each share code ready to check, and asks for a new one when it is over 80 days old', 'Upload the GOV.UK PDF: the name, no time limit or end date are filled in for you', 'British or Irish passport: record your in-person check with a copy', 'Time-limited permission: reminders for the follow-up check before it ends', 'Right to work is only marked verified with a saved check; ticks made by hand are flagged to redo'],

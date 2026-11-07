@@ -42,11 +42,7 @@ async function celebrations() {
   const people = await q(`SELECT u.id AS user_id, u.name, o.dob, o.start_date, u.feed_prefs AS prefs FROM users u JOIN officers o ON o.user_id = u.id
     WHERE u.status = 'active' AND NOT u.system AND o.status = 'active'`);
   const due = celebrationsDue(people, now.date);
-  // Welcomes: officers who joined in the last fortnight and didn't say no
-  const fresh = await q(`SELECT u.id AS user_id, u.name FROM users u JOIN officers o ON o.user_id = u.id
-    WHERE u.status = 'active' AND NOT u.system AND o.status = 'active' AND o.created_at > now() - interval '14 days'
-      AND coalesce((u.feed_prefs->>'welcome')::boolean, true)`);
-  for (const p of fresh) due.push({ type: 'welcome', user_id: p.user_id, name: p.name, key: `welcome:${p.user_id}` });
+  // Welcomes are posted the moment a new joiner first signs in (auth.acceptInvite)
   let posted = 0;
   for (const c of due) if (await celebrate(c)) posted += 1;
   return posted;

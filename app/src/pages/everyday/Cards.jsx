@@ -27,7 +27,7 @@ export function ShoutoutCard({ post, onPerson }) {
 }
 
 /** Birthday, anniversary, welcome or new qualification, posted by Orb */
-export function CelebrationCard({ post, onChanged }) {
+export function CelebrationCard({ post, onChanged, onPerson }) {
   const { user } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
@@ -40,8 +40,19 @@ export function CelebrationCard({ post, onChanged }) {
   };
   return (
     <div className="mx-4 mt-3 rounded-2xl bg-gradient-to-br from-blue-soft to-green-soft p-4 text-center">
-      <div className="text-[44px] leading-none">{emoji}</div>
-      <div className="mt-1 text-headline font-bold">{title}</div>
+      {c.type === 'welcome' && c.person ? (
+        <Pressable press onClick={() => onPerson?.(c.person.id)} className="mx-auto flex flex-col items-center">
+          <Avatar name={c.person.name} src={[c.person.photo_url, c.person.photo_thumb_url]} size={96} className="ring-4 ring-surface shadow-tile" />
+          <div className="mt-2 text-headline font-bold">{title} 👋</div>
+          <div className="text-subhead font-semibold text-ink">{c.person.name}</div>
+          {ROLE_LABEL[c.person.role] && <div className="text-footnote text-muted">{ROLE_LABEL[c.person.role]}</div>}
+        </Pressable>
+      ) : (
+        <>
+          <div className="text-[44px] leading-none">{emoji}</div>
+          <div className="mt-1 text-headline font-bold">{title}</div>
+        </>
+      )}
       {c.course && <div className="text-subhead text-muted">{c.course}</div>}
       {c.user_id === user.id && <Button size="sm" variant="ghost" className="mt-2" onClick={hide}>Remove this post</Button>}
     </div>

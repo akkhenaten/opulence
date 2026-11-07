@@ -6,6 +6,9 @@ import { audit } from '../lib/audit.mjs';
 import { checkOwnPhoto, saveThumb, photoUrls } from '../lib/storage.mjs';
 import { ALL, pub, def } from './_def.mjs';
 import { getBrand } from '../lib/brand.mjs';
+import { welcomeDue } from '../lib/feed.mjs';
+import { isPlatformAdmin } from '../lib/platform.mjs';
+import { celebrate } from './everydayJobs.mjs';
 
 // A new session always starts on the manager side; the app picks "My shifts" with auth.landing
 const loadUser = async (userId, as) => resolveActing(await ensurePlatformRole(await one(
@@ -110,6 +113,9 @@ export const actions = {
       [b.token, hashPassword(b.password)],
     );
     if (!u) fail(404, 'This invite link is no longer valid');
+    // First sign-in: welcome them on Everyday straight away (celebrate never throws, and posts once per person)
+    const w = await one('SELECT id, name, email, role, status, system, feed_prefs FROM users WHERE id = $1', [u.id]);
+    if (welcomeDue(w, { platform: isPlatformAdmin(w) })) await celebrate({ type: 'welcome', user_id: w.id, name: w.name, key: `welcome:${w.id}` });
     return session(u.id);
   }),
 

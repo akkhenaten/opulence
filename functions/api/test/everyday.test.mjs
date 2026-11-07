@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  parseTopics, cleanTopic, firstUrl, sniffMime, photoLayout, celebrationsDue, celebrationText, pollTally, cleanPollOptions,
+  parseTopics, cleanTopic, firstUrl, sniffMime, photoLayout, celebrationsDue, celebrationText, welcomeDue, pollTally, cleanPollOptions,
   promoteWaitlist, isPrivateHost, cleanPlace, parseMeta, cleanEverydaySettings, MUTE_DAYS, BADGES,
 } from '../lib/feed.mjs';
 
@@ -106,4 +106,14 @@ test('Everyday settings keep known switches only', () => {
 test('mute lengths and badges match the app', () => {
   assert.deepEqual(MUTE_DAYS, [1, 7, 30, 90]);
   assert.equal(new Set(BADGES.map((b) => b.id)).size, BADGES.length);
+});
+
+test('welcome on first sign-in: staff only, not the platform admin or Orb, and not when they said no', () => {
+  assert.equal(welcomeDue({ role: 'officer' }), true);
+  assert.equal(welcomeDue({ role: 'security', feed_prefs: {} }), true);
+  assert.equal(welcomeDue({ role: 'company' }, { platform: true }), false);
+  assert.equal(welcomeDue({ role: 'venue' }), false);
+  assert.equal(welcomeDue({ role: 'company', system: true }), false);
+  assert.equal(welcomeDue({ role: 'officer', feed_prefs: { welcome: false } }), false);
+  assert.equal(welcomeDue(null), false);
 });

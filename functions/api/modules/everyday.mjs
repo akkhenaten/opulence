@@ -103,6 +103,10 @@ async function loadPosts(where, params, user, { comments = 'preview', order = 'p
   ]);
   const names = await mentionNames(rows.flatMap((r) => [...r.mentions, ...r.tags, ...(r.shoutout?.to || [])]).concat(cs.flatMap((c) => c.mentions)));
   const nameList = (list) => (list || []).map((id) => names[id]).filter(Boolean);
+  // A welcome shows the new joiner with their photo as it is now, so a photo added later appears on the post
+  const welcomeIds = [...new Set(rows.filter((r) => r.celebration?.type === 'welcome').map((r) => r.celebration.user_id))];
+  const welcomed = welcomeIds.length ? Object.fromEntries(await Promise.all((await q(`SELECT ${PERSON} AS p FROM users u LEFT JOIN officers o ON o.user_id = u.id
+    WHERE u.id = ANY($1::uuid[])`, [welcomeIds])).map(async (r) => [r.p.id, await signPerson(r.p)]))) : {};
   return Promise.all(rows.map(async (p) => {
     const poll = polls.find((x) => x.post_id === p.id);
     const ev = events.find((x) => x.post_id === p.id);
@@ -116,6 +120,7 @@ async function loadPosts(where, params, user, { comments = 'preview', order = 'p
       link: p.link ? { ...p.link, image_url: await signKey(p.link.image_key) } : null,
       mentions: nameList(p.mentions),
       tags: nameList(p.tags),
+      celebration: p.celebration ? { ...p.celebration, person: welcomed[p.celebration.user_id] || null } : null,
       shoutout: p.shoutout ? { badge: p.shoutout.badge, to: nameList(p.shoutout.to) } : null,
       poll: poll ? pollTally(poll, votes.filter((v) => v.post_id === p.id), user.id) : null,
       event: ev ? await eventShape(ev, evR, user) : null,

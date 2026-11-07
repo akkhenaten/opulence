@@ -148,7 +148,7 @@ export default function PostCard({ post: initial, onChanged, onPerson, full, hig
       {post.body && <Body text={post.body} mentions={post.mentions} onPerson={onPerson}
         className={cx('px-4 pt-2', post.kind === 'poll' ? 'text-headline' : !post.photos.length && !post.video && !post.link && post.kind === 'post' && post.body.length < 90 ? 'text-title3 leading-snug' : 'text-callout leading-relaxed')} />}
       {post.kind === 'shoutout' && <ShoutoutCard post={post} onPerson={onPerson} />}
-      {celebration && <CelebrationCard post={post} onChanged={onChanged} />}
+      {celebration && <CelebrationCard post={post} onChanged={onChanged} onPerson={onPerson} />}
       {post.kind === 'poll' && post.poll && <PollCard post={post} onUpdate={update} />}
       {post.kind === 'event' && post.event && <EventCard post={post} onUpdate={update} onEdit={() => setEditing(true)} onPerson={onPerson} />}
       <AckBar post={post} onUpdate={update} onAudience={() => setAudience(post)} />
