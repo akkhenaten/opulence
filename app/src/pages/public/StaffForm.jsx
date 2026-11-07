@@ -6,7 +6,7 @@ import { useParams } from 'react-router-dom';
 import { CheckCircle2, FileText, IdCard, Lock, UserRound } from 'lucide-react';
 import { api, staffFormUpload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, Check, Chips, ErrorBox, Input, Load, useApi, useForm } from '../../ui/index.jsx';
+import { Button, Check, ErrorBox, Input, Load, useApi, useForm } from '../../ui/index.jsx';
 import { Card, FilePick, Frame } from './Apply.jsx';
 
 const MAX = 10 * 1024 * 1024;
@@ -45,14 +45,13 @@ function Done({ name, venue }) {
 export default function StaffForm() {
   const { token } = useParams();
   const info = useApi('staffSetup.info', { token });
-  return <Load q={info}>{(d) => (!d.open ? <Closed /> : d.kind === 'venue' ? <VenueForm token={token} venues={d.venues || []} /> : <Form token={token} />)}</Load>;
+  return <Load q={info}>{(d) => (!d.open ? <Closed /> : d.kind === 'venue' ? <VenueForm token={token} /> : <Form token={token} />)}</Load>;
 }
 
-// Venue managers: who they are and which venue(s) they look after; their login is set up from this
-function VenueForm({ token, venues }) {
+// Venue managers: who they are and the venue they look after (typed, never picked from a list); their login is set up from this
+function VenueForm({ token }) {
   const { brand } = useAuth();
-  const { v, bind, set } = useForm({ first_name: '', last_name: '', goes_by: '', email: '', phone: '', job_title: '', venue_ids: [], other_venue: '', consent: false, website: '' });
-  const [notListed, setNotListed] = useState(!venues.length);
+  const { v, bind, set } = useForm({ first_name: '', last_name: '', goes_by: '', email: '', phone: '', job_title: '', venue_name: '', consent: false, website: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -62,7 +61,7 @@ function VenueForm({ token, venues }) {
     setErr('');
     setBusy(true);
     try {
-      await api('staffSetup.submit', { ...v, other_venue: notListed ? v.other_venue : '', token });
+      await api('staffSetup.submit', { ...v, token });
       setDone(true);
     } catch (x) {
       setErr(x.message);
@@ -92,14 +91,7 @@ function VenueForm({ token, venues }) {
         </Card>
 
         <Card title="Your venue">
-          {venues.length > 0 && <Chips label="Tick the venue or venues you manage" options={venues.map((x) => ({ value: x.id, label: x.name }))} value={v.venue_ids} onChange={(x) => set('venue_ids', x)} />}
-          {venues.length > 0 && (
-            <div className="flex items-center gap-3">
-              <Check checked={notListed} onChange={setNotListed} label="My venue isn't listed" />
-              <span className="text-callout">My venue isn't listed</span>
-            </div>
-          )}
-          {notListed && <Input label="Venue name" {...bind('other_venue')} />}
+          <Input label="Venue name" hint="The venue you manage" autoComplete="organization" {...bind('venue_name')} />
         </Card>
 
         <Card>

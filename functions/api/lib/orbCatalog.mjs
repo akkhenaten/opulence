@@ -24,8 +24,8 @@ export const CATALOG = {
   'officers.saveAvailability': c('people', "Update an officer's availability", 'officer_id, days', { link: (_r, b) => staff(b.officer_id) }),
   'officers.saveBan': c('people', 'Bar or allow an officer at a venue', 'officer_id, venue_id, reason, remove?', { link: (_r, b) => staff(b.officer_id) }),
   // Staff setup (platform admin only): details officers sent through the shared link, turned into staff profiles
-  'staffSetup.list': r('people', 'Staff setup submissions waiting: kind officer (becomes a staff profile) or venue (becomes a Venue Manager login; empty venues means they wrote one that is not listed, other_venue)', '', { words: 'staff setup form link details submissions new starters venue managers' }),
-  'staffSetup.create': c('people', 'Create from a staff setup submission: an officer becomes an active staff profile (no login invite); a venue manager becomes an invited Venue Manager login for their venues, no email sent. A venue manager with no listed venue cannot be created here: ask the admin to pick the venue on the Staff setup page', 'id (submission)', {
+  'staffSetup.list': r('people', 'Staff setup submissions waiting: kind officer (becomes a staff profile) or venue (becomes a Venue Manager login; venue_name is what they typed, venues the venue it matches, empty when it matches none)', '', { words: 'staff setup form link details submissions new starters venue managers' }),
+  'staffSetup.create': c('people', 'Create from a staff setup submission: an officer becomes an active staff profile (no login invite); a venue manager becomes an invited Venue Manager login for their venues, no email sent. A venue manager whose venue_name matches no venue cannot be created here: ask the admin to pick the venue on the Staff setup page', 'id (submission)', {
     link: (res) => (res?.kind === 'venue' ? res?.id && `settings?tab=users&user=${res.id}` : staff(res?.id)), words: 'staff setup submission profile venue manager login' }),
   'onboarding.pipeline': r('onboarding', 'Onboarding pipeline', ''),
   'onboarding.tasks': r('onboarding', "Officer's onboarding tasks", 'officer_id'),

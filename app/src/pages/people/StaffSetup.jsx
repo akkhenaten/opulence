@@ -51,7 +51,7 @@ export default function StaffSetup() {
               {of('venue').map((s) => (
                 <Row key={s.id} onClick={() => setOpen(s.id)} chevron left={<Avatar name={s.name} size={36} />}
                   title={s.name}
-                  subtitle={[s.venues?.length ? s.venues.join(', ') : `Not listed: ${s.other_venue || '—'}`, `sent ${date(s.created_at)}`].join(' · ')}
+                  subtitle={[s.venue_name || '—', `sent ${date(s.created_at)}`].join(' · ')}
                   right={s.duplicate ? <Pill tone="amber">Already has a login</Pill> : !s.venues?.length && <Pill tone="amber">Pick venue</Pill>} />
               ))}
             </List>
@@ -96,7 +96,7 @@ function SubmissionSheet({ id, onClose, onDone }) {
   const s = q.data;
   const d = s?.details || {};
   const venue = s?.kind === 'venue';
-  const picked = venues ?? d.venue_ids ?? [];
+  const picked = venues ?? s?.matched ?? [];
   const close = () => { onClose(); setTimeout(() => { setShow(false); setVenues(null); }, 300); };
   const done = () => { onDone(); close(); };
   const create = () => run(() => api('staffSetup.create', venue ? { id, venue_ids: picked } : { id }),
@@ -120,11 +120,11 @@ function SubmissionSheet({ id, onClose, onDone }) {
               ['Name', `${d.first_name} ${d.last_name}${d.goes_by ? ` (${d.goes_by})` : ''}`],
               ['Job title', d.job_title || '—'],
               ['Email', d.email], ['Mobile', d.phone],
-              ...(d.other_venue ? [['Venue they wrote', d.other_venue]] : []),
+              ['Venue they wrote', d.venue_name || '—'],
               ['Sent', dateTime(s.created_at)],
             ]} />
-            <Chips label="Venues they manage" options={(s.venues || []).map((x) => ({ value: x.id, label: x.name }))} value={picked} onChange={setVenues} />
-            {d.other_venue && !picked.length && <p className="text-caption text-muted">Pick their venue above. If it isn't there yet, add it in Venues first.</p>}
+            <Chips label="Link them to" options={(s.venues || []).map((x) => ({ value: x.id, label: x.name }))} value={picked} onChange={setVenues} />
+            {!picked.length && <p className="text-caption text-muted">Their venue name didn't match one of yours. Pick it above; if it isn't there yet, add it in Venues first.</p>}
             <p className="text-caption text-muted">Create login adds them as a Venue Manager for these venues, with no email. Send the invite from Settings → Users when you're ready.</p>
           </div>
         ) : (

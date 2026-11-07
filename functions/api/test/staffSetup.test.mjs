@@ -88,27 +88,28 @@ test('Orb offers staff setup only to the platform admin', () => {
 
 const V1 = '11111111-1111-4111-8111-111111111111';
 const V2 = '22222222-2222-4222-8222-222222222222';
-const vm = { first_name: 'Ana', last_name: 'Reid', email: 'Ana@Venue.co.uk', phone: '07700 900789', job_title: 'General Manager', venue_ids: [V1, V1, 'nope'], consent: true };
+const vm = { first_name: 'Ana', last_name: 'Reid', email: 'Ana@Venue.co.uk', phone: '07700 900789', job_title: 'General Manager', venue_name: ' The Loft ', venue_ids: [V1, V2], consent: true };
 
-test('a venue manager ticks known venues only, or writes one that is not listed', () => {
-  const { details: d, files, error } = cleanVenueManager(vm, [V1, V2]);
+test('a venue manager types their venue; a list of venues is never taken from them', () => {
+  const { details: d, files, error } = cleanVenueManager(vm);
   assert.equal(error, undefined);
   assert.equal(d.email, 'ana@venue.co.uk');
-  assert.deepEqual(d.venue_ids, [V1]);
+  assert.equal(d.venue_name, 'The Loft');
+  assert.equal(d.venue_ids, undefined);
   assert.equal(d.job_title, 'General Manager');
   assert.deepEqual(files, {});
-  const other = cleanVenueManager({ ...vm, venue_ids: [], other_venue: 'The Loft' }, [V1]);
-  assert.deepEqual(other.details.venue_ids, []);
-  assert.equal(other.details.other_venue, 'The Loft');
+});
+
+test('the venue managers form never lists the venues', async () => {
+  assert.deepEqual(Object.keys(await actions['staffSetup.info'].fn({}, {})), ['open']);
 });
 
 test('a venue manager needs a name, contact, a venue and consent', () => {
-  const err = (patch) => cleanVenueManager({ ...vm, ...patch }, [V1]).error;
+  const err = (patch) => cleanVenueManager({ ...vm, ...patch }).error;
   assert.match(err({ first_name: '' }), /name/);
   assert.match(err({ email: 'x' }), /email/);
   assert.match(err({ phone: '12' }), /phone/);
-  assert.match(err({ venue_ids: [] }), /venue/);
-  assert.match(err({ venue_ids: [V2] }), /venue/);
+  assert.match(err({ venue_name: '  ' }), /venue/);
   assert.match(err({ consent: false }), /agree/);
 });
 

@@ -13,7 +13,7 @@ export const UPDATES = [
   {
     month: 'November 2026', date: '2026-11-07', icon: Store, title: 'Venue managers can send their details too', image: 'venue-manager-form',
     lede: "Alongside the officers' form, the Orb team can now send your venue managers their own shared link. Each manager adds their name, contact details and the venue they look after, and the team turns it into a Venue Manager login for the right venue, with Orb doing the typing.",
-    points: ['A short form: name, job title, email, mobile and the venue or venues they manage', 'Venue managers tick their venue from your list, or write its name if it is new', 'Each one becomes a Venue Manager login linked to their venues', 'No email goes out until you send the invite from Settings → Users', 'Its own link, switched on, off or replaced separately from the officers\' one'],
+    points: ['A short form: name, job title, email, mobile and the venue they manage', 'They type their own venue\'s name and never see your other venues; it is matched to your venue for you', 'Each one becomes a Venue Manager login linked to their venues', 'No email goes out until you send the invite from Settings → Users', 'Its own link, switched on, off or replaced separately from the officers\' one'],
   },
   {
     month: 'November 2026', date: '2026-11-07', icon: ClipboardList, title: 'Setting up your staff is faster: officers send their own details', image: 'staff-setup-form',

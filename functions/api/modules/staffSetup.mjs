@@ -26,6 +26,9 @@ const LINK_ID = { officer: 1, venue: 2 };
 const kindOf = (k) => (k === 'venue' ? 'venue' : 'officer');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const activeVenues = () => q('SELECT id, name FROM venues WHERE active ORDER BY name');
+// The venue a manager typed, matched to an active venue by its name (case and spacing ignored)
+const squash = (n) => String(n || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+const matchVenue = (d, venues) => venues.filter((v) => squash(d.venue_name) && squash(v.name) === squash(d.venue_name));
 
 /** The link's kind, only while it is switched on and the token is the current one */
 async function openLink(token) {
@@ -88,8 +91,9 @@ export async function createFromSubmission(id, user) {
 export async function createVenueManager(id, venueIds, user) {
   const s = need(await one("SELECT * FROM staff_setup_submissions WHERE id = $1 AND kind = 'venue'", [id]), 'Submission not found — it may already have a login');
   const d = s.details;
-  const ids = [...new Set((Array.isArray(venueIds) && venueIds.length ? venueIds : d.venue_ids || []).map(String))].filter((v) => UUID.test(v));
-  if (!ids.length) fail(400, `${nameOf(d)} wrote a venue that isn't listed (${d.other_venue || 'no name'}) — pick their venue in Staff setup first`);
+  const given = Array.isArray(venueIds) && venueIds.length ? venueIds : matchVenue(d, await activeVenues()).map((v) => v.id);
+  const ids = [...new Set(given.map(String))].filter((v) => UUID.test(v));
+  if (!ids.length) fail(400, `${nameOf(d)} wrote "${d.venue_name}", which doesn't match a venue — pick their venue in Staff setup first`);
   if (isPlatformEmail(d.email)) fail(400, 'This email belongs to the platform admin');
   const venues = await q('SELECT id, client_id FROM venues WHERE id = ANY($1::uuid[])', [ids]);
   if (venues.length !== ids.length) fail(400, 'Venue not found');
@@ -107,12 +111,11 @@ export async function createVenueManager(id, venueIds, user) {
 
 export const actions = {
   // The public form: is the link open?
-  // The public form: is the link open, and which form is it? The venue managers' form lists the venues to tick.
+  // The public form: is the link open, and which form is it? (Venue managers type their venue; no list is shown.)
   'staffSetup.info': pub(async (b) => {
     const l = b.token ? await one('SELECT id FROM staff_setup_link WHERE enabled AND token = $1', [String(b.token)]) : null;
     if (!l) return { open: false };
-    if (l.id !== LINK_ID.venue) return { open: true, kind: 'officer' };
-    return { open: true, kind: 'venue', venues: await activeVenues() };
+    return { open: true, kind: l.id === LINK_ID.venue ? 'venue' : 'officer' };
   }),
 
   'staffSetup.uploadUrl': pub(async (b, ctx) => {
@@ -132,7 +135,7 @@ export const actions = {
     if (b.website) return { ok: true }; // honeypot: bots fill every field
     const kind = await openLink(b.token);
     const ip = ipOf(ctx);
-    const c = kind === 'venue' ? cleanVenueManager(b, (await activeVenues()).map((v) => v.id)) : cleanStaffDetails(b, londonDate(new Date()));
+    const c = kind === 'venue' ? cleanVenueManager(b) : cleanStaffDetails(b, londonDate(new Date()));
     if (c.error) fail(400, c.error);
     const { n } = await one("SELECT count(*)::int AS n FROM staff_setup_submissions WHERE ip = $1 AND created_at > now() - interval '1 hour'", [ip]);
     if (n >= 5) fail(429, 'Too many forms sent — please try again later');
@@ -182,13 +185,13 @@ export const actions = {
   }),
 
   // Waiting submissions (kind officer | venue), without date of birth, NI or bank details (this is also what Orb reads).
-  // A venue manager's venues come by name; an empty list means they wrote one that isn't listed (other_venue).
+  // A venue manager's venues: the one their typed venue_name matches; empty means it matched none, so the admin picks it.
   'staffSetup.list': plat(async () => {
     const rows = await q('SELECT * FROM staff_setup_submissions ORDER BY created_at');
-    const names = Object.fromEntries((await q('SELECT id, name FROM venues')).map((v) => [v.id, v.name]));
+    const all = await activeVenues();
     return Promise.all(rows.map(async (s) => ({
       id: s.id, kind: s.kind, name: nameOf(s.details), ...withoutPrivate(s.details), created_at: s.created_at,
-      ...(s.kind === 'venue' ? { venues: (s.details.venue_ids || []).map((v) => names[v]).filter(Boolean) } : {}),
+      ...(s.kind === 'venue' ? { venues: matchVenue(s.details, all).map((v) => v.name) } : {}),
       files: Object.keys(s.files || {}).map((k) => SETUP_FILES[k] || k), duplicate: await duplicateOf(s),
     })));
   }),
@@ -198,10 +201,11 @@ export const actions = {
     const s = need(await one('SELECT * FROM staff_setup_submissions WHERE id = $1', [b.id]), 'Submission not found');
     const files = await Promise.all(Object.entries(s.files || {}).map(async ([kind, key]) => ({ kind, title: SETUP_FILES[kind] || kind, url: await downloadUrl(key, SETUP_FILES[kind]) })));
     const venues = s.kind === 'venue' ? await activeVenues() : undefined;
-    return { id: s.id, kind: s.kind, name: nameOf(s.details), details: s.details, files, created_at: s.created_at, duplicate: await duplicateOf(s), venues };
+    const matched = venues && matchVenue(s.details, venues).map((v) => v.id);
+    return { id: s.id, kind: s.kind, name: nameOf(s.details), details: s.details, files, created_at: s.created_at, duplicate: await duplicateOf(s), venues, matched };
   }),
 
-  // venue_ids: for a venue manager, the venues to link (defaults to the ones they ticked)
+  // venue_ids: for a venue manager, the venues to link (defaults to the venue their typed name matches)
   'staffSetup.create': plat(async (b, { user }) => {
     required(b, 'id');
     const s = need(await one('SELECT kind FROM staff_setup_submissions WHERE id = $1', [b.id]), 'Submission not found — it may already have been set up');
