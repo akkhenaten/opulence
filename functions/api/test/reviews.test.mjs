@@ -31,12 +31,12 @@ test('published reviews group by client in the managers\' order, newest first af
   assert.deepEqual(groupPublic([]), {});
 });
 
-test('the landing page tiles match the website client list, each with its photo', () => {
+test('the landing page has no hand-made tiles; every old card slug still has its photos', () => {
   const html = readFileSync(new URL('index.html', site), 'utf8');
-  const slugs = [...html.matchAll(/data-client="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual([...slugs].sort(), SITE_CLIENTS.map((c) => c.slug).sort());
-  assert.equal(new Set(slugs).size, slugs.length);
-  for (const s of slugs) {
+  assert.doesNotMatch(html, /data-client=/, 'every tile comes from a venue');
+  assert.match(html, /action: 'venues\.public'/);
+  assert.equal(new Set(SITE_CLIENTS.map((c) => c.slug)).size, SITE_CLIENTS.length);
+  for (const { slug: s } of SITE_CLIENTS) {
     for (const f of [`${s}-480.webp`, `${s}-960.webp`, `${s}-960.jpg`]) assert.ok(existsSync(new URL(`img/opulence/clients/${f}`, site)), f);
   }
   assert.ok(isSiteClient('w-hotel'));

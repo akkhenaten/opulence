@@ -13,7 +13,7 @@ import { getSettings } from './settings.mjs';
 import { isSiteClient } from '../lib/siteClients.mjs';
 import { cleanBlurb, cityOf, publicTile, webUrl } from '../lib/siteVenues.mjs';
 import { extract, HAIKU } from '../lib/ai.mjs';
-import { feedbackShape, groupPublic, mergePublic, tickedPraise } from './reviews.mjs';
+import { feedbackShape, groupPublic, tickedPraise } from './reviews.mjs';
 
 const VENUE_FIELDS = ['client_id', 'name', 'address', 'postcode', 'lat', 'lng', 'radius_m', 'phone', 'instructions', 'notes', 'photo_key', 'invoice_cycle', 'active', 'proof_rule', 'site_client',
   'on_website', 'city', 'website_blurb', 'website_url'];
@@ -118,6 +118,7 @@ export const actions = {
 
   // Company and security managers run venues; the client and invoicing set-up stay with the company
   'venues.save': def(MGR, async (b, { user }) => {
+    if (typeof b.name === 'string') b.name = b.name.trim();
     const f = pick(b, VENUE_FIELDS);
     if (user.role !== 'company') { delete f.client_id; delete f.invoice_cycle; for (const k of WEBSITE_FIELDS) delete f[k]; }
     if (f.website_url !== undefined) {
@@ -155,7 +156,7 @@ export const actions = {
         if (w.blurb) v = await one('UPDATE venues SET website_blurb = $2, city = COALESCE(city, $3) WHERE id = $1 RETURNING *', [v.id, w.blurb, cityOf(v) || w.city]);
       } catch (e) { console.warn('[venues] website text', e.message); }
     }
-    if (v.on_website && !v.site_client && v.photo_key && !v.website_photo_url) v.website_photo_url = await websitePhoto(v);
+    if (v.on_website && v.photo_key && !v.website_photo_url) v.website_photo_url = await websitePhoto(v);
     return v;
   }),
 
@@ -168,26 +169,25 @@ export const actions = {
     return w;
   }),
 
-  // The landing page: hand-made tiles' reviews, photos and hidden ones, and an automatic tile for every other venue
+  // The landing page: a tile for every venue shown on the website, with the reviews filed under its old card's slug
+  // and the praise the office ticked. photos and hide stay empty for pages still cached from before.
   'venues.public': pub(async () => {
     const [published, praise, venues] = await Promise.all([
       q("SELECT * FROM reviews WHERE status = 'published'"),
       tickedPraise(),
       q('SELECT id, name, city, address, postcode, photo_key, site_client, active, on_website, website_blurb, website_url, website_photo_url FROM venues ORDER BY name'),
     ]);
-    const shown = (v) => v.active && v.on_website;
-    // An automatic tile uses the venue's own photo from its details; hand-made tiles keep their pictures
-    await Promise.all(venues.filter((v) => shown(v) && !v.site_client).map(async (v) => { v.website_photo_url = await websitePhoto(v); }));
-    const linked = venues.filter((v) => v.site_client);
-    const photos = {};
-    for (const v of linked) if (shown(v) && v.website_photo_url) photos[v.site_client] ||= v.website_photo_url;
-    const visible = new Set(linked.filter(shown).map((v) => v.site_client));
+    const shown = venues.filter((v) => v.active && v.on_website);
+    await Promise.all(shown.map(async (v) => { v.website_photo_url = await websitePhoto(v); }));
+    const pubBy = groupPublic(published);
     return {
-      reviews: mergePublic(groupPublic(published), praise.filter((c) => c.site_client)),
-      photos,
-      hide: [...new Set(linked.filter((v) => !visible.has(v.site_client)).map((v) => v.site_client))],
-      tiles: venues.filter((v) => !v.site_client && shown(v))
-        .map((v) => publicTile(v, praise.filter((c) => c.venue_id === v.id).map(feedbackShape))),
+      reviews: {},
+      photos: {},
+      hide: [],
+      tiles: shown.map((v) => publicTile(v, [
+        ...((v.site_client && pubBy[v.site_client]) || []),
+        ...praise.filter((c) => c.venue_id === v.id).map(feedbackShape),
+      ])),
     };
   }),
 

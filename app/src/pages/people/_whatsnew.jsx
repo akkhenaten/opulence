@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-07', icon: Globe, title: 'Every client is now a venue', image: 'website-venues',
+    lede: "Every tile under Who we protect on the website now comes straight from Venues. The 22 client cards that were built into the page are now real venues with the same name, line, link and photo, so the website and the app tell one story.",
+    points: ['Change a venue\'s welcome line, photo or website link and its tile follows', 'Switch off Show on website, or make the venue inactive, and the tile goes', 'A new venue gets its own tile automatically, under its city', 'Shanghai shows once now, from its real venue', 'The 22 new venues need an address, geofence and rates before you book shifts there', 'Reviews collected under the old cards still show on their tiles'],
+  },
+  {
     month: 'November 2026', date: '2026-11-07', icon: ClipboardCheck, title: 'Timesheets, day by day', image: 'timesheets-table',
     lede: 'Timesheets is now a week table like the Rota: every confirmed shift, day by day, with the scheduled and actual times, the hours, the charge rate and the officer rate side by side. The colour tells you where each shift is, and Approve, Query and Decline sit on the row.',
     points: ['Confirmed shifts faded, live ones outlined, awaiting review amber, queried red, approved green', 'How each officer clocked in: QR, NFC tag, on location or set by a manager', 'Decline means not worked: no pay and no charge, with the reason sent to the officer', 'Rates are fixed on approval, and pay runs and invoices use exactly those', 'Company managers can change a rate for one shift, with a reason', 'No-shows stay on the table until someone sets their times or declines them'],

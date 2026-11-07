@@ -1,5 +1,6 @@
-// The clients shown on the public website (site/index.html, "Who we protect").
-// Each tile there carries data-client="<slug>"; reviews are filed against these slugs.
+// The old hand-made client cards of the public website. Each is now a venue (migration 047 seeded them, minus
+// Shanghai, which already existed) and the landing page builds every tile from venues. The slugs stay as review
+// keys: reviews are filed against them and a venue's site_client links it to its old card's reviews and photo.
 // file: the photo's name in the original image set, used by scripts/site-images.sh.
 export const SITE_CLIENTS = [
   { slug: 'angels-share', name: 'Angels Share', city: 'Edinburgh', file: 'Angels Share.jpg', url: 'https://angelssharehotel.com/', blurb: 'Door supervision and venue security for a celebrated whisky bar.' },

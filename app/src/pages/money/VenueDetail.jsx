@@ -334,7 +334,7 @@ function WebsiteTile({ v, f, isCo, sites }) {
                     hint={`Shown until praise is ticked for the website. ${f.v.website_blurb.length}/220`} {...f.bind('website_blurb')} />
                   <Button variant="secondary" size="sm" icon={Sparkles} busy={busy} className="mt-2" onClick={write}>Write with AI</Button>
                 </div>
-                <Select label="Website client" hint="Use a hand-made tile on the website instead of an automatic one" placeholder="Automatic tile"
+                <Select label="Reviews from the old website card" hint="Links reviews collected under a website card from before this venue existed" placeholder="None"
                   options={sites.map((c) => ({ value: c.slug, label: `${c.name} (${c.city})` }))} {...f.bind('site_client')} />
               </>
             )}
@@ -347,9 +347,9 @@ function WebsiteTile({ v, f, isCo, sites }) {
             ? <img src={photo} alt="" className="aspect-[4/3] w-full object-cover" />
             : <div className="grid aspect-[4/3] place-items-center text-[40px] font-semibold tracking-wide" style={{ background: SITE.glow, color: SITE.gold }}>{initials(name)}</div>}
           <div className="space-y-1 p-3">
-            <div className="text-subhead font-semibold">{linked ? linked.name : name}</div>
-            {(linked?.city || f.v.city) && <div className="text-footnote uppercase tracking-wide" style={{ color: SITE.gold }}>{linked?.city || f.v.city}</div>}
-            {!linked && <p className="text-footnote text-white/75">{f.v.website_blurb.trim() || DEFAULT_LINE(name)}</p>}
+            <div className="text-subhead font-semibold">{name}</div>
+            {f.v.city && <div className="text-footnote uppercase tracking-wide" style={{ color: SITE.gold }}>{f.v.city}</div>}
+            <p className="text-footnote text-white/75">{f.v.website_blurb.trim() || DEFAULT_LINE(name)}</p>
           </div>
         </div>
       </div>
