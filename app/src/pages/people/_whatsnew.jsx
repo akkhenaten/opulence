@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-07', icon: BadgeCheck, title: 'Right to work checks, from share code to saved record', image: 'rtw-check',
+    lede: "Officers can now send their right to work share code from the app or the staff setup form. It goes straight to Compliance, ready to check. Check right to work takes you to GOV.UK with the code and date of birth to copy. You then upload the GOV.UK page, the AI reads the result, and the check is saved as your record.",
+    points: ['Officers type their share code, or send a screenshot and the AI picks the code out', 'Compliance shows each share code ready to check, and asks for a new one when it is over 80 days old', 'Upload the GOV.UK PDF: the name, no time limit or end date are filled in for you', 'British or Irish passport: record your in-person check with a copy', 'Time-limited permission: reminders for the follow-up check before it ends', 'Right to work is only marked verified with a saved check; ticks made by hand are flagged to redo'],
+  },
+  {
     month: 'November 2026', date: '2026-11-07', icon: Mail, title: 'App emails now come from your company', image: 'email-sender-name',
     lede: "Every email the app sends (invites, password resets, notifications, contracts to sign, application updates) now shows your company name as the sender, so staff and clients recognise it straight away. When someone replies, the reply goes to your company email.",
     points: ['The sender name is the company name in Settings → Company', 'Replies go to the email in Settings → Company', 'Change either one there and the next email uses it', 'The look of the email is unchanged: your logo and colour'],

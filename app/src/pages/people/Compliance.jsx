@@ -41,14 +41,15 @@ export default function Compliance() {
       )}>
       <Load q={q} skeleton="rows">
         {(d) => <Body d={d} sev={sev} setSev={setSev} area={area} setArea={setArea} dismiss={dismiss} busy={busy}
-          openCard={() => nav(`/${user.role}/live`)} openStaff={(id) => nav(`/${user.role}/staff/${id}?tab=documents`)} />}
+          openCard={() => nav(`/${user.role}/live`)} openStaff={(id) => nav(`/${user.role}/staff/${id}?tab=documents`)}
+          openRtw={company ? (id) => nav(`/${user.role}/staff/${id}?tab=compliance&rtw=check`) : null} />}
       </Load>
       {preview && <DigestPreview onClose={() => setPreview(false)} />}
     </Page>
   );
 }
 
-function Body({ d, sev, setSev, area, setArea, dismiss, busy, openCard, openStaff }) {
+function Body({ d, sev, setSev, area, setArea, dismiss, busy, openCard, openStaff, openRtw }) {
   const counts = useMemo(() => d.rows.reduce((m, r) => ({ ...m, [r.severity]: (m[r.severity] || 0) + 1 }), {}), [d.rows]);
   const groups = useMemo(() => {
     const m = new Map();
@@ -103,9 +104,10 @@ function Body({ d, sev, setSev, area, setArea, dismiss, busy, openCard, openStaf
                       </div>
                       {r.detail && <p className="mt-0.5 text-footnote text-muted">{r.detail}</p>}
                       {r.shift && <p className="num mt-0.5 text-footnote text-muted">Next shift: {r.shift.venue_name} · {date(r.shift.starts_at)} {time(r.shift.starts_at)}</p>}
-                      {r.card_id && (
-                        <div className="mt-1.5 flex justify-end">
-                          <Button size="sm" variant="ghost" disabled={busy} onClick={() => dismiss(r)}>Dismiss</Button>
+                      {(r.card_id || (openRtw && r.area === 'rtw')) && (
+                        <div className="mt-1.5 flex justify-end gap-2">
+                          {openRtw && r.area === 'rtw' && <Button size="sm" variant="soft" onClick={() => openRtw(g.officer.id)}>Check right to work</Button>}
+                          {r.card_id && <Button size="sm" variant="ghost" disabled={busy} onClick={() => dismiss(r)}>Dismiss</Button>}
                         </div>
                       )}
                     </div>

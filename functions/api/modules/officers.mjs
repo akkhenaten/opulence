@@ -2,12 +2,14 @@ import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, pick, need } from '../lib/http.mjs';
 import { canSeePay, goesBy } from '../lib/auth.mjs';
 import { assertOfficerAccess, venueScope } from '../lib/scope.mjs';
-import { downloadUrl, checkOwnPhoto, saveThumb, photoUrls } from '../lib/storage.mjs';
+import { downloadUrl, checkOwnPhoto, saveThumb, photoUrls, getObjectBytes, headObject } from '../lib/storage.mjs';
+import { extract, fileBlock, canRead, HAIKU } from '../lib/ai.mjs';
+import { RTW_CHECK_TOOL, rtwResultOf, cleanShareCode } from '../lib/rtw.mjs';
 import { londonDate } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { createInvite, sendInvite } from './users.mjs';
 import { guardPlatformAccount } from '../lib/platform.mjs';
-import { seedOnboarding, syncOnboarding } from './hr.mjs';
+import { seedOnboarding, syncOnboarding, tickOnboarding } from './hr.mjs';
 import { guardSelf } from '../lib/selfcheck.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
 import { NOT_CLEARED, STATUS_LABEL, siaCheckOn } from '../lib/sia.mjs';
@@ -16,7 +18,7 @@ import { officerDisplay, officerName, userName } from '../lib/names.mjs';
 const NON_SIA = new Set(['steward']);
 const PRIVATE = ['ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account', 'dob'];
 const MANAGER_FIELDS = ['first_name', 'last_name', 'goes_by', 'email', 'phone', 'dob', 'address', 'postcode', 'ni_number', 'utr', 'bank_name', 'bank_sort_code',
-  'bank_account', 'photo_key', 'sia_number', 'sia_type', 'sia_expiry', 'rtw_type', 'rtw_expiry', 'rtw_verified', 'status', 'roles', 'max_weekly_hours',
+  'bank_account', 'photo_key', 'sia_number', 'sia_type', 'sia_expiry', 'rtw_type', 'rtw_expiry', 'status', 'roles', 'max_weekly_hours',
   'start_date', 'notes'];
 const SELF_FIELDS = ['goes_by', 'phone', 'address', 'postcode', 'dob', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account', 'photo_key'];
 
@@ -110,7 +112,9 @@ export const actions = {
     const id = b.id || user.officer_id;
     if (user.role === 'venue') fail(403, 'Forbidden');
     await assertOfficerAccess(user, id);
-    const o = need(await one(`SELECT o.*, u.status AS login_status, u.last_login, u.invite_sent_at, u.invite_emailed, u.role AS login_role, ${userName('vu')} AS sia_last_verified_by_name FROM officers o LEFT JOIN users u ON u.id = o.user_id LEFT JOIN users vu ON vu.id = o.sia_last_verified_by WHERE o.id = $1`, [id]));
+    const o = need(await one(`SELECT o.*, u.status AS login_status, u.last_login, u.invite_sent_at, u.invite_emailed, u.role AS login_role, ${userName('vu')} AS sia_last_verified_by_name, ${userName('rc')} AS rtw_checked_by_name,
+        (SELECT d.number FROM documents d WHERE d.owner_type = 'officer' AND d.owner_id = o.id AND d.kind = 'rtw' AND d.number <> '' ORDER BY d.created_at DESC LIMIT 1) AS rtw_share_code
+      FROM officers o LEFT JOIN users u ON u.id = o.user_id LEFT JOIN users vu ON vu.id = o.sia_last_verified_by LEFT JOIN users rc ON rc.id = o.rtw_checked_by WHERE o.id = $1`, [id]));
     const [contacts, rates, bans, availability, offboarding] = await Promise.all([
       q('SELECT * FROM emergency_contacts WHERE officer_id = $1', [id]),
       canSeePay(user) || user.officer_id === id
@@ -247,4 +251,61 @@ export const actions = {
     });
     return { ok: true };
   }),
+
+  // Right to work: the manager checks the share code on GOV.UK, saves the check page and uploads it here.
+  // rtwRead reads the page to fill in the form; rtwCheck records the check, the only way right to work becomes verified.
+  'officers.rtwRead': def(CO, async (b) => {
+    const key = checkKey(b.s3_key);
+    const head = await headObject(key);
+    const mime = b.mime || head?.mime;
+    if (!head) fail(400, 'File not found — upload it again');
+    if (!canRead(mime) || head.size > 4.5 * 1024 * 1024) return rtwResultOf({ readable: false, concerns: [] });
+    try {
+      const r = await extract({
+        model: HAIKU, max_tokens: 500, module: 'compliance',
+        system: "You read a saved UK Home Office 'view a job applicant's right to work details' page for an employer. Report only what is shown. Never guess.",
+        messages: [{ role: 'user', content: [{ type: 'text', text: 'The right to work check page an employer saved' }, fileBlock(await getObjectBytes(key), mime)] }],
+        tool: RTW_CHECK_TOOL,
+      });
+      return rtwResultOf(r.input);
+    } catch (e) {
+      console.warn('[rtw] read failed:', e.message);
+      return { ...rtwResultOf(null), error: 'Could not read it — fill in the result yourself' };
+    }
+  }),
+
+  'officers.rtwCheck': def(CO, async (b, { user }) => {
+    const v = rtwCheckInput(b, londonDate(new Date()));
+    const o = need(await one('SELECT id, rtw_type FROM officers WHERE id = $1', [b.id]), 'Staff member not found');
+    const docId = await tx(async (t) => {
+      const [d] = await t.q(
+        `INSERT INTO documents (owner_type, owner_id, kind, title, number, expiry, s3_key, mime, uploaded_by, verified_by, verified_at, ai_read, ai_read_key, ai_read_at)
+         VALUES ('officer', $1, 'rtw', $2, $3, $4, $5, $6, $7, $7, now(), $8, $5, now()) RETURNING id`,
+        [o.id, v.method === 'share_code' ? 'GOV.UK right to work check' : 'Right to work — manual check', v.reference, v.expiry, v.s3_key, v.mime, user.id, v.read]);
+      await t.q(`UPDATE officers SET rtw_verified = true, rtw_type = $2, rtw_expiry = $3, rtw_checked_at = now(), rtw_checked_by = $4, rtw_method = $5, rtw_check_doc = $6
+        WHERE id = $1`, [o.id, v.method === 'share_code' ? 'Share code' : (o.rtw_type && o.rtw_type !== 'Share code' ? o.rtw_type : 'British or Irish passport'), v.expiry, user.id, v.method, d.id]);
+      return d.id;
+    });
+    await tickOnboarding(o.id, 'rtw');
+    await audit(user, 'officer.rtw_check', 'officer', o.id, { method: v.method, permission: v.permission, expiry: v.expiry, doc: docId });
+    return { ok: true, doc_id: docId };
+  }),
 };
+
+const checkKey = (k) => {
+  if (typeof k !== 'string' || !k.startsWith('docs/') || k.startsWith('docs/archive/')) fail(400, 'Upload the check page first');
+  return k;
+};
+
+/** A right to work check as entered, or a 400 explaining what is missing. today: YYYY-MM-DD */
+export function rtwCheckInput(b, today) {
+  if (!b?.id) fail(400, 'Staff member missing');
+  const s3_key = checkKey(b.s3_key);
+  const method = b.method === 'manual' ? 'manual' : 'share_code';
+  if (b.photo_matched !== true) fail(400, 'Confirm the photo matches this person');
+  const permission = b.permission === 'time_limited' ? 'time_limited' : b.permission === 'unlimited' ? 'unlimited' : fail(400, 'Choose no time limit or time-limited');
+  const expiry = permission === 'time_limited' ? String(b.expiry || '') : null;
+  if (permission === 'time_limited' && !(/^\d{4}-\d{2}-\d{2}$/.test(expiry) && expiry > today)) fail(400, 'Add the date their permission to work ends');
+  const read = b.read && typeof b.read === 'object' ? rtwResultOf(b.read) : null;
+  return { s3_key, mime: typeof b.mime === 'string' ? b.mime.slice(0, 100) : null, method, permission, expiry, read, reference: (read?.reference || cleanShareCode(b.share_code) || '').slice(0, 40) };
+}

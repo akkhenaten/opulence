@@ -13,7 +13,7 @@ const MAX = 10 * 1024 * 1024;
 const DOC_TYPES = 'image/*,.pdf';
 const FILES = [
   { key: 'sia_front', label: 'SIA badge — front (optional)', hint: 'A clear photo with the name, number and expiry readable', icon: IdCard, accept: DOC_TYPES },
-  { key: 'rtw', label: 'Right to work — passport, BRP or share code (optional)', hint: 'PDF or a photo, up to 10 MB', icon: FileText, accept: DOC_TYPES },
+  { key: 'rtw', label: 'Right to work — passport or share code screenshot (optional)', hint: 'PDF or a photo, up to 10 MB', icon: FileText, accept: DOC_TYPES },
   { key: 'poa', label: 'Proof of address — a recent bill or bank statement (optional)', hint: 'PDF or a photo, up to 10 MB', icon: FileText, accept: DOC_TYPES },
   { key: 'photo', label: 'Profile photo (optional)', hint: 'A clear photo of your face, like a passport photo', icon: UserRound, accept: 'image/*' },
 ];
@@ -125,7 +125,7 @@ function Form({ token }) {
   const { brand } = useAuth();
   const { v, bind, set } = useForm({
     first_name: '', last_name: '', goes_by: '', email: '', phone: '', dob: '', address: '', postcode: '', ni_number: '',
-    sia_number: '', sia_expiry: '', bank_name: '', bank_sort_code: '', bank_account: '',
+    sia_number: '', sia_expiry: '', rtw_share_code: '', bank_name: '', bank_sort_code: '', bank_account: '',
     ec_name: '', ec_relationship: '', ec_phone: '', consent: false, website: '',
   });
   const [files, setFiles] = useState({});
@@ -189,6 +189,12 @@ function Form({ token }) {
             <Input label="Licence number" inputMode="numeric" hint="16 digits — leave blank if you don't hold one" {...bind('sia_number')} />
             <Input label="Expiry date" type="date" {...bind('sia_expiry')} />
           </div>
+        </Card>
+
+        <Card title="Right to work">
+          <Input label="Share code (optional)" autoCapitalize="characters" autoComplete="off" placeholder="W12 345 678"
+            hint="9 letters and numbers starting with W. British or Irish passport? Leave blank and add a photo of it below." {...bind('rtw_share_code')} />
+          <a href="https://www.gov.uk/prove-right-to-work" target="_blank" rel="noreferrer" className="text-subhead font-semibold text-blue">Get a share code on GOV.UK</a>
         </Card>
 
         <Card title="Pay details">

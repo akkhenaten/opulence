@@ -9,7 +9,8 @@ import { compressImage, DOC_KINDS, docKindLabel, expiryText, expiryTone, NotLink
 const NEEDS_EXPIRY = new Set(['sia', 'first_aid', 'cctv', 'id']);
 const TRAINING = new Set(['first_aid', 'cctv', 'training']);
 const NEEDS_NUMBER = new Set(['sia', 'id', 'rtw']);
-const NUMBER_LABEL = { sia: 'Licence number', id: 'Document number', rtw: 'Share code (if any)' };
+const NUMBER_LABEL = { sia: 'Licence number', id: 'Document number', rtw: 'Share code' };
+const isShareCode = (s) => /^W[A-Z0-9]{8}$/.test(String(s || '').toUpperCase().replace(/[\s-]+/g, ''));
 
 export default function Documents() {
   const { user } = useAuth();
@@ -147,12 +148,15 @@ function AddSheet({ kind, onClose, ownerId, onDone }) {
     setPreview(c.type.startsWith('image/') ? URL.createObjectURL(c) : null);
   };
   const needsExpiry = NEEDS_EXPIRY.has(v.kind);
-  const ok = file && (!needsExpiry || v.expiry) && (v.kind !== 'other' || v.title.trim());
+  const rtw = v.kind === 'rtw';
+  const codeBad = rtw && v.number.trim() && !isShareCode(v.number);
+  // Right to work: a share code on its own is enough; the office checks it on GOV.UK
+  const ok = (file || (rtw && isShareCode(v.number))) && !codeBad && (!needsExpiry || v.expiry) && (v.kind !== 'other' || v.title.trim());
   const save = () => run(async () => {
-    const key = await upload(file, 'officer');
+    const key = file ? await upload(file, 'officer') : null;
     return api('docs.create', {
-      owner_type: 'officer', owner_id: ownerId, kind: v.kind, title: v.title.trim() || docKindLabel(v.kind),
-      number: v.number.trim(), expiry: v.expiry || null, s3_key: key, mime: file.type || null,
+      owner_type: 'officer', owner_id: ownerId, kind: v.kind, title: v.title.trim() || (rtw && !file ? 'Right to work share code' : docKindLabel(v.kind)),
+      number: v.number.trim(), expiry: v.expiry || null, s3_key: key, mime: file?.type || null,
       ...(TRAINING.has(v.kind) ? { provider: v.provider.trim() || null, issued_on: v.issued_on || null } : {}),
     });
   }, 'Uploaded. The office will check it.').then(onDone).catch(() => {});
@@ -183,9 +187,15 @@ function AddSheet({ kind, onClose, ownerId, onDone }) {
             <Input label="Date passed" type="date" value={v.issued_on} onChange={set('issued_on')} />
           </div>
         )}
-        {NEEDS_NUMBER.has(v.kind) && <Input label={NUMBER_LABEL[v.kind]} value={v.number} onChange={set('number')} autoCapitalize="characters" />}
-        <Input label={needsExpiry ? 'Expiry date' : 'Expiry date (optional)'} type="date" value={v.expiry} onChange={set('expiry')}
-          hint={v.kind === 'rtw' ? 'Leave blank only if your right to work has no end date' : undefined} />
+        {NEEDS_NUMBER.has(v.kind) && <Input label={NUMBER_LABEL[v.kind]} value={v.number} onChange={set('number')} autoCapitalize="characters"
+          placeholder={rtw ? 'W12 345 678' : undefined} error={codeBad ? 'A share code has 9 letters and numbers and starts with W' : undefined}
+          hint={rtw ? 'British or Irish passport? Leave this blank and add a photo of it instead.' : undefined} />}
+        {rtw && (
+          <a href="https://www.gov.uk/prove-right-to-work" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-subhead font-semibold text-blue">
+            <ExternalLink size={16} /> Get a share code on GOV.UK
+          </a>
+        )}
+        {!rtw && <Input label={needsExpiry ? 'Expiry date' : 'Expiry date (optional)'} type="date" value={v.expiry} onChange={set('expiry')} />}
       </div>
     </Sheet>
   );

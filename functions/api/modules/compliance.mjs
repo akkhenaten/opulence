@@ -22,6 +22,7 @@ import { CO, MGR, def } from './_def.mjs';
 import { statusesFor, pairKey, OK } from '../lib/venuePack.mjs';
 import { NOT_CLEARED, STATUS_LABEL, RECHECK_DAYS, daysSinceCheck, siaCheckOn } from '../lib/sia.mjs';
 import { officerDisplay } from '../lib/names.mjs';
+import { cleanShareCode, SHARE_CODE_OLD } from '../lib/rtw.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const NO_CLOCK_IN = "NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')";
@@ -50,6 +51,7 @@ const READ_TOOL = {
       number: { type: 'string', description: 'Licence or document number as printed' },
       licence_type: { type: 'string', enum: [...SIA_TYPES, 'other', 'none'], description: 'SIA licence sector if this is an SIA licence' },
       expiry: { type: 'string', description: 'Expiry date as YYYY-MM-DD, empty if none shown' },
+      share_code: { type: 'string', description: 'Right to work share code if shown (9 letters and numbers starting with W), else empty' },
       concerns: { type: 'array', items: { type: 'string' }, description: 'Only real problems: looks edited, details obscured, wrong document type, photo missing. Empty when fine.' },
     },
     required: ['readable', 'concerns'],
@@ -88,6 +90,9 @@ export async function readDocuments(limit = 4) {
       read = { error: e.message };
     }
     await q('UPDATE documents SET ai_read = $2, ai_read_key = $3, ai_read_at = now() WHERE id = $1', [d.id, read, d.s3_key]);
+    // A share code read off a screenshot goes onto the document, ready to check on GOV.UK
+    const code = d.kind === 'rtw' && !d.number && cleanShareCode(read?.share_code);
+    if (code) await q('UPDATE documents SET number = $2 WHERE id = $1', [d.id, code]);
     n++;
   }
   if (n) await logActivity('compliance', `Read ${plural(n, 'uploaded document')} for compliance checks`, { credits });
@@ -148,7 +153,8 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
       add({
         key: `expiry_soon:${e.doc}`, severity: left < 0 ? 'urgent' : left <= 30 ? 'soon' : 'advisory', sig: sig(e.expiry),
         title: left < 0 ? `${cap(label)} expired ${fmtDate(e.expiry)}` : `${cap(label)} expires in ${plural(left, 'day')} (${fmtDate(e.expiry)})`,
-        detail: left < 0 ? 'They cannot be rostered for licensed work until it is renewed.' : 'No renewal uploaded yet.',
+        detail: e.doc === 'rtw' ? 'Do a follow-up right to work check before then: ask for a new share code and tap Check right to work.'
+          : left < 0 ? 'They cannot be rostered for licensed work until it is renewed.' : 'No renewal uploaded yet.',
         actions: [remind(o, e.doc, `a renewed ${label}`)],
       });
     }
@@ -178,8 +184,19 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
       });
     }
   }
-  if (!o.rtw_verified) {
-    add({ key: 'unverified:rtw', severity: shifts.length ? near(shifts) : 'soon', sig: sig(o.rtw_type), title: 'Right to work not verified', detail: shifts.length ? `Rostered on ${plural(shifts.length, 'shift')}.` : 'Check and verify on the profile.', shift: shifts[0], actions: [remind(o, 'rtw', 'right to work proof')] });
+  // Right to work: a share code waiting to be checked on GOV.UK, or nothing to check yet
+  const codeDoc = docs.filter((d) => d.kind === 'rtw' && cleanShareCode(d.number)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+  if (!o.rtw_verified && codeDoc) {
+    const age = days(londonDate(codeDoc.created_at), today);
+    if (age > SHARE_CODE_OLD) {
+      add({ key: 'rtw:code_old', severity: shifts.length ? near(shifts) : 'soon', sig: sig(codeDoc.id), title: `Right to work share code is ${plural(age, 'day')} old — ask for a new one`, detail: 'Share codes stop working after 90 days.', shift: shifts[0], actions: [remind(o, 'rtw', 'a new right to work share code')] });
+    } else {
+      add({ key: 'rtw:code_ready', severity: shifts.length ? near(shifts) : 'soon', sig: sig(codeDoc.id), title: 'Right to work share code ready to check on GOV.UK', detail: `Share code ${cleanShareCode(codeDoc.number)}. Open their profile and tap Check right to work.${shifts.length ? ` Rostered on ${plural(shifts.length, 'shift')}.` : ''}`, shift: shifts[0], actions: [] });
+    }
+  } else if (!o.rtw_verified) {
+    add({ key: 'unverified:rtw', severity: shifts.length ? near(shifts) : 'soon', sig: sig(o.rtw_type), title: 'Right to work not verified', detail: shifts.length ? `Rostered on ${plural(shifts.length, 'shift')}.` : 'Ask for their share code, or check their passport, then tap Check right to work on the profile.', shift: shifts[0], actions: [remind(o, 'rtw', 'their right to work share code')] });
+  } else if (!o.rtw_checked_at) {
+    add({ key: 'rtw:no_record', severity: 'advisory', sig: sig(o.rtw_type, o.rtw_expiry), title: 'Right to work ticked by hand, no check saved', detail: 'Do the check again and upload the GOV.UK page (or your copy of their passport) with Check right to work.', actions: [] });
   }
 
   // A fixed-term contract coming to an end: extend it, replace it or let it end
@@ -248,7 +265,7 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
   }
 
   // Scans waiting for a manager to verify
-  for (const d of docs.filter((x) => x.s3_key && !x.verified_at && [...READ_KINDS, ...required].includes(x.kind) && days(x.created_at, today) >= 3)) {
+  for (const d of docs.filter((x) => x.s3_key && !x.verified_at && [...READ_KINDS, ...required].includes(x.kind) && !(x.kind === 'rtw' && (o.rtw_verified || x === codeDoc)) && days(x.created_at, today) >= 3)) {
     add({ key: `unverified:${d.id}`, severity: 'advisory', sig: sig(d.s3_key), title: `"${d.title}" uploaded ${fmtDate(d.created_at)} but not verified`, detail: 'Check it on the officer\'s Documents tab.', actions: [] });
   }
   if (o.status === 'onboarding' && openTasks) {

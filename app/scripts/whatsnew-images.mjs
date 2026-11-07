@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'rtw-check': 'A laptop on a dark navy desk showing a right to work check page with a passport-style photo and a large gold tick, a phone beside it displaying a short share code in gold letters, a printed PDF page with a gold stamp sliding into a folder, warm lamp light, dark navy and gold.',
   'email-sender-name': 'Close view of a phone on a dark navy desk showing an email inbox where the newest message is from a company name in bold with a small gold shield logo, a reply arrow glowing gold beside it, an open laptop behind with a company settings form, warm lamp light, dark navy and gold.',
   'invite-sent-status': 'Close view of a laptop on a dark navy desk showing a person\'s account card with an invite link box and a small gold envelope icon with a gold tick and a timestamp beside it, a phone next to it showing an incoming email notification, warm lamp light, dark navy and gold.',
   'staff-setup-invite': 'A laptop on a dark navy desk showing a new staff details submission with a gold Create and send invite button being pressed, a paper-plane envelope with a gold trail flying from the screen to a phone on the desk that lights up with an invite and a set password screen, warm lamp light, dark navy and gold.',

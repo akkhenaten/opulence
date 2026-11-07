@@ -6,6 +6,7 @@ import { audit } from '../lib/audit.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
 import { tickOnboarding } from './hr.mjs';
 import { canSeePay } from '../lib/auth.mjs';
+import { cleanShareCode } from '../lib/rtw.mjs';
 
 // Saved invoices and pay statements are money documents
 const MONEY_KINDS = ['invoice', 'pay_statement', 'pay_agreement'];
@@ -48,8 +49,11 @@ export const actions = {
     await assertOwner(user, b.owner_type, b.owner_id, true);
     if (b.s3_key && (!b.s3_key.startsWith('docs/') || b.s3_key.startsWith('docs/archive/'))) fail(400, 'Invalid file');
     if (MONEY_KINDS.includes(b.kind)) fail(400, 'That document type is created by the system');
+    // A right to work share code can be sent on its own, with no picture
+    const code = b.kind === 'rtw' ? cleanShareCode(b.number) : null;
+    if (b.kind === 'rtw' && !b.s3_key && !code) fail(400, 'Add a photo, or a share code (it starts with W)');
     const d = await insert('documents', {
-      owner_type: b.owner_type, owner_id: b.owner_id || null, kind: b.kind, title: b.title, number: b.number || '',
+      owner_type: b.owner_type, owner_id: b.owner_id || null, kind: b.kind, title: b.title, number: code || b.number || '',
       expiry: b.expiry || null, s3_key: b.s3_key || null, mime: b.mime || null, uploaded_by: user.id,
       provider: b.provider || null, issued_on: b.issued_on || null,
     });
@@ -65,12 +69,12 @@ export const actions = {
     return { url: await downloadUrl(d.s3_key, d.title) };
   }),
 
-  // Verifying an SIA / right-to-work document copies its number + expiry onto the officer's compliance record
+  // Verifying an SIA document copies its number + expiry onto the officer's compliance record. A right to work upload
+  // is only marked as seen: right to work is verified by the GOV.UK check (officers.rtwCheck)
   'docs.verify': def(CO, async (b, { user }) => {
     const d = need(await one('UPDATE documents SET verified_by = $2, verified_at = now() WHERE id = $1 RETURNING *', [b.id, user.id]));
-    if (d.owner_type === 'officer') {
-      if (d.kind === 'sia') await q('UPDATE officers SET sia_number = COALESCE(NULLIF($2, \'\'), sia_number), sia_expiry = COALESCE($3, sia_expiry) WHERE id = $1', [d.owner_id, d.number, d.expiry]);
-      if (d.kind === 'rtw') await q('UPDATE officers SET rtw_verified = true, rtw_expiry = $2 WHERE id = $1', [d.owner_id, d.expiry]);
+    if (d.owner_type === 'officer' && d.kind === 'sia') {
+      await q('UPDATE officers SET sia_number = COALESCE(NULLIF($2, \'\'), sia_number), sia_expiry = COALESCE($3, sia_expiry) WHERE id = $1', [d.owner_id, d.number, d.expiry]);
     }
     await audit(user, 'doc.verify', 'document', d.id);
     return d;

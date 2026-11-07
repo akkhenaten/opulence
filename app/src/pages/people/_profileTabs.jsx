@@ -15,6 +15,7 @@ import { AMEND_KIND, ENGAGEMENT, JUR_SHORT } from './contracts/_shared.jsx';
 import { PackPill } from '../shared/PackPaper.jsx';
 import { SiaCheckPill, SiaVerifyButton, useSiaVerify } from './SiaVerify.jsx';
 import { SIA_CHECK_ON } from '../../ui/sia.js';
+import RtwCheckSheet from './RtwCheckSheet.jsx';
 
 // useApi that reports 403 to the parent so the tab can be hidden
 function useTabApi(action, body, onForbidden, opts) {
@@ -139,6 +140,8 @@ function ContactsSheet({ o, onClose, onDone }) {
 export function ComplianceTab({ o, reload, isCo, user }) {
   const isMgr = ['company', 'security'].includes(user?.role);
   const [edit, setEdit] = useState(false);
+  // ?rtw=check (from the Compliance page) opens Check right to work straight away
+  const [rtwCheck, setRtwCheck] = useState(() => isCo && new URLSearchParams(window.location.search).get('rtw') === 'check');
   const [ban, setBan] = useState(false);
   const confirm = useConfirm();
   const [run] = useAction();
@@ -162,12 +165,19 @@ export function ComplianceTab({ o, reload, isCo, user }) {
           {SIA_CHECK_ON && isMgr && <div className="mt-3"><SiaVerifyButton o={o} onSaved={reload} /></div>}
         </Tile>
         <Tile title="Right to work" icon={BadgeCheck} className="col-span-2 lg:col-span-1" action={isCo && <Button size="sm" variant="ghost" onClick={() => setEdit(true)}>Edit</Button>}>
-          <div className="mb-3">{o.rtw_verified ? <ExpiryPill date={o.rtw_expiry} missing="Verified, no expiry" /> : <Pill tone="red">Not verified</Pill>}</div>
+          <div className="mb-3">{o.rtw_verified ? <ExpiryPill date={o.rtw_expiry} missing="Verified, no time limit" /> : <Pill tone="red">Not verified</Pill>}</div>
           <KV items={[
             ['Evidence', o.rtw_type],
-            ['Verified', o.rtw_verified ? 'Yes' : 'No'],
-            ['Expiry', o.rtw_expiry ? `${date(o.rtw_expiry)}${c.rtw_days != null ? ` (${c.rtw_days < 0 ? `${-c.rtw_days} days ago` : `in ${c.rtw_days} days`})` : ''}` : o.rtw_verified ? 'No expiry' : null],
+            ['Share code', o.rtw_share_code && <span className="num whitespace-nowrap">{o.rtw_share_code}</span>],
+            ['Checked', o.rtw_checked_at ? `${o.rtw_method === 'manual' ? 'In person' : 'On GOV.UK'} by ${o.rtw_checked_by_name || 'a manager'}, ${date(o.rtw_checked_at)}` : o.rtw_verified ? 'Ticked by hand, no check saved' : 'Not yet'],
+            ['Follow-up check', o.rtw_expiry ? `by ${date(o.rtw_expiry)}${c.rtw_days != null ? ` (${c.rtw_days < 0 ? `${-c.rtw_days} days ago` : `in ${c.rtw_days} days`})` : ''}` : o.rtw_verified ? 'Not needed (no time limit)' : null],
           ]} />
+          {(isCo || o.rtw_check_doc) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {isCo && <Button size="sm" icon={ShieldCheck} onClick={() => setRtwCheck(true)}>{o.rtw_verified ? 'Check again' : 'Check right to work'}</Button>}
+              {o.rtw_check_doc && <Button size="sm" variant="secondary" icon={Eye} onClick={() => openUrl(() => api('docs.url', { id: o.rtw_check_doc }))}>View check</Button>}
+            </div>
+          )}
         </Tile>
       </Bento>
       {c.issues?.length > 0 && (
@@ -187,15 +197,16 @@ export function ComplianceTab({ o, reload, isCo, user }) {
         ) : <Empty icon={ShieldOff} title="No venue bans" body="This officer can work at any venue." />}
       </Section>
       {edit && <ComplianceSheet o={o} onClose={() => setEdit(false)} onDone={reload} />}
+      {rtwCheck && <RtwCheckSheet o={o} onClose={() => setRtwCheck(false)} onDone={reload} />}
       {ban && <BanSheet o={o} onClose={() => setBan(false)} onDone={reload} />}
     </div>
   );
 }
 
 function ComplianceSheet({ o, onClose, onDone }) {
-  const { v, bind, set } = useForm({
+  const { v, bind } = useForm({
     sia_number: o.sia_number || '', sia_type: o.sia_type || '', sia_expiry: o.sia_expiry || '',
-    rtw_type: o.rtw_type || '', rtw_expiry: o.rtw_expiry || '', rtw_verified: !!o.rtw_verified,
+    rtw_type: o.rtw_type || '', rtw_expiry: o.rtw_expiry || '',
   });
   const [run, busy] = useAction();
   const save = async () => {
@@ -216,7 +227,7 @@ function ComplianceSheet({ o, onClose, onDone }) {
           <Select label="Right to work evidence" placeholder="Choose" options={RTW_TYPES} {...bind('rtw_type')} />
           <Input label="Right to work expiry" type="date" hint="Leave blank if indefinite" {...bind('rtw_expiry')} />
         </div>
-        <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.rtw_verified} onChange={(x) => set('rtw_verified', x)} label="Right to work checked" hint="You have seen and kept a copy of the original evidence" /></div>
+        <p className="text-caption text-muted">To mark right to work as verified, use Check right to work: it saves the GOV.UK check (or your copy of their passport) as your record.</p>
       </div>
     </Sheet>
   );
@@ -265,7 +276,7 @@ export function DocumentsTab({ o, isCo, user, reload, onForbidden }) {
   const [run] = useAction();
   const open = (d) => run(() => openUrl(() => api('docs.url', { id: d.id })));
   const verify = async (d) => {
-    const msg = d.kind === 'sia' ? 'The licence number and expiry will be copied to the compliance record.' : d.kind === 'rtw' ? 'Right to work will be marked as verified with this expiry.' : 'Mark this document as checked.';
+    const msg = d.kind === 'sia' ? 'The licence number and expiry will be copied to the compliance record.' : d.kind === 'rtw' ? 'Marks the upload as seen. To verify right to work, use Check right to work on the Compliance tab.' : 'Mark this document as checked.';
     if (!(await confirm({ title: `Verify ${d.title}?`, body: msg, confirm: 'Verify' }))) return;
     await run(() => api('docs.verify', { id: d.id }), 'Document verified');
     q.reload();

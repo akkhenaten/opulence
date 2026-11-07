@@ -2,6 +2,7 @@
 // details. What a submission must contain, and the parts of it that are shown or kept back.
 import { validSia } from './sia.mjs';
 import { digits } from './applicants.mjs';
+import { cleanShareCode } from './rtw.mjs';
 
 export const SETUP_FILES = { sia_front: 'SIA badge (front)', rtw: 'Right to work / passport', poa: 'Proof of address', photo: 'Profile photo' };
 // The document kind each upload is filed as on the new staff profile (the photo becomes the profile picture)
@@ -26,6 +27,7 @@ export function cleanStaffDetails(b, today) {
     ni_number: str(b.ni_number, 20).toUpperCase().replace(/\s+/g, '') || null,
     sia_number: digits(b.sia_number) || null, sia_expiry: str(b.sia_expiry, 10) || null,
     bank_name: str(b.bank_name, 80) || null, bank_sort_code: digits(b.bank_sort_code) || null, bank_account: digits(b.bank_account) || null,
+    rtw_share_code: cleanShareCode(b.rtw_share_code),
     ec_name: str(b.ec_name, 120) || null, ec_relationship: str(b.ec_relationship, 60) || null, ec_phone: str(b.ec_phone, 40) || null,
     consent: b.consent === true,
   };
@@ -44,6 +46,7 @@ export function cleanStaffDetails(b, today) {
   if (s.ni_number && !NI.test(s.ni_number)) return { error: 'Please check your National Insurance number (like QQ123456C)' };
   if (s.sia_number && !validSia(s.sia_number)) return { error: 'An SIA licence number has 16 digits' };
   if (s.sia_expiry && !isDate(s.sia_expiry)) return { error: 'Please check your SIA licence expiry date' };
+  if (str(b.rtw_share_code) && !s.rtw_share_code) return { error: 'Please check your right to work share code (9 letters and numbers, starting with W)' };
   if (s.bank_sort_code && s.bank_sort_code.length !== 6) return { error: 'A sort code has 6 digits' };
   if (s.bank_account && s.bank_account.length !== 8) return { error: 'An account number has 8 digits' };
   if ((s.bank_sort_code || s.bank_account) && !(s.bank_sort_code && s.bank_account)) return { error: 'Please add both the sort code and the account number' };

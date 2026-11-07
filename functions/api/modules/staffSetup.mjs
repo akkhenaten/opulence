@@ -87,12 +87,17 @@ export async function createFromSubmission(id, user, invite = false) {
       if (!DOC_KIND[kind]) continue;
       const h = await headObject(key);
       await t.q("INSERT INTO documents (owner_type, owner_id, kind, title, number, expiry, s3_key, mime, uploaded_by) VALUES ('officer',$1,$2,$3,$4,$5,$6,$7,$8)",
-        [o.id, DOC_KIND[kind], SETUP_FILES[kind], kind === 'sia_front' ? d.sia_number || '' : '', kind === 'sia_front' ? d.sia_expiry || null : null, key, h?.mime || null, user.id]);
+        [o.id, DOC_KIND[kind], SETUP_FILES[kind], kind === 'sia_front' ? d.sia_number || '' : kind === 'rtw' ? d.rtw_share_code || '' : '', kind === 'sia_front' ? d.sia_expiry || null : null, key, h?.mime || null, user.id]);
+    }
+    // A share code sent without a picture still goes to Compliance, ready to check on GOV.UK
+    if (d.rtw_share_code && !files.rtw) {
+      await t.q("INSERT INTO documents (owner_type, owner_id, kind, title, number, uploaded_by) VALUES ('officer',$1,'rtw','Right to work share code',$2,$3)", [o.id, d.rtw_share_code, user.id]);
     }
     await t.q('DELETE FROM staff_setup_submissions WHERE id = $1', [id]);
     return o.id;
   });
   for (const kind of Object.keys(files)) if (DOC_KIND[kind]) await tickOnboarding(officerId, DOC_KIND[kind]);
+  if (d.rtw_share_code) await tickOnboarding(officerId, 'rtw');
   await syncOnboarding(officerId);
   await audit(user, 'officer.create', 'officer', officerId, { from: 'staff_setup' });
   return { id: officerId, name: nameOf(d), ...(invite ? await inviteOf(() => createOfficerLogin(officerId)) : {}) };

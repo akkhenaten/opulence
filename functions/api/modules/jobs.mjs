@@ -104,17 +104,17 @@ async function expiryAlerts() {
       WHERE d.owner_type = 'officer' AND d.kind NOT IN ('sia','rtw') AND o.status IN ('active','onboarding') AND d.expiry = ANY($1::date[])`, [dates]);
   const company = await companyManagers();
   let n = 0;
-  const send = async (officerId, name, what, expiry, key) => {
+  const send = async (officerId, name, what, expiry, key, rtw = false) => {
     const days = marks[dates.indexOf(expiry)];
     const when = days === 0 ? 'expires today' : `expires in ${days} days (${fmtDate(expiry)})`;
     const severity = days <= 7 ? 'critical' : 'warning';
-    await notify(company, { kind: 'expiry', severity, title: `${name}: ${what} ${days === 0 ? 'expires today' : `in ${days} days`}`, body: `${what} ${when}.`, link: `/company/staff/${officerId}`, dedupe: `${key}:${expiry}:${days}`, email: days <= 30 });
-    await notify(await officerUser(officerId), { kind: 'expiry', severity, title: `Your ${what} ${when}`, body: days === 0 ? 'You cannot be rostered or clock in until it is renewed.' : 'Upload the renewed document in the app.', link: '/officer/documents', dedupe: `${key}:${expiry}:${days}`, email: true });
+    await notify(company, { kind: 'expiry', severity, title: `${name}: ${what} ${days === 0 ? 'expires today' : `in ${days} days`}`, body: rtw ? `${what} ${when}. Do a follow-up check: ask for a new share code and tap Check right to work.` : `${what} ${when}.`, link: `/company/staff/${officerId}`, dedupe: `${key}:${expiry}:${days}`, email: days <= 30 });
+    await notify(await officerUser(officerId), { kind: 'expiry', severity, title: `Your ${what} ${when}`, body: rtw ? 'Get a new share code on GOV.UK (gov.uk/prove-right-to-work) and add it under Documents.' : days === 0 ? 'You cannot be rostered or clock in until it is renewed.' : 'Upload the renewed document in the app.', link: '/officer/documents', dedupe: `${key}:${expiry}:${days}`, email: true });
     n++;
   };
   for (const o of officers) {
     if (dates.includes(o.sia_expiry)) await send(o.id, o.name, 'SIA licence', o.sia_expiry, `sia:${o.id}`);
-    if (dates.includes(o.rtw_expiry)) await send(o.id, o.name, 'right to work', o.rtw_expiry, `rtw:${o.id}`);
+    if (dates.includes(o.rtw_expiry)) await send(o.id, o.name, 'right to work', o.rtw_expiry, `rtw:${o.id}`, true);
   }
   for (const d of docs) await send(d.owner_id, d.name, d.title, d.expiry, `doc:${d.id}`);
   return n;
