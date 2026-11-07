@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Check, ClipboardList, Pencil, Sparkles, Star, X } from 'lucide-react';
+import { Ban, Check, ClipboardList, ListChecks, MapPin, Pencil, Sparkles, Star, X } from 'lucide-react';
 import {
-  Button, Callout, cx, dateTime, dayLabel, Empty, hours, Input, Load, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
+  ActionBar, Button, Callout, cx, dateTime, dayLabel, Empty, hours, Input, Load, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
@@ -12,7 +12,10 @@ const KIND = {
   reconcile: { label: 'Hours check', tone: 'red' },
   feedback: { label: 'Feedback', tone: 'grey' },
   compliance: { label: 'Compliance', tone: 'red' },
+  venue_setup: { label: 'Venue setup', tone: 'blue' },
 };
+const RADIUS_CHOICES = [50, 75, 100, 150, 200, 300, 500];
+const ISSUE_CARDS = ['compliance', 'venue_setup'];
 const SEVERITY = { urgent: { label: 'Urgent', tone: 'red' }, soon: { label: 'Soon', tone: 'amber' }, advisory: { label: 'Advisory', tone: 'grey' } };
 const ITEM_STATUS = { approved: 'Offers sent', done: 'Done', rejected: 'Rejected', expired: 'Expired', pending: 'Waiting' };
 
@@ -25,20 +28,69 @@ export function Inbox({ onChange, compact, reloadKey }) {
   const reload = () => { q.reload(); onChange?.(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (reloadKey) q.reload(); }, [reloadKey]);
+  // Bulk: cards of one kind at a time, each decided with Orb's default choices
+  const [selecting, setSelecting] = useState(false);
+  const [sel, setSel] = useState([]);
+  const [declining, setDeclining] = useState(false);
+  const [run, busy] = useAction();
+  const confirm = useConfirm();
+  const items = view === 'pending' ? q.data || [] : [];
+  const chosen = items.filter((it) => sel.includes(it.id));
+  const kind = chosen[0]?.kind;
+  const kinds = Object.entries(items.reduce((m, it) => ({ ...m, [it.kind]: (m[it.kind] || 0) + 1 }), {})).filter(([, n]) => n > 1);
+  const stop = () => { setSelecting(false); setSel([]); setDeclining(false); };
+  const toggle = (it) => setSel((s) => (s.includes(it.id) ? s.filter((x) => x !== it.id) : kind && kind !== it.kind ? s : [...s, it.id]));
+  const many = (decision, reason) => run(async () => {
+    const r = await api('ops.decideMany', { ids: sel, decision, reason });
+    stop(); reload();
+    if (r.failed.length) window.dispatchEvent(new Event('orb:ops'));
+    return r;
+  }, (r) => `${decision === 'approve' ? 'Approved' : 'Declined'} ${r.done}${r.failed.length ? ` · ${r.failed.length} couldn't be done: ${r.failed[0].error}` : ''}`).catch(() => {});
+  const approveMany = async () => {
+    const ok = await confirm({
+      title: `Approve ${chosen.length} ${KIND[kind].label.toLowerCase()} cards?`,
+      body: ISSUE_CARDS.includes(kind) ? 'Each card applies what Orb ticked by default. Open a card on its own to change the choices first.' : 'Each card is approved as Orb proposed it.',
+      confirm: `Approve ${chosen.length}`,
+    });
+    if (ok) many('approve');
+  };
   return (
     <>
-      <div className="mb-4"><Segmented value={view} onChange={setView} options={[{ value: 'pending', label: 'To approve' }, { value: 'decided', label: 'Decided' }]} /></div>
-      <Load q={q}>{(items) => (items.length ? (
-        <div className={compact ? 'space-y-3' : 'grid grid-cols-1 gap-3 lg:grid-cols-2'}>{items.map((it) => <ItemCard key={it.id} it={it} onDone={reload} />)}</div>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Segmented value={view} onChange={(v) => { setView(v); stop(); }} options={[{ value: 'pending', label: 'To approve' }, { value: 'decided', label: 'Decided' }]} />
+        {view === 'pending' && kinds.length > 0 && (
+          <Button size="sm" variant={selecting ? 'secondary' : 'ghost'} icon={selecting ? X : ListChecks} onClick={() => (selecting ? stop() : setSelecting(true))}>{selecting ? 'Done' : 'Select'}</Button>
+        )}
+      </div>
+      {selecting && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="text-footnote text-muted">{kind ? `${KIND[kind].label} cards only` : 'Pick cards of one kind, or all of:'}</span>
+          {kinds.filter(([k]) => !kind || k === kind).map(([k, n]) => (
+            <Button key={k} size="sm" variant="soft" onClick={() => setSel(items.filter((it) => it.kind === k).map((it) => it.id))}>All {KIND[k]?.label.toLowerCase()} ({n})</Button>
+          ))}
+        </div>
+      )}
+      <Load q={q}>{(rows) => (rows.length ? (
+        <div className={compact ? 'space-y-3' : 'grid grid-cols-1 gap-3 lg:grid-cols-2'}>
+          {rows.map((it) => <ItemCard key={it.id} it={it} onDone={reload}
+            select={selecting ? { on: sel.includes(it.id), can: !kind || kind === it.kind, toggle: () => toggle(it) } : null} />)}
+        </div>
       ) : (
         <Empty icon={Sparkles} title={view === 'pending' ? 'All clear' : 'Nothing decided yet'}
-          body={view === 'pending' ? 'Orb checks every 5 minutes for no-shows, gaps on the rota, venue requests, feedback and hours that don\'t match.' : undefined} />
+          body={view === 'pending' ? 'Orb checks every 5 minutes for no-shows, gaps on the rota, venue requests, feedback, hours that don\'t match and venues missing an address, map pin, logo or clock-in radius.' : undefined} />
       ))}</Load>
+      <ActionBar show={selecting && chosen.length > 0}>
+        <span className="num mr-2 text-subhead font-semibold">{chosen.length} selected</span>
+        <Button variant="secondary" size="sm" onClick={() => setSel([])}>Clear</Button>
+        <Button size="sm" icon={Check} busy={busy} onClick={approveMany}>Approve {chosen.length}</Button>
+        <Button size="sm" variant="danger" icon={Ban} onClick={() => setDeclining(true)}>Decline {chosen.length}</Button>
+      </ActionBar>
+      <RejectSheet open={declining} busy={busy} many={chosen.length} venue={kind === 'venue_request'} onClose={() => setDeclining(false)} onReject={(reason) => many('reject', reason)} />
     </>
   );
 }
 
-function ItemCard({ it, onDone }) {
+function ItemCard({ it, onDone, select }) {
   const { user } = useBase();
   const [run, busy] = useAction();
   const confirm = useConfirm();
@@ -47,9 +99,10 @@ function ItemCard({ it, onDone }) {
   const k = KIND[it.kind];
   const pending = it.status === 'pending';
   const p = it.payload || {};
-  const approveLabel = { cover: 'Send offers', venue_request: 'Approve & publish', reconcile: p.info_only ? 'Mark reviewed' : 'Approve fix', feedback: 'Mark reviewed', compliance: 'Apply selected' }[it.kind];
+  const approveLabel = { cover: 'Send offers', venue_request: 'Approve & publish', reconcile: p.info_only ? 'Mark reviewed' : 'Approve fix', feedback: 'Mark reviewed', compliance: 'Apply selected', venue_setup: 'Apply selected' }[it.kind];
   const allowed = (a) => !a.company_only || user.role === 'company';
   const [picked, setPicked] = useState(() => new Set((p.issues || []).flatMap((i) => i.actions.filter((a) => a.default && allowed(a)).map((a) => a.id))));
+  const [radius, setRadius] = useState(() => (p.issues || []).find((i) => i.key === 'radius')?.actions[0]?.params.radius_m || 150);
 
   const decide = (decision, extra = {}) => run(async () => {
     await api('ops.decide', { id: it.id, decision, ...extra });
@@ -66,14 +119,19 @@ function ItemCard({ it, onDone }) {
       return decide('approve', { edits: { hr_note: add } });
     }
     if (it.kind === 'compliance') return decide('approve', { edits: { actions: [...picked] } });
+    if (it.kind === 'venue_setup') return decide('approve', { edits: { actions: [...picked], radius_m: Number(radius) } });
     return decide('approve');
   };
 
   return (
-    <Tile className="flex flex-col">
+    <Tile className={cx('flex flex-col transition', select && !select.can && 'opacity-50', select?.on && 'ring-2 ring-blue')}>
       <div className="mb-2 flex flex-wrap items-center gap-2">
+        {select && (
+          <input type="checkbox" aria-label={`Select ${it.title}`} className="h-5 w-5 shrink-0 cursor-pointer accent-[var(--color-blue)] disabled:cursor-not-allowed"
+            checked={select.on} disabled={!select.can} onChange={select.toggle} />
+        )}
         <Pill tone={k.tone}>{k.label}</Pill>
-        {it.kind === 'compliance' && SEVERITY[p.severity] && <Pill tone={SEVERITY[p.severity].tone}>{SEVERITY[p.severity].label}</Pill>}
+        {ISSUE_CARDS.includes(it.kind) && SEVERITY[p.severity] && <Pill tone={SEVERITY[p.severity].tone}>{SEVERITY[p.severity].label}</Pill>}
         {it.venue_name && <span className="truncate text-footnote font-semibold text-muted">{it.venue_name}</span>}
         <span className="ml-auto text-caption text-faint">{relative(it.created_at)}</span>
       </div>
@@ -84,7 +142,7 @@ function ItemCard({ it, onDone }) {
         {it.kind === 'cover' && <CoverBody it={it} />}
         {it.kind === 'venue_request' && <RequestBody it={it} />}
         {it.kind === 'reconcile' && <ReconcileBody p={p} />}
-        {it.kind === 'compliance' && <ComplianceBody it={it} pending={pending} picked={picked} setPicked={setPicked} allowed={allowed} onChanged={onDone} />}
+        {ISSUE_CARDS.includes(it.kind) && <ComplianceBody it={it} pending={pending} picked={picked} setPicked={setPicked} allowed={allowed} onChanged={onDone} radius={radius} setRadius={setRadius} />}
         {it.kind === 'feedback' && p.rating && <div className="flex items-center gap-1 text-amber">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={18} fill={n <= p.rating ? 'currentColor' : 'none'} />)}<span className="ml-2 text-footnote text-muted">{p.shift}</span></div>}
         {it.kind === 'feedback' && p.comment_id && (
           <div className="mt-2 space-y-1">
@@ -94,9 +152,9 @@ function ItemCard({ it, onDone }) {
         )}
       </div>
 
-      {pending ? (
+      {pending && select ? null : pending ? (
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button icon={Check} busy={busy} onClick={approve} disabled={(it.kind === 'cover' && !(p.officer_ids || []).length) || (it.kind === 'compliance' && !picked.size)}>{approveLabel}</Button>
+          <Button icon={Check} busy={busy} onClick={approve} disabled={(it.kind === 'cover' && !(p.officer_ids || []).length) || (ISSUE_CARDS.includes(it.kind) && !picked.size)}>{approveLabel}</Button>
           {['cover', 'venue_request'].includes(it.kind) && <Button variant="secondary" icon={Pencil} onClick={() => setEdit(true)}>Edit</Button>}
           <Button variant="ghost" icon={X} onClick={() => setRejecting(true)}>Reject</Button>
         </div>
@@ -228,18 +286,20 @@ function ReconcileBody({ p }) {
   );
 }
 
-function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged }) {
+function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged, radius, setRadius }) {
   const { base } = useBase();
   const p = it.payload || {};
   const [dismiss, setDismiss] = useState(null);
   const [reason, setReason] = useState('');
   const [run, busy] = useAction();
   const toggle = (id, on) => setPicked((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n; });
-  const doDismiss = () => run(() => api('ops.dismissIssue', { id: it.id, key: dismiss.key, reason: reason.trim() }), 'Dismissed')
+  const venue = it.kind === 'venue_setup';
+  const doDismiss = () => run(() => api(venue ? 'ops.dismissVenueIssue' : 'ops.dismissIssue', { id: it.id, key: dismiss.key, reason: reason.trim() }), 'Dismissed')
     .then(() => { setDismiss(null); setReason(''); onChanged(); }).catch(() => {});
   return (
     <div className="space-y-2">
       {p.officer_id && <Button size="sm" variant="soft" to={`${base}/staff/${p.officer_id}`}>Open {p.officer_name}</Button>}
+      {venue && it.venue_id && <Button size="sm" variant="soft" icon={MapPin} to={`${base}/venues/${it.venue_id}?tab=setup`}>Open Site setup</Button>}
       {(p.issues || []).map((i) => (
         <div key={i.key} className="rounded-2xl border border-line p-3">
           <div className="flex items-start gap-2">
@@ -253,10 +313,20 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged }) 
           {pending && i.actions.filter(allowed).length > 0 && (
             <div className="mt-2 space-y-1 pl-4">
               {i.actions.filter(allowed).map((a) => (
-                <label key={a.id} className="flex cursor-pointer items-start gap-2 text-footnote">
-                  <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-blue)]" checked={picked.has(a.id)} onChange={(e) => toggle(a.id, e.target.checked)} />
-                  <span>{a.label}</span>
-                </label>
+                <div key={a.id}>
+                  <label className="flex cursor-pointer items-start gap-2 text-footnote">
+                    <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-blue)]" checked={picked.has(a.id)} onChange={(e) => toggle(a.id, e.target.checked)} />
+                    <span>{a.kind === 'radius' && Number(radius) !== a.params.radius_m ? `Set the clock-in radius to ${radius} m` : a.label}</span>
+                  </label>
+                  {a.kind === 'logo' && (
+                    <img src={a.params.url} alt="" loading="lazy" referrerPolicy="no-referrer" className="ml-6 mt-1.5 h-12 max-w-[160px] rounded-lg border border-line bg-white object-contain p-1"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  )}
+                  {a.kind === 'radius' && (
+                    <Select aria-label="Clock-in radius" className="ml-6 mt-1.5 w-40" value={radius} onChange={(e) => { setRadius(Number(e.target.value)); toggle(a.id, true); }}
+                      options={[...new Set([...RADIUS_CHOICES, a.params.radius_m])].sort((x, y) => x - y).map((r) => ({ value: r, label: `${r} m` }))} />
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -265,6 +335,7 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged }) 
       {!pending && it.result?.done?.length > 0 && (
         <ul className="space-y-0.5 text-footnote text-green">{it.result.done.map((d) => <li key={d} className="flex gap-1.5"><Check size={14} className="mt-0.5 shrink-0" />{d}</li>)}</ul>
       )}
+      {!pending && it.result?.skipped?.length > 0 && <ul className="space-y-0.5 text-footnote text-muted">{it.result.skipped.map((d) => <li key={d}>{d}</li>)}</ul>}
       {!pending && it.result?.auto_closed && <p className="text-footnote text-green">Cleared by itself: the details were updated.</p>}
       <Sheet open={!!dismiss} onClose={() => setDismiss(null)} title="Dismiss this issue?" size="sm"
         footer={<><Button variant="secondary" onClick={() => setDismiss(null)}>Cancel</Button><Button busy={busy} onClick={doDismiss}>Dismiss</Button></>}>
@@ -275,10 +346,12 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged }) 
   );
 }
 
-function RejectSheet({ open, busy, venue, onClose, onReject }) {
+function RejectSheet({ open, busy, venue, many, onClose, onReject }) {
   const [reason, setReason] = useState('');
+  const label = many ? `Decline ${many}` : 'Reject';
   return (
-    <Sheet open={open} onClose={onClose} title="Reject" size="sm" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant="danger" busy={busy} onClick={() => onReject(reason)}>Reject</Button></>}>
+    <Sheet open={open} onClose={onClose} title={label} size="sm" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant="danger" busy={busy} onClick={() => onReject(reason)}>{label}</Button></>}>
+      {many > 0 && <p className="mb-3 text-subhead text-muted">The same reason is kept on each card.</p>}
       <Textarea label={venue ? 'Reason (sent to the venue)' : 'Reason (optional)'} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
     </Sheet>
   );
@@ -319,6 +392,7 @@ const JOBS = [
   { k: 'chat', label: 'Orb chat for managers', hint: 'For managers' },
   { k: 'orb_voice', label: 'Talk to Orb', hint: 'Managers can dictate or talk to Orb by voice' },
   { k: 'compliance', label: 'Compliance checks', hint: 'Licences, right to work and documents against the rota. Weekly' },
+  { k: 'venue_setup', label: 'Check venue details', hint: 'Address, map pin, logo and clock-in radius: Orb finds what is missing and proposes it for you to approve' },
   { k: 'compliance_digest', label: 'Weekly compliance email', hint: 'After the weekly check, the worst issues by email to company managers' },
   { k: 'incident_ai', label: 'AI on incident reports', hint: 'Drafts from officers\' notes and photos; evidence review for managers' },
 ];

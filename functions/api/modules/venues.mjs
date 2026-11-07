@@ -100,7 +100,7 @@ function limitLookups(user, n) {
   if (lookups.size > 1000) lookups.clear();
 }
 
-async function setLogo(user, id, logo, meta) {
+export async function setLogo(user, id, logo, meta) {
   const cur = await one('SELECT logo_key FROM venues WHERE id = $1', [id]);
   const v = await update('venues', id, logo);
   if (cur?.logo_key && cur.logo_key !== logo.logo_key && cur.logo_key.startsWith('media/venues/logos/')) await deleteObject(cur.logo_key).catch(() => {});
@@ -152,6 +152,8 @@ export const actions = {
     if (f.site_client === '') f.site_client = null;
     if (f.site_client && !isSiteClient(f.site_client)) fail(400, 'Unknown website client');
     if (f.proof_rule !== undefined && !RULES[f.proof_rule]) fail(400, 'Unknown clock-in rule');
+    // Saving the radius in Site setup confirms it, so Orb stops asking
+    if (f.radius_m !== undefined) f.radius_confirmed_at = new Date();
     if (b.id) await assertVenue(user, b.id);
     // A new venue photo must be an image this manager just uploaded; an unchanged key passes through
     if (f.photo_key !== undefined) {
@@ -170,6 +172,8 @@ export const actions = {
       if (user.role === 'security') await q('INSERT INTO security_venues (venue_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [v.id, user.id]);
     }
     await audit(user, b.id ? 'venue.update' : 'venue.create', 'venue', v.id, f);
+    // Orb's venue setup card for this venue closes as soon as the details are complete
+    import('./venueSetup.mjs').then((m) => m.runVenueSetup({ venueIds: [v.id], lookups: 0 })).catch((e) => console.warn('[venues] setup check', e.message));
     // A venue on the website without a welcome line gets one from AI; the default line covers any failure
     if (v.on_website && !v.website_blurb) {
       try {

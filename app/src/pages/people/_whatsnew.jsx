@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-07', icon: Sparkles, title: 'Orb spots venues with missing details, and you approve in bulk', image: 'orb-venue-setup',
+    lede: "Orb now checks every venue for a missing address, map pin, logo or a clock-in radius nobody has confirmed. It looks up what it can online and puts one card per venue in To approve, with everything ready to save. Nothing changes until you approve, and cards of the same kind can now be approved or declined together.",
+    points: ['One Venue setup card per venue, with the address, map pin, website and logo Orb found', 'Untick anything that looks wrong, or pick a different clock-in radius before you apply', 'Venues with shifts booked in the next two weeks come first', 'Dismiss a detail you don\'t need and Orb stops asking until it changes', 'Select in To approve picks cards of one kind; Approve or Decline them all at once with the choices Orb ticked', 'Turn the check off in Orb settings under Check venue details'],
+  },
+  {
     month: 'November 2026', date: '2026-11-07', icon: CalendarDays, title: 'Venues get their own rota, and one Site setup', image: 'venue-rota-setup',
     lede: "Venue managers now have a Rota of their own venue: the week's shifts, who is booked and who is on site right now. They ask for extra officers straight from a day, and the request reaches you in Cover requests as before. On your side, each venue's Location, Venue codes and Charge rates now sit together on one Site setup tab.",
     points: ['Venue Rota replaces their Cover page; requests and replies sit under its Requests tab', 'Venue timesheets show who worked, who is on site and the charge rate they are billed, never the officer rate', 'Charge rates are set per role in one list, and roles with no rate are flagged with the shifts and timesheets waiting', 'A new rate can start from the first unrated shift, so those timesheets can be approved', 'Approval fixes the rate, and the invoice bills exactly that'],

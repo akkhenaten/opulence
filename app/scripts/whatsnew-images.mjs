@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'orb-venue-setup': 'A laptop on a dark navy desk showing a column of neat approval cards, each with a small venue logo, a map pin and a tick box, a glowing blue orb above them, a hand tapping one gold Approve button that ticks several cards at once, warm lamp light, dark navy and gold.',
   'venue-rota-setup': 'A tablet on a dark navy bar counter showing a weekly rota of shift cards with small green dots beside officer names, one day with a dashed card for a staffing request, beside it a phone showing one settings page with a map pin, a QR code and a short list of role rates, thin gold lines linking them, warm lamp light, dark navy and gold.',
   'orb-venue-lookup': 'A phone on a dark navy desk showing a venue page with a small round bar logo next to the venue name, a map pin dropping onto a street map, a glowing blue orb beside it drawing thin gold lines from a website and a map into the address fields, warm lamp light, dark navy and gold.',
   'invoices-live': 'A laptop on a dark desk showing an invoice laid out as a table grouped by day, most rows tinted soft green and a few amber, beside it a stack of timesheet cards with thin gold lines flowing from each card into the invoice rows, warm lamp light, dark navy and gold.',

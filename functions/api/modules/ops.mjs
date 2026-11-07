@@ -13,6 +13,8 @@ import { checkOfficerForShift, getShift, filledCount, shiftsWithAssignments, lon
 import { recalcStatement, recalcInvoice } from './money.mjs';
 import { ALL, MGR, CO, def } from './_def.mjs';
 import { runCompliance, readDocuments, decideCompliance, computeIssues, sendDigest } from './compliance.mjs';
+import { runVenueSetup, decideVenueSetup, dismissVenueIssues } from './venueSetup.mjs';
+import { defaultActions } from '../lib/venueSetup.mjs';
 import { evidenceScan } from './incidentAi.mjs';
 import { afterShiftChange, FRESH } from './shiftSync.mjs';
 import { opsMessage, closeQuick, ensureThread, post, opsUser, syncMembers } from '../lib/threads.mjs';
@@ -36,12 +38,13 @@ async function notifyManagers(venueId, n) {
   if (venueId) await notify(await securityFor(venueId), { ...n, link: `/security/${n.link}` });
 }
 
-export async function createItem({ kind, title, reason = '', payload = {}, dedupe = null, venue_id = null, shift_id = null, officer_id = null, severity = 'info' }) {
+export async function createItem({ kind, title, reason = '', payload = {}, dedupe = null, venue_id = null, shift_id = null, officer_id = null, severity = 'info', quiet = false }) {
   const item = await one(
     `INSERT INTO ops_items (kind, title, reason, payload, dedupe, venue_id, shift_id, officer_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
      ON CONFLICT (dedupe) DO NOTHING RETURNING *`, [kind, title, reason, payload, dedupe, venue_id, shift_id, officer_id]);
   if (!item) return null;
-  await notifyManagers(venue_id, { kind: 'ops', severity, title: `Orb: ${title}`, body: reason.slice(0, 200), link: 'live', dedupe: `ops:${item.id}`, ref: `ops:${item.id}` });
+  // quiet: housekeeping cards wait in the inbox without a notification each
+  if (!quiet) await notifyManagers(venue_id, { kind: 'ops', severity, title: `Orb: ${title}`, body: reason.slice(0, 200), link: 'live', dedupe: `ops:${item.id}`, ref: `ops:${item.id}` });
   await logActivity('item', `Prepared for approval: ${title}`, { ref_type: 'ops_item', ref_id: item.id, venue_id });
   return item;
 }
@@ -624,6 +627,11 @@ const JOBS = {
     return r;
   },
 
+  async venueSetup(s) {
+    if (!jobOn(s, 'venue_setup')) return 'off';
+    return runVenueSetup();
+  },
+
   async docRead(s) {
     if (!jobOn(s, 'compliance')) return 'off';
     return readDocuments(4);
@@ -652,6 +660,37 @@ const pendingCount = async (scope) =>
   (await one("SELECT count(*)::int AS n FROM ops_items WHERE status = 'pending' AND ($1::uuid[] IS NULL OR venue_id = ANY($1))", [scope])).n;
 
 // ---------- Inbox ----------
+// What a bulk approve sends for each kind: the choices Orb ticked, never anything extra
+function bulkEdits(it, user) {
+  const p = it.payload || {};
+  if (it.kind === 'compliance' || it.kind === 'venue_setup') return { actions: defaultActions(p.issues || [], user.role) };
+  if (it.kind === 'feedback') return { hr_note: false };
+  return undefined;
+}
+
+async function decideItem(user, it, b) {
+  if (it.status !== 'pending') fail(409, `Already ${it.status}`);
+  let result;
+  if (b.decision === 'reject') {
+    if (it.kind === 'venue_request' && it.payload.request_id) {
+      await q("UPDATE venue_requests SET status = 'declined', decline_reason = $2 WHERE id = $1 AND status = 'requested'", [it.payload.request_id, b.reason || '']);
+      await notify(await venueContacts(it.venue_id), { kind: 'cover', title: 'Request declined', body: b.reason || 'Please contact us to discuss.', link: '/venue/messages', email: true });
+    }
+    // A declined venue setup card stays quiet until those details change
+    if (it.kind === 'venue_setup') await dismissVenueIssues(it, (it.payload.issues || []).map((i) => i.key), user, b.reason);
+    result = { rejected: true, reason: b.reason || '' };
+  } else if (b.decision === 'approve') {
+    result = await { cover: decideCover, venue_request: decideVenueRequest, reconcile: decideReconcile, feedback: decideFeedback, compliance: decideCompliance, venue_setup: decideVenueSetup }[it.kind](it, b, user);
+  } else fail(400, 'decision must be approve or reject');
+  const status = b.decision === 'reject' ? 'rejected' : it.kind === 'cover' ? 'approved' : 'done';
+  // A venue setup card can be raised again for the same gaps (e.g. only the radius was applied), so it frees its dedupe key
+  await q(`UPDATE ops_items SET status = $2, decided_by = $3, decided_at = now(), result = $4${it.kind === 'venue_setup' ? ', dedupe = NULL' : ''} WHERE id = $1`, [it.id, status, user.id, result]);
+  await withdraw({ items: [it.id] });
+  await audit(user, `ops.${b.decision}`, 'ops_item', it.id, { kind: it.kind, edits: b.edits, result });
+  await logActivity('decision', `${user.name} ${b.decision === 'reject' ? 'rejected' : 'approved'}: ${it.title}`, { ref_type: 'ops_item', ref_id: it.id, venue_id: it.venue_id });
+  return { ok: true, status, result };
+}
+
 async function scopedItem(user, id) {
   const it = need(await one('SELECT * FROM ops_items WHERE id = $1', [id]), 'Item not found');
   const scope = await venueScope(user);
@@ -1018,24 +1057,28 @@ export const actions = {
 
   'ops.decide': def(MGR, async (b, { user }) => {
     required(b, 'id', 'decision');
-    const it = await scopedItem(user, b.id);
-    if (it.status !== 'pending') fail(409, `Already ${it.status}`);
-    let result;
-    if (b.decision === 'reject') {
-      if (it.kind === 'venue_request' && it.payload.request_id) {
-        await q("UPDATE venue_requests SET status = 'declined', decline_reason = $2 WHERE id = $1 AND status = 'requested'", [it.payload.request_id, b.reason || '']);
-        await notify(await venueContacts(it.venue_id), { kind: 'cover', title: 'Request declined', body: b.reason || 'Please contact us to discuss.', link: '/venue/messages', email: true });
+    return decideItem(user, await scopedItem(user, b.id), b);
+  }),
+
+  // Bulk Approve / Decline: cards of one kind, each with Orb's default choices
+  'ops.decideMany': def(MGR, async (b, { user }) => {
+    required(b, 'ids', 'decision');
+    const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map(String))].slice(0, 50);
+    if (!ids.length) fail(400, 'Pick some cards');
+    const items = [];
+    for (const id of ids) items.push(await scopedItem(user, id));
+    if (new Set(items.map((i) => i.kind)).size > 1) fail(400, 'Pick cards of one kind to approve or decline together');
+    const done = [];
+    const failed = [];
+    for (const it of items) {
+      try {
+        await decideItem(user, it, { decision: b.decision, reason: b.reason, edits: b.decision === 'approve' ? bulkEdits(it, user) : undefined });
+        done.push(it.id);
+      } catch (e) {
+        failed.push({ id: it.id, title: it.title, error: e.message });
       }
-      result = { rejected: true, reason: b.reason || '' };
-    } else if (b.decision === 'approve') {
-      result = await { cover: decideCover, venue_request: decideVenueRequest, reconcile: decideReconcile, feedback: decideFeedback, compliance: decideCompliance }[it.kind](it, b, user);
-    } else fail(400, 'decision must be approve or reject');
-    const status = b.decision === 'reject' ? 'rejected' : it.kind === 'cover' ? 'approved' : 'done';
-    await q('UPDATE ops_items SET status = $2, decided_by = $3, decided_at = now(), result = $4 WHERE id = $1', [it.id, status, user.id, result]);
-    await withdraw({ items: [it.id] });
-    await audit(user, `ops.${b.decision}`, 'ops_item', it.id, { kind: it.kind, edits: b.edits, result });
-    await logActivity('decision', `${user.name} ${b.decision === 'reject' ? 'rejected' : 'approved'}: ${it.title}`, { ref_type: 'ops_item', ref_id: it.id, venue_id: it.venue_id });
-    return { ok: true, status, result };
+    }
+    return { done: done.length, failed };
   }),
 
   'ops.chat': def(MGR, async (b, { user }) => {
