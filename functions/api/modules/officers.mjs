@@ -98,7 +98,7 @@ export async function createOfficerLogin(id) {
 export const actions = {
   'officers.list': def(MGR, async (b, { user }) => {
     const rows = await q(
-      `SELECT o.*, u.status AS login_status, u.last_login, u.role AS login_role FROM officers o LEFT JOIN users u ON u.id = o.user_id
+      `SELECT o.*, u.status AS login_status, u.last_login, u.invite_sent_at, u.invite_emailed, u.role AS login_role FROM officers o LEFT JOIN users u ON u.id = o.user_id
         WHERE (($1::text IS NULL AND o.status <> 'rejected') OR o.status = $1) AND ($2::text IS NULL OR $2 = ANY(o.roles))
           AND ($3::text IS NULL OR (o.first_name || ' ' || o.last_name || ' ' || o.goes_by || ' ' || o.email || ' ' || o.sia_number) ILIKE '%' || $3 || '%')
           AND ($4::uuid[] IS NULL OR o.status = 'active' OR EXISTS (SELECT 1 FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id WHERE a.officer_id = o.id AND s.venue_id = ANY($4)))
@@ -110,7 +110,7 @@ export const actions = {
     const id = b.id || user.officer_id;
     if (user.role === 'venue') fail(403, 'Forbidden');
     await assertOfficerAccess(user, id);
-    const o = need(await one(`SELECT o.*, u.status AS login_status, u.last_login, u.role AS login_role, ${userName('vu')} AS sia_last_verified_by_name FROM officers o LEFT JOIN users u ON u.id = o.user_id LEFT JOIN users vu ON vu.id = o.sia_last_verified_by WHERE o.id = $1`, [id]));
+    const o = need(await one(`SELECT o.*, u.status AS login_status, u.last_login, u.invite_sent_at, u.invite_emailed, u.role AS login_role, ${userName('vu')} AS sia_last_verified_by_name FROM officers o LEFT JOIN users u ON u.id = o.user_id LEFT JOIN users vu ON vu.id = o.sia_last_verified_by WHERE o.id = $1`, [id]));
     const [contacts, rates, bans, availability, offboarding] = await Promise.all([
       q('SELECT * FROM emergency_contacts WHERE officer_id = $1', [id]),
       canSeePay(user) || user.officer_id === id

@@ -23,12 +23,15 @@ export async function createInvite(t, { email, name, role, phone = '', can_see_p
   return u;
 }
 
-/** Emails the invite; `emailed` is false when the mail service didn't take it, so the screen says to share the link */
+/** Emails the invite; `emailed` is false when the mail service didn't take it, so the screen says to share the link.
+ *  The time and result are kept on the login, so its screens can say later whether the invite went out. */
 export async function sendInviteMail(u) {
   const { name } = await getBrand();
   const emailed = await sendRawEmail(u.email, `You're invited to ${name}`,
     await emailHtml(`Welcome, ${u.name}`, `You've been invited to ${name} as a ${ROLE_LABEL[u.role]}. Set your password to get started.`, `/invite/${u.invite_token}`));
-  return { link: `/app/invite/${u.invite_token}`, emailed };
+  const sent = await one('UPDATE users SET invite_sent_at = now(), invite_emailed = $2 WHERE id = $1 RETURNING invite_sent_at', [u.id, emailed]);
+  await audit(null, 'user.invite_sent', 'user', u.id, { emailed });
+  return { link: `/app/invite/${u.invite_token}`, emailed, sent_at: sent?.invite_sent_at || null };
 }
 export const sendInvite = async (u) => (await sendInviteMail(u)).link;
 
@@ -58,7 +61,7 @@ export const actions = {
             u.client_id, (SELECT c.name FROM clients c WHERE c.id = u.client_id) AS client_name,
             COALESCE(array_agg(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS venues,
             COALESCE(array_agg(DISTINCT v.id) FILTER (WHERE v.id IS NOT NULL), '{}') AS venue_ids,
-            CASE WHEN u.status = 'invited' THEN '/app/invite/' || u.invite_token END AS invite_link,
+            CASE WHEN u.status = 'invited' THEN '/app/invite/' || u.invite_token END AS invite_link, u.invite_sent_at, u.invite_emailed,
             (SELECT o.id FROM officers o WHERE o.user_id = u.id LIMIT 1) AS officer_id,
             (SELECT ${officerName('o')} FROM officers o WHERE o.user_id = u.id LIMIT 1) AS officer_name
        FROM users u
@@ -147,8 +150,8 @@ export const actions = {
   'users.resendInvite': def(CO, async (b) => {
     const u = await one("SELECT * FROM users WHERE id = $1 AND status = 'invited'", [b.id]);
     if (!u) fail(404, 'No pending invite');
-    const { link, emailed } = await sendInviteMail(u);
-    return { invite_link: link, emailed };
+    const { link, emailed, sent_at } = await sendInviteMail(u);
+    return { invite_link: link, emailed, sent_at };
   }),
 
   // A company or security manager who also works shifts: create or link their staff record (one login, two sides)

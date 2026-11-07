@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, Input, Segmented, Sheet, Toggle, useAction, useApi, useForm } from '../../ui/index.jsx';
+import { Button, dateTime, Input, Segmented, Sheet, Toggle, useAction, useApi, useForm } from '../../ui/index.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
 import { Chips, CopyLink } from './_parts.jsx';
 import { ClientSelect } from '../money/_client.jsx';
@@ -45,6 +45,16 @@ export function AccessFields({ role, v, set, venues, clients, onClientCreated })
 export const inviteHint = (emailed, email) => (emailed
   ? `Sent to ${email}. You can also share this link.`
   : "The email didn't go through. Copy this link and open it, or send it to them.");
+
+/** A pending invite's last email, from the login's invite_sent_at / invite_emailed: when it went, if it failed, or never sent.
+ *  "Sent" means the mail service took it; whether it reached the inbox (or spam) can't be known. */
+export const inviteStatus = (u) => {
+  if (!u.invite_sent_at) return { tone: 'grey', short: 'Invite not emailed yet', hint: 'Not emailed yet. Tap Resend invite to email it, or copy this link and send it to them.' };
+  const when = dateTime(u.invite_sent_at);
+  return u.invite_emailed
+    ? { tone: 'green', short: `Invite emailed ${when}`, hint: `Emailed to ${u.email} on ${when}. If it isn't in their inbox or spam, copy this link and send it by WhatsApp or text.` }
+    : { tone: 'amber', short: `Invite email failed ${when}`, hint: `The last email didn't go through (${when}). Copy this link and send it to them, or tap Resend invite.` };
+};
 
 // The platform admin's login is always a Company manager (the server enforces it; this just shows it)
 const PLATFORM_EMAILS = ['info@orbsolutions.co.uk'];

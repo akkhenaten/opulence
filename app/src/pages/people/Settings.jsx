@@ -15,7 +15,7 @@ import { TemplatesTab } from './_esign.jsx';
 import LibraryTab from './contracts/Library.jsx';
 import { EmailTab } from '../email/_settings.jsx';
 import { InstallTile } from '../../ui/pwa.jsx';
-import { AccessFields, InviteSheet, inviteHint, USER_ROLES } from './_access.jsx';
+import { AccessFields, InviteSheet, inviteStatus, USER_ROLES } from './_access.jsx';
 
 const TABS = [
   { value: 'company', label: 'Company details' }, { value: 'users', label: 'Users & access' }, { value: 'rules', label: 'Workforce rules' },
@@ -529,12 +529,14 @@ function UserSheet({ u, me, all = [], venues, clients, onClientCreated, onClose,
     onClose();
   };
   const reset = async () => setLink((await run(() => api('users.resetLink', { id: u.id }), 'Link created')).link);
-  const [emailed, setEmailed] = useState(null);
+  // The invite's last email: as loaded, then as it is after Resend invite
+  const [sent, setSent] = useState({ invite_sent_at: u.invite_sent_at, invite_emailed: u.invite_emailed });
   const resend = async () => {
     const r = await run(() => api('users.resendInvite', { id: u.id }), (x) => (x.emailed === false ? "Email didn't send — share the link below" : 'Invite sent again'));
-    setEmailed(r.emailed !== false);
+    setSent({ invite_sent_at: r.sent_at || new Date().toISOString(), invite_emailed: r.emailed !== false });
     setLink(r.invite_link);
   };
+  const inviteHint = inviteStatus({ ...u, ...sent }).hint;
   return (
     <Sheet open onClose={onClose} title={u.name}
       footer={locked ? <Button variant="secondary" onClick={onClose}>Close</Button> : <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={save}>Save</Button></>}>
@@ -555,7 +557,9 @@ function UserSheet({ u, me, all = [], venues, clients, onClientCreated, onClose,
         </fieldset>
         {['company', 'security'].includes(u.role) && u.status !== 'disabled' && !locked && <WorksShifts u={u} all={all} onDone={() => { onDone(); onClose(); }} />}
         {u.officer_id && <Link to={`/company/staff/${u.officer_id}`} className="inline-flex items-center gap-1.5 text-subhead font-semibold text-blue"><Users size={16} />Staff profile<ChevronRight size={16} /></Link>}
-        {link ? <CopyLink link={link} label={u.status === 'invited' ? 'Invite link' : 'Password reset link'} hint={emailed === null ? 'Valid for 48 hours. Share it directly.' : inviteHint(emailed, u.email)} /> : u.status === 'invited' && u.invite_link && <CopyLink link={u.invite_link} />}
+        {u.status === 'invited'
+          ? (link || u.invite_link) && <CopyLink link={link || u.invite_link} hint={inviteHint} />
+          : link && <CopyLink link={link} label="Password reset link" hint="Valid for 48 hours. Share it directly." />}
         {(!locked || u.status === 'invited') && <div className="flex flex-wrap gap-2 border-t border-line pt-4">
           {u.status === 'invited' && <Button variant="soft" onClick={resend}>Resend invite</Button>}
           {u.status === 'active' && !locked && <Button variant="soft" icon={KeyRound} onClick={reset}>Password reset link</Button>}

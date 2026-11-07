@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'invite-sent-status': 'Close view of a laptop on a dark navy desk showing a person\'s account card with an invite link box and a small gold envelope icon with a gold tick and a timestamp beside it, a phone next to it showing an incoming email notification, warm lamp light, dark navy and gold.',
   'staff-setup-invite': 'A laptop on a dark navy desk showing a new staff details submission with a gold Create and send invite button being pressed, a paper-plane envelope with a gold trail flying from the screen to a phone on the desk that lights up with an invite and a set password screen, warm lamp light, dark navy and gold.',
   'staff-setup-fix': 'A laptop on a dark navy desk showing a staff details submission with a large gold Create profile button just pressed, a new staff profile card sliding into a list beside it with a small gold tick, a phone with the filled-in form resting nearby, warm lamp light, dark navy and gold.',
   'venue-manager-photo': 'Close view of a phone held over a dark navy bar counter, its screen showing a round profile photo placeholder with a soft gold ring and a small camera icon being tapped, a blurred venue manager in a dark suit behind, warm amber bar lights out of focus, dark navy and gold.',

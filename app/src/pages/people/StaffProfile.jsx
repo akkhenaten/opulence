@@ -8,6 +8,7 @@ import {
   Avatar, Button, Input, Load, Page, Pill, Select, Sheet, Tabs, Textarea, Tile, Toggle, date, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { uploadPhoto } from '../officer/_parts.jsx';
+import { inviteStatus } from './_access.jsx';
 import { ComplianceBadge, CopyLink, ExpiryPill, LoginPill, OFFICER_STATUSES, SIA_TYPES, Chips, canPay, useBase, useRoles } from './_parts.jsx';
 import {
   AttendanceTab, AvailabilityTab, ComplianceTab, ContractsTab, DocumentsTab, GrowthTab, HrTab, OffboardingTab, OnboardingTab, OverviewTab, RatesTab, ShiftsTab, TimeOffTab, TrainingTab,
@@ -60,9 +61,11 @@ function Profile({ o, reload, user, base }) {
     reload();
   };
   const resend = async () => {
-    const r = await run(() => api('users.resendInvite', { id: o.user_id }), 'Invite sent again');
+    const r = await run(() => api('users.resendInvite', { id: o.user_id }), (x) => (x.emailed === false ? "Email didn't send — share the link below" : 'Invite sent again'));
     setLink(r.invite_link);
+    reload();
   };
+  const invited = o.user_id && o.login_status === 'invited' && inviteStatus(o);
   const suspend = async () => {
     if (!(await confirm({ title: `Suspend ${o.first_name}?`, body: 'They will not be offered or assigned shifts until reinstated.', confirm: 'Suspend', danger: true }))) return;
     await run(() => api('onboarding.setStatus', { officer_id: o.id, status: 'suspended' }), 'Officer suspended');
@@ -118,7 +121,8 @@ function Profile({ o, reload, user, base }) {
             {o.compliance.issues.map((i) => <span key={i} className="rounded-lg bg-red-soft px-2 py-0.5 text-caption font-semibold text-red">{i}</span>)}
           </div>
         )}
-        {link && <div className="mt-4"><CopyLink link={link} /></div>}
+        {invited && <p className={`mt-3 text-footnote ${invited.tone === 'amber' ? 'text-amber' : 'text-muted'}`}>{invited.short}</p>}
+        {link && <div className="mt-4"><CopyLink link={link} hint={invited ? invited.hint : undefined} /></div>}
       </Tile>
 
       <Tabs tabs={tabs} value={current} onChange={setTab} />

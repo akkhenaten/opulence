@@ -1,6 +1,6 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  ArrowRightLeft, BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, MessageSquareHeart,
+  ArrowRightLeft, BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, Mail, MessageSquareHeart,
   Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, ReceiptText, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-07', icon: Mail, title: 'See when an invite was emailed', image: 'invite-sent-status',
+    lede: "Every invite now shows whether its email went out, and when. Open someone's login in Settings → Users, or their staff profile, and you can see at a glance whether to wait for them or send the link another way.",
+    points: ['"Emailed on Sat 7 Nov, 14:02", "The last email didn\'t go through" or "Not emailed yet", next to the invite link', 'Resend invite updates it straight away', 'If it was sent but never arrived, copy the link and send it by WhatsApp or text', 'Invites sent before today show as not emailed yet, until they are sent again'],
+  },
   {
     month: 'November 2026', date: '2026-11-07', icon: Send, title: 'Staff setup: create and send the invite in one tap', image: 'staff-setup-invite',
     lede: "When an officer or venue manager sends their details, the Orb team can now set them up and email them their app invite in one go. They get a link to set their password straight away, with no second trip to their profile.",
