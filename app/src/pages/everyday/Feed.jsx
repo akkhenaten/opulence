@@ -87,7 +87,7 @@ const FILTERS = [
 
 const Pill = ({ on, onClick, children }) => (
   <Pressable press onClick={onClick} aria-pressed={on}
-    className={cx('flex shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-footnote font-semibold', on ? 'bg-blue text-white' : 'bg-surface text-ink shadow-tile')}>{children}</Pressable>
+    className={cx('flex min-h-10 shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-footnote font-semibold', on ? 'bg-blue text-white' : 'bg-surface text-ink shadow-tile')}>{children}</Pressable>
 );
 
 function Stream({ sp, patch }) {
@@ -182,7 +182,7 @@ function Stream({ sp, patch }) {
       ) : tagList.length > 0 && !search && (
         <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4">
           {tagList.map((t) => (
-            <Pressable press key={t.topic} onClick={() => patch({ topic: t.topic })} className={cx('shrink-0 rounded-full px-3 py-1 text-footnote font-semibold', t.featured ? 'bg-blue-soft text-blue' : 'bg-bg text-muted')}>#{t.topic}</Pressable>
+            <Pressable press key={t.topic} onClick={() => patch({ topic: t.topic })} className={cx('min-h-10 shrink-0 rounded-full px-3 py-1 text-footnote font-semibold', t.featured ? 'bg-blue-soft text-blue' : 'bg-bg text-muted')}>#{t.topic}</Pressable>
           ))}
         </div>
       )}

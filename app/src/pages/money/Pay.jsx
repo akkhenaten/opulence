@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Banknote, CalendarRange, Check as CheckIcon, Download, FileText, Lock, RefreshCw, Send } from 'lucide-react';
+import { AlertTriangle, Check as CheckIcon, Download, FileText, Lock, RefreshCw, Send } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  ActionBar, Avatar, Bento, Button, cx, date, dateShort, Empty, hours, isoDate, List, Load, money, Page, Pill, Section, Segmented, Select, Stat, Tile, useAction, useApi, useConfirm,
+  ActionBar, Avatar, Button, cx, date, dateShort, Empty, hours, isoDate, List, Load, money, Page, Pill, Section, Segmented, Select, Tabs, Tile, useAction, useApi, useConfirm, useUrlState,
 } from '../../ui/index.jsx';
 import { Check, useBase } from './_parts.jsx';
 import { RunsList } from './PayRuns.jsx';
@@ -26,6 +26,9 @@ function PayInner({ isCo }) {
   const status = params.get('status') || (isCo ? 'draft' : 'issued');
   const setStatus = (s) => setParams((p) => { const n = new URLSearchParams(p); n.set('status', s); return n; }, { replace: true });
   const [runsKey, setRunsKey] = useState(0);
+  // A status in the address with no tab means statements were asked for
+  const [url, setUrl] = useUrlState({ tab: '' });
+  const tab = url.tab || (params.get('status') ? 'statements' : 'runs');
 
   return (
     <Page title="Pay runs" subtitle="Remittance statements for self-employed officers">
@@ -33,9 +36,17 @@ function PayInner({ isCo }) {
         {(rows) => (
           <>
             <Totals rows={rows} />
-            {isCo && <RunTile onDone={() => { list.reload(); setRunsKey((k) => k + 1); }} />}
-            <RunsList reloadKey={runsKey} />
-            <Statements rows={rows} isCo={isCo} status={status} setStatus={setStatus} reload={list.reload} />
+            <Tabs value={tab} onChange={(v) => setUrl({ tab: v })} tabs={[
+              { value: 'runs', label: 'Pay runs' },
+              // The count is what needs doing: drafts to issue for the company, statements awaiting payment otherwise
+              { value: 'statements', label: `Statements (${rows.filter((r) => r.status === (isCo ? 'draft' : 'issued')).length})` },
+            ]} />
+            {tab === 'statements' ? <Statements rows={rows} isCo={isCo} status={status} setStatus={setStatus} reload={list.reload} /> : (
+              <>
+                {isCo && <RunTile onDone={() => { list.reload(); setRunsKey((k) => k + 1); }} />}
+                <RunsList reloadKey={runsKey} />
+              </>
+            )}
           </>
         )}
       </Load>
@@ -43,18 +54,23 @@ function PayInner({ isCo }) {
   );
 }
 
+// One line of totals: drafts, to pay, paid this month and hours in drafts
 function Totals({ rows }) {
   const sum = (st) => rows.filter((r) => r.status === st).reduce((a, r) => a + Number(r.total), 0);
   const cnt = (st) => rows.filter((r) => r.status === st).length;
   const month = isoDate().slice(0, 7);
   const paidMonth = rows.filter((r) => r.status === 'paid' && r.paid_at && isoDate(r.paid_at).slice(0, 7) === month);
+  const draftHours = rows.filter((r) => r.status === 'draft').reduce((a, r) => a + Number(r.hours), 0);
   return (
-    <Bento className="mb-4">
-      <Tile title="Drafts" icon={FileText}><Stat value={money(sum('draft'))} label={`${cnt('draft')} to check and issue`} /></Tile>
-      <Tile title="To pay" icon={Banknote} tone="blue"><Stat value={money(sum('issued'))} label={`${cnt('issued')} issued, awaiting payment`} /></Tile>
-      <Tile title="Paid this month" icon={CheckIcon}><Stat value={money(paidMonth.reduce((a, r) => a + Number(r.total), 0))} label={`${paidMonth.length} statements`} tone="green" /></Tile>
-      <Tile title="Hours in drafts" icon={CalendarRange}><Stat value={hours(rows.filter((r) => r.status === 'draft').reduce((a, r) => a + Number(r.hours), 0))} label="Approved timesheets" /></Tile>
-    </Bento>
+    <p className="mb-4 flex flex-wrap gap-x-3 gap-y-1 px-1 text-subhead text-muted">
+      <span><span className="num font-semibold text-ink">{money(sum('draft'))}</span> in {cnt('draft')} draft{cnt('draft') === 1 ? '' : 's'}</span>
+      <span>·</span>
+      <span><span className="num font-semibold text-blue">{money(sum('issued'))}</span> to pay ({cnt('issued')})</span>
+      <span>·</span>
+      <span><span className="num font-semibold text-green">{money(paidMonth.reduce((a, r) => a + Number(r.total), 0))}</span> paid this month</span>
+      <span>·</span>
+      <span><span className="num font-semibold text-ink">{hours(draftHours)}</span> in drafts</span>
+    </p>
   );
 }
 

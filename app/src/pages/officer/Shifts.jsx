@@ -1,32 +1,39 @@
-import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import { OffersList, useOps } from './_ops.jsx';
 import { CalendarDays, CalendarOff, Check, ChevronRight, Hand, History, Info, Megaphone, X } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  addDays, Button, Empty, isoDate, Load, Page, Section, Tabs, time, useAction, useApi, useConfirm, usePullRefresh,
+  addDays, Button, Empty, isoDate, Load, MoreMenu, Page, Section, Spinner, Tabs, time, useAction, useApi, useConfirm, usePullRefresh, useUrlState,
 } from '../../ui/index.jsx';
 import { ASSIGN_LABEL, assignTone, DeclineSheet, NotLinked, ShiftCard } from './_parts.jsx';
 import ShiftCalendar from './ShiftCalendar.jsx';
 
 export default function Shifts() {
   const { user } = useAuth();
-  const [sp, setSp] = useSearchParams();
-  const tab = ['open', 'offers', 'mine'].includes(sp.get('tab')) ? sp.get('tab') : 'calendar';
-  const setTab = (t) => setSp(t === 'calendar' ? {} : { tab: t }, { replace: true });
+  const [url, set] = useUrlState({ tab: '' });
   const open = useApi('shifts.open', {}, { skip: !user.officer_id });
   const ops = useOps(!user.officer_id);
   const offered = (ops.data?.offers || []).filter((o) => o.status === 'offered').length;
+  // With no tab asked for, open on Offers once when any are waiting
+  const decided = useRef(!!url.tab);
+  useEffect(() => {
+    if (decided.current || !ops.data) return;
+    decided.current = true;
+    if (offered) set({ tab: 'offers' });
+  }, [ops.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tab = ['open', 'offers', 'mine'].includes(url.tab) ? url.tab : 'calendar';
+  const setTab = (t) => { decided.current = true; set({ tab: t === 'calendar' ? '' : t }); };
+  const waiting = !url.tab && !ops.data && ops.loading;
   const pull = usePullRefresh(() => Promise.all([open.reload(), ops.reload()]), !['mine', 'calendar'].includes(tab) && !!user.officer_id);
 
   return (
-    <Page title="Shifts" actions={<><Button size="sm" variant="ghost" icon={History} to="/officer/clock">Clock history</Button><Button size="sm" variant="secondary" icon={CalendarOff} to="/officer/time-off">Availability</Button></>}>
+    <Page title="Shifts" actions={<><Button size="sm" variant="secondary" icon={CalendarOff} to="/officer/time-off?tab=availability">Availability</Button><MoreMenu items={[{ label: 'Clock history', icon: History, to: '/officer/clock' }]} /></>}>
       {pull}
       {!user.officer_id ? <NotLinked /> : (
         <>
           <Tabs value={tab} onChange={setTab} tabs={[{ value: 'calendar', label: 'Calendar' }, { value: 'mine', label: 'List' }, { value: 'offers', label: 'Offers', count: offered }, { value: 'open', label: 'Open shifts', count: open.data?.length }]} />
-          {tab === 'calendar' ? <ShiftCalendar /> : tab === 'mine' ? <Mine /> : tab === 'offers' ? <OffersList ops={ops} /> : <Open q={open} />}
+          {waiting ? <Spinner /> : tab === 'calendar' ? <ShiftCalendar /> : tab === 'mine' ? <Mine /> : tab === 'offers' ? <OffersList ops={ops} /> : <Open q={open} />}
         </>
       )}
     </Page>

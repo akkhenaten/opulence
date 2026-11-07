@@ -6,6 +6,8 @@ import { cx, date, dateShort, Empty, List, Load, Page, Pressable, Row, SearchInp
 import { NotLinked, Progress } from '../officer/_parts.jsx';
 import { CATEGORIES, StatePill, TOPICS, useModules, useToolbox } from './_parts.jsx';
 import Suggest from './Suggest.jsx';
+import EmergencyEntry from '../guide/emergency/Entry.jsx';
+import FlowEntry from '../guide/flow/Entry.jsx';
 
 export default function Learn() {
   const { user } = useAuth();
@@ -14,6 +16,9 @@ export default function Learn() {
   if (!mods) return <Page title="Learn"><Spinner /></Page>;
   return (
     <Page title="Learn" subtitle="Training, quick guides and what to do">
+      {/* Same entries as the Toolbox, shown under the same settings */}
+      <EmergencyEntry from="/officer/learn" />
+      <FlowEntry from="/officer/learn" />
       {mods.toolbox && <ToolboxPart />}
       {mods.academy && <AcademyPart />}
       {!mods.toolbox && !mods.academy && <Empty icon={GraduationCap} title="Learning is switched off" body="Your company hasn't turned on training or the Toolbox yet." />}

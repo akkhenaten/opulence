@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { CalendarOff, Plus, Save } from 'lucide-react';
+import { CalendarOff, Plus } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  addDays, Button, cx, date, dateShort, Empty, Input, isoDate, List, Load, Page, Pill, Row, Section, Segmented, Sheet, Tabs, Textarea, Toggle, useAction, useApi, useConfirm,
+  ActionBar, addDays, Button, cx, date, dateShort, Empty, Input, isoDate, List, Load, Page, Pill, Row, Section, Segmented, Sheet, Tabs, Textarea, Toggle, useAction, useApi, useConfirm, useDirtyGuard, useUrlState,
 } from '../../ui/index.jsx';
 import { NotLinked, TIMEOFF_KINDS } from './_parts.jsx';
 
@@ -13,7 +13,9 @@ const STATUS_LABEL = { pending: 'Pending', approved: 'Approved', rejected: 'Decl
 
 export default function TimeOff() {
   const { user } = useAuth();
-  const [tab, setTab] = useState('timeoff');
+  const [url, set] = useUrlState({ tab: 'timeoff' });
+  const tab = url.tab === 'availability' ? 'availability' : 'timeoff';
+  const setTab = (t) => set({ tab: t });
   if (!user.officer_id) return <Page title="Time off" back={{ to: '/officer/me', label: 'Me' }}><NotLinked /></Page>;
   return (
     <Page title="Time off" back={{ to: '/officer/me', label: 'Me' }}>
@@ -115,6 +117,7 @@ function AvailabilityEditor({ initial, reload }) {
   const [rows, setRows] = useState(build);
   const [dirty, setDirty] = useState(false);
   const [run, busy] = useAction();
+  useDirtyGuard(dirty);
   const upd = (i, patch) => { setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x))); setDirty(true); };
   const save = () => run(() => api('officers.saveAvailability', {
     days: rows.map((r) => ({ weekday: r.weekday, available: r.available, from_time: r.available && !r.anyTime ? r.from_time : null, to_time: r.available && !r.anyTime ? r.to_time : null })),
@@ -143,7 +146,10 @@ function AvailabilityEditor({ initial, reload }) {
           </div>
         ))}
       </List>
-      <Button size="lg" icon={Save} className="mt-4 w-full" busy={busy} disabled={!dirty} onClick={save}>Save availability</Button>
+      <ActionBar show={dirty || busy} tone="light">
+        <span className="mr-2 text-subhead font-semibold">Unsaved changes</span>
+        <Button busy={busy} onClick={save}>Save changes</Button>
+      </ActionBar>
     </>
   );
 }

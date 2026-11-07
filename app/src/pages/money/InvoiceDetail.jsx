@@ -4,8 +4,8 @@ import { Check as CheckIcon, Clock, Download, Pencil, Plus, RefreshCw, Send, Tra
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Bento, Button, Callout, IconButton, Input, KV, Load, Page, Pill, Section, Segmented, Sheet, Stat, Textarea, Tile, cx, date, daysUntil,
-  isoDate, money, useAction, useApi, useConfirm, useForm,
+  Bento, Button, Callout, IconButton, Input, KV, Load, MoreMenu, Page, Pill, Section, Segmented, Sheet, Stat, Textarea, Tile, cx, date, daysUntil,
+  isoDate, money, useAction, useApi, useConfirm, useForm, useMedia,
 } from '../../ui/index.jsx';
 import { pct, useBase } from './_parts.jsx';
 import { DayLines, signedSplit } from './_lines.jsx';
@@ -23,6 +23,7 @@ export default function InvoiceDetail() {
   const [line, setLine] = useState(null); // {} new, row edit
   const [paying, setPaying] = useState(false);
   const [crediting, setCrediting] = useState(false);
+  const wide = useMedia('(min-width: 640px)');
 
   return (
     <Load q={q}>
@@ -70,11 +71,25 @@ export default function InvoiceDetail() {
 
         return (
           <Page title={title} subtitle={[inv.client_name, inv.venue_name].filter(Boolean).join(' · ')} back={{ to: `${base}/invoices`, label: 'Invoices' }}
-            actions={[
-              { label: inv.pdf_document_id ? 'Saved PDF' : 'PDF', icon: Download, busy: pdfBusy, onClick: () => pdf(() => downloadAction('invoices.pdf', { id: inv.id })).catch(() => {}) },
-              editable && { label: split.awaiting ? `Issue ${split.signed} signed` : 'Issue', icon: Send, variant: 'primary', busy, disabled: !split.issuable, onClick: issue },
-              isCo && ['issued', 'overdue'].includes(inv.status) && !credit && { label: 'Mark paid', icon: CheckIcon, variant: 'primary', onClick: () => setPaying(true) },
-            ]}>
+            actions={(() => {
+              // One main action by status: Issue a draft, Mark an issued invoice paid, otherwise the PDF. The rest sit in …
+              const pdfAct = { label: inv.pdf_document_id ? 'Saved PDF' : 'PDF', icon: Download, busy: pdfBusy, onClick: () => pdf(() => downloadAction('invoices.pdf', { id: inv.id })).catch(() => {}) };
+              const main = editable ? { label: split.awaiting ? `Issue ${split.signed} signed` : 'Issue', icon: Send, busy, disabled: !split.issuable, onClick: issue }
+                : isCo && ['issued', 'overdue'].includes(inv.status) && !credit ? { label: 'Mark paid', icon: CheckIcon, onClick: () => setPaying(true) }
+                  : pdfAct;
+              const more = [
+                main !== pdfAct && !wide && pdfAct,
+                canCredit && { label: 'Raise credit note', icon: Undo2, onClick: () => setCrediting(true) },
+                editable && !hasTimesheets && { label: 'Delete draft', icon: Trash2, danger: true, busy, onClick: del },
+              ];
+              return (
+                <div className="flex items-center gap-2">
+                  <MoreMenu items={more} />
+                  {main !== pdfAct && wide && <Button variant="secondary" icon={pdfAct.icon} busy={pdfBusy} onClick={pdfAct.onClick}>{pdfAct.label}</Button>}
+                  <Button icon={main.icon} busy={main.busy} disabled={main.disabled} onClick={main.onClick}>{main.label}</Button>
+                </div>
+              );
+            })()}>
             <Bento className="mb-2">
               <Tile tone="blue" className="col-span-2">
                 <div className="flex items-start justify-between gap-3">
@@ -142,13 +157,6 @@ export default function InvoiceDetail() {
             {editable ? <NotesEditor inv={inv} onSaved={q.reload} /> : inv.notes ? (
               <Section title={credit ? 'Reason' : 'Notes'}><Tile><p className="whitespace-pre-wrap text-body">{inv.notes}</p></Tile></Section>
             ) : null}
-
-            {(editable || canCredit) && (
-              <div className="mt-8 flex flex-wrap justify-center gap-2">
-                {canCredit && <Button variant="secondary" icon={Undo2} onClick={() => setCrediting(true)}>Raise credit note</Button>}
-                {editable && !hasTimesheets && <Button variant="danger" icon={Trash2} busy={busy} onClick={del}>Delete draft</Button>}
-              </div>
-            )}
 
             {line && <LineSheet invoiceId={inv.id} line={line} onClose={() => setLine(null)} onSaved={q.reload} />}
             {paying && <PaidSheet inv={inv} onClose={() => setPaying(false)} onSaved={q.reload} />}

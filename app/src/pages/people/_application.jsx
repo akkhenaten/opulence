@@ -12,7 +12,7 @@ const AVAIL = { weekdays: 'Weekdays', weekends: 'Weekends', nights: 'Nights', ev
 const TONE = { critical: 'red', warning: 'amber' };
 const siaFmt = (n) => String(n || '').replace(/(\d{4})(?=\d)/g, '$1 ');
 
-export function ApplicationSheet({ id, onClose, onDone }) {
+export function ApplicationSheet({ id, onClose, onDone, onPrev, onNext }) {
   const q = useApi('apply.get', { officer_id: id }, { skip: !id });
   const [run, busy] = useAction();
   const [rejecting, setRejecting] = useState(false);
@@ -48,7 +48,7 @@ export function ApplicationSheet({ id, onClose, onDone }) {
         : <><Button variant="secondary" onClick={() => setRejecting(true)}>Reject</Button><Button busy={busy} onClick={doInvite}>Invite to onboarding</Button></>;
 
   return (
-    <Sheet open={!!id} onClose={close} title={name} size="lg" footer={footer}>
+    <Sheet open={!!id} side onClose={close} title={name} size="lg" footer={footer} onPrev={onPrev} onNext={onNext}>
       <Load q={q}>
         {() => (!a ? <Spinner /> : invite ? <Invited a={a} r={invite} /> : rejecting ? (
           <div className="space-y-3">

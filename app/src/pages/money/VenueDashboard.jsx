@@ -59,6 +59,7 @@ function Body({ d, name }) {
       <InstallCard className="mb-4" later="My account" />
       <RateStaffSheet open={rate} onClose={() => setRate(false)} />
       <GiveFeedbackSheet open={give} onClose={() => setGive(false)} />
+      <NeedsYou d={d} toSign={toSign} />
       {d.tiles && <VenueTiles d={d} venueId={venueId} onPick={setVenueId} />}
       <Bento>
         <Tile tone="blue" to="/venue/live" title="On site now" icon={Radio} className="col-span-2 lg:row-span-2">
@@ -172,6 +173,27 @@ function Body({ d, name }) {
         </Section>}
       </div>
     </Page>
+  );
+}
+
+// What is waiting on the venue itself, from what the page already loads; hidden when nothing is
+function NeedsYou({ d, toSign }) {
+  const late = (d.live.late || 0) + (d.live.no_show || 0);
+  const items = [
+    toSign > 0 && { key: 'sign', to: '/venue/timesheets', icon: ClipboardCheck, tone: 'bg-blue-soft text-blue', title: `${toSign} timesheet${toSign === 1 ? '' : 's'} to sign`, sub: 'Check the hours and sign' },
+    late > 0 && { key: 'late', to: '/venue/live', icon: Radio, tone: 'bg-red-soft text-red', title: `${late} officer${late === 1 ? '' : 's'} late or not arrived`, sub: 'See who is on site now' },
+    d.invoices.count > 0 && { key: 'pay', to: '/venue/invoices', icon: ReceiptText, tone: 'bg-amber-soft text-amber', title: `${d.invoices.count} invoice${d.invoices.count === 1 ? '' : 's'} to pay`, sub: `${money(d.invoices.outstanding)} outstanding` },
+  ].filter(Boolean);
+  if (!items.length) return null;
+  return (
+    <Section title="Needs you" className="!mt-0 mb-4">
+      <List>
+        {items.map((i) => (
+          <Row key={i.key} to={i.to} title={i.title} subtitle={i.sub}
+            left={<span className={cx('grid h-9 w-9 place-items-center rounded-xl', i.tone)}><i.icon size={18} /></span>} />
+        ))}
+      </List>
+    </Section>
   );
 }
 

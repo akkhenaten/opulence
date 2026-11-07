@@ -75,8 +75,8 @@ export default function Dashboard() {
 
   return (
     <Page backLabel="Dashboard" title={`${greet}${first ? `, ${first}` : ''}`} subtitle={summaryLine(tab === 'everyday' ? null : q.data, isCompany)} wide photo="door" slim actions={everyday || undefined}>
-      {tab !== 'everyday' && <InstallCard className="mb-4" later={isCompany ? "Settings" : "My account"} />}
       {tab === 'everyday' ? <FeedBody lead={<Button size="sm" variant="ghost" icon={ChevronLeft} onClick={() => setSp({}, { replace: true })}>Overview</Button>} /> : <Load q={q}>{(d) => <Body d={d} base={base} isCompany={isCompany} />}</Load>}
+      {tab !== 'everyday' && <InstallCard className="mt-4" later={isCompany ? "Settings" : "My account"} />}
     </Page>
   );
 }
@@ -84,7 +84,8 @@ export default function Dashboard() {
 function NeedsYou({ c, base, isCompany }) {
   const list = needsFor(c, isCompany);
   return (
-    <Tile title="Needs you" icon={CheckCircle2} pad={false} className="col-span-2">
+    // On phones a non-empty list jumps to the top of the page
+    <Tile title="Needs you" icon={CheckCircle2} pad={false} className={cx('col-span-2', list.length > 0 && 'max-lg:order-first')}>
       {list.length === 0 ? (
         <div className="flex items-center gap-3 px-5 pb-5 pt-1">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-green-soft text-green"><CheckCircle2 size={18} /></span>

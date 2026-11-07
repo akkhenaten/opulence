@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { api, takeAfterLogin } from '../../api.js';
 import { HOME, useAuth } from '../../auth.jsx';
 import { Logo } from '../../layouts/Shell.jsx';
 import { Photo } from '../../ui/Photo.jsx';
-import { Button, Input, PoweredBy, Spinner, useForm } from '../../ui/index.jsx';
+import { Button, Field, IconButton, Input, PoweredBy, Spinner, cx, inputCls, useForm } from '../../ui/index.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
 
 // Castle photo beside the card on desktop; a photo band above it on phones
@@ -48,6 +48,19 @@ const Err = ({ msg }) => (msg ? (
   <div role="alert" className="flex items-start gap-2 rounded-control bg-red-soft px-3.5 py-3 text-subhead font-medium text-red"><AlertCircle size={18} className="mt-px shrink-0" />{msg}</div>
 ) : null);
 
+// Password field with an eye button to show what was typed
+function PasswordInput({ label, hint, error, ...p }) {
+  const [show, setShow] = useState(false);
+  return (
+    <Field label={label} hint={hint} error={error}>
+      <span className="relative block">
+        <input /* ui-ok: the shared Input has no room for the eye button */ type={show ? 'text' : 'password'} className={cx(inputCls, 'pr-12')} {...(error ? { 'aria-invalid': true } : {})} {...p} />
+        <IconButton icon={show ? EyeOff : Eye} label={show ? 'Hide password' : 'Show password'} aria-pressed={show} size="sm" className="absolute right-1 top-1 text-muted" onClick={() => setShow((v) => !v)} />
+      </span>
+    </Field>
+  );
+}
+
 export function Login() {
   const { signIn, brand } = useAuth();
   const nav = useNavigate();
@@ -60,7 +73,7 @@ export function Login() {
     <AuthCard title="Sign in" subtitle={`Welcome back to ${brand.name}.`} footer={<Link to="/forgot" className="font-semibold text-blue">Forgot password?</Link>}>
       <form className="space-y-4" onSubmit={submit(async () => { const u = await signIn(await api('auth.login', f.v)); nav(takeAfterLogin() || HOME[u.role], { replace: true }); })}>
         <Input label="Email" type="email" autoComplete="email" required {...f.bind('email')} />
-        <Input label="Password" type="password" autoComplete="current-password" required {...f.bind('password')} />
+        <PasswordInput label="Password" autoComplete="current-password" required {...f.bind('password')} />
         <Err msg={err} />
         <Button type="submit" size="lg" className="w-full" busy={busy}>Sign in</Button>
       </form>
@@ -79,7 +92,7 @@ function Bootstrap() {
         <Input label="Company name" required {...f.bind('company_name')} />
         <Input label="Your name" required {...f.bind('name')} />
         <Input label="Email" type="email" autoComplete="email" required {...f.bind('email')} />
-        <Input label="Password" type="password" minLength={8} hint="At least 8 characters" required {...f.bind('password')} />
+        <PasswordInput label="Password" minLength={8} hint="At least 8 characters" required {...f.bind('password')} />
         <Err msg={err} />
         <Button type="submit" size="lg" className="w-full" busy={busy}>Create account</Button>
       </form>
@@ -105,8 +118,8 @@ export function AcceptInvite() {
         nav(HOME[u.role], { replace: true });
       })}>
         <Input label="Email" value={info.email} disabled />
-        <Input label="New password" type="password" minLength={8} autoComplete="new-password" hint="At least 8 characters" required {...f.bind('password')} />
-        <Input label="Confirm password" type="password" autoComplete="new-password" required error={fieldErr.confirm} {...f.bind('confirm')} />
+        <PasswordInput label="New password" minLength={8} autoComplete="new-password" hint="At least 8 characters" required {...f.bind('password')} />
+        <PasswordInput label="Confirm password" autoComplete="new-password" required error={fieldErr.confirm} {...f.bind('confirm')} />
         <Err msg={err} />
         <Button type="submit" size="lg" className="w-full" busy={busy}>Activate account</Button>
       </form>
@@ -155,8 +168,8 @@ export function Reset() {
         const r = await api('auth.reset', { token, password: f.v.password });
         if (r.token) { const u = await signIn(r); nav(HOME[u.role], { replace: true }); } else nav('/login');
       })}>
-        <Input label="New password" type="password" minLength={8} autoComplete="new-password" hint="At least 8 characters" required {...f.bind('password')} />
-        <Input label="Confirm password" type="password" autoComplete="new-password" required error={fieldErr.confirm} {...f.bind('confirm')} />
+        <PasswordInput label="New password" minLength={8} autoComplete="new-password" hint="At least 8 characters" required {...f.bind('password')} />
+        <PasswordInput label="Confirm password" autoComplete="new-password" required error={fieldErr.confirm} {...f.bind('confirm')} />
         <Err msg={err} />
         <Button type="submit" size="lg" className="w-full" busy={busy}>Save password</Button>
       </form>

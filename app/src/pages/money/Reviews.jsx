@@ -2,10 +2,10 @@
 // a venue manager's review waits here as Pending until a company manager publishes it.
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowDown, ArrowUp, EyeOff, Globe, Pencil, Plus, Quote, Star, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Globe, Pencil, Plus, Quote, Star, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
 import {
-  Button, cx, Empty, IconButton, Input, Load, Page, Pill, Pressable, SearchInput, Segmented, Select, Sheet, Textarea, Tile,
+  Button, cx, Empty, Input, Load, MoreMenu, Page, Pill, Pressable, SearchInput, Segmented, Select, Sheet, Textarea, Tile, Toggle,
   date, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { useAuth } from '../../auth.jsx';
@@ -113,17 +113,20 @@ function ReviewRow({ r, items, i, user, onEdit, onChange }) {
         {r.created_by_name && <span className="text-faint"> · added by {r.created_by_name}{r.venue_name ? ` (${r.venue_name})` : ''}</span>}
       </div>
       {mineToEdit && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {isCo && r.status !== 'published' && <Button size="sm" icon={Globe} busy={busy} onClick={() => setStatus('published', 'Published on the website')}>Publish</Button>}
-          {isCo && r.status === 'published' && <Button size="sm" variant="secondary" icon={EyeOff} busy={busy} onClick={() => setStatus('hidden', 'Hidden from the website')}>Hide</Button>}
-          <Button size="sm" variant="secondary" icon={Pencil} onClick={() => onEdit(r)}>Edit</Button>
-          <Button size="sm" variant="secondary" icon={Trash2} onClick={remove}>Delete</Button>
-          {isCo && items.length > 1 && (
-            <div className="ml-auto flex gap-1">
-              <IconButton icon={ArrowUp} label="Show earlier" size="sm" disabled={i === 0 || busy} onClick={() => move(-1)} />
-              <IconButton icon={ArrowDown} label="Show later" size="sm" disabled={i === items.length - 1 || busy} onClick={() => move(1)} />
+        <div className="mt-3 flex items-center gap-3">
+          {/* Publish puts it on the website; off hides it (a pending one stays pending until switched on) */}
+          {isCo && (
+            <div className="min-w-0 flex-1">
+              <Toggle label="On the website" checked={r.status === 'published'}
+                onChange={(on) => !busy && setStatus(on ? 'published' : 'hidden', on ? 'Published on the website' : 'Hidden from the website')} />
             </div>
           )}
+          <MoreMenu className="ml-auto" title="Review" items={[
+            { label: 'Edit', icon: Pencil, onClick: () => onEdit(r) },
+            isCo && items.length > 1 && { label: 'Move up', hint: 'Show earlier on the tile', icon: ArrowUp, disabled: i === 0 || busy, onClick: () => move(-1) },
+            isCo && items.length > 1 && { label: 'Move down', hint: 'Show later on the tile', icon: ArrowDown, disabled: i === items.length - 1 || busy, onClick: () => move(1) },
+            { label: 'Delete', icon: Trash2, danger: true, onClick: remove },
+          ]} />
         </div>
       )}
     </div>

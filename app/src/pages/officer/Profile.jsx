@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { Award, Camera, MessageSquareText, Plus, Save, Smartphone, Trash2 } from 'lucide-react';
+import { Award, Camera, MessageSquareText, Plus, Smartphone, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Avatar, Button, date, Input, KV, List, Load, Page, Pill, Pressable, Row, Section, Tile, titleCase, Toggle, useAction, useApi } from '../../ui/index.jsx';
+import { ActionBar, Avatar, Button, date, Input, KV, List, Load, Page, Pill, Pressable, Row, Section, Tile, titleCase, Toggle, useAction, useApi, useDirtyGuard } from '../../ui/index.jsx';
 import { NotLinked, uploadPhoto } from './_parts.jsx';
 
 const FIELDS = ['goes_by', 'phone', 'address', 'postcode', 'dob', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account'];
@@ -30,6 +30,10 @@ function Editor({ o, reload, notes }) {
   const [run, busy] = useAction();
   const [runPhoto, photoBusy] = useAction();
   const file = useRef(null);
+  // What was last loaded or saved, so the save bar shows only when something changed
+  const [base, setBase] = useState(() => JSON.stringify({ v, name, contacts }));
+  const dirty = JSON.stringify({ v, name, contacts }) !== base;
+  useDirtyGuard(dirty);
   const set = (k) => (e) => setV((s) => ({ ...s, [k]: e.target.value }));
   const setC = (i, k) => (e) => setContacts((cs) => cs.map((c, j) => (j === i ? { ...c, [k]: e.target.value } : c)));
 
@@ -40,14 +44,14 @@ function Editor({ o, reload, notes }) {
   const niBad = v.ni_number && !/^[A-CEGHJ-PR-TW-Z]{2}\d{6}[A-D]$/i.test(v.ni_number.replace(/\s/g, ''));
   const utrBad = v.utr && v.utr.replace(/\D/g, '').length !== 10;
 
-  const save = () => run(async () => {
+  const save = () => { const snap = JSON.stringify({ v, name, contacts }); return run(async () => {
     const body = { ...v, dob: v.dob || null, ni_number: v.ni_number.replace(/\s/g, '').toUpperCase(), utr: v.utr.replace(/\D/g, ''), postcode: v.postcode.toUpperCase().trim() };
     if (sort) body.bank_sort_code = `${sort.slice(0, 2)}-${sort.slice(2, 4)}-${sort.slice(4, 6)}`;
     if (name.trim() !== o.name) await api('auth.updateMe', { name });
     await api('officers.save', body);
     await api('officers.saveContacts', { contacts: contacts.filter((c) => c.name.trim()) });
     refresh?.();
-  }, 'Details saved').then(reload).catch(() => {});
+  }, 'Details saved').then(() => { setBase(snap); reload(); }).catch(() => {}); };
 
   const changePhoto = async (e) => {
     const f = e.target.files?.[0];
@@ -132,7 +136,10 @@ function Editor({ o, reload, notes }) {
         </div>
       </Section>
 
-      <Button size="lg" icon={Save} className="w-full" busy={busy} disabled={sortBad || acctBad || nameBad} onClick={save}>Save details</Button>
+      <ActionBar show={dirty || busy} tone="light">
+        <span className="mr-2 text-subhead font-semibold">Unsaved changes</span>
+        <Button busy={busy} disabled={sortBad || acctBad || nameBad} onClick={save}>Save changes</Button>
+      </ActionBar>
 
       <Section title="Licence and right to work">
         <Tile>

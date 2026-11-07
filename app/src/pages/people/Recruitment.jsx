@@ -3,16 +3,16 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Plus, ShieldCheck } from 'lucide-react';
 import { api } from '../../api.js';
 import {
-  Avatar, Bento, Button, cx, date, IconButton, Load, Page, Pill, Pressable, relative, Sheet, Stat, Tile, Toggle, useAction, useApi, useConfirm,
+  Avatar, Bento, Button, cx, date, IconButton, Load, Page, Pill, Pressable, relative, Segmented, Sheet, Stat, Tile, Toggle, useAction, useApi, useConfirm, useUrlState,
 } from '../../ui/index.jsx';
 import { ComplianceBadge, CopyLink, Progress, useRoles } from './_parts.jsx';
 import { AddOfficerSheet } from './Staff.jsx';
 import { ApplicationSheet } from './_application.jsx';
 
 const STAGES = [
-  { key: 'applicant', label: 'Applicants', hint: 'Interested, not yet started' },
-  { key: 'onboarding', label: 'Onboarding', hint: 'Collecting documents and checks' },
-  { key: 'active', label: 'Recently active', hint: 'Started in the last 60 days' },
+  { key: 'applicant', label: 'Applicants', short: 'Applicants', hint: 'Interested, not yet started' },
+  { key: 'onboarding', label: 'Onboarding', short: 'Onboarding', hint: 'Collecting documents and checks' },
+  { key: 'active', label: 'Recently active', short: 'Started', hint: 'Started in the last 60 days' },
 ];
 const NEXT = { applicant: 'onboarding', onboarding: 'active' };
 const PREV = { onboarding: 'applicant' };
@@ -25,8 +25,10 @@ export default function Recruitment() {
   const [hiring, setHiring] = useState(null);
   // An online application opens in its own sheet; ?applicant=<id> comes from the "New application" notification
   const [params, setParams] = useSearchParams();
+  // Phones and tablets show one stage at a time; wide screens keep all three columns
+  const [{ stage }, setUrl] = useUrlState({ stage: 'applicant' });
   const applicant = params.get('applicant');
-  const review = (p) => setParams((s) => { s.set('applicant', p.id); return s; });
+  const review = (p, replace) => setParams((s) => { s.set('applicant', p.id); return s; }, { replace });
   const closeReview = () => setParams((s) => { s.delete('applicant'); return s; }, { replace: true });
   const [run] = useAction();
   const confirm = useConfirm();
@@ -53,10 +55,13 @@ export default function Recruitment() {
     .sort((a, b) => String(b.start_date || b.created_at).localeCompare(String(a.start_date || a.created_at)));
   const rows = pipeline.data || [];
   const cols = { applicant: rows.filter((r) => r.status === 'applicant'), onboarding: rows.filter((r) => r.status === 'onboarding'), active: recent };
+  // Applicants reviewed in the sheet, in column order, for ↑ ↓ / prev-next
+  const reviewable = cols.applicant.filter((p) => p.online);
+  const at = reviewable.findIndex((p) => String(p.id) === String(applicant));
   const ready = cols.onboarding.filter((r) => r.total && Number(r.done) === Number(r.total)).length;
 
   return (
-    <Page title="Recruitment" subtitle="From applicant to first shift" wide photo="crowd" actions={<Button icon={Plus} onClick={() => setAdding(true)}>Add applicant</Button>}>
+    <Page title="Recruitment" subtitle="From applicant to first shift" wide actions={<Button icon={Plus} onClick={() => setAdding(true)}>Add applicant</Button>}>
       <Load q={pipeline}>
         {() => (
           <>
@@ -66,9 +71,11 @@ export default function Recruitment() {
               <Tile><Stat value={ready} label="Ready to activate" tone={ready ? 'green' : undefined} hint="All steps done" /></Tile>
               <Tile><Stat value={recent.length} label="Started" hint="Last 60 days" /></Tile>
             </Bento>
-            <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-3 lg:overflow-visible">
+            <Segmented full className="mb-3 lg:hidden" value={stage} onChange={(v) => setUrl({ stage: v })}
+              options={STAGES.map((s) => ({ value: s.key, label: `${s.short} (${cols[s.key].length})` }))} />
+            <div className="gap-3 lg:grid lg:grid-cols-3">
               {STAGES.map((s) => (
-                <section key={s.key} className="w-[85vw] max-w-sm shrink-0 snap-start rounded-tile bg-fill-strong/60 p-3 sm:w-80 lg:w-auto lg:max-w-none">
+                <section key={s.key} className={cx('rounded-tile bg-fill-strong/60 p-3', s.key !== stage && 'hidden lg:block')}>
                   <div className="mb-3 flex items-baseline justify-between px-1">
                     <div>
                       <h2 className="text-callout font-bold">{s.label} <span className="num ml-1 text-muted">{cols[s.key].length}</span></h2>
@@ -87,7 +94,9 @@ export default function Recruitment() {
           </>
         )}
       </Load>
-      <ApplicationSheet key={applicant || 'none'} id={applicant} onClose={closeReview} onDone={reload} />
+      <ApplicationSheet key={applicant || 'none'} id={applicant} onClose={closeReview} onDone={reload}
+        onPrev={at > 0 ? () => review(reviewable[at - 1], true) : undefined}
+        onNext={at >= 0 && at < reviewable.length - 1 ? () => review(reviewable[at + 1], true) : undefined} />
       <HireSheet p={hiring} onClose={() => setHiring(null)} onHire={(invite) => setStatus(hiring, 'active', { invite })} />
       <AddOfficerSheet open={adding} onClose={() => setAdding(false)} roles={roles} onDone={reload} status="applicant" title="Add applicant" statusOptions={['applicant', 'onboarding']} />
     </Page>

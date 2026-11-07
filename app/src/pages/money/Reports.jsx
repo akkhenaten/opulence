@@ -1,16 +1,20 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle, BarChart3, Clock, Fingerprint, PoundSterling, ShieldAlert, TrendingUp } from 'lucide-react';
 import {
-  Bento, Empty, ErrorBox, Input, List, Page, Pill, Row, Section, Segmented, Spinner, Stat, Table, Tile, date, dateShort, daysUntil, hours, money, money0, titleCase, useApi,
+  Bento, Empty, ErrorBox, List, Page, Pill, Row, Section, Segmented, Spinner, Stat, Table, Tile, date, dateShort, daysUntil, hours, money, money0, titleCase, useApi,
 } from '../../ui/index.jsx';
-import { Columns, HBars, HourStrip, PRESETS, num, pct, presetRange } from './_parts.jsx';
+import { Columns, HBars, HourStrip, PRESETS, num, pct } from './_parts.jsx';
+import { Part, RangeBar, useRangeUrl } from './Analytics.jsx';
 
 const SEV = ['critical', 'high', 'medium', 'low'];
+const JUMPS = [
+  { id: 'r-money', label: 'Money' }, { id: 'r-hours', label: 'Hours worked' }, { id: 'r-incidents', label: 'Incidents' },
+  { id: 'r-proof', label: 'Clock-in proof' }, { id: 'r-overdue', label: 'Overdue invoices' },
+];
 
 export default function Reports() {
-  const [preset, setPreset] = useState('this');
-  const [custom, setCustom] = useState(presetRange('this'));
-  const range = preset === 'custom' ? custom : presetRange(preset);
+  const r = useRangeUrl(PRESETS, 'this');
+  const { range } = r;
   const ok = range.from && range.to && range.from <= range.to;
   const body = { from: range.from, to: range.to };
 
@@ -22,17 +26,8 @@ export default function Reports() {
 
   return (
     <Page title="Reports" subtitle={ok ? `${date(range.from)} – ${date(range.to)}` : 'Choose a date range'} wide>
-      <div className="mb-5 flex flex-wrap items-end gap-3">
-        <Segmented value={preset} onChange={(p) => { if (p === 'custom') setCustom(range); setPreset(p); }} options={PRESETS} />
-        {preset === 'custom' && (
-          <div className="flex gap-2">
-            <Input type="date" value={custom.from} onChange={(e) => setCustom({ ...custom, from: e.target.value })} aria-label="From" />
-            <Input type="date" value={custom.to} onChange={(e) => setCustom({ ...custom, to: e.target.value })} aria-label="To" />
-          </div>
-        )}
-      </div>
-
-      <MoneySection q={margin} overdue={overdue} hrs={hrs} />
+      <RangeBar r={r} presets={PRESETS} jumps={JUMPS} />
+      <div id="r-money" className="pt-2"><MoneySection q={margin} overdue={overdue} hrs={hrs} /></div>
       <HoursSection q={hrs} />
       <IncidentsSection q={inc} />
       <ProofSection q={proof} />
@@ -46,7 +41,7 @@ function ProofSection({ q }) {
   const [by, setBy] = useState('officers');
   const share = (n, d) => (d ? `${Math.round((n / d) * 100)}%` : '–');
   return (
-    <Section title="Clock-in proof" action={<Segmented value={by} onChange={setBy} options={[{ value: 'officers', label: 'Officers' }, { value: 'venues', label: 'Venues' }]} />}>
+    <Part id="r-proof" title="Clock-in proof" action={<Segmented value={by} onChange={setBy} options={[{ value: 'officers', label: 'Officers' }, { value: 'venues', label: 'Venues' }]} />}>
       <Wait q={q}>
         {(d) => {
           const rows = d[by];
@@ -66,7 +61,7 @@ function ProofSection({ q }) {
         }}
       </Wait>
       <p className="mt-2 px-1 text-caption text-muted">Clock-ins before phone checks started count as "phone not checked". A high exception rate at one venue usually means a missing poster, a weak signal or a tag that needs replacing.</p>
-    </Section>
+    </Part>
   );
 }
 
@@ -132,7 +127,7 @@ function HoursSection({ q }) {
   }, [q.data]);
   const fmt = (n) => num(n).toLocaleString('en-GB', { maximumFractionDigits: 0 });
   return (
-    <Section title="Hours worked">
+    <Part id="r-hours" title="Hours worked">
       <Wait q={q}>
         {() => (!weeks.length ? <Empty icon={Clock} title="No hours in this period" /> : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -141,13 +136,13 @@ function HoursSection({ q }) {
           </div>
         ))}
       </Wait>
-    </Section>
+    </Part>
   );
 }
 
 function IncidentsSection({ q }) {
   return (
-    <Section title="Incidents">
+    <Part id="r-incidents" title="Incidents">
       <Wait q={q}>
         {(d) => {
           const total = d.byType.reduce((a, r) => a + num(r.n), 0);
@@ -174,13 +169,13 @@ function IncidentsSection({ q }) {
           );
         }}
       </Wait>
-    </Section>
+    </Part>
   );
 }
 
 function OverdueSection({ q }) {
   return (
-    <Section title="Overdue invoices">
+    <Part id="r-overdue" title="Overdue invoices">
       <Wait q={q}>
         {(rows) => (!rows.length ? <Empty icon={PoundSterling} title="Nothing overdue" body="All issued invoices are within their payment terms." /> : (
           <List>
@@ -195,7 +190,7 @@ function OverdueSection({ q }) {
           </List>
         ))}
       </Wait>
-    </Section>
+    </Part>
   );
 }
 

@@ -374,7 +374,7 @@ function Bubble({ m, me, conv, first, flash, mentionNames, onReply, onJump, onAc
   const live = !m.deleted_at;
   return (
     <div id={`msg-${m.id}`} {...swipe.handlers} style={{ touchAction: 'pan-y' }}
-      className={cx('relative flex items-end gap-2 rounded-2xl transition-colors duration-500', mine ? 'justify-end' : 'justify-start', first ? 'mt-3' : 'mt-1', flash && 'bg-blue-soft')}>
+      className={cx('group relative flex items-end gap-2 rounded-2xl transition-colors duration-500', mine ? 'justify-end' : 'justify-start', first ? 'mt-3' : 'mt-1', flash && 'bg-blue-soft')}>
       {swipe.dx > 0 && <Reply size={18} className="absolute left-1 top-1/2 -translate-y-1/2 text-muted" style={{ opacity: swipe.dx / 60 }} />}
       {!mine && conv.kind !== 'direct' && (
         <div className="w-8 shrink-0">{first && (m.sender.system ? <ConvAvatar c={{ kind: 'ops' }} size={32} /> : <Avatar name={m.sender.name} src={[m.sender.photo_thumb_url, m.sender.photo_url]} size={32} />)}</div>
@@ -423,7 +423,8 @@ function Bubble({ m, me, conv, first, flash, mentionNames, onReply, onJump, onAc
         <div className="mt-0.5 flex items-center gap-1 px-2 text-caption2 text-faint">
           {m.pinned && <Pin size={11} className="text-blue" />}
           {time(m.created_at)}{m.edited_at && !m.deleted_at ? ' · Edited' : ''}
-          {live && !m.body && <button type="button" onClick={onAction} aria-label="Message options" className="pressable relative -my-1 ml-1 rounded-full p-1 before:absolute before:-inset-3"><MoreHorizontal size={14} /></button>}
+          {/* Same menu as long-press; always shown on phones, on hover or focus on desktop */}
+          {live && <button type="button" onClick={onAction} aria-label="Message options" className={cx('pressable relative -my-1 ml-1 rounded-full p-1 before:absolute before:-inset-3 hover:text-ink', m.body && 'lg:opacity-0 lg:focus-visible:opacity-100 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100')}><MoreHorizontal size={14} /></button>}
         </div>
         {m.confirm && <ConfirmRow m={m} busy={busy} onConfirm={() => run(async () => { await api('messages.confirm', { id: m.id }); onChanged(m.id); }, 'Thanks — confirmed')} onOpen={onConfirms} />}
         {m.quick && !mine && <QuickReplies m={m} onDone={onReplied} />}

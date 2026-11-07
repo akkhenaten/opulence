@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { AlertTriangle, Clock, Download, FileText, ReceiptText, RefreshCw } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import {
-  Bento, Button, cx, dateShort, daysUntil, Empty, Input, isoDate, List, Load, money, Page, Pill, SearchInput, Section, Segmented, Sheet, Stat, Tile, useAction, useApi,
+  Bento, Button, cx, dateShort, daysUntil, Empty, Input, isoDate, List, Load, money, MoreMenu, Page, Pill, SearchInput, Section, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useUrlState,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 
@@ -21,9 +21,8 @@ export default function Invoices() {
 
 function CompanyInvoices() {
   const list = useApi('invoices.list', {});
-  const [params, setParams] = useSearchParams();
-  const status = params.get('status') || 'all';
-  const setStatus = (s) => setParams(s === 'all' ? {} : { status: s }, { replace: true });
+  // Status and search live in the address, so a filtered list survives Back and can be shared
+  const [f, setF] = useUrlState({ status: 'all', q: '' });
   const [exp, setExp] = useState(false);
   const [run, busy] = useAction();
   // Drafts fill themselves from approved timesheets; this only catches up anything the 5-minute sweep has not reached yet
@@ -32,19 +31,21 @@ function CompanyInvoices() {
   return (
     <Page title="Invoices" subtitle="Approved shifts go straight onto each venue's draft"
       actions={<>
-        <Button variant="secondary" icon={Download} onClick={() => setExp(true)}>Export</Button>
-        <Button variant="secondary" icon={RefreshCw} busy={busy} onClick={refresh}>Bring up to date</Button>
+        <MoreMenu items={[{ label: 'Export CSV', hint: 'Issued invoices and credit notes', icon: Download, onClick: () => setExp(true) }]} />
+        <Button icon={RefreshCw} busy={busy} onClick={refresh}>Bring up to date</Button>
       </>}>
       <Load q={list}>
-        {(rows) => <CompanyBody rows={rows} status={status} setStatus={setStatus} />}
+        {(rows) => <CompanyBody rows={rows} status={f.status} q={f.q} setF={setF} />}
       </Load>
       {exp && <ExportSheet onClose={() => setExp(false)} />}
     </Page>
   );
 }
 
-function CompanyBody({ rows, status, setStatus }) {
-  const [q, setQ] = useState('');
+// The five everyday statuses are tabs; void and credit notes sit in the picker beside them
+const MAIN = ['all', 'draft', 'issued', 'overdue', 'paid'];
+
+function CompanyBody({ rows, status, q, setF }) {
   const out = rows.filter(outstanding);
   const overdue = rows.filter((i) => i.status === 'overdue');
   const drafts = rows.filter((i) => i.status === 'draft');
@@ -75,11 +76,13 @@ function CompanyBody({ rows, status, setStatus }) {
       </Bento>
 
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <Segmented value={status} onChange={setStatus} options={[
+        <Segmented value={status} onChange={(v) => setF({ status: v })} options={[
           { value: 'all', label: 'All' }, { value: 'draft', label: 'Draft', count: c('draft') }, { value: 'issued', label: 'Issued' },
-          { value: 'overdue', label: 'Overdue', count: c('overdue') }, { value: 'paid', label: 'Paid' }, { value: 'void', label: 'Void' }, { value: 'credit', label: 'Credit notes' },
+          { value: 'overdue', label: 'Overdue', count: c('overdue') }, { value: 'paid', label: 'Paid' },
         ]} />
-        <SearchInput className="min-w-0 flex-1 basis-48" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Number, venue or client" />
+        <Select aria-label="More statuses" className="w-40" value={MAIN.includes(status) ? '' : status} placeholder="More…"
+          onChange={(e) => setF({ status: e.target.value || 'all' })} options={[{ value: 'void', label: 'Void' }, { value: 'credit', label: 'Credit notes' }]} />
+        <SearchInput className="min-w-0 flex-1 basis-48" value={q} onChange={(e) => setF({ q: e.target.value })} placeholder="Number, venue or client" />
       </div>
 
       {!rows.length

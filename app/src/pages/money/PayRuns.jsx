@@ -18,6 +18,11 @@ const STEPS = ['draft', 'in_review', 'reconciled', 'issued', 'paid'];
 const STEP_TEXT = { draft: 'Drafts created', in_review: 'Staff review', reconciled: 'Finalised', issued: 'Issued', paid: 'Paid' };
 const periodOf = (r) => `${dateShort(r.period_start)} – ${date(r.period_end)}`;
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+// The invoice list opened on the status that needs doing for this run's invoices: drafts to issue, then overdue, then issued
+const invoicesLink = (base, list) => {
+  const st = ['draft', 'overdue', 'issued'].find((x) => list.some((i) => i.status === x && i.kind !== 'credit'));
+  return `${base}/invoices${st ? `?status=${st}` : ''}`;
+};
 
 /** Compact list of pay runs for the Pay page. */
 export function RunsList({ reloadKey }) {
@@ -199,10 +204,10 @@ function Detail({ isCo }) {
             )}
 
             {isCo && (
-              <Section title="Invoices" action={<Button size="sm" variant="soft" icon={Receipt} to={`/company/invoices?start=${r.period_start}&end=${r.period_end}`}>Invoices</Button>}>
+              <Section title="Invoices" action={<Button size="sm" variant="soft" icon={Receipt} to={invoicesLink(base, r.invoices)}>Invoices</Button>}>
                 {!r.invoices.length ? <p className="px-1 text-subhead text-muted">No invoices share shifts with this run yet.</p> : (
                   <List>
-                    {r.invoices.map((i) => <Row key={i.id} to={`/company/invoices/${i.id}`} chevron title={i.venue_name} subtitle={i.number || 'Draft'} right={<div className="flex items-center gap-2"><span className="num font-semibold">{money(i.gross)}</span><Pill status={i.status} /></div>} />)}
+                    {r.invoices.map((i) => <Row key={i.id} to={`${base}/invoices/${i.id}`} chevron title={i.venue_name} subtitle={i.number || 'Draft'} right={<div className="flex items-center gap-2"><span className="num font-semibold">{money(i.gross)}</span><Pill status={i.status} /></div>} />)}
                   </List>
                 )}
               </Section>

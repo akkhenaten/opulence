@@ -1,7 +1,7 @@
 // My shifts as a calendar: a month grid or a week of columns, each shift a block that opens the shift page
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Crown } from 'lucide-react';
-import { addDays, cx, IconButton, isoDate, mondayOf, Segmented, Spinner, ErrorBox, time, useApi, Pressable } from '../../ui/index.jsx';
+import { addDays, cx, IconButton, isoDate, mondayOf, Segmented, Spinner, ErrorBox, time, useApi, useUrlState, Pressable } from '../../ui/index.jsx';
 
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const TONE = {
@@ -17,7 +17,9 @@ const addMonths = (iso, n) => { const d = new Date(`${firstOfMonth(iso)}T12:00:0
 const tone = (s) => (new Date(s.ends_at) < new Date() ? TONE.past : TONE[s.assignment_status] || TONE.past);
 
 export default function ShiftCalendar() {
-  const [view, setView] = useState('month');
+  const [url, set] = useUrlState({ view: 'month' });
+  const view = url.view === 'week' ? 'week' : 'month';
+  const setView = (v) => set({ view: v });
   const [anchor, setAnchor] = useState(isoDate());
   const today = isoDate();
   const start = view === 'month' ? mondayOf(firstOfMonth(anchor)) : mondayOf(anchor);

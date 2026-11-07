@@ -1,10 +1,10 @@
 // Analytics: lateness and absence, incidents, satisfaction and customers, with the change against the period before
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CalendarClock, LineChart, MessageSquareHeart, ShieldAlert, Users } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import {
-  Bento, Empty, ErrorBox, Input, Page, Section, Segmented, Select, SkeletonTiles, Stat, Tile, date, useApi,
+  Bento, Button, Empty, ErrorBox, Input, Page, Section, Segmented, Select, SkeletonTiles, Stat, Tile, date, useApi, useUrlState,
 } from '../../ui/index.jsx';
 import { Columns, HBars, HourStrip, PRESETS_4W, presetRange, useBase } from './_parts.jsx';
 
@@ -17,6 +17,55 @@ export function useModuleOn(key) {
 export default function Analytics() {
   return <AnalyticsView />;
 }
+
+/** The chosen date range, kept in the address (?range=, plus ?from=&to= when custom) so it survives reloads and links. */
+export function useRangeUrl(presets, def) {
+  const [url, setUrl] = useUrlState({ range: def, from: '', to: '' });
+  const preset = presets.some((p) => p.value === url.range) ? url.range : def;
+  const range = preset === 'custom' ? { from: url.from, to: url.to } : presetRange(preset);
+  // Custom starts from the range that was showing
+  const setPreset = (p) => setUrl(p === 'custom' ? { range: p, ...range } : { range: p, from: '', to: '' });
+  return { preset, range, setPreset, setDates: (patch) => setUrl(patch) };
+}
+
+/** The date range row: stays in view under the top bar, with chips that jump to each section. jumps: [{ id, label }] */
+export function RangeBar({ r, presets, jumps }) {
+  const bar = useRef(null);
+  const jump = (id) => {
+    const el = document.getElementById(id);
+    const b = bar.current;
+    if (!el || !b) return;
+    // Land the heading just below this bar once it is stuck
+    const top = el.getBoundingClientRect().top + window.scrollY - (parseFloat(getComputedStyle(b).top) || 0) - b.offsetHeight - 8;
+    window.scrollTo({ top, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  };
+  return (
+    <div ref={bar} className="sticky top-[calc(56px+env(safe-area-inset-top))] z-20 -mx-[var(--px)] mb-3 bg-bg/90 px-[var(--px)] py-2 backdrop-blur-xl">
+      <div className="flex flex-wrap items-end gap-3">
+        <Segmented value={r.preset} onChange={r.setPreset} options={presets} />
+        {r.preset === 'custom' && (
+          <div className="flex gap-2">
+            <Input type="date" value={r.range.from} onChange={(e) => r.setDates({ from: e.target.value })} aria-label="From" />
+            <Input type="date" value={r.range.to} onChange={(e) => r.setDates({ to: e.target.value })} aria-label="To" />
+          </div>
+        )}
+      </div>
+      {jumps?.length > 0 && (
+        <nav aria-label="Jump to section" className="no-scrollbar -mx-[var(--px)] mt-2 flex gap-2 overflow-x-auto px-[var(--px)] py-1">
+          {jumps.map((j) => <Button key={j.id} size="sm" variant="secondary" className="shrink-0 rounded-full!" onClick={() => jump(j.id)}>{j.label}</Button>)}
+        </nav>
+      )}
+    </div>
+  );
+}
+
+// A section with an anchor the jump chips scroll to
+export const Part = ({ id, ...p }) => <div id={id}><Section {...p} /></div>;
+
+const JUMPS = [
+  { id: 'a-attendance', label: 'Lateness and absence' }, { id: 'a-incidents', label: 'Incidents' },
+  { id: 'a-satisfaction', label: 'Satisfaction' }, { id: 'a-customers', label: 'Customers and staffing' },
+];
 
 const fig = (v, unit = '') => (v == null ? '–' : `${v}${unit}`);
 
@@ -38,39 +87,38 @@ export function AnalyticsView({ venueId, fixedVenue }) {
   const { user } = useAuth();
   const base = useBase();
   const office = user.role !== 'venue';
-  const [preset, setPreset] = useState('four');
-  const [custom, setCustom] = useState(presetRange('four'));
+  const r = useRangeUrl(PRESETS_4W, 'four');
+  const { range } = r;
   // A venue manager's venue follows their home tiles / top-bar chip
   const shared = useVenue();
   const [localVenue, setLocalVenue] = useState(venueId || '');
   const venue = office ? localVenue : shared.venueId;
   const setVenue = office ? setLocalVenue : shared.setVenueId;
   const [officer, setOfficer] = useState('');
-  const range = preset === 'custom' ? custom : presetRange(preset);
   const ok = range.from && range.to && range.from <= range.to;
   const opts = useApi('analytics.options', {}, { skip: fixedVenue });
   const q = useApi('analytics.venue', { from: range.from, to: range.to, venue_id: (fixedVenue ? venueId : venue) || null, officer_id: officer || null }, { skip: !ok });
   const venues = opts.data?.venues || [];
   const officers = opts.data?.officers || [];
 
+  const pickVenue = !fixedVenue && venues.length > 1;
+  const pickOfficer = office && officers.length > 0;
   const filters = (
-    <div className="mb-5 flex flex-wrap items-end gap-3">
-      <Segmented value={preset} onChange={(p) => { if (p === 'custom') setCustom(range); setPreset(p); }} options={PRESETS_4W} />
-      {preset === 'custom' && (
-        <div className="flex gap-2">
-          <Input type="date" value={custom.from} onChange={(e) => setCustom({ ...custom, from: e.target.value })} aria-label="From" />
-          <Input type="date" value={custom.to} onChange={(e) => setCustom({ ...custom, to: e.target.value })} aria-label="To" />
+    <>
+      <RangeBar r={r} presets={PRESETS_4W} jumps={ok && q.data ? JUMPS : null} />
+      {(pickVenue || pickOfficer) && (
+        <div className="mb-5 flex flex-wrap items-end gap-3">
+          {pickVenue && (
+            <Select className="w-full sm:w-56" aria-label="Venue" value={venue} onChange={(e) => setVenue(e.target.value)} placeholder="All venues"
+              options={venues.map((v) => ({ value: v.id, label: v.name }))} />
+          )}
+          {pickOfficer && (
+            <Select className="w-full sm:w-56" aria-label="Officer" value={officer} onChange={(e) => setOfficer(e.target.value)} placeholder="All officers"
+              options={officers.map((o) => ({ value: o.id, label: o.name }))} />
+          )}
         </div>
       )}
-      {!fixedVenue && venues.length > 1 && (
-        <Select className="w-full sm:w-56" aria-label="Venue" value={venue} onChange={(e) => setVenue(e.target.value)} placeholder="All venues"
-          options={venues.map((v) => ({ value: v.id, label: v.name }))} />
-      )}
-      {office && officers.length > 0 && (
-        <Select className="w-full sm:w-56" aria-label="Officer" value={officer} onChange={(e) => setOfficer(e.target.value)} placeholder="All officers"
-          options={officers.map((o) => ({ value: o.id, label: o.name }))} />
-      )}
-    </div>
+    </>
   );
 
   const body = !ok ? <Empty icon={LineChart} title="Choose a date range" body="The start date must be on or before the end date." />
@@ -91,10 +139,10 @@ export function AnalyticsView({ venueId, fixedVenue }) {
 function Sections({ d, base, office, venueFilter }) {
   const { attendance: a, incidents: i, satisfaction: s, customers: c } = d;
   const many = !venueFilter;
-  const fb = (tone) => `${base}/feedback?status=${tone === 'complaint' ? 'open' : ''}${tone ? `&tone=${tone}` : ''}${venueFilter ? `&venue=${venueFilter}` : ''}`;
+  const fb = (tone) => `${base}/feedback?status=${tone === 'complaint' ? 'open' : 'all'}${tone ? `&tone=${tone}` : ''}${venueFilter ? `&venue=${venueFilter}` : ''}`;
   return (
     <div className="space-y-2">
-      <Section title="Lateness and absence">
+      <Part id="a-attendance" title="Lateness and absence">
         <Bento>
           <Tile icon={CalendarClock} title="On time"><Stat value={fig(a.on_time_pct, '%')} label={`${a.shifts} shift${a.shifts === 1 ? '' : 's'} worked`} hint={change(a, 'on_time_pct', { unit: '%' })} tone={toneOf(a, 'on_time_pct', 'up')} /></Tile>
           <Tile title="Late"><Stat value={a.late} label={a.avg_late ? `${a.avg_late} min late on average` : 'Late arrivals'} hint={change(a, 'late')} tone={toneOf(a, 'late')} /></Tile>
@@ -106,9 +154,9 @@ function Sections({ d, base, office, venueFilter }) {
           {many && a.by_venue.length > 1 && <Tile title="By venue"><HBars items={a.by_venue} /></Tile>}
           <Tile title="By weekday"><Columns items={a.by_weekday} /></Tile>
         </div>
-      </Section>
+      </Part>
 
-      <Section title="Incidents">
+      <Part id="a-incidents" title="Incidents">
         <Bento>
           <Tile icon={ShieldAlert} title="Incidents" to={`${base}/incidents`}><Stat value={i.total} label="Reported" hint={change(i, 'total')} tone={toneOf(i, 'total')} /></Tile>
           <Tile title="High or critical"><Stat value={i.high} label="Serious incidents" hint={change(i, 'high')} tone={toneOf(i, 'high')} /></Tile>
@@ -122,9 +170,9 @@ function Sections({ d, base, office, venueFilter }) {
           {i.by_month.length > 1 && <Tile title="By month"><Columns items={i.by_month} /></Tile>}
           {many && i.by_venue.length > 1 && <Tile title="By venue"><HBars items={i.by_venue} /></Tile>}
         </div>
-      </Section>
+      </Part>
 
-      <Section title="Satisfaction">
+      <Part id="a-satisfaction" title="Satisfaction">
         <Bento>
           <Tile icon={MessageSquareHeart} title="Average rating"><Stat value={s.avg == null ? '–' : `${s.avg}★`} label={`${s.ratings} rating${s.ratings === 1 ? '' : 's'}`} hint={change(s, 'avg')} tone={toneOf(s, 'avg', 'up')} /></Tile>
           <Tile title="Praise" to={fb('praise')}><Stat value={s.praise} label="Compliments" hint={change(s, 'praise')} tone={toneOf(s, 'praise', 'up')} /></Tile>
@@ -136,9 +184,9 @@ function Sections({ d, base, office, venueFilter }) {
           <Tile title={office ? 'Highest rated officers' : 'Highest rated staff'}><HBars items={s.top} format={(v) => `${v}★`} empty="No ratings in this period" /></Tile>
           {office && s.bottom.length > 0 && <Tile title="Lowest rated officers"><HBars items={s.bottom} format={(v) => `${v}★`} tone="soft" /></Tile>}
         </div>
-      </Section>
+      </Part>
 
-      <Section title="Customers and staffing">
+      <Part id="a-customers" title="Customers and staffing">
         <Bento>
           <Tile icon={Users} title="Customers"><Stat value={c.total.toLocaleString('en-GB')} label={`${c.nights} night${c.nights === 1 ? '' : 's'} counted`} hint={change(c, 'total')} /></Tile>
           <Tile title="Per night"><Stat value={fig(c.avg_per_night)} label="Average customers" hint={change(c, 'avg_per_night')} /></Tile>
@@ -150,7 +198,7 @@ function Sections({ d, base, office, venueFilter }) {
           {c.nights > 0 && <Tile title="Average by weekday"><Columns items={c.by_weekday} /></Tile>}
           {c.nights > 0 && <Tile title="Busiest nights"><HBars items={c.busiest} /></Tile>}
         </div>
-      </Section>
+      </Part>
     </div>
   );
 }

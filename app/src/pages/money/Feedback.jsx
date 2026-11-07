@@ -1,19 +1,19 @@
 // Venue feedback: the office sees every venue it covers and replies; a venue sees its own feedback and the replies
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Globe, MessageSquareHeart, Plus, Reply, Star } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import {
-  Button, Empty, List, Load, Page, Pill, Segmented, Select, Sheet, Textarea, Toggle, cx, dayLabel, range, relative, useAction, useApi,
+  Button, Empty, FilterBar, List, Load, Page, Pill, Sheet, Textarea, Toggle, cx, dayLabel, range, relative, useAction, useApi, useUrlState,
 } from '../../ui/index.jsx';
 import { ABOUT, GiveFeedbackSheet, TONES } from '../venue/_feedback.jsx';
 import { useBase } from './_parts.jsx';
 
 const TONE_PILL = { praise: 'green', suggestion: 'blue', complaint: 'red' };
 const TONE_LABEL = Object.fromEntries(TONES.map((t) => [t.value, t.label]));
-const STATUS = [{ value: 'open', label: 'Open' }, { value: 'resolved', label: 'Resolved' }, { value: '', label: 'All' }];
+const STATUS = [{ value: 'open', label: 'Open' }, { value: 'resolved', label: 'Resolved' }, { value: 'all', label: 'All statuses' }];
 
 export function StarsShown({ n }) {
   if (!n) return null;
@@ -31,46 +31,56 @@ const aboutLine = (c) => (c.about === 'staff' ? c.officer_name || 'A member of s
 export default function Feedback() {
   const { user } = useAuth();
   const mgr = user.role !== 'venue';
+  const [give, setGive] = useState(false);
   return (
-    <Page title="Feedback" subtitle={mgr ? 'What venues tell us about staff, shifts and the service' : 'Your feedback to our office, and our replies'}>
-      <FeedbackList />
+    <Page title="Feedback" subtitle={mgr ? 'What venues tell us about staff, shifts and the service' : 'Your feedback to our office, and our replies'}
+      actions={[{ label: 'Give feedback', icon: Plus, main: true, onClick: () => setGive(true) }]}>
+      <FeedbackList give={give} onGive={setGive} />
     </Page>
   );
 }
 
-/** The feedback list with its filters and replies. With fixedVenue it shows one venue (its page's Feedback tab) and keeps filters local. */
-export function FeedbackList({ venueId, fixedVenue, onChanged }) {
+/** The feedback list with its filters and replies. With fixedVenue it shows one venue (its page's Feedback tab) and keeps filters local.
+    The Feedback page opens Give feedback from its header (give/onGive); elsewhere the list has its own button. */
+export function FeedbackList({ venueId, fixedVenue, onChanged, give: giveOpen, onGive }) {
   const { user } = useAuth();
   const mgr = user.role !== 'venue';
-  const [sp, setSp] = useSearchParams();
+  // Managers start on open feedback; status=all (or the older empty status=) shows everything
+  const [url, setUrl, clearUrl] = useUrlState({ venue: '', tone: '', about: '', status: mgr ? 'open' : '' });
   const [local, setLocal] = useState({ tone: '', about: '', status: '' });
   const shared = useVenue();
   const f = fixedVenue ? { venue_id: venueId, ...local }
-    : { venue_id: mgr ? sp.get('venue') || '' : shared.venueId, tone: sp.get('tone') || '', about: sp.get('about') || '', status: sp.get('status') ?? (mgr ? 'open' : '') };
+    : { venue_id: mgr ? url.venue : shared.venueId, tone: url.tone, about: url.about, status: url.status };
   const setF = (k, v) => {
     if (fixedVenue) return setLocal((s) => ({ ...s, [k]: v }));
-    if (!mgr && k === 'venue_id') return shared.setVenueId(v);
-    const n = new URLSearchParams(sp); n.set(k === 'venue_id' ? 'venue' : k, v); if (!v && k !== 'status') n.delete(k === 'venue_id' ? 'venue' : k); setSp(n, { replace: true });
+    if (k === 'venue_id') return mgr ? setUrl({ venue: v }) : shared.setVenueId(v);
+    setUrl({ [k]: v });
+  };
+  const clearF = () => {
+    if (fixedVenue) return setLocal({ tone: '', about: '', status: '' });
+    clearUrl();
+    if (!mgr && shared.venueId) shared.setVenueId('');
   };
   const opts = useApi('comments.options', {}, { skip: fixedVenue });
-  const q = useApi('comments.list', { venue_id: f.venue_id || null, tone: f.tone || null, about: f.about || null, status: f.status || null });
-  const [give, setGive] = useState(false);
+  const q = useApi('comments.list', { venue_id: f.venue_id || null, tone: f.tone || null, about: f.about || null, status: f.status === 'all' ? null : f.status || null });
+  const [ownGive, setOwnGive] = useState(false);
+  const give = onGive ? giveOpen : ownGive;
+  const setGive = onGive || setOwnGive;
   const [reply, setReply] = useState(null);
   const venues = opts.data?.venues || [];
   const reload = () => { q.reload(); onChanged?.(); };
+  const about = ABOUT.find((a) => a.value === f.about);
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <Segmented value={f.tone} onChange={(v) => setF('tone', v)} options={[{ value: '', label: 'All' }, ...TONES]} />
-        {mgr && <Segmented value={f.status} onChange={(v) => setF('status', v)} options={STATUS} />}
-        {!fixedVenue && venues.length > 1 && (
-          <Select className="w-full sm:w-56" aria-label="Venue" value={f.venue_id} onChange={(e) => setF('venue_id', e.target.value)} placeholder="All venues"
-            options={venues.map((v) => ({ value: v.id, label: v.name }))} />
-        )}
-        <Select className="w-full sm:w-44" aria-label="About" value={f.about} onChange={(e) => setF('about', e.target.value)} placeholder="About anything" options={ABOUT} />
-        <Button className="sm:ml-auto" icon={Plus} onClick={() => setGive(true)}>Give feedback</Button>
-      </div>
+      <FilterBar onChange={setF} onClear={clearF} filters={[
+        { key: 'tone', label: 'Type', value: f.tone, options: [{ value: '', label: 'All types' }, ...TONES] },
+        mgr && { key: 'status', label: 'Status', value: f.status || 'all', empty: fixedVenue ? 'all' : 'open', options: STATUS },
+        !fixedVenue && venues.length > 1 && { key: 'venue_id', label: 'Venue', value: f.venue_id || '', options: [{ value: '', label: 'All venues' }, ...venues.map((v) => ({ value: v.id, label: v.name }))] },
+        { key: 'about', label: 'About', value: f.about, options: [{ value: '', label: 'About anything' }, ...ABOUT], display: about && `About ${about.label.toLowerCase()}` },
+      ]}>
+        {!onGive && <Button icon={Plus} onClick={() => setGive(true)}>Give feedback</Button>}
+      </FilterBar>
       <Load q={q} skeleton="rows">
         {(rows) => (!rows.length ? (
           <Empty icon={MessageSquareHeart} title={mgr ? 'No feedback here' : 'No feedback yet'}

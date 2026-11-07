@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { ChevronDown, History, Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronDown, History } from 'lucide-react';
 import { WhatsNew } from './_whatsnew.jsx';
-import { Avatar, cx, dateTime, dayLabel, Empty, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Section, Segmented, Select, Tabs, time, titleCase, useApi } from '../../ui/index.jsx';
+import { Avatar, cx, dateTime, dayLabel, Empty, isoDate, List, Load, Page, Pill, Pressable, relative, SearchInput, Section, Segmented, Select, Tabs, time, titleCase, useApi, useUrlState } from '../../ui/index.jsx';
 
 const ENTITIES = ['officer', 'document', 'contract', 'hr_note', 'officer_rate', 'shift', 'assignment', 'cover_request', 'timesheet',
   'incident', 'venue', 'venue_rate', 'invoice', 'invoice_line', 'statement', 'statement_line', 'user', 'settings'];
@@ -13,12 +13,13 @@ const actionTone = (a = '') => (/delete|void|cancel|offboard|remove|dispute|cred
 const actionLabel = (a = '') => titleCase(a.replace(/[._]/g, ' '));
 
 export default function Audit() {
-  const [sp, setSp] = useSearchParams();
-  const tab = sp.get('tab') === 'new' ? 'new' : 'activity';
-  const setTab = (t) => setSp(t === 'activity' ? {} : { tab: t }, { replace: true });
-  const [entity, setEntity] = useState('');
-  const [limit, setLimit] = useState(200);
-  const [search, setSearch] = useState('');
+  // Tab, search, record type and how many to load all live in the address
+  const [url, setUrl] = useUrlState({ tab: 'activity', q: '', entity: '', limit: '200' });
+  const tab = url.tab === 'new' ? 'new' : 'activity';
+  const setTab = (t) => setUrl({ tab: t });
+  const entity = ENTITIES.includes(url.entity) ? url.entity : '';
+  const limit = url.limit === '500' ? 500 : 200;
+  const search = url.q;
   const q = useApi('audit.list', { entity: entity || undefined, limit }, { skip: tab !== 'activity' });
 
   const days = useMemo(() => {
@@ -38,12 +39,9 @@ export default function Audit() {
       <div className="mb-3"><Tabs value={tab} onChange={setTab} tabs={[{ value: 'activity', label: 'Activity' }, { value: 'new', label: 'What’s new' }]} /></div>
       {tab === 'new' ? <WhatsNew /> : <>
       <div className="mb-2 grid gap-3 sm:grid-cols-[1fr_220px_auto] sm:items-end">
-        <div className="relative">
-          <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-faint" />
-          <Input aria-label="Search" placeholder="Search action, person or detail" value={search} onChange={(e) => setSearch(e.target.value)} className="[&_input]:pl-10" />
-        </div>
-        <Select aria-label="Record type" value={entity} onChange={(e) => setEntity(e.target.value)} placeholder="All records" options={ENTITIES.map((e) => ({ value: e, label: titleCase(e.replace(/_/g, ' ')) }))} />
-        <Segmented value={limit} onChange={setLimit} options={[{ value: 200, label: 'Last 200' }, { value: 500, label: 'Last 500' }]} />
+        <SearchInput aria-label="Search" placeholder="Search action, person or detail" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
+        <Select aria-label="Record type" value={entity} onChange={(e) => setUrl({ entity: e.target.value })} placeholder="All records" options={ENTITIES.map((e) => ({ value: e, label: titleCase(e.replace(/_/g, ' ')) }))} />
+        <Segmented value={limit} onChange={(v) => setUrl({ limit: v })} options={[{ value: 200, label: 'Last 200' }, { value: 500, label: 'Last 500' }]} />
       </div>
       <Load q={q}>
         {() => (days.length ? days.map((d) => (

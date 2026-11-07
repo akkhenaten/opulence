@@ -1,7 +1,7 @@
 import {
   BarChart3, Banknote, ClipboardList, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
   Radio, ReceiptText, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText,
-  GraduationCap, BookOpenCheck, Crown, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck, MessageSquareHeart, LineChart, Siren,
+  GraduationCap, BookOpenCheck, Crown, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck, MessageSquareHeart, LineChart, Siren, Star,
 } from 'lucide-react';
 
 // Sidebar sections per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
@@ -16,6 +16,7 @@ export const NAV = {
     { title: 'Operations', items: [
       { to: '/company/live', label: 'Live operations', short: 'Live', icon: Radio, tab: true, badge: 'ops' },
       { to: '/company/rota', label: 'Rota', icon: CalendarDays, tab: true },
+      { to: '/company/exceptions', label: 'Exceptions', icon: TriangleAlert },
       { to: '/company/cover', label: 'Cover requests', icon: Megaphone },
       { to: '/company/timesheets', label: 'Timesheets', icon: ClipboardCheck },
       { to: '/company/incidents', label: 'Incidents', icon: ShieldAlert, tab: true },
@@ -37,6 +38,7 @@ export const NAV = {
       { to: '/company/clients', label: 'Clients', icon: Briefcase },
       { to: '/company/venues', label: 'Venues', icon: Building2 },
       { to: '/company/people/procedures', label: 'Site packs', icon: BookText },
+      { to: '/company/reviews', label: 'Reviews', icon: Star },
       { to: '/company/feedback', label: 'Feedback', icon: MessageSquareHeart },
     ] },
     { title: 'Finance', items: [
@@ -78,6 +80,7 @@ export const NAV = {
     { title: 'Sites', items: [
       { to: '/security/venues', label: 'Venues', icon: Building2 },
       { to: '/security/people/procedures', label: 'Site packs', icon: BookText },
+      { to: '/security/reviews', label: 'Reviews', icon: Star },
       { to: '/security/feedback', label: 'Feedback', icon: MessageSquareHeart },
       { to: '/security/analytics', label: 'Analytics', icon: LineChart, module: 'analytics' },
     ] },
