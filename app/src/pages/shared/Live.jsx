@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, Clock3, FileSignature, Lock, MapPin, Phone, QrCode, Radio, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
+import { ClipboardList, Clock3, FileSignature, Lock, MapPin, Phone, QrCode, Radio, RefreshCw, TriangleAlert } from 'lucide-react';
 import {
-  Avatar, Button, Empty, IconButton, Input, KV, List, Load, MoreMenu, Page, Pill, Row, Section, Sheet, Tabs, Textarea, cx, range, time, titleCase, useAction, useApi, useForm, useMedia, useToast, useUrlState,
+  Avatar, Button, Callout, Dot, Empty, IconButton, Input, KV, List, Load, MoreMenu, Page, Pill, Row, Sheet, Tabs, Textarea, cx, range, time, titleCase, useAction, useApi, useForm, useMedia, useToast, useUrlState,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useVenue } from '../../venue.jsx';
@@ -97,19 +97,29 @@ export default function Live() {
     { value: 'activity', label: 'Activity' },
     user.role === 'company' && { value: 'settings', label: 'Settings' },
   ];
+  const refreshBtn = (
+    <IconButton icon={RefreshCw} label={isManager ? 'Run Orb checks and refresh' : 'Refresh'} onClick={refresh} disabled={busy}
+      className={cx('bg-surface shadow-tile', busy && '[&>svg]:animate-spin')} />
+  );
+  const updatedAt = updated ? <>Updated <span className="num">{time(updated)}</span></> : 'Updates every 15 seconds';
   const board = <Load q={q}>{() => <Board rows={rows} shown={shown} filter={filter} setFilter={setFilter} onOpen={(r) => setOpenId(r.assignment_id)} base={base} venue={venue} narrow={isManager} />}</Load>;
   return (
     <Page title={venue ? 'On site' : 'Live operations'} wide
-      subtitle={<>{updated ? <>Updated <span className="num">{time(updated)}</span></> : 'Updates every 15 seconds'}{isManager && lastChecked && <> · Orb checked <span className="num">{time(lastChecked)}</span></>}</>}
-      actions={<>
-        <IconButton icon={RefreshCw} label={isManager ? 'Run Orb checks and refresh' : 'Refresh'} onClick={refresh} disabled={busy}
-          className={cx('bg-surface shadow-tile', busy && '[&>svg]:animate-spin')} />
-      </>}>
-      {isManager && <Tabs value={tab} onChange={(v) => setUrl({ tab: v })} tabs={tabs} />}
+      subtitle={isManager ? (lastChecked ? <>Orb checked <span className="num">{time(lastChecked)}</span></> : undefined) : updatedAt}
+      actions={isManager ? undefined : refreshBtn}>
+      {/* Managers: the tabs, then when the board last updated and the round arrows, on one row */}
+      {isManager && (
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1"><Tabs value={tab} onChange={(v) => setUrl({ tab: v })} tabs={tabs} /></div>
+          <div className="flex shrink-0 items-center gap-2 pt-1.5 text-footnote text-muted max-sm:hidden">{updatedAt}{refreshBtn}</div>
+        </div>
+      )}
+      {isManager && tab === 'board' && <div className="-mt-1 mb-3 flex items-center justify-end gap-2 text-footnote text-muted sm:hidden">{updatedAt}{refreshBtn}</div>}
       {tab === 'board' && (isManager && lg ? (
-        <div className="grid grid-cols-[minmax(0,1fr)_400px] gap-5">
+        <div className="grid min-h-[calc(100dvh-16rem)] grid-cols-[minmax(0,1fr)_360px] gap-6">
           <div className="min-w-0">{board}</div>
-          <OpsPanel n={n} reloadKey={reloadKey} onChange={count.reload} />
+          {/* Orb never sets the row's height: it takes the board's height (up to the window's) and scrolls inside */}
+          <div className="[contain:size]"><OpsPanel n={n} reloadKey={reloadKey} onChange={count.reload} /></div>
         </div>
       ) : board)}
       {tab === 'approve' && <Inbox compact reloadKey={reloadKey} onChange={count.reload} />}
@@ -125,19 +135,15 @@ export default function Live() {
 /** Orb beside the board on wide screens; on phones and tablets it has its own To approve tab. */
 function OpsPanel({ n, reloadKey, onChange }) {
   return (
-    <aside className="sticky top-4 self-start">
-      <div className="mb-3 flex items-center gap-2">
-        <Sparkles size={18} className="text-blue" />
-        <h2 className="text-headline font-bold">Orb</h2>
-        {n > 0 && <Pill tone="blue">{n} to approve</Pill>}
-      </div>
-      <Inbox compact reloadKey={reloadKey} onChange={onChange} />
+    <aside className="sticky top-[calc(56px+1rem)] flex h-full max-h-[calc(100dvh-7rem)] flex-col">
+      <Inbox slim compact n={n} reloadKey={reloadKey} onChange={onChange} />
     </aside>
   );
 }
 
 function Board({ rows, shown, filter, setFilter, onOpen, base, venue, narrow }) {
   const n = (k) => rows.filter(FILTERS[k]).length;
+  const exc = rows.filter((r) => r.has_exception).length;
   const groups = useMemo(() => {
     const m = new Map();
     for (const r of shown) {
@@ -149,7 +155,7 @@ function Board({ rows, shown, filter, setFilter, onOpen, base, venue, narrow }) 
   }, [shown]);
   const chip = (k, label, tone) => {
     const c = n(k);
-    return <Chip key={k} label={label} value={c} tone={c ? tone : 'grey'} active={filter === k} onClick={() => setFilter(filter === k ? 'all' : k)} />;
+    return <Chip key={k} label={label} value={c} tone={c ? tone : 'grey'} quiet={c === 0} active={filter === k} onClick={() => setFilter(filter === k ? 'all' : k)} />;
   };
 
   return (
@@ -168,20 +174,33 @@ function Board({ rows, shown, filter, setFilter, onOpen, base, venue, narrow }) 
       {!rows.length && <div className="mt-4"><Empty icon={Radio} title="Nobody due on site" body="Officers on published shifts from 2 hours ago to 12 hours ahead show here." /></div>}
       {rows.length > 0 && !shown.length && <div className="mt-4"><Empty title="Nobody in this view" action={<Button variant="secondary" onClick={() => setFilter('all')}>Show everyone</Button>} /></div>}
 
-      <div className={cx('grid grid-cols-1 gap-x-5', narrow ? 'xl:grid-cols-2' : 'lg:grid-cols-2')}>
+      {exc > 0 && base !== '/venue' && (
+        <Callout tone="warning" className="mb-4" title={`${exc} flagged clock-in${exc === 1 ? '' : 's'}`}
+          action={<Link to={`${base}/exceptions`} className="font-semibold text-blue">Review in Exceptions →</Link>}>
+          A location, venue code or selfie check didn't pass. Approve or reject each one there.
+        </Callout>
+      )}
+
+      {/* One card per venue: its name, who's on site and the shift card on top, then the officers */}
+      <div className={cx('grid grid-cols-1 items-start gap-x-5 gap-y-4', narrow ? '2xl:grid-cols-2' : 'lg:grid-cols-2')}>
         {groups.map(([id, g]) => {
           const on = g.rows.filter((r) => ON.includes(r.state)).length;
           return (
-            <Section key={id} title={g.name} action={
-              <div className="flex flex-wrap items-center justify-end gap-1.5">
-                {g.shifts.map((r) => (
-                  <Button key={r.shift_id} size="sm" variant="soft" icon={ClipboardList} to={shiftCard(base, r.shift_id)} state={{ from: 'live' }}>
-                    Shift card{g.shifts.length > 1 && <span className="num">&nbsp;{range(r.starts_at, r.ends_at)}</span>}
-                  </Button>
-                ))}
-                <span className="num text-footnote font-semibold text-muted">{on} on site</span>
-              </div>}>
+            <section key={id} aria-label={g.name}>
               <List>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+                  <div className="min-w-0 flex-auto sm:flex sm:items-center sm:gap-3">
+                    <h2 className="truncate text-headline font-bold">{g.name}</h2>
+                    <span className="inline-flex shrink-0 items-center gap-1.5 text-footnote font-semibold text-muted"><Dot tone={on ? 'green' : 'grey'} live={on > 0} /><span className="num">{on}</span> on site</span>
+                  </div>
+                  <div className="ml-auto flex shrink-0 flex-col items-end gap-1.5 sm:flex-row sm:flex-wrap sm:justify-end">
+                    {g.shifts.map((r) => (
+                      <Button key={r.shift_id} size="sm" variant="soft" icon={ClipboardList} to={shiftCard(base, r.shift_id)} state={{ from: 'live' }}>
+                        Shift card{g.shifts.length > 1 && <span className="num">&nbsp;{range(r.starts_at, r.ends_at)}</span>}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
                 {g.rows.map((r) => (
                   <Row key={r.assignment_id}
                     onClick={onOpen ? () => onOpen(r) : undefined}
@@ -198,13 +217,10 @@ function Board({ rows, shown, filter, setFilter, onOpen, base, venue, narrow }) 
                     } />
                 ))}
               </List>
-            </Section>
+            </section>
           );
         })}
       </div>
-      {base !== '/venue' && rows.some((r) => r.has_exception) && (
-        <p className="mt-4 text-center text-footnote text-muted">Review flagged clock-ins in <Link to={`${base}/exceptions`} className="font-semibold text-blue">Exceptions</Link>.</p>
-      )}
     </>
   );
 }

@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-07', icon: Radio, title: 'Live operations, laid out better', image: 'live-ops-layout',
+    lede: "On a computer, Live operations now gives the board the full width it needs, one card per venue, with Orb beside it in its own scrolling column. Orb cards that need a fix by hand, like a missing logo, take you straight to where you fix it.",
+    points: ['Each venue is one card: its name, how many are on site and the Shift card button along the top, then the officers', 'Orb scrolls on its own beside the board, so the page stays the same length however many cards are waiting; Decided and Select several are under its three dots', "Cards with nothing for Orb to apply show Open Setup (or the officer's profile) and Dismiss, and clear by themselves once the detail is added", 'Flagged clock-ins show as a banner at the top with a link to Exceptions', 'Filters with nobody in them step back, so the ones that matter stand out', 'Updated time and the refresh button sit beside the tabs'],
+  },
+  {
     month: 'November 2026', date: '2026-11-07', icon: Smartphone, title: 'A tidier top bar on phones', image: 'phone-top-bar',
     lede: "On phones, when you scroll down a page its title moves into the black bar at the top. The logo now steps aside for it, so the two no longer sit on top of each other. Pay runs also names your pay period properly.",
     points: ['The page title in the top bar no longer overlaps the logo when you scroll', 'The logo comes back as soon as you scroll to the top', 'Pay runs says which pay period it uses (weekly unless you chose otherwise in Settings) instead of "undefined"'],

@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { buildIssues, cardTitle, clampRadius, defaultActions, missing, toRaise } from '../lib/venueSetup.mjs';
+import { buildIssues, cardReason, cardTitle, clampRadius, defaultActions, missing, toRaise } from '../lib/venueSetup.mjs';
 
 const full = { name: 'The Crown', address: '1 High St', postcode: 'SW1A 1AA', lat: 51.5, lng: -0.1, logo_url: '/logo.png', radius_m: 150, radius_confirmed_at: new Date() };
 const keys = (v) => missing(v).map((m) => m.key);
@@ -56,4 +56,14 @@ test('bulk decisions take one kind at a time and use the default choices', () =>
   assert.match(src, /'ops\.decideMany'/);
   assert.match(src, /Pick cards of one kind/);
   assert.match(src, /venue_setup: decideVenueSetup/);
+});
+
+test('a card with nothing to apply asks for a hand fix, not a tick', () => {
+  const noLogo = { ...full, logo_url: null };
+  const manual = cardReason(buildIssues(noLogo, missing(noLogo), {}));
+  assert.doesNotMatch(manual, /Tick/);
+  assert.match(manual, /adding by hand in Site setup/);
+  assert.match(manual, /clears by itself/);
+  const found = cardReason(buildIssues(noLogo, missing(noLogo), { logos: [{ url: 'https://crown.example/logo.png' }] }));
+  assert.match(found, /Tick what to apply/);
 });

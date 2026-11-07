@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Ban, Check, ClipboardList, ListChecks, MapPin, Pencil, Sparkles, Star, X } from 'lucide-react';
+import { ArrowLeft, Ban, Check, ClipboardList, History, ListChecks, MapPin, Pencil, Sparkles, Star, User, X } from 'lucide-react';
 import {
-  ActionBar, Button, Callout, cx, dateTime, dayLabel, Empty, hours, Input, Load, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
+  ActionBar, Button, Callout, cx, MoreMenu, dateTime, dayLabel, Empty, hours, Input, Load, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
@@ -21,8 +21,11 @@ const ITEM_STATUS = { approved: 'Offers sent', done: 'Done', rejected: 'Rejected
 
 /* ---------- Inbox ---------- */
 
-/** Orb cards to approve. compact = one column, for the panel beside the Live board. */
-export function Inbox({ onChange, compact, reloadKey }) {
+/**
+ * Orb cards to approve. compact = one column, for the panel beside the Live board.
+ * slim = the panel itself: Orb's own header with a … menu (Decided, Select several), and the cards scroll on their own.
+ */
+export function Inbox({ onChange, compact, slim, n, reloadKey }) {
   const [view, setView] = useState('pending');
   const q = useApi('ops.inbox', { status: view }, { poll: 30000 });
   const reload = () => { q.reload(); onChange?.(); };
@@ -54,14 +57,32 @@ export function Inbox({ onChange, compact, reloadKey }) {
     });
     if (ok) many('approve');
   };
-  return (
-    <>
+  const switchView = (v) => { setView(v); stop(); };
+  const header = slim ? (
+    <div className="mb-3 flex shrink-0 items-center gap-2">
+      <Sparkles size={18} className="text-blue" />
+      <h2 className="text-headline font-bold">Orb</h2>
+      {view === 'pending' && n > 0 && <Pill tone="blue">{n} to approve</Pill>}
+      {view === 'decided' && <span className="text-footnote font-semibold text-muted">Decided</span>}
+      <div className="ml-auto flex items-center gap-1">
+        {view === 'decided' && <Button size="sm" variant="ghost" icon={ArrowLeft} onClick={() => switchView('pending')}>To approve</Button>}
+        {selecting && <Button size="sm" variant="secondary" icon={X} onClick={stop}>Done</Button>}
+        <MoreMenu label="Orb options" items={[
+          view === 'pending' ? { label: 'Decided cards', icon: History, onClick: () => switchView('decided') } : { label: 'To approve', icon: Sparkles, onClick: () => switchView('pending') },
+          view === 'pending' && kinds.length > 0 && (selecting ? { label: 'Stop selecting', icon: X, onClick: stop } : { label: 'Select several', icon: ListChecks, onClick: () => setSelecting(true) }),
+        ]} />
+      </div>
+    </div>
+  ) : (
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Segmented value={view} onChange={(v) => { setView(v); stop(); }} options={[{ value: 'pending', label: 'To approve' }, { value: 'decided', label: 'Decided' }]} />
         {view === 'pending' && kinds.length > 0 && (
           <Button size="sm" variant={selecting ? 'secondary' : 'ghost'} icon={selecting ? X : ListChecks} onClick={() => (selecting ? stop() : setSelecting(true))}>{selecting ? 'Done' : 'Select'}</Button>
         )}
       </div>
+  );
+  const body = (
+    <>
       {selecting && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="text-footnote text-muted">{kind ? `${KIND[kind].label} cards only` : 'Pick cards of one kind, or all of:'}</span>
@@ -72,13 +93,21 @@ export function Inbox({ onChange, compact, reloadKey }) {
       )}
       <Load q={q}>{(rows) => (rows.length ? (
         <div className={compact ? 'space-y-3' : 'grid grid-cols-1 gap-3 lg:grid-cols-2'}>
-          {rows.map((it) => <ItemCard key={it.id} it={it} onDone={reload}
+          {rows.map((it) => <ItemCard key={it.id} it={it} onDone={reload} compact={compact}
             select={selecting ? { on: sel.includes(it.id), can: !kind || kind === it.kind, toggle: () => toggle(it) } : null} />)}
         </div>
       ) : (
         <Empty icon={Sparkles} title={view === 'pending' ? 'All clear' : 'Nothing decided yet'}
           body={view === 'pending' ? 'Orb checks every 5 minutes for no-shows, gaps on the rota, venue requests, feedback, hours that don\'t match and venues missing an address, map pin, logo or clock-in radius.' : undefined} />
       ))}</Load>
+    </>
+  );
+  return (
+    <>
+      {header}
+      {slim ? (
+        <div className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-4 [mask-image:linear-gradient(to_bottom,#000_calc(100%-24px),transparent)]">{body}</div>
+      ) : body}
       <ActionBar show={selecting && chosen.length > 0}>
         <span className="num mr-2 text-subhead font-semibold">{chosen.length} selected</span>
         <Button variant="secondary" size="sm" className="max-sm:hidden" onClick={() => setSel([])}>Clear</Button>
@@ -90,8 +119,9 @@ export function Inbox({ onChange, compact, reloadKey }) {
   );
 }
 
-function ItemCard({ it, onDone, select }) {
-  const { user } = useBase();
+function ItemCard({ it, onDone, select, compact }) {
+  const { base, user } = useBase();
+  const [more, setMore] = useState(false);
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const [edit, setEdit] = useState(false);
@@ -103,6 +133,14 @@ function ItemCard({ it, onDone, select }) {
   const allowed = (a) => !a.company_only || user.role === 'company';
   const [picked, setPicked] = useState(() => new Set((p.issues || []).flatMap((i) => i.actions.filter((a) => a.default && allowed(a)).map((a) => a.id))));
   const [radius, setRadius] = useState(() => (p.issues || []).find((i) => i.key === 'radius')?.actions[0]?.params.radius_m || 150);
+  // Nothing Orb can apply (say, no logo it could find): the card points to where to fix it by hand, and clears by itself once done
+  const manual = ISSUE_CARDS.includes(it.kind) && !(p.issues || []).some((i) => i.actions.some(allowed));
+  const reason = pending && manual
+    ? (it.kind === 'venue_setup' ? 'Add it by hand in Site setup, then this card clears by itself.' : 'Fix it on their profile, then this card clears by itself.')
+    : it.reason;
+  const fixAt = it.kind === 'venue_setup' ? it.venue_id && { to: `${base}/venues/${it.venue_id}?tab=setup`, icon: MapPin, label: 'Open Setup' }
+    : p.officer_id && { to: `${base}/staff/${p.officer_id}`, icon: User, label: `Open ${p.officer_name || 'profile'}` };
+  const size = compact ? 'sm' : undefined;
 
   const decide = (decision, extra = {}) => run(async () => {
     await api('ops.decide', { id: it.id, decision, ...extra });
@@ -132,17 +170,18 @@ function ItemCard({ it, onDone, select }) {
         )}
         <Pill tone={k.tone}>{k.label}</Pill>
         {ISSUE_CARDS.includes(it.kind) && SEVERITY[p.severity] && <Pill tone={SEVERITY[p.severity].tone}>{SEVERITY[p.severity].label}</Pill>}
-        {it.venue_name && <span className="truncate text-footnote font-semibold text-muted">{it.venue_name}</span>}
+        {it.venue_name && !it.title?.startsWith(it.venue_name) && <span className="truncate text-footnote font-semibold text-muted">{it.venue_name}</span>}
         <span className="ml-auto text-caption text-faint">{relative(it.created_at)}</span>
       </div>
       <div className="text-headline font-bold leading-snug">{it.title}</div>
-      <p className="mt-1 text-subhead leading-relaxed text-muted">{it.reason}</p>
+      {reason && <p className={cx('mt-1 text-subhead leading-relaxed text-muted', compact && !more && 'line-clamp-2')}>{reason}</p>}
+      {compact && !more && reason?.length > 110 && <Pressable press onClick={() => setMore(true)} className="inline-block self-start text-footnote font-semibold text-blue hover:underline">More</Pressable>}
 
       <div className="mt-3 flex-1">
         {it.kind === 'cover' && <CoverBody it={it} />}
         {it.kind === 'venue_request' && <RequestBody it={it} />}
         {it.kind === 'reconcile' && <ReconcileBody p={p} />}
-        {ISSUE_CARDS.includes(it.kind) && <ComplianceBody it={it} pending={pending} picked={picked} setPicked={setPicked} allowed={allowed} onChanged={onDone} radius={radius} setRadius={setRadius} />}
+        {ISSUE_CARDS.includes(it.kind) && <ComplianceBody it={it} pending={pending} manual={manual} picked={picked} setPicked={setPicked} allowed={allowed} onChanged={onDone} radius={radius} setRadius={setRadius} />}
         {it.kind === 'feedback' && p.rating && <div className="flex items-center gap-1 text-amber">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={18} fill={n <= p.rating ? 'currentColor' : 'none'} />)}<span className="ml-2 text-footnote text-muted">{p.shift}</span></div>}
         {it.kind === 'feedback' && p.comment_id && (
           <div className="mt-2 space-y-1">
@@ -152,11 +191,16 @@ function ItemCard({ it, onDone, select }) {
         )}
       </div>
 
-      {pending && select ? null : pending ? (
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button icon={Check} busy={busy} onClick={approve} disabled={(it.kind === 'cover' && !(p.officer_ids || []).length) || (ISSUE_CARDS.includes(it.kind) && !picked.size)}>{approveLabel}</Button>
-          {['cover', 'venue_request'].includes(it.kind) && <Button variant="secondary" icon={Pencil} onClick={() => setEdit(true)}>Edit</Button>}
-          <Button variant="ghost" icon={X} onClick={() => setRejecting(true)}>Reject</Button>
+      {pending && select ? null : pending && manual ? (
+        <div className={cx('flex flex-wrap gap-2', compact ? 'mt-3' : 'mt-4')}>
+          {fixAt && <Button size={size} icon={fixAt.icon} to={fixAt.to}>{fixAt.label}</Button>}
+          <Button size={size} variant="ghost" icon={X} onClick={() => setRejecting(true)}>Dismiss</Button>
+        </div>
+      ) : pending ? (
+        <div className={cx('flex flex-wrap gap-2', compact ? 'mt-3' : 'mt-4')}>
+          <Button size={size} icon={Check} busy={busy} onClick={approve} disabled={(it.kind === 'cover' && !(p.officer_ids || []).length) || (ISSUE_CARDS.includes(it.kind) && !picked.size)}>{approveLabel}</Button>
+          {['cover', 'venue_request'].includes(it.kind) && <Button size={size} variant="secondary" icon={Pencil} onClick={() => setEdit(true)}>Edit</Button>}
+          <Button size={size} variant="ghost" icon={X} onClick={() => setRejecting(true)}>Reject</Button>
         </div>
       ) : (
         <div className="mt-3 flex flex-wrap items-center gap-2 text-footnote text-muted">
@@ -167,7 +211,7 @@ function ItemCard({ it, onDone, select }) {
 
       {edit && it.kind === 'cover' && <CoverEdit it={it} busy={busy} onClose={() => setEdit(false)} onSave={(ids) => decide('approve', { edits: { officer_ids: ids } })} />}
       {edit && it.kind === 'venue_request' && <RequestEdit it={it} busy={busy} onClose={() => setEdit(false)} onSave={(shifts) => decide('approve', { edits: { shifts } })} />}
-      <RejectSheet open={rejecting} busy={busy} venue={it.kind === 'venue_request' && p.request_id} setup={it.kind === 'venue_setup'} onClose={() => setRejecting(false)} onReject={(reason) => decide('reject', { reason })} />
+      <RejectSheet open={rejecting} busy={busy} dismiss={manual} venue={it.kind === 'venue_request' && p.request_id} setup={it.kind === 'venue_setup'} onClose={() => setRejecting(false)} onReject={(reason) => decide('reject', { reason })} />
     </Tile>
   );
 }
@@ -286,7 +330,7 @@ function ReconcileBody({ p }) {
   );
 }
 
-function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged, radius, setRadius }) {
+function ComplianceBody({ it, pending, manual, picked, setPicked, allowed, onChanged, radius, setRadius }) {
   const { base } = useBase();
   const p = it.payload || {};
   const [dismiss, setDismiss] = useState(null);
@@ -301,8 +345,8 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged, ra
     .then(() => { setDismiss(null); setReason(''); onChanged(); }).catch(() => {});
   return (
     <div className="space-y-2">
-      {p.officer_id && <Button size="sm" variant="soft" to={`${base}/staff/${p.officer_id}`}>Open {p.officer_name}</Button>}
-      {venue && it.venue_id && <Button size="sm" variant="soft" icon={MapPin} to={`${base}/venues/${it.venue_id}?tab=setup`}>Open Setup</Button>}
+      {!(pending && manual) && p.officer_id && <Button size="sm" variant="soft" to={`${base}/staff/${p.officer_id}`}>Open {p.officer_name}</Button>}
+      {!(pending && manual) && venue && it.venue_id && <Button size="sm" variant="soft" icon={MapPin} to={`${base}/venues/${it.venue_id}?tab=setup`}>Open Setup</Button>}
       {(p.issues || []).map((i) => {
         const folded = venue && !shown.has(i.key);
         const acts = i.actions.filter(allowed);
@@ -320,7 +364,7 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged, ra
                 </button>
               )}
             </div>
-            {pending && <Pressable press onClick={() => setDismiss(i)} className="shrink-0 -my-2 rounded-lg px-2 py-2.5 text-caption font-semibold text-muted hover:bg-bg">Dismiss</Pressable>}
+            {pending && !(manual && p.issues.length === 1) && <Pressable press onClick={() => setDismiss(i)} className="shrink-0 -my-2 rounded-lg px-2 py-2.5 text-caption font-semibold text-muted hover:bg-bg">Dismiss</Pressable>}
           </div>
           {pending && !folded && acts.length > 0 && (
             <div className="mt-2 space-y-1 pl-4">
@@ -359,9 +403,9 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged, ra
   );
 }
 
-function RejectSheet({ open, busy, venue, setup, many, onClose, onReject }) {
+function RejectSheet({ open, busy, venue, setup, many, dismiss, onClose, onReject }) {
   const [reason, setReason] = useState('');
-  const label = many ? `Decline ${many}` : 'Reject';
+  const label = many ? `Decline ${many}` : dismiss ? 'Dismiss' : 'Reject';
   return (
     <Sheet open={open} onClose={onClose} title={label} size="sm" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant="danger" busy={busy} onClick={() => onReject(reason)}>{label}</Button></>}>
       {(many > 0 || setup) && <p className="mb-3 text-subhead text-muted">{[many > 0 && 'The same reason is kept on each card.', setup && "Orb won't ask about these details again unless they change."].filter(Boolean).join(' ')}</p>}

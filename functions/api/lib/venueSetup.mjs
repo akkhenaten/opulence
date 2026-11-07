@@ -81,7 +81,7 @@ export function cardReason(issues) {
   const found = issues.filter((i) => i.actions.some((a) => a.kind !== 'radius')).length;
   const lost = issues.filter((i) => ['address', 'pin', 'logo'].includes(i.key) && !i.actions.some((a) => a.kind !== 'website')).length;
   return [found && `Orb found ${found === 1 ? 'what is missing' : 'most of what is missing'} and has it ready to save.`, lost && `${lost === 1 ? 'One detail needs' : `${lost} details need`} adding by hand in Site setup.`,
-    'Tick what to apply. Nothing is saved until you approve.'].filter(Boolean).join(' ');
+    issues.some((i) => i.actions.length) ? 'Tick what to apply. Nothing is saved until you approve.' : 'Then this card clears by itself.'].filter(Boolean).join(' ');
 }
 
 /** The default choices, as bulk approve uses them: ticked by default and allowed for this role. */

@@ -999,13 +999,15 @@ export function Progress({ value, max, done, total, count, className }) {
 }
 
 // Summary chip with a count; tappable when onClick is set
-export function Chip({ label, value, tone = 'grey', active, onClick }) {
+// quiet: a count of zero, kept in place but stepped back so the row doesn't shift as counts change
+export function Chip({ label, value, tone = 'grey', active, onClick, quiet }) {
   const tones = { grey: 'bg-surface text-ink', green: 'bg-green-soft text-green', amber: 'bg-amber-soft text-amber', red: 'bg-red-soft text-red', blue: 'bg-blue-soft text-blue' };
   const Tag = onClick ? 'button' : 'div';
+  const hush = quiet && !active;
   return (
     <Tag type={onClick ? 'button' : undefined} onClick={onClick} aria-pressed={onClick ? !!active : undefined}
-      className={cx('relative inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-footnote font-semibold shadow-tile', onClick && 'before:absolute before:inset-x-0 before:-inset-y-1',
-        tones[tone], active ? 'border-blue ring-2 ring-blue/15' : 'border-hairline', onClick && 'pressable focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue')}>
+      className={cx('relative inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-footnote font-semibold', !hush && 'shadow-tile', onClick && 'before:absolute before:inset-x-0 before:-inset-y-1',
+        hush ? 'bg-transparent text-faint' : tones[tone], active ? 'border-blue ring-2 ring-blue/15' : 'border-hairline', onClick && 'pressable focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue')}>
       <span className="num text-body font-bold">{value}</span>{label}
     </Tag>
   );
