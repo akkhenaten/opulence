@@ -7,7 +7,7 @@ import { venueScope, assertVenue } from '../lib/scope.mjs';
 import { audit } from '../lib/audit.mjs';
 import { lookUpAddress, lookUpLogos, postcodePin, keepLogoFromWeb } from '../lib/venueLookup.mjs';
 import { webUrl } from '../lib/siteVenues.mjs';
-import { buildIssues, cardReason, cardTitle, clampRadius, defaultActions, toRaise } from '../lib/venueSetup.mjs';
+import { buildIssues, cardReason, cardTitle, clampRadius, defaultActions, notApplied, toRaise } from '../lib/venueSetup.mjs';
 import { createItem, logActivity } from './ops.mjs';
 import { setLogo } from './venues.mjs';
 import { MGR, def } from './_def.mjs';
@@ -15,6 +15,7 @@ import { MGR, def } from './_def.mjs';
 const KEYS_SIG = (keys) => keys.map((k) => `${k.key}:${k.sig}`).join('|');
 // Web lookups per run: the rest wait for the next run (every 5 minutes), so a first run never stalls the jobs
 const LOOKUPS_PER_RUN = 3;
+const WEB_KEYS = ['address', 'pin', 'logo'];
 
 async function findFor(v, keys) {
   const has = (k) => keys.some((m) => m.key === k);
@@ -47,8 +48,10 @@ export async function runVenueSetup({ venueIds = null, lookups = LOOKUPS_PER_RUN
     const keysSig = KEYS_SIG(keys);
     if (card) keep.add(card.id);
     if (card && card.payload.keys_sig === keysSig) continue;
-    if (left <= 0) continue;
-    left -= 1;
+    // Only a web lookup uses up the run's allowance; a radius-only refresh always goes through
+    const web = keys.some((k) => WEB_KEYS.includes(k.key));
+    if (web && left <= 0) continue;
+    if (web) left -= 1;
     const issues = buildIssues(v, keys, await findFor(v, keys), { soon: v.soon });
     const payload = { venue_id: v.id, venue_name: v.name, severity: issues[0].severity, issues, keys_sig: keysSig, logo_preview: issues.find((i) => i.key === 'logo')?.actions[0]?.params.url || null };
     if (card) {
@@ -59,9 +62,9 @@ export async function runVenueSetup({ venueIds = null, lookups = LOOKUPS_PER_RUN
       if (it) { keep.add(it.id); created++; }
     }
   }
-  // Cards whose venue is now complete (or inactive) close by themselves
+  // Cards whose venue is now complete (or inactive) close by themselves, freeing the dedupe key for a real new gap later
   const cleared = open.filter((c) => !keep.has(c.id));
-  for (const c of cleared) await q("UPDATE ops_items SET status = 'done', decided_at = now(), result = $2 WHERE id = $1 AND status = 'pending'", [c.id, { auto_closed: true }]);
+  for (const c of cleared) await q("UPDATE ops_items SET status = 'done', decided_at = now(), result = $2, dedupe = NULL WHERE id = $1 AND status = 'pending'", [c.id, { auto_closed: true }]);
   await withdraw({ items: cleared.map((c) => c.id) });
   return { checked: venues.length, created, updated, cleared: cleared.length, waiting: venues.length && left <= 0 ? 'more next run' : undefined };
 }
@@ -76,9 +79,11 @@ export async function decideVenueSetup(it, b, user) {
   const v = need(await one('SELECT * FROM venues WHERE id = $1', [it.venue_id]), 'Venue not found');
   const done = [];
   const skipped = [];
+  const doneIds = [];
   const f = {};
   for (const a of picked) {
     const p = a.params;
+    doneIds.push(a.id);
     if (a.kind === 'address') {
       if (String(v.address || '').trim() && String(v.postcode || '').trim()) { skipped.push('The address was already filled in'); continue; }
       f.address = p.address || v.address || '';
@@ -100,7 +105,7 @@ export async function decideVenueSetup(it, b, user) {
     } else if (a.kind === 'logo') {
       if (v.logo_url) { skipped.push('A logo was already set'); continue; }
       const logo = await keepLogoFromWeb(p.url).catch(() => null);
-      if (!logo) { skipped.push("The logo couldn't be copied from their website; upload one in Site setup"); continue; }
+      if (!logo) { skipped.push("The logo couldn't be copied from their website; upload one in Site setup"); doneIds.pop(); continue; }
       await setLogo(user, v.id, logo, { from: String(p.url).slice(0, 300), via: 'orb' });
       done.push('Saved the logo');
     }
@@ -110,6 +115,9 @@ export async function decideVenueSetup(it, b, user) {
     await audit(user, 'venue.update', 'venue', v.id, { ...f, via: 'orb' });
   }
   if (!done.length) fail(409, skipped.join('. ') || 'Nothing left to apply');
+  // What wasn't applied (unticked, nothing to apply, or the logo couldn't be copied) stays quiet until those details change
+  const rest = notApplied(issues, doneIds);
+  if (rest.length) await dismissVenueIssues(it, rest, user, 'Not applied when the card was approved');
   return { done, skipped };
 }
 
@@ -137,7 +145,7 @@ export const actions = {
       await q('UPDATE ops_items SET payload = $2, title = $3, reason = $4 WHERE id = $1',
         [it.id, { ...it.payload, issues: rest, severity: rest[0].severity, keys_sig: null }, cardTitle({ name: it.payload.venue_name }, rest), cardReason(rest)]);
     } else {
-      await q("UPDATE ops_items SET status = 'rejected', decided_by = $2, decided_at = now(), result = $3 WHERE id = $1", [it.id, user.id, { dismissed: true, reason: b.reason || '' }]);
+      await q("UPDATE ops_items SET status = 'rejected', decided_by = $2, decided_at = now(), result = $3, dedupe = NULL WHERE id = $1", [it.id, user.id, { dismissed: true, reason: b.reason || '' }]);
       await withdraw({ items: [it.id] });
     }
     await audit(user, 'venue_setup.dismiss', 'venue', it.venue_id, { key: issue.key, reason: b.reason || '' });

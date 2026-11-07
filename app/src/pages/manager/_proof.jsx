@@ -26,7 +26,7 @@ export function ProofFlags({ e }) {
     <>
       {(e.kind === 'in' || e.kind === 'out') && e.device_ok != null && (
         <Flag ok={e.device_ok} tone={fl.includes('new_phone') ? 'bg-amber-soft text-amber' : undefined} icon={Smartphone}>
-          {e.device_ok ? 'Phone ok' : fl.includes('new_phone') ? 'New phone, not approved' : 'Phone not checked'}
+          {e.device_ok ? 'Phone ok' : fl.includes('new_phone') ? 'New phone, not approved' : fl.includes('phone_skipped') ? 'Phone skipped' : fl.includes('phone_unrecognised') ? 'Phone not recognised' : 'Phone not verified'}
         </Flag>
       )}
       {(e.kind === 'in' || e.kind === 'out') && (

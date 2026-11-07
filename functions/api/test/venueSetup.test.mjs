@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { buildIssues, cardReason, cardTitle, clampRadius, defaultActions, missing, toRaise } from '../lib/venueSetup.mjs';
+import { buildIssues, cardReason, cardTitle, clampRadius, defaultActions, missing, notApplied, toRaise } from '../lib/venueSetup.mjs';
 
 const full = { name: 'The Crown', address: '1 High St', postcode: 'SW1A 1AA', lat: 51.5, lng: -0.1, logo_url: '/logo.png', radius_m: 150, radius_confirmed_at: new Date() };
 const keys = (v) => missing(v).map((m) => m.key);
@@ -66,4 +66,14 @@ test('a card with nothing to apply asks for a hand fix, not a tick', () => {
   assert.match(manual, /clears by itself/);
   const found = cardReason(buildIssues(noLogo, missing(noLogo), { logos: [{ url: 'https://crown.example/logo.png' }] }));
   assert.match(found, /Tick what to apply/);
+});
+
+test('approving part of a card dismisses the rest, so "No logo" does not come straight back', () => {
+  const gaps = { ...full, logo_url: null, radius_confirmed_at: null };
+  const issues = buildIssues(gaps, missing(gaps), {});
+  const radius = issues.find((i) => i.key === 'radius').actions[0].id;
+  assert.deepEqual(notApplied(issues, [radius]), ['logo']);
+  const left = toRaise(gaps, notApplied(issues, [radius]).map((k) => ({ issue_key: k, sig: issues.find((i) => i.key === k).sig })));
+  assert.deepEqual(left.map((m) => m.key), ['radius']);
+  assert.deepEqual(notApplied(issues, issues.flatMap((i) => i.actions.map((a) => a.id))), ['logo']);
 });

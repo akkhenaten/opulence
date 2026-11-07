@@ -16,3 +16,17 @@ test('displayName and officerDisplay use goes_by, else the full name', () => {
   assert.equal(displayName({ goes_by: 'Annie', name: 'Ann Lee' }), 'Annie');
   assert.equal(displayName(null), '');
 });
+
+test('nameMatches ignores capitals, accents, punctuation, spacing and middle names', async () => {
+  const { nameMatches } = await import('../lib/names.mjs');
+  const yes = [
+    ['JOHN SCOTT', 'John', 'Scott'], ['john scott', 'John', 'SCOTT'], ['JOSE GARCIA', 'José', 'García'],
+    ['SEAN OBRIEN', 'Seán', "O'Brien"], ['AMY MCDONALD', 'Amy', 'Mc Donald'], ['AMY MC DONALD', 'Amy', 'McDonald'],
+    ['ANN SMITH JONES', 'Ann', 'Smith-Jones'], ['ONYEKA CHIDI GODDEY', 'Onyeka', 'Goddey'], ['GODDEY ONYEKA', 'Onyeka', 'Goddey'],
+    ['JOHN SCOTT', '', 'Scott'], ['', 'John', 'Scott'], ['JOHN SCOTT', '', ''], ['MARY-JANE SCOTT', 'Mary Jane', 'Scott'],
+  ];
+  for (const [p, f, l] of yes) assert.ok(nameMatches(p, f, l), `${p} vs ${f} ${l}`);
+  assert.ok(!nameMatches('SAMUEL OKAFOR', 'Sam', 'Okafor'));
+  assert.ok(!nameMatches('JOHN SMITH', 'John', 'Scott'));
+  assert.ok(!nameMatches('KATHLEEN BROWN', 'Kathleen', 'Lee'));
+});

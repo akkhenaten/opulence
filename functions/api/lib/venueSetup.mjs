@@ -88,3 +88,6 @@ export function cardReason(issues) {
 export const defaultActions = (issues, role) => issues.flatMap((i) => i.actions.filter((a) => a.default && (!a.company_only || role === 'company')).map((a) => a.id));
 
 export const clampRadius = (r) => Math.max(25, Math.min(1000, Math.round(Number(r) || RADIUS_DEFAULT)));
+
+/** Issues on an approved card that nothing was applied for: they count as dismissed, so they don't come straight back. */
+export const notApplied = (issues, doneIds) => issues.filter((i) => !i.actions.some((a) => doneIds.includes(a.id))).map((i) => i.key);

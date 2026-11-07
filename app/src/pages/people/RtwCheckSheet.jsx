@@ -6,9 +6,9 @@ import { Copy, ExternalLink, FileText, Loader2 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { Button, Callout, date, Input, Segmented, Sheet, Toggle, useAction, useToast } from '../../ui/index.jsx';
 import { FilePick } from '../public/Apply.jsx';
+import { nameMatches } from '../../lib/names.js';
 
 const GOV_CHECK_URL = 'https://www.gov.uk/view-right-to-work';
-const words = (s) => String(s || '').toLowerCase().split(/[^a-z]+/).filter(Boolean);
 
 export default function RtwCheckSheet({ o, onClose, onDone }) {
   const toast = useToast();
@@ -46,7 +46,7 @@ export default function RtwCheckSheet({ o, onClose, onDone }) {
       setReading(false);
     }
   };
-  const nameOff = read?.name && !(words(read.name).includes(words(o.first_name)[0]) && words(read.name).includes(words(o.last_name).pop()));
+  const nameOff = read?.name && !nameMatches(read.name, o.first_name, o.last_name);
   const ok = key && permission && (permission === 'unlimited' || expiry) && matched && !reading;
   const save = () => run(() => api('officers.rtwCheck', {
     id: o.id, method: manual ? 'manual' : 'share_code', s3_key: key, mime: file?.type || null, permission, expiry: permission === 'time_limited' ? expiry : null,

@@ -21,7 +21,7 @@ import { lawAlerts } from '../lib/contractContent.mjs';
 import { CO, MGR, def } from './_def.mjs';
 import { statusesFor, pairKey, OK } from '../lib/venuePack.mjs';
 import { NOT_CLEARED, STATUS_LABEL, RECHECK_DAYS, daysSinceCheck, siaCheckOn } from '../lib/sia.mjs';
-import { officerDisplay } from '../lib/names.mjs';
+import { officerDisplay, nameMatches } from '../lib/names.mjs';
 import { cleanShareCode, SHARE_CODE_OLD } from '../lib/rtw.mjs';
 
 const ACTIVE = "('assigned','accepted')";
@@ -34,7 +34,6 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const shiftLine = (sh) => `${sh.venue_name} ${fmtDate(sh.starts_at)} ${fmtTime(sh.starts_at)} (${sh.role_name})`;
 const digits = (s) => String(s || '').replace(/\D/g, '');
 const siaFmt = (x) => digits(x).replace(/(\d{4})(?=\d)/g, '$1 ');
-const words = (s) => String(s || '').toLowerCase().normalize('NFKD').replace(/[^a-z ]/g, ' ').split(/\s+/).filter(Boolean);
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const docLabel = (k) => ({ sia: 'SIA licence', rtw: 'right to work' })[k] || DOC_LABEL[k] || k;
 
@@ -246,8 +245,7 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
       add({ key: `doc_suspect:${d.id}`, severity: 'urgent', sig: sig(d.s3_key), title: `"${d.title}" needs a human look`, detail: r.readable === false ? 'The scan could not be read clearly.' : r.concerns.join('; '), actions: [recheck(d), remind(o, kind, `a clear photo of their ${docLabel(kind)}`)] });
       continue;
     }
-    const nm = words(r.name);
-    if (nm.length && !(nm.includes(words(o.first_name)[0]) && nm.includes(words(o.last_name).pop()))) {
+    if (!nameMatches(r.name, o.first_name, o.last_name)) {
       add({ key: `doc_mismatch:${d.id}:name`, severity: 'soon', sig: sig(d.s3_key, o.first_name, o.last_name), title: `Name on "${d.title}" doesn't match the profile`, detail: `Scan reads "${r.name}"; profile is ${o.first_name} ${o.last_name}.`, actions: [recheck(d)] });
     }
     if (kind === 'sia' && digits(r.number) && digits(o.sia_number) && digits(r.number) !== digits(o.sia_number)) {
@@ -413,6 +411,8 @@ export async function runCompliance({ manual = false, officerIds = null } = {}) 
     const issuesSig = sig(issues.map((i) => [i.key, i.sig, i.severity]));
     const card = open.find((c) => c.officer_id === o.id);
     if (card && card.payload.sig === issuesSig) continue;
+    // Already raised (and decided) for exactly these issues: no new card, so no AI advice either
+    if (!card && await one('SELECT 1 FROM ops_items WHERE dedupe = $1', [`compliance:${o.id}:${issuesSig}`])) continue;
     const advice = await advise(o, issues);
     credits += advice.credits;
     const payload = { officer_id: o.id, officer_name: officerDisplay(o), severity, issues, sig: issuesSig };
@@ -428,7 +428,8 @@ export async function runCompliance({ manual = false, officerIds = null } = {}) 
     }
   }
   const cleared = clearedCards(open, results, officerIds);
-  for (const c of cleared) await q("UPDATE ops_items SET status = 'done', decided_at = now(), result = $2 WHERE id = $1", [c.id, { auto_closed: true }]);
+  // Freeing the dedupe key lets the same problem be raised again if it genuinely comes back later
+  for (const c of cleared) await q("UPDATE ops_items SET status = 'done', decided_at = now(), result = $2, dedupe = NULL WHERE id = $1", [c.id, { auto_closed: true }]);
   await withdraw({ items: cleared.map((c) => c.id) });
   if (officerIds) return { checked: officerIds.length, attention: results.length, created, updated, cleared: cleared.length };
   const { n: checked } = await one("SELECT count(*)::int AS n FROM officers WHERE status IN ('active','onboarding')");
@@ -488,12 +489,23 @@ export async function decideCompliance(it, b, user) {
     done.push(`Updated ${{ sia_number: 'SIA number', sia_expiry: 'SIA expiry', rtw_expiry: 'right to work expiry' }[a.params.field]} to ${a.params.field.endsWith('expiry') ? fmtDate(a.params.to) : a.params.to}`);
   }
   for (const a of picked.filter((x) => x.kind === 'recheck')) {
-    const d = await one("UPDATE documents SET verified_at = NULL, verified_by = NULL WHERE id = $1 AND owner_id = $2 RETURNING title", [a.params.doc_id, o.id]);
+    // The scan is read again from fresh: its photo, readability and name flags go until that read says otherwise
+    const d = await one("UPDATE documents SET verified_at = NULL, verified_by = NULL, ai_read = NULL, ai_read_key = NULL, ai_read_at = NULL WHERE id = $1 AND owner_id = $2 RETURNING title", [a.params.doc_id, o.id]);
     if (!d) continue;
+    await q("DELETE FROM compliance_dismissals WHERE officer_id = $1 AND (issue_key = 'doc_suspect:' || $2 OR issue_key LIKE 'doc\\_mismatch:' || $2 || ':%')", [o.id, a.params.doc_id]);
     await q("INSERT INTO hr_notes (officer_id, kind, title, body, author_id) VALUES ($1, 'note', 'Document re-check', $2, $3)", [o.id, `"${d.title}" marked for re-check — ${a.issue.title}.`, user.id]);
     done.push(`Marked "${d.title}" for re-check`);
   }
   return { done };
+}
+
+/** Dismissing (or rejecting the whole card) keeps those issues quiet until the data behind them changes. */
+export async function dismissComplianceIssues(it, keys, user, reason = '') {
+  for (const i of (it.payload.issues || []).filter((x) => keys.includes(x.key))) {
+    await q(`INSERT INTO compliance_dismissals (officer_id, issue_key, sig, reason, dismissed_by) VALUES ($1,$2,$3,$4,$5)
+             ON CONFLICT (officer_id, issue_key) DO UPDATE SET sig = EXCLUDED.sig, reason = EXCLUDED.reason, dismissed_by = EXCLUDED.dismissed_by, created_at = now()`,
+      [it.officer_id, i.key, i.sig, String(reason || '').slice(0, 300), user.id]);
+  }
 }
 
 // ---------- Training records, refreshers and the overview screen ----------
@@ -615,9 +627,7 @@ export const actions = {
     if (scope && (!it.venue_id || !scope.includes(it.venue_id))) fail(403, 'No access to this item');
     if (it.status !== 'pending') fail(409, `Already ${it.status}`);
     const issue = need((it.payload.issues || []).find((i) => i.key === b.key), 'Issue not found');
-    await q(`INSERT INTO compliance_dismissals (officer_id, issue_key, sig, reason, dismissed_by) VALUES ($1,$2,$3,$4,$5)
-             ON CONFLICT (officer_id, issue_key) DO UPDATE SET sig = EXCLUDED.sig, reason = EXCLUDED.reason, dismissed_by = EXCLUDED.dismissed_by, created_at = now()`,
-      [it.officer_id, issue.key, issue.sig, String(b.reason || '').slice(0, 300), user.id]);
+    await dismissComplianceIssues(it, [issue.key], user, b.reason);
     const rest = it.payload.issues.filter((i) => i.key !== b.key);
     const o = { first_name: it.payload.officer_name.split(' ')[0], last_name: it.payload.officer_name.split(' ').slice(1).join(' ') };
     if (rest.length) {

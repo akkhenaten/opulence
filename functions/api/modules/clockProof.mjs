@@ -20,17 +20,17 @@ const tagUrl = () => `${(process.env.APP_URL || '').replace(/\/$/, '')}/app/t?p=
 
 // ---- Checks used by clock.punch
 
-/** Registered phone: { device_ok, device_id, flag, problem } */
+/** Registered phone: { device_ok, device_id, flag, extra, problem }. extra says why it failed (skipped or not recognised). */
 export async function checkPhone(user, passkey) {
-  if (!passkey?.id) return { device_ok: false, device_id: null, flag: 'phone_not_verified', problem: 'Phone not verified' };
+  if (!passkey?.id) return { device_ok: false, device_id: null, flag: 'phone_not_verified', extra: 'phone_skipped', problem: 'Phone not verified (check skipped)' };
   const device = await one("SELECT * FROM officer_devices WHERE credential_id = $1 AND officer_id = $2 AND status IN ('active','pending')", [passkey.id, user.officer_id]);
-  if (!device) return { device_ok: false, device_id: null, flag: 'phone_not_verified', problem: 'Phone not verified (not the registered phone)' };
+  if (!device) return { device_ok: false, device_id: null, flag: 'phone_not_verified', extra: 'phone_unrecognised', problem: 'Phone not verified (not the registered phone)' };
   try {
     const challenge = await spendChallenge(user.id, 'clock', passkey.clientDataJSON);
     const { signCount } = checkAssertion(passkey, device, { challenge });
     await q('UPDATE officer_devices SET sign_count = $2, last_used_at = now() WHERE id = $1', [device.id, signCount]);
   } catch (e) {
-    return { device_ok: false, device_id: device.id, flag: 'phone_not_verified', problem: `Phone not verified (${e.message})` };
+    return { device_ok: false, device_id: device.id, flag: 'phone_not_verified', extra: 'phone_unrecognised', problem: `Phone not verified (${e.message})` };
   }
   if (device.status === 'pending') return { device_ok: false, device_id: device.id, flag: 'new_phone', problem: 'New phone waiting for a manager to approve it' };
   return { device_ok: true, device_id: device.id };

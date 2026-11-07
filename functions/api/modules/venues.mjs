@@ -105,6 +105,8 @@ export async function setLogo(user, id, logo, meta) {
   const v = await update('venues', id, logo);
   if (cur?.logo_key && cur.logo_key !== logo.logo_key && cur.logo_key.startsWith('media/venues/logos/')) await deleteObject(cur.logo_key).catch(() => {});
   await audit(user, 'venue.logo', 'venue', id, meta);
+  // A new (or removed) logo updates Orb's setup card straight away; Orb's own approve decides that card itself
+  if (meta?.via !== 'orb') await import('./venueSetup.mjs').then((m) => m.runVenueSetup({ venueIds: [id], lookups: 0 })).catch((e) => console.warn('[venues] setup check', e.message));
   return { id: v.id, logo_url: v.logo_url };
 }
 

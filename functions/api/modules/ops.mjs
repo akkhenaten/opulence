@@ -13,7 +13,7 @@ import { getSettings } from './settings.mjs';
 import { checkOfficerForShift, getShift, filledCount, shiftsWithAssignments, londonToUtc, actions as rota } from './rota.mjs';
 import { recalcStatement, recalcInvoice } from './money.mjs';
 import { ALL, MGR, CO, def } from './_def.mjs';
-import { runCompliance, readDocuments, decideCompliance, computeIssues, sendDigest } from './compliance.mjs';
+import { runCompliance, readDocuments, decideCompliance, computeIssues, sendDigest, dismissComplianceIssues } from './compliance.mjs';
 import { runVenueSetup, decideVenueSetup, dismissVenueIssues } from './venueSetup.mjs';
 import { defaultActions } from '../lib/venueSetup.mjs';
 import { evidenceScan } from './incidentAi.mjs';
@@ -679,6 +679,8 @@ async function decideItem(user, it, b) {
     }
     // A declined venue setup card stays quiet until those details change
     if (it.kind === 'venue_setup') await dismissVenueIssues(it, (it.payload.issues || []).map((i) => i.key), user, b.reason);
+    // The same for a declined compliance card: its issues stay quiet until the document or profile changes
+    if (it.kind === 'compliance') await dismissComplianceIssues(it, (it.payload.issues || []).map((i) => i.key), user, b.reason);
     result = { rejected: true, reason: b.reason || '' };
   } else if (b.decision === 'approve') {
     result = await { cover: decideCover, venue_request: decideVenueRequest, reconcile: decideReconcile, feedback: decideFeedback, compliance: decideCompliance, venue_setup: decideVenueSetup }[it.kind](it, b, user);

@@ -149,6 +149,7 @@ export const actions = {
       const ph = await checkPhone(user, b.passkey);
       Object.assign(rec, { device_ok: ph.device_ok, device_id: ph.device_id });
       if (ph.flag) { flags.push(ph.flag); problems.push(ph.problem); }
+      if (ph.extra) flags.push(ph.extra);
     }
 
     if (b.kind === 'in') {

@@ -1,6 +1,6 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  ArrowRightLeft, BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, Mail, MessageSquareHeart,
+  ArrowRightLeft, BadgeCheck, BellOff, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, Mail, MessageSquareHeart,
   Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, Radio, ReceiptText, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-07', icon: BellOff, title: 'Orb stops repeating itself', image: 'orb-no-repeats',
+    lede: "Once you've decided an Orb card, it stays decided. Orb only raises it again when something behind it actually changes, such as a new document, a new website or new profile details. Names on documents now match however they're written.",
+    points: ['A dismissed "No logo" card stays dismissed, and uploading a logo clears the card straight away', 'Approving part of a venue setup card (say, just the radius) dismisses the rest, so it doesn\'t come straight back', 'Declining a document or photo card keeps it quiet until that document or the profile changes; Re-check reads the scan again from fresh', 'Names match whatever the capitals, accents or punctuation: Scott and SCOTT, O\'Brien and OBRIEN, Mc Donald and MCDONALD, and a middle name on the SIA register', 'The phone chip on a clock-in says why: Phone skipped or Phone not recognised'],
+  },
   {
     month: 'November 2026', date: '2026-11-07', icon: Radio, title: 'Live operations, laid out better', image: 'live-ops-layout',
     lede: "On a computer, Live operations now gives the board the full width it needs, one card per venue, with Orb beside it in its own scrolling column. Orb cards that need a fix by hand, like a missing logo, take you straight to where you fix it.",

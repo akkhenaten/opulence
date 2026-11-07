@@ -6,6 +6,7 @@ import { extract, fileBlock, canRead, HAIKU } from './ai.mjs';
 import { docxToMarkup } from './docx.mjs';
 import { SIA_TYPES, APPLY_ROLES } from './licences.mjs';
 import { addDays } from './time.mjs';
+import { nameMatches } from './names.mjs';
 
 export const AVAILABILITY = ['weekdays', 'weekends', 'nights', 'events'];
 export const MAX_FILE = 10 * 1024 * 1024;
@@ -14,7 +15,6 @@ const READ_LIMIT = 4.5 * 1024 * 1024;
 
 const str = (v, n = 200) => String(v ?? '').trim().slice(0, n);
 export const digits = (s) => String(s || '').replace(/\D/g, '');
-const words = (s) => String(s || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z ]/g, ' ').split(/\s+/).filter(Boolean);
 
 /** The cleaned application, or { error } with the first problem in plain words */
 export function cleanApplication(b) {
@@ -45,13 +45,7 @@ export function cleanApplication(b) {
 export const needsBadge = (roles) => roles.some((r) => r !== 'steward');
 
 /** Same first and last name tokens, ignoring case, accents, punctuation and middle names */
-export function sameName(applicant, printed) {
-  const p = words(printed);
-  if (!p.length) return true;
-  const first = words(applicant.first_name)[0];
-  const last = words(applicant.last_name).at(-1);
-  return p.includes(first) && p.includes(last);
-}
+export const sameName = (applicant, printed) => nameMatches(printed, applicant.first_name, applicant.last_name);
 
 /**
  * What a manager should look at before inviting. roles: rows from the roles table ({ code, name, requires_sia,

@@ -11,6 +11,7 @@ import { CHECK_STATUSES, NOT_CLEARED, STATUS_LABEL, cleanSia, validSia, siaGroup
 import { autoCheckEnabled, lookupLicence, quotaUsage } from '../lib/siaChecker.mjs';
 import { shapeOfficer } from './officers.mjs';
 import { MGR, def } from './_def.mjs';
+import { nameMatches } from '../lib/names.mjs';
 
 // Register checks are switched off for now; history stays readable
 const switchedOn = () => { if (!siaCheckOn()) fail(403, 'SIA register checks are switched off'); };
@@ -61,8 +62,7 @@ export const actions = {
     const number = cleanSia(o.sia_number || o.badge_number);
     if (!validSia(number)) fail(400, 'No 16-digit licence number on file');
     const r = await lookupLicence(number);
-    const same = (a, x) => String(a || '').trim().toLowerCase() === String(x || '').trim().toLowerCase();
-    const name_matches = r.outcome === 'found' ? same(r.surname, o.last_name) && same(r.first_name, o.first_name) : null;
+    const name_matches = r.outcome === 'found' ? nameMatches(`${r.first_name || ''} ${r.surname || ''}`, o.first_name, o.last_name) : null;
     await audit(user, 'sia.lookup', 'officer', o.id, { outcome: r.outcome, register_status: r.register_status || null });
     return { ...r, number, name_matches };
   }),
