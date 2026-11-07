@@ -5,7 +5,7 @@ import { api } from '../../api.js';
 import {
   Avatar, Button, cx, Empty, Input, List, Load, Page, PhotoCard, Pill, Pressable, Row, SearchInput, Sheet, Textarea, useAction, useApi, useForm,
 } from '../../ui/index.jsx';
-import { useBase } from './_parts.jsx';
+import { useBase, VenueBadge } from './_parts.jsx';
 import { ClientSelect, ClientSheet } from './_client.jsx';
 import { useAuth } from '../../auth.jsx';
 
@@ -70,6 +70,7 @@ function VenueGrid({ rows, onAdd }) {
           {list.map((v) => (
             <PhotoCard key={v.id} to={`${base}/venues/${v.id}`} name={v.name}
               srcs={[v.photo_url, v.site_client && `/img/opulence/clients/${v.site_client}-480.jpg`]}
+              badge={v.logo_url && <VenueBadge name={v.name} logo={v.logo_url} size={40} />}
               sub={<><span className="truncate">{v.client_name || 'No client'}</span>{!v.active && <Pill status="closed" className="shrink-0">Inactive</Pill>}</>} />
           ))}
         </div>
@@ -106,7 +107,7 @@ function AddVenueSheet({ open, onClose, clients, onClientCreated }) {
     const v = await run(() => api('venues.save', { ...f.v, client_id: f.v.client_id || null, postcode: f.v.postcode.toUpperCase() }), 'Venue added');
     f.setV({ client_id: '', name: '', address: '', postcode: '', phone: '' });
     onClose();
-    nav(`${base}/venues/${v.id}?tab=location`);
+    nav(`${base}/venues/${v.id}?tab=location&new=1`);
   };
   return (
     <Sheet open={open} onClose={onClose} title="Add venue"

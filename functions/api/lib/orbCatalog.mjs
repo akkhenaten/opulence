@@ -98,8 +98,13 @@ export const CATALOG = {
   'venues.list': r('venues', 'Venues', 'include_inactive?'),
   'venues.get': r('venues', 'Venue details', 'id'),
   'venues.rates': r('venues', 'Venue charge rates', 'venue_id'),
-  'venues.save': c('venues', 'Add or update a venue', 'id?, client_id?, name, address, postcode, lat?, lng?, radius_m?, phone?, instructions?, notes?, invoice_cycle?, active?', {
+  'venues.save': c('venues', 'Add or update a venue', 'id?, client_id?, name, address, postcode, lat?, lng?, radius_m?, phone?, website_url?, city?, instructions?, notes?, invoice_cycle?, active?', {
     link: (res, b) => (res?.id || b.id) && `venues/${res?.id || b.id}` }),
+  'venues.findAddress': r('venues', "Find a venue's address, postcode and map pin on the internet (its website and OpenStreetMap)", 'id', { words: 'location geocode lookup search web' }),
+  'venues.findAddresses': r('venues', 'Find addresses for many venues at once (default: every venue missing its address, postcode or map pin)', 'ids[]?', { words: 'location geocode lookup search web all' }),
+  'venues.findLogo': r('venues', "Find a venue's logo on its website", 'id', { words: 'brand icon picture image lookup search web' }),
+  'venues.useLogo': c('venues', "Use a logo from the internet as the venue's logo", 'id, url (from venues.findLogo)', {
+    link: (_r, b) => `venues/${b.id}`, image: (b) => b.url }),
   'venues.saveRate': c('venues', 'Set a venue charge rate', 'venue_id, role, rate, night_uplift?, weekend_uplift?, bh_uplift?, min_hours?, effective_from'),
   'clients.list': r('venues', 'Clients', ''),
   'clients.save': c('venues', 'Add or update a client', 'id?, name, billing_email?, billing_address?, vat_number?', { link: () => 'clients' }),
@@ -249,7 +254,7 @@ export function searchCatalog(entries, query = '', area = '') {
   return entries
     .filter(([, d]) => !area || d.area === area)
     .map(([name, d]) => {
-      const hay = `${name} ${d.title} ${d.area} ${d.params}`.toLowerCase();
+      const hay = `${name} ${d.title} ${d.area} ${d.params} ${d.words || ''}`.toLowerCase();
       const score = words.reduce((s, w) => s + (hay.includes(w) ? (d.title.toLowerCase().includes(w) ? 3 : 1) : 0), 0);
       return { name, d, score };
     })

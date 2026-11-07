@@ -1,11 +1,20 @@
 // Shared helpers for the venues / money pages (charts, checkbox, date presets).
 import { Check as CheckIcon } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
-import { cx, isoDate, money0 } from '../../ui/index.jsx';
+import { useState } from 'react';
+import { Avatar, cx, isoDate, money0 } from '../../ui/index.jsx';
 
 export function useBase() {
   const { user } = useAuth();
   return '/' + (user?.role || 'company');
+}
+
+// A venue's logo in a small circle on white (logos are often transparent), or its initials when it has none
+export function VenueBadge({ name, logo, size = 36, className }) {
+  const [broken, setBroken] = useState(false);
+  if (!logo || broken) return <Avatar name={name} size={size} className={className} />;
+  return <img src={logo} alt={`${name} logo`} loading="lazy" decoding="async" onError={() => setBroken(true)}
+    className={cx('shrink-0 rounded-full bg-white object-contain p-1 shadow-tile ring-1 ring-hairline', className)} style={{ width: size, height: size }} />;
 }
 
 export const num = (v) => Number(v || 0);

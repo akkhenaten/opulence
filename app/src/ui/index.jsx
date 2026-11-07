@@ -631,8 +631,8 @@ export function Avatar({ name, src, size = 40, className }) {
 }
 
 // A picture card for a grid of people or places: photo (or initials) on top, the name underneath.
-// `srcs` are tried in order, so a missing upload falls back to the next picture, then to initials.
-export function PhotoCard({ to, srcs = [], name, sub, dot }) {
+// `srcs` are tried in order, so a missing upload falls back to the next picture, then to initials. `badge` sits bottom-left (a venue's logo).
+export function PhotoCard({ to, srcs = [], name, sub, dot, badge }) {
   const list = srcs.filter(Boolean);
   const [i, setI] = useState(0);
   const src = list[i];
@@ -643,6 +643,7 @@ export function PhotoCard({ to, srcs = [], name, sub, dot }) {
           ? <img src={src} alt="" loading="lazy" decoding="async" onError={() => setI((n) => n + 1)} className="h-full w-full object-cover" />
           : <div className={cx('grid h-full w-full place-items-center text-title1 font-bold', avatarHue(name))}>{initials(name)}</div>}
         {dot && <span className="absolute right-2 top-2 grid h-5 w-5 place-items-center rounded-full bg-surface shadow-tile"><Dot tone={dot.tone} label={dot.label} /></span>}
+        {badge && <span className="absolute bottom-2 left-2">{badge}</span>}
       </div>
       <div className="px-3 py-2.5">
         <div className="line-clamp-2 text-subhead font-semibold leading-snug">{name}</div>

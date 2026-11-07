@@ -308,6 +308,7 @@ function ActionCard({ m, onChange, onSettled }) {
               <div className={cx('min-w-0 flex-1', pending && skip.has(i) && 'text-faint line-through')}>
                 {it.title && it.title !== it.label && <div className="text-caption font-semibold text-muted">{it.title}</div>}
                 <div>{it.label}</div>
+                {it.image && <img src={it.image} alt="Logo to use" referrerPolicy="no-referrer" className="mt-1.5 h-12 w-12 rounded-xl bg-white object-contain p-1 ring-1 ring-line" />}
                 {res?.error && <div className="text-footnote text-red">{res.error}</div>}
                 {res?.status === 'not_run' && <div className="text-footnote text-muted">Not done: stopped after the problem above</div>}
                 {res?.text && <div className="text-footnote text-muted">{res.text}</div>}

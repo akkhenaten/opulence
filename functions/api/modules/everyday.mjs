@@ -3,7 +3,6 @@
 // staff can be asked to acknowledge. Staff only (officers, company and security managers); venue users never see it.
 // Managers moderate. Live updates go out on the shared "feed" channel as hints, never content.
 import crypto from 'node:crypto';
-import dns from 'node:dns/promises';
 import { one, q } from '../lib/db.mjs';
 import { fail, need, required, HttpError } from '../lib/http.mjs';
 import { audit } from '../lib/audit.mjs';
@@ -15,8 +14,9 @@ import { moduleOn, requireModule } from '../lib/modules.mjs';
 import { londonDate } from '../lib/time.mjs';
 import { publishFeed } from '../lib/realtime.mjs';
 import { venueScope } from '../lib/scope.mjs';
+import { safeFetch } from '../lib/webFetch.mjs';
 import {
-  BADGES, cleanPlace, cleanPollOptions, cleanTopic, FILTERS, isPrivateHost, MUTE_DAYS, parseMeta, parseTopics, pollTally,
+  BADGES, cleanPlace, cleanPollOptions, cleanTopic, FILTERS, MUTE_DAYS, parseMeta, parseTopics, pollTally,
   promoteWaitlist, sniffMime, VIDEO_MAX_BYTES, VIDEO_MAX_S,
 } from '../lib/feed.mjs';
 import { MGR, def } from './_def.mjs';
@@ -216,31 +216,6 @@ async function parsePlace(p) {
 }
 
 // ---------- Link previews ----------
-async function safeFetch(url, { maxBytes, accept }) {
-  let target = url;
-  for (let hop = 0; hop < 4; hop += 1) {
-    const u = new URL(target);
-    if (!['http:', 'https:'].includes(u.protocol) || (u.port && !['80', '443'].includes(u.port))) throw new Error('blocked');
-    const addrs = await dns.lookup(u.hostname, { all: true });
-    if (!addrs.length || addrs.some((a) => isPrivateHost(a.address))) throw Object.assign(new Error('blocked'), { blocked: true });
-    const r = await fetch(u, { redirect: 'manual', signal: AbortSignal.timeout(4000), headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EverydayLinkPreview/1.0)', Accept: accept } });
-    if (r.status >= 300 && r.status < 400 && r.headers.get('location')) { target = new URL(r.headers.get('location'), u).href; continue; }
-    if (!r.ok) throw new Error(`status ${r.status}`);
-    const reader = r.body.getReader();
-    const chunks = [];
-    let size = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.length;
-      if (size > maxBytes) { reader.cancel().catch(() => {}); break; }
-      chunks.push(value);
-    }
-    return { url: u.href, type: r.headers.get('content-type') || '', bytes: Buffer.concat(chunks) };
-  }
-  throw new Error('too many redirects');
-}
-
 async function linkPreview(raw) {
   let url;
   try { url = new URL(String(raw).trim()).href; } catch { fail(400, "That doesn't look like a web address"); }

@@ -329,7 +329,8 @@ async function runAction(input, turn) {
     return { done: true, shown_to_person_as: label, result: sanitize(res) };
   }
   if (turn.card.length >= MAX_CARD) return { error: `The Confirm card is full (${MAX_CARD} lines). Tell the person what is left for next time.` };
-  turn.card.push({ title: entry.title, label, steps: [{ action: name, body }] });
+  const image = entry.image?.(body);
+  turn.card.push({ title: entry.title, label, steps: [{ action: name, body }], ...(image && /^https:\/\/\S{1,500}$/.test(image) ? { image } : {}) });
   turn.note(`Added to the card: ${label}`);
   return { added_to_confirm_card: label, note: 'Nothing has changed yet; the person must tap Confirm.' };
 }
@@ -378,6 +379,7 @@ How you work:
 - read actions answer at once. auto actions happen straight away and the person sees them as Done, with Undo where possible: these are small, internal, reversible things (draft shifts, notes, onboarding ticks, assigning training, reminders, drafts). confirm actions go on one Confirm card of up to ${MAX_CARD} lines and nothing changes until the person taps Confirm. Money, anything sent to people (emails, documents to sign, published rota, messages and feed posts), deleting or cancelling, bans, HR outcomes, offboarding, settings and logins are always confirm. You cannot get round this.
 - Put everything one request needs on the same card. If a later change needs the id of something the card will create (for example a shift at a venue that does not exist yet), put the first change on the card, say what you will do next, and carry on after they confirm.
 - Pay and invoices use their own tools (create_pay_run … mark_paid). The pay workflow is: create the pay run, send it to officers to check (1–7 days), resolve queries, finalise, issue, mark paid. Invoices are made from approved hours after finalising.
+- Venue addresses and logos: you can look them up on the internet with venues.findAddress / venues.findAddresses (the venue's own website, then OpenStreetMap; postcodes.io checks the postcode and gives the map pin) and venues.findLogo. Put what you found on the Confirm card (venues.save with address, postcode, lat and lng; venues.useLogo for a logo) and say where each came from. Never make up an address, postcode or logo: if nothing was found, say so and suggest adding it by hand.
 - To swap or replace someone on a shift use shifts.reassign (one step, works on a full shift). shifts.assign only fills empty places. People may be called by their goes-by name (find_shifts and list_officers include it).
 - If something fails, explain why in plain words and what would fix it.
 - When you have acted, say in one or two sentences what is done and what is waiting for Confirm. Link to the screen with markdown links to app paths, e.g. [Open the rota](${base}/rota). Paths start with ${base}/ and can only be: ${routes}.
@@ -425,7 +427,7 @@ export const shapeMessage = (m) => {
     text: stale ? 'Orb stopped before finishing. Please ask again.' : m.content?.text || '',
     result: m.content?.result || null, items: m.content?.items || [], progress: m.progress || [],
     done: (m.done || []).map((d) => ({ label: d.label, title: d.title, link: d.link, can_undo: !!d.undo && !d.undone, undone: !!d.undone })),
-    pending_action: card ? { summary: card.summary, items: (card.items || [{ label: card.summary }]).map((i) => ({ label: i.label, title: i.title || null })) } : null,
+    pending_action: card ? { summary: card.summary, items: (card.items || [{ label: card.summary }]).map((i) => ({ label: i.label, title: i.title || null, image: i.image || null })) } : null,
     results: m.action_result?.items || null, action_status: m.action_status, created_at: m.created_at, voice: !!m.voice,
   };
 };

@@ -57,6 +57,8 @@ export const randomToken = () => crypto.randomBytes(24).toString('base64url');
 // `as` = 'officer' (the "My shifts" side) makes the request an officer request for their own record;
 // otherwise they are a plain manager and the link is kept aside as self_officer_id (for "no approving your own hours").
 export function resolveActing(row, as) {
+  // The platform admin is a Company manager (with "My shifts" too if they have a staff record), whatever the stored role says
+  if (isPlatformAdmin(row) && row.role !== 'company') row = { ...row, role: 'company', can_see_pay: true };
   const loginRole = row.role;
   const dual = (loginRole === 'company' || loginRole === 'security') && !!row.officer_id;
   if (!dual) return { ...row, login_role: loginRole, self_officer_id: null, dual: false };

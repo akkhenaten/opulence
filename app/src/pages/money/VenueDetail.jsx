@@ -8,10 +8,11 @@ import {
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
-  Avatar, Bento, Button, cx, date, daysUntil, Empty, IconButton, Input, isoDate, List, Load, money, Page, Pill, Pressable, Row, Section, Select, Sheet, Stat, Table, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm, useToast,
+  Avatar, Bento, Button, Check, cx, date, daysUntil, Empty, IconButton, Input, isoDate, List, Load, money, Page, Pill, Pressable, Row, Section, Select, Sheet, Stat, Table, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm, useToast,
 } from '../../ui/index.jsx';
-import { useBase } from './_parts.jsx';
-import { uploadPhoto } from '../officer/_parts.jsx';
+import { useBase, VenueBadge } from './_parts.jsx';
+import OrbBrand from '../../ui/OrbBrand.jsx';
+import { compressImage, uploadPhoto } from '../officer/_parts.jsx';
 import { useAuth } from '../../auth.jsx';
 import { ShiftLogList } from '../shift/ShiftLogs.jsx';
 import { BanRegister } from '../shift/Bans.jsx';
@@ -51,7 +52,10 @@ export default function VenueDetail() {
                 <VenuePhoto v={v} canEdit={isCo || user.role === 'security'} onSaved={q.reload} />
                 <div className="min-w-0">
                   <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Venue</div>
-                  <div className="truncate text-title3 font-bold">{v.name}</div>
+                  <div className="flex min-w-0 items-center gap-2">
+                    {v.logo_url && <VenueBadge name={v.name} logo={v.logo_url} size={32} />}
+                    <div className="truncate text-title3 font-bold">{v.name}</div>
+                  </div>
                   <div className="mt-1 flex items-start gap-1.5 text-subhead text-muted"><MapPin size={16} className="mt-0.5 shrink-0" /><span className="min-w-0">{[v.address, v.postcode].filter(Boolean).join(', ') || 'No address'}</span></div>
                   {v.phone && <a href={`tel:${v.phone}`} className="mt-1 flex items-center gap-1.5 text-subhead font-semibold text-blue"><Phone size={14} />{v.phone}</a>}
                 </div>
@@ -65,14 +69,17 @@ export default function VenueDetail() {
             </Tile>
           </Bento>
 
+          <OrbFill v={v} isCo={isCo} fresh={params.get('new') === '1'} onSaved={q.reload} />
+
           <Tabs value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })} tabs={[
             { value: 'location', label: 'Location' }, { value: 'details', label: 'Details' }, { value: 'codes', label: 'Venue codes' },
             ...(isCo ? [{ value: 'rates', label: 'Charge rates' }] : []), { value: 'people', label: 'People' }, { value: 'feedback', label: 'Feedback', count: v.feedback_open || undefined }, { value: 'pack', label: 'Instructions & procedures' }, { value: 'documents', label: 'Documents', count: v.documents.length },
             { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Ejections & bans' }, ...(analytics ? [{ value: 'analytics', label: 'Analytics' }] : []),
           ]} />
 
-          {tab === 'location' && <LocationTab v={v} onSaved={q.reload} />}
-          {tab === 'details' && <DetailsTab v={v} clients={clients.data || []} onClientCreated={clients.reload} isCo={isCo} onSaved={q.reload} />}
+          {/* Keyed on the saved address and pin, so the forms start again from what Orb just saved */}
+          {tab === 'location' && <LocationTab key={`${v.lat},${v.lng}`} v={v} onSaved={q.reload} />}
+          {tab === 'details' && <DetailsTab key={[v.address, v.postcode, v.website_url].join('|')} v={v} clients={clients.data || []} onClientCreated={clients.reload} isCo={isCo} onSaved={q.reload} />}
           {(tab === 'codes' || tab === 'qr') && <QrTab v={v} />}
           {tab === 'rates' && isCo && <RatesTab venueId={v.id} />}
           {tab === 'people' && <PeopleTab v={v} isCo={isCo} onChanged={q.reload} />}
@@ -269,6 +276,7 @@ function DetailsTab({ v, clients, onClientCreated, isCo, onSaved }) {
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Tile title="Venue">
         <div className="space-y-4">
+          <VenueLogo v={v} onSaved={onSaved} />
           <Input label="Name" {...f.bind('name')} />
           {isCo && <ClientSelect clients={clients} value={f.v.client_id} onChange={(id) => f.set('client_id', id)} onCreated={onClientCreated}
             hint={f.v.client_id !== (v.client_id || '') ? 'Save to move this venue to the new client' : undefined} />}
@@ -295,6 +303,179 @@ function DetailsTab({ v, clients, onClientCreated, isCo, onSaved }) {
         <Button busy={busy} disabled={!f.v.name.trim()} onClick={save}>Save changes</Button>
       </div>
     </div>
+  );
+}
+
+// The venue's own logo, shown next to its name in the app. Small PNG and WebP logos go up as they are, so a see-through
+// background stays; anything bigger is made smaller first.
+function VenueLogo({ v, onSaved }) {
+  const [run, busy] = useAction();
+  const confirm = useConfirm();
+  const file = useRef(null);
+  const save = (key, msg) => run(() => api('venues.saveLogo', { id: v.id, key }), msg).then(onSaved).catch(() => {});
+  const pick = async (e) => {
+    const x = e.target.files?.[0];
+    e.target.value = '';
+    if (!x) return;
+    const asIs = ['image/png', 'image/webp', 'image/jpeg'].includes(x.type) && x.size <= 900000;
+    const key = await run(async () => upload(asIs ? x : await compressImage(x, 512, 0.9), 'photo')).catch(() => null);
+    if (key) save(key, 'Logo saved');
+  };
+  const remove = async () => {
+    if (await confirm({ title: 'Remove the venue logo?', body: 'The venue shows its initials instead.', confirm: 'Remove', danger: true })) save('', 'Logo removed');
+  };
+  return (
+    <div className="flex items-center gap-3">
+      <VenueBadge name={v.name} logo={v.logo_url} size={48} />
+      <div className="min-w-0 flex-1">
+        <div className="text-footnote font-semibold text-muted">Logo</div>
+        <div className="text-caption text-faint">{v.logo_url ? 'Shown next to the venue name in the app' : 'PNG, JPEG or WebP, under 1 MB'}</div>
+      </div>
+      <Button variant="soft" size="sm" icon={Upload} busy={busy} onClick={() => file.current?.click()}>{v.logo_url ? 'Change' : 'Upload'}</Button>
+      {v.logo_url && <IconButton icon={Trash2} label="Remove logo" size="sm" disabled={busy} onClick={remove} />}
+      <input ref={file} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={pick} />
+    </div>
+  );
+}
+
+/* ---------- Let Orb fill this in ---------- */
+
+const missingOf = (v) => [!v.address && 'address', !v.postcode && 'postcode', v.lat == null && 'map pin', !v.logo_url && 'logo'].filter(Boolean);
+const andList = (a) => (a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);
+const FROM = { website: "From the venue's website", map: 'From OpenStreetMap' };
+const LOGO_KIND = { logo: 'Logo on their website', icon: 'Their app icon', picture: 'Their sharing picture' };
+
+// A small Orb button while the venue is missing its address, postcode, map pin or logo; it goes once they are all in
+function OrbFill({ v, isCo, fresh, onSaved }) {
+  const [open, setOpen] = useState(false);
+  const missing = missingOf(v);
+  if (!missing.length) return null;
+  return (
+    <>
+      <div className="anim-pop mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-blue-soft px-4 py-3">
+        <OrbBrand className="h-9 w-9" />
+        <p className="min-w-0 flex-1 text-subhead">{fresh ? 'New venue added. ' : ''}Orb can find the {andList(missing)} on the venue's website and the map.</p>
+        <Button size="sm" icon={Sparkles} onClick={() => setOpen(true)}>Let Orb fill this in</Button>
+      </div>
+      {open && <OrbFillSheet v={v} isCo={isCo} onClose={() => setOpen(false)} onSaved={onSaved} />}
+    </>
+  );
+}
+
+// What Orb found, to tick and correct before saving. Nothing is saved until "Save these".
+function OrbFillSheet({ v, isCo, onClose, onSaved }) {
+  const [found, setFound] = useState(null);
+  const [cand, setCand] = useState(0);
+  const [logo, setLogo] = useState(-1);
+  const [use, setUse] = useState({ address: true, website: true });
+  const f = useForm({ address: '', postcode: '' });
+  const [run, busy] = useAction();
+  const needAddress = !v.address || !v.postcode || v.lat == null;
+
+  const choose = (list, i) => { setCand(i); f.setV({ address: list[i]?.address || '', postcode: list[i]?.postcode || '' }); };
+  useEffect(() => {
+    let live = true;
+    Promise.allSettled([
+      needAddress ? api('venues.findAddress', { id: v.id }) : null,
+      v.logo_url ? null : api('venues.findLogo', { id: v.id }),
+    ]).then(([a, l]) => {
+      if (!live) return;
+      const cands = a.value?.candidates || [];
+      const logos = l.value?.logos || [];
+      const failed = [a, l].find((x) => x.status === 'rejected');
+      setFound({ cands, logos, website: a.value?.website || l.value?.website || null, error: !cands.length && !logos.length && failed ? failed.reason?.message : null });
+      choose(cands, 0);
+      setLogo(logos.length ? 0 : -1);
+    });
+    return () => { live = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const c = found?.cands[cand];
+  const website = isCo && !v.website_url && found?.website;
+  const body = {
+    ...(use.address && c && (f.v.address.trim() || f.v.postcode.trim()) ? {
+      ...(f.v.address.trim() ? { address: f.v.address.trim() } : {}),
+      ...(f.v.postcode.trim() ? { postcode: f.v.postcode.trim().toUpperCase() } : {}),
+      // A pin set by hand (the entrance) is kept; Orb only adds one where there is none
+      ...(v.lat == null && c.lat != null ? { lat: c.lat, lng: c.lng } : {}),
+    } : {}),
+    ...(website && use.website ? { website_url: website } : {}),
+  };
+  const pickedLogo = found?.logos[logo];
+  const any = Object.keys(body).length > 0 || !!pickedLogo;
+  const save = () => run(async () => {
+    if (Object.keys(body).length) await api('venues.save', { id: v.id, ...body });
+    if (pickedLogo) await api('venues.useLogo', { id: v.id, url: pickedLogo.url });
+  }, 'Venue details saved').then(() => { onSaved(); onClose(); }).catch(() => {});
+
+  return (
+    <Sheet open onClose={onClose} title="Let Orb fill this in"
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button>{found && <Button busy={busy} disabled={!any} onClick={save}>Save these</Button>}</>}>
+      {!found && (
+        <div className="grid place-items-center gap-3 py-10 text-center">
+          <OrbBrand className="h-12 w-12 animate-pulse" />
+          <p className="text-body font-semibold">Orb is looking {v.name} up…</p>
+          <p className="text-footnote text-muted">On the venue's website, OpenStreetMap and postcodes.io. This takes a few seconds.</p>
+        </div>
+      )}
+      {found && !found.cands.length && !found.logos.length && !website && (
+        <Empty icon={Search} title="Nothing found online" body={found.error || `Orb couldn't find ${v.name} on its website or the map. Add the address in Details, and upload a logo there.`} />
+      )}
+      {found && (found.cands.length > 0 || found.logos.length > 0 || website) && (
+        <div className="space-y-5">
+          {found.cands.length > 0 && (
+            <section>
+              <div className="mb-2 flex items-center gap-3">
+                <Check checked={use.address} onChange={(x) => setUse((u) => ({ ...u, address: x }))} label="Use this address" />
+                <span className="text-callout font-semibold">Address</span>
+              </div>
+              {found.cands.length > 1 && (
+                <div className="mb-3 space-y-2">
+                  {found.cands.map((x, i) => (
+                    <Pressable key={i} onClick={() => choose(found.cands, i)} className={cx('rounded-xl px-3.5 py-2.5 ring-1', i === cand ? 'bg-blue-soft ring-blue' : 'ring-line')}>
+                      <div className="text-subhead font-semibold">{[x.address, x.postcode].filter(Boolean).join(', ')}</div>
+                      <div className="text-caption text-muted">{FROM[x.source]}{x.confidence === 'low' ? ', worth checking' : ''}</div>
+                    </Pressable>
+                  ))}
+                </div>
+              )}
+              <div className={cx('space-y-3', !use.address && 'opacity-50')}>
+                <Textarea label="Address" rows={2} disabled={!use.address} {...f.bind('address')} />
+                <Input label="Postcode" disabled={!use.address} {...f.bind('postcode')} />
+                <p className="text-caption text-muted">
+                  {found.cands.length === 1 && <>{FROM[c.source]}{c.confidence === 'low' ? ', worth checking' : ''}. </>}
+                  {v.lat == null ? (c?.lat != null ? 'The map pin goes on this address; move it to the officer entrance in Location.' : 'No map pin found; set it in Location.') : 'Your map pin stays as it is.'}
+                </p>
+              </div>
+            </section>
+          )}
+          {needAddress && !found.cands.length && <p className="rounded-xl bg-bg px-3.5 py-2.5 text-subhead text-muted">Orb couldn't find the address online. Add it in Details.</p>}
+          {website && (
+            <div className="flex items-center gap-3 rounded-xl bg-bg px-3.5 py-2.5">
+              <Check checked={use.website} onChange={(x) => setUse((u) => ({ ...u, website: x }))} label="Save the website link" />
+              <div className="min-w-0 flex-1"><div className="text-subhead font-semibold">Website</div><div className="truncate text-caption text-muted">{website}</div></div>
+            </div>
+          )}
+          {found.logos.length > 0 && (
+            <section>
+              <div className="mb-2 text-callout font-semibold">Logo</div>
+              <div className="flex flex-wrap gap-2">
+                {found.logos.map((x, i) => (
+                  <Pressable key={x.url} press onClick={() => setLogo(i)} aria-pressed={i === logo} aria-label={LOGO_KIND[x.kind] || 'Logo'}
+                    className={cx('grid h-24 w-24 place-items-center rounded-2xl bg-white p-2 ring-2', i === logo ? 'ring-blue' : 'ring-line')}>
+                    <img src={x.url} alt="" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
+                  </Pressable>
+                ))}
+                <Pressable press onClick={() => setLogo(-1)} aria-pressed={logo === -1}
+                  className={cx('grid h-24 w-24 place-items-center rounded-2xl bg-bg text-subhead font-semibold text-muted ring-2', logo === -1 ? 'ring-blue' : 'ring-transparent')}>None</Pressable>
+              </div>
+              <p className="mt-2 text-caption text-muted">{pickedLogo ? `${LOGO_KIND[pickedLogo.kind] || 'From their website'}. Orb keeps a copy, so it stays if their site changes.` : 'No logo will be added.'}</p>
+            </section>
+          )}
+          {!v.logo_url && !found.logos.length && <p className="rounded-xl bg-bg px-3.5 py-2.5 text-subhead text-muted">No logo found online. You can upload one in Details.</p>}
+        </div>
+      )}
+    </Sheet>
   );
 }
 

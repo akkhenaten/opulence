@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-07', icon: Sparkles, title: 'Orb fills in your venues: address, map pin and logo', image: 'orb-venue-lookup',
+    lede: "Orb can now look a venue up online. It reads the venue's own website and OpenStreetMap, then offers the address, postcode, map pin, website link and logo for you to check and save. A new venue shows a small Let Orb fill this in button until those details are in.",
+    points: ["Says where each address came from: the venue's website or the map", 'Pick from up to three logos found on their website, or upload your own', 'The logo shows next to the venue name in Venues and on the venue page', 'Ask Orb in chat to find the addresses for all your venues; it shows them on a Confirm card first', 'Nothing is saved until you press Save or Confirm', 'Security managers can look up their own venues; the platform admin always has the full Company manager side'],
+  },
+  {
     month: 'November 2026', date: '2026-11-07', icon: ReceiptText, title: 'Invoices and pay runs fill themselves', image: 'invoices-live',
     lede: "Approve a timesheet and it goes straight onto the venue's draft invoice and the officer's draft pay statement. There's nothing to generate any more. The drafts are laid out day by day like Timesheets, and only shifts the venue has signed off are billed or paid.",
     points: ['Approved shifts show on the draft invoice and the pay run straight away, in green once the venue signs and amber until then', 'Rate changes, queries, declines and cancelled shifts update the drafts on their own', 'Issue bills the signed shifts; the rest move to the next draft automatically', 'A late approval for a week that is already invoiced goes on the next draft, marked with its real date', 'Timesheets shows On draft invoice or Invoiced with the invoice number', 'Issued invoices never change: corrections after issue need a credit note'],

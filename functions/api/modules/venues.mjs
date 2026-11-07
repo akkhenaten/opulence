@@ -6,7 +6,7 @@ import { venueScope, assertVenue } from '../lib/scope.mjs';
 import { qrPayload } from '../lib/qr.mjs';
 import { qrPosterPdf } from '../lib/pdf.mjs';
 import crypto from 'node:crypto';
-import { checkOwnPhoto, saveThumb, downloadUrl, getObjectBytes, headObject, publicUrl, putObject, photoUrls, thumbKeyOf } from '../lib/storage.mjs';
+import { checkOwnPhoto, saveThumb, deleteObject, downloadUrl, getObjectBytes, headObject, publicUrl, putObject, photoUrls, thumbKeyOf } from '../lib/storage.mjs';
 import { audit } from '../lib/audit.mjs';
 import { CO, MGR, def, pub } from './_def.mjs';
 import { getSettings } from './settings.mjs';
@@ -14,6 +14,7 @@ import { isSiteClient } from '../lib/siteClients.mjs';
 import { cleanBlurb, cityOf, publicTile, webUrl } from '../lib/siteVenues.mjs';
 import { extract, HAIKU } from '../lib/ai.mjs';
 import { feedbackShape, groupPublic, tickedPraise } from './reviews.mjs';
+import { keepLogoBytes, keepLogoFromWeb, LOGO_MAX, LOGO_TYPES, lookUpAddress, lookUpLogos } from '../lib/venueLookup.mjs';
 
 const VENUE_FIELDS = ['client_id', 'name', 'address', 'postcode', 'lat', 'lng', 'radius_m', 'phone', 'instructions', 'notes', 'photo_key', 'invoice_cycle', 'active', 'proof_rule', 'site_client',
   'on_website', 'city', 'website_blurb', 'website_url'];
@@ -86,6 +87,26 @@ const clientView = (user, v) => {
   const { notes, ...rest } = v;
   return rest;
 };
+
+// Lookups call other people's servers: a fair limit per manager (60 venues in 10 minutes, 25 at a time)
+const BULK_MAX = 25;
+const lookups = new Map();
+function limitLookups(user, n) {
+  const now = Date.now();
+  const list = (lookups.get(user.id) || []).filter((t) => now - t < 600000);
+  if (list.length + n > 60) fail(429, 'That is a lot of lookups. Try again in a few minutes.');
+  for (let i = 0; i < n; i += 1) list.push(now);
+  lookups.set(user.id, list);
+  if (lookups.size > 1000) lookups.clear();
+}
+
+async function setLogo(user, id, logo, meta) {
+  const cur = await one('SELECT logo_key FROM venues WHERE id = $1', [id]);
+  const v = await update('venues', id, logo);
+  if (cur?.logo_key && cur.logo_key !== logo.logo_key && cur.logo_key.startsWith('media/venues/logos/')) await deleteObject(cur.logo_key).catch(() => {});
+  await audit(user, 'venue.logo', 'venue', id, meta);
+  return { id: v.id, logo_url: v.logo_url };
+}
 
 export const actions = {
   'venues.list': def(['company', 'security', 'venue'], async (b, { user }) => {
@@ -167,6 +188,77 @@ export const actions = {
     const w = await writeWebsite({ ...v, ...Object.fromEntries(['name', 'address', 'postcode', 'city'].filter((k) => b[k] != null).map((k) => [k, b[k]])) });
     await audit(user, 'venue.ai_text', 'venue', b.id);
     return w;
+  }),
+
+  // "Let Orb fill this in" and Orb: where the venue is, from its website and OpenStreetMap. A suggestion only, nothing is saved.
+  'venues.findAddress': def(MGR, async (b, { user }) => {
+    required(b, 'id');
+    await assertVenue(user, b.id);
+    limitLookups(user, 1);
+    const v = need(await one('SELECT id, name, city, website_url FROM venues WHERE id = $1', [b.id]), 'Venue not found');
+    return { venue_id: v.id, name: v.name, ...(await lookUpAddress(v)) };
+  }),
+
+  // Orb's bulk lookup: the given venues, or every active venue still missing its address, postcode or map pin
+  'venues.findAddresses': def(MGR, async (b, { user }) => {
+    const scope = await venueScope(user);
+    const given = Array.isArray(b.ids) ? b.ids.map(String).filter((x) => /^[0-9a-f-]{36}$/i.test(x)).slice(0, BULK_MAX) : [];
+    const ids = given.length ? given : null;
+    const rows = await q(
+      `SELECT id, name, city, website_url FROM venues
+        WHERE ($1::uuid[] IS NULL OR id = ANY($1)) AND ($2::uuid[] IS NOT NULL OR (active AND (coalesce(address, '') = '' OR coalesce(postcode, '') = '' OR lat IS NULL)))
+          AND ($3::uuid[] IS NULL OR id = ANY($3))
+        ORDER BY name LIMIT ${BULK_MAX + 1}`, [ids, ids, scope]);
+    if (!rows.length) return { found: [], not_found: [], note: ids ? 'None of those venues are yours to look up.' : 'Every venue already has an address, postcode and map pin.' };
+    limitLookups(user, rows.length);
+    const deadline = Date.now() + 100000;
+    const found = [];
+    const notFound = [];
+    const notDone = [];
+    let next = 0;
+    await Promise.all(Array.from({ length: 4 }, async () => {
+      while (next < Math.min(rows.length, BULK_MAX)) {
+        const v = rows[next++];
+        if (Date.now() > deadline) { notDone.push(v.name); continue; }
+        const r = await lookUpAddress(v).catch(() => ({ candidates: [] }));
+        if (r.candidates.length) found.push({ venue_id: v.id, name: v.name, best: r.candidates[0], others: r.candidates.slice(1), website: r.website });
+        else notFound.push(v.name);
+      }
+    }));
+    found.sort((a, b) => a.name.localeCompare(b.name));
+    return {
+      found, not_found: notFound.sort(), not_done: notDone.concat(rows.length > BULK_MAX ? ['…and more: ask again for the rest'] : []),
+      note: 'Suggestions only. Save each with venues.save (address, postcode, lat, lng) on the Confirm card and say where it came from.',
+    };
+  }),
+
+  // Logos on the venue's website, checked to be real pictures; a suggestion only
+  'venues.findLogo': def(MGR, async (b, { user }) => {
+    required(b, 'id');
+    await assertVenue(user, b.id);
+    limitLookups(user, 1);
+    const v = need(await one('SELECT id, name, city, website_url FROM venues WHERE id = $1', [b.id]), 'Venue not found');
+    return { venue_id: v.id, name: v.name, ...(await lookUpLogos(v)) };
+  }),
+
+  // Use a logo found on the web: a copy is kept, so the venue's site going down never breaks it
+  'venues.useLogo': def(MGR, async (b, { user }) => {
+    required(b, 'id', 'url');
+    await assertVenue(user, b.id);
+    const logo = await keepLogoFromWeb(b.url);
+    if (!logo) fail(400, "That picture can't be used as a logo. Pick another or upload one.");
+    return setLogo(user, b.id, logo, { from: String(b.url).slice(0, 300) });
+  }),
+
+  // A logo the manager uploaded (files.uploadUrl purpose "photo"); '' or null removes it
+  'venues.saveLogo': def(MGR, async (b, { user }) => {
+    required(b, 'id');
+    await assertVenue(user, b.id);
+    if (!b.key) return setLogo(user, b.id, { logo_key: null, logo_url: null }, { removed: true });
+    const key = await checkOwnPhoto(user, b.key, fail);
+    const h = await headObject(key);
+    if (!LOGO_TYPES[h?.mime] || h.size > LOGO_MAX) fail(400, 'The logo must be a PNG, JPEG or WebP picture under 1 MB');
+    return setLogo(user, b.id, await keepLogoBytes(await getObjectBytes(key), h.mime), { uploaded: true });
   }),
 
   // The landing page: a tile for every venue shown on the website, with the reviews filed under its old card's slug
