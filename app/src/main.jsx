@@ -22,6 +22,7 @@ const IncidentDetail = P(() => import('./pages/shared/IncidentDetail.jsx'));
 const Staff = P(() => import('./pages/people/Staff.jsx'));
 const StaffProfile = P(() => import('./pages/people/StaffProfile.jsx'));
 const Recruitment = P(() => import('./pages/people/Recruitment.jsx'));
+const StaffSetup = P(() => import('./pages/people/StaffSetup.jsx'));
 const TimeOff = P(() => import('./pages/people/TimeOff.jsx'));
 const Settings = P(() => import('./pages/people/Settings.jsx'));
 const Audit = P(() => import('./pages/people/Audit.jsx'));
@@ -34,6 +35,7 @@ const StaffContracts = P(() => import('./pages/people/StaffContracts.jsx'));
 const ContractWorkspace = P(() => import('./pages/people/contracts/Workspace.jsx'));
 const PublicSign = P(() => import('./pages/auth/PublicSign.jsx'));
 const Apply = P(() => import('./pages/public/Apply.jsx'));
+const StaffForm = P(() => import('./pages/public/StaffForm.jsx'));
 const EverydayRedirect = P(() => import('./pages/manager/Dashboard.jsx').then((m) => ({ default: m.EverydayRedirect })));
 const VenueDetail = P(() => import('./pages/money/VenueDetail.jsx'));
 const Pay = P(() => import('./pages/money/Pay.jsx'));
@@ -202,6 +204,7 @@ function App() {
         <Route path="/verify/:ref" element={<Verify />} />
         <Route path="/sign/:token" element={<PublicSign />} />
         <Route path="/apply" element={<Apply />} />
+        <Route path="/staff-form/:token" element={<StaffForm />} />
         <Route path="/guide/emergency/:screen?" element={<EmergencyGuide />} />
         <Route path="/guide/flow" element={<EmergencyFlow />} />
         <Route path="/guide/flow/map" element={<EmergencyFlowMap />} />
@@ -211,6 +214,7 @@ function App() {
             <Route index element={<ManagerDashboard />} />
             {managerRoutes}
             <Route path="recruitment" element={<Recruitment />} />
+            <Route path="staff-setup" element={<StaffSetup />} />
             <Route path="hr/time-off" element={<TimeOff />} />
             <Route path="people/contracts" element={<StaffContracts />} />
             <Route path="people/contracts/draft/:id" element={<ContractWorkspace />} />

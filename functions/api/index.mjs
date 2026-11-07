@@ -48,8 +48,9 @@ import * as reviews from './modules/reviews.mjs';
 import * as comments from './modules/comments.mjs';
 import * as analytics from './modules/analytics.mjs';
 import * as appFeedback from './modules/appFeedback.mjs';
+import * as staffSetup from './modules/staffSetup.mjs';
 
-export const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, clockProof, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, venueSetup, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign, contractsPack, contractsUpload, signLinks, venuePacks, email, apply, sia, reviews, comments, analytics, appFeedback].map((m) => m.actions));
+export const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, clockProof, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, venueSetup, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign, contractsPack, contractsUpload, signLinks, venuePacks, email, apply, sia, reviews, comments, analytics, appFeedback, staffSetup].map((m) => m.actions));
 // Orb runs real actions on confirm, through the same table and role checks
 assistant.useActions(ACTIONS);
 

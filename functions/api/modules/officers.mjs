@@ -46,7 +46,7 @@ export function shapeOfficer(o, user) {
 // One staff record per person: the same email or SIA licence number can't be added twice.
 // When the record has (or is getting) an app login, its email must not already sign in as someone else —
 // except a company or security manager without a staff record: they can be linked so one login does both.
-async function assertNotDuplicate(db, { id = null, email, sia_number, login = false, link = false }) {
+export async function assertNotDuplicate(db, { id = null, email, sia_number, login = false, link = false }) {
   const e = (email || '').trim().toLowerCase();
   const sia = (sia_number || '').replace(/\s+/g, '');
   if (e || sia) {

@@ -14,9 +14,12 @@ export const needsPlatformRole = (row) => !!row && isPlatformAdmin(row) && row.r
 export const inviteRole = (email, role) => (isPlatformEmail(email) ? 'company' : role);
 
 /** A platform-only action: open to any signed-in role, then checked against the platform list on the server. */
-export const plat = (fn) => def(ALL, async (b, ctx) => {
-  if (!isPlatformAdmin(ctx.user)) fail(403, 'You do not have access to this');
-  return fn(b, ctx);
+export const plat = (fn) => ({
+  ...def(ALL, async (b, ctx) => {
+    if (!isPlatformAdmin(ctx.user)) fail(403, 'You do not have access to this');
+    return fn(b, ctx);
+  }),
+  platform: true,
 });
 
 /** Nobody but the platform admin can put a platform email on an account, or take over or switch off a platform account. */

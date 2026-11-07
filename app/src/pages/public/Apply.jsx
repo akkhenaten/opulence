@@ -26,7 +26,7 @@ const CV_TYPES = '.pdf,.doc,.docx,image/*';
 const BADGE_TYPES = 'image/*,.pdf';
 
 // hero: a castle photo under the black bar with the page title on it
-function Frame({ children, hero }) {
+export function Frame({ children, hero }) {
   return (
     <div className="min-h-dvh bg-bg">
       <header className="sticky top-0 z-30 flex h-14 items-center border-b border-white/10 bg-night pt-[env(safe-area-inset-top)] [--px:1rem] sm:[--px:1.5rem] safe-x">
@@ -43,7 +43,7 @@ function Frame({ children, hero }) {
   );
 }
 
-function Card({ title, children }) {
+export function Card({ title, children }) {
   return (
     <section className="rounded-tile bg-surface p-5 shadow-tile">
       {title && <h2 className="mb-4 text-headline font-semibold">{title}</h2>}
@@ -53,7 +53,7 @@ function Card({ title, children }) {
 }
 
 // A file picker that shows the chosen file's name; the native input stays inside the label
-function FilePick({ label, hint, accept, file, onChange, icon: Icon, error }) {
+export function FilePick({ label, hint, accept, file, onChange, icon: Icon, error }) {
   const pick = (e) => {
     const f = e.target.files?.[0];
     e.target.value = '';

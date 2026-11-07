@@ -1,5 +1,5 @@
 import {
-  BarChart3, Banknote, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
+  BarChart3, Banknote, ClipboardList, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
   Radio, ReceiptText, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText,
   GraduationCap, BookOpenCheck, Crown, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck, MessageSquareHeart, LineChart, Siren,
 } from 'lucide-react';
@@ -23,6 +23,8 @@ export const NAV = {
     { title: 'People', items: [
       { to: '/company/staff', label: 'Staff', icon: Users },
       { to: '/company/recruitment', label: 'Recruitment', icon: UserPlus },
+      // The platform admin only: the one-off shared link officers use to send their details
+      { to: '/company/staff-setup', label: 'Staff setup', icon: ClipboardList, perm: 'platform', tag: 'Admin' },
       { to: '/company/people/contracts', label: 'Staff contracts', icon: FileSignature },
       { to: '/company/hr/time-off', label: 'Time off', icon: CalendarOff },
       { to: '/company/team/training', label: 'Training', icon: GraduationCap },

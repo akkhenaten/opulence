@@ -20,6 +20,7 @@ import { transcriptSweep } from './messages.mjs';
 import { feedJobs } from './everydayJobs.mjs';
 import { emailSync } from './email.mjs';
 import { applicantJobs } from './apply.mjs';
+import { staffSetupJobs } from './staffSetup.mjs';
 import { dropDraft } from './incidents.mjs';
 import { reminderDue } from '../lib/incidentDrafts.mjs';
 import { officerName } from '../lib/names.mjs';
@@ -206,6 +207,8 @@ export async function runJobs() {
   result.email = await emailSync().catch((e) => `error: ${e.message}`);
   // Online applications: catch-up AI reads; the 6-month clean-up runs once a day
   if (new Date().getUTCMinutes() < 5) result.applicants = await applicantJobs().catch((e) => `error: ${e.message}`);
+  // Staff setup: unused submissions after 60 days, unsent uploads after a day
+  if (new Date().getUTCMinutes() < 5) result.staffSetup = await staffSetupJobs().catch((e) => `error: ${e.message}`);
   console.log('[jobs]', JSON.stringify(result));
   return result;
 }

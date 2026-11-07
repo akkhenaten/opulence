@@ -3,6 +3,7 @@
 // confirm = becomes a line on a card the manager taps Confirm on.
 // Every call still goes through the action's own role and scope checks, as the signed-in manager.
 import { canSeePay } from './auth.mjs';
+import { isPlatformAdmin } from './platform.mjs';
 
 const e = (area, title, tier, params = '', extra = {}) => ({ area, title, tier, params, ...extra });
 const r = (area, title, params, extra) => e(area, title, 'read', params, extra);
@@ -22,6 +23,9 @@ export const CATALOG = {
   'officers.saveRate': c('people', "Set an officer's pay rate", 'officer_id, role, rate, venue_id?, effective_from', { link: (_r, b) => staff(b.officer_id) }),
   'officers.saveAvailability': c('people', "Update an officer's availability", 'officer_id, days', { link: (_r, b) => staff(b.officer_id) }),
   'officers.saveBan': c('people', 'Bar or allow an officer at a venue', 'officer_id, venue_id, reason, remove?', { link: (_r, b) => staff(b.officer_id) }),
+  // Staff setup (platform admin only): details officers sent through the shared link, turned into staff profiles
+  'staffSetup.list': r('people', 'Staff setup submissions waiting to become staff profiles', '', { words: 'staff setup form link details submissions new starters' }),
+  'staffSetup.create': c('people', 'Create a staff profile from a staff setup submission (active, no login invite)', 'id (submission)', { link: (res) => staff(res?.id), words: 'staff setup submission profile' }),
   'onboarding.pipeline': r('onboarding', 'Onboarding pipeline', ''),
   'onboarding.tasks': r('onboarding', "Officer's onboarding tasks", 'officer_id'),
   'onboarding.toggle': a('onboarding', 'Tick an onboarding task', 'officer_id, code, done (true|false)', {
@@ -203,11 +207,12 @@ export const CATALOG = {
 export const BANNED = /^(auth\.|files\.|push\.|assistant\.|demo\.|sign\.link\.|contracts\.ai\.)|^users\.(resetLink|resendInvite|mergeOfficerLogin)$|^settings\.setLogo$|^clock\.(tagTap|nfcSetup|passkeyOptions)$|^device\.register|^officers\.faceConsent$|^esign\.mySignature|^venuePacks\.(sign|read|toggle|mine)$|^procedures\.(publish|archive|delete)$|\.(pdf|exportCsv|qrPoster)$/;
 const PAY = /^(pay|payRuns|payAgreements|invoices)\.|^reports\.(margin|hours|overdue)$/;
 
-/** Catalogue entries this person can use: the action's own roles, pay access, and the company-only money rule. */
+/** Catalogue entries this person can use: the action's own roles, pay access, the company-only money rule, and platform-only actions. */
 export function catalogFor(user, actions) {
   return Object.entries(CATALOG).filter(([name]) => {
     const entry = actions[name];
     if (!entry || BANNED.test(name) || !entry.roles?.includes(user.role)) return false;
+    if (entry.platform && !isPlatformAdmin(user)) return false;
     if (PAY.test(name) && !canSeePay(user)) return false;
     return true;
   });

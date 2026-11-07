@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-07', icon: ClipboardList, title: 'Setting up your staff is faster: officers send their own details', image: 'staff-setup-form',
+    lede: "When the Orb team sets up your app, they can now send your officers one shared link. Each officer fills in their own details on their phone, with no login, and the team turns every submission into a staff profile, with Orb doing the typing.",
+    points: ['One form for name, contact details, address, SIA licence, pay details and an emergency contact', 'Officers can add a photo of their SIA badge, right to work, proof of address and a profile photo', 'New profiles arrive in Staff as active, with their documents waiting to be verified', 'No login invites go out; send them from each profile when you are ready', 'The link can be switched off or replaced at any time, and details not used are deleted after 60 days'],
+  },
+  {
     month: 'November 2026', date: '2026-11-07', icon: Pin, title: 'A sidebar that gets out of the way', image: 'sidebar-pin',
     lede: 'On a computer, the menu on the left can now shrink to a slim strip of icons and give the page more room. Rest the mouse on it and it slides open over the page, then tucks away again. Pin it and it stays open, the way it was.',
     points: ['Tap the small pin next to the logo, or press [ on the keyboard, to shrink or pin the menu', 'Your choice is remembered on that computer', 'While it is shrunk, unread counts show as small dots on the icons and each icon shows its name when you point at it', 'The gold marker glides to the page you open', 'Every icon has its own little motion: the calendar flips, the tick draws itself, the radio waves ripple', 'Phones are unchanged; reduced motion in your device settings turns the movement off'],
