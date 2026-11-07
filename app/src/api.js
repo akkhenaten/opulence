@@ -1,5 +1,5 @@
 // Single POST endpoint: { action, ...fields }. Token lives in localStorage.
-export const API_BASE = import.meta.env.VITE_API_BASE || 'https://hopedp5cvxdkhhpb47hfxszhwq0aqtnw.lambda-url.eu-central-1.on.aws/';
+export const API_BASE = import.meta.env.VITE_API_BASE || 'https://6ij75kpgf7kiwtvwo3nke763dm0oejxo.lambda-url.eu-central-1.on.aws/';
 const KEY = 'orb.token';
 
 export const getToken = () => localStorage.getItem(KEY);
