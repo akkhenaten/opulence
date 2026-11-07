@@ -81,11 +81,11 @@ export function Inbox({ onChange, compact, reloadKey }) {
       ))}</Load>
       <ActionBar show={selecting && chosen.length > 0}>
         <span className="num mr-2 text-subhead font-semibold">{chosen.length} selected</span>
-        <Button variant="secondary" size="sm" onClick={() => setSel([])}>Clear</Button>
+        <Button variant="secondary" size="sm" className="max-sm:hidden" onClick={() => setSel([])}>Clear</Button>
         <Button size="sm" icon={Check} busy={busy} onClick={approveMany}>Approve {chosen.length}</Button>
         <Button size="sm" variant="danger" icon={Ban} onClick={() => setDeclining(true)}>Decline {chosen.length}</Button>
       </ActionBar>
-      <RejectSheet open={declining} busy={busy} many={chosen.length} venue={kind === 'venue_request'} onClose={() => setDeclining(false)} onReject={(reason) => many('reject', reason)} />
+      <RejectSheet open={declining} busy={busy} many={chosen.length} venue={kind === 'venue_request'} setup={kind === 'venue_setup'} onClose={() => setDeclining(false)} onReject={(reason) => many('reject', reason)} />
     </>
   );
 }
@@ -167,7 +167,7 @@ function ItemCard({ it, onDone, select }) {
 
       {edit && it.kind === 'cover' && <CoverEdit it={it} busy={busy} onClose={() => setEdit(false)} onSave={(ids) => decide('approve', { edits: { officer_ids: ids } })} />}
       {edit && it.kind === 'venue_request' && <RequestEdit it={it} busy={busy} onClose={() => setEdit(false)} onSave={(shifts) => decide('approve', { edits: { shifts } })} />}
-      <RejectSheet open={rejecting} busy={busy} venue={it.kind === 'venue_request' && p.request_id} onClose={() => setRejecting(false)} onReject={(reason) => decide('reject', { reason })} />
+      <RejectSheet open={rejecting} busy={busy} venue={it.kind === 'venue_request' && p.request_id} setup={it.kind === 'venue_setup'} onClose={() => setRejecting(false)} onReject={(reason) => decide('reject', { reason })} />
     </Tile>
   );
 }
@@ -346,12 +346,12 @@ function ComplianceBody({ it, pending, picked, setPicked, allowed, onChanged, ra
   );
 }
 
-function RejectSheet({ open, busy, venue, many, onClose, onReject }) {
+function RejectSheet({ open, busy, venue, setup, many, onClose, onReject }) {
   const [reason, setReason] = useState('');
   const label = many ? `Decline ${many}` : 'Reject';
   return (
     <Sheet open={open} onClose={onClose} title={label} size="sm" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant="danger" busy={busy} onClick={() => onReject(reason)}>{label}</Button></>}>
-      {many > 0 && <p className="mb-3 text-subhead text-muted">The same reason is kept on each card.</p>}
+      {(many > 0 || setup) && <p className="mb-3 text-subhead text-muted">{[many > 0 && 'The same reason is kept on each card.', setup && "Orb won't ask about these details again unless they change."].filter(Boolean).join(' ')}</p>}
       <Textarea label={venue ? 'Reason (sent to the venue)' : 'Reason (optional)'} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
     </Sheet>
   );
