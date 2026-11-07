@@ -123,9 +123,12 @@ function SubmissionSheet({ id, onClose, onDone }) {
               ['Venue they wrote', d.venue_name || '—'],
               ['Sent', dateTime(s.created_at)],
             ]} />
+            {s.files.find((f) => f.kind === 'photo') && (
+              <img src={s.files.find((f) => f.kind === 'photo').url} alt={`${s.name}'s profile photo`} className="h-24 w-24 rounded-full object-cover" />
+            )}
             <Chips label="Link them to" options={(s.venues || []).map((x) => ({ value: x.id, label: x.name }))} value={picked} onChange={setVenues} />
             {!picked.length && <p className="text-caption text-muted">Their venue name didn't match one of yours. Pick it above; if it isn't there yet, add it in Venues first.</p>}
-            <p className="text-caption text-muted">Create login adds them as a Venue Manager for these venues, with no email. Send the invite from Settings → Users when you're ready.</p>
+            <p className="text-caption text-muted">Create login adds them as a Venue Manager for these venues, with their photo and no email. Send the invite from Settings → Users when you're ready.</p>
           </div>
         ) : (
           <div className="space-y-5">

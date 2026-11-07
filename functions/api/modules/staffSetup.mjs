@@ -55,7 +55,8 @@ export async function staffSetupJobs() {
   const orphans = await q("DELETE FROM staff_setup_uploads WHERE created_at < now() - interval '1 day' RETURNING key");
   for (const u of orphans) {
     const used = await one("SELECT 1 FROM staff_setup_submissions s WHERE EXISTS (SELECT 1 FROM jsonb_each_text(s.files) f WHERE f.value = $1)", [u.key])
-      || await one('SELECT 1 FROM documents WHERE s3_key = $1', [u.key]) || await one('SELECT 1 FROM officers WHERE photo_key = $1', [u.key]);
+      || await one('SELECT 1 FROM documents WHERE s3_key = $1', [u.key]) || await one('SELECT 1 FROM officers WHERE photo_key = $1', [u.key])
+      || await one('SELECT 1 FROM users WHERE photo_key = $1', [u.key]);
     if (!used) await dropFiles([u.key]);
   }
   if (old.length) await audit(null, 'staff_setup.purge', 'staff_setup', null, { count: old.length });
@@ -87,7 +88,7 @@ export async function createFromSubmission(id, user) {
   return { id: officerId, name: nameOf(d) };
 }
 
-/** Turn a venue manager's submission into an invited Venue Manager login for their venues (no email); then delete it */
+/** Turn a venue manager's submission into an invited Venue Manager login for their venues, with their photo (no email); then delete it */
 export async function createVenueManager(id, venueIds, user) {
   const s = need(await one("SELECT * FROM staff_setup_submissions WHERE id = $1 AND kind = 'venue'", [id]), 'Submission not found — it may already have a login');
   const d = s.details;
@@ -101,6 +102,7 @@ export async function createVenueManager(id, venueIds, user) {
   const u = await tx(async (t) => {
     const created = await createInvite(t, { email: d.email, name: nameOf(d), role: 'venue', phone: d.phone, goes_by: d.goes_by || '' });
     if (clients.length === 1) await t.q('UPDATE users SET client_id = $2 WHERE id = $1', [created.id, clients[0]]);
+    if (s.files?.photo) await t.q('UPDATE users SET photo_key = $2 WHERE id = $1', [created.id, s.files.photo]);
     await setVenues(t, created.id, 'venue', ids);
     await t.q('DELETE FROM staff_setup_submissions WHERE id = $1', [id]);
     return created;
@@ -119,7 +121,8 @@ export const actions = {
   }),
 
   'staffSetup.uploadUrl': pub(async (b, ctx) => {
-    if ((await openLink(b.token)) !== 'officer') fail(400, 'This form takes no files');
+    // Venue managers send a profile photo only
+    if ((await openLink(b.token)) === 'venue' && b.kind !== 'photo') fail(400, 'This form takes a profile photo only');
     const ip = ipOf(ctx);
     if (!SETUP_FILES[b.kind]) fail(400, 'Unknown file');
     const type = String(b.content_type || '');

@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'venue-manager-photo': 'Close view of a phone held over a dark navy bar counter, its screen showing a round profile photo placeholder with a soft gold ring and a small camera icon being tapped, a blurred venue manager in a dark suit behind, warm amber bar lights out of focus, dark navy and gold.',
   'venue-manager-form': 'A venue manager seen from behind at a dark navy bar counter at dusk, holding a phone showing a short clean form with venue tiles being ticked, a second phone on the counter with a gold tick, a laptop nearby showing a list of venues with small person icons, warm amber bar lights out of focus, dark navy and gold.',
   'staff-setup-form': 'A phone on a dark navy desk showing a clean staff details form with name, address and an SIA badge photo being filled in, several more phones fanned behind it each with a small gold tick, a laptop beside them showing a list of new staff profiles, warm lamp light, dark navy and gold.',
   'sidebar-pin': 'A widescreen monitor on a dark navy desk showing an app with a slim dark side menu folding into a narrow strip of glowing gold icons, a small brass pin resting beside it, faint gold motion trails around the icons, warm lamp light.',

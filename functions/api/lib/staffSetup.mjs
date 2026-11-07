@@ -81,10 +81,11 @@ export function cleanVenueManager(b) {
     email: str(b.email, 200).toLowerCase(), phone: str(b.phone, 40), job_title: str(b.job_title, 80) || null,
     venue_name: str(b.venue_name, 120),
   };
+  const photo = str(b.photo_key, 300);
   if (!s.first_name || !s.last_name) return { error: 'Please add your first and last name' };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email)) return { error: 'Please check your email address' };
   if (digits(s.phone).length < 10) return { error: 'Please check your phone number' };
   if (!s.venue_name) return { error: 'Please add the name of the venue you manage' };
   if (b.consent !== true) return { error: 'Please tick the box to agree to us storing your details' };
-  return { details: s, files: {} };
+  return { details: s, files: photo ? { photo } : {} };
 }

@@ -98,6 +98,7 @@ test('a venue manager types their venue; a list of venues is never taken from th
   assert.equal(d.venue_ids, undefined);
   assert.equal(d.job_title, 'General Manager');
   assert.deepEqual(files, {});
+  assert.deepEqual(cleanVenueManager({ ...vm, photo_key: 'docs/staffsetup/p.jpg', rtw_key: 'docs/staffsetup/x.pdf' }).files, { photo: 'docs/staffsetup/p.jpg' });
 });
 
 test('the venue managers form never lists the venues', async () => {

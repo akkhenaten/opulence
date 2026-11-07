@@ -52,16 +52,24 @@ export default function StaffForm() {
 function VenueForm({ token }) {
   const { brand } = useAuth();
   const { v, bind, set } = useForm({ first_name: '', last_name: '', goes_by: '', email: '', phone: '', job_title: '', venue_name: '', consent: false, website: '' });
+  const [photo, setPhoto] = useState(null);
+  const [photoErr, setPhotoErr] = useState(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  const pickPhoto = (f) => {
+    if (f && f.size > MAX) { setPhotoErr('This file is over 10 MB — please choose a smaller one'); return; }
+    setPhotoErr(null);
+    setPhoto(f);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     setErr('');
     setBusy(true);
     try {
-      await api('staffSetup.submit', { ...v, token });
+      const photo_key = photo ? await staffFormUpload(photo, 'photo', token) : '';
+      await api('staffSetup.submit', { ...v, photo_key, token });
       setDone(true);
     } catch (x) {
       setErr(x.message);
@@ -92,6 +100,10 @@ function VenueForm({ token }) {
 
         <Card title="Your venue">
           <Input label="Venue name" hint="The venue you manage" autoComplete="organization" {...bind('venue_name')} />
+        </Card>
+
+        <Card title="Profile photo">
+          <FilePick label="Profile photo (optional)" hint="A clear photo of your face, so officers know who you are" accept="image/*" icon={UserRound} file={photo} onChange={pickPhoto} error={photoErr} />
         </Card>
 
         <Card>

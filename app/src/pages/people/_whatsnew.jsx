@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, ReceiptText, ShieldAlert, Store, Siren, Smartphone, Sparkles, Users, Wallet,
+  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, ReceiptText, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-07', icon: UserRound, title: 'Venue managers add their own profile photo', image: 'venue-manager-photo',
+    lede: "The venue managers' form now lets each manager add a profile photo. It goes straight onto their Venue Manager login, so your officers and your team can see who they are dealing with at each venue.",
+    points: ['An optional photo on the venue managers\' form, taken on the phone or picked from the camera roll', 'It becomes the photo on their login when the account is made', 'The office sees it before creating the login'],
+  },
   {
     month: 'November 2026', date: '2026-11-07', icon: Store, title: 'Venue managers can send their details too', image: 'venue-manager-form',
     lede: "Alongside the officers' form, the Orb team can now send your venue managers their own shared link. Each manager adds their name, contact details and the venue they look after, and the team turns it into a Venue Manager login for the right venue, with Orb doing the typing.",
