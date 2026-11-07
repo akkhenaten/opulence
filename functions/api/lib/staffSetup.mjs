@@ -63,7 +63,7 @@ export function withoutPrivate(d) {
 /** The officers row a submission becomes: active, no login, nothing verified */
 export function officerFromDetails(d, photoKey = null) {
   return {
-    first_name: d.first_name, last_name: d.last_name, goes_by: d.goes_by || null, email: d.email, phone: d.phone,
+    first_name: d.first_name, last_name: d.last_name, goes_by: d.goes_by || '', email: d.email, phone: d.phone,
     dob: d.dob || null, address: d.address, postcode: d.postcode, ni_number: d.ni_number || null,
     sia_number: d.sia_number || null, sia_expiry: d.sia_expiry || null,
     bank_name: d.bank_name || null, bank_sort_code: d.bank_sort_code || null, bank_account: d.bank_account || null,

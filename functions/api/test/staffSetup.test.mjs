@@ -63,6 +63,11 @@ test('a submission becomes an active profile with no login', () => {
   assert.equal(o.ni_number, 'QQ123456C');
 });
 
+test('a blank "known as" becomes an empty name, never null (the column refuses null)', () => {
+  const { details } = cleanStaffDetails({ ...good, goes_by: '' }, TODAY);
+  assert.equal(officerFromDetails(details).goes_by, '');
+});
+
 test('the form is public, everything else is platform admin only', () => {
   for (const k of ['staffSetup.info', 'staffSetup.uploadUrl', 'staffSetup.submit']) assert.equal(actions[k].public, true, k);
   for (const k of ['staffSetup.link', 'staffSetup.toggle', 'staffSetup.rotate', 'staffSetup.list', 'staffSetup.get', 'staffSetup.create', 'staffSetup.discard']) {

@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-07', icon: ClipboardCheck, title: 'Staff setup: every form now becomes a profile', image: 'staff-setup-fix',
+    lede: "Some officers' forms could not be turned into a staff profile when the officer had left \"Known as\" blank. That is fixed: Create profile now works for every form, and the forms that were stuck are still waiting, untouched.",
+    points: ['Create profile works whether or not the officer gave a preferred name', 'Forms that failed before are still in Staff setup; tap Create profile again'],
+  },
+  {
     month: 'November 2026', date: '2026-11-07', icon: UserRound, title: 'Venue managers add their own profile photo', image: 'venue-manager-photo',
     lede: "The venue managers' form now lets each manager add a profile photo. It goes straight onto their Venue Manager login, so your officers and your team can see who they are dealing with at each venue.",
     points: ['An optional photo on the venue managers\' form, taken on the phone or picked from the camera roll', 'It becomes the photo on their login when the account is made', 'The office sees it before creating the login'],
