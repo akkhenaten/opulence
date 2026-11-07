@@ -130,7 +130,7 @@ body {
 /* Floating bars dock above the tab bar, or near the bottom edge when there is none */
 .action-bar { bottom: calc(var(--tabbar-h) + 12px); }
 html:not(.has-tabbar) .action-bar { bottom: calc(env(safe-area-inset-bottom) + 24px); }
-@media (min-width: 1024px) { html.has-sidebar .action-bar { left: 260px; } }
+@media (min-width: 1024px) { html.has-sidebar .action-bar { left: var(--sidebar-w, 260px); transition: left var(--dur-3) var(--ease-ios); } }
 /* Orb floating button: docks above the tab bar, and above an action bar when one is showing */
 .orb-fab, .orb-brand { background: radial-gradient(circle at 30% 25%, #2a2a2e, #0b0b0c 60%); }
 .orb-brand { box-shadow: 0 0 0 1.5px #C9A45C; }
@@ -226,12 +226,81 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
   filter: blur(8px); opacity: .55; animation: inherit; }
 .fb-glow > * { border-radius: 9999px; }
 @keyframes fb-spin { to { --fb-a: 360deg; } }
+/* Desktop sidebar: the strip widens (over the page when peeking), labels fade in a beat after each other, the active pill glides */
+.side-spacer { transition: width var(--dur-3) var(--ease-ios); }
+.side-panel { transition: width var(--dur-3) var(--ease-ios), box-shadow var(--dur-2); }
+.side-panel[data-peek] { box-shadow: 12px 0 40px -12px rgb(0 0 0 / .55); }
+.side-label, .side-fade { transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out); }
+.side-panel[data-open] .side-label { transition-delay: calc(60ms + var(--i, 0) * 15ms); }
+.side-panel[data-open] .side-fade { transition-delay: 60ms; }
+.side-panel:not([data-open]) :is(.side-label, .side-fade) { opacity: 0; transform: translateX(-8px); pointer-events: none; }
+.nav-pill[data-ready] { transition: transform var(--dur-3) var(--ease-ios), height var(--dur-2) var(--ease-ios), opacity var(--dur-2); }
+
+/* Each sidebar icon's own motion (navMotion.js): once on hover, and once when its page opens */
+.nav-ic svg, .nav-ic svg * { transform-box: fill-box; transform-origin: center; }
+@keyframes nav-wiggle { 25% { transform: rotate(-12deg); } 55% { transform: rotate(9deg); } 80% { transform: rotate(-4deg); } }
+@keyframes nav-lift { 40% { transform: translateY(-3px) scale(1.08); } }
+@keyframes nav-flip { from { transform: perspective(60px) rotateX(0); } to { transform: perspective(60px) rotateX(360deg); } }
+@keyframes nav-shake { 15%, 55% { transform: translateX(-2px) rotate(-6deg); } 35%, 75% { transform: translateX(2px) rotate(6deg); } }
+@keyframes nav-pulse { 40% { transform: scale(1.2); } 70% { transform: scale(.95); } }
+@keyframes nav-bob { 25%, 75% { transform: translateY(-2px); } 50% { transform: translateY(0); } }
+@keyframes nav-tip { 35% { transform: rotate(-16deg) translateY(-1px); } 70% { transform: rotate(5deg); } }
+@keyframes nav-tilt { 40% { transform: rotate(-8deg) scale(1.08); } 75% { transform: rotate(3deg); } }
+@keyframes nav-slide { 40% { transform: translateX(3px); } 70% { transform: translateX(-1px); } }
+@keyframes nav-turn { to { transform: rotate(90deg); } }
+@keyframes nav-rise { 30% { transform: translateY(2px); } 65% { transform: translateY(-2px); } }
+@keyframes nav-part-pop { from { transform: scale(.4); opacity: .3; } 70% { transform: scale(1.12); } }
+@keyframes nav-part-wave { from { opacity: .15; } }
+@keyframes nav-part-draw { from { stroke-dashoffset: 12; } }
+@keyframes nav-part-grow { from { transform: scaleY(.2); } 70% { transform: scaleY(1.1); } }
+@media (hover: hover) {
+  .group:hover .nav-m-wiggle svg { animation: nav-wiggle 480ms var(--ease-out); }
+  .group:hover .nav-m-lift svg { animation: nav-lift 420ms var(--ease-out); }
+  .group:hover .nav-m-flip svg { animation: nav-flip 560ms var(--ease-ios); }
+  .group:hover .nav-m-shake svg { animation: nav-shake 460ms var(--ease-out); }
+  .group:hover .nav-m-pulse svg { animation: nav-pulse 480ms var(--ease-out); }
+  .group:hover .nav-m-bob svg { animation: nav-bob 520ms var(--ease-out); }
+  .group:hover .nav-m-tip svg { animation: nav-tip 520ms var(--ease-out); }
+  .group:hover .nav-m-tilt svg { animation: nav-tilt 480ms var(--ease-out); }
+  .group:hover .nav-m-slide svg { animation: nav-slide 420ms var(--ease-out); }
+  .group:hover .nav-m-turn svg { animation: nav-turn 520ms var(--ease-ios); }
+  .group:hover .nav-m-rise svg { animation: nav-rise 480ms var(--ease-out); }
+  .group:hover .nav-m-tiles svg > rect { animation: nav-part-pop 420ms var(--ease-out) both; }
+  .group:hover .nav-m-waves svg > path { animation: nav-part-wave 520ms var(--ease-out) both; }
+  .group:hover .nav-m-tick svg > path:last-child { stroke-dasharray: 12; animation: nav-part-draw 420ms var(--ease-out) both; }
+  .group:hover .nav-m-bars svg > path:not(:first-child) { transform-origin: bottom; animation: nav-part-grow 460ms var(--ease-out) both; }
+  .group:hover .nav-m-line svg > path:last-child { stroke-dasharray: 24; animation: nav-part-draw 520ms var(--ease-out) both; }
+}
+.group[data-just] .nav-m-wiggle svg { animation: nav-wiggle 480ms var(--ease-out); }
+.group[data-just] .nav-m-lift svg { animation: nav-lift 420ms var(--ease-out); }
+.group[data-just] .nav-m-flip svg { animation: nav-flip 560ms var(--ease-ios); }
+.group[data-just] .nav-m-shake svg { animation: nav-shake 460ms var(--ease-out); }
+.group[data-just] .nav-m-pulse svg { animation: nav-pulse 480ms var(--ease-out); }
+.group[data-just] .nav-m-bob svg { animation: nav-bob 520ms var(--ease-out); }
+.group[data-just] .nav-m-tip svg { animation: nav-tip 520ms var(--ease-out); }
+.group[data-just] .nav-m-tilt svg { animation: nav-tilt 480ms var(--ease-out); }
+.group[data-just] .nav-m-slide svg { animation: nav-slide 420ms var(--ease-out); }
+.group[data-just] .nav-m-turn svg { animation: nav-turn 520ms var(--ease-ios); }
+.group[data-just] .nav-m-rise svg { animation: nav-rise 480ms var(--ease-out); }
+.group[data-just] .nav-m-tiles svg > rect { animation: nav-part-pop 420ms var(--ease-out) both; }
+.group[data-just] .nav-m-waves svg > path { animation: nav-part-wave 520ms var(--ease-out) both; }
+.group[data-just] .nav-m-tick svg > path:last-child { stroke-dasharray: 12; animation: nav-part-draw 420ms var(--ease-out) both; }
+.group[data-just] .nav-m-bars svg > path:not(:first-child) { transform-origin: bottom; animation: nav-part-grow 460ms var(--ease-out) both; }
+.group[data-just] .nav-m-line svg > path:last-child { stroke-dasharray: 24; animation: nav-part-draw 520ms var(--ease-out) both; }
+/* Staggers: the four tiles in turn, the radio waves from the middle out, the bars left to right */
+.nav-m-tiles svg > rect:nth-child(2) { animation-delay: 60ms !important; }
+.nav-m-tiles svg > rect:nth-child(3) { animation-delay: 120ms !important; }
+.nav-m-tiles svg > rect:nth-child(4) { animation-delay: 180ms !important; }
+.nav-m-waves svg > path:is(:nth-child(1), :nth-child(5)) { animation-delay: 140ms !important; }
+.nav-m-bars svg > path:nth-child(3) { animation-delay: 70ms !important; }
+.nav-m-bars svg > path:nth-child(2) { animation-delay: 140ms !important; }
+
 /* Reduced motion: keep fades, drop movement; spinners still turn so loading stays visible */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; scroll-behavior: auto !important; }
   .bento > *, .page-in-right, .page-in-left, .page-fade, .anim-pop, .anim-sheet-in, .anim-toast-in, .anim-bar-in, .anim-fade-in { animation: fade var(--dur-1) both !important; }
   .anim-sheet-out, .anim-toast-out, .anim-fade-out { animation: fade-out var(--dur-1) both !important; }
-  .live-dot, .skeleton, .silver-mark::after, .fb-glow, .fb-glow::before, .orb-voice-halo, .orb-voice-speaking, .orb-voice-turn { animation: none !important; }
+  .nav-ic svg, .nav-ic svg *, .live-dot, .skeleton, .silver-mark::after, .fb-glow, .fb-glow::before, .orb-voice-halo, .orb-voice-speaking, .orb-voice-turn { animation: none !important; }
   .pressable:active, .pressable-card:active { transform: none; }
 }
 

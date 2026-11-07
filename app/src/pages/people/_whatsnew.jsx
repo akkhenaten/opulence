@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Radar, ReceiptText, ShieldAlert, Siren, Smartphone, Sparkles, Users, Wallet,
+  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, ReceiptText, ShieldAlert, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-07', icon: Pin, title: 'A sidebar that gets out of the way', image: 'sidebar-pin',
+    lede: 'On a computer, the menu on the left can now shrink to a slim strip of icons and give the page more room. Rest the mouse on it and it slides open over the page, then tucks away again. Pin it and it stays open, the way it was.',
+    points: ['Tap the small pin next to the logo, or press [ on the keyboard, to shrink or pin the menu', 'Your choice is remembered on that computer', 'While it is shrunk, unread counts show as small dots on the icons and each icon shows its name when you point at it', 'The gold marker glides to the page you open', 'Every icon has its own little motion: the calendar flips, the tick draws itself, the radio waves ripple', 'Phones are unchanged; reduced motion in your device settings turns the movement off'],
+  },
   {
     month: 'November 2026', date: '2026-11-07', icon: Sparkles, title: 'Orb spots venues with missing details, and you approve in bulk', image: 'orb-venue-setup',
     lede: "Orb now checks every venue for a missing address, map pin, logo or a clock-in radius nobody has confirmed. It looks up what it can online and puts one card per venue in To approve, with everything ready to save. Nothing changes until you approve, and cards of the same kind can now be approved or declined together.",

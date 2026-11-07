@@ -1,11 +1,12 @@
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { Bell, BellOff, BookOpen, Briefcase, ChevronRight, ExternalLink, Globe, LogOut, MessagesSquare, MoreHorizontal, Newspaper } from 'lucide-react';
+import { Bell, BellOff, BookOpen, Briefcase, ChevronRight, ExternalLink, Globe, LogOut, MessagesSquare, MoreHorizontal, Newspaper, Pin } from 'lucide-react';
 import { api } from '../api.js';
 import { startRealtime, useRealtime, useRealtimeConnected } from '../realtime.js';
 import { portalLink, useAuth } from '../auth.jsx';
 import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, usePageHeader, useScrollMemory } from '../ui/index.jsx';
 import { NAV, ROLE_LABEL } from './nav.js';
+import { motionFor } from './navMotion.js';
 import { SideSwitch } from './SideSwitch.jsx';
 import { AccountSheet } from './AccountSheet.jsx';
 import AskOrb from '../ui/AskOrb.jsx';
@@ -136,9 +137,12 @@ function HeaderTitle({ wide }) {
   );
 }
 
-// Sidebar links: gold bar and gold text on the active one
-const NAV_ITEM = 'pressable relative flex min-h-9 items-center gap-3 rounded-xl px-3 py-1.5 text-subhead font-semibold';
-const NAV_ON = 'bg-blue-soft text-blue before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-[var(--accent-fill)]';
+// Sidebar links: gold text on the active one; its pill and gold bar glide between links (nav-pill). Help sits outside the
+// list and keeps its own pill.
+const NAV_ITEM = 'pressable group relative flex min-h-9 items-center gap-3 rounded-xl px-3 py-1.5 text-subhead font-semibold';
+const NAV_PILL = 'bg-blue-soft before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-[var(--accent-fill)]';
+const NAV_ON = 'text-blue';
+const NAV_ON_STATIC = cx('text-blue', NAV_PILL);
 const NAV_OFF = 'text-ink/70 hover:bg-fill hover:text-ink';
 
 // Rows in the phone More menu
@@ -150,6 +154,40 @@ const Badge = ({ n, className }) => (n > 0 ? <span className={cx('rounded-full b
 
 // A small label on a nav item (Platform: Admin)
 const Tag = ({ t }) => (t ? <span className="rounded-md bg-gold/15 px-1.5 text-caption2 font-bold uppercase leading-[18px] tracking-wide text-gold">{t}</span> : null);
+
+// Desktop sidebar: pinned open (remembered per browser), or a 72px icon strip that peeks open over the page on hover or focus
+const PIN_KEY = 'orb.nav.pinned';
+function useSidebar() {
+  const [pinned, setPinnedState] = useState(() => { try { return localStorage.getItem(PIN_KEY) !== '0'; } catch { return true; } });
+  const [peek, setPeek] = useState(false);
+  const timer = useRef(null);
+  const later = (v, ms) => { clearTimeout(timer.current); timer.current = setTimeout(() => setPeek(v), ms); };
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const setPinned = (v) => {
+    setPinnedState(v);
+    if (!v) { clearTimeout(timer.current); setPeek(false); }
+    try { localStorage.setItem(PIN_KEY, v ? '1' : '0'); } catch { /* private mode */ }
+  };
+  return {
+    pinned, setPinned, peek, open: pinned || peek,
+    enter: () => later(true, 120), leave: () => later(false, 300), shut: () => { clearTimeout(timer.current); setPeek(false); },
+  };
+}
+
+// A sidebar link: the icon with its own motion (navMotion.js), the label that fades when the strip shrinks, the badge
+// as a corner dot on the icon while shrunk
+function SideLink({ it, i, open, n, className, on = NAV_ON, onClick }) {
+  return (
+    <NavLink to={it.to} end={it.end} onClick={onClick} aria-label={it.label} title={open ? undefined : it.label} style={{ '--i': i }}
+      className={({ isActive }) => cx(NAV_ITEM, className, isActive ? on : NAV_OFF)}>
+      <span className={cx('nav-ic relative grid shrink-0 place-items-center', `nav-m-${motionFor(it.icon)}`)}>
+        <it.icon size={18} />
+        {!open && <Badge n={n} className="absolute -right-3 -top-2.5 ring-2 ring-bg" />}
+      </span>
+      <span className="side-label flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap"><span className="flex-1 truncate">{it.label}</span><Tag t={it.tag} /><Badge n={n} /></span>
+    </NavLink>
+  );
+}
 
 // On "My shifts", a manager who also works shifts gets back to the manager side in one tap
 function ManagerButton() {
@@ -188,6 +226,7 @@ export default function Shell() {
   const [account, setAccount] = useState(false);
   const [ask, setAsk] = useState(false);
   const [orbDot, setOrbDot] = useState(false);
+  const side = useSidebar();
   // Other pages open Orb with this event (e.g. the Orb page)
   useEffect(() => {
     const o = () => setAsk(true);
@@ -227,7 +266,7 @@ export default function Shell() {
   // More menu on phones: the sidebar sections, without what's already in the tab bar
   const moreGroups = groups.map((g) => ({ ...g, items: g.items.filter((i) => !i.tab) })).filter((g) => g.items.length);
   const isOfficer = user.role === 'officer';
-  useEffect(() => { setMore(false); setAccount(false); }, [loc.pathname]);
+  useEffect(() => { setMore(false); setAccount(false); side.shut(); }, [loc.pathname]);
   useScrollMemory();
   const header = usePageHeader();
   // Black top bar on phones and for officers; managers on desktop keep the light see-through bar
@@ -256,11 +295,53 @@ export default function Shell() {
       html.classList.toggle('has-tabbar', isOfficer || !mq.matches);
       html.classList.toggle('has-sidebar', !isOfficer);
       html.classList.toggle('has-orb', isMgr);
+      html.style.setProperty('--sidebar-w', isOfficer ? '0px' : side.pinned ? '260px' : '72px');
     };
     apply();
     mq.addEventListener('change', apply);
-    return () => { mq.removeEventListener('change', apply); html.classList.remove('has-tabbar', 'has-sidebar', 'has-orb'); };
-  }, [isOfficer, isMgr]);
+    return () => { mq.removeEventListener('change', apply); html.classList.remove('has-tabbar', 'has-sidebar', 'has-orb'); html.style.removeProperty('--sidebar-w'); };
+  }, [isOfficer, isMgr, side.pinned]);
+  // [ pins or unpins the sidebar (not while typing)
+  const pinRef = useRef(side.setPinned);
+  pinRef.current = side.setPinned;
+  const pinnedNow = useRef(side.pinned);
+  pinnedNow.current = side.pinned;
+  useEffect(() => {
+    if (isOfficer) return undefined;
+    const k = (e) => {
+      if (e.key !== '[' || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target;
+      if (t?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t?.tagName || '')) return;
+      pinRef.current(!pinnedNow.current);
+    };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [isOfficer]);
+  // The active pill glides to the active link; the link that just became active plays its icon motion once
+  const navRef = useRef(null);
+  const pillRef = useRef(null);
+  const lastActive = useRef(null);
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    const pill = pillRef.current;
+    if (!nav || !pill) return undefined;
+    const a = nav.querySelector('a[aria-current="page"]');
+    if (!a) { pill.style.opacity = '0'; lastActive.current = null; return undefined; }
+    // Measured against the list itself (each section is its own positioned box), so scrolled lists line up too
+    const top = a.getBoundingClientRect().top - nav.getBoundingClientRect().top + nav.scrollTop;
+    pill.style.transform = `translateY(${top}px)`;
+    pill.style.height = `${a.offsetHeight}px`;
+    pill.style.opacity = '1';
+    let t;
+    if (lastActive.current && lastActive.current !== a) {
+      a.setAttribute('data-just', '');
+      t = setTimeout(() => a.removeAttribute('data-just'), 700);
+    }
+    lastActive.current = a;
+    // First placement jumps; after that it glides
+    const f = requestAnimationFrame(() => pill.setAttribute('data-ready', ''));
+    return () => { cancelAnimationFrame(f); clearTimeout(t); };
+  }, [loc.pathname, groups.length, side.open]);
   const isActive = (it) => (it.end ? loc.pathname === it.to : loc.pathname === it.to || loc.pathname.startsWith(`${it.to}/`));
   // Tapping the tab you're already on scrolls back to the top
   const tabTap = (it) => (e) => { if (loc.pathname === it.to) { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); } };
@@ -269,31 +350,41 @@ export default function Shell() {
     <div className="min-h-dvh lg:flex">
       {/* Desktop sidebar (managers) */}
       {!isOfficer && (
-        <aside data-style="control" className="sticky top-0 hidden h-dvh w-[260px] shrink-0 flex-col border-r border-line px-3 py-5 lg:flex">
-          <div className="px-3 pb-6"><Logo place="sidebar" tone="light" /></div>
-          <SideSwitch full className="mb-4" />
-          <nav className="flex-1 space-y-4 overflow-y-auto no-scrollbar">
-            {groups.map((g, i) => (
-              <div key={i}>
-                {g.title && <div className="mb-0.5 px-3 text-caption2 font-semibold uppercase tracking-wider text-faint">{g.title}</div>}
-                {g.items.map((it) => (
-                  <NavLink key={it.to} to={it.to} end={it.end} onClick={tabTap(it)}
-                    className={({ isActive: on }) => cx(NAV_ITEM, on ? NAV_ON : NAV_OFF)}>
-                    <it.icon size={18} /><span className="flex-1">{it.label}</span><Tag t={it.tag} /><Badge n={badges[it.badge]} />
-                  </NavLink>
-                ))}
-              </div>
-            ))}
-          </nav>
-          <NavLink to={`/${user.role}/help`}
-            className={({ isActive: on }) => cx(NAV_ITEM, 'mt-2', on ? NAV_ON : NAV_OFF)}>
-            <BookOpen size={18} /><span className="flex-1">Help & user guide</span>
-          </NavLink>
-          <Pressable press onClick={() => setAccount(true)} aria-label="My account" className="mt-4 flex items-center gap-3 rounded-2xl bg-fill p-3 hover:bg-fill-strong">
-            <Avatar name={user.name} src={[user.photo_thumb_url, user.photo_url]} size={36} />
-            <div className="min-w-0 flex-1"><div className="truncate text-subhead font-semibold">{user.name}</div><div className="truncate text-caption text-muted">{ROLE_LABEL[user.role]}</div></div>
-            <ChevronRight size={18} className="text-faint" />
-          </Pressable>
+        <aside className="side-spacer sticky top-0 z-40 hidden h-dvh shrink-0 lg:block" style={{ width: side.pinned ? 260 : 72 }}
+          onMouseEnter={side.pinned ? undefined : side.enter} onMouseLeave={side.pinned ? undefined : side.leave}>
+          <div data-style="control" data-open={side.open || undefined} data-peek={(!side.pinned && side.open) || undefined}
+            className="side-panel absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r border-line px-3 py-5" style={{ width: side.open ? 260 : 72 }}
+            onFocus={side.pinned ? undefined : () => side.enter()}
+            onBlur={side.pinned ? undefined : (e) => { if (!e.currentTarget.contains(e.relatedTarget)) side.leave(); }}>
+            <div className="pb-6 pl-1.5"><Logo place="sidebar" tone="light" compact={!side.open} /></div>
+            <Pressable press onClick={() => side.setPinned(!side.pinned)} aria-pressed={side.pinned}
+              aria-label={side.pinned ? 'Let the menu shrink to icons ([)' : 'Keep the menu open ([)'} title={side.pinned ? 'Let the menu shrink to icons ([)' : 'Keep the menu open ([)'}
+              className={cx('side-fade absolute right-1.5 top-1.5 z-10 grid h-7 w-7 place-items-center rounded-full before:absolute before:-inset-2 hover:bg-fill hover:text-gold', side.pinned ? 'text-gold' : 'text-faint')}>
+              <Pin size={14} className={cx('transition-transform duration-[var(--dur-2)] ease-ios', !side.pinned && 'rotate-45')} />
+            </Pressable>
+            {side.open && <div className="side-fade"><SideSwitch full className="mb-4" /></div>}
+            <nav ref={navRef} className="relative flex-1 space-y-4 overflow-y-auto overflow-x-hidden no-scrollbar">
+              <span ref={pillRef} aria-hidden className={cx('nav-pill pointer-events-none absolute inset-x-0 top-0 rounded-xl opacity-0', NAV_PILL)} />
+              {groups.map((g, gi) => (
+                <div key={gi} className="relative">
+                  {g.title && (
+                    <div className="relative mb-0.5 h-4 px-3">
+                      <div className="side-fade truncate text-caption2 font-semibold uppercase leading-4 tracking-wider text-faint">{g.title}</div>
+                      <div className={cx('absolute left-3 top-2 h-px w-6 bg-line transition-opacity duration-[var(--dur-2)]', side.open ? 'opacity-0' : 'opacity-100')} />
+                    </div>
+                  )}
+                  {g.items.map((it, i) => <SideLink key={it.to} it={it} i={i} open={side.open} n={badges[it.badge]} onClick={tabTap(it)} />)}
+                </div>
+              ))}
+            </nav>
+            <SideLink it={{ to: `/${user.role}/help`, label: 'Help & user guide', icon: BookOpen }} open={side.open} className="mt-2" on={NAV_ON_STATIC} />
+            <Pressable press onClick={() => setAccount(true)} aria-label="My account" title={side.open ? undefined : `${user.name} · My account`}
+              className={cx('mt-4 flex items-center gap-3 rounded-2xl bg-fill hover:bg-fill-strong transition-[padding] duration-[var(--dur-3)] ease-ios', side.open ? 'p-3' : 'p-1.5')}>
+              <Avatar name={user.name} src={[user.photo_thumb_url, user.photo_url]} size={side.open ? 36 : 32} />
+              <div className="side-label min-w-0 flex-1"><div className="truncate text-subhead font-semibold">{user.name}</div><div className="truncate text-caption text-muted">{ROLE_LABEL[user.role]}</div></div>
+              <ChevronRight size={18} className="side-fade shrink-0 text-faint" />
+            </Pressable>
+          </div>
         </aside>
       )}
 
