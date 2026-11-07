@@ -7,6 +7,7 @@ import {
 import { londonIso, londonParts } from '../manager/_parts.jsx';
 import { LABEL, RequestForm, statusOf } from '../manager/_cover.jsx';
 import { CoverList, Detail } from './_requests.jsx';
+import { useVenue } from '../../venue.jsx';
 
 /** The venue manager's rota: published shifts at their own venue(s), who is on and who is on site, and staff requests made from the day. */
 export default function VenueRota() {
@@ -17,11 +18,10 @@ export default function VenueRota() {
   const nav = useNavigate();
 
   const [week, setWeek] = useState(() => mondayOf(isoDate()));
-  const [venueId, setVenueId] = useState('');
+  const { venueId, venues: list, many, setVenueId } = useVenue();
   const [form, setForm] = useState(null); // { draft? }
   const [open, setOpen] = useState(null);
 
-  const venues = useApi('venues.list', {});
   const roles = useApi('roles.list', {});
   const cover = useApi('cover.list', {});
   const body = useMemo(() => ({ from: londonIso(week), to: londonIso(addDays(week, 7)), ...(venueId ? { venue_id: venueId } : {}) }), [week, venueId]);
@@ -36,11 +36,11 @@ export default function VenueRota() {
     if (sp.get('new')) { setForm({ draft: { quiet: true } }); const n = new URLSearchParams(sp); n.delete('new'); setSp(n, { replace: true }); }
   }, [sp]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const list = (venues.data || []).filter((v) => v.active !== false);
-  const many = list.length > 1;
   const today = isoDate();
   const isThisWeek = week === mondayOf(today);
-  const upcoming = (cover.data || []).filter((c) => new Date(c.ends_at) > Date.now() && ['pending', 'accepted'].includes(c.status)).length;
+  // The chosen venue (home tiles or the top-bar chip) narrows the requests too
+  const coverQ = useMemo(() => ({ ...cover, data: cover.data && cover.data.filter((c) => !venueId || c.venue_id === venueId) }), [cover, venueId]);
+  const upcoming = (coverQ.data || []).filter((c) => new Date(c.ends_at) > Date.now() && ['pending', 'accepted'].includes(c.status)).length;
   const ask = (date) => setForm({ draft: { date: date && date >= today ? date : undefined, venue_id: venueId || undefined, quiet: true } });
 
   return (
@@ -48,7 +48,7 @@ export default function VenueRota() {
       actions={<Button icon={Plus} onClick={() => ask()}>Request staff</Button>}>
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'rota', label: 'Rota' }, { value: 'requests', label: 'Requests', count: upcoming || undefined }]} />
 
-      {tab === 'requests' ? <CoverList q={cover} many={many} onOpen={setOpen} onNew={() => ask()} /> : (
+      {tab === 'requests' ? <CoverList q={coverQ} many={many && !venueId}onOpen={setOpen} onNew={() => ask()} /> : (
         <>
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1 rounded-xl bg-surface p-1 shadow-tile">
@@ -62,7 +62,7 @@ export default function VenueRota() {
           </div>
           <Load q={shifts}>{(rows) => (
             <Week week={week} today={today} rows={rows} many={many && !venueId}
-              requests={(cover.data || []).filter((c) => c.kind !== 'recurring' && c.status !== 'cancelled' && (!venueId || c.venue_id === venueId))}
+              requests={(coverQ.data || []).filter((c) => c.kind !== 'recurring' && c.status !== 'cancelled')}
               onShift={(s) => nav(`/venue/logs/${s.id}`)} onRequest={setOpen} onAsk={ask} />
           )}</Load>
         </>

@@ -1,5 +1,5 @@
 import { one, q } from '../lib/db.mjs';
-import { venueScope } from '../lib/scope.mjs';
+import { narrowScope, venueScope } from '../lib/scope.mjs';
 import { canSeePay } from '../lib/auth.mjs';
 import { addDays, londonDate } from '../lib/time.mjs';
 import { actions as clock } from './clock.mjs';
@@ -12,7 +12,10 @@ const count = async (sql, params) => (await one(sql, params)).n;
 
 // Who is on site right now, summarised from the live board
 async function liveSummary(ctx) {
-  const rows = await clock['live.board'].fn({}, ctx);
+  return summarise(await clock['live.board'].fn({}, ctx));
+}
+
+function summarise(rows) {
   const by = (s) => rows.filter((r) => r.state === s).length;
   return {
     on_site: by('on_shift') + by('on_break'), late: by('late'), no_show: by('no_show'), upcoming: by('upcoming'),
@@ -89,18 +92,44 @@ async function managerDash(ctx) {
   return out;
 }
 
-async function venueDash(ctx) {
-  const scope = await venueScope(ctx.user);
-  const [live, shifts, incidents, toSign, cover, invoices, venues] = await Promise.all([
-    liveSummary(ctx),
+// One tile per venue for managers with several: live counts from the board rows plus grouped counts
+export function venueTiles(venues, rows, { next = [], toSign = [], cover = [], incidents = [] } = {}) {
+  const at = (list, id) => list.find((x) => x.venue_id === id);
+  return venues.map((v) => {
+    const mine = rows.filter((r) => r.venue_id === v.id);
+    const n = (...st) => mine.filter((r) => st.includes(r.state)).length;
+    return {
+      venue_id: v.id, on_site: n('on_shift', 'on_break'), late: n('late', 'no_show'),
+      next_shift: at(next, v.id)?.starts_at || null, to_sign: at(toSign, v.id)?.n || 0, cover: at(cover, v.id)?.n || 0, incidents: at(incidents, v.id)?.n || 0,
+    };
+  });
+}
+
+async function venueDash(b, ctx) {
+  const all = await venueScope(ctx.user);
+  const scope = await narrowScope(ctx.user, b.venue_id);
+  const many = all.length > 1;
+  const [board, shifts, incidents, toSign, cover, invoices, venues] = await Promise.all([
+    clock['live.board'].fn({}, ctx),
     upcomingShifts(scope, 48),
     recentIncidents(scope),
     count(`SELECT count(*)::int AS n FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id WHERE t.status = 'approved' AND s.venue_id = ANY($1)`, [scope]),
     q("SELECT c.*, v.name AS venue_name, r.name AS role_name FROM cover_requests c JOIN venues v ON v.id = c.venue_id JOIN roles r ON r.code = c.role WHERE c.venue_id = ANY($1) AND c.ends_at > now() AND c.status <> 'cancelled' ORDER BY c.starts_at LIMIT 8", [scope]),
     one("SELECT COALESCE(sum(gross),0) AS n, count(*)::int AS c FROM invoices WHERE venue_id = ANY($1) AND status IN ('issued','overdue')", [scope]),
-    q('SELECT id, name, address, postcode FROM venues WHERE id = ANY($1) ORDER BY name', [scope]),
+    q('SELECT id, name, address, postcode, logo_url FROM venues WHERE id = ANY($1) ORDER BY name', [all]),
   ]);
-  return { role: 'venue', venues, live, shifts, incidents, cover, counts: { toSign }, invoices: { outstanding: Number(invoices.n), count: invoices.c } };
+  const live = summarise(board.filter((r) => scope.includes(r.venue_id)));
+  let tiles = null;
+  if (many) {
+    const [next, signs, covers, incs] = await Promise.all([
+      q(`SELECT DISTINCT ON (venue_id) venue_id, starts_at FROM shifts WHERE venue_id = ANY($1) AND status = 'published' AND starts_at > now() ORDER BY venue_id, starts_at`, [all]),
+      q(`SELECT s.venue_id, count(*)::int AS n FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id WHERE t.status = 'approved' AND s.venue_id = ANY($1) GROUP BY 1`, [all]),
+      q(`SELECT venue_id, count(*)::int AS n FROM cover_requests WHERE venue_id = ANY($1) AND status = 'pending' AND ends_at > now() GROUP BY 1`, [all]),
+      q(`SELECT venue_id, count(*)::int AS n FROM incidents WHERE venue_id = ANY($1) AND created_at > now() - interval '7 days' GROUP BY 1`, [all]),
+    ]);
+    tiles = venueTiles(venues, board, { next, toSign: signs, cover: covers, incidents: incs });
+  }
+  return { role: 'venue', venue_id: b.venue_id || null, venues, tiles, live, shifts, incidents, cover, counts: { toSign }, invoices: { outstanding: Number(invoices.n), count: invoices.c } };
 }
 
 async function officerDash({ user }) {
@@ -129,9 +158,9 @@ async function officerDash({ user }) {
 }
 
 export const actions = {
-  'dashboard.get': def(ALL, async (_b, ctx) => {
+  'dashboard.get': def(ALL, async (b, ctx) => {
     if (ctx.user.role === 'officer') return officerDash(ctx);
-    if (ctx.user.role === 'venue') return venueDash(ctx);
+    if (ctx.user.role === 'venue') return venueDash(b, ctx);
     return managerDash(ctx);
   }),
 };

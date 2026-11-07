@@ -4,6 +4,7 @@ import { Bell, BellOff, BookOpen, Briefcase, ChevronRight, ExternalLink, Globe, 
 import { api } from '../api.js';
 import { startRealtime, useRealtime, useRealtimeConnected } from '../realtime.js';
 import { portalLink, useAuth } from '../auth.jsx';
+import { VenueChip } from '../venue.jsx';
 import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, usePageHeader, useScrollMemory } from '../ui/index.jsx';
 import { NAV, ROLE_LABEL } from './nav.js';
 import { motionFor } from './navMotion.js';
@@ -405,6 +406,7 @@ export default function Shell() {
                   <IconButton icon={MessagesSquare} tone="solid" to={`/${user.role}/messages`} active={loc.pathname.startsWith(`/${user.role}/messages`)} badge={badges.messages} label={`Messages${badges.messages ? `, ${badges.messages} unread` : ''}`} />
                 </span>
               )}
+              {user.role === 'venue' && <VenueChip />}
               {fbOn && <><FeedbackChip /><FeedbackIcon /></>}
               <NotificationBell />
               {isOfficer && user.dual && <ManagerButton />}

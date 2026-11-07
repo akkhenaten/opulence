@@ -26,9 +26,10 @@ const LINK_ID = { officer: 1, venue: 2 };
 const kindOf = (k) => (k === 'venue' ? 'venue' : 'officer');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const activeVenues = () => q('SELECT id, name FROM venues WHERE active ORDER BY name');
-// The venue a manager typed, matched to an active venue by its name (case and spacing ignored)
+// The venues a manager typed, matched to active venues by name (case and spacing ignored)
 const squash = (n) => String(n || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
-const matchVenue = (d, venues) => venues.filter((v) => squash(d.venue_name) && squash(v.name) === squash(d.venue_name));
+const typedVenues = (d) => (d.venue_names?.length ? d.venue_names : [d.venue_name]).filter(Boolean);
+const matchVenue = (d, venues) => { const want = typedVenues(d).map(squash).filter(Boolean); return venues.filter((v) => want.includes(squash(v.name))); };
 
 /** The link's kind, only while it is switched on and the token is the current one */
 async function openLink(token) {
@@ -109,7 +110,7 @@ export async function createVenueManager(id, venueIds, user, invite = false) {
   const d = s.details;
   const given = Array.isArray(venueIds) && venueIds.length ? venueIds : matchVenue(d, await activeVenues()).map((v) => v.id);
   const ids = [...new Set(given.map(String))].filter((v) => UUID.test(v));
-  if (!ids.length) fail(400, `${nameOf(d)} wrote "${d.venue_name}", which doesn't match a venue — pick their venue in Staff setup first`);
+  if (!ids.length) fail(400, `${nameOf(d)} wrote "${typedVenues(d).join('", "')}", which doesn't match a venue — pick their venues in Staff setup first`);
   if (isPlatformEmail(d.email)) fail(400, 'This email belongs to the platform admin');
   const venues = await q('SELECT id, client_id FROM venues WHERE id = ANY($1::uuid[])', [ids]);
   if (venues.length !== ids.length) fail(400, 'Venue not found');
@@ -204,7 +205,7 @@ export const actions = {
   }),
 
   // Waiting submissions (kind officer | venue), without date of birth, NI or bank details (this is also what Orb reads).
-  // A venue manager's venues: the one their typed venue_name matches; empty means it matched none, so the admin picks it.
+  // A venue manager's venues: those their typed venue names match; empty means it matched none, so the admin picks it.
   'staffSetup.list': plat(async () => {
     const rows = await q('SELECT * FROM staff_setup_submissions ORDER BY created_at');
     const all = await activeVenues();

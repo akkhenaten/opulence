@@ -3,10 +3,10 @@
 // admin only) until it becomes a staff profile, or a Venue Manager login.
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { CheckCircle2, FileText, IdCard, Lock, UserRound } from 'lucide-react';
+import { CheckCircle2, FileText, IdCard, Lock, Plus, UserRound, X } from 'lucide-react';
 import { api, staffFormUpload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, Check, ErrorBox, Input, Load, useApi, useForm } from '../../ui/index.jsx';
+import { Button, Check, ErrorBox, IconButton, Input, Load, useApi, useForm } from '../../ui/index.jsx';
 import { Card, FilePick, Frame } from './Apply.jsx';
 
 const MAX = 10 * 1024 * 1024;
@@ -51,7 +51,9 @@ export default function StaffForm() {
 // Venue managers: who they are and the venue they look after (typed, never picked from a list); their login is set up from this
 function VenueForm({ token }) {
   const { brand } = useAuth();
-  const { v, bind, set } = useForm({ first_name: '', last_name: '', goes_by: '', email: '', phone: '', job_title: '', venue_name: '', consent: false, website: '' });
+  const { v, bind, set } = useForm({ first_name: '', last_name: '', goes_by: '', email: '', phone: '', job_title: '', consent: false, website: '' });
+  // Managers of several venues add each one
+  const [names, setNames] = useState(['']);
   const [photo, setPhoto] = useState(null);
   const [photoErr, setPhotoErr] = useState(null);
   const [err, setErr] = useState('');
@@ -69,7 +71,8 @@ function VenueForm({ token }) {
     setBusy(true);
     try {
       const photo_key = photo ? await staffFormUpload(photo, 'photo', token) : '';
-      await api('staffSetup.submit', { ...v, photo_key, token });
+      const venue_names = names.map((n) => n.trim()).filter(Boolean);
+      await api('staffSetup.submit', { ...v, venue_names, venue_name: venue_names[0] || '', photo_key, token });
       setDone(true);
     } catch (x) {
       setErr(x.message);
@@ -98,8 +101,17 @@ function VenueForm({ token }) {
           <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden"><Input label="Website" tabIndex={-1} autoComplete="off" {...bind('website')} /></div>
         </Card>
 
-        <Card title="Your venue">
-          <Input label="Venue name" hint="The venue you manage" autoComplete="organization" {...bind('venue_name')} />
+        <Card title={names.length > 1 ? 'Your venues' : 'Your venue'}>
+          <div className="space-y-3">
+            {names.map((n, i) => (
+              <div key={i} className="flex items-end gap-2">
+                <Input className="min-w-0 flex-1" label={names.length > 1 ? `Venue ${i + 1}` : 'Venue name'} hint={names.length === 1 ? 'The venue you manage' : undefined}
+                  autoComplete="organization" value={n} onChange={(e) => setNames((x) => x.map((y, j) => (j === i ? e.target.value : y)))} />
+                {names.length > 1 && <IconButton icon={X} label={`Remove venue ${i + 1}`} onClick={() => setNames((x) => x.filter((_, j) => j !== i))} />}
+              </div>
+            ))}
+            {names.length < 10 && <Button type="button" variant="ghost" size="sm" icon={Plus} onClick={() => setNames((x) => [...x, ''])}>Add another venue</Button>}
+          </div>
         </Card>
 
         <Card title="Profile photo">

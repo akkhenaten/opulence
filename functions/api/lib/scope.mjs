@@ -4,14 +4,21 @@ import { fail } from './http.mjs';
 // Venue ids a user may see. null = all venues (company).
 export async function venueScope(user) {
   if (user.role === 'company') return null;
-  if (user.role === 'security') return (await q('SELECT venue_id FROM security_venues WHERE user_id = $1', [user.id])).map((r) => r.venue_id);
-  if (user.role === 'venue') return (await q('SELECT venue_id FROM venue_contacts WHERE user_id = $1', [user.id])).map((r) => r.venue_id);
+  if (user.role === 'security') return (await q('SELECT venue_id FROM security_venues WHERE user_id = $1 ORDER BY venue_id', [user.id])).map((r) => r.venue_id);
+  if (user.role === 'venue') return (await q('SELECT venue_id FROM venue_contacts WHERE user_id = $1 ORDER BY venue_id', [user.id])).map((r) => r.venue_id);
   return [];
 }
 
 export async function assertVenue(user, venueId) {
   const scope = await venueScope(user);
   if (scope && !scope.includes(venueId)) fail(403, 'No access to this venue');
+}
+
+// The user's scope, or just one of their venues when they have picked it (checked)
+export async function narrowScope(user, venueId) {
+  if (!venueId) return venueScope(user);
+  await assertVenue(user, venueId);
+  return [venueId];
 }
 
 // SQL fragment limiting a venue_id column to the user's scope.

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, CalendarDays, ClipboardCheck, LineChart, MapPin, Megaphone, MessageSquareHeart, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
+import { Building2, CalendarDays, ClipboardCheck, Layers, LineChart, MapPin, Megaphone, MessageSquareHeart, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
+import { useVenue } from '../../venue.jsx';
 import { FeedbackTile, GiveFeedbackSheet, RateStaffSheet } from '../venue/_feedback.jsx';
 import { useModuleOn } from './Analytics.jsx';
 import { presetRange } from './_parts.jsx';
 import {
-  assignTone, Bento, Button, Dot, List, Load, Page, Pill, Row, Section, Stat, Tile, cx, dayLabel, money, range, relative, titleCase, useApi,
+  assignTone, Bento, Button, Dot, List, Load, Page, Pill, Pressable, Row, Section, Stat, Tile, cx, dayLabel, money, range, relative, time, titleCase, useApi,
 } from '../../ui/index.jsx';
 import { InstallCard } from '../../ui/pwa.jsx';
 
@@ -19,7 +20,8 @@ function greeting() {
 
 export default function VenueDashboard() {
   const { user } = useAuth();
-  const q = useApi('dashboard.get', {}, { poll: 30000 });
+  const { venueId } = useVenue();
+  const q = useApi('dashboard.get', { venue_id: venueId || undefined }, { poll: 30000 });
   return (
     <Load q={q}>
       {(d) => <Body d={d} name={user?.name?.split(' ')[0]} />}
@@ -28,7 +30,10 @@ export default function VenueDashboard() {
 }
 
 function Body({ d, name }) {
-  const multi = d.venues.length > 1;
+  const { venueId, setVenueId } = useVenue();
+  const chosen = d.venues.find((v) => v.id === venueId);
+  // Venue names on rows only help when several venues are shown together
+  const multi = d.venues.length > 1 && !chosen;
   const live = d.live;
   const toSign = d.counts?.toSign || 0;
   const pendingCover = d.cover.filter((c) => c.status === 'pending').length;
@@ -45,7 +50,7 @@ function Body({ d, name }) {
   }
 
   return (
-    <Page backLabel="Home" title={`${greeting()}${name ? `, ${name}` : ''}`} subtitle={multi ? `${d.venues.length} venues` : d.venues[0].name}
+    <Page backLabel="Home" title={`${greeting()}${name ? `, ${name}` : ''}`} subtitle={chosen?.name || (multi ? `All ${d.venues.length} venues` : d.venues[0].name)}
       actions={[
         { label: 'Rate staff', icon: Star, onClick: () => setRate(true) },
         { label: 'Give feedback', icon: MessageSquareHeart, onClick: () => setGive(true) },
@@ -54,6 +59,7 @@ function Body({ d, name }) {
       <InstallCard className="mb-4" later="My account" />
       <RateStaffSheet open={rate} onClose={() => setRate(false)} />
       <GiveFeedbackSheet open={give} onClose={() => setGive(false)} />
+      {d.tiles && <VenueTiles d={d} venueId={venueId} onPick={setVenueId} />}
       <Bento>
         <Tile tone="blue" to="/venue/live" title="On site now" icon={Radio} className="col-span-2 lg:row-span-2">
           <div className="flex items-end gap-3">
@@ -91,7 +97,7 @@ function Body({ d, name }) {
         </Tile>
       </Bento>
       <FeedbackTile multi={multi} className="mt-4" />
-      {analytics && <MonthTile />}
+      {analytics && <MonthTile venueId={venueId} />}
 
       <div className="grid grid-cols-1 gap-x-4 lg:grid-cols-2">
         <Section title="Next 48 hours">
@@ -149,7 +155,7 @@ function Body({ d, name }) {
           )}
         </Section>
 
-        <Section title={multi ? 'Your venues' : 'Your venue'}>
+        {!d.tiles && <Section title={d.venues.length > 1 ? 'Your venues' : 'Your venue'}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             {d.venues.map((v) => (
               <Tile key={v.id}>
@@ -163,16 +169,63 @@ function Body({ d, name }) {
               </Tile>
             ))}
           </div>
-        </Section>
+        </Section>}
       </div>
     </Page>
   );
 }
 
+// One tile per venue (plus "All venues") for managers with several; tapping one narrows every venue page
+function VenueTiles({ d, venueId, onPick }) {
+  const sum = (k) => d.tiles.reduce((n, t) => n + (t[k] || 0), 0);
+  const all = { on_site: sum('on_site'), late: sum('late'), to_sign: sum('to_sign'), cover: sum('cover'), incidents: sum('incidents') };
+  return (
+    <Section title="Your venues">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <VenueCard name="All venues" sub={`${d.venues.length} venues together`} t={all} on={!venueId} onClick={() => onPick('')} />
+        {d.venues.map((v) => (
+          <VenueCard key={v.id} venue={v} name={v.name} sub={v.postcode || v.address || ''} on={venueId === v.id}
+            t={d.tiles.find((t) => t.venue_id === v.id) || {}} onClick={() => onPick(v.id)} />
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function VenueCard({ venue, name, sub, t, on, onClick }) {
+  return (
+    <Pressable card onClick={onClick} aria-pressed={on}
+      className={cx('ui-panel rounded-tile border border-hairline bg-surface p-[var(--pad-tile)] shadow-tile', on && 'ring-2 ring-blue')}>
+      <div className="flex items-center gap-3">
+        {venue?.logo_url
+          ? <img src={venue.logo_url} alt="" className="h-10 w-10 shrink-0 rounded-xl bg-bg object-contain" />
+          : <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue">{venue ? <Building2 size={20} /> : <Layers size={20} />}</div>}
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-callout font-bold">{name}</div>
+          {sub && <div className="truncate text-footnote text-muted">{sub}</div>}
+        </div>
+        {on && <Pill tone="blue">Showing</Pill>}
+      </div>
+      <div className="mt-3 flex items-center gap-4 text-footnote">
+        <span><span className="num text-callout font-bold">{t.on_site || 0}</span> on site</span>
+        {t.late > 0 && <span className="font-semibold text-red"><span className="num">{t.late}</span> late</span>}
+        {venue && <span className="min-w-0 truncate text-muted">{t.next_shift ? `Next ${dayLabel(t.next_shift)} ${time(t.next_shift)}` : 'No shifts booked'}</span>}
+      </div>
+      {(t.to_sign > 0 || t.cover > 0 || t.incidents > 0) && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {t.to_sign > 0 && <Pill tone="blue"><span className="num">{t.to_sign}</span> to sign</Pill>}
+          {t.cover > 0 && <Pill tone="amber"><span className="num">{t.cover}</span> cover waiting</Pill>}
+          {t.incidents > 0 && <Pill tone="red"><span className="num">{t.incidents}</span> incident{t.incidents === 1 ? '' : 's'} this week</Pill>}
+        </div>
+      )}
+    </Pressable>
+  );
+}
+
 // A glance at this month: rating, incidents, lateness and customers, opening the full Analytics page
-function MonthTile() {
+function MonthTile({ venueId }) {
   const r = presetRange('this');
-  const q = useApi('analytics.venue', { from: r.from, to: r.to });
+  const q = useApi('analytics.venue', { from: r.from, to: r.to, venue_id: venueId || undefined });
   if (!q.data) return null;
   const { attendance: a, incidents: i, satisfaction: s, customers: c } = q.data;
   return (

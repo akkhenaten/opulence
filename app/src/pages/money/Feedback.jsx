@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Globe, MessageSquareHeart, Plus, Reply, Star } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
+import { useVenue } from '../../venue.jsx';
 import {
   Button, Empty, List, Load, Page, Pill, Segmented, Select, Sheet, Textarea, Toggle, cx, dayLabel, range, relative, useAction, useApi,
 } from '../../ui/index.jsx';
@@ -43,10 +44,12 @@ export function FeedbackList({ venueId, fixedVenue, onChanged }) {
   const mgr = user.role !== 'venue';
   const [sp, setSp] = useSearchParams();
   const [local, setLocal] = useState({ tone: '', about: '', status: '' });
+  const shared = useVenue();
   const f = fixedVenue ? { venue_id: venueId, ...local }
-    : { venue_id: sp.get('venue') || '', tone: sp.get('tone') || '', about: sp.get('about') || '', status: sp.get('status') ?? (mgr ? 'open' : '') };
+    : { venue_id: mgr ? sp.get('venue') || '' : shared.venueId, tone: sp.get('tone') || '', about: sp.get('about') || '', status: sp.get('status') ?? (mgr ? 'open' : '') };
   const setF = (k, v) => {
     if (fixedVenue) return setLocal((s) => ({ ...s, [k]: v }));
+    if (!mgr && k === 'venue_id') return shared.setVenueId(v);
     const n = new URLSearchParams(sp); n.set(k === 'venue_id' ? 'venue' : k, v); if (!v && k !== 'status') n.delete(k === 'venue_id' ? 'venue' : k); setSp(n, { replace: true });
   };
   const opts = useApi('comments.options', {}, { skip: fixedVenue });

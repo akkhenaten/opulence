@@ -5,7 +5,7 @@ import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { compressImage } from '../officer/_parts.jsx';
 import {
-  addDays, Button, Chip, cx, date, dateTime, Empty, fromLocalInput, Input, isoDate, Lightbox, Pill, Segmented, Sheet, Textarea, Toggle, toLocalInput,
+  addDays, Button, Chip, cx, date, dateTime, Empty, fromLocalInput, Input, isoDate, Lightbox, Pill, Segmented, Select, Sheet, Textarea, Toggle, toLocalInput,
   useAction, useConfirm, Pressable,
 } from '../../ui/index.jsx';
 
@@ -101,8 +101,12 @@ const OUTCOMES = [{ value: 'ejected', label: 'Ejected' }, { value: 'refused_entr
 // Log an ejection (shift_id → bans.propose, else venue_id → bans.create), optionally banning them too;
 // edit (ban → bans.update); or upgrade a logged ejection to a ban (escalate → bans.escalate).
 // banOnly: the office adding a ban straight to the register, without an ejection behind it
-export function BanSheet({ open, onClose, onDone, shiftId, venueId, ban, escalate, direct, banOnly }) {
+// venues: a manager looking at "All venues" picks which one this is for
+export function BanSheet({ open, onClose, onDone, shiftId, venueId: fixedVenue, venues, ban, escalate, direct, banOnly }) {
   const { user } = useAuth();
+  const [where, setWhere] = useState('');
+  const askVenue = !fixedVenue && !shiftId && !ban && !escalate && venues?.length > 1;
+  const venueId = fixedVenue || where;
   const today = isoDate();
   const src = ban || escalate;
   const [f, setF] = useState(() => ({
@@ -167,9 +171,11 @@ export function BanSheet({ open, onClose, onDone, shiftId, venueId, ban, escalat
 
   return (
     <Sheet open={open} onClose={onClose} title={title}
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant={f.ban ? 'danger' : 'primary'} busy={busy} disabled={uploading || !f.reason.trim() || (!f.name.trim() && !f.description.trim()) || (f.ban && f.length === 'custom' && !f.ends_on)} onClick={save}>{action}</Button></>}>
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant={f.ban ? 'danger' : 'primary'} busy={busy} disabled={uploading || (askVenue && !where) || !f.reason.trim() || (!f.name.trim() && !f.description.trim()) || (f.ban && f.length === 'custom' && !f.ends_on)} onClick={save}>{action}</Button></>}>
       {escalate ? banSection : (
         <div className="space-y-4">
+          {askVenue && <Select label="Venue" value={where} onChange={(e) => setWhere(e.target.value)} placeholder="Choose venue"
+            options={venues.map((v) => ({ value: v.id, label: v.name }))} />}
           {ejection && (
             <>
               <Segmented full value={f.outcome} onChange={set('outcome')} options={OUTCOMES} />

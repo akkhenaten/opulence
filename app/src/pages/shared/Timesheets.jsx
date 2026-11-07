@@ -7,6 +7,7 @@ import {
   ActionBar, addDays, Avatar, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
+import { useVenue } from '../../venue.jsx';
 import { Check as Tick, fromLondonInput, londonIso, SELF_HINT, SelfPills, toLondonInput, useBase } from '../manager/_parts.jsx';
 
 const FLAG_TONE = { late: 'amber', left_early: 'amber', exception: 'red', no_clock_out: 'red', manual: 'blue', edited: 'blue', cancelled_after_billing: 'red' };
@@ -53,14 +54,19 @@ export default function Timesheets() {
   const setFilter = (f) => { const n = new URLSearchParams(sp); n.delete('status'); if (f === 'all') n.delete('show'); else n.set('show', f); setSp(n, { replace: true }); setSel(new Set()); };
 
   const [week, setWeek] = useState(() => mondayOf(isoDate()));
-  const [venueId, setVenueId] = useState('');
+  // A venue manager's chosen venue is shared across their pages; managers filter here only
+  const shared = useVenue();
+  const [localVenue, setLocalVenue] = useState('');
+  const venueId = isVenue ? shared.venueId : localVenue;
+  const setVenueId = isVenue ? shared.setVenueId : setLocalVenue;
   const [officerId, setOfficerId] = useState('');
   const [sel, setSel] = useState(() => new Set());
   const [open, setOpen] = useState(null);
   const [sheet, setSheet] = useState(null); // { kind: decline | rate | manual, rows }
   const [run, busy] = useAction();
 
-  const venues = useApi('venues.list', {});
+  const venues = useApi('venues.list', {}, { skip: isVenue });
+  const venueList = isVenue ? shared.venues : (venues.data || []).filter((v) => v.active);
   const body = useMemo(() => ({ from: londonIso(week), to: londonIso(addDays(week, 7)), ...(venueId ? { venue_id: venueId } : {}) }), [week, venueId]);
   const q = useApi('timesheets.week', body);
   const missing = useApi('timesheets.missing', {}, { skip: !isManager });
@@ -120,9 +126,9 @@ export default function Timesheets() {
           <IconButton icon={ChevronRight} label="Next week" onClick={() => { setWeek(addDays(week, 7)); setSel(new Set()); }} />
         </div>
         {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(mondayOf(isoDate()))}>This week</Button>}
-        {(venues.data?.length > 1 || !isVenue) && (
+        {(venueList.length > 1 || !isVenue) && (
           <Select className="w-full sm:w-auto sm:min-w-[180px]" value={venueId} onChange={(e) => setVenueId(e.target.value)} placeholder="All venues"
-            options={(venues.data || []).filter((v) => v.active).map((v) => ({ value: v.id, label: v.name }))} />
+            options={venueList.map((v) => ({ value: v.id, label: v.name }))} />
         )}
         <Select className="w-full sm:w-auto sm:min-w-[180px]" value={officerId} onChange={(e) => setOfficerId(e.target.value)} placeholder="All officers"
           options={officers.map(([id, name]) => ({ value: id, label: name }))} />

@@ -222,7 +222,10 @@ export const actions = {
     need(t);
     if (t.status !== 'disputed' || t.locked) fail(400, 'Only a queried timesheet can be answered');
     await q("UPDATE timesheets SET status = 'pending', resolution = $2, updated_at = now() WHERE id = $1", [t.id, b.reply]);
-    if (t.queried_by && t.queried_by !== user.id) await notify([t.queried_by], { kind: 'timesheet', title: 'Your timesheet query was answered', body: `${t.officer_name} on ${fmtDate(t.starts_at)}: ${b.reply}`, link: user.role === 'venue' ? '/venue/timesheets' : '' });
+    if (t.queried_by && t.queried_by !== user.id) {
+      const asker = await one('SELECT role FROM users WHERE id = $1', [t.queried_by]);
+      await notify([t.queried_by], { kind: 'timesheet', title: 'Your timesheet query was answered', body: `${t.officer_name} on ${fmtDate(t.starts_at)}: ${b.reply}`, link: asker?.role === 'venue' ? '/venue/timesheets' : '' });
+    }
     await audit(user, 'timesheet.answer', 'timesheet', t.id, { query: t.dispute_comment, reply: b.reply });
     return { ok: true };
   }),

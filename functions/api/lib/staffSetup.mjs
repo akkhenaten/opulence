@@ -82,8 +82,11 @@ export function cleanVenueManager(b) {
   const s = {
     first_name: str(b.first_name, 80), last_name: str(b.last_name, 80), goes_by: str(b.goes_by, 80) || null,
     email: str(b.email, 200).toLowerCase(), phone: str(b.phone, 40), job_title: str(b.job_title, 80) || null,
-    venue_name: str(b.venue_name, 120),
   };
+  // A manager may run several venues: venue_names, with venue_name kept as the first for older views
+  const names = (Array.isArray(b.venue_names) ? b.venue_names : [b.venue_name]).map((n) => str(n, 120)).filter(Boolean);
+  s.venue_names = names.filter((n, i) => names.findIndex((m) => m.toLowerCase() === n.toLowerCase()) === i).slice(0, 10);
+  s.venue_name = s.venue_names[0] || '';
   const photo = str(b.photo_key, 300);
   if (!s.first_name || !s.last_name) return { error: 'Please add your first and last name' };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email)) return { error: 'Please check your email address' };

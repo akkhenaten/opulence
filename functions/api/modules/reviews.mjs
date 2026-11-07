@@ -2,7 +2,7 @@
 // a venue manager's review waits for a company manager to publish it. The landing page reads published ones.
 import { one, q } from '../lib/db.mjs';
 import { fail, need, required } from '../lib/http.mjs';
-import { venueScope } from '../lib/scope.mjs';
+import { assertVenue, venueScope } from '../lib/scope.mjs';
 import { notify, companyManagers } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
 import { SITE_CLIENTS, isSiteClient } from '../lib/siteClients.mjs';
@@ -126,8 +126,12 @@ export const actions = {
     required(b, 'client');
     if (!isSiteClient(b.client)) fail(400, 'Pick a client from the website list');
     if (!(await myClients(user)).includes(b.client)) fail(403, 'You can only add reviews for your own venue');
+    // The venue they picked (it must be theirs and on this website client), else their first venue for that client
+    if (b.venue_id) await assertVenue(user, b.venue_id);
     const venue = user.role === 'venue'
-      ? (await one('SELECT id FROM venues WHERE id = ANY($1::uuid[]) AND site_client = $2 LIMIT 1', [await venueScope(user), b.client]))?.id : null;
+      ? (await one('SELECT id FROM venues WHERE id = ANY($1::uuid[]) AND site_client = $2 AND ($3::uuid IS NULL OR id = $3) ORDER BY name LIMIT 1',
+        [await venueScope(user), b.client, b.venue_id || null]))?.id : null;
+    if (b.venue_id && user.role === 'venue' && !venue) fail(400, 'That venue is not on this website client');
     const r = await insertReview(user, { ...f, client: b.client, venue_id: venue }, statusOnCreate(user.role));
     await audit(user, 'review.create', 'review', r.id, { client: r.client, status: r.status });
     return r;

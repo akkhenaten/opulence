@@ -5,6 +5,7 @@ import {
   Avatar, Button, Empty, IconButton, Input, KV, List, Load, Page, Pill, Row, Section, Segmented, Sheet, Tabs, Textarea, Tile, cx, range, time, titleCase, useAction, useApi, useForm, useToast,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
+import { useVenue } from '../../venue.jsx';
 import { Chip, fromLondonInput, toLondonInput, useBase } from '../manager/_parts.jsx';
 import { ProofFlags, SelfieCompare } from '../manager/_proof.jsx';
 import { Activity, Inbox, OpsSettings } from '../manager/OpsAI.jsx';
@@ -35,7 +36,8 @@ function PackPill({ r, venue }) {
 export default function Live() {
   const { base, isManager, user } = useBase();
   const venue = user.role === 'venue';
-  const q = useApi('live.board', {}, { poll: 15000 });
+  const { venueId } = useVenue();
+  const q = useApi('live.board', { venue_id: venueId || undefined }, { poll: 15000 });
   const count = useApi('ops.count', {}, { poll: 30000, skip: !isManager });
   const [sp, setSp] = useSearchParams();
   const raw = sp.get('tab');

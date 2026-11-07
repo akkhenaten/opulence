@@ -3,6 +3,7 @@ import { CalendarDays, CalendarRange, Repeat } from 'lucide-react';
 import { Button, Callout, Chip, cx, Input, isoDate, addDays, Pressable, Segmented, Select, Sheet, Textarea, Toggle, useAction, useConfirm, useForm } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { londonParts, WEEKDAYS } from './_parts.jsx';
+import { useVenue } from '../../venue.jsx';
 
 // Shared by the venue's "Request cover" page and the managers' "Cover requests" page
 
@@ -51,8 +52,9 @@ const daysOk = (days) => days.length > 0 && days.every((d) => d.start && d.end &
 /** New cover request: one date, or a repeating pattern. `draft` pre-fills it (e.g. read from a message). */
 export function RequestForm({ venues, roles, draft, onClose, onDone }) {
   const tomorrow = addDays(isoDate(), 1);
+  const chosen = useVenue().venueId;
   const f = useForm({
-    venue_id: draft?.venue_id || (venues.length === 1 ? venues[0].id : ''), role: draft?.role || '', kind: draft?.kind || 'one_off',
+    venue_id: draft?.venue_id || chosen || (venues.length === 1 ? venues[0].id : ''), role: draft?.role || '', kind: draft?.kind || 'one_off',
     date: draft?.date || tomorrow, start: draft?.start || '21:00', end: draft?.end || '03:00', headcount: draft?.headcount || 1,
     frequency: draft?.frequency || 'weekly', days: draft?.days || [], start_date: draft?.start_date || tomorrow,
     has_end: !!draft?.end_date, end_date: draft?.end_date || addDays(tomorrow, 56), notes: draft?.notes || '',

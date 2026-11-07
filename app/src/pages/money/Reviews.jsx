@@ -9,6 +9,7 @@ import {
   date, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { useAuth } from '../../auth.jsx';
+import { useVenue } from '../../venue.jsx';
 
 const STATUS = { published: { tone: 'green', label: 'On the website' }, pending: { tone: 'amber', label: 'Waiting for approval' }, hidden: { tone: 'grey', label: 'Hidden' } };
 const VIEWS = [{ value: '', label: 'All' }, { value: 'published', label: 'Published' }, { value: 'pending', label: 'Pending' }, { value: 'hidden', label: 'Hidden' }];
@@ -131,12 +132,15 @@ function ReviewRow({ r, items, i, user, onEdit, onChange }) {
 
 function ReviewForm({ review, clients, isCo, onClose, onSaved }) {
   const [run, busy] = useAction();
+  // A venue manager's chosen venue says which of their venues the review is for, when it is on that website client
+  const { venue } = useVenue();
   const f = useForm({
-    client: review.client || (clients.length === 1 ? clients[0].slug : ''), quote: review.quote || '', reviewer: review.reviewer || '',
+    client: review.client || venue?.site_client || (clients.length === 1 ? clients[0].slug : ''), quote: review.quote || '', reviewer: review.reviewer || '',
     reviewer_role: review.reviewer_role || '', rating: review.rating || null, received_on: review.received_on ? String(review.received_on).slice(0, 10) : '',
   });
   const save = async () => {
-    await run(() => api('reviews.save', { ...(review.id ? { id: review.id } : {}), ...f.v, received_on: f.v.received_on || null }),
+    const at = !isCo && venue && venue.site_client === f.v.client ? { venue_id: venue.id } : {};
+    await run(() => api('reviews.save', { ...(review.id ? { id: review.id } : {}), ...f.v, ...at, received_on: f.v.received_on || null }),
       review.id ? 'Review saved' : isCo ? 'Review added to the website' : 'Review sent to the office for approval');
     onSaved();
     onClose();

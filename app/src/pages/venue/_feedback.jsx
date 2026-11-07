@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 import { api } from '../../api.js';
+import { useVenue } from '../../venue.jsx';
 import { Avatar, Button, Empty, Input, Pressable, Segmented, Select, Sheet, Spinner, Textarea, Tile, cx, dayLabel, range, useAction, useApi } from '../../ui/index.jsx';
 
 export function Stars({ value, onChange }) {
@@ -58,12 +59,13 @@ export function FeedbackTile({ multi, className = 'mb-4' }) {
 
 // Rate anyone who worked at your venue in the last week, without waiting to be asked
 export function RateStaffSheet({ open, onClose }) {
-  const q = useApi('feedback.recentOfficers', {}, { skip: !open });
+  const { venueId } = useVenue();
+  const q = useApi('feedback.recentOfficers', { venue_id: venueId || undefined }, { skip: !open });
   const [pick, setPick] = useState(null);
   const [v, setV] = useState({ rating: 0, note: '' });
   const [run, busy] = useAction();
   const close = () => { setPick(null); setV({ rating: 0, note: '' }); onClose(); };
-  const send = () => run(() => api('feedback.submitAdhoc', { officer_id: pick.officer_id, rating: v.rating, note: v.note.trim() || null }), `Thanks, ${pick.name.split(' ')[0]}'s rating is in`)
+  const send = () => run(() => api('feedback.submitAdhoc', { officer_id: pick.officer_id, venue_id: pick.venue_id || venueId || undefined, rating: v.rating, note: v.note.trim() || null }), `Thanks, ${pick.name.split(' ')[0]}'s rating is in`)
     .then(() => { setPick(null); setV({ rating: 0, note: '' }); q.reload(); }).catch(() => {});
   return (
     <Sheet open={open} onClose={close} title={pick ? `Rate ${pick.name}` : 'Rate staff'} size="sm"
@@ -108,12 +110,15 @@ const blank = (shift, officerId) => ({
  * Managers pass venueId to log feedback on a venue's behalf; a shift page passes the shift (and an officer) to prefill.
  */
 export function GiveFeedbackSheet({ open, onClose, venueId, shift, officerId, onDone }) {
-  const [venue, setVenue] = useState(venueId || shift?.venue_id || '');
+  // A venue manager's chosen venue (home tiles / top-bar chip) is the starting choice; they can still change it
+  const chosen = useVenue().venueId;
+  const start = venueId || shift?.venue_id || chosen || '';
+  const [venue, setVenue] = useState(start);
   const opts = useApi('comments.options', venue ? { venue_id: venue } : {}, { skip: !open });
   const [v, setV] = useState(() => blank(shift, officerId));
   const [run, busy] = useAction();
   const set = (k, x) => setV((s) => ({ ...s, [k]: x }));
-  useEffect(() => { if (open) { setV(blank(shift, officerId)); setVenue(venueId || shift?.venue_id || ''); } }, [open, shift?.id, officerId, venueId]);
+  useEffect(() => { if (open) { setV(blank(shift, officerId)); setVenue(start); } }, [open, shift?.id, officerId, start]); // eslint-disable-line react-hooks/exhaustive-deps
   const d = opts.data;
   const vid = venue || d?.venue_id || '';
   const needsRating = v.about !== 'other';

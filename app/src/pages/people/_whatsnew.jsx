@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-07', icon: Building2, title: 'Venue managers with several venues: a tile for each venue', image: 'multi-venue-tiles',
+    lede: "Venue managers who look after more than one venue now see a tile for each venue on their home page, showing who is on site, who is late, the next shift and anything waiting for them. Tap a venue and every page shows just that venue until they switch back to All venues.",
+    points: ['A tile for each venue: on site, late, the next shift, timesheets to sign, staff requests and incidents this week', 'Tap a venue to see only that venue on the Rota, On site, Timesheets, Incidents, Shift logs, Invoices and Feedback pages', 'Switch venue from the top of any page; the app remembers the choice', 'All venues shows everything together, with the venue name on each row', 'Staff requests, ratings and bans go to the venue they are for; the app asks which venue when it is not clear', 'The staff setup form lets a venue manager write down every venue they look after', 'Managers with one venue see no change'],
+  },
+  {
     month: 'November 2026', date: '2026-11-07', icon: UserRound, title: 'New staff get a welcome post with their photo', image: 'welcome-post',
     lede: "The moment a new officer or manager signs in for the first time, Everyday welcomes them to the team with a post everyone sees. Their profile photo sits at the centre of the post, and if they add one later, it appears there by itself.",
     points: ['Posted on their first sign-in, not the next morning', 'Their profile photo, name and role on the post', 'No photo yet: their initials, then their photo once they add it', 'Every new joiner who uses the app, including people hired from applications', 'They are notified, and can take the post down themselves'],

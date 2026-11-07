@@ -160,7 +160,7 @@ export const actions = {
     if (entry) await q('UPDATE customer_bans SET source_entry_id = $2 WHERE id = $1', [ban.id, entry.id]);
     if (!direct) {
       const lead = await one(`SELECT o.user_id FROM shift_assignments a JOIN officers o ON o.id = a.officer_id WHERE a.shift_id = $1 AND a.is_lead AND a.status IN ('assigned','accepted')`, [b.shift_id]);
-      await notify([lead?.user_id, ...await managersFor(ax.sh.venue_id)].filter(Boolean), {
+      await notify([lead?.user_id, ...await managersFor(ax.sh.venue_id), ...await venueContacts(ax.sh.venue_id)].filter((id) => id && id !== user.id), {
         kind: 'shift', title: 'Ban to confirm', body: `${ax.sh.venue_name}: ${label(f)} (${length(f)}) — ${f.reason.slice(0, 100)}`, link: `/officer/shifts/${b.shift_id}`, dedupe: `ban:${ban.id}`,
       });
     }
@@ -203,7 +203,7 @@ export const actions = {
       [ej.id, direct ? 'active' : 'proposed', f.starts_on, f.ends_on, f.scope, f.category, f.reason, direct ? user.id : null, direct ? new Date() : null]);
     if (!direct) {
       const v = await one('SELECT name FROM venues WHERE id = $1', [ej.venue_id]);
-      await notify(await managersFor(ej.venue_id), {
+      await notify([...await managersFor(ej.venue_id), ...await venueContacts(ej.venue_id)].filter((id) => id !== user.id), {
         kind: 'shift', title: 'Ban to confirm', body: `${v.name}: ${label(f)} (${length(f)}) — ${f.reason.slice(0, 100)}`, link: ej.shift_id ? `/officer/shifts/${ej.shift_id}` : '', dedupe: `ban:${ej.id}`,
       });
     }

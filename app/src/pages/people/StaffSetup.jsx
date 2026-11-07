@@ -124,7 +124,7 @@ function SubmissionSheet({ id, onClose, onDone }) {
               ['Name', `${d.first_name} ${d.last_name}${d.goes_by ? ` (${d.goes_by})` : ''}`],
               ['Job title', d.job_title || '—'],
               ['Email', d.email], ['Mobile', d.phone],
-              ['Venue they wrote', d.venue_name || '—'],
+              [d.venue_names?.length > 1 ? 'Venues they wrote' : 'Venue they wrote', (d.venue_names?.length ? d.venue_names : [d.venue_name]).filter(Boolean).join(', ') || '—'],
               ['Sent', dateTime(s.created_at)],
             ]} />
             {s.files.find((f) => f.kind === 'photo') && (

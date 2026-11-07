@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { CalendarClock, LineChart, MessageSquareHeart, ShieldAlert, Users } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
+import { useVenue } from '../../venue.jsx';
 import {
   Bento, Empty, ErrorBox, Input, Page, Section, Segmented, Select, SkeletonTiles, Stat, Tile, date, useApi,
 } from '../../ui/index.jsx';
@@ -39,7 +40,11 @@ export function AnalyticsView({ venueId, fixedVenue }) {
   const office = user.role !== 'venue';
   const [preset, setPreset] = useState('four');
   const [custom, setCustom] = useState(presetRange('four'));
-  const [venue, setVenue] = useState(venueId || '');
+  // A venue manager's venue follows their home tiles / top-bar chip
+  const shared = useVenue();
+  const [localVenue, setLocalVenue] = useState(venueId || '');
+  const venue = office ? localVenue : shared.venueId;
+  const setVenue = office ? setLocalVenue : shared.setVenueId;
   const [officer, setOfficer] = useState('');
   const range = preset === 'custom' ? custom : presetRange(preset);
   const ok = range.from && range.to && range.from <= range.to;

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Camera, ChevronRight, FilePen, MapPin, Plus, ShieldAlert, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
+import { useVenue } from '../../venue.jsx';
 import { Button, cx, dateTime, dayLabel, Empty, IconButton, List, Load, Page, Pill, SearchInput, Section, Segmented, Select, Tabs, time, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { BanList } from '../shift/_bans.jsx';
 import { clearLocal } from '../officer/_draft.js';
@@ -15,8 +16,12 @@ export default function Incidents() {
   const base = `/${user.role}`;
   const officer = user.role === 'officer';
   const [sp, setSp] = useSearchParams();
-  const f = { status: sp.get('status') || '', severity: sp.get('severity') || '', type: sp.get('type') || '', venue_id: sp.get('venue') || '' };
+  // A venue manager's venue is the one chosen on their home tiles / top-bar chip
+  const isVenue = user.role === 'venue';
+  const shared = useVenue();
+  const f = { status: sp.get('status') || '', severity: sp.get('severity') || '', type: sp.get('type') || '', venue_id: isVenue ? shared.venueId : sp.get('venue') || '' };
   const setF = (k, val) => {
+    if (isVenue && k === 'venue_id') { shared.setVenueId(val); return; }
     const n = new URLSearchParams(sp);
     if (val) n.set(k === 'venue_id' ? 'venue' : k, val); else n.delete(k === 'venue_id' ? 'venue' : k);
     setSp(n, { replace: true });
@@ -27,7 +32,8 @@ export default function Incidents() {
 
   const body = Object.fromEntries(Object.entries({ ...f, search }).filter(([, val]) => val));
   const q = useApi('incidents.list', body, { poll: 60000, skip: officer && !user.officer_id });
-  const venues = useApi('venues.list', {}, { skip: officer });
+  const venues = useApi('venues.list', {}, { skip: officer || isVenue });
+  const venueList = isVenue ? shared.venues : venues.data || [];
   const counts = useApi('incidents.list', { status: 'changes_requested' }, { skip: officer && !user.officer_id });
   const toFix = counts.data?.length || 0;
 
@@ -61,9 +67,9 @@ export default function Incidents() {
             placeholder="Search ref, description, police ref" aria-label="Search incidents" />
           <Select aria-label="Severity" value={f.severity} onChange={(e) => setF('severity', e.target.value)} options={[{ value: '', label: 'Any severity' }, ...SEVERITIES.map(({ value, label }) => ({ value, label }))]} />
           <Select aria-label="Type" value={f.type} onChange={(e) => setF('type', e.target.value)} options={[{ value: '', label: 'Any type' }, ...INCIDENT_TYPES]} />
-          {!officer && (
+          {!officer && (!isVenue || shared.many) && (
             <Select aria-label="Venue" className="col-span-2 lg:col-span-1" value={f.venue_id} onChange={(e) => setF('venue_id', e.target.value)}
-              options={[{ value: '', label: 'All venues' }, ...(venues.data || []).map((x) => ({ value: x.id, label: x.name }))]} />
+              options={[{ value: '', label: 'All venues' }, ...venueList.map((x) => ({ value: x.id, label: x.name }))]} />
           )}
         </div>
       </div>

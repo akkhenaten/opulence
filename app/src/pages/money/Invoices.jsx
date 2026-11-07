@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Clock, Download, FileText, ReceiptText, RefreshCw } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
+import { useVenue } from '../../venue.jsx';
 import {
   Bento, Button, cx, dateShort, daysUntil, Empty, Input, isoDate, List, Load, money, Page, Pill, SearchInput, Section, Segmented, Sheet, Stat, Tile, useAction, useApi,
 } from '../../ui/index.jsx';
@@ -153,10 +154,11 @@ function ExportSheet({ onClose }) {
 /* ---------- Venue manager ---------- */
 
 function VenueInvoices() {
-  const list = useApi('invoices.list', {});
+  const { venueId, venue } = useVenue();
+  const list = useApi('invoices.list', { venue_id: venueId || undefined });
   const [show, setShow] = useState('all');
   return (
-    <Page title="Invoices" subtitle="Your invoices and credit notes">
+    <Page title="Invoices" subtitle={venue ? `${venue.name}: invoices and credit notes` : 'Your invoices and credit notes'}>
       <Load q={list}>
         {(rows) => {
           const out = rows.filter(outstanding);

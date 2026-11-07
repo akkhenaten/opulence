@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
 import './styles.css';
 import { AuthProvider, HOME, otherSide, portalLink, useAuth } from './auth.jsx';
+import { VenueProvider } from './venue.jsx';
 import Shell from './layouts/Shell.jsx';
 import { ConfirmProvider, Spinner, ToastProvider } from './ui/index.jsx';
 import { AcceptInvite, Forgot, Login, Reset, Verify } from './pages/auth/AuthPages.jsx';
@@ -255,7 +256,7 @@ function App() {
         </Route>
 
         <Route element={<Guard role={['venue']} />}>
-          <Route path="/venue" element={<Shell />}>
+          <Route path="/venue" element={<VenueProvider><Shell /></VenueProvider>}>
             <Route index element={<VenueDashboard />} />
             <Route path="live" element={<Live />} />
             <Route path="rota" element={<VenueRota />} />

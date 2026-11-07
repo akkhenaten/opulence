@@ -2,7 +2,8 @@
 // Reminders to officers and feedback prompts to venues go out without approval.
 import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, need, pick } from '../lib/http.mjs';
-import { venueScope, assertVenue, assertOfficerAccess } from '../lib/scope.mjs';
+import { venueScope, assertVenue, assertOfficerAccess, narrowScope } from '../lib/scope.mjs';
+import { pickVenueFromText } from '../lib/venuePick.mjs';
 import { notify, withdraw, companyManagers, securityFor, venueContacts, officerUser, managersFor } from '../lib/notify.mjs';
 import { fmtDate, fmtTime, fmtDateTime, londonDate, londonParts, addDays } from '../lib/time.mjs';
 import { roundHours, money } from '../lib/rates.mjs';
@@ -1224,12 +1225,15 @@ Answer in short, plain British business English. Use the officers' and venues' n
     const s = await getSettings();
     if (!b.draft && !jobOn(s, 'venue_requests')) fail(400, 'Chat requests are switched off — please use Cover requests');
     const scope = await venueScope(user);
-    const venueId = b.venue_id || (scope && scope[0]);
-    need(venueId, 'No venue linked to your account');
-    await assertVenue(user, venueId);
-    const venue = await one('SELECT id, name FROM venues WHERE id = $1', [venueId]);
+    const mine = await q('SELECT id, name FROM venues WHERE ($1::uuid[] IS NULL OR id = ANY($1)) AND active ORDER BY name', [scope]);
+    need(scope === null || scope.length, 'No venue linked to your account');
+    // The venue they picked, their only venue, or the one their message names — never a guess
+    const venueId = b.venue_id || (scope?.length === 1 ? scope[0] : pickVenueFromText(b.text, mine)?.id) || null;
+    if (venueId) await assertVenue(user, venueId);
+    if (!venueId && !b.draft) return { status: 'question', reply: `Which venue is this for? ${mine.map((v) => v.name).join(', ')}` };
+    const venue = venueId ? await one('SELECT id, name FROM venues WHERE id = $1', [venueId]) : { id: null, name: 'a client venue' };
     const roles = await q('SELECT code, name FROM roles ORDER BY name');
-    const upcoming = await q(
+    const upcoming = !venueId ? [] : await q(
       `SELECT s.id, s.starts_at, s.ends_at, s.role, s.headcount FROM shifts s WHERE s.venue_id = $1 AND s.status = 'published' AND s.starts_at > now() AND s.starts_at < now() + interval '21 days' ORDER BY s.starts_at LIMIT 40`, [venueId]);
     const now = new Date();
     const today = londonDate(now);
@@ -1341,10 +1345,10 @@ If the date, times or number of officers are missing or ambiguous, use intent "u
   }),
 
   // Officers who worked at the venue in the last 7 days, for a rating at any time
-  'feedback.recentOfficers': def(['venue'], async (_b, { user }) => {
-    const scope = await venueScope(user);
+  'feedback.recentOfficers': def(['venue'], async (b, { user }) => {
+    const scope = await narrowScope(user, b.venue_id);
     return q(
-      `SELECT DISTINCT ON (a.officer_id) a.officer_id, o.first_name || ' ' || left(o.last_name, 1) || '.' AS name, s.id AS shift_id, s.starts_at, v.name AS venue_name,
+      `SELECT DISTINCT ON (a.officer_id) a.officer_id, o.first_name || ' ' || left(o.last_name, 1) || '.' AS name, s.id AS shift_id, s.starts_at, s.venue_id, v.name AS venue_name,
               (SELECT rating FROM venue_feedback f WHERE f.officer_id = a.officer_id AND f.venue_id = s.venue_id AND f.rating IS NOT NULL ORDER BY answered_at DESC LIMIT 1) AS last_rating
          FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN officers o ON o.id = a.officer_id JOIN venues v ON v.id = s.venue_id
         WHERE s.venue_id = ANY($1::uuid[]) AND s.starts_at > now() - interval '7 days' AND s.starts_at < now()
@@ -1357,7 +1361,7 @@ If the date, times or number of officers are missing or ambiguous, use intent "u
     const rating = Number(b.rating);
     if (!(rating >= 1 && rating <= 5)) fail(400, 'Ratings are 1 to 5 stars');
     const note = String(b.note || '').slice(0, 1000);
-    const scope = await venueScope(user);
+    const scope = await narrowScope(user, b.venue_id);
     const last = need(await one(
       `SELECT s.id FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
         WHERE a.officer_id = $1 AND s.venue_id = ANY($2::uuid[]) AND s.starts_at > now() - interval '7 days' AND s.starts_at < now()
