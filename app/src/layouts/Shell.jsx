@@ -33,7 +33,7 @@ export function Logo({ compact, faded, place = 'header', tone = 'dark' }) {
   const light = tone === 'light';
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      <img src={`/app/brand/logo-${light ? 'gold' : 'ink'}-192.png`} alt={compact ? brand.name : ''} className={cx('w-auto shrink-0', size.mark)} />
+      <img src={`/app/brand/logo-${light ? 'gold' : 'ink'}-192.png`} alt={compact ? brand.name : ''} className={cx('w-auto shrink-0', size.mark, fade)} />
       {!compact && <span className={cx('display max-w-[200px] truncate font-semibold tracking-tight', size.text, light ? 'text-gold' : 'text-ink', fade)}>{brand.name}</span>}
     </div>
   );

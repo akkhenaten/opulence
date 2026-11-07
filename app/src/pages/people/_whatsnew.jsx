@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-07', icon: Smartphone, title: 'A tidier top bar on phones', image: 'phone-top-bar',
+    lede: "On phones, when you scroll down a page its title moves into the black bar at the top. The logo now steps aside for it, so the two no longer sit on top of each other. Pay runs also names your pay period properly.",
+    points: ['The page title in the top bar no longer overlaps the logo when you scroll', 'The logo comes back as soon as you scroll to the top', 'Pay runs says which pay period it uses (weekly unless you chose otherwise in Settings) instead of "undefined"'],
+  },
+  {
     month: 'November 2026', date: '2026-11-07', icon: Sparkles, title: 'Clearer pages across the app, with one main button each', image: 'clearer-everywhere',
     lede: "The remaining pages had the same clean-up: one main button at the top, everything else under the three dots, and your filters and date ranges kept in the page address so Back returns to the same view. On phones, the things that need you come first.",
     points: ['Dashboard and venue home: Needs you comes first on phones; venue managers see timesheets to sign, late officers and invoices to pay at the top', 'Exceptions and Reviews are now in the side menu', 'Invoices: Bring up to date is the main button; each invoice shows the one next step for its status', 'Pay: a one-line summary with Pay runs and Statements tabs; Reports and Analytics keep their date range at the top as you scroll, with jump links to each section', 'Reviews: an On the website switch on each review; each message has a three-dot menu with the same options as a long press', 'Officers: Shifts opens on Offers when one is waiting, My details saves from a bar that stays in view, Learn starts with the Emergency guide, and passwords can be shown while typing'],

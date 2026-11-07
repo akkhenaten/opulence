@@ -90,7 +90,7 @@ function RunTile({ onDone }) {
     <Tile title="Live pay run" icon={RefreshCw} className="mb-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="min-w-0 flex-1 basis-64 text-subhead text-muted">
-          Approved shifts go straight onto each officer's draft statement in the pay run for their period{sug.data ? ` (${sug.data.pay_period})` : ''}, and follow any later change.
+          Approved shifts go straight onto each officer's draft statement in the pay run for their period{sug.data ? ` (${sug.data.pay_period || 'weekly'})` : ''}, and follow any later change.
           Only shifts the venue has signed off are paid; the rest move to the next run when you send it for review.
         </p>
         <Button variant="secondary" icon={RefreshCw} busy={busy} onClick={refresh}>Bring up to date</Button>
