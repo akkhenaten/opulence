@@ -593,7 +593,7 @@ function ActionSheet({ m, me, conv, onClose, onChanged, onReply, onConfirms }) {
   const toCover = () => run(async () => {
     const r = await api('venueRequests.create', { text: m.body, draft: true });
     close();
-    if (r.draft) nav('/venue/cover', { state: { draft: r.draft } });
+    if (r.draft) nav('/venue/rota', { state: { draft: r.draft } });
     else toast(r.reply || 'Couldn\'t read a request from that message', 'error');
   });
 

@@ -49,7 +49,7 @@ function Body({ d, name }) {
       actions={[
         { label: 'Rate staff', icon: Star, onClick: () => setRate(true) },
         { label: 'Give feedback', icon: MessageSquareHeart, onClick: () => setGive(true) },
-        { label: 'Request cover', icon: Plus, variant: 'primary', main: true, to: '/venue/cover' },
+        { label: 'Request staff', icon: Plus, variant: 'primary', main: true, to: '/venue/rota?new=1' },
       ]}>
       <InstallCard className="mb-4" later="My account" />
       <RateStaffSheet open={rate} onClose={() => setRate(false)} />
@@ -83,7 +83,7 @@ function Body({ d, name }) {
         <Tile title="Invoices" icon={ReceiptText} to="/venue/invoices">
           <Stat value={money(d.invoices.outstanding)} label="Outstanding" hint={`${d.invoices.count} invoice${d.invoices.count === 1 ? '' : 's'}`} />
         </Tile>
-        <Tile title="Cover" icon={Megaphone} to="/venue/cover">
+        <Tile title="Cover" icon={Megaphone} to="/venue/rota?tab=requests">
           <Stat value={pendingCover} label="Requests awaiting reply" hint={`${d.cover.length} upcoming`} />
         </Tile>
         <Tile title="Incidents" icon={ShieldAlert} to="/venue/incidents">
@@ -124,11 +124,11 @@ function Body({ d, name }) {
           )}
         </Section>
 
-        <Section title="Cover requests" action={<Link to="/venue/cover" className="-my-2.5 inline-block py-2.5 text-subhead font-semibold text-blue">Request cover</Link>}>
-          {!d.cover.length ? <Quiet icon={Megaphone} text="No upcoming cover requests." action={<Button size="sm" variant="soft" icon={Plus} to="/venue/cover">Request cover</Button>} /> : (
+        <Section title="Cover requests" action={<Link to="/venue/rota?new=1" className="-my-2.5 inline-block py-2.5 text-subhead font-semibold text-blue">Request staff</Link>}>
+          {!d.cover.length ? <Quiet icon={Megaphone} text="No upcoming cover requests." action={<Button size="sm" variant="soft" icon={Plus} to="/venue/rota?new=1">Request staff</Button>} /> : (
             <List>
               {d.cover.map((c) => (
-                <Row key={c.id} to="/venue/cover" title={`${c.headcount} × ${c.role_name}`}
+                <Row key={c.id} to="/venue/rota?tab=requests" title={`${c.headcount} × ${c.role_name}`}
                   subtitle={`${dayLabel(c.starts_at)} · ${range(c.starts_at, c.ends_at)}${multi ? ` · ${c.venue_name}` : ''}`}
                   right={<Pill status={c.status} />} />
               ))}

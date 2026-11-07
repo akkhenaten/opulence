@@ -46,7 +46,7 @@ const Feedback = P(() => import('./pages/money/Feedback.jsx'));
 const Analytics = P(() => import('./pages/money/Analytics.jsx'));
 // Venue manager
 const VenueDashboard = P(() => import('./pages/money/VenueDashboard.jsx'));
-const VenueCover = P(() => import('./pages/manager/VenueCover.jsx'));
+const VenueRota = P(() => import('./pages/venue/Rota.jsx'));
 // Officer
 const OfficerHome = P(() => import('./pages/officer/Home.jsx'));
 const OfficerShifts = P(() => import('./pages/officer/Shifts.jsx'));
@@ -114,7 +114,7 @@ function Root() {
 // Home-screen shortcuts (manifest) are the same for everyone: open the right page for the person's role
 const SHORTCUTS = {
   clock: { officer: '/officer/clock', company: '/company/live', security: '/security/live', venue: '/venue/live' },
-  rota: { officer: '/officer/shifts', company: '/company/rota', security: '/security/rota', venue: '/venue/logs' },
+  rota: { officer: '/officer/shifts', company: '/company/rota', security: '/security/rota', venue: '/venue/rota' },
   incidents: { officer: '/officer/incidents', company: '/company/incidents', security: '/security/incidents', venue: '/venue/incidents' },
 };
 // Tapping a phone notification lands here: send the person to the link inside their own portal
@@ -146,6 +146,12 @@ function PublicOnly({ children }) {
 function OpsRedirect() {
   const { search } = useLocation();
   return <Navigate to={`../live${search}`} replace />;
+}
+
+// The venue's Cover page is now the Requests tab of their rota; a message draft comes along
+function OldVenueCover() {
+  const { state } = useLocation();
+  return <Navigate to="/venue/rota?tab=requests" replace state={state} />;
 }
 
 // Screens shared by company and security managers, mounted under each prefix
@@ -248,7 +254,8 @@ function App() {
           <Route path="/venue" element={<Shell />}>
             <Route index element={<VenueDashboard />} />
             <Route path="live" element={<Live />} />
-            <Route path="cover" element={<VenueCover />} />
+            <Route path="rota" element={<VenueRota />} />
+            <Route path="cover" element={<OldVenueCover />} />
             <Route path="requests" element={<Navigate to="/venue/messages" replace />} />
             <Route path="messages" element={<Messages />} />
             <Route path="messages/:id" element={<Messages />} />

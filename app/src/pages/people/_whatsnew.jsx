@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-07', icon: CalendarDays, title: 'Venues get their own rota, and one Site setup', image: 'venue-rota-setup',
+    lede: "Venue managers now have a Rota of their own venue: the week's shifts, who is booked and who is on site right now. They ask for extra officers straight from a day, and the request reaches you in Cover requests as before. On your side, each venue's Location, Venue codes and Charge rates now sit together on one Site setup tab.",
+    points: ['Venue Rota replaces their Cover page; requests and replies sit under its Requests tab', 'Venue timesheets show who worked, who is on site and the charge rate they are billed, never the officer rate', 'Charge rates are set per role in one list, and roles with no rate are flagged with the shifts and timesheets waiting', 'A new rate can start from the first unrated shift, so those timesheets can be approved', 'Approval fixes the rate, and the invoice bills exactly that'],
+  },
+  {
     month: 'November 2026', date: '2026-11-07', icon: Sparkles, title: 'Orb fills in your venues: address, map pin and logo', image: 'orb-venue-lookup',
     lede: "Orb can now look a venue up online. It reads the venue's own website and OpenStreetMap, then offers the address, postcode, map pin, website link and logo for you to check and save. A new venue shows a small Let Orb fill this in button until those details are in.",
     points: ["Says where each address came from: the venue's website or the map", 'Pick from up to three logos found on their website, or upload your own', 'The logo shows next to the venue name in Venues and on the venue page', 'Ask Orb in chat to find the addresses for all your venues; it shows them on a Confirm card first', 'Nothing is saved until you press Save or Confirm', 'Security managers can look up their own venues; the platform admin always has the full Company manager side'],

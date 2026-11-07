@@ -55,7 +55,9 @@ export const actions = {
           AND ($5::uuid IS NULL OR s.venue_id = $5) AND ($6::uuid IS NULL OR a.officer_id = $6)
           ${user.role === 'venue' ? "AND t.status IN ('approved','signed','disputed')" : ''}
         ORDER BY s.starts_at DESC LIMIT 500`, params);
-    return markSelf(user, rows);
+    // Officers see their own pay; everyone else only the money their role may see (venues never the officer's rate)
+    const out = await markSelf(user, rows);
+    return user.role === 'officer' ? out : out.map((r) => redactMoney(r, user));
   }),
 
   // The week table: every accepted officer on a published shift (worked, live, upcoming or a no-show), plus anything with a timesheet

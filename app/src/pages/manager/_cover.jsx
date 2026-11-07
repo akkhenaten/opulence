@@ -73,7 +73,7 @@ export function RequestForm({ venues, roles, draft, onClose, onDone }) {
     <Sheet open onClose={onClose} title="Request cover"
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={send} busy={busy} disabled={!ok}>Send request</Button></>}>
       <div className="space-y-4">
-        {draft && <Callout>Filled in from your message. Check the details before sending.</Callout>}
+        {draft && !draft.quiet && <Callout>Filled in from your message. Check the details before sending.</Callout>}
         <Segmented full value={v.kind} onChange={(k) => f.set('kind', k)} options={[{ value: 'one_off', label: 'One date' }, { value: 'recurring', label: 'Repeating' }]} />
         {venues.length !== 1 && <Select label="Venue" value={v.venue_id} onChange={(e) => f.set('venue_id', e.target.value)} placeholder="Choose venue" options={venues.map((x) => ({ value: x.id, label: x.name }))} />}
         <Select label="Officer type" value={v.role} onChange={(e) => f.set('role', e.target.value)} placeholder="Choose" options={roles.map((r) => ({ value: r.code, label: r.name }))} />

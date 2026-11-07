@@ -24,12 +24,16 @@ import { ClientSelect } from './_client.jsx';
 import { InviteSheet } from '../people/_access.jsx';
 
 const UK = [54.3, -2.6];
+// The tabs that became parts of Site setup, and the part each old link opens at
+const OLD_SETUP = { location: 'location', codes: 'codes', qr: 'codes', rates: 'rates' };
 
 export default function VenueDetail() {
   const { id } = useParams();
   const base = useBase();
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') || 'location';
+  // Location, Venue codes and Charge rates are one Site setup tab now; old links keep working
+  const raw = params.get('tab') || 'setup';
+  const tab = OLD_SETUP[raw] ? 'setup' : raw;
   const { user } = useAuth();
   const isCo = user.role === 'company';
   const q = useApi('venues.get', { id });
@@ -72,16 +76,13 @@ export default function VenueDetail() {
           <OrbFill v={v} isCo={isCo} fresh={params.get('new') === '1'} onSaved={q.reload} />
 
           <Tabs value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })} tabs={[
-            { value: 'location', label: 'Location' }, { value: 'details', label: 'Details' }, { value: 'codes', label: 'Venue codes' },
-            ...(isCo ? [{ value: 'rates', label: 'Charge rates' }] : []), { value: 'people', label: 'People' }, { value: 'feedback', label: 'Feedback', count: v.feedback_open || undefined }, { value: 'pack', label: 'Instructions & procedures' }, { value: 'documents', label: 'Documents', count: v.documents.length },
+            { value: 'setup', label: 'Site setup' }, { value: 'details', label: 'Details' }, { value: 'people', label: 'People' }, { value: 'feedback', label: 'Feedback', count: v.feedback_open || undefined }, { value: 'pack', label: 'Instructions & procedures' }, { value: 'documents', label: 'Documents', count: v.documents.length },
             { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Ejections & bans' }, ...(analytics ? [{ value: 'analytics', label: 'Analytics' }] : []),
           ]} />
 
           {/* Keyed on the saved address and pin, so the forms start again from what Orb just saved */}
-          {tab === 'location' && <LocationTab key={`${v.lat},${v.lng}`} v={v} onSaved={q.reload} />}
+          {tab === 'setup' && <SetupTab v={v} isCo={isCo} focus={OLD_SETUP[raw]} onSaved={q.reload} />}
           {tab === 'details' && <DetailsTab key={[v.address, v.postcode, v.website_url].join('|')} v={v} clients={clients.data || []} onClientCreated={clients.reload} isCo={isCo} onSaved={q.reload} />}
-          {(tab === 'codes' || tab === 'qr') && <QrTab v={v} />}
-          {tab === 'rates' && isCo && <RatesTab venueId={v.id} />}
           {tab === 'people' && <PeopleTab v={v} isCo={isCo} onChanged={q.reload} />}
           {tab === 'feedback' && <FeedbackList key={fbKey} venueId={v.id} fixedVenue onChanged={q.reload} />}
           {tab === 'people' && isCo && <RecentEmail type="venue" id={v.id} />}
@@ -93,6 +94,45 @@ export default function VenueDetail() {
         </Page>
       )}
     </Load>
+  );
+}
+
+/* ---------- Site setup ---------- */
+
+// Everything that sets the site up for shifts on one page: where officers clock in, the codes they scan or tap,
+// and (company managers only) what the venue is charged per role
+function SetupTab({ v, isCo, focus, onSaved }) {
+  const parts = [
+    { id: 'location', label: 'Location' },
+    { id: 'codes', label: 'Venue codes' },
+    ...(isCo ? [{ id: 'rates', label: 'Charge rates' }] : []),
+  ];
+  const go = (id) => document.getElementById(`setup-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  useEffect(() => {
+    if (focus && focus !== 'location') { const t = setTimeout(() => go(focus), 150); return () => clearTimeout(t); }
+    return undefined;
+  }, [focus]);
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {parts.map((p) => (
+          <Pressable key={p.id} press onClick={() => go(p.id)} className="min-h-9 rounded-full bg-fill px-3.5 py-1.5 text-footnote font-semibold text-muted hover:text-ink">{p.label}</Pressable>
+        ))}
+      </div>
+      <section id="setup-location" className="scroll-mt-20">
+        <Section title="Location" className="mt-0">
+          <LocationTab key={`${v.lat},${v.lng}`} v={v} onSaved={onSaved} />
+        </Section>
+      </section>
+      <section id="setup-codes" className="scroll-mt-20">
+        <Section title="Venue codes" className="mt-8"><QrTab v={v} /></Section>
+      </section>
+      {isCo && (
+        <section id="setup-rates" className="mt-8 scroll-mt-20">
+          <RatesTab venueId={v.id} />
+        </section>
+      )}
+    </div>
   );
 }
 
@@ -444,7 +484,7 @@ function OrbFillSheet({ v, isCo, onClose, onSaved }) {
                 <Input label="Postcode" disabled={!use.address} {...f.bind('postcode')} />
                 <p className="text-caption text-muted">
                   {found.cands.length === 1 && <>{FROM[c.source]}{c.confidence === 'low' ? ', worth checking' : ''}. </>}
-                  {v.lat == null ? (c?.lat != null ? 'The map pin goes on this address; move it to the officer entrance in Location.' : 'No map pin found; set it in Location.') : 'Your map pin stays as it is.'}
+                  {v.lat == null ? (c?.lat != null ? 'The map pin goes on this address; move it to the officer entrance in Site setup.' : 'No map pin found; set it in Site setup.') : 'Your map pin stays as it is.'}
                 </p>
               </div>
             </section>
@@ -674,13 +714,22 @@ function TagName({ tag, onClose, onSave }) {
 
 /* ---------- Rates ---------- */
 
+const pct = (n) => `+${Number(n)}%`;
+const upliftLine = (r) => [Number(r.night_uplift) && `night ${pct(r.night_uplift)}`, Number(r.weekend_uplift) && `weekend ${pct(r.weekend_uplift)}`,
+  Number(r.bh_uplift) && `bank hol. ${pct(r.bh_uplift)}`, `min ${Number(r.min_hours)}h`].filter(Boolean).join(' · ');
+
+// One row per role (speciality): what the venue is charged an hour today, any rate already booked for later, and the shifts
+// still without a rate. Approving a timesheet fixes this rate on it, and invoices bill exactly that.
 function RatesTab({ venueId }) {
   const rates = useApi('venues.rates', { venue_id: venueId });
   const roles = useApi('roles.list');
-  const [open, setOpen] = useState(false);
+  const gaps = useApi('venues.rateGaps', { venue_id: venueId });
+  const [sheet, setSheet] = useState(null); // { role, from?, base? }
+  const [history, setHistory] = useState(false);
   const confirm = useConfirm();
   const [run] = useAction();
   const today = isoDate();
+  const reload = () => { rates.reload(); gaps.reload(); };
 
   const status = useMemo(() => {
     const seen = new Set();
@@ -692,57 +741,105 @@ function RatesTab({ venueId }) {
     return out;
   }, [rates.data, today]);
 
+  const byRole = useMemo(() => {
+    const gap = Object.fromEntries((gaps.data || []).map((g) => [g.role, g]));
+    const list = (roles.data || []).map((ro) => {
+      const mine = (rates.data || []).filter((r) => r.role === ro.code);
+      return {
+        ...ro, current: mine.find((r) => status[r.id] === 'current') || null,
+        next: mine.filter((r) => status[r.id] === 'scheduled').sort((a, b) => (a.effective_from < b.effective_from ? -1 : 1))[0] || null, gap: gap[ro.code] || null,
+      };
+    });
+    // Roles in use here first: rated, then booked without a rate, then the rest
+    const rank = (r) => (r.gap ? 0 : r.current || r.next ? 1 : 2);
+    return list.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  }, [roles.data, rates.data, gaps.data, status]);
+
   const del = async (r) => {
     if (!(await confirm({ title: 'Delete this rate?', body: `${r.role_name} at ${money(r.rate)}/h from ${date(r.effective_from)}. Existing invoices are not changed.`, confirm: 'Delete', danger: true }))) return;
     await run(() => api('venues.deleteRate', { id: r.id }), 'Rate deleted').catch(() => {});
-    rates.reload();
+    reload();
   };
 
   const tone = { current: 'green', scheduled: 'blue', superseded: 'grey' };
   return (
-    <Section title="Charge rates per hour" className="mt-0" action={<Button size="sm" icon={Plus} onClick={() => setOpen(true)}>Add rate</Button>}>
-      <Load q={rates}>
-        {(rows) => (
-          <Table rows={rows} empty="No charge rates yet. Add one per role before invoicing."
-            columns={[
-              { key: 'role_name', mobile: 'title', label: 'Role', render: (r) => <span className="font-semibold">{r.role_name}</span> },
-              { key: 'rate', mobile: 'value', label: 'Rate', align: 'right', render: (r) => <span className="num font-semibold">{money(r.rate)}</span> },
-              { key: 'night', mobile: 'sub', mobileLabel: true, label: 'Night', align: 'right', render: (r) => <span className="num">+{Number(r.night_uplift)}%</span> },
-              { key: 'weekend', mobile: 'sub', mobileLabel: true, label: 'Weekend', align: 'right', render: (r) => <span className="num">+{Number(r.weekend_uplift)}%</span> },
-              { key: 'bh', mobile: false, label: 'Bank hol.', align: 'right', render: (r) => <span className="num">+{Number(r.bh_uplift)}%</span> },
-              { key: 'min', mobile: false, label: 'Min hours', align: 'right', render: (r) => <span className="num">{Number(r.min_hours)}h</span> },
-              { key: 'from', mobile: false, label: 'From', render: (r) => date(r.effective_from) },
-              { key: 'st', mobile: 'value', label: 'Status', render: (r) => <Pill tone={tone[status[r.id]]}>{status[r.id] === 'current' ? 'Current' : status[r.id] === 'scheduled' ? 'Scheduled' : 'Superseded'}</Pill> },
-              { key: 'x', mobile: 'value', label: '', align: 'right', render: (r) => <IconButton icon={Trash2} label="Delete rate" onClick={(e) => { e.stopPropagation(); del(r); }} className="ml-auto h-8 w-8 text-red hover:bg-red-soft" /> },
-            ]} />
+    <Section title="Charge rates per hour" className="mt-0" action={<Button size="sm" variant="soft" onClick={() => setHistory((h) => !h)}>{history ? 'Hide history' : 'Rate history'}</Button>}>
+      <Load q={roles}>
+        {() => (
+          <List>
+            {byRole.map((r) => {
+              const base = r.current || r.next;
+              return (
+                <div key={r.code} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-body font-semibold">{r.name}</div>
+                    <div className="text-footnote text-muted">
+                      {r.current ? upliftLine(r.current) : r.next ? `From ${date(r.next.effective_from)}` : 'No charge rate'}
+                      {r.current && r.next && <> · <span className="text-blue">{money(r.next.rate)}/h from {date(r.next.effective_from)}</span></>}
+                    </div>
+                    {r.gap && (
+                      <div className="mt-1 text-footnote font-semibold text-red">
+                        {r.gap.shifts} shift{r.gap.shifts === 1 ? '' : 's'} from {date(r.gap.first_day)} with no rate{r.gap.waiting ? `, ${r.gap.waiting} timesheet${r.gap.waiting === 1 ? '' : 's'} can't be approved yet` : ''}
+                      </div>
+                    )}
+                  </div>
+                  <span className={cx('num text-title3 font-bold', !r.current && 'text-faint')}>{r.current ? money(r.current.rate) : '–'}<span className="text-footnote font-semibold text-muted">/h</span></span>
+                  <Button size="sm" variant={r.gap ? 'primary' : r.current ? 'secondary' : 'soft'} icon={r.current ? Pencil : Plus}
+                    onClick={() => setSheet({ role: r.code, name: r.name, base, from: r.gap ? r.gap.first_day : today })}>
+                    {r.current ? 'Change' : 'Set rate'}
+                  </Button>
+                </div>
+              );
+            })}
+          </List>
         )}
       </Load>
-      <p className="mt-2 px-1 text-caption text-faint">Uplifts are applied to the part of a shift that falls at night, at the weekend or on a bank holiday. Short shifts are billed at the minimum hours.</p>
-      {open && <RateSheet venueId={venueId} roles={roles.data || []} onClose={() => setOpen(false)} onSaved={rates.reload} />}
+      <p className="mt-2 px-1 text-caption text-faint">Approving a timesheet fixes the rate on that shift's date; the venue signs it and its invoice bills that rate. Uplifts apply to the part of a shift that falls at night, at the weekend or on a bank holiday. Short shifts are billed at the minimum hours.</p>
+      {history && (
+        <Load q={rates}>
+          {(rows) => (
+            <div className="mt-4">
+              <Table rows={rows} empty="No charge rates yet."
+                columns={[
+                  { key: 'role_name', mobile: 'title', label: 'Role', render: (r) => <span className="font-semibold">{r.role_name}</span> },
+                  { key: 'rate', mobile: 'value', label: 'Rate', align: 'right', render: (r) => <span className="num font-semibold">{money(r.rate)}</span> },
+                  { key: 'night', mobile: 'sub', mobileLabel: true, label: 'Night', align: 'right', render: (r) => <span className="num">{pct(r.night_uplift)}</span> },
+                  { key: 'weekend', mobile: 'sub', mobileLabel: true, label: 'Weekend', align: 'right', render: (r) => <span className="num">{pct(r.weekend_uplift)}</span> },
+                  { key: 'bh', mobile: false, label: 'Bank hol.', align: 'right', render: (r) => <span className="num">{pct(r.bh_uplift)}</span> },
+                  { key: 'min', mobile: false, label: 'Min hours', align: 'right', render: (r) => <span className="num">{Number(r.min_hours)}h</span> },
+                  { key: 'from', mobile: false, label: 'From', render: (r) => date(r.effective_from) },
+                  { key: 'st', mobile: 'value', label: 'Status', render: (r) => <Pill tone={tone[status[r.id]]}>{status[r.id] === 'current' ? 'Current' : status[r.id] === 'scheduled' ? 'Scheduled' : 'Superseded'}</Pill> },
+                  { key: 'x', mobile: 'value', label: '', align: 'right', render: (r) => <IconButton icon={Trash2} label="Delete rate" onClick={(e) => { e.stopPropagation(); del(r); }} className="ml-auto h-8 w-8 text-red hover:bg-red-soft" /> },
+                ]} />
+            </div>
+          )}
+        </Load>
+      )}
+      {sheet && <RateSheet venueId={venueId} init={sheet} onClose={() => setSheet(null)} onSaved={reload} />}
     </Section>
   );
 }
 
-function RateSheet({ venueId, roles, onClose, onSaved }) {
+// Set or change one role's rate. Starts from its current rate; the first rate for a role starts on its first unrated shift.
+function RateSheet({ venueId, init, onClose, onSaved }) {
   const [run, busy] = useAction();
-  const f = useForm({ role: '', rate: '', night_uplift: '0', weekend_uplift: '0', bh_uplift: '50', min_hours: '4', effective_from: isoDate() });
-  const ok = f.v.role && Number(f.v.rate) > 0 && f.v.effective_from;
-  const save = async () => {
-    await run(() => api('venues.saveRate', {
-      venue_id: venueId, role: f.v.role, rate: Number(f.v.rate), night_uplift: Number(f.v.night_uplift || 0), weekend_uplift: Number(f.v.weekend_uplift || 0),
-      bh_uplift: Number(f.v.bh_uplift || 0), min_hours: Number(f.v.min_hours || 0), effective_from: f.v.effective_from,
-    }), 'Rate added');
-    onSaved();
-    onClose();
-  };
+  const b = init.base;
+  const f = useForm({
+    rate: b ? String(Number(b.rate)) : '', night_uplift: String(b ? Number(b.night_uplift) : 0), weekend_uplift: String(b ? Number(b.weekend_uplift) : 0),
+    bh_uplift: String(b ? Number(b.bh_uplift) : 50), min_hours: String(b ? Number(b.min_hours) : 4), effective_from: init.from || isoDate(),
+  });
+  const ok = Number(f.v.rate) > 0 && f.v.effective_from;
+  const save = () => run(() => api('venues.saveRate', {
+    venue_id: venueId, role: init.role, rate: Number(f.v.rate), night_uplift: Number(f.v.night_uplift || 0), weekend_uplift: Number(f.v.weekend_uplift || 0),
+    bh_uplift: Number(f.v.bh_uplift || 0), min_hours: Number(f.v.min_hours || 0), effective_from: f.v.effective_from,
+  }), 'Charge rate saved').then(() => { onSaved(); onClose(); }).catch(() => {});
   return (
-    <Sheet open onClose={onClose} title="Add charge rate"
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!ok} onClick={save}>Add rate</Button></>}>
+    <Sheet open onClose={onClose} title={`${init.name}: charge rate`}
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!ok} onClick={save}>Save rate</Button></>}>
       <div className="space-y-4">
-        <Select label="Role" placeholder="Choose role" options={roles.map((r) => ({ value: r.code, label: r.name }))} {...f.bind('role')} />
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Rate per hour (£)" type="number" inputMode="decimal" step="0.01" min="0" {...f.bind('rate')} />
-          <Input label="Effective from" type="date" {...f.bind('effective_from')} />
+          <Input label="Rate per hour (£)" type="number" inputMode="decimal" step="0.01" min="0" autoFocus {...f.bind('rate')} />
+          <Input label="Starts on" type="date" {...f.bind('effective_from')} />
         </div>
         <div className="grid grid-cols-3 gap-3">
           <Input label="Night %" type="number" inputMode="decimal" {...f.bind('night_uplift')} />
@@ -750,7 +847,10 @@ function RateSheet({ venueId, roles, onClose, onSaved }) {
           <Input label="Bank hol. %" type="number" inputMode="decimal" {...f.bind('bh_uplift')} />
         </div>
         <Input label="Minimum billable hours" type="number" inputMode="decimal" step="0.25" {...f.bind('min_hours')} />
-        <p className="text-footnote text-muted">A new rate replaces the previous one for this role from its effective date. Older rates stay for history.</p>
+        <p className="text-footnote text-muted">
+          Shifts from this date use the new rate when their timesheet is approved. Timesheets already approved, and issued invoices, keep the rate they were approved at.
+          {init.from && init.from < isoDate() && !b ? ' It starts on the first shift here without a rate, so those timesheets can be approved.' : ''}
+        </p>
       </div>
     </Sheet>
   );

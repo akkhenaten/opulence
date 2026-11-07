@@ -425,7 +425,7 @@ function ClockProofTile({ s, onSaved }) {
         {!nfc ? (
           <>
             <Button className="mt-4" variant="soft" icon={KeyRound} busy={nfcBusy} onClick={reveal}>{s.nfc_ready ? 'Show tag keys' : 'Create tag keys'}</Button>
-            <p className="mt-2 text-caption text-faint">{s.nfc_ready ? 'Keys are set up. Tags can be paired on each venue\'s Venue codes tab.' : 'Not set up yet.'}</p>
+            <p className="mt-2 text-caption text-faint">{s.nfc_ready ? 'Keys are set up. Tags can be paired in each venue\'s Site setup.' : 'Not set up yet.'}</p>
           </>
         ) : (
           <div className="mt-4 space-y-3">

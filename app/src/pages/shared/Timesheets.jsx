@@ -36,6 +36,7 @@ const FILTERS = {
   cancelled: (r) => r.state === 'cancelled',
   no_rate: noRate,
   unpaid_late: (r) => r.unpaid_late,
+  live: (r) => r.state === 'live',
 };
 // Old links (dashboard, notifications) still say ?status=
 const FROM_STATUS = { pending: 'review', disputed: 'queried', missing: 'no_clock_in', approved: 'review' };
@@ -47,7 +48,8 @@ export default function Timesheets() {
   const isCo = user.role === 'company';
   const canSign = isCo || isVenue;
   const [sp, setSp] = useSearchParams();
-  const filter = FROM_STATUS[sp.get('status')] || sp.get('show') || (isVenue ? 'review' : 'all');
+  // Venues open on the whole week: who worked, who is on site now, and what is waiting for their signature
+  const filter = FROM_STATUS[sp.get('status')] || sp.get('show') || 'all';
   const setFilter = (f) => { const n = new URLSearchParams(sp); n.delete('status'); if (f === 'all') n.delete('show'); else n.set('show', f); setSp(n, { replace: true }); setSel(new Set()); };
 
   const [week, setWeek] = useState(() => mondayOf(isoDate()));
@@ -105,7 +107,8 @@ export default function Timesheets() {
   const health = q.data?.health || {};
   const wk = q.data?.week;
   const segs = isVenue
-    ? [{ value: 'all', label: 'All' }, { value: 'review', label: 'To sign', count: all.filter((r) => r.state === 'approved').length }, { value: 'queried', label: 'Queried' }]
+    ? [{ value: 'all', label: 'All' }, { value: 'live', label: 'On site', count: all.filter((r) => r.state === 'live').length || undefined },
+      { value: 'review', label: 'To sign', count: all.filter((r) => r.state === 'approved').length }, { value: 'queried', label: 'Queried' }]
     : [{ value: 'all', label: 'All' }, { value: 'review', label: 'Needs review', count: health.to_review }, { value: 'queried', label: 'Queried' }, { value: 'no_clock_in', label: 'No clock-in' }];
 
   return (

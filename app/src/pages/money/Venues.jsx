@@ -107,7 +107,7 @@ function AddVenueSheet({ open, onClose, clients, onClientCreated }) {
     const v = await run(() => api('venues.save', { ...f.v, client_id: f.v.client_id || null, postcode: f.v.postcode.toUpperCase() }), 'Venue added');
     f.setV({ client_id: '', name: '', address: '', postcode: '', phone: '' });
     onClose();
-    nav(`${base}/venues/${v.id}?tab=location&new=1`);
+    nav(`${base}/venues/${v.id}?tab=setup&new=1`);
   };
   return (
     <Sheet open={open} onClose={onClose} title="Add venue"

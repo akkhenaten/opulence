@@ -338,7 +338,7 @@ export const actions = {
     const done = await applyChange(occ, scope, payload, user.id);
     if (conv) await post(conv.id, user.id, { body: `Updated: ${done}.` });
     if (!isMgr(user)) await notify(await managersFor(occ.venue_id), { kind: 'cover', title: `${occ.venue_name} updated a cover request`, body: done, link: '/company/cover' });
-    else if (touchesAccepted || occ.status === 'pending') await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Your cover request was updated', body: done, link: '/venue/cover' });
+    else if (touchesAccepted || occ.status === 'pending') await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Your cover request was updated', body: done, link: '/venue/rota?tab=requests' });
     await audit(user, 'cover.update', 'cover_request', occ.id, { scope, type: payload.type });
     return { status: 'done', summary: done };
   }),
@@ -351,13 +351,13 @@ export const actions = {
     if (!b.approve) {
       await q("UPDATE cover_requests SET change_status = 'declined', change_reason = $2 WHERE id = $1", [occ.id, String(b.reason || '').slice(0, 300)]);
       if (conv) await post(conv.id, user.id, { body: `We can't make that change${b.reason ? `: ${b.reason}` : ''}. The booking stays as it was.` });
-      await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Change to booked cover declined', body: b.reason || 'The booking stays as it was.', link: '/venue/cover', email: true });
+      await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Change to booked cover declined', body: b.reason || 'The booking stays as it was.', link: '/venue/rota?tab=requests', email: true });
       await audit(user, 'cover.change_declined', 'cover_request', occ.id);
       return { ok: true };
     }
     const done = await applyChange(occ, occ.change_scope, occ.change_payload, user.id);
     if (conv) await post(conv.id, user.id, { body: `Approved: ${done}.` });
-    await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Change to booked cover approved', body: done, link: '/venue/cover', email: true });
+    await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Change to booked cover approved', body: done, link: '/venue/rota?tab=requests', email: true });
     await audit(user, 'cover.change_approved', 'cover_request', occ.id, { scope: occ.change_scope });
     return { ok: true, summary: done };
   }),
@@ -387,7 +387,7 @@ export const actions = {
     const conv = series ? await coverThread(series, occ.venue_name) : null;
     const text = all ? `Accepted all ${shifts.length} dates${series.kind === 'recurring' && !series.end_date ? ' — new dates will be booked automatically' : ''}` : `Accepted ${fmtDate(occ.occurs_on || occ.starts_at)}`;
     if (conv) await post(conv.id, user.id, { body: `${text}. We'll confirm the team nearer the time.` });
-    await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Cover request accepted', body: text, link: '/venue/cover', email: true });
+    await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Cover request accepted', body: text, link: '/venue/rota?tab=requests', email: true });
     await audit(user, 'cover.accept', 'cover_request', occ.id, { scope: all ? 'series' : 'one', count: shifts.length });
     return all ? { accepted: shifts.length } : shifts[0];
   }),
@@ -403,7 +403,7 @@ export const actions = {
     if (b.scope === 'series' && occ.series_id) await q("UPDATE cover_series SET status = 'cancelled' WHERE id = $1", [occ.series_id]);
     const conv = occ.series_id ? await coverThread({ id: occ.series_id, root_id: occ.root_id, venue_id: occ.venue_id }, occ.venue_name) : null;
     if (conv) await post(conv.id, user.id, { body: `Sorry, we can't cover ${done.length > 1 ? `these ${done.length} dates` : 'this date'}${b.reason ? `: ${b.reason}` : '.'}` });
-    await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Cover request declined', body: b.reason || 'Please contact us to discuss.', link: '/venue/cover', email: true });
+    await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Cover request declined', body: b.reason || 'Please contact us to discuss.', link: '/venue/rota?tab=requests', email: true });
     await audit(user, 'cover.decline', 'cover_request', occ.id, { count: done.length });
     return { ok: true };
   }),

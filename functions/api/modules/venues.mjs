@@ -289,9 +289,35 @@ export const actions = {
     return q('SELECT r.*, ro.name AS role_name FROM venue_rates r JOIN roles ro ON ro.code = r.role WHERE venue_id = $1 ORDER BY role, effective_from DESC', [b.venue_id]);
   }),
 
+  // Per role on this venue's shifts (last 120 days and ahead): shifts with no charge rate on their date, the first such date,
+  // and the timesheets waiting on one (Approve refuses them until there is a rate)
+  'venues.rateGaps': def(CO, async (b, { user }) => {
+    required(b, 'venue_id');
+    await assertVenue(user, b.venue_id);
+    return q(
+      `WITH sh AS (
+         SELECT s.id, s.role, (s.starts_at AT TIME ZONE 'Europe/London')::date AS day FROM shifts s
+          WHERE s.venue_id = $1 AND s.status <> 'cancelled' AND s.starts_at > now() - interval '120 days'
+            AND NOT EXISTS (SELECT 1 FROM venue_rates vr WHERE vr.venue_id = s.venue_id AND vr.role = s.role
+                              AND vr.effective_from <= (s.starts_at AT TIME ZONE 'Europe/London')::date))
+       SELECT sh.role, count(DISTINCT sh.id)::int AS shifts, min(sh.day)::text AS first_day,
+              count(t.id) FILTER (WHERE t.status IN ('pending','disputed') AND t.charge_rate IS NULL)::int AS waiting
+         FROM sh LEFT JOIN shift_assignments a ON a.shift_id = sh.id LEFT JOIN timesheets t ON t.assignment_id = a.id
+        GROUP BY sh.role`, [b.venue_id]);
+  }),
+
+  // One rate per role per date: saving again on the same date corrects it rather than stacking a duplicate
   'venues.saveRate': def(CO, async (b, { user }) => {
     required(b, 'venue_id', 'role', 'rate');
-    const r = await insert('venue_rates', pick(b, ['venue_id', 'role', 'rate', 'night_uplift', 'weekend_uplift', 'bh_uplift', 'min_hours', 'effective_from']));
+    await assertVenue(user, b.venue_id);
+    need(await one('SELECT 1 FROM roles WHERE code = $1', [b.role]), 'Unknown role');
+    const f = pick(b, ['venue_id', 'role', 'rate', 'night_uplift', 'weekend_uplift', 'bh_uplift', 'min_hours', 'effective_from']);
+    const n = (k, max) => { if (f[k] == null || f[k] === '') { delete f[k]; return; } f[k] = Number(f[k]); if (!Number.isFinite(f[k]) || f[k] < 0 || f[k] > max) fail(400, 'Check the rate, uplifts and minimum hours'); };
+    n('rate', 1000); n('night_uplift', 500); n('weekend_uplift', 500); n('bh_uplift', 500); n('min_hours', 24);
+    if (!(f.rate > 0)) fail(400, 'Enter a rate per hour');
+    if (f.effective_from && !/^\d{4}-\d{2}-\d{2}$/.test(f.effective_from)) fail(400, 'Choose the date the rate starts');
+    const same = f.effective_from && await one('SELECT id FROM venue_rates WHERE venue_id = $1 AND role = $2 AND effective_from = $3', [f.venue_id, f.role, f.effective_from]);
+    const r = same ? await update('venue_rates', same.id, f) : await insert('venue_rates', f);
     await audit(user, 'venue.rate', 'venue', b.venue_id, r);
     return r;
   }),

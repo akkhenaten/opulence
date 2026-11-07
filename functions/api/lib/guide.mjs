@@ -316,11 +316,11 @@ AI features use credits from your plan. The usage is shown in Settings.`,
     sections: [
       {
         id: 'overview', title: 'Your venue at a glance', image: 'venue-dashboard.png',
-        body: `Your Overview shows who is on site now, the next 48 hours of shifts, timesheets to sign, recent incidents and invoices. On site shows the live picture for your venue.`,
+        body: `Your Overview shows who is on site now, the next 48 hours of shifts, timesheets to sign, recent incidents and invoices. On site shows the live picture for your venue. Timesheets show who worked and the charge rate you are billed.`,
       },
       {
         id: 'cover', title: 'Ask for extra officers',
-        body: `Tap Request cover, choose the date, times, role and number of officers, and add a note. The security company replies in Cover requests, and you can talk it through in Messages.`,
+        body: `Open Rota to see the week's shifts at your venue, who is booked and who is on site now. Tap Request staff (or Request staff on a day), choose the times, role and number of officers, and add a note. The security company replies, and you follow it in Rota under Requests or talk it through in Messages.`,
       },
       {
         id: 'sign', title: 'Timesheets, incidents and invoices',
