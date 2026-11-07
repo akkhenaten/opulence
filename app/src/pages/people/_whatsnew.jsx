@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-07', icon: Mail, title: 'App emails now come from your company', image: 'email-sender-name',
+    lede: "Every email the app sends (invites, password resets, notifications, contracts to sign, application updates) now shows your company name as the sender, so staff and clients recognise it straight away. When someone replies, the reply goes to your company email.",
+    points: ['The sender name is the company name in Settings → Company', 'Replies go to the email in Settings → Company', 'Change either one there and the next email uses it', 'The look of the email is unchanged: your logo and colour'],
+  },
+  {
     month: 'November 2026', date: '2026-11-07', icon: Mail, title: 'See when an invite was emailed', image: 'invite-sent-status',
     lede: "Every invite now shows whether its email went out, and when. Open someone's login in Settings → Users, or their staff profile, and you can see at a glance whether to wait for them or send the link another way.",
     points: ['"Emailed on Sat 7 Nov, 14:02", "The last email didn\'t go through" or "Not emailed yet", next to the invite link', 'Resend invite updates it straight away', 'If it was sent but never arrived, copy the link and send it by WhatsApp or text', 'Invites sent before today show as not emailed yet, until they are sent again'],

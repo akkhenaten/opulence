@@ -1,6 +1,6 @@
 import { q } from './db.mjs';
 import { pushToUsers } from './webpush.mjs';
-import { esc, getBrand, onColor } from './brand.mjs';
+import { esc, getBrand, getSender, onColor } from './brand.mjs';
 import { fmtDateTime } from './time.mjs';
 
 // Kinds a person can switch off in their notification settings; operational alerts always go
@@ -8,18 +8,21 @@ export const OPTIONAL_KINDS = ['mention', 'comment', 'reaction', 'announcement',
 
 const APP_URL = () => process.env.APP_URL || '';
 
-/** true when the mail service accepted the message */
+/** true when the mail service accepted the message. Sent as the company (name from Settings), replies to its email. */
 async function sendEmail(to, subject, html) {
   const projectId = process.env.OPENKBS_PROJECT_ID;
   const apiKey = process.env.OPENKBS_API_KEY;
-  if (!projectId || !apiKey || !to) return false;
+  if (!to) return false;
+  if (!projectId || !apiKey) { console.warn('[email] not sent: mail service not configured'); return false; }
+  let sender = {};
+  try { sender = await getSender(); } catch (e) { console.warn('[email] sender not loaded:', e.message); }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 3000);
   try {
     const r = await fetch(`https://project.openkbs.com/projects/${projectId}/email/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ to, subject, html }),
+      body: JSON.stringify({ to, subject, html, ...sender }),
       signal: ctrl.signal,
     });
     if (!r.ok) console.warn('[email] not sent:', r.status, (await r.text()).slice(0, 200));

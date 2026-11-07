@@ -16,7 +16,25 @@ export async function getBrand() {
   }
   return cached;
 }
-export const clearBrand = () => { cached = null; };
+export const clearBrand = () => { cached = null; sender = null; };
+
+// Who app emails come from: the company name as the sender name, and replies going to the company's own email.
+// Kept apart from getBrand, which is public.
+const EMAIL = /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]+$/;
+export const senderOf = (s) => {
+  const fromName = String(s?.company_name || 'Orb Security').replace(/[\r\n"<>]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'Orb Security';
+  const email = String(s?.company_email || '').trim();
+  return EMAIL.test(email) ? { fromName, replyTo: email } : { fromName };
+};
+let sender = null;
+let senderAt = 0;
+export async function getSender() {
+  if (!sender || Date.now() - senderAt > 60_000) {
+    sender = senderOf(await one('SELECT company_name, company_email FROM settings WHERE id = 1'));
+    senderAt = Date.now();
+  }
+  return sender;
+}
 
 // Logo bytes for PDFs, kept per key (a new upload gets a new key)
 const logos = new Map();

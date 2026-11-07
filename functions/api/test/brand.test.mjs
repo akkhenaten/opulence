@@ -26,3 +26,11 @@ test('the brand colour is darkened for text on white paper', async () => {
   assert.ok(1.05 / (lum(ink) + 0.05) >= 4.5, ink);
   assert.equal(inkColor('#0b1220'), '#0b1220');
 });
+
+test('emails come from the company name and reply to the company email', async () => {
+  const { senderOf } = await import('../lib/brand.mjs');
+  assert.deepEqual(senderOf({ company_name: 'Opulence Security', company_email: ' info@opulence.co.uk ' }), { fromName: 'Opulence Security', replyTo: 'info@opulence.co.uk' });
+  assert.deepEqual(senderOf({ company_name: 'Acme', company_email: 'not an email' }), { fromName: 'Acme' });
+  assert.deepEqual(senderOf(null), { fromName: 'Orb Security' });
+  assert.equal(senderOf({ company_name: 'Bad\r\nBcc: x@y.z "<a>"' }).fromName.includes('\n'), false);
+});

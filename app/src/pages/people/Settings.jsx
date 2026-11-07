@@ -340,7 +340,7 @@ function CompanyFields({ b }) {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Company name" {...b('company_name')} />
           <Input label="Company number" {...b('company_number')} />
-          <Input label="Email" type="email" {...b('company_email')} />
+          <Input label="Email" type="email" hint="Replies to app emails come here; the company name is the sender" {...b('company_email')} />
           <Input label="Phone" type="tel" {...b('company_phone')} />
           <Textarea label="Address" rows={3} className="sm:col-span-2" hint="Shown on invoices and pay statements" {...b('company_address')} />
         </div>
