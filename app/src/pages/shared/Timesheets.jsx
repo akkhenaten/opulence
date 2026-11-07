@@ -1,152 +1,550 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Check, ClipboardCheck, Clock, Lock, PenLine, Signature } from 'lucide-react';
 import {
-  ActionBar, addDays, Avatar, Button, cx, dayLabel, Empty, hours, Input, isoDate, KV, List, Load, mondayOf, Page, Pill, range, relative, Sheet, Tabs, Textarea, titleCase, useAction, useApi, useForm,
+  AlertTriangle, Ban, Check, ChevronLeft, ChevronRight, ClipboardCheck, Clock, History, Lock, MapPin, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
+} from 'lucide-react';
+import {
+  ActionBar, addDays, Avatar, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, useAction, useApi, useConfirm, useForm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { Check as Tick, fromLondonInput, londonIso, SELF_HINT, SelfPills, toLondonInput, useBase } from '../manager/_parts.jsx';
 
-const FLAG_TONE = { late: 'amber', left_early: 'amber', exception: 'red', no_clock_out: 'red', manual: 'blue', edited: 'blue' };
+const FLAG_TONE = { late: 'amber', left_early: 'amber', exception: 'red', no_clock_out: 'red', manual: 'blue', edited: 'blue', cancelled_after_billing: 'red' };
+const DECLINE_REASONS = ['No-show', 'Sent home', 'Wrong booking', 'Duplicate', 'Shift cancelled'];
+
+// One look per row state. edge: the coloured left edge; row: the row tint; tone: the state pill
+const STATE = {
+  confirmed: { label: 'Confirmed', row: 'opacity-50', edge: 'border-l-line', tone: 'grey' },
+  live: { label: 'Live', row: 'outline outline-2 -outline-offset-2 outline-blue', edge: 'border-l-blue', tone: 'blue' },
+  awaiting: { label: 'Awaiting review', row: 'bg-amber-soft/40', edge: 'border-l-amber', tone: 'amber' },
+  queried: { label: 'Queried', row: 'bg-red-soft/40', edge: 'border-l-red', tone: 'red' },
+  approved: { label: 'Approved', row: 'bg-green-soft/40', edge: 'border-l-green', tone: 'green' },
+  signed: { label: 'Approved', row: 'bg-green-soft/40', edge: 'border-l-green', tone: 'green' },
+  locked: { label: 'Paid / invoiced', row: 'bg-green-soft/40', edge: 'border-l-green', tone: 'green' },
+  declined: { label: 'Declined', row: 'bg-fill/60 text-muted', edge: 'border-l-faint', tone: 'grey' },
+  cancelled: { label: 'Shift cancelled', row: 'bg-fill/60', edge: 'border-l-red', tone: 'red' },
+  no_clock_in: { label: 'No clock-in', row: '', edge: 'border-l-red', tone: 'red' },
+};
+const HOW = { qr: [QrCode, 'Scanned the venue QR'], nfc: [Nfc, 'Tapped the venue NFC tag'], manual: [PenLine, 'Times set by a manager'], gps: [MapPin, 'Clocked in on location'] };
+const REVIEW = new Set(['awaiting', 'queried', 'no_clock_in', 'cancelled']);
+const noRate = (r) => ['awaiting', 'approved', 'signed'].includes(r.state) && (r.charge_rate === null || r.pay_rate === null);
+const FILTERS = {
+  all: () => true,
+  review: (r, venue) => (venue ? r.state === 'approved' : REVIEW.has(r.state)),
+  queried: (r) => r.state === 'queried',
+  no_clock_in: (r) => r.state === 'no_clock_in',
+  cancelled: (r) => r.state === 'cancelled',
+  no_rate: noRate,
+  unpaid_late: (r) => r.unpaid_late,
+};
+// Old links (dashboard, notifications) still say ?status=
+const FROM_STATUS = { pending: 'review', disputed: 'queried', missing: 'no_clock_in', approved: 'review' };
+const DAYS = (week) => Array.from({ length: 7 }, (_, i) => addDays(week, i));
 
 export default function Timesheets() {
   const { user, isManager } = useBase();
   const isVenue = user.role === 'venue';
-  const canSign = user.role === 'company' || isVenue;
-  const canDispute = user.role === 'company' || isVenue;
+  const isCo = user.role === 'company';
+  const canSign = isCo || isVenue;
   const [sp, setSp] = useSearchParams();
-  const status = sp.get('status') || (isVenue ? 'approved' : 'pending');
-  const setStatus = (s) => { const n = new URLSearchParams(sp); n.set('status', s); setSp(n, { replace: true }); setSel(new Set()); };
+  const filter = FROM_STATUS[sp.get('status')] || sp.get('show') || (isVenue ? 'review' : 'all');
+  const setFilter = (f) => { const n = new URLSearchParams(sp); n.delete('status'); if (f === 'all') n.delete('show'); else n.set('show', f); setSp(n, { replace: true }); setSel(new Set()); };
 
-  const [from, setFrom] = useState(() => addDays(mondayOf(isoDate()), -7));
-  const [to, setTo] = useState(() => addDays(mondayOf(isoDate()), 6));
+  const [week, setWeek] = useState(() => mondayOf(isoDate()));
+  const [venueId, setVenueId] = useState('');
+  const [officerId, setOfficerId] = useState('');
   const [sel, setSel] = useState(() => new Set());
   const [open, setOpen] = useState(null);
+  const [sheet, setSheet] = useState(null); // { kind: decline | rate | manual, rows }
   const [run, busy] = useAction();
 
-  const missingTab = status === 'missing';
-  const body = useMemo(() => ({ ...(status !== 'all' && !missingTab ? { status } : {}), from: londonIso(from), to: londonIso(addDays(to, 1)) }), [status, from, to, missingTab]);
-  const q = useApi('timesheets.list', body, { skip: missingTab });
+  const venues = useApi('venues.list', {});
+  const body = useMemo(() => ({ from: londonIso(week), to: londonIso(addDays(week, 7)), ...(venueId ? { venue_id: venueId } : {}) }), [week, venueId]);
+  const q = useApi('timesheets.week', body);
   const missing = useApi('timesheets.missing', {}, { skip: !isManager });
+  const earlier = (missing.data || []).filter((m) => new Date(m.starts_at) < new Date(londonIso(week)));
 
-  const tabs = [
-    ...(isVenue ? [] : [{ value: 'pending', label: 'To approve' }]),
-    { value: 'approved', label: canSign ? 'To sign' : 'Approved' },
-    { value: 'signed', label: 'Signed' },
-    { value: 'disputed', label: 'Disputed' },
-    { value: 'all', label: 'All' },
-    ...(isManager ? [{ value: 'missing', label: 'Missing', count: missing.data?.length }] : []),
-  ];
+  const all = q.data?.rows || [];
+  const officers = useMemo(() => [...new Map(all.map((r) => [r.officer_id, r.officer_name])).entries()].sort((a, b) => a[1].localeCompare(b[1])), [all]);
+  const rows = all.filter((r) => (!officerId || r.officer_id === officerId) && (FILTERS[filter] || FILTERS.all)(r, isVenue));
+  const see = q.data?.see || {};
 
-  const rows = q.data || [];
-  const actionable = (t) => !t.locked && !t.self_locked && ((isManager && t.status === 'pending') || (canSign && t.status === 'approved'));
-  const chosen = rows.filter((t) => sel.has(t.id));
-  const toApprove = isManager ? chosen.filter((t) => t.status === 'pending') : [];
-  const toSign = canSign ? chosen.filter((t) => t.status === 'approved') : [];
+  const can = (r) => {
+    if (r.self_locked || r.locked) return {};
+    const s = r.state;
+    return {
+      approve: isManager && s === 'awaiting',
+      query: (isManager && ['awaiting', 'approved'].includes(s)) || (isVenue && s === 'approved'),
+      decline: isManager && ['awaiting', 'queried', 'no_clock_in', 'cancelled'].includes(s),
+      sign: canSign && s === 'approved',
+      times: isManager && s === 'no_clock_in',
+      answer: isManager && s === 'queried',
+      rate: isCo && !!r.id && !['declined', 'cancelled'].includes(s),
+    };
+  };
+  const selectable = rows.filter((r) => { const c = can(r); return c.approve || c.sign || c.decline; });
+  const chosen = rows.filter((r) => sel.has(r.assignment_id));
+  const toApprove = chosen.filter((r) => can(r).approve);
+  const toSign = chosen.filter((r) => can(r).sign);
+  const toDecline = chosen.filter((r) => can(r).decline);
+  const allOn = selectable.length > 0 && selectable.every((r) => sel.has(r.assignment_id));
   const toggle = (id, on) => setSel((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n; });
-  const selectable = rows.filter(actionable);
-  const allOn = selectable.length > 0 && selectable.every((t) => sel.has(t.id));
-  const done = () => { setSel(new Set()); q.reload(); missing.reload(); };
+  const done = () => { setSel(new Set()); setSheet(null); setOpen(null); q.reload(); missing.reload(); };
 
-  const approve = (ids) => run(() => api('timesheets.approve', { ids }), (r) => `${r.approved} approved`).then(done).catch(() => {});
-  const sign = (ids) => run(() => api('timesheets.sign', { ids }), (r) => `${r.signed} signed`).then(done).catch(() => {});
+  const approve = (list) => run(() => api('timesheets.approve', { ids: list.map((r) => r.id) }),
+    (r) => `${r.approved} approved${r.message ? ` · ${r.message}` : ''}`).then(done).catch(() => {});
+  const sign = (list) => run(() => api('timesheets.sign', { ids: list.map((r) => r.id) }), (r) => `${r.signed} signed`).then(done).catch(() => {});
+  const act = {
+    approve: (r) => approve([r]), sign: (r) => sign([r]),
+    query: (r) => setSheet({ kind: 'query', rows: [r] }), decline: (r) => setSheet({ kind: 'decline', rows: [r] }),
+    times: (r) => setSheet({ kind: 'manual', rows: [r] }), answer: (r) => setOpen(r), rate: (r) => setSheet({ kind: 'rate', rows: [r] }),
+  };
 
-  const totalH = rows.reduce((n, t) => n + Number(t.hours || 0), 0);
+  const weekLabel = `${dateShort(week)} – ${dateShort(addDays(week, 6))}`;
+  const isThisWeek = week === mondayOf(isoDate());
+  const health = q.data?.health || {};
+  const wk = q.data?.week;
+  const segs = isVenue
+    ? [{ value: 'all', label: 'All' }, { value: 'review', label: 'To sign', count: all.filter((r) => r.state === 'approved').length }, { value: 'queried', label: 'Queried' }]
+    : [{ value: 'all', label: 'All' }, { value: 'review', label: 'Needs review', count: health.to_review }, { value: 'queried', label: 'Queried' }, { value: 'no_clock_in', label: 'No clock-in' }];
 
   return (
-    <Page title="Timesheets" subtitle={missingTab ? 'Shifts with no clock record' : `${rows.length} shown · ${hours(totalH)}`} wide>
-      <Tabs value={status} onChange={setStatus} tabs={tabs} />
+    <Page title="Timesheets" subtitle={`Week of ${dayLabel(week)}`} wide>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1 rounded-xl bg-surface p-1 shadow-tile">
+          <IconButton icon={ChevronLeft} label="Previous week" onClick={() => { setWeek(addDays(week, -7)); setSel(new Set()); }} />
+          <span className="num min-w-[132px] text-center text-subhead font-semibold">{weekLabel}</span>
+          <IconButton icon={ChevronRight} label="Next week" onClick={() => { setWeek(addDays(week, 7)); setSel(new Set()); }} />
+        </div>
+        {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(mondayOf(isoDate()))}>This week</Button>}
+        {(venues.data?.length > 1 || !isVenue) && (
+          <Select className="w-full sm:w-auto sm:min-w-[180px]" value={venueId} onChange={(e) => setVenueId(e.target.value)} placeholder="All venues"
+            options={(venues.data || []).filter((v) => v.active).map((v) => ({ value: v.id, label: v.name }))} />
+        )}
+        <Select className="w-full sm:w-auto sm:min-w-[180px]" value={officerId} onChange={(e) => setOfficerId(e.target.value)} placeholder="All officers"
+          options={officers.map(([id, name]) => ({ value: id, label: name }))} />
+        <Segmented full value={filter} onChange={setFilter} options={segs} className="w-full lg:ml-auto lg:w-auto" />
+      </div>
 
-      {missingTab ? <Missing q={missing} onDone={done} /> : (
-        <>
-          <div className="mb-4 flex flex-wrap items-end gap-2">
-            <Input label="From" type="date" value={from} onChange={(e) => e.target.value && setFrom(e.target.value)} className="w-[150px]" />
-            <Input label="To" type="date" value={to} onChange={(e) => e.target.value && setTo(e.target.value)} className="w-[150px]" />
-            {selectable.length > 0 && (
-              <Button variant="ghost" size="sm" className="mb-1.5 sm:ml-auto" onClick={() => setSel(allOn ? new Set() : new Set(selectable.map((t) => t.id)))}>
-                {allOn ? 'Clear selection' : `Select all ${selectable.length}`}
-              </Button>
-            )}
-          </div>
-
-          <Load q={q}>{(list) => !list.length ? (
-            <Empty icon={ClipboardCheck} title="No timesheets" body={status === 'pending' ? 'Nothing waiting for approval in these dates.' : status === 'approved' && canSign ? 'Nothing waiting for sign-off in these dates.' : 'Try a wider date range.'} />
-          ) : (
-            <List>
-              {list.map((t) => (
-                <div key={t.id} role="button" tabIndex={0} onClick={() => setOpen(t)} onKeyDown={(e) => e.key === 'Enter' && setOpen(t)}
-                  className={cx('flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-bg', sel.has(t.id) && 'bg-blue-soft/50')}>
-                  {actionable(t) ? <Tick checked={sel.has(t.id)} onChange={(on) => toggle(t.id, on)} label={`Select ${t.officer_name}`} /> : <span className="grid h-[22px] w-[22px] shrink-0 place-items-center text-faint">{t.locked && <Lock size={14} />}</span>}
-                  <Avatar name={t.officer_name} size={36} className="hidden sm:grid" />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-body font-semibold">{t.officer_name}</div>
-                    <div className="truncate text-footnote text-muted">{dayLabel(t.starts_at)} · {t.venue_name} · {t.role_name}</div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-muted">
-                      <span>Rota <span className="num">{range(t.starts_at, t.ends_at)}</span></span>
-                      {t.actual_start && <span>Actual <span className="num font-semibold text-ink">{range(t.actual_start, t.actual_end)}</span></span>}
-                      <SelfPills row={t} small />
-                      {(t.flags || []).map((f) => <Pill key={f} tone={FLAG_TONE[f] || 'grey'} className="!py-0 !text-caption2">{titleCase(f)}</Pill>)}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <span className="num text-callout font-bold">{hours(t.hours)}</span>
-                    <Pill status={t.status} />
-                  </div>
-                </div>
-              ))}
-            </List>
-          )}</Load>
-        </>
+      {earlier.length > 0 && (
+        <Callout tone="warning" icon={Clock} className="mb-3" title={`${earlier.length} earlier shift${earlier.length > 1 ? 's' : ''} with no clock-in`}
+          action={<Button size="sm" variant="secondary" onClick={() => { setWeek(mondayOf(isoDate(earlier[earlier.length - 1].starts_at))); setFilter('no_clock_in'); }}>Show oldest</Button>}>
+          Set the times if they worked, or decline them, so nothing is paid twice or missed.
+        </Callout>
       )}
 
-      <ActionBar show={toApprove.length > 0 || toSign.length > 0}>
+      {wk && <WeekStrip wk={wk} health={health} see={see} filter={filter} setFilter={setFilter} isVenue={isVenue} />}
+
+      {selectable.length > 0 && (
+        <div className="mb-2 flex justify-end">
+          <Button variant="ghost" size="sm" onClick={() => setSel(allOn ? new Set() : new Set(selectable.map((r) => r.assignment_id)))}>
+            {allOn ? 'Clear selection' : `Select all ${selectable.length}`}
+          </Button>
+        </div>
+      )}
+
+      <Load q={q}>{() => !rows.length ? (
+        <Empty icon={ClipboardCheck} title={all.length ? 'Nothing matches' : 'No shifts this week'} body={all.length ? 'Try another filter.' : 'Confirmed shifts show here as soon as officers accept them.'} />
+      ) : (
+        <WeekTable rows={rows} week={week} days={q.data.days} see={see} sel={sel} toggle={toggle} can={can} act={act} onOpen={setOpen} busy={busy} />
+      )}</Load>
+
+      <ActionBar show={chosen.length > 0}>
         <span className="num mr-2 text-subhead font-semibold">{chosen.length} selected</span>
         <Button variant="secondary" size="sm" onClick={() => setSel(new Set())}>Clear</Button>
-        {toApprove.length > 0 && <Button size="sm" icon={Check} busy={busy} onClick={() => approve(toApprove.map((t) => t.id))}>Approve {toApprove.length}</Button>}
-        {toSign.length > 0 && <Button size="sm" icon={Signature} busy={busy} onClick={() => sign(toSign.map((t) => t.id))}>Sign {toSign.length}</Button>}
+        {toApprove.length > 0 && <Button size="sm" icon={Check} busy={busy} onClick={() => approve(toApprove)}>Approve {toApprove.length}</Button>}
+        {toSign.length > 0 && <Button size="sm" icon={Signature} busy={busy} onClick={() => sign(toSign)}>Sign {toSign.length}</Button>}
+        {toDecline.length > 0 && <Button size="sm" variant="danger" icon={Ban} onClick={() => setSheet({ kind: 'decline', rows: toDecline })}>Decline {toDecline.length}</Button>}
       </ActionBar>
 
-      {open && <Detail t={open} isManager={isManager} canSign={canSign} canDispute={canDispute} onClose={() => setOpen(null)}
-        onDone={() => { setOpen(null); done(); }} approve={approve} sign={sign} busy={busy} />}
+      {open && !sheet && <Detail t={open} can={can(open)} isManager={isManager} see={see} act={act} busy={busy} onClose={() => setOpen(null)} onDone={done} />}
+      {sheet?.kind === 'decline' && <DeclineSheet rows={sheet.rows} onClose={() => setSheet(null)} onDone={done} />}
+      {sheet?.kind === 'query' && <DisputeSheet t={sheet.rows[0]} onClose={() => setSheet(null)} onDone={done} />}
+      {sheet?.kind === 'rate' && <RateSheet t={sheet.rows[0]} onClose={() => setSheet(null)} onDone={done} />}
+      {sheet?.kind === 'manual' && <ManualSheet m={sheet.rows[0]} onClose={() => setSheet(null)} onDone={done} />}
+      {sheet?.kind === 'edit' && <EditSheet t={sheet.rows[0]} onClose={() => setSheet(null)} onDone={done} />}
+      {sheet?.kind === 'answer' && <AnswerSheet t={sheet.rows[0]} onClose={() => setSheet(null)} onDone={done} />}
     </Page>
   );
 }
 
-function Detail({ t, isManager, canSign, canDispute, onClose, onDone, approve, sign, busy }) {
-  const [mode, setMode] = useState(null); // edit | dispute
-  if (mode === 'edit') return <EditSheet t={t} onClose={() => setMode(null)} onDone={onDone} />;
-  if (mode === 'dispute') return <DisputeSheet t={t} onClose={() => setMode(null)} onDone={onDone} />;
-  const footer = !t.locked && !t.self_locked && (
+/* ---------- Week strip: totals and what still needs doing ---------- */
+
+function WeekStrip({ wk, health, see, filter, setFilter, isVenue }) {
+  const chips = [
+    !isVenue && ['review', health.to_review, 'to review', 'amber'],
+    ['queried', health.queried, 'queried', 'red'],
+    !isVenue && ['no_clock_in', health.no_clock_in, 'no clock-in', 'red'],
+    !isVenue && ['cancelled', health.cancelled, 'cancelled with hours', 'red'],
+    ['no_rate', health.no_rate, 'without a rate', 'red'],
+    ['unpaid_late', health.unpaid_late, 'signed, not paid yet', 'amber'],
+  ].filter((c) => c && c[1] > 0);
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-tile border border-hairline bg-surface px-4 py-3 shadow-tile">
+      <Total label="Hours" value={hours(wk.hours)} />
+      {see.charge && <Total label="Charge" value={money(wk.charge)} />}
+      {see.pay && <Total label="Officer pay" value={money(wk.pay)} />}
+      {chips.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5 sm:ml-auto">
+          {chips.map(([f, n, label, tone]) => (
+            <Pressable key={f} press onClick={() => setFilter(filter === f ? 'all' : f)}
+              className={cx('min-h-9 rounded-full px-3 py-1.5 text-footnote font-semibold', tone === 'red' ? 'bg-red-soft text-red' : 'bg-amber-soft text-amber', filter === f && 'ring-2 ring-current')}>
+              <span className="num">{n}</span> {label}
+            </Pressable>
+          ))}
+        </div>
+      ) : <span className="text-footnote text-green sm:ml-auto">Nothing waiting</span>}
+    </div>
+  );
+}
+const Total = ({ label, value }) => (
+  <div><div className="text-caption font-semibold uppercase tracking-wide text-faint">{label}</div><div className="num text-callout font-bold">{value}</div></div>
+);
+
+/* ---------- The table (desktop) and day cards (phone) ---------- */
+
+function WeekTable({ rows, week, days, see, sel, toggle, can, act, onOpen, busy }) {
+  const today = isoDate();
+  const byDay = useMemo(() => { const m = {}; for (const r of rows) (m[r.date] ||= []).push(r); return m; }, [rows]);
+  const shown = DAYS(week).filter((d) => byDay[d]?.length);
+  const todayRef = useRef(null);
+  useEffect(() => {
+    if (todayRef.current && window.matchMedia('(max-width: 767px)').matches) todayRef.current.scrollIntoView({ block: 'start' });
+  }, [week]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dayTotal = (d) => {
+    const t = days?.[d];
+    if (!t) return null;
+    return [hours(t.hours), see.charge && `charge ${money(t.charge)}`, see.pay && `pay ${money(t.pay)}`].filter(Boolean).join(' · ');
+  };
+  const cols = 6 + (see.charge ? 1 : 0) + (see.pay ? 1 : 0);
+  const props = { see, sel, toggle, can, act, onOpen, busy };
+
+  return (
     <>
-      {canDispute && ['approved', 'pending'].includes(t.status) && <Button variant="danger" icon={AlertTriangle} onClick={() => setMode('dispute')}>Query</Button>}
-      {isManager && <Button variant="secondary" icon={PenLine} onClick={() => setMode('edit')}>{t.status === 'disputed' ? 'Correct' : 'Edit'}</Button>}
-      {isManager && t.status === 'pending' && <Button icon={Check} busy={busy} onClick={() => approve([t.id]).then(onClose)}>Approve</Button>}
-      {canSign && t.status === 'approved' && <Button icon={Signature} busy={busy} onClick={() => sign([t.id]).then(onClose)}>Sign off</Button>}
+      {/* Phone: day cards with sticky day headers */}
+      <div className="md:hidden">
+        {shown.map((d) => (
+          <section key={d} className="mb-1">
+            <div ref={d === today ? todayRef : undefined}
+              className="sticky-below-header sticky z-10 -mx-4 flex scroll-mt-14 items-center justify-between gap-2 bg-bg/90 px-4 py-2 backdrop-blur">
+              <span className={cx('text-footnote font-semibold uppercase tracking-wide', d === today ? 'text-blue' : 'text-muted')}>{dayLabel(d)}{d === today ? ' · Today' : ''}</span>
+              <span className="num truncate text-caption text-muted">{dayTotal(d)}</span>
+            </div>
+            <div className="mb-2 space-y-2">{byDay[d].map((r) => <RowCard key={r.assignment_id} r={r} {...props} />)}</div>
+          </section>
+        ))}
+      </div>
+
+      {/* Tablet/desktop: one table, a header row per day */}
+      <div className="ui-panel hidden overflow-x-auto rounded-tile border border-hairline bg-surface shadow-tile md:block">
+        <table className="w-full text-subhead">
+          <thead>
+            <tr className="border-b border-line text-left text-caption font-semibold uppercase tracking-wide text-faint">
+              <th className="w-10 py-3 pl-4" aria-label="Select" />
+              <th className="px-3 py-3 font-semibold">Officer</th>
+              <th className="px-3 py-3 font-semibold">Venue · role</th>
+              <th className="px-3 py-3 font-semibold">Scheduled</th>
+              <th className="px-3 py-3 font-semibold">Actual</th>
+              <th className="px-3 py-3 text-right font-semibold">Hours</th>
+              {see.charge && <th className="px-3 py-3 text-right font-semibold">Charge</th>}
+              {see.pay && <th className="px-3 py-3 text-right font-semibold">Officer rate</th>}
+              <th className="px-3 py-3 text-right font-semibold"><span className="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((d) => (
+              <Fragment key={d}>
+                <tr className="border-b border-line bg-bg/70">
+                  <td colSpan={cols + 1} className="px-4 py-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className={cx('text-footnote font-semibold uppercase tracking-wide', d === today ? 'text-blue' : 'text-muted')}>{dayLabel(d)}{d === today ? ' · Today' : ''}</span>
+                      <span className="num text-footnote text-muted">{dayTotal(d)}</span>
+                    </div>
+                  </td>
+                </tr>
+                {byDay[d].map((r) => <TableRow key={r.assignment_id} r={r} {...props} />)}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function TableRow({ r, see, sel, toggle, can, act, onOpen, busy }) {
+  const st = STATE[r.state] || STATE.awaiting;
+  const c = can(r);
+  const pick = c.approve || c.sign || c.decline;
+  const struck = r.state === 'declined';
+  return (
+    <tr onClick={() => onOpen(r)} className={cx('cursor-pointer border-b border-line transition-colors last:border-0 hover:brightness-[0.98]', st.row)}>
+      <td className={cx('border-l-4 py-2.5 pl-3', st.edge)} onClick={(e) => e.stopPropagation()}>
+        {pick ? <Tick checked={sel.has(r.assignment_id)} onChange={(on) => toggle(r.assignment_id, on)} label={`Select ${r.officer_name}`} /> : r.locked && <Lock size={14} className="text-faint" />}
+      </td>
+      <td className="px-3 py-2.5">
+        <div className="flex items-center gap-2.5">
+          <Avatar name={r.officer_name} src={r.photo_url} size={32} />
+          <div className="min-w-0">
+            <div className="truncate font-semibold">{r.officer_name}</div>
+            <StateLine r={r} />
+          </div>
+        </div>
+      </td>
+      <td className="px-3 py-2.5"><div className="truncate">{r.venue_name}</div><div className="truncate text-caption text-muted">{r.role_name}</div></td>
+      <td className="num whitespace-nowrap px-3 py-2.5 text-muted">{range(r.starts_at, r.ends_at)}</td>
+      <td className="px-3 py-2.5"><Actual r={r} /></td>
+      <td className={cx('num px-3 py-2.5 text-right font-bold', struck && 'line-through')}>{r.id || r.state === 'live' ? hours(r.hours) : '—'}</td>
+      {see.charge && <td className="px-3 py-2.5 text-right"><Rate r={r} k="charge" onEdit={c.rate && (() => act.rate(r))} /></td>}
+      {see.pay && <td className="px-3 py-2.5 text-right"><Rate r={r} k="pay" onEdit={c.rate && (() => act.rate(r))} /></td>}
+      <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}><Actions r={r} c={c} act={act} busy={busy} /></td>
+    </tr>
+  );
+}
+
+function RowCard({ r, see, sel, toggle, can, act, onOpen, busy }) {
+  const st = STATE[r.state] || STATE.awaiting;
+  const c = can(r);
+  const pick = c.approve || c.sign || c.decline;
+  const struck = r.state === 'declined';
+  return (
+    <div role="button" tabIndex={0} onClick={() => onOpen(r)} onKeyDown={(e) => e.key === 'Enter' && onOpen(r)}
+      className={cx('cursor-pointer rounded-2xl border border-l-4 border-hairline bg-surface p-3 shadow-tile', st.edge, st.row)}>
+      <div className="flex items-start gap-2.5">
+        {pick && <span className="pt-2"><Tick checked={sel.has(r.assignment_id)} onChange={(on) => toggle(r.assignment_id, on)} label={`Select ${r.officer_name}`} /></span>}
+        <Avatar name={r.officer_name} src={r.photo_url} size={36} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="truncate text-body font-semibold">{r.officer_name}</span>
+            <span className={cx('num shrink-0 text-callout font-bold', struck && 'line-through')}>{r.id || r.state === 'live' ? hours(r.hours) : ''}</span>
+          </div>
+          <div className="truncate text-footnote text-muted">{r.venue_name} · {r.role_name} · <span className="num">{range(r.starts_at, r.ends_at)}</span></div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1"><StateLine r={r} /><Actual r={r} compact /></div>
+          {(see.charge || see.pay) && r.id && (
+            <div className="mt-1 flex flex-wrap gap-x-4 text-footnote">
+              {see.charge && <span className="text-muted">Charge <Rate r={r} k="charge" inline onEdit={c.rate && (() => act.rate(r))} /></span>}
+              {see.pay && <span className="text-muted">Officer <Rate r={r} k="pay" inline onEdit={c.rate && (() => act.rate(r))} /></span>}
+            </div>
+          )}
+        </div>
+      </div>
+      {Object.values(c).some(Boolean) && (
+        <div className="mt-2 flex flex-wrap justify-end gap-1.5" onClick={(e) => e.stopPropagation()}><Actions r={r} c={c} act={act} busy={busy} labels /></div>
+      )}
+    </div>
+  );
+}
+
+function StateLine({ r }) {
+  const st = STATE[r.state] || STATE.awaiting;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-caption">
+      <Pill tone={st.tone} className="!py-0 !text-caption2">{r.state === 'locked' && <Lock size={14} />}{st.label}</Pill>
+      {r.state === 'signed' && <span className="inline-flex items-center gap-0.5 font-semibold text-green"><Check size={14} />Venue signed</span>}
+      {r.state === 'declined' && r.decline_reason && <span className="text-muted">{r.decline_reason}</span>}
+      {r.unpaid_late && <Pill tone="amber" className="!py-0 !text-caption2">Not paid yet</Pill>}
+      <SelfPills row={r} small />
+    </div>
+  );
+}
+
+function Actual({ r, compact }) {
+  if (!r.clock_in && !r.actual_start) return compact ? null : <span className="text-faint">—</span>;
+  const how = HOW[r.how];
+  const Icon = how?.[0];
+  const start = r.actual_start || r.clock_in;
+  const end = r.actual_end || r.clock_out;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5 text-caption">
+      {Icon && <span title={how[1]} aria-label={how[1]} className="text-muted"><Icon size={14} /></span>}
+      <span className="num whitespace-nowrap text-footnote font-semibold text-ink">{end ? range(start, end) : `${time(start)}–now`}</span>
+      {(r.flags || []).map((f) => <Pill key={f} tone={FLAG_TONE[f] || 'grey'} className="!py-0 !text-caption2">{titleCase(f)}</Pill>)}
+    </span>
+  );
+}
+
+// £/h and the total. "~" marks a live estimate from the rate card (fixed on approval); a dot marks a manual override
+function Rate({ r, k, onEdit, inline }) {
+  const rate = r[`${k}_rate`];
+  const total = r[`${k}_total`];
+  const est = r[`${k}_estimate`];
+  const set = r[`${k}_rate_set`];
+  if (!r.id) return inline ? null : <span className="num text-caption text-faint">{rate != null ? `~${money(rate)}/h` : '—'}</span>;
+  const struck = r.state === 'declined';
+  const inner = rate == null ? <span className="font-semibold text-red">No rate</span> : (
+    <span className={cx('inline-flex flex-col', inline ? 'inline' : 'items-end', struck && 'line-through')}>
+      {!inline && <span className="num font-semibold text-ink">{total != null ? money(total) : '—'}</span>}
+      <span className={cx('num text-caption', est ? 'text-faint' : 'text-muted')}>
+        {inline && total != null && <span className="font-semibold text-ink">{money(total)} </span>}
+        {est ? '~' : ''}{money(rate)}/h{set && <span title="Rate changed for this shift" className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-gold align-middle" />}
+      </span>
+    </span>
+  );
+  if (!onEdit) return inner;
+  return <Pressable press onClick={(e) => { e.stopPropagation(); onEdit(); }} aria-label={`Change the ${k === 'pay' ? 'officer' : 'charge'} rate`} className={cx('-mx-1.5 inline-flex rounded-lg px-1.5 py-1 hover:bg-fill', inline ? 'inline' : 'justify-end')}>{inner}</Pressable>;
+}
+
+function Actions({ r, c, act, busy, labels }) {
+  const b = (key, Icon, label, variant = 'secondary') => c[key] && (
+    labels
+      ? <Button key={key} size="sm" variant={variant} icon={Icon} busy={busy && key === 'approve'} onClick={() => act[key](r)}>{label}</Button>
+      : <Button key={key} size="sm" variant={variant} icon={Icon} iconOnly title={label} aria-label={`${label} ${r.officer_name}`} busy={busy && key === 'approve'} onClick={() => act[key](r)} />
+  );
+  return (
+    <div className={cx('inline-flex justify-end gap-1.5', labels && 'flex-wrap')}>
+      {b('times', Clock, 'Set times', 'soft')}
+      {b('answer', MessageSquareReply, 'Answer', 'soft')}
+      {b('query', AlertTriangle, 'Query', 'danger')}
+      {b('decline', Ban, 'Decline')}
+      {b('approve', Check, 'Approve', 'primary')}
+      {b('sign', Signature, 'Sign off', 'primary')}
+    </div>
+  );
+}
+
+/* ---------- Detail ---------- */
+
+const TRAIL = {
+  'timesheet.approve': 'Approved', 'timesheet.sign': 'Venue signed', 'timesheet.dispute': 'Queried', 'timesheet.answer': 'Query answered',
+  'timesheet.decline': 'Declined', 'timesheet.reopen': 'Reopened', 'timesheet.rate': 'Rate changed', 'timesheet.edit': 'Times corrected', 'clock.manual': 'Times set by hand',
+};
+const trailNote = (a) => a.detail?.reason || a.detail?.comment || a.detail?.reply || '';
+
+function Detail({ t, can, isManager, see, act, busy, onClose, onDone }) {
+  const [mode, setMode] = useState(null);
+  const trail = useApi('timesheets.trail', { id: t.id }, { skip: !t.id });
+  const confirm = useConfirm();
+  const [run, rbusy] = useAction();
+  if (mode === 'edit') return <EditSheet t={t} onClose={() => setMode(null)} onDone={onDone} />;
+  if (mode === 'answer') return <AnswerSheet t={t} onClose={() => setMode(null)} onDone={onDone} />;
+  const st = STATE[t.state] || STATE.awaiting;
+  const reopen = async () => {
+    if (!(await confirm({ title: 'Reopen this shift?', body: 'It goes back to awaiting review if there is a clock record, or to No clock-in if there is not.', confirm: 'Reopen' }))) return;
+    run(() => api('timesheets.reopen', { id: t.id }), 'Reopened').then(onDone).catch(() => {});
+  };
+  const editable = isManager && t.id && !t.locked && !t.self_locked && !['cancelled', 'declined'].includes(t.state);
+  const footer = (
+    <>
+      {isManager && t.state === 'declined' && !t.locked && <Button variant="secondary" icon={Undo2} busy={rbusy} onClick={reopen}>Reopen</Button>}
+      {editable && <Button variant="secondary" icon={PenLine} onClick={() => setMode('edit')}>{t.state === 'queried' ? 'Correct' : 'Edit times'}</Button>}
+      {can.answer && <Button variant="soft" icon={MessageSquareReply} onClick={() => setMode('answer')}>Answer</Button>}
+      {can.times && <Button variant="soft" icon={Clock} onClick={() => act.times(t)}>Set times</Button>}
+      {can.query && <Button variant="danger" icon={AlertTriangle} onClick={() => act.query(t)}>Query</Button>}
+      {can.decline && <Button variant="secondary" icon={Ban} onClick={() => act.decline(t)}>Decline</Button>}
+      {can.approve && <Button icon={Check} busy={busy} onClick={() => act.approve(t)}>Approve</Button>}
+      {can.sign && <Button icon={Signature} busy={busy} onClick={() => act.sign(t)}>Sign off</Button>}
     </>
   );
   return (
     <Sheet open onClose={onClose} title={t.officer_name} footer={footer}>
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-2">
-          <Pill status={t.status} />{t.locked && <Pill tone="grey"><Lock size={14} />Locked</Pill>}
+          <Pill tone={st.tone}>{t.state === 'locked' && <Lock size={14} />}{st.label}</Pill>
+          {t.state === 'signed' && <Pill tone="green"><Check size={14} />Venue signed</Pill>}
           <SelfPills row={t} />
           {(t.flags || []).map((f) => <Pill key={f} tone={FLAG_TONE[f] || 'grey'}>{titleCase(f)}</Pill>)}
         </div>
         <div className="grid grid-cols-3 gap-3 rounded-2xl bg-bg/70 p-4">
-          <div><div className="text-caption font-semibold uppercase text-faint">Rota</div><div className="num mt-0.5 font-semibold">{range(t.starts_at, t.ends_at)}</div></div>
-          <div><div className="text-caption font-semibold uppercase text-faint">Actual</div><div className="num mt-0.5 font-semibold">{t.actual_start ? range(t.actual_start, t.actual_end) : '—'}</div></div>
-          <div><div className="text-caption font-semibold uppercase text-faint">Hours</div><div className="num mt-0.5 font-bold">{hours(t.hours)}</div></div>
+          <div><div className="text-caption font-semibold uppercase text-faint">Scheduled</div><div className="num mt-0.5 font-semibold">{range(t.starts_at, t.ends_at)}</div></div>
+          <div><div className="text-caption font-semibold uppercase text-faint">Actual</div><div className="mt-0.5 font-semibold"><Actual r={t} /></div></div>
+          <div><div className="text-caption font-semibold uppercase text-faint">Hours</div><div className={cx('num mt-0.5 font-bold', t.state === 'declined' && 'line-through')}>{t.id ? hours(t.hours) : '—'}</div></div>
         </div>
         <KV items={[
           ['Date', dayLabel(t.starts_at)], ['Venue', t.venue_name], ['Role', t.role_name],
-          ['Break', <span className="num">{t.break_minutes} min</span>],
+          t.id && ['Break', <span className="num">{t.break_minutes} min</span>],
+          see.charge && t.id && ['Charge', <Rate r={t} k="charge" inline />],
+          see.pay && t.id && ['Officer rate', <Rate r={t} k="pay" inline />],
+          t.rate_note && ['Rate note', t.rate_note],
           t.approved_by_name && ['Approved by', `${t.approved_by_name}${t.approved_at ? `, ${relative(t.approved_at)}` : ''}`],
           (t.signed_by_name || t.auto_signed) && ['Signed', t.auto_signed ? 'Automatically' : `${t.signed_by_name}${t.signed_at ? `, ${relative(t.signed_at)}` : ''}`],
-          t.dispute_comment && ['Query', t.dispute_comment],
+          t.dispute_comment && ['Query', `${t.dispute_comment}${t.queried_by_name ? ` — ${t.queried_by_name}` : ''}`],
           t.resolution && ['Resolution', t.resolution],
+          t.state === 'declined' && ['Declined', `${t.decline_reason || 'Not worked'}${t.declined_by_name ? ` — ${t.declined_by_name}` : ''}`],
         ]} />
+        {t.state === 'declined' && <p className="text-footnote text-muted">Not worked: no pay and no charge.</p>}
+        {t.state === 'cancelled' && <p className="text-footnote text-red">The shift was cancelled after these hours were recorded. Decline them, or put the officer back on the Rota.</p>}
+        {(t.flags || []).includes('cancelled_after_billing') && <p className="text-footnote text-red">Cancelled after it was paid or invoiced — issue a credit by hand.</p>}
         {t.locked && <p className="text-footnote text-muted">This timesheet is on a pay statement or invoice and can't be changed.</p>}
         {!t.locked && t.self_locked && <p className="text-footnote text-muted">{SELF_HINT}.</p>}
+        {t.id && (
+          <div>
+            <div className="mb-2 flex items-center gap-1.5 text-caption font-semibold uppercase tracking-wide text-faint"><History size={14} />History</div>
+            <Load q={trail} n={2}>{(list) => !list.length ? <p className="text-footnote text-faint">Nothing changed by hand yet.</p> : (
+              <ol className="space-y-2">
+                {list.map((a, i) => (
+                  <li key={i} className="text-footnote">
+                    <span className="font-semibold">{TRAIL[a.action] || titleCase(a.action.split('.').pop())}</span>
+                    <span className="text-muted"> · {a.user_name || 'System'} · {relative(a.created_at)}</span>
+                    {trailNote(a) && <div className="text-muted">{trailNote(a)}</div>}
+                  </li>
+                ))}
+              </ol>
+            )}</Load>
+          </div>
+        )}
+      </div>
+    </Sheet>
+  );
+}
+
+/* ---------- Sheets ---------- */
+
+function DeclineSheet({ rows, onClose, onDone }) {
+  const [reason, setReason] = useState(rows.every((r) => r.state === 'no_clock_in') ? 'No-show' : '');
+  const [other, setOther] = useState('');
+  const [run, busy] = useAction();
+  const text = reason === 'Other' ? other.trim() : reason;
+  const send = () => run(() => api('timesheets.decline', {
+    ids: rows.filter((r) => r.id).map((r) => r.id), assignment_ids: rows.filter((r) => !r.id).map((r) => r.assignment_id), reason: text,
+  }), (r) => `${r.declined} declined`).then(onDone).catch(() => {});
+  return (
+    <Sheet open onClose={onClose} title={rows.length > 1 ? `Decline ${rows.length} shifts` : 'Decline shift'} size="sm"
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant="danger" icon={Ban} onClick={send} busy={busy} disabled={!text}>Decline</Button></>}>
+      <div className="space-y-3">
+        <p className="text-subhead text-muted">{rows.length === 1 ? `${rows[0].officer_name} · ${rows[0].venue_name} · ${dayLabel(rows[0].starts_at)}. ` : ''}Not worked: no pay and no charge. The officer is told why.</p>
+        <Segmented full value={reason} onChange={setReason} options={[...DECLINE_REASONS.filter((r) => r !== 'Shift cancelled'), 'Other'].map((r) => ({ value: r, label: r }))} />
+        {reason === 'Other' && <Textarea label="Reason" rows={2} value={other} onChange={(e) => setOther(e.target.value)} />}
+      </div>
+    </Sheet>
+  );
+}
+
+function RateSheet({ t, onClose, onDone }) {
+  const f = useForm({ charge_rate: t.charge_rate ?? '', pay_rate: t.pay_rate ?? '', reason: '' });
+  const [run, busy] = useAction();
+  const ok = f.v.reason.trim() && (f.v.charge_rate !== '' || f.v.pay_rate !== '');
+  const save = () => run(() => api('timesheets.setRate', {
+    id: t.id, reason: f.v.reason.trim(),
+    ...(f.v.charge_rate !== '' && Number(f.v.charge_rate) !== t.charge_rate ? { charge_rate: Number(f.v.charge_rate) } : {}),
+    ...(f.v.pay_rate !== '' && Number(f.v.pay_rate) !== t.pay_rate ? { pay_rate: Number(f.v.pay_rate) } : {}),
+  }), 'Rate changed').then(onDone).catch(() => {});
+  return (
+    <Sheet open onClose={onClose} title="Rates for this shift" size="sm"
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={save} busy={busy} disabled={!ok}>Save</Button></>}>
+      <div className="space-y-3">
+        <p className="text-subhead text-muted">{t.officer_name} · {t.venue_name} · {dayLabel(t.starts_at)}. Only this shift changes; the rate cards stay as they are.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Charge £/h" type="number" min="0" step="0.01" inputMode="decimal" {...f.bind('charge_rate')} />
+          <Input label="Officer £/h" type="number" min="0" step="0.01" inputMode="decimal" {...f.bind('pay_rate')} />
+        </div>
+        <Textarea label="Reason" rows={2} placeholder="e.g. Agreed with the venue for the late finish" {...f.bind('reason')} />
+        {t.state === 'signed' && <p className="text-caption text-faint">A new charge rate goes back to the venue to sign again.</p>}
+      </div>
+    </Sheet>
+  );
+}
+
+function AnswerSheet({ t, onClose, onDone }) {
+  const [reply, setReply] = useState('');
+  const [run, busy] = useAction();
+  const send = () => run(() => api('timesheets.answer', { id: t.id, reply: reply.trim() }), 'Answered').then(onDone).catch(() => {});
+  return (
+    <Sheet open onClose={onClose} title="Answer query" size="sm"
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={send} busy={busy} disabled={!reply.trim()}>Send answer</Button></>}>
+      <div className="space-y-3">
+        {t.dispute_comment && <p className="rounded-2xl bg-red-soft px-3.5 py-2.5 text-subhead text-red">"{t.dispute_comment}"</p>}
+        <Textarea label="Answer" rows={3} placeholder="e.g. Checked the door log: 03:00 is right" value={reply} onChange={(e) => setReply(e.target.value)} />
+        <p className="text-caption text-faint">The times stay as they are and the shift goes back to awaiting review. To change the times, use Correct instead.</p>
       </div>
     </Sheet>
   );
@@ -164,7 +562,7 @@ function EditSheet({ t, onClose, onDone }) {
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={save} busy={busy} disabled={!ok}>Save</Button></>}>
       <div className="space-y-3">
         <p className="text-subhead text-muted">{t.officer_name} · {dayLabel(t.starts_at)} · rota <span className="num">{range(t.starts_at, t.ends_at)}</span></p>
-        {t.dispute_comment && t.status === 'disputed' && <p className="rounded-2xl bg-red-soft px-3.5 py-2.5 text-subhead text-red">Venue query: "{t.dispute_comment}"</p>}
+        {t.dispute_comment && t.status === 'disputed' && <p className="rounded-2xl bg-red-soft px-3.5 py-2.5 text-subhead text-red">Query: "{t.dispute_comment}"</p>}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Start" type="datetime-local" {...f.bind('start')} />
           <Input label="End" type="datetime-local" {...f.bind('end')} />
@@ -185,32 +583,9 @@ function DisputeSheet({ t, onClose, onDone }) {
     <Sheet open onClose={onClose} title="Query timesheet" size="sm"
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant="danger" onClick={send} busy={busy} disabled={!comment.trim()}>Send query</Button></>}>
       <p className="mb-3 text-subhead text-muted">{t.officer_name} · {dayLabel(t.starts_at)} · <span className="num">{t.actual_start ? range(t.actual_start, t.actual_end) : range(t.starts_at, t.ends_at)}</span> · <span className="num">{hours(t.hours)}</span></p>
-      <Textarea label="What's wrong?" rows={4} placeholder="e.g. Officer left at 01:30, not 03:00" value={comment} onChange={(e) => setComment(e.target.value)} />
+      <Textarea label="What needs checking?" rows={4} placeholder="e.g. Officer left at 01:30, not 03:00" value={comment} onChange={(e) => setComment(e.target.value)} />
+      <p className="mt-2 text-caption text-faint">The officer is told, and the row stays red until someone corrects or answers it.</p>
     </Sheet>
-  );
-}
-
-function Missing({ q, onDone }) {
-  const [open, setOpen] = useState(null);
-  return (
-    <>
-      <p className="mb-3 text-subhead text-muted">Officers rostered in the last 30 days with no clock record. Set their times by hand if they worked.</p>
-      <Load q={q}>{(rows) => !rows.length ? <Empty icon={Clock} title="Nothing missing" body="Every finished shift has a clock record." /> : (
-        <List>
-          {rows.map((m) => (
-            <div key={m.assignment_id} className="flex items-center gap-3 px-4 py-3">
-              <Avatar name={m.officer_name} size={36} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-body font-semibold">{m.officer_name}</div>
-                <div className="truncate text-footnote text-muted">{dayLabel(m.starts_at)} <span className="num">{range(m.starts_at, m.ends_at)}</span> · {m.venue_name}</div>
-              </div>
-              <Button size="sm" variant="soft" onClick={() => setOpen(m)}>Set times</Button>
-            </div>
-          ))}
-        </List>
-      )}</Load>
-      {open && <ManualSheet m={open} onClose={() => setOpen(null)} onDone={() => { setOpen(null); onDone(); }} />}
-    </>
   );
 }
 

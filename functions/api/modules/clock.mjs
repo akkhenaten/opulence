@@ -17,6 +17,7 @@ import { checkPhone, findTap, spendTap, checkSelfie, scoreSelfie } from './clock
 import { statusFor, statusesFor, pairKey, livePack, venuePack, OK, STATUS_LABEL } from '../lib/venuePack.mjs';
 import crypto from 'node:crypto';
 import { officerName, userName } from '../lib/names.mjs';
+import { afterRebuild } from '../lib/timesheetState.mjs';
 
 const VALID = ['ok', 'approved', 'manual'];
 export const EARLY_MIN = 15;
@@ -59,13 +60,16 @@ export async function buildTimesheet(assignmentId, { force = false } = {}) {
   // Paid time starts at the scheduled start when the officer arrives early
   const paidStart = new Date(start) < new Date(a.starts_at) ? a.starts_at : start;
   const hours = roundHours(paidStart, end, breakMin, s.rounding_minutes);
+  // A declined timesheet stays declined (Reopen rebuilds it); a reviewed one whose times change becomes a query, never a silent reset
+  if (existing?.status === 'declined' && !force) return existing;
+  const next = afterRebuild(existing, { hours, actual_start: paidStart, actual_end: end });
   return one(
     `INSERT INTO timesheets (assignment_id, actual_start, actual_end, break_minutes, hours, flags, status)
-     VALUES ($1,$2,$3,$4,$5,$6,'pending')
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
      ON CONFLICT (assignment_id) DO UPDATE SET actual_start = EXCLUDED.actual_start, actual_end = EXCLUDED.actual_end, break_minutes = EXCLUDED.break_minutes,
-       hours = EXCLUDED.hours, flags = EXCLUDED.flags, updated_at = now(),
-       status = CASE WHEN timesheets.status = 'disputed' THEN 'disputed' ELSE 'pending' END
-     RETURNING *`, [assignmentId, paidStart, end, breakMin, hours, [...flags]]);
+       hours = EXCLUDED.hours, flags = EXCLUDED.flags, updated_at = now(), status = EXCLUDED.status,
+       dispute_comment = COALESCE($8, timesheets.dispute_comment), queried_at = CASE WHEN $8::text IS NULL THEN timesheets.queried_at ELSE now() END
+     RETURNING *`, [assignmentId, paidStart, end, breakMin, hours, [...flags], next.status, next.note]);
 }
 
 async function myAssignments(officerId) {
@@ -258,14 +262,18 @@ export const actions = {
     await q("INSERT INTO clock_events (assignment_id, kind, ts, status, exception_reason, decided_by, self_approved) VALUES ($1,'in',$2,'manual',$4,$5,$6), ($1,'out',$3,'manual',$4,$5,$6)",
       [a.id, b.start, b.end, b.reason, user.id, !!self.selfApproved]);
     if (a.status !== 'accepted') await q("UPDATE shift_assignments SET status = 'accepted' WHERE id = $1", [a.id]);
-    const t = await buildTimesheet(a.id, { force: true });
-    if (b.break_minutes != null) await q('UPDATE timesheets SET break_minutes = $2 WHERE id = $1', [t.id, b.break_minutes]);
+    // Setting times by hand is the manager's own correction: a declined no-show comes back to review
+    if (ts?.status === 'declined') await q("UPDATE timesheets SET status = 'pending', decline_reason = '', declined_by = NULL, declined_at = NULL WHERE id = $1", [ts.id]);
+    let t = await buildTimesheet(a.id, { force: true });
     if (b.break_minutes != null) {
       const s = await getSettings();
-      await q('UPDATE timesheets SET hours = $2 WHERE id = $1', [t.id, roundHours(t.actual_start, t.actual_end, b.break_minutes, s.rounding_minutes)]);
+      t = await one('UPDATE timesheets SET break_minutes = $2, hours = $3 WHERE id = $1 RETURNING *', [t.id, b.break_minutes, roundHours(t.actual_start, t.actual_end, b.break_minutes, s.rounding_minutes)]);
     }
     if (self.selfApproved) await q('UPDATE timesheets SET self_approved = true WHERE id = $1', [t.id]);
-    await audit(user, 'clock.manual', 'assignment', a.id, { start: b.start, end: b.end, reason: b.reason, ...(self.selfApproved ? { self_approved: true } : {}) });
+    await audit(user, 'clock.manual', 'assignment', a.id, {
+      start: b.start, end: b.end, reason: b.reason, timesheet_id: t.id, from: ts ? { hours: ts.hours, status: ts.status } : null, to: { hours: t.hours, status: t.status },
+      ...(self.selfApproved ? { self_approved: true } : {}),
+    });
     return { ok: true };
   }),
 

@@ -290,7 +290,7 @@ export async function runReconcile(start, end) {
        JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id
        LEFT JOIN statement_lines sl ON sl.timesheet_id = t.id AND sl.kind = 'hours' LEFT JOIN statements st ON st.id = sl.statement_id
        LEFT JOIN invoice_lines il ON il.timesheet_id = t.id LEFT JOIN invoices i ON i.id = il.invoice_id AND i.kind = 'invoice'
-      WHERE (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $1 AND $2`, [start, end]);
+      WHERE (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $1 AND $2 AND t.status <> 'declined'`, [start, end]);
   let created = 0;
   for (const r of rows) {
     const edited = (r.flags || []).some((f) => ['edited', 'manual'].includes(f));
@@ -842,7 +842,7 @@ export async function runTool(name, input, user, created) {
       const o = await findOfficer(input.officer);
       const r = await one(
         `SELECT COALESCE(sum(extract(epoch FROM (s.ends_at - s.starts_at)) / 3600), 0) AS rota_h, COALESCE(sum(t.hours), 0) AS worked_h, count(*)::int AS shifts
-           FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id LEFT JOIN timesheets t ON t.assignment_id = a.id
+           FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id LEFT JOIN timesheets t ON t.assignment_id = a.id AND t.status <> 'declined'
           WHERE a.officer_id = $1 AND a.status IN ${ACTIVE} AND s.status <> 'cancelled' AND s.starts_at >= $2 AND s.starts_at < $3`,
         [o.id, dayStart(input.from), dayStart(addDays(input.to, 1))]);
       return { officer: firstLast(o), from: input.from, to: input.to, shifts: r.shifts, rostered_hours: money(r.rota_h), worked_hours: money(r.worked_h), weekly_cap: o.max_weekly_hours };

@@ -59,7 +59,7 @@ async function managerDash(ctx) {
     count(`SELECT count(*)::int AS n FROM incidents WHERE status <> 'closed' AND ${scoped('venue_id')}`, p),
     count(`SELECT count(*)::int AS n FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id WHERE a.status = 'requested' AND s.starts_at > now() AND ${scoped('s.venue_id')}`, p),
     one(`SELECT COALESCE(sum(t.hours), 0) AS n FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
-          WHERE (s.starts_at AT TIME ZONE 'Europe/London')::date >= $2 AND ${scoped('s.venue_id')}`, [scope, weekStart]).then((r) => Number(r.n)),
+          WHERE (s.starts_at AT TIME ZONE 'Europe/London')::date >= $2 AND t.status <> 'declined' AND ${scoped('s.venue_id')}`, [scope, weekStart]).then((r) => Number(r.n)),
     count(`SELECT count(*)::int AS n FROM shifts s WHERE s.status = 'published'
              AND (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $2::date AND $2::date + 6 AND ${scoped('s.venue_id')}`, [scope, weekStart]),
   ]);
@@ -116,7 +116,7 @@ async function officerDash({ user }) {
              AND s.headcount > (SELECT count(*) FROM shift_assignments a WHERE a.shift_id = s.id AND a.status IN ('assigned','accepted'))
              AND NOT EXISTS (SELECT 1 FROM shift_assignments a WHERE a.shift_id = s.id AND a.officer_id = $1)`, [oid]),
     one(`SELECT COALESCE(sum(t.hours),0) AS n FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
-          WHERE a.officer_id = $1 AND s.starts_at > now() - interval '7 days'`, [oid]).then((r) => Number(r.n)),
+          WHERE a.officer_id = $1 AND s.starts_at > now() - interval '7 days' AND t.status <> 'declined'`, [oid]).then((r) => Number(r.n)),
     one("SELECT id, number, total, period_start, period_end, status FROM statements WHERE officer_id = $1 AND status <> 'draft' ORDER BY period_end DESC LIMIT 1", [oid]),
     count("SELECT count(*)::int AS n FROM incidents WHERE officer_id = $1 AND status = 'changes_requested'", [oid]),
     q(`SELECT kind, title, expiry FROM documents WHERE owner_type = 'officer' AND owner_id = $1 AND expiry IS NOT NULL AND expiry < $2::date + 60 ORDER BY expiry`, [oid, today]),

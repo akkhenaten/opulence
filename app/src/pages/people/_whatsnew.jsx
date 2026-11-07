@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-07', icon: ClipboardCheck, title: 'Timesheets, day by day', image: 'timesheets-table',
+    lede: 'Timesheets is now a week table like the Rota: every confirmed shift, day by day, with the scheduled and actual times, the hours, the charge rate and the officer rate side by side. The colour tells you where each shift is, and Approve, Query and Decline sit on the row.',
+    points: ['Confirmed shifts faded, live ones outlined, awaiting review amber, queried red, approved green', 'How each officer clocked in: QR, NFC tag, on location or set by a manager', 'Decline means not worked: no pay and no charge, with the reason sent to the officer', 'Rates are fixed on approval, and pay runs and invoices use exactly those', 'Company managers can change a rate for one shift, with a reason', 'No-shows stay on the table until someone sets their times or declines them'],
+  },
+  {
     month: 'November 2026', date: '2026-11-06', icon: Siren, title: 'Emergency flowchart: a clear first line', image: 'emergency-flowchart-banner',
     lede: "The banner at the top of the Emergency flowchart now says what it is and what to do first: Guidance from ProtectUK and citizenAID. Always call 999 and follow the call handler.",
     points: ['Says where the advice comes from', 'Puts calling 999 first, every time', "The call handler's instructions come before the flowchart"],

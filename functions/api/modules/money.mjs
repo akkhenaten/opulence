@@ -2,7 +2,8 @@ import { one, q, tx } from '../lib/db.mjs';
 import { fail, required, need } from '../lib/http.mjs';
 import { canSeePay } from '../lib/auth.mjs';
 import { venueScope, assertVenue } from '../lib/scope.mjs';
-import { bandFractions, bandedAmount, money, gbp } from '../lib/rates.mjs';
+import { bandFractions, money, gbp } from '../lib/rates.mjs';
+import { payAmount, chargeAmount } from '../lib/timesheetState.mjs';
 import { Doc } from '../lib/pdf.mjs';
 import { notify, officerUser, venueContacts } from '../lib/notify.mjs';
 import { fmtDate, fmtTime, londonDate, addDays } from '../lib/time.mjs';
@@ -28,12 +29,21 @@ export async function venueRate(venueId, role, date) {
 
 const bankHolidays = async () => new Set((await q('SELECT day FROM bank_holidays')).map((r) => r.day));
 
-async function payFor(t, s, bh) {
-  const date = londonDate(t.starts_at);
-  const rate = await officerRate(t.officer_id, t.role, t.venue_id, date);
+export const bankHolidaySet = bankHolidays;
+
+/** Officer pay for a timesheet: the rate fixed on approval, else today's rate card */
+export async function payFor(t, s, bh) {
+  const rate = t.pay_rate != null ? Number(t.pay_rate) : await officerRate(t.officer_id, t.role, t.venue_id, londonDate(t.starts_at));
   const fr = bandFractions(t.actual_start, t.actual_end, s, bh);
-  const amount = rate == null ? 0 : bandedAmount(Number(t.hours), fr, rate, { night: s.pay_night_uplift, weekend: s.pay_weekend_uplift, bh: s.pay_bh_uplift });
-  return { rate, amount, fr };
+  return { rate, amount: payAmount(t.hours, fr, rate, s) ?? 0, fr };
+}
+
+/** Venue charge for a timesheet: the rate fixed on approval as the base, with the venue rate card's minimum hours and uplifts */
+export async function chargeFor(t, s, bh) {
+  const vr = await venueRate(t.venue_id, t.role, londonDate(t.starts_at));
+  const base = t.charge_rate != null ? Number(t.charge_rate) : vr ? Number(vr.rate) : null;
+  const fr = bandFractions(t.actual_start, t.actual_end, s, bh);
+  return { vr, base, fr, ...chargeAmount(t.hours, fr, base, vr) };
 }
 
 const TS_SQL = `
@@ -46,10 +56,10 @@ const periodWhere = `t.status = 'signed' AND (s.starts_at AT TIME ZONE 'Europe/L
 
 const lineDesc = (t) => `${t.role_name} · ${t.venue_name} · ${fmtDate(t.actual_start)} ${fmtTime(t.actual_start)}–${fmtTime(t.actual_end)}`;
 // Explains a blended hourly rate: "£24.00/h base, incl. night +10%"
-const upliftNote = (fr, vr) => {
+const upliftNote = (fr, vr, base) => {
   const ups = [['night', vr.night_uplift], ['weekend', vr.weekend_uplift], ['bank holiday', vr.bh_uplift, 'bh']]
     .filter(([k, pct, key]) => fr[key || k] > 0 && Number(pct) > 0).map(([k, pct]) => `${k} +${Number(pct)}%`);
-  return ups.length ? ` · £${Number(vr.rate).toFixed(2)}/h base, incl. ${ups.join(', ')}` : '';
+  return ups.length ? ` · £${Number(base).toFixed(2)}/h base, incl. ${ups.join(', ')}` : '';
 };
 
 function requirePay(user) {
@@ -185,6 +195,11 @@ function suggestPeriod(kind, today = londonDate(new Date())) {
   return { start: kind === 'fortnightly' ? addDays(lastMonday, -7) : lastMonday, end: addDays(lastMonday, 6) };
 }
 
+/** The last pay period that has closed (signed hours on or before its end should already be on a pay run) */
+export async function lastClosedPeriod() {
+  return suggestPeriod((await getSettings()).pay_period);
+}
+
 // Orb checks the new figures; never blocks generation
 async function reconcileAfter(start, end) {
   try {
@@ -209,7 +224,7 @@ export const actions = {
       one(`SELECT count(*) AS n, COALESCE(sum(t.hours),0) AS hours FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id WHERE ${periodWhere} AND t.statement_id IS NULL`, [b.start, b.end]),
       one(`SELECT count(*) AS n, COALESCE(sum(t.hours),0) AS hours FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id WHERE ${periodWhere} AND t.invoice_id IS NULL`, [b.start, b.end]),
       one(`SELECT count(*) AS n FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
-            WHERE t.status <> 'signed' AND (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $1 AND $2`, [b.start, b.end]),
+            WHERE t.status NOT IN ('signed','declined') AND (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $1 AND $2`, [b.start, b.end]),
     ]);
     return { unpaid, uninvoiced, unsigned: Number(unsigned.n) };
   }),
@@ -391,15 +406,13 @@ export const actions = {
           [venueId, b.start, b.end, s.vat_rate, runs.length === 1 ? runs[0] : null]);
         for (const ts of list) {
           const date = londonDate(ts.starts_at);
-          const vr = await venueRate(venueId, ts.role, date);
-          if (!vr) missing.push(`${ts.venue_name} (${ts.role_name})`);
-          const billable = Math.max(Number(ts.hours), vr ? Number(vr.min_hours) : 0);
-          const fr = bandFractions(ts.actual_start, ts.actual_end, s, bh);
-          const amount = vr ? bandedAmount(billable, fr, Number(vr.rate), { night: vr.night_uplift, weekend: vr.weekend_uplift, bh: vr.bh_uplift }) : 0;
+          const c = await chargeFor(ts, s, bh);
+          if (c.base == null) missing.push(`${ts.venue_name} (${ts.role_name})`);
+          const amount = c.amount ?? 0;
           const pay = await payFor(ts, s, bh);
           await t.q(
             'INSERT INTO invoice_lines (invoice_id, timesheet_id, description, work_date, hours, rate, amount, pay_cost) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-            [inv.id, ts.id, `${lineDesc(ts)} · ${ts.first_name} ${ts.last_name[0]}.${vr ? upliftNote(fr, vr) : ''}`, date, billable, billable ? money(amount / billable) : 0, amount, pay.amount]);
+            [inv.id, ts.id, `${lineDesc(ts)} · ${ts.first_name} ${ts.last_name[0]}.${c.vr ? upliftNote(c.fr, c.vr, c.base) : ''}`, date, c.billable, c.billable ? money(amount / c.billable) : 0, amount, pay.amount]);
           await t.q('UPDATE timesheets SET invoice_id = $2 WHERE id = $1', [ts.id, inv.id]);
         }
         await recalcInvoice(t, inv.id);
@@ -570,7 +583,7 @@ export const actions = {
     return q(
       `SELECT to_char(date_trunc('week', s.starts_at AT TIME ZONE 'Europe/London'), 'YYYY-MM-DD') AS week, v.name AS venue_name, sum(t.hours) AS hours
          FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id
-        WHERE (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $1 AND $2 GROUP BY 1, 2 ORDER BY 1, 2`, [b.from, b.to]);
+        WHERE (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $1 AND $2 AND t.status <> 'declined' GROUP BY 1, 2 ORDER BY 1, 2`, [b.from, b.to]);
   }),
 
   'reports.overdue': def(CO, async () =>

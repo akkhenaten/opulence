@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'timesheets-table': 'A laptop on a dark desk showing a clean weekly table of rows grouped by day, rows softly tinted green, amber and red with one row outlined in gold, a manager hand tapping a checkmark button, warm lamp light.',
   'emergency-flowchart-banner': 'Close-up of a phone screen at night with a slim amber banner across the top above calm text cards, a thumb resting near it, soft gold light, dark navy background.',
   'emergency-flowchart-live': 'A security officer at night by a venue entrance holding a phone that shows a shift card with one bold red button at the top, warm gold door lights behind, dark navy sky, calm and ready.',
   'emergency-flowchart': 'A phone on a dark navy desk showing a clean flowchart of plain text cards joined by thin gold arrows, one card highlighted, a trail of earlier answers above it, soft gold light, no pictures on the cards.',

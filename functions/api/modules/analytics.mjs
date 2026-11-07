@@ -117,7 +117,7 @@ async function customers(p) {
               COALESCE(sum((SELECT count(*) FROM shift_assignments a WHERE a.shift_id = s.id AND a.status IN ${ACTIVE} AND ${CLOCKED})) FILTER (WHERE l.customers IS NOT NULL), 0)::int AS on_duty
          FROM shifts s LEFT JOIN shift_logs l ON l.shift_id = s.id WHERE ${SHIFTS}`, p),
     q(`SELECT COALESCE(sum(t.hours), 0)::float AS h FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
-        WHERE ${SHIFTS} AND ${OFFICER('a.officer_id')}`, p),
+        WHERE ${SHIFTS} AND ${OFFICER('a.officer_id')} AND t.status <> 'declined'`, p),
   ]);
   const total = nights.reduce((s, r) => s + r.n, 0);
   const byDay = new Map();
