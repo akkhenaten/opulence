@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Check, ListChecks, ShieldCheck, Smartphone, X } from 'lucide-react';
 import {
-  ActionBar, Avatar, Button, Check as Tick, cx, dayLabel, Empty, Load, Page, Pill, range, relative, Sheet, Tabs, time, useAction, useApi, useConfirm,
+  ActionBar, Avatar, Button, Check as Tick, cx, dayLabel, Empty, List, Load, Page, Pill, range, relative, Row, Section, Sheet, Tabs, time, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
-import { SELF_HINT, SelfPills } from './_parts.jsx';
+import { SELF_HINT, SelfPills, useBase } from './_parts.jsx';
 import { ProofFlags, SelfieCompare } from './_proof.jsx';
 
 const KIND = { in: 'Clock-in', out: 'Clock-out', break_start: 'Break start', break_end: 'Break end' };
@@ -54,7 +54,7 @@ export default function Exceptions() {
         { value: 'open', label: 'To review', count: tab === 'open' ? q.data?.length : undefined }, { value: 'decided', label: 'History' },
         { value: 'phones', label: 'Phones', count: phones.data?.length || undefined },
       ]} />
-      {tab === 'phones' ? <Phones q={phones} /> : <Load q={q}>{(rows) => {
+      {tab === 'phones' ? <><Phones q={phones} /><NotRegistered /></> : <Load q={q}>{(rows) => {
         const list = tab === 'decided' ? rows.filter((r) => r.status !== 'exception') : rows;
         if (!list.length) return <Empty icon={ShieldCheck} title={tab === 'open' ? 'All clear' : 'No decisions yet'} body={tab === 'open' ? 'No clock exceptions waiting for review.' : undefined} />;
         return (
@@ -113,6 +113,25 @@ export default function Exceptions() {
         <p className="mt-2 text-subhead text-muted">These events will not count towards the officers' timesheets. You can set the times by hand from Live.</p>
       </Sheet>
     </Page>
+  );
+}
+
+// Active officers with no clock-in phone yet: they're prompted on Home, this is for chasing
+function NotRegistered() {
+  const q = useApi('officers.list', { status: 'active' });
+  const { base } = useBase();
+  const rows = (q.data || []).filter((o) => !o.has_phone);
+  if (!rows.length) return null;
+  return (
+    <Section title={`Not registered · ${rows.length}`} className="mt-6">
+      <p className="mb-3 px-1 text-subhead text-muted">Active officers without a clock-in phone. Their clock-ins show "Phone not verified" until they register one.</p>
+      <List>
+        {rows.map((o) => (
+          <Row key={o.id} to={`${base}/staff/${o.id}`} chevron left={<Avatar name={o.name} src={o.photo_url} size={36} />} title={o.name}
+            subtitle={!o.user_id ? 'No app login yet' : o.last_login ? `Last signed in ${relative(o.last_login)}` : "Hasn't signed in yet"} />
+        ))}
+      </List>
+    </Section>
   );
 }
 

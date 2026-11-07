@@ -1,9 +1,11 @@
 import { useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Award, Camera, MessageSquareText, Plus, Smartphone, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { ActionBar, Avatar, Button, date, Input, KV, List, Load, Page, Pill, Pressable, Row, Section, Tile, titleCase, Toggle, useAction, useApi, useDirtyGuard } from '../../ui/index.jsx';
 import { NotLinked, uploadPhoto } from './_parts.jsx';
+import { RegisterPhoneSheet } from './_phone.jsx';
 
 const FIELDS = ['goes_by', 'phone', 'address', 'postcode', 'dob', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account'];
 
@@ -192,6 +194,10 @@ function Editor({ o, reload, notes }) {
 function MyPhone() {
   const q = useApi('device.mine');
   const [run, busy] = useAction();
+  // ?phone=register (the code shown on a laptop) opens the register screen straight away
+  const [sp, setSp] = useSearchParams();
+  const [registering, setRegistering] = useState(sp.get('phone') === 'register');
+  const closeRegister = () => { setRegistering(false); if (sp.get('phone')) setSp({}, { replace: true }); };
   const setConsent = (on) => run(() => api('officers.faceConsent', { consent: on }), on ? 'Face check allowed' : 'Face check turned off').then(q.reload).catch(() => {});
   return (
     <Section title="Clock-in phone">
@@ -199,7 +205,10 @@ function MyPhone() {
         {(d) => (
           <Tile>
             {!d.devices.length ? (
-              <p className="text-subhead text-muted">No phone registered yet. You'll be asked to register this phone the first time you clock in.</p>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-subhead text-muted">No phone registered yet. It's a one-off that takes a few seconds.</p>
+                <Button size="sm" icon={Smartphone} onClick={() => setRegistering(true)}>Register this phone</Button>
+              </div>
             ) : (
               <div className="divide-y divide-line">
                 {d.devices.map((x) => (
@@ -214,7 +223,7 @@ function MyPhone() {
                 ))}
               </div>
             )}
-            <p className="mt-3 text-caption text-muted">Changed phone? Clock in on the new one and register it. A manager approves it before it replaces this one.</p>
+            {d.devices.length > 0 && <p className="mt-3 text-caption text-muted">Changed phone? Clock in on the new one and tap <b>Use this phone instead</b>. A manager approves it before it replaces this one.</p>}
             {d.face_match_enabled && (
               <div className="mt-3 rounded-xl bg-bg px-4 py-2">
                 <Toggle label="Compare my clock-in selfies with my profile photo" hint="Only flags a selfie for a manager to look at; it never stops you clocking in. Selfies are deleted after 90 days."
@@ -224,6 +233,7 @@ function MyPhone() {
           </Tile>
         )}
       </Load>
+      <RegisterPhoneSheet open={registering} onClose={closeRegister} onDone={q.reload} />
     </Section>
   );
 }

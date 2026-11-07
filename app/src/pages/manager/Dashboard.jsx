@@ -9,6 +9,7 @@ import {
 import { useBase } from './_parts.jsx';
 import { FeedBody } from '../everyday/Feed.jsx';
 import { InstallCard } from '../../ui/pwa.jsx';
+import { PushCard } from '../officer/_notify.jsx';
 import { lateDays } from '../officer/_parts.jsx';
 
 // Everyday lives on the Dashboard now; old links (and notification links) land on that tab
@@ -75,6 +76,7 @@ export default function Dashboard() {
 
   return (
     <Page backLabel="Dashboard" title={`${greet}${first ? `, ${first}` : ''}`} subtitle={summaryLine(tab === 'everyday' ? null : q.data, isCompany)} wide photo="door" slim actions={everyday || undefined}>
+      {tab !== 'everyday' && <PushCard className="mb-4" later="your account menu" />}
       {tab === 'everyday' ? <FeedBody lead={<Button size="sm" variant="ghost" icon={ChevronLeft} onClick={() => setSp({}, { replace: true })}>Overview</Button>} /> : <Load q={q}>{(d) => <Body d={d} base={base} isCompany={isCompany} />}</Load>}
       {tab !== 'everyday' && <InstallCard className="mt-4" later={isCompany ? "Settings" : "My account"} />}
     </Page>

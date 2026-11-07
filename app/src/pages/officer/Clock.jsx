@@ -5,11 +5,12 @@ import {
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { createPasskey, getPasskey, passkeySupported } from '../../lib/passkey.js';
+import { getPasskey } from '../../lib/passkey.js';
 import {
   Button, cx, dayLabel, Empty, Load, Page, Pressable, range, Sheet, Spinner, Textarea, time, titleCase, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
 import { CLOCK_EARLY_MIN, distanceM, NotLinked, until } from './_parts.jsx';
+import { RegisterStep } from './_phone.jsx';
 
 const STATE_LABEL = { not_started: 'Not clocked in', on_shift: 'On shift', on_break: 'On break', finished: 'Shift complete' };
 const NEED = { any_one: 1, two_of_three: 2, all_three: 3 };
@@ -176,7 +177,8 @@ function ClockScreen({ data, reload }) {
         )}
         {flow.step === 'phone' && (
           <PhoneFailStep error={flow.phoneErr} busy={busy} onCancel={cancel}
-            onRetry={() => punch(flow.kind, flow)} onSkip={() => punch(flow.kind, { ...flow, skipPhone: true })} />
+            onRetry={() => punch(flow.kind, flow)} onSkip={() => punch(flow.kind, { ...flow, skipPhone: true })}
+            onNewPhone={() => setFlow({ ...flow, step: 'register', after: 'submit' })} />
         )}
         {flow.step === 'exception' && (
           <ExceptionStep problems={flow.problems} missing={flow.missing} busy={busy} onCancel={cancel} onRetry={() => setFlow({ kind: flow.kind, tap: flow.tap, step: 'locate' })}
@@ -527,41 +529,8 @@ function ProofList({ f, need }) {
   );
 }
 
-function RegisterStep({ onDone, onSkip, onCancel }) {
-  const [st, setSt] = useState({});
-  const ok = passkeySupported();
-  const go = async () => {
-    setSt({ busy: true });
-    try {
-      const o = await api('device.registerOptions');
-      const credential = await createPasskey(o);
-      const d = await api('device.register', { credential });
-      if (d.status === 'pending') setSt({ pending: true });
-      else onDone(d.status);
-    } catch (e) {
-      setSt({ error: e.message });
-    }
-  };
-  return (
-    <section className="rounded-tile bg-surface p-5 shadow-tile">
-      <StepHead title="Register this phone" body="Your clock-ins are tied to your own phone, so nobody else can clock in for you. Your phone asks for your fingerprint, face or PIN. Orb Security never sees it." />
-      <div className="flex flex-col items-center py-4 text-center">
-        <div className={cx('grid h-24 w-24 place-items-center rounded-full', st.error ? 'bg-red-soft text-red' : st.pending ? 'bg-amber-soft text-amber' : 'bg-blue-soft text-blue')}><Smartphone size={42} /></div>
-        {!ok && <div className="mt-4 max-w-xs text-body font-semibold text-red">This browser can't register your phone. Use Safari on iPhone or Chrome on Android.</div>}
-        {st.error && <div className="mt-4 max-w-xs text-body font-semibold text-red">{st.error}</div>}
-        {st.pending && <div className="mt-4 max-w-xs text-body font-semibold">Registered. Because you've used another phone before, a manager must approve this one. Until then your clock-ins are flagged for checking.</div>}
-      </div>
-      <div className="grid gap-2">
-        {st.pending ? <Button size="lg" onClick={() => onDone('pending')}>Continue</Button> : ok && <Button size="lg" icon={Smartphone} busy={st.busy} onClick={go}>{st.error ? 'Try again' : 'Register this phone'}</Button>}
-        {!st.pending && (st.error || !ok) && <Button size="lg" variant="secondary" disabled={st.busy} onClick={onSkip}>Continue without phone check</Button>}
-        <Button variant="ghost" disabled={st.busy} onClick={onCancel}>Cancel</Button>
-      </div>
-      {!st.pending && (st.error || !ok) && <p className="mt-2 text-center text-caption text-muted">Without the phone check, your clock-in goes to your supervisor to approve.</p>}
-    </section>
-  );
-}
-
-function PhoneFailStep({ error, busy, onRetry, onSkip, onCancel }) {
+// New phone: register it here (a manager approves it) instead of skipping the check
+function PhoneFailStep({ error, busy, onRetry, onSkip, onNewPhone, onCancel }) {
   return (
     <section className="rounded-tile bg-surface p-5 shadow-tile">
       <StepHead title="Confirm it's your phone" />
@@ -571,10 +540,11 @@ function PhoneFailStep({ error, busy, onRetry, onSkip, onCancel }) {
       </div>
       <div className="grid gap-2">
         <Button size="lg" icon={RotateCcw} busy={busy} onClick={onRetry}>Try again</Button>
+        <Button size="lg" variant="secondary" icon={Smartphone} disabled={busy} onClick={onNewPhone}>Use this phone instead</Button>
         <Button size="lg" variant="secondary" disabled={busy} onClick={onSkip}>Continue without phone check</Button>
         <Button variant="ghost" disabled={busy} onClick={onCancel}>Cancel</Button>
       </div>
-      <p className="mt-2 text-center text-caption text-muted">Without the phone check, it goes to your supervisor to approve.</p>
+      <p className="mt-2 text-center text-caption text-muted">New phone? Use it instead and a manager approves it. Without the phone check, it goes to your supervisor to approve.</p>
     </section>
   );
 }

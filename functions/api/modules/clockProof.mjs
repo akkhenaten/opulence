@@ -13,6 +13,7 @@ import { faceMatch } from '../lib/face.mjs';
 import { getSettings } from './settings.mjs';
 import { MGR, CO, def } from './_def.mjs';
 import { officerName, userName } from '../lib/names.mjs';
+import QRCode from 'qrcode';
 
 const SELFIE_DAYS = 90;
 const DEVICE_COLS = 'id, officer_id, label, status, created_at, last_used_at, decided_at';
@@ -147,6 +148,14 @@ export const actions = {
     const o = await one('SELECT face_consent, face_consent_at FROM officers WHERE id = $1', [user.officer_id]);
     const s = await getSettings();
     return { devices: await officerDevices(user.officer_id), face_consent: o?.face_consent || null, face_consent_at: o?.face_consent_at || null, face_match_enabled: !!s.face_match_enabled };
+  }),
+
+  // On a laptop the register screen shows a code that opens it on the officer's phone instead
+  'device.registerLink': def(['officer'], async (_b, { event }) => {
+    const h = event?.headers || {};
+    const base = (h.origin || h.Origin || process.env.APP_URL || '').replace(/\/$/, '');
+    const url = `${base}/app/officer/profile?phone=register`;
+    return { url, qr: await QRCode.toDataURL(url, { width: 384, margin: 1, color: { dark: '#0B1220', light: '#FFFFFF' } }) };
   }),
 
   'device.list': def(MGR, async (b) => {

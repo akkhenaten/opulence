@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'phone-and-push': 'A hand holding a phone above a dark navy table, the screen showing a large fingerprint symbol in a soft gold circle, a small notification banner sliding down at the top of the screen with a gold bell icon, warm lamp light, dark navy and gold.',
   'rota-layout': 'A wide laptop on a dark navy desk showing a weekly rota grid: venue names down the left, seven day columns across the top with one column softly highlighted, small rounded shift cards in the cells with rows of tiny round avatars and a few dashed empty circles, a slim totals row along the bottom with one small red dot, warm lamp light, dark navy and gold.',
   'orb-no-repeats': 'A laptop on a dark navy desk showing a tidy inbox with a few calm cards, one card softly folded away with a small gold tick, a small gold spark icon in the corner and a bell with a quiet slash beside it, warm lamp light, dark navy and gold.',
   'live-ops-layout': 'A wide laptop on a dark navy desk showing a live operations board: neat cards stacked in a wide column on the left, each with a bold heading, a small green dot and rows of round avatars, and a narrower column on the right with small cards marked by a gold spark icon, warm lamp light, dark navy and gold.',

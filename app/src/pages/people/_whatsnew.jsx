@@ -1,6 +1,6 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  ArrowRightLeft, BadgeCheck, BellOff, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, Mail, MessageSquareHeart,
+  ArrowRightLeft, BadgeCheck, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, Mail, MessageSquareHeart,
   Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, Radio, ReceiptText, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-07', icon: BellRing, title: 'Phone set-up and notifications, sorted', image: 'phone-and-push',
+    lede: "Officers are now asked to register their clock-in phone before their first shift, with a Register now button on their Home page, so clock-ins stop showing \"Phone not verified\". Everyone is also asked to turn on phone notifications, so shift offers, changes and safety alerts arrive straight away.",
+    points: ['Officers without a clock-in phone see a Register now card on Home (amber when a shift starts within 24 hours) and a button in Profile; it takes seconds, with their face, fingerprint or PIN', 'Opened on a laptop, it shows a code to scan instead, so the laptop never becomes the clock-in device', 'On a new phone, the clock-in check offers Use this phone instead; a manager still approves it under Exceptions → Phones', 'Exceptions → Phones lists active officers who haven\'t registered a phone, and Staff has an App set-up filter and column: No phone, No notifications', 'Each officer\'s profile shows whether their phone is registered and whether notifications are on', 'Every Home page shows a Turn on notifications card until this device has them; Not now hides it for a week, and on iPhone it explains Add to Home Screen first'],
+  },
   {
     month: 'November 2026', date: '2026-11-07', icon: CalendarDays, title: 'A clearer Rota', image: 'rota-layout',
     lede: "The Rota now opens on the week by venue: venues down the side, the seven days across, and a totals row underneath so you can see at a glance where places are still open. Cards show who is on each shift and how many places are left.",

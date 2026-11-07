@@ -41,6 +41,8 @@ export function usePwa() {
 const DISMISS_KEY = 'orb-install-dismissed';
 const DISMISS_DAYS = 30;
 const dismissedRecently = () => Date.now() - Number(localStorage.getItem(DISMISS_KEY) || 0) < DISMISS_DAYS * 864e5;
+/** True while the install card is up on iPhone (it already says how to get notifications there) */
+export const installCardShowing = () => isIOS() && !standalone() && !dismissedRecently();
 
 function IosSteps() {
   const n = (i) => <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-soft text-caption font-bold text-blue">{i}</span>;

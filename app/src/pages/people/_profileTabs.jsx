@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Award, BadgeCheck, CalendarOff, Check, ClipboardList, Clock, Eye, FileSignature, FileText, MessageSquare, Plus, ShieldCheck, ShieldOff, Smartphone, Star, Trash2, ScrollText, Upload, X,
+  Award, BadgeCheck, BellRing, CalendarOff, Check, ClipboardList, Clock, Eye, FileSignature, FileText, MessageSquare, Plus, ShieldCheck, ShieldOff, Smartphone, Star, Trash2, ScrollText, Upload, X,
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
@@ -89,7 +89,9 @@ function PhoneTile({ o }) {
   };
   return (
     <Tile title="Clock-in phone" icon={Smartphone}>
-      {!q.data.length ? <p className="text-subhead text-faint">No phone registered yet. It's registered on their first clock-in.</p> : (
+      {!q.data.length ? (
+        <div className="flex items-start gap-2"><Pill tone="amber">No phone</Pill><p className="text-subhead text-muted">Not registered yet. They're asked to on their Home page and at their first clock-in.</p></div>
+      ) : (
         <div className="divide-y divide-line">
           {q.data.map((d) => (
             <div key={d.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
@@ -100,6 +102,12 @@ function PhoneTile({ o }) {
               <Button size="sm" variant="secondary" disabled={busy} onClick={() => revoke(d)}>Remove</Button>
             </div>
           ))}
+        </div>
+      )}
+      {o.user_id && (
+        <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-footnote text-muted">
+          <BellRing size={16} className={o.has_push ? 'text-green' : 'text-faint'} />
+          {o.has_push ? 'Phone notifications on' : "No phone notifications: they won't get alerts until they open the app. They're asked to turn them on."}
         </div>
       )}
     </Tile>

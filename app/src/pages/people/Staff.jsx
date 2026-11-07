@@ -10,6 +10,14 @@ import {
   ComplianceBadge, CopyLink, OFFICER_STATUSES, OfficerCoreFields, cleanOfficer, complianceState, emptyOfficer, useBase, useRoles,
 } from './_parts.jsx';
 
+// What managers can chase about the app: a registered clock-in phone, and phone notifications
+const APP_SETUP = {
+  phone: { label: 'No phone registered', test: (o) => o.has_phone },
+  push: { label: 'No notifications', test: (o) => o.has_push },
+};
+const AppSetup = ({ o }) => (o.has_phone && o.has_push ? <span className="text-footnote text-faint">Set up</span> : (
+  <span className="flex flex-wrap gap-1">{!o.has_phone && <Pill tone="amber">No phone</Pill>}{!o.has_push && <Pill tone="grey">No notifications</Pill>}</span>
+));
 const COMPLIANCE = [{ value: 'all', label: 'Any compliance' }, { value: 'green', label: 'Compliant' }, { value: 'amber', label: 'Expiring soon' }, { value: 'red', label: 'Not compliant' }];
 
 export default function Staff() {
@@ -20,11 +28,12 @@ export default function Staff() {
   const { roles, name: roleName } = useRoles();
   const nav = useNavigate();
   // Search, filters and Grid · List live in the address so Back returns to the same list
-  const [url, setUrl, clearUrl] = useUrlState({ q: '', role: '', compliance: 'all', status: 'active', view: 'grid' });
+  const [url, setUrl, clearUrl] = useUrlState({ q: '', role: '', compliance: 'all', app: '', status: 'active', view: 'grid' });
   const status = OFFICER_STATUSES.includes(url.status) ? url.status : 'active';
   const comp = COMPLIANCE.some((c) => c.value === url.compliance) ? url.compliance : 'all';
   const { role, q: search } = url;
   const view = url.view === 'list' ? 'list' : 'grid';
+  const app = APP_SETUP[url.app] ? url.app : '';
   const [adding, setAdding] = useState(false);
 
   const all = q.data || [];
@@ -34,8 +43,9 @@ export default function Staff() {
     return all.filter((o) => o.status === status
       && (!role || (o.roles || []).includes(role))
       && (comp === 'all' || complianceState(o.compliance).tone === comp)
+      && (!app || !APP_SETUP[app].test(o))
       && (!s || `${o.name} ${o.full_name || ''} ${o.email} ${o.phone} ${o.sia_number}`.toLowerCase().includes(s)));
-  }, [all, status, role, comp, search]);
+  }, [all, status, role, comp, app, search]);
 
   const active = all.filter((o) => o.status === 'active');
   const states = active.map((o) => complianceState(o.compliance).tone);
@@ -56,8 +66,9 @@ export default function Staff() {
               filters={[
                 { key: 'role', label: 'Role', value: role, options: [{ value: '', label: 'All roles' }, ...roles.map((r) => ({ value: r.code, label: r.name }))] },
                 { key: 'compliance', label: 'Compliance', value: comp, empty: 'all', options: COMPLIANCE },
+                { key: 'app', label: 'App set-up', value: app, options: [{ value: '', label: 'Any app set-up' }, ...Object.entries(APP_SETUP).map(([value, a]) => ({ value, label: a.label }))] },
               ]}
-              onChange={(k, v) => setUrl({ [k]: v })} onClear={() => clearUrl(['role', 'compliance'])}>
+              onChange={(k, v) => setUrl({ [k]: v })} onClear={() => clearUrl(['role', 'compliance', 'app'])}>
               <SearchInput className="min-w-0 flex-1 basis-64" value={search} onChange={(e) => setUrl({ q: e.target.value })} placeholder="Search name, email, phone or SIA number" />
             </FilterBar>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -76,6 +87,7 @@ export default function Staff() {
                 { key: 'sia_expiry', label: 'SIA expiry', mobile: 'sub', mobileLabel: true, render: (o) => (o.sia_expiry ? <span className="num">{date(o.sia_expiry)}</span> : '—') },
                 { key: 'status', label: 'Status', mobile: false, render: (o) => <Pill status={o.status} /> },
                 { key: 'compliance', label: 'Compliance', mobile: 'value', render: (o) => <ComplianceBadge c={o.compliance} /> },
+                { key: 'app', label: 'App', mobile: false, render: (o) => <AppSetup o={o} /> },
               ]} />
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">

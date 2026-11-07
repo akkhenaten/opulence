@@ -13,6 +13,8 @@ import { useModules } from '../learn/_parts.jsx';
 import { ChaseBanner, useOps } from './_ops.jsx';
 import { clockOpensAt, DeclineSheet, expiryText, greeting, NotLinked, ShiftCard, until } from './_parts.jsx';
 import { InstallCard } from '../../ui/pwa.jsx';
+import { PushCard } from './_notify.jsx';
+import { PhoneCard } from './_phone.jsx';
 import { ShiftPanel } from '../shift/ShiftView.jsx';
 
 // Not on shift: what to answer, what is confirmed, what is open, what to do.
@@ -42,6 +44,7 @@ export default function Home() {
     <Page key="home" backLabel="Home" title={`${greeting()}${first ? `, ${first}` : ''}`} subtitle={dayLabel(new Date())} photo="street">
       {pull}
       <InstallCard className="mb-4" later="Me" />
+      <PushCard className="mb-4" later="Me" />
       <Load q={dash} skeleton="tiles">
         {(d) => (d.linked === false ? <NotLinked /> : <Body d={d} clock={clock} ops={ops} reload={reloadAll} />)}
       </Load>
@@ -92,6 +95,7 @@ function Body({ d, clock, ops, reload }) {
       </Section>
 
       <ChaseBanner ops={ops} />
+      <PhoneCard soon={next.some((s) => new Date(s.starts_at) - Date.now() < 864e5)} />
       {(offers.length > 0 || d.issues?.length > 0 || (siaDays != null && siaDays <= 60)) && (
         <List>
           {d.issues?.length > 0 && (

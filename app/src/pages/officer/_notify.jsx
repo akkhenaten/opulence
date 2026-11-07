@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { BellRing, Smartphone } from 'lucide-react';
+import { BellRing, Smartphone, X } from 'lucide-react';
 import { api } from '../../api.js';
-import { Button, Load, Sheet, Toggle, useAction, useApi, useToast } from '../../ui/index.jsx';
-import { isIOS, standalone } from '../../ui/pwa.jsx';
+import { Button, IconButton, Load, Sheet, Tile, Toggle, useAction, useApi, useToast } from '../../ui/index.jsx';
+import { installCardShowing, isIOS, standalone } from '../../ui/pwa.jsx';
 
 export const NOTIFY_KINDS = [
   { key: 'mention', label: 'Someone mentions me', hint: 'In an Everyday post or comment' },
@@ -28,6 +28,53 @@ async function currentSub() {
   return reg ? reg.pushManager.getSubscription() : null;
 }
 
+/** Ask the browser, subscribe this device and save it: the new subscription */
+async function enablePush() {
+  if ((await Notification.requestPermission()) !== 'granted') throw new Error('Notifications are blocked — allow them for Orb in your phone or browser settings.');
+  const reg = (await navigator.serviceWorker.getRegistration('/app/')) || (await navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' }));
+  await navigator.serviceWorker.ready;
+  const { key } = await api('push.publicKey');
+  const s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });
+  await api('push.subscribe', { subscription: s.toJSON() });
+  return s;
+}
+
+const PUSH_LATER_KEY = 'orb-push-later';
+const PUSH_LATER_DAYS = 7;
+
+/** Home card on every side until this device gets phone notifications. "Not now" hides it for a week on this device.
+ *  On iPhone, push needs the home-screen app: while the install card is up, that card covers it. */
+export function PushCard({ className, later }) {
+  const toast = useToast();
+  const [run, busy] = useAction();
+  const [state, setState] = useState('checking');
+  const [hidden, setHidden] = useState(() => Date.now() - Number(localStorage.getItem(PUSH_LATER_KEY) || 0) < PUSH_LATER_DAYS * 864e5);
+  useEffect(() => {
+    if (hidden) return;
+    const ios = isIOS() && !standalone();
+    if (ios) { setState(installCardShowing() ? 'none' : 'ios'); return; }
+    if (!supported()) { setState('none'); return; }
+    currentSub().then((s) => setState(s ? 'none' : Notification.permission === 'denied' ? 'blocked' : 'ask')).catch(() => setState('none'));
+  }, [hidden]);
+  if (hidden || state === 'checking' || state === 'none') return null;
+  const notNow = () => { localStorage.setItem(PUSH_LATER_KEY, String(Date.now())); setHidden(true); if (later) toast(`Hidden for a week. Turn them on any time from ${later} → Notifications.`, 'info'); };
+  const turnOn = () => run(enablePush, 'Phone notifications are on').then(() => setState('none')).catch(() => { if (Notification.permission === 'denied') setState('blocked'); });
+  return (
+    <Tile title="Turn on notifications" icon={BellRing} className={className} action={<IconButton icon={X} label="Not now" onClick={notNow} />}>
+      {state === 'ios' ? (
+        <p className="text-subhead text-muted">On iPhone, notifications only work from the home-screen app. Tap <b>Share</b>, then <b>Add to Home Screen</b>, open Orb from the new icon and turn them on there.</p>
+      ) : state === 'blocked' ? (
+        <p className="text-subhead text-muted">Notifications are blocked for Orb on this device. Allow them in your phone or browser settings (Site settings → Notifications), then come back here.</p>
+      ) : (
+        <>
+          <p className="mb-3 text-subhead text-muted">Get shift offers, changes and safety alerts on this device straight away, even when Orb is closed.</p>
+          <Button icon={BellRing} busy={busy} onClick={turnOn}>Turn on notifications</Button>
+        </>
+      )}
+    </Tile>
+  );
+}
+
 /** Which notices to get, and phone (push) notifications for this device. Shift and safety alerts always come. */
 export function NotificationsSheet({ open, onClose }) {
   const q = useApi('notifications.prefs.get', {}, { skip: !open });
@@ -42,15 +89,7 @@ export function NotificationsSheet({ open, onClose }) {
     setPrefs((p) => ({ ...p, [k]: v }));
     api('notifications.prefs.save', { prefs: { [k]: v } }).catch((e) => { setPrefs((p) => ({ ...p, [k]: !v })); toast(e.message, 'error'); });
   };
-  const turnOn = () => run(async () => {
-    if ((await Notification.requestPermission()) !== 'granted') throw new Error('Notifications are blocked — allow them for Orb in your phone or browser settings.');
-    const reg = (await navigator.serviceWorker.getRegistration('/app/')) || (await navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' }));
-    await navigator.serviceWorker.ready;
-    const { key } = await api('push.publicKey');
-    const s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });
-    await api('push.subscribe', { subscription: s.toJSON() });
-    setSub(s);
-  }, 'Phone notifications are on').catch(() => {});
+  const turnOn = () => run(async () => setSub(await enablePush()), 'Phone notifications are on').catch(() => {});
   const turnOff = () => run(async () => {
     if (sub) { await api('push.unsubscribe', { endpoint: sub.endpoint }); await sub.unsubscribe(); }
     setSub(null);

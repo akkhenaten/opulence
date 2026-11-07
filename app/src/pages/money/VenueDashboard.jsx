@@ -10,6 +10,7 @@ import {
   assignTone, Bento, Button, Dot, List, Load, Page, Pill, Pressable, Row, Section, Stat, Tile, cx, dayLabel, money, range, relative, time, titleCase, useApi,
 } from '../../ui/index.jsx';
 import { InstallCard } from '../../ui/pwa.jsx';
+import { PushCard } from '../officer/_notify.jsx';
 
 const STATE_LABEL = { late: 'Late', no_show: 'No show', left_early: 'Left early' };
 
@@ -57,6 +58,7 @@ function Body({ d, name }) {
         { label: 'Request staff', icon: Plus, variant: 'primary', main: true, to: '/venue/rota?new=1' },
       ]}>
       <InstallCard className="mb-4" later="My account" />
+      <PushCard className="mb-4" later="your account menu" />
       <RateStaffSheet open={rate} onClose={() => setRate(false)} />
       <GiveFeedbackSheet open={give} onClose={() => setGive(false)} />
       <NeedsYou d={d} toSign={toSign} />
