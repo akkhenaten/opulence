@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, GraduationCap, Plus, Sparkles, UserPlus } from 'lucide-react';
 import { api, downloadText } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Avatar, Button, cx, date, Empty, ErrorBox, List, Load, Page, Pill, Pressable, Row, Spinner, Table, Tabs, Tile, useAction, useApi } from '../../ui/index.jsx';
+import { Avatar, Button, cx, date, Empty, ErrorBox, List, Load, Page, Pill, Pressable, Row, Segmented, Spinner, Table, Tile, useAction, useApi } from '../../ui/index.jsx';
 import { STATE, StatePill, TOPICS, useModules } from '../learn/_parts.jsx';
 import { Refreshers, StaffRecords } from './_training.jsx';
 import { AssignSheet, DraftProgress, draftCourse, NewCourseSheet } from './_parts.jsx';
@@ -22,8 +22,9 @@ export default function Academy() {
     ...(academy && co ? [{ value: 'starter', label: 'Starter library' }] : []),
   ];
   return (
-    <Page title="Training" subtitle="Certificates, refreshers and Academy courses for your staff" wide>
-      <Tabs tabs={tabs} value={tab} onChange={(v) => setSp(v === 'records' ? {} : { tab: v }, { replace: true })} />
+    // The training views switch on the tab line, so each list starts high
+    <Page title="Training" subtitle="Certificates, refreshers and Academy courses for your staff" wide
+      tools={<Segmented value={tab} onChange={(v) => setSp(v === 'records' ? {} : { tab: v }, { replace: true })} options={tabs} />}>
       {tab === 'records' && <StaffRecords />}
       {tab === 'refreshers' && <Refreshers />}
       {tab === 'courses' && academy && <Courses co={co} />}

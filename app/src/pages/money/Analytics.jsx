@@ -4,7 +4,7 @@ import { CalendarClock, LineChart, MessageSquareHeart, ShieldAlert, Users } from
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import {
-  Bento, Button, Empty, ErrorBox, Input, Page, Section, Segmented, Select, SkeletonTiles, Stat, Tile, date, useApi, useUrlState,
+  Bento, Button, Empty, ErrorBox, Input, Page, Section, Segmented, Select, SkeletonTiles, Stat, Tile, ToolField, ToolMenu, date, useApi, useMedia, useUrlState,
 } from '../../ui/index.jsx';
 import { Columns, HBars, HourStrip, PRESETS_4W, presetRange, useBase } from './_parts.jsx';
 
@@ -28,8 +28,8 @@ export function useRangeUrl(presets, def) {
   return { preset, range, setPreset, setDates: (patch) => setUrl(patch) };
 }
 
-/** The date range row: stays in view under the top bar, with chips that jump to each section. jumps: [{ id, label }] */
-export function RangeBar({ r, presets, jumps }) {
+/** The date range row: stays in view under the top bar, with chips that jump to each section. jumps: [{ id, label }]; children sit on the same line */
+export function RangeBar({ r, presets, jumps, children }) {
   const bar = useRef(null);
   const jump = (id) => {
     const el = document.getElementById(id);
@@ -49,6 +49,7 @@ export function RangeBar({ r, presets, jumps }) {
             <Input type="date" value={r.range.to} onChange={(e) => r.setDates({ to: e.target.value })} aria-label="To" />
           </div>
         )}
+        {children}
       </div>
       {jumps?.length > 0 && (
         <nav aria-label="Jump to section" className="no-scrollbar -mx-[var(--px)] mt-2 flex gap-2 overflow-x-auto px-[var(--px)] py-1">
@@ -103,22 +104,21 @@ export function AnalyticsView({ venueId, fixedVenue }) {
 
   const pickVenue = !fixedVenue && venues.length > 1;
   const pickOfficer = office && officers.length > 0;
+  const wide = useMedia('(min-width: 640px)');
+  // Venue and officer sit on the range line (in Filters on phones), so the figures start high
+  const venuePick = pickVenue && <Select className="w-full sm:w-56" aria-label="Venue" value={venue} onChange={(e) => setVenue(e.target.value)} placeholder="All venues"
+    options={venues.map((v) => ({ value: v.id, label: v.name }))} />;
+  const officerPick = pickOfficer && <Select className="w-full sm:w-56" aria-label="Officer" value={officer} onChange={(e) => setOfficer(e.target.value)} placeholder="All officers"
+    options={officers.map((o) => ({ value: o.id, label: o.name }))} />;
   const filters = (
-    <>
-      <RangeBar r={r} presets={PRESETS_4W} jumps={ok && q.data ? JUMPS : null} />
-      {(pickVenue || pickOfficer) && (
-        <div className="mb-5 flex flex-wrap items-end gap-3">
-          {pickVenue && (
-            <Select className="w-full sm:w-56" aria-label="Venue" value={venue} onChange={(e) => setVenue(e.target.value)} placeholder="All venues"
-              options={venues.map((v) => ({ value: v.id, label: v.name }))} />
-          )}
-          {pickOfficer && (
-            <Select className="w-full sm:w-56" aria-label="Officer" value={officer} onChange={(e) => setOfficer(e.target.value)} placeholder="All officers"
-              options={officers.map((o) => ({ value: o.id, label: o.name }))} />
-          )}
-        </div>
+    <RangeBar r={r} presets={PRESETS_4W} jumps={ok && q.data ? JUMPS : null}>
+      {wide ? <>{venuePick}{officerPick}</> : (pickVenue || pickOfficer) && (
+        <ToolMenu count={(pickVenue && !!venue) + (pickOfficer && !!officer)} onClear={() => { if (pickVenue) setVenue(''); setOfficer(''); }}>
+          {venuePick && <ToolField label="Venue">{venuePick}</ToolField>}
+          {officerPick && <ToolField label="Officer">{officerPick}</ToolField>}
+        </ToolMenu>
       )}
-    </>
+    </RangeBar>
   );
 
   const body = !ok ? <Empty icon={LineChart} title="Choose a date range" body="The start date must be on or before the end date." />

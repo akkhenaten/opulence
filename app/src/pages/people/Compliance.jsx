@@ -6,13 +6,13 @@ import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import GraceSheet, { GRACE_LABEL, GraceButton } from './_graceSheet.jsx';
 import {
-  Avatar, Button, date, Empty, Load, MoreMenu, Page, Pill, Segmented, Select, Sheet, Spinner, Tile, time, useAction, useApi, useConfirm, useUrlState,
+  Avatar, Button, Chip, date, Empty, Load, MoreMenu, Page, Pill, Segmented, Select, Sheet, Spinner, Tile, time, ToolField, ToolMenu, useAction, useApi, useConfirm, useMedia, useUrlState,
 } from '../../ui/index.jsx';
 
 const SEV = {
-  urgent: { label: 'Urgent', tone: 'red', text: 'text-red' },
-  soon: { label: 'Soon', tone: 'amber', text: 'text-amber' },
-  advisory: { label: 'Advisory', tone: 'blue', text: 'text-blue' },
+  urgent: { label: 'Urgent', tone: 'red' },
+  soon: { label: 'Soon', tone: 'amber' },
+  advisory: { label: 'Advisory', tone: 'blue' },
 };
 const AREAS = [
   { value: '', label: 'All areas' }, { value: 'licence', label: 'Licences' }, { value: 'rtw', label: 'Right to work' },
@@ -33,12 +33,25 @@ export default function Compliance() {
   const [preview, setPreview] = useState(false);
   const [run, busy] = useAction();
   const company = user.role === 'company';
+  const wide = useMedia('(min-width: 640px)');
+
+  // Who and area sit on the tab line (area under Filters on phones); the severities are chips above the cards
+  const blocked = gq.data?.blocked.length || 0;
+  const onGrace = gq.data?.onGrace.length || 0;
+  const areaPick = <Select aria-label="Area" value={area} onChange={(e) => setUrl({ area: e.target.value })} options={AREAS} />;
+  const tools = <>
+    {(blocked > 0 || onGrace > 0 || view) && (
+      <Segmented value={view} onChange={(v) => setUrl({ view: v })} options={[{ value: '', label: 'Everyone' }, { value: 'cantwork', label: `Can't work (${blocked})` }, { value: 'grace', label: `On grace (${onGrace})` }]} />
+    )}
+    <div className="hidden w-44 sm:block">{areaPick}</div>
+    {!wide && <ToolMenu count={area ? 1 : 0} onClear={() => setUrl({ area: '' })}><ToolField label="Area">{areaPick}</ToolField></ToolMenu>}
+  </>;
 
   const check = () => run(() => api('ops.complianceRun', {}), (r) => `Checked ${r.checked} people · ${r.attention} need attention`).then(q.reload).catch(() => {});
   const dismiss = (r) => run(() => api('ops.dismissIssue', { id: r.card_id, key: r.key }), 'Dismissed').then(q.reload).catch(() => {});
 
   return (
-    <Page title="Compliance" subtitle="Licences, right to work, documents and training, checked against the rota"
+    <Page title="Compliance" subtitle="Licences, right to work, documents and training, checked against the rota" tools={tools}
       actions={company && (
         <>
           <MoreMenu items={[{ label: 'Weekly email preview', icon: Mail, onClick: () => setPreview(true) }]} />
@@ -46,7 +59,7 @@ export default function Compliance() {
         </>
       )}>
       <Load q={q} skeleton="rows">
-        {(d) => <Body d={d} gd={gq.data} company={company} reloadGrace={() => { gq.reload(); q.reload(); }} view={view} setView={(v) => setUrl({ view: v })} sev={sev} setSev={(v) => setUrl({ severity: v })} area={area} setArea={(v) => setUrl({ area: v })} dismiss={dismiss} busy={busy}
+        {(d) => <Body d={d} gd={gq.data} company={company} reloadGrace={() => { gq.reload(); q.reload(); }} view={view} sev={sev} setSev={(v) => setUrl({ severity: v })} area={area} dismiss={dismiss} busy={busy}
           openCard={(id) => nav(id ? `/${user.role}?card=${id}` : `/${user.role}`)} openStaff={(id) => nav(`/${user.role}/staff/${id}?tab=documents`)}
           openRtw={company ? (id) => nav(`/${user.role}/staff/${id}?tab=compliance&rtw=check`) : null} />}
       </Load>
@@ -104,7 +117,7 @@ function WorkLine({ r, d, company, reload, listed }) {
   );
 }
 
-function Body({ d, gd, company, reloadGrace, view, setView, sev, setSev, area, setArea, dismiss, busy, openCard, openStaff, openRtw }) {
+function Body({ d, gd, company, reloadGrace, view, sev, setSev, area, dismiss, busy, openCard, openStaff, openRtw }) {
   const counts = useMemo(() => d.rows.reduce((m, r) => ({ ...m, [r.severity]: (m[r.severity] || 0) + 1 }), {}), [d.rows]);
   // officer id → their can't work / on grace row
   const work = useMemo(() => new Map([...(gd?.blocked || []), ...(gd?.onGrace || [])].map((r) => [r.officer.id, r])), [gd]);
@@ -126,28 +139,16 @@ function Body({ d, gd, company, reloadGrace, view, setView, sev, setSev, area, s
     const rank = (id) => (work.has(id) ? (work.get(id).grace ? 1 : 0) : 2);
     return [...m.values()].sort((a, b) => rank(a.officer.id) - rank(b.officer.id));
   }, [d.rows, sev, area, view, work]);
-  const blocked = gd?.blocked.length || 0;
-  const onGrace = gd?.onGrace.length || 0;
-
   return (
     <>
-      <div className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
-        {Object.entries(SEV).map(([k, s]) => (
-          <Tile key={k} pad>
-            <div className="text-caption font-semibold uppercase text-muted">{s.label}</div>
-            <div className={`num text-title1 font-bold ${s.text}`}>{counts[k] || 0}</div>
-          </Tile>
-        ))}
-      </div>
-      <p className="mb-3 text-footnote text-muted">
-        {d.checked} people checked{d.last_run ? ` · last full check ${date(d.last_run)} ${time(d.last_run)}` : ''}
-      </p>
+      {/* One slim line: the severities with something in them (tap to filter) and when the last check ran */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {(blocked > 0 || onGrace > 0 || view) && (
-          <Segmented value={view} onChange={setView} options={[{ value: '', label: 'Everyone' }, { value: 'cantwork', label: `Can't work (${blocked})` }, { value: 'grace', label: `On grace (${onGrace})` }]} />
-        )}
-        <Segmented value={sev} onChange={setSev} options={[{ value: '', label: 'Any' }, ...Object.entries(SEV).map(([value, s]) => ({ value, label: s.label }))]} />
-        <Select aria-label="Area" className="w-48" value={area} onChange={(e) => setArea(e.target.value)} options={AREAS} />
+        {Object.entries(SEV).filter(([k]) => counts[k] || sev === k).map(([k, s]) => (
+          <Chip key={k} label={s.label} value={counts[k] || 0} tone={s.tone} active={sev === k} onClick={() => setSev(sev === k ? '' : k)} />
+        ))}
+        <span className="text-footnote text-muted">
+          {d.checked} people checked{d.last_run ? ` · last full check ${date(d.last_run)} ${time(d.last_run)}` : ''}
+        </span>
       </div>
       {!groups.length ? (
         <Empty icon={ShieldCheck} title={d.rows.length || view ? 'Nothing matches these filters' : 'Everyone is compliant'}

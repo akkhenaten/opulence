@@ -181,8 +181,8 @@ function Today({ d, board, base, isCompany, lg, orb, reloadKey, onOrbChange, foc
   );
   const strip = (
     <StatusChips {...board} setFilter={setFilter}>
-      {d && <Chip label="Short shifts" value={next.short} tone={next.short ? 'red' : 'grey'} quiet={!next.short} onClick={() => scrollTo('tonight')} />}
-      <Chip label="To approve" value={orb} tone={orb ? 'blue' : 'grey'} quiet={!orb} onClick={() => scrollTo('needs')} />
+      {d && next.short > 0 && <Chip label="Short shifts" value={next.short} tone="red" onClick={() => scrollTo('tonight')} />}
+      {orb > 0 && <Chip label="To approve" value={orb} tone="blue" onClick={() => scrollTo('needs')} />}
     </StatusChips>
   );
 

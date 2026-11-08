@@ -37,14 +37,13 @@ export default function Procedures() {
       actions={<>
         <Button variant="secondary" icon={Plus} onClick={() => setSheet('new')}>New</Button>
         <Button icon={Sparkles} onClick={() => setSheet('ai')}>Draft with AI</Button>
-      </>}>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      </>}
+      tools={<>
         <Segmented value={tab} onChange={setTab} options={[
           { value: 'venues', label: 'Venues' }, { value: 'general', label: 'Company-wide' }, { value: 'all', label: 'All documents' }, { value: 'archived', label: 'Archived' },
         ]} />
-        {tab !== 'venues' && <SearchInput className="min-w-0 flex-1 sm:max-w-xs" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Search documents" />}
-      </div>
-
+        {tab !== 'venues' && <SearchInput className="min-w-0 flex-1 sm:w-56 sm:flex-none" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Search documents" />}
+      </>}>
       {tab === 'venues' ? (
         <Load q={overview} skeleton="rows">
           {({ venues }) => (venues.length ? (

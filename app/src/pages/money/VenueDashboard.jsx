@@ -69,11 +69,12 @@ function Body({ d, name }) {
             <div className="display num text-[64px] font-bold leading-none">{live.on_site}</div>
             <div className="mb-2 flex items-center gap-2 text-subhead font-semibold opacity-90"><Dot tone="green" live />{live.on_site === 1 ? 'officer on duty' : 'officers on duty'}</div>
           </div>
-          <div className="mt-5 grid grid-cols-3 gap-2">
-            <LiveChip n={live.upcoming} label="Due in" />
-            <LiveChip n={live.late} label="Late" warn={live.late > 0} />
-            <LiveChip n={live.no_show} label="No show" warn={live.no_show > 0} />
-          </div>
+          {/* Only the counts with something in them; none at all leaves no row */}
+          {(live.upcoming > 0 || live.late > 0 || live.no_show > 0) && <div className="mt-5 grid grid-cols-3 gap-2">
+            {live.upcoming > 0 && <LiveChip n={live.upcoming} label="Due in" />}
+            {live.late > 0 && <LiveChip n={live.late} label="Late" warn />}
+            {live.no_show > 0 && <LiveChip n={live.no_show} label="No show" warn />}
+          </div>}
           {live.alerts?.length > 0 && (
             <div className="mt-4 space-y-1.5">
               {live.alerts.slice(0, 4).map((a) => (

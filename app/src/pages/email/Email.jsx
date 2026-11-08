@@ -112,7 +112,11 @@ function Inbox({ acc, accounts, folder, current, onAccount, onFolder, onOpen, on
     <>
       <div className="px-4 pb-2 pt-4">
         <div className="mb-3 flex items-center gap-1">
-          <h1 className="min-w-0 flex-1 text-title1 font-bold">{hub ? hub.title : 'Email'}</h1>
+          {/* One mailbox: its address sits in the title block, so the list starts a line higher */}
+          <div className="min-w-0 flex-1">
+            <h1 className="text-title1 font-bold">{hub ? hub.title : 'Email'}</h1>
+            {accounts.length === 1 && <div className="truncate text-footnote text-muted">{acc.address}{acc.shared ? ' · shared' : ''}</div>}
+          </div>
           <IconButton icon={RefreshCw} label="Check for new email" onClick={refresh} disabled={busy} />
           <IconButton icon={Settings} label="Email settings" to="/company/settings?tab=notifications&part=email" />
           <IconButton icon={SquarePen} tone="solid" label="New email" onClick={onCompose} disabled={!!reconnect} />
@@ -122,7 +126,6 @@ function Inbox({ acc, accounts, folder, current, onAccount, onFolder, onOpen, on
           <Select className="mb-2" aria-label="Mailbox" value={acc.id} onChange={(e) => onAccount(e.target.value)}
             options={accounts.map((a) => ({ value: a.id, label: `${a.address}${a.shared ? ' (shared)' : ''}${a.unread ? ` · ${a.unread}` : ''}` }))} />
         )}
-        {accounts.length === 1 && <div className="mb-2 truncate text-footnote text-muted">{acc.address}{acc.shared ? ' · shared' : ''}</div>}
         <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${acc.address.split('@')[0]}`} />
         <div className="no-scrollbar -mx-4 mt-3 overflow-x-auto px-4"><Segmented value={folder} onChange={onFolder} options={FOLDERS} /></div>
       </div>

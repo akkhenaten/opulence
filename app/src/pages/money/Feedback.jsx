@@ -6,7 +6,7 @@ import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import {
-  Button, Empty, FilterBar, List, Load, Page, Pill, Sheet, Textarea, Toggle, cx, dayLabel, range, relative, useAction, useApi, useUrlState,
+  Button, Empty, FilterBar, List, Load, Page, Pill, Segmented, Select, Sheet, Textarea, Toggle, ToolField, ToolMenu, cx, dayLabel, range, relative, useAction, useApi, useMedia, useUrlState,
 } from '../../ui/index.jsx';
 import { ABOUT, GiveFeedbackSheet, TONES } from '../venue/_feedback.jsx';
 import { useBase } from './_parts.jsx';
@@ -33,16 +33,19 @@ export default function Feedback() {
   const mgr = user.role !== 'venue';
   const [give, setGive] = useState(false);
   return (
-    <Page title="Feedback" subtitle={mgr ? 'What venues tell us about staff, shifts and the service' : 'Your feedback to our office, and our replies'}
-      actions={[{ label: 'Give feedback', icon: Plus, main: true, onClick: () => setGive(true) }]}>
-      <FeedbackList give={give} onGive={setGive} />
-    </Page>
+    // The filters sit on the tab line, so the list starts high
+    <FeedbackList give={give} onGive={setGive} frame={(tools, list) => (
+      <Page title="Feedback" subtitle={mgr ? 'What venues tell us about staff, shifts and the service' : 'Your feedback to our office, and our replies'} tools={tools}
+        actions={[{ label: 'Give feedback', icon: Plus, main: true, onClick: () => setGive(true) }]}>
+        {list}
+      </Page>
+    )} />
   );
 }
 
 /** The feedback list with its filters and replies. With fixedVenue it shows one venue (its page's Feedback tab) and keeps filters local.
-    The Feedback page opens Give feedback from its header (give/onGive); elsewhere the list has its own button. */
-export function FeedbackList({ venueId, fixedVenue, onChanged, give: giveOpen, onGive }) {
+    The Feedback page opens Give feedback from its header (give/onGive) and puts the filters in its page tools (frame); elsewhere the list has its own button and filter bar. */
+export function FeedbackList({ venueId, fixedVenue, onChanged, give: giveOpen, onGive, frame }) {
   const { user } = useAuth();
   const mgr = user.role !== 'venue';
   // Managers start on open feedback; status=all (or the older empty status=) shows everything
@@ -70,17 +73,33 @@ export function FeedbackList({ venueId, fixedVenue, onChanged, give: giveOpen, o
   const venues = opts.data?.venues || [];
   const reload = () => { q.reload(); onChanged?.(); };
   const about = ABOUT.find((a) => a.value === f.about);
+  const wide = useMedia('(min-width: 640px)');
 
-  return (
+  // Page tools: status (managers) stays out, type beside it from sm up, the rest in Filters
+  const pick = (k, label, value, options) => <Select aria-label={label} className="w-44" value={value || ''} onChange={(e) => setF(k, e.target.value)} options={options} />;
+  const typePick = pick('tone', 'Type', f.tone, [{ value: '', label: 'All types' }, ...TONES]);
+  const multi = venues.length > 1;
+  const changed = (!wide && !!f.tone) + (multi && !!f.venue_id) + !!f.about;
+  const tools = frame && <>
+    {mgr && <Segmented value={f.status || 'all'} onChange={(v) => setF('status', v)} options={STATUS.map((o) => (o.value === 'all' ? { ...o, label: 'All' } : o))} />}
+    {wide && typePick}
+    <ToolMenu count={changed} onClear={() => { setUrl({ about: '', ...(!wide && { tone: '' }), ...(mgr && multi && { venue: '' }) }); if (!mgr && multi) shared.setVenueId(''); }}>
+      {!wide && <ToolField label="Type">{typePick}</ToolField>}
+      {multi && <ToolField label="Venue">{pick('venue_id', 'Venue', f.venue_id, [{ value: '', label: 'All venues' }, ...venues.map((v) => ({ value: v.id, label: v.name }))])}</ToolField>}
+      <ToolField label="About">{pick('about', 'About', f.about, [{ value: '', label: 'About anything' }, ...ABOUT])}</ToolField>
+    </ToolMenu>
+  </>;
+
+  const list = (
     <>
-      <FilterBar onChange={setF} onClear={clearF} filters={[
+      {!frame && <FilterBar onChange={setF} onClear={clearF} filters={[
         { key: 'tone', label: 'Type', value: f.tone, options: [{ value: '', label: 'All types' }, ...TONES] },
         mgr && { key: 'status', label: 'Status', value: f.status || 'all', empty: fixedVenue ? 'all' : 'open', options: STATUS },
         !fixedVenue && venues.length > 1 && { key: 'venue_id', label: 'Venue', value: f.venue_id || '', options: [{ value: '', label: 'All venues' }, ...venues.map((v) => ({ value: v.id, label: v.name }))] },
         { key: 'about', label: 'About', value: f.about, options: [{ value: '', label: 'About anything' }, ...ABOUT], display: about && `About ${about.label.toLowerCase()}` },
       ]}>
         {!onGive && <Button icon={Plus} onClick={() => setGive(true)}>Give feedback</Button>}
-      </FilterBar>
+      </FilterBar>}
       <Load q={q} skeleton="rows">
         {(rows) => (!rows.length ? (
           <Empty icon={MessageSquareHeart} title={mgr ? 'No feedback here' : 'No feedback yet'}
@@ -97,6 +116,7 @@ export function FeedbackList({ venueId, fixedVenue, onChanged, give: giveOpen, o
       <ReplySheet c={reply} onClose={() => setReply(null)} onDone={reload} />
     </>
   );
+  return frame ? frame(tools, list) : list;
 }
 
 const REVIEW_PILL = { pending: ['amber', 'Review pending'], published: ['green', 'Review on the website'], hidden: ['grey', 'Review hidden'] };

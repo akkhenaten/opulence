@@ -114,10 +114,10 @@ function Profile({ o, reload, user, base }) {
               {(o.roles || []).length ? o.roles.map((r) => <span key={r} className="rounded-lg bg-bg px-2 py-0.5 text-footnote font-semibold">{roleName(r)}</span>)
                 : <span className="text-footnote text-faint">No roles set</span>}
             </div>
-            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-subhead">
+            {(o.phone || o.email) && <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-subhead">
               {o.phone && <a href={`tel:${o.phone}`} className="inline-flex items-center gap-1.5 font-semibold text-blue"><Phone size={16} />{o.phone}</a>}
               {o.email && <a href={`mailto:${o.email}`} className="inline-flex min-w-0 items-center gap-1.5 truncate font-semibold text-blue"><Mail size={16} />{o.email}</a>}
-            </div>
+            </div>}
           </div>
           <div className="grid grid-cols-2 gap-2 sm:w-64">
             <div className="rounded-2xl bg-bg p-3">

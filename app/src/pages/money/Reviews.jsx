@@ -5,8 +5,8 @@ import { useSearchParams } from 'react-router-dom';
 import { ArrowDown, ArrowUp, Globe, Pencil, Plus, Quote, Star, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
 import {
-  Button, cx, Empty, Input, Load, MoreMenu, Page, Pill, Pressable, SearchInput, Segmented, Select, Sheet, Textarea, Tile, Toggle,
-  date, useAction, useApi, useConfirm, useForm,
+  Button, cx, Empty, Input, Load, MoreMenu, Page, Pill, Pressable, SearchInput, Segmented, Select, Sheet, Textarea, Tile, Toggle, ToolField, ToolMenu,
+  date, useAction, useApi, useConfirm, useForm, useMedia,
 } from '../../ui/index.jsx';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
@@ -29,30 +29,32 @@ export default function Reviews() {
   const reload = () => { list.reload(); meta.reload(); };
   const names = useMemo(() => Object.fromEntries((meta.data?.clients || []).map((c) => [c.slug, c])), [meta.data]);
   const pending = Object.values(meta.data?.counts || {}).reduce((n, c) => n + (c.pending || 0), 0);
+  const wide = useMedia('(min-width: 640px)');
+
+  // Status, client and search sit on the tab line, so the reviews start high
+  const clientPick = (isCo || mine.length > 1 || user.role === 'security') && (
+    <Select aria-label="Client" className="w-52" placeholder="All clients" value={client} onChange={(e) => setClient(e.target.value)}
+      options={(meta.data?.clients || []).filter((c) => isCo || user.role === 'security' || mine.includes(c.slug)).map((c) => ({ value: c.slug, label: c.name }))} />
+  );
+  const tools = (user.role !== 'venue' || canAdd) && <>
+    <Segmented value={status} onChange={(v) => setSp(v ? { status: v } : {}, { replace: true })}
+      options={VIEWS.map((v) => (v.value === 'pending' ? { ...v, count: pending } : v))} />
+    {clientPick && (wide ? clientPick : <ToolMenu count={client ? 1 : 0} onClear={() => setClient('')}><ToolField label="Client">{clientPick}</ToolField></ToolMenu>)}
+    <SearchInput className="w-full sm:w-56" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search reviews" />
+  </>;
 
   return (
-    <Page title="Reviews" subtitle="What clients say about you, shown on the venue tiles of your website"
+    <Page title="Reviews" subtitle="What clients say about you, shown on the venue tiles of your website" tools={tools}
       actions={canAdd && <Button icon={Plus} onClick={() => setEdit({})}>Add review</Button>}>
       {user.role === 'venue' && meta.data && (canAdd
         ? <p className="mb-4 text-subhead text-muted">Reviews you add are checked by the office before they appear on the website.</p>
         : <Empty icon={Globe} title="Your venue isn't on the website yet" body="Ask the office to link your venue to the website, then you can add the reviews you receive." />)}
       {(user.role !== 'venue' || canAdd) && (
-        <>
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <Segmented value={status} onChange={(v) => setSp(v ? { status: v } : {}, { replace: true })}
-              options={VIEWS.map((v) => (v.value === 'pending' && pending ? { ...v, label: `Pending (${pending})` } : v))} />
-            {(isCo || mine.length > 1 || user.role === 'security') && (
-              <Select className="min-w-0 basis-56" placeholder="All clients" value={client} onChange={(e) => setClient(e.target.value)}
-                options={(meta.data?.clients || []).filter((c) => isCo || user.role === 'security' || mine.includes(c.slug)).map((c) => ({ value: c.slug, label: c.name }))} />
-            )}
-            <SearchInput className="min-w-0 flex-1 basis-60" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search reviews" />
-          </div>
-          <Load q={list}>{(rows) => (rows.length
-            ? <ReviewGroups rows={rows} names={names} user={user} onEdit={setEdit} onChange={reload} />
-            : <Empty icon={Quote} title={status || client || search ? 'No matching reviews' : 'No reviews yet'}
-                body={canAdd ? 'Add a review a client gave you and it will appear when visitors flip their venue tile on the website.' : undefined} />)}
-          </Load>
-        </>
+        <Load q={list}>{(rows) => (rows.length
+          ? <ReviewGroups rows={rows} names={names} user={user} onEdit={setEdit} onChange={reload} />
+          : <Empty icon={Quote} title={status || client || search ? 'No matching reviews' : 'No reviews yet'}
+              body={canAdd ? 'Add a review a client gave you and it will appear when visitors flip their venue tile on the website.' : undefined} />)}
+        </Load>
       )}
       {edit && <ReviewForm review={edit} clients={(meta.data?.clients || []).filter((c) => mine.includes(c.slug))} isCo={isCo}
         onClose={() => setEdit(null)} onSaved={reload} />}

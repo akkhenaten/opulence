@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Plus, ShieldCheck } from 'lucide-react';
 import { api } from '../../api.js';
 import {
-  Avatar, Bento, Button, cx, date, IconButton, Load, Page, Pill, Pressable, relative, Segmented, Sheet, Stat, Tile, Toggle, useAction, useApi, useConfirm, useUrlState,
+  Avatar, Button, Chip, cx, date, IconButton, Load, Page, Pill, Pressable, relative, Segmented, Sheet, Toggle, useAction, useApi, useConfirm, useMedia, useUrlState,
 } from '../../ui/index.jsx';
 import { ComplianceBadge, CopyLink, Progress, useRoles } from './_parts.jsx';
 import { AddOfficerSheet } from './Staff.jsx';
@@ -58,21 +58,19 @@ export default function Recruitment() {
   // Applicants reviewed in the sheet, in column order, for ↑ ↓ / prev-next
   const reviewable = cols.applicant.filter((p) => p.online);
   const at = reviewable.findIndex((p) => String(p.id) === String(applicant));
+  const lg = useMedia('(min-width: 1024px)');
   const ready = cols.onboarding.filter((r) => r.total && Number(r.done) === Number(r.total)).length;
 
   return (
-    <Page title="Recruitment" subtitle="From applicant to first shift" wide actions={<Button icon={Plus} onClick={() => setAdding(true)}>Add applicant</Button>}>
+    // The stage switch (phones and tablets) and who is ready to activate sit on the tab line; the columns carry their own counts
+    <Page title="Recruitment" subtitle="From applicant to first shift" wide actions={<Button icon={Plus} onClick={() => setAdding(true)}>Add applicant</Button>}
+      tools={(pipeline.data && (ready > 0 || !lg)) && <>
+        {ready > 0 && <Chip label="Ready to activate" value={ready} tone="green" onClick={lg ? undefined : () => setUrl({ stage: 'onboarding' })} />}
+        {!lg && <Segmented value={stage} onChange={(v) => setUrl({ stage: v })} options={STAGES.map((s) => ({ value: s.key, label: `${s.short} (${cols[s.key].length})` }))} />}
+      </>}>
       <Load q={pipeline}>
         {() => (
           <>
-            <Bento className="mb-5">
-              <Tile><Stat value={cols.applicant.length} label="Applicants" /></Tile>
-              <Tile><Stat value={cols.onboarding.length} label="Onboarding" /></Tile>
-              <Tile><Stat value={ready} label="Ready to activate" tone={ready ? 'green' : undefined} hint="All steps done" /></Tile>
-              <Tile><Stat value={recent.length} label="Started" hint="Last 60 days" /></Tile>
-            </Bento>
-            <Segmented full className="mb-3 lg:hidden" value={stage} onChange={(v) => setUrl({ stage: v })}
-              options={STAGES.map((s) => ({ value: s.key, label: `${s.short} (${cols[s.key].length})` }))} />
             <div className="gap-3 lg:grid lg:grid-cols-3">
               {STAGES.map((s) => (
                 <section key={s.key} className={cx('rounded-tile bg-fill-strong/60 p-3', s.key !== stage && 'hidden lg:block')}>

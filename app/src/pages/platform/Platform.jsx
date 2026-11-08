@@ -7,7 +7,7 @@ import { ROLE_LABEL } from '../../layouts/nav.js';
 import { KIND, STATUS } from '../../ui/AppFeedback.jsx';
 import {
   Button, Callout, Chip, cx, dateTime, Empty, KV, Lightbox, Load, Page, Pill, Pressable, relative, SearchInput, Segmented, Select, Sheet, SkeletonRows,
-  Tabs, Textarea, Toggle, useAction, useApi, useToast,
+  Textarea, Toggle, ToolField, ToolMenu, useAction, useApi, useMedia, useToast,
 } from '../../ui/index.jsx';
 
 // Platform admin only (set by the platform, checked on the server too): the app Feedback inbox and its switches
@@ -15,12 +15,43 @@ export default function Platform() {
   const { user } = useAuth();
   const [sp, setSp] = useSearchParams();
   const tab = sp.get('tab') || 'feedback';
+  const [f, setF] = useState({ status: 'open', kind: '', role: '', search: '' });
+  const set = (k) => (v) => setF((x) => ({ ...x, [k]: v }));
+  const list = useApi('appFeedback.list', f, { skip: !user.platform || tab !== 'feedback' });
+  const [run, busy] = useAction();
+  const wide = useMedia('(min-width: 640px)');
   if (!user.platform) return <Navigate to={`/${user.role}`} replace />;
+  const exportCsv = () => run(async () => {
+    const { csv } = await api('appFeedback.export', f);
+    downloadText(`app-feedback-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  }).catch(() => {});
+
+  // The tab switch, counters and inbox filters sit on one line, so the inbox starts high
+  const s = list.data?.stats;
+  const chip = (label, n, tone, active, onClick) => (n > 0 || active) && <Chip label={label} value={n ?? 0} tone={tone} active={active} onClick={onClick} />;
+  const kindSwitch = <Segmented value={f.kind} onChange={set('kind')} options={[{ value: '', label: 'All' }, { value: 'problem', label: 'Problems' }, { value: 'idea', label: 'Ideas' }]} />;
+  const tools = <>
+    <Segmented value={tab} onChange={(t) => setSp(t === 'feedback' ? {} : { tab: t }, { replace: true })}
+      options={[{ value: 'feedback', label: 'Feedback' }, { value: 'settings', label: 'Settings' }]} />
+    {tab === 'feedback' && <>
+      {chip('New', s?.new, 'blue', f.status === 'new', () => set('status')(f.status === 'new' ? 'open' : 'new'))}
+      {chip('Problems this week', s?.problems_week, 'red', f.kind === 'problem', () => set('kind')(f.kind === 'problem' ? '' : 'problem'))}
+      {chip('Ideas this week', s?.ideas_week, 'amber', f.kind === 'idea', () => set('kind')(f.kind === 'idea' ? '' : 'idea'))}
+      {chip('Fixed this month', s?.fixed_month, 'green', f.status === 'fixed', () => set('status')(f.status === 'fixed' ? 'open' : 'fixed'))}
+      <SearchInput className="w-full sm:w-56" value={f.search} onChange={(e) => set('search')(e.target.value)} placeholder="Search text, name or screen" />
+      {wide && kindSwitch}
+      <ToolMenu count={(f.status !== 'open') + !!f.role + (!wide && !!f.kind)} onClear={() => setF((x) => ({ ...x, status: 'open', role: '', ...(!wide && { kind: '' }) }))}>
+        {!wide && <ToolField label="Kind">{kindSwitch}</ToolField>}
+        <ToolField label="Status"><Select aria-label="Status" value={f.status} onChange={(e) => set('status')(e.target.value)} options={STATUS_FILTER} /></ToolField>
+        <ToolField label="Who sent it"><Select aria-label="Who sent it" value={f.role} onChange={(e) => set('role')(e.target.value)} options={ROLE_FILTER} /></ToolField>
+      </ToolMenu>
+    </>}
+  </>;
+
   return (
-    <Page title="Platform" subtitle="Only you can see this — platform admin" wide>
-      <Tabs value={tab} onChange={(t) => setSp(t === 'feedback' ? {} : { tab: t }, { replace: true })}
-        tabs={[{ value: 'feedback', label: 'Feedback' }, { value: 'settings', label: 'Settings' }]} />
-      {tab === 'settings' ? <PlatformSettings /> : <Inbox />}
+    <Page title="Platform" subtitle="Only you can see this — platform admin" wide tools={tools}
+      actions={tab === 'feedback' && <Button variant="secondary" size="sm" icon={Download} busy={busy} onClick={exportCsv}>Export CSV</Button>}>
+      {tab === 'settings' ? <PlatformSettings /> : <Inbox list={list} />}
     </Page>
   );
 }
@@ -32,32 +63,10 @@ const STATUS_FILTER = [
 ];
 const ROLE_FILTER = [{ value: '', label: 'Everyone' }, ...Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }))];
 
-function Inbox() {
-  const [f, setF] = useState({ status: 'open', kind: '', role: '', search: '' });
+function Inbox({ list }) {
   const [open, setOpen] = useState(null);
-  const [run, busy] = useAction();
-  const set = (k) => (v) => setF((x) => ({ ...x, [k]: v }));
-  const list = useApi('appFeedback.list', f);
-  const exportCsv = () => run(async () => {
-    const { csv } = await api('appFeedback.export', f);
-    downloadText(`app-feedback-${new Date().toISOString().slice(0, 10)}.csv`, csv);
-  }).catch(() => {});
-  const s = list.data?.stats;
   return (
     <div className="space-y-4">
-      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <Chip label="New" value={s?.new ?? '–'} tone={s?.new ? 'blue' : 'grey'} active={f.status === 'new'} onClick={() => set('status')(f.status === 'new' ? 'open' : 'new')} />
-        <Chip label="Problems this week" value={s?.problems_week ?? '–'} tone="red" active={f.kind === 'problem'} onClick={() => set('kind')(f.kind === 'problem' ? '' : 'problem')} />
-        <Chip label="Ideas this week" value={s?.ideas_week ?? '–'} tone="amber" active={f.kind === 'idea'} onClick={() => set('kind')(f.kind === 'idea' ? '' : 'idea')} />
-        <Chip label="Fixed this month" value={s?.fixed_month ?? '–'} tone="green" active={f.status === 'fixed'} onClick={() => set('status')(f.status === 'fixed' ? 'open' : 'fixed')} />
-      </div>
-      <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
-        <SearchInput value={f.search} onChange={(e) => set('search')(e.target.value)} placeholder="Search text, name or screen" />
-        <Segmented value={f.kind} onChange={set('kind')} options={[{ value: '', label: 'All' }, { value: 'problem', label: 'Problems' }, { value: 'idea', label: 'Ideas' }]} />
-        <Select aria-label="Status" value={f.status} onChange={(e) => set('status')(e.target.value)} options={STATUS_FILTER} />
-        <Select aria-label="Who sent it" value={f.role} onChange={(e) => set('role')(e.target.value)} options={ROLE_FILTER} />
-      </div>
-      <div className="flex justify-end"><Button variant="secondary" size="sm" icon={Download} busy={busy} onClick={exportCsv}>Export CSV</Button></div>
       {list.loading && !list.data ? <SkeletonRows n={5} /> : (
         <Load q={list}>
           {(d) => !d.items.length ? <Empty icon={MessageCircleWarning} title="Nothing here" body="New problems and ideas from everyone using the app land here." /> : (

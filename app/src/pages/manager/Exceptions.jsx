@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Check, ListChecks, ShieldCheck, Smartphone, X } from 'lucide-react';
 import {
-  ActionBar, Avatar, Button, Check as Tick, cx, dayLabel, Empty, List, Load, Page, Pill, range, relative, Row, Section, Sheet, Tabs, time, useAction, useApi, useConfirm,
+  ActionBar, Avatar, Button, Check as Tick, cx, dayLabel, Empty, List, Load, Page, Pill, range, relative, Row, Section, Segmented, Sheet, time, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { SELF_HINT, SelfPills, useBase } from './_parts.jsx';
@@ -51,10 +51,10 @@ export default function Exceptions() {
     <Page title="Exceptions" subtitle="Clock events that failed a check: phone, location, venue code or selfie"
       actions={open.length > 1 && (picking
         ? <Button variant="secondary" onClick={stopPicking}>Done</Button>
-        : <Button variant="secondary" icon={ListChecks} onClick={() => setPicking(true)}>Select</Button>)}>
-      <Tabs value={tab} onChange={changeTab} tabs={[
+        : <Button variant="secondary" icon={ListChecks} onClick={() => setPicking(true)}>Select</Button>)}
+      tools={<Segmented value={tab} onChange={changeTab} options={[
         { value: 'open', label: 'To review', count: tab === 'open' ? q.data?.length : undefined }, { value: 'decided', label: 'History' },
-      ]} />
+      ]} />}>
       <Load q={q}>{(rows) => {
         const list = tab === 'decided' ? rows.filter((r) => r.status !== 'exception') : rows;
         if (!list.length) return <Empty icon={ShieldCheck} title={tab === 'open' ? 'All clear' : 'No decisions yet'} body={tab === 'open' ? 'No clock exceptions waiting for review.' : undefined} />;

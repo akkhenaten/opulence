@@ -13,9 +13,10 @@ import { isMgr, PersonSheet, whenText } from './_parts.jsx';
 
 export default function Feed() {
   return (
-    <Page title="Everyday" subtitle="News, photos and shout-outs from the team">
-      <FeedBody />
-    </Page>
+    // Search and the feed/moderation switch sit on the title line, so the feed starts high
+    <FeedBody frame={(bar, body) => (
+      <Page title="Everyday" subtitle="News, photos and shout-outs from the team" actions={bar}>{body}</Page>
+    )} />
   );
 }
 
@@ -32,8 +33,8 @@ function ExpandSearch({ value, onChange, onOpenChange }) {
 }
 
 /** The feed itself; managers see it on the Dashboard, so other URL params (like ?tab=everyday) are kept.
- *  lead: shown at the left of the toolbar (the Dashboard's back to Overview) */
-export function FeedBody({ lead }) {
+ *  lead: shown at the left of the toolbar (the Dashboard's back to Overview); frame(bar, body): the page puts the toolbar on its title line */
+export function FeedBody({ lead, frame }) {
   const { user } = useAuth();
   const [sp, setSp] = useSearchParams();
   const patch = (changes) => setSp((cur) => {
@@ -57,11 +58,7 @@ export function FeedBody({ lead }) {
   }, [text]); // eslint-disable-line react-hooks/exhaustive-deps
   const canSearch = view === 'feed' && !sp.get('person');
   const wide = canSearch && searching;
-  return (
-    <>
-      <div className="mb-4 flex min-h-9 items-center gap-2">
-        {!wide && lead}
-        {!wide && <div className="flex-1" />}
+  const tools = <>
         {canSearch && <ExpandSearch value={text} onChange={(e) => setText(e.target.value)} onOpenChange={setSearching} />}
         {mgr && (
           <div className="flex shrink-0 items-center gap-1">
@@ -69,8 +66,17 @@ export function FeedBody({ lead }) {
             <IconButton icon={Flag} label="Moderation" size="sm" active={view === 'moderation'} badge={open} badgeTone="red" onClick={() => patch({ view: 'moderation' })} />
           </div>
         )}
+  </>;
+  const body = view === 'feed' ? <Stream sp={sp} patch={patch} /> : <Moderation onChanged={reports.reload} />;
+  if (frame) return frame((canSearch || mgr) && <div className={cx('flex min-h-9 items-center gap-2', wide && 'w-full sm:w-96')}>{tools}</div>, body);
+  return (
+    <>
+      <div className="mb-4 flex min-h-9 items-center gap-2">
+        {!wide && lead}
+        {!wide && <div className="flex-1" />}
+        {tools}
       </div>
-      {view === 'feed' ? <Stream sp={sp} patch={patch} /> : <Moderation onChanged={reports.reload} />}
+      {body}
     </>
   );
 }

@@ -24,9 +24,12 @@ export default function Toolbox() {
       actions={<Button variant="soft" icon={Sparkles} onClick={() => setAsk(true)}>What should I do?</Button>}>
       <EmergencyEntry from="/officer/learn/toolbox" />
       <FlowEntry from="/officer/learn/toolbox" />
-      <SearchInput value={text} onChange={(e) => setText(e.target.value)} placeholder="Search guides" />
-      {tb.offline && <div className="mt-2 flex items-center gap-2 px-1 text-footnote font-semibold text-amber"><WifiOff size={14} /> Offline — showing your saved copy</div>}
-      <div className="no-scrollbar -mx-4 my-3 overflow-x-auto px-4 sm:mx-0 sm:px-0"><Segmented value={cat} onChange={setCat} options={opts} /></div>
+      {/* Search and category share one line from sm up, so the guides start high */}
+      <div className="mb-3 sm:flex sm:items-center sm:gap-3">
+        <SearchInput className="sm:w-64 sm:shrink-0" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search guides" />
+        <div className="no-scrollbar -mx-4 mt-3 overflow-x-auto px-4 sm:mx-0 sm:mt-0 sm:min-w-0 sm:px-0"><Segmented value={cat} onChange={setCat} options={opts} /></div>
+      </div>
+      {tb.offline && <div className="mb-3 flex items-center gap-2 px-1 text-footnote font-semibold text-amber"><WifiOff size={14} /> Offline — showing your saved copy</div>}
       {tb.loading && !tb.cards ? <Spinner /> : tb.error && !tb.cards ? <ErrorBox error={tb.error} retry={tb.reload} /> : shown.length ? (
         <List>
           {shown.map((c) => {

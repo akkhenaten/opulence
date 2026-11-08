@@ -4,7 +4,7 @@ import { AlertTriangle, Check as CheckIcon, Download, FileText, Lock, RefreshCw,
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  ActionBar, Avatar, Button, cx, date, dateShort, Empty, hours, isoDate, List, Load, money, Page, Pill, Section, Segmented, Select, Tabs, Tile, useAction, useApi, useConfirm, useUrlState,
+  ActionBar, Avatar, Button, Chip, cx, date, dateShort, Empty, hours, isoDate, List, Load, money, Page, Pill, Section, Segmented, Select, Tile, ToolField, ToolMenu, useAction, useApi, useConfirm, useMedia, useUrlState,
 } from '../../ui/index.jsx';
 import { Check, useBase } from './_parts.jsx';
 import { RunsList } from './PayRuns.jsx';
@@ -30,23 +30,44 @@ function PayInner({ isCo }) {
   const [url, setUrl] = useUrlState({ tab: '' });
   const tab = url.tab || (params.get('status') ? 'statements' : 'runs');
 
+  const rows = list.data || [];
+  const [period, setPeriod] = useState('');
+  const wide = useMedia('(min-width: 640px)');
+  const periods = useMemo(() => {
+    const m = new Map();
+    for (const r of rows) m.set(r.period_start, r);
+    return [...m.values()].sort((a, b) => (a.period_start < b.period_start ? 1 : -1));
+  }, [rows]);
+  const inPeriod = rows.filter((r) => !period || r.period_start === period);
+  const count = (s) => inPeriod.filter((r) => r.status === s).length;
+
+  // Totals, the runs/statements switch and the statement filters sit on the tab line, so the list starts high
+  const statusSwitch = <Segmented value={status} onChange={setStatus} options={[
+    { value: 'draft', label: 'Draft', count: count('draft') }, { value: 'issued', label: 'Issued', count: count('issued') },
+    { value: 'paid', label: 'Paid' }, { value: 'all', label: 'All' },
+  ].filter((o) => isCo || o.value !== 'draft')} />;
+  const periodPick = periods.length > 0 && <Select aria-label="Pay period" className="min-w-[200px]" value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="All periods"
+    options={periods.map((p) => ({ value: p.period_start, label: periodLabel(p) }))} />;
+  const tools = list.data && <>
+    <Totals rows={rows} />
+    <Segmented value={tab} onChange={(v) => setUrl({ tab: v })} options={[
+      { value: 'runs', label: 'Pay runs' },
+      // The count is what needs doing: drafts to issue for the company, statements awaiting payment otherwise
+      { value: 'statements', label: 'Statements', count: rows.filter((r) => r.status === (isCo ? 'draft' : 'issued')).length },
+    ]} />
+    {tab === 'statements' && <>
+      {statusSwitch}
+      {periodPick && (wide ? periodPick : <ToolMenu count={period ? 1 : 0} onClear={() => setPeriod('')}><ToolField label="Pay period">{periodPick}</ToolField></ToolMenu>)}
+    </>}
+  </>;
+
   return (
-    <Page title="Pay runs" subtitle="Remittance statements for self-employed officers">
+    <Page title="Pay runs" subtitle="Remittance statements for self-employed officers" tools={tools}>
       <Load q={list}>
-        {(rows) => (
+        {() => tab === 'statements' ? <Statements key={`${status}|${period}`} rows={inPeriod} isCo={isCo} status={status} period={period} reload={list.reload} /> : (
           <>
-            <Totals rows={rows} />
-            <Tabs value={tab} onChange={(v) => setUrl({ tab: v })} tabs={[
-              { value: 'runs', label: 'Pay runs' },
-              // The count is what needs doing: drafts to issue for the company, statements awaiting payment otherwise
-              { value: 'statements', label: `Statements (${rows.filter((r) => r.status === (isCo ? 'draft' : 'issued')).length})` },
-            ]} />
-            {tab === 'statements' ? <Statements rows={rows} isCo={isCo} status={status} setStatus={setStatus} reload={list.reload} /> : (
-              <>
-                {isCo && <RunTile onDone={() => { list.reload(); setRunsKey((k) => k + 1); }} />}
-                <RunsList reloadKey={runsKey} />
-              </>
-            )}
+            {isCo && <RunTile onDone={() => { list.reload(); setRunsKey((k) => k + 1); }} />}
+            <RunsList reloadKey={runsKey} />
           </>
         )}
       </Load>
@@ -54,24 +75,19 @@ function PayInner({ isCo }) {
   );
 }
 
-// One line of totals: drafts, to pay, paid this month and hours in drafts
+// Totals as chips, only the ones with something in them: drafts, to pay, paid this month and hours in drafts
 function Totals({ rows }) {
   const sum = (st) => rows.filter((r) => r.status === st).reduce((a, r) => a + Number(r.total), 0);
   const cnt = (st) => rows.filter((r) => r.status === st).length;
   const month = isoDate().slice(0, 7);
   const paidMonth = rows.filter((r) => r.status === 'paid' && r.paid_at && isoDate(r.paid_at).slice(0, 7) === month);
   const draftHours = rows.filter((r) => r.status === 'draft').reduce((a, r) => a + Number(r.hours), 0);
-  return (
-    <p className="mb-4 flex flex-wrap gap-x-3 gap-y-1 px-1 text-subhead text-muted">
-      <span><span className="num font-semibold text-ink">{money(sum('draft'))}</span> in {cnt('draft')} draft{cnt('draft') === 1 ? '' : 's'}</span>
-      <span>·</span>
-      <span><span className="num font-semibold text-blue">{money(sum('issued'))}</span> to pay ({cnt('issued')})</span>
-      <span>·</span>
-      <span><span className="num font-semibold text-green">{money(paidMonth.reduce((a, r) => a + Number(r.total), 0))}</span> paid this month</span>
-      <span>·</span>
-      <span><span className="num font-semibold text-ink">{hours(draftHours)}</span> in drafts</span>
-    </p>
-  );
+  return <>
+    {cnt('draft') > 0 && <Chip value={money(sum('draft'))} label={`in ${cnt('draft')} draft${cnt('draft') === 1 ? '' : 's'}`} />}
+    {cnt('issued') > 0 && <Chip value={money(sum('issued'))} label={`to pay (${cnt('issued')})`} tone="blue" />}
+    {paidMonth.length > 0 && <Chip value={money(paidMonth.reduce((a, r) => a + Number(r.total), 0))} label="paid this month" tone="green" />}
+    {draftHours > 0 && <Chip value={hours(draftHours)} label="in drafts" />}
+  </>;
 }
 
 // Draft pay runs fill themselves from approved timesheets (one per pay period); this tile explains that and can catch up straight away
@@ -99,22 +115,15 @@ function RunTile({ onDone }) {
   );
 }
 
-function Statements({ rows, isCo, status, setStatus, reload }) {
+// Remounted when the status or period changes, so the selection starts empty
+function Statements({ rows: inPeriod, isCo, status, period, reload }) {
   const base = useBase();
   const confirm = useConfirm();
   const [run, busy] = useAction();
   const [csv, csvBusy] = useAction();
-  const [period, setPeriod] = useState('');
   const [sel, setSel] = useState(() => new Set());
 
-  const periods = useMemo(() => {
-    const m = new Map();
-    for (const r of rows) m.set(r.period_start, r);
-    return [...m.values()].sort((a, b) => (a.period_start < b.period_start ? 1 : -1));
-  }, [rows]);
-  const inPeriod = rows.filter((r) => !period || r.period_start === period);
   const shown = inPeriod.filter((r) => status === 'all' || r.status === status);
-  const count = (s) => inPeriod.filter((r) => r.status === s).length;
   const selected = shown.filter((r) => sel.has(r.id));
   const drafts = selected.filter((r) => r.status === 'draft');
   const issued = selected.filter((r) => r.status === 'issued');
@@ -140,17 +149,6 @@ function Statements({ rows, isCo, status, setStatus, reload }) {
       <Button size="sm" variant="soft" icon={Download} busy={csvBusy} disabled={!exportable.length && !period} onClick={exportCsv}
         title={!exportable.length && !period ? 'Select issued statements or a period' : undefined}>Bank CSV</Button>
     )}>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <Segmented value={status} onChange={(s) => { setStatus(s); setSel(new Set()); }} options={[
-          { value: 'draft', label: 'Draft', count: count('draft') }, { value: 'issued', label: 'Issued', count: count('issued') },
-          { value: 'paid', label: 'Paid' }, { value: 'all', label: 'All' },
-        ].filter((o) => isCo || o.value !== 'draft')} />
-        {periods.length > 0 && (
-          <Select className="min-w-[200px]" value={period} onChange={(e) => { setPeriod(e.target.value); setSel(new Set()); }} placeholder="All periods"
-            options={periods.map((p) => ({ value: p.period_start, label: periodLabel(p) }))} />
-        )}
-      </div>
-
       {!shown.length ? (
         <Empty icon={FileText} title={status === 'draft' ? 'No draft statements' : 'No statements'} body={status === 'draft' && isCo ? 'Approve a timesheet and its officer gets a draft statement straight away.' : undefined} />
       ) : (

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronDown, Download, History } from 'lucide-react';
 import { downloadAction } from '../../api.js';
 import { WhatsNew } from './_whatsnew.jsx';
-import { Avatar, cx, dateTime, dayLabel, Empty, isoDate, List, Load, MoreMenu, Page, Pill, Pressable, relative, SearchInput, Section, Segmented, Select, Tabs, time, titleCase, useApi, useUrlState } from '../../ui/index.jsx';
+import { Avatar, cx, dateTime, dayLabel, Empty, isoDate, List, Load, MoreMenu, Page, Pill, Pressable, relative, SearchInput, Section, Segmented, Select, time, titleCase, ToolField, ToolMenu, useApi, useUrlState } from '../../ui/index.jsx';
 
 const ENTITIES = ['officer', 'document', 'contract', 'hr_note', 'officer_rate', 'shift', 'assignment', 'cover_request', 'timesheet',
   'incident', 'venue', 'venue_rate', 'invoice', 'invoice_line', 'statement', 'statement_line', 'user', 'settings'];
@@ -35,16 +35,22 @@ export default function Audit() {
     return out;
   }, [q.data, search]);
 
+  // Activity · What's new and the search sit on the tab line; record type and how many under Filters
+  const tools = <>
+    <Segmented value={tab} onChange={setTab} options={[{ value: 'activity', label: 'Activity' }, { value: 'new', label: 'What’s new' }]} />
+    {tab === 'activity' && <>
+      <SearchInput className="min-w-0 flex-1 sm:w-56 sm:flex-none" aria-label="Search" placeholder="Search action, person or detail" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
+      <ToolMenu count={!!entity + (limit !== 200)} onClear={() => setUrl({ entity: '', limit: '200' })}>
+        <ToolField label="Record type"><Select aria-label="Record type" value={entity} onChange={(e) => setUrl({ entity: e.target.value })} placeholder="All records" options={ENTITIES.map((e) => ({ value: e, label: titleCase(e.replace(/_/g, ' ')) }))} /></ToolField>
+        <ToolField label="Show"><Segmented value={limit} onChange={(v) => setUrl({ limit: v })} options={[{ value: 200, label: 'Last 200' }, { value: 500, label: 'Last 500' }]} /></ToolField>
+      </ToolMenu>
+    </>}
+  </>;
+
   return (
-    <Page title="Audit log" subtitle={tab === 'new' ? 'Every upgrade to your platform' : 'Who changed what, and when'}
+    <Page title="Audit log" subtitle={tab === 'new' ? 'Every upgrade to your platform' : 'Who changed what, and when'} tools={tools}
       actions={tab === 'activity' && <MoreMenu items={[{ icon: Download, label: 'Export to spreadsheet', hint: `The last ${limit}${entity ? ` ${entity.replace(/_/g, ' ')}` : ''} changes, as CSV`, onClick: () => downloadAction('audit.exportCsv', { entity: entity || undefined, limit }).catch(() => {}) }]} />}>
-      <div className="mb-3"><Tabs value={tab} onChange={setTab} tabs={[{ value: 'activity', label: 'Activity' }, { value: 'new', label: 'What’s new' }]} /></div>
       {tab === 'new' ? <WhatsNew /> : <>
-      <div className="mb-2 grid gap-3 sm:grid-cols-[1fr_220px_auto] sm:items-end">
-        <SearchInput aria-label="Search" placeholder="Search action, person or detail" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
-        <Select aria-label="Record type" value={entity} onChange={(e) => setUrl({ entity: e.target.value })} placeholder="All records" options={ENTITIES.map((e) => ({ value: e, label: titleCase(e.replace(/_/g, ' ')) }))} />
-        <Segmented value={limit} onChange={(v) => setUrl({ limit: v })} options={[{ value: 200, label: 'Last 200' }, { value: 500, label: 'Last 500' }]} />
-      </div>
       <Load q={q}>
         {() => (days.length ? days.map((d) => (
           <Section key={d.key} title={`${dayLabel(d.key)} · ${d.rows.length}`}>

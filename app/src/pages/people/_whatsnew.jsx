@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-08', icon: LayoutGrid, title: 'More room for the work on every page', image: 'more-room-everywhere',
+    lede: 'The tidier layout that started on the rota now runs through every page for managers, officers, venues and the platform. The list, table or board starts right under the tabs.',
+    points: ["Search, filters and view switches now sit on the same line as the section tabs, not stacked in rows above the content", "Options you change less often are behind one Filters or Display button. It shows a number when something is changed, and Clear puts everything back", "Counters and summary chips only show when there is something to look at. Tap one to filter, as before", "On phones, the main control stays in view and the rest open in a sheet, so the content still starts near the top", "Nothing has been taken away. Every page still does exactly what it did before"],
+  },
+  {
     month: 'November 2026', date: '2026-11-08', icon: LayoutGrid, title: 'More room for the rota', image: 'more-room',
     lede: 'The first step in giving every page more room for the work itself. The rota grid now starts right under the tabs instead of halfway down the screen.',
     points: ["The week picker sits beside the Rota title, and By venue / By day / By officer and the venue picker sit on the same line as the tabs", "Shift requests is now a tab beside Week, Cover and Exceptions, with its number on the tab. Old links still open it", "Unfilled, Drafts, Unconfirmed and Requests only show when there is something to look at. Tap one to filter the grid, as before", "Card size and Hide empty venues are under Display. The button shows a number when something is changed from the usual", "Every page has a slimmer title with its subtitle on the same line. The other pages follow the same pattern next"],

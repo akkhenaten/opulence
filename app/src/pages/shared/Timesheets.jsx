@@ -4,7 +4,7 @@ import {
   AlertTriangle, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Clock, Download, History, HandCoins, Lock, LogOut, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
 } from 'lucide-react';
 import {
-  ActionBar, addDays, Avatar, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, MoreMenu, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, useAction, useApi, useConfirm, useForm, useUrlState,
+  ActionBar, addDays, Avatar, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, MoreMenu, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, ToolField, ToolMenu, useAction, useApi, useConfirm, useForm, useMedia, useUrlState,
 } from '../../ui/index.jsx';
 import { api, downloadAction } from '../../api.js';
 import { useVenue } from '../../venue.jsx';
@@ -46,6 +46,7 @@ const DAYS = (week) => Array.from({ length: 7 }, (_, i) => addDays(week, i));
 
 export default function Timesheets() {
   const { user, isManager, base } = useBase();
+  const wide = useMedia('(min-width: 640px)');
   const nav = useNavigate();
   const confirm = useConfirm();
   const isVenue = user.role === 'venue';
@@ -142,27 +143,38 @@ export default function Timesheets() {
       { value: 'review', label: 'To sign', count: all.filter((r) => r.state === 'approved').length }, { value: 'queried', label: 'Queried' }]
     : [{ value: 'all', label: 'All' }, { value: 'review', label: 'Needs review', count: health.to_review }, { value: 'queried', label: 'Queried' }, { value: 'no_clock_in', label: 'No clock-in' }];
 
+  // The week sits beside the title; the view, venue and officer sit on the tab line, so the table starts high
+  const weekPicker = (
+    <span className="inline-flex items-center gap-1">
+      <IconButton icon={ChevronLeft} label="Previous week" size="sm" onClick={() => setWeek(addDays(week, -7))} />
+      <span className="num min-w-[112px] text-center text-body font-semibold text-ink">{weekLabel}</span>
+      <IconButton icon={ChevronRight} label="Next week" size="sm" onClick={() => setWeek(addDays(week, 7))} />
+      {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(thisWeek)}>This week</Button>}
+    </span>
+  );
+  const venuePick = (venueList.length > 1 || !isVenue) && (
+    <Select aria-label="Venue" value={venueId} onChange={(e) => setVenueId(e.target.value)} placeholder="All venues"
+      options={venueList.map((v) => ({ value: v.id, label: v.name }))} />
+  );
+  const officerPick = (
+    <Select aria-label="Officer" value={officerId} onChange={(e) => setOfficerId(e.target.value)} placeholder="All officers"
+      options={officers.map(([id, name]) => ({ value: id, label: name }))} />
+  );
+  const changed = !!officerId + (!wide && !isVenue && !!venueId);
+  const tools = <>
+    <Segmented value={filter} onChange={setFilter} options={segs} />
+    {venuePick && <div className="hidden w-48 sm:block">{venuePick}</div>}
+    <ToolMenu count={changed} onClear={() => setUrl({ officer: '', ...(!wide && !isVenue && { venue: '' }) })}>
+      {!wide && venuePick && <ToolField label="Venue">{venuePick}</ToolField>}
+      <ToolField label="Officer">{officerPick}</ToolField>
+    </ToolMenu>
+  </>;
+
   return (
-    <Page title="Timesheets" subtitle={`Week of ${dayLabel(week)}`} wide
+    <Page title="Timesheets" subtitle={weekPicker} wide tools={tools}
       actions={<>{isVenue ? (toSignWeek.length > 0 && <Button icon={Signature} busy={busy} onClick={signWeek}>Sign off week · {toSignWeek.length}</Button>)
         : readyToPay && <Button variant="secondary" icon={HandCoins} busy={busy} onClick={sendToPay}>Send to pay run</Button>}
         <MoreMenu items={[{ icon: Download, label: 'Export this week', hint: 'Every row shown, as CSV', onClick: () => downloadAction('timesheets.exportCsv', body).catch(() => {}) }]} /></>}>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 rounded-xl bg-surface p-1 shadow-tile">
-          <IconButton icon={ChevronLeft} label="Previous week" onClick={() => setWeek(addDays(week, -7))} />
-          <span className="num min-w-[132px] text-center text-subhead font-semibold">{weekLabel}</span>
-          <IconButton icon={ChevronRight} label="Next week" onClick={() => setWeek(addDays(week, 7))} />
-        </div>
-        {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(thisWeek)}>This week</Button>}
-        {(venueList.length > 1 || !isVenue) && (
-          <Select className="w-full sm:w-auto sm:min-w-[180px]" value={venueId} onChange={(e) => setVenueId(e.target.value)} placeholder="All venues"
-            options={venueList.map((v) => ({ value: v.id, label: v.name }))} />
-        )}
-        <Select className="w-full sm:w-auto sm:min-w-[180px]" value={officerId} onChange={(e) => setOfficerId(e.target.value)} placeholder="All officers"
-          options={officers.map(([id, name]) => ({ value: id, label: name }))} />
-        <Segmented full value={filter} onChange={setFilter} options={segs} className="w-full lg:ml-auto lg:w-auto" />
-      </div>
-
       {earlier.length > 0 && (
         <Callout tone="warning" icon={Clock} className="mb-3" title={`${earlier.length} earlier shift${earlier.length > 1 ? 's' : ''} with no clock-in`}
           action={<Button size="sm" variant="secondary" onClick={() => { setUrl({ week: mondayOf(isoDate(earlier[earlier.length - 1].starts_at)), show: 'no_clock_in', status: '' }); setSel(new Set()); }}>Show oldest</Button>}>

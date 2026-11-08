@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import {
-  addDays, Button, cx, dateShort, dayLabel, Empty, IconButton, isoDate, Load, mondayOf, Page, Pill, Pressable, range, Select, Tabs, time, useApi,
+  addDays, Button, cx, dateShort, dayLabel, Empty, IconButton, isoDate, Load, mondayOf, Page, Pill, Pressable, range, Segmented, Select, time, ToolField, ToolMenu, useApi, useMedia,
 } from '../../ui/index.jsx';
 import { londonIso, londonParts } from '../manager/_parts.jsx';
 import { LABEL, RequestForm, statusOf } from '../manager/_cover.jsx';
@@ -43,23 +43,29 @@ export default function VenueRota() {
   const upcoming = (coverQ.data || []).filter((c) => new Date(c.ends_at) > Date.now() && ['pending', 'accepted'].includes(c.status)).length;
   const ask = (date) => setForm({ draft: { date: date && date >= today ? date : undefined, venue_id: venueId || undefined, quiet: true } });
 
-  return (
-    <Page title="Rota" subtitle={tab === 'rota' ? `Week of ${dayLabel(week)}` : 'Extra officers you have asked for'} wide
-      actions={<Button icon={Plus} onClick={() => ask()}>Request staff</Button>}>
-      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'rota', label: 'Rota' }, { value: 'requests', label: 'Requests', count: upcoming || undefined }]} />
+  // The week sits beside the title; the tab switch and venue sit on one tool row, so the days start high
+  const wide = useMedia('(min-width: 640px)');
+  const weekPicker = (
+    <span className="inline-flex items-center gap-1">
+      <IconButton icon={ChevronLeft} label="Previous week" size="sm" onClick={() => setWeek(addDays(week, -7))} />
+      <span className="num min-w-[112px] text-center text-body font-semibold text-ink">{dateShort(week)} – {dateShort(addDays(week, 6))}</span>
+      <IconButton icon={ChevronRight} label="Next week" size="sm" onClick={() => setWeek(addDays(week, 7))} />
+      {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(mondayOf(today))}>Today</Button>}
+    </span>
+  );
+  const venuePick = <Select aria-label="Venue" value={venueId} onChange={(e) => setVenueId(e.target.value)} placeholder="All my venues" options={list.map((v) => ({ value: v.id, label: v.name }))} />;
+  const tools = <>
+    <Segmented value={tab} onChange={setTab} options={[{ value: 'rota', label: 'Rota' }, { value: 'requests', label: 'Requests', count: upcoming || undefined }]} />
+    {tab === 'rota' && many && (wide ? <div className="w-56">{venuePick}</div> : (
+      <ToolMenu count={venueId ? 1 : 0} onClear={() => setVenueId('')}><ToolField label="Venue">{venuePick}</ToolField></ToolMenu>
+    ))}
+  </>;
 
-      {tab === 'requests' ? <CoverList q={coverQ} many={many && !venueId}onOpen={setOpen} onNew={() => ask()} /> : (
+  return (
+    <Page title="Rota" subtitle={tab === 'rota' ? weekPicker : 'Extra officers you have asked for'} wide tools={tools}
+      actions={<Button icon={Plus} onClick={() => ask()}>Request staff</Button>}>
+      {tab === 'requests' ? <CoverList q={coverQ} many={many && !venueId} onOpen={setOpen} onNew={() => ask()} /> : (
         <>
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 rounded-xl bg-surface p-1 shadow-tile">
-              <IconButton icon={ChevronLeft} label="Previous week" onClick={() => setWeek(addDays(week, -7))} />
-              <span className="num min-w-[132px] text-center text-subhead font-semibold">{dateShort(week)} – {dateShort(addDays(week, 6))}</span>
-              <IconButton icon={ChevronRight} label="Next week" onClick={() => setWeek(addDays(week, 7))} />
-            </div>
-            {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(mondayOf(today))}>Today</Button>}
-            {many && <Select className="w-full md:w-auto md:min-w-[200px] md:max-w-[240px]" value={venueId} onChange={(e) => setVenueId(e.target.value)} placeholder="All my venues"
-              options={list.map((v) => ({ value: v.id, label: v.name }))} />}
-          </div>
           <Load q={shifts}>{(rows) => (
             <Week week={week} today={today} rows={rows} many={many && !venueId}
               requests={(coverQ.data || []).filter((c) => c.kind !== 'recurring' && c.status !== 'cancelled')}

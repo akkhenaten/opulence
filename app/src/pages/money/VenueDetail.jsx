@@ -81,11 +81,17 @@ export default function VenueDetail() {
 
           <OrbFill v={v} isCo={isCo} fresh={params.get('new') === '1'} onSaved={q.reload} />
 
-          <Tabs value={tab} onChange={(t) => go(t)} tabs={[
-            { value: 'setup', label: 'Setup' }, { value: 'people', label: 'People' }, { value: 'pack', label: 'Instructions' },
-            { value: 'feedback', label: 'Feedback', count: v.feedback_open || undefined }, { value: 'records', label: 'Records' },
-            ...(analytics ? [{ value: 'analytics', label: 'Analytics' }] : []),
-          ]} />
+          {/* Records' own switch sits beside the tabs from sm up, so the list starts high */}
+          <div className="sm:flex sm:flex-wrap sm:items-start sm:gap-x-3">
+            <Tabs value={tab} onChange={(t) => go(t)} tabs={[
+              { value: 'setup', label: 'Setup' }, { value: 'people', label: 'People' }, { value: 'pack', label: 'Instructions' },
+              { value: 'feedback', label: 'Feedback', count: v.feedback_open || undefined }, { value: 'records', label: 'Records' },
+              ...(analytics ? [{ value: 'analytics', label: 'Analytics' }] : []),
+            ]} />
+            {tab === 'records' && <Segmented className="mb-4" value={view} onChange={(x) => go('records', { view: x })} options={[
+              { value: 'docs', label: 'Documents', count: v.documents.length }, { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Ejections & bans' },
+            ]} />}
+          </div>
 
           {tab === 'setup' && <SetupTab v={v} isCo={isCo} focus={OLD_SETUP[raw]} onSaved={q.reload} canPhoto={isCo || user.role === 'security'}
             details={<DetailsTab key={[v.address, v.postcode, v.website_url, v.active].join('|')} v={v} clients={clients.data || []} onClientCreated={clients.reload} isCo={isCo} onSaved={q.reload}
@@ -96,9 +102,6 @@ export default function VenueDetail() {
           {tab === 'pack' && <VenuePackTab venueId={v.id} />}
           {tab === 'records' && (
             <>
-              <Segmented className="mb-4" value={view} onChange={(x) => go('records', { view: x })} options={[
-                { value: 'docs', label: 'Documents', count: v.documents.length }, { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Ejections & bans' },
-              ]} />
               {view === 'docs' && <DocumentsTab venueId={v.id} />}
               {view === 'logs' && <ShiftLogList venueId={v.id} />}
               {view === 'bans' && <BanRegister venueId={v.id} />}

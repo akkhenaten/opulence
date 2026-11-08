@@ -54,8 +54,11 @@ export default function Settings() {
   return (
     <Page title="Settings" subtitle="Company details, access, workforce rules, templates and Orb">
       <DirtyCtx.Provider value={mark}>
-        <Tabs tabs={TABS} value={tab} onChange={(t) => t !== tab && go(t === 'company' ? {} : { tab: t })} />
-        {PARTS[tab] && <Segmented className="mb-4" value={part} options={PARTS[tab]} onChange={(x) => x !== part && go({ tab, part: x })} />}
+        {/* A tab's parts sit beside the tabs when there is room, so the form starts high */}
+        <div className="sm:flex sm:flex-wrap sm:items-start sm:gap-x-3">
+          <Tabs tabs={TABS} value={tab} onChange={(t) => t !== tab && go(t === 'company' ? {} : { tab: t })} />
+          {PARTS[tab] && <Segmented className="mb-4" value={part} options={PARTS[tab]} onChange={(x) => x !== part && go({ tab, part: x })} />}
+        </div>
         {tab === 'company' && <CompanyTab />}
         {tab === 'users' && <UsersTab openId={sp.get('user')} />}
         {tab === 'rules' && <RulesTab />}

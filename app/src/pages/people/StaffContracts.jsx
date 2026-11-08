@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { FilePen, FilePlus2, FileSignature, FileUp, ScrollText, Search, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
-import { dateTime, Select, Empty, IconButton, List, Load, Page, Pill, Progress, Row, SearchInput, Segmented, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { dateTime, Select, Empty, IconButton, List, Load, Page, Pill, Progress, Row, SearchInput, Segmented, ToolField, ToolMenu, useAction, useApi, useConfirm, useMedia } from '../../ui/index.jsx';
 import { ContractRow } from './_profileTabs.jsx';
 import { ContractView, SendDocSheet } from './_esign.jsx';
 import StartSheet from './contracts/StartSheet.jsx';
@@ -97,6 +97,7 @@ export default function StaffContracts() {
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'drafts' ? 'drafts' : 'issued';
   const [viewing, setViewing] = useState(null);
+  const wide = useMedia('(min-width: 640px)');
   const confirm = useConfirm();
   const [run] = useAction();
   const voidIt = async (c) => {
@@ -104,21 +105,29 @@ export default function StaffContracts() {
     await run(() => api('contracts.void', { id: c.id }), 'Voided');
     q.reload();
   };
+  // Issued · Drafts, search and status sit on the tab line; kind and source (and status on phones) under Filters
+  const statusSwitch = <Segmented value={status} onChange={setStatus} options={FILTERS} />;
+  const changed = !!category + !!source + (!wide && !!status);
+  const tools = <>
+    <Segmented value={view} onChange={(x) => setParams(x === 'drafts' ? { view: x } : {}, { replace: true })} options={VIEWS} />
+    {view === 'issued' && <>
+      <SearchInput className="min-w-0 flex-1 sm:w-56 sm:flex-none" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search officers or contracts" />
+      <div className="hidden sm:block">{statusSwitch}</div>
+      <ToolMenu count={changed} onClear={() => { setCategory(''); setSource(''); if (!wide) setStatus(''); }}>
+        {!wide && <ToolField label="Status">{statusSwitch}</ToolField>}
+        <ToolField label="Kind"><Segmented value={category} onChange={setCategory} options={KINDS} /></ToolField>
+        <ToolField label="Source"><Select value={source} onChange={(e) => setSource(e.target.value)} options={SOURCES} aria-label="Source" /></ToolField>
+      </ToolMenu>
+    </>}
+  </>;
   return (
-    <Page title="Staff contracts" subtitle="Contracts and policies sent for signature, and where each one stands"
+    <Page title="Staff contracts" subtitle="Contracts and policies sent for signature, and where each one stands" tools={tools}
       actions={[
         { label: 'Send a template', icon: FileSignature, onClick: () => setSending(true) },
         { label: 'Upload contract', icon: FileUp, onClick: () => setUploading(true) },
         { label: 'Create contract', icon: FilePlus2, variant: 'primary', main: true, onClick: () => setCreating(true) },
       ]}>
-      <Segmented className="mb-4" value={view} onChange={(x) => setParams(x === 'drafts' ? { view: x } : {}, { replace: true })} options={VIEWS} />
       {view === 'drafts' ? <Drafts /> : <>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <SearchInput className="min-w-0 flex-1 basis-60" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search officers or contracts" />
-        <Segmented value={category} onChange={setCategory} options={KINDS} />
-        <Segmented value={status} onChange={setStatus} options={FILTERS} />
-        <Select className="w-44" value={source} onChange={(e) => setSource(e.target.value)} options={SOURCES} aria-label="Source" />
-      </div>
       <Load q={q} skeleton="rows">
         {(all) => { const rows = category === 'org' ? all.filter((c) => c.organisation_id) : all; return rows.length ? (
           <>

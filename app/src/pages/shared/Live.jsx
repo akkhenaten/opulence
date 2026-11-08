@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Children, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardList, Clock3, FileSignature, Lock, LogOut, UserX, MapPin, MessagesSquare, Phone, QrCode, Radio, RefreshCw, TriangleAlert } from 'lucide-react';
 import {
@@ -76,24 +76,29 @@ export default function Live() {
   );
 }
 
-/** The filters on one row: counts from the board; `children` adds more chips at the end (Today adds shifts and Orb). */
+/** The filters on one row: counts from the board; `children` adds more chips at the end (Today adds shifts and Orb).
+ * Only the ones with someone in them (or switched on) show; with nothing to show the row goes. */
 export function StatusChips({ rows, filter, setFilter, venue, children }) {
   const n = (k) => rows.filter(FILTERS[k]).length;
   const chip = (k, label, tone) => {
     const c = n(k);
-    return <Chip key={k} label={label} value={c} tone={c ? tone : 'grey'} quiet={c === 0} active={filter === k} onClick={() => setFilter(filter === k ? 'all' : k)} />;
+    return (c > 0 || filter === k) && <Chip key={k} label={label} value={c} tone={tone} active={filter === k} onClick={() => setFilter(filter === k ? 'all' : k)} />;
   };
+  const chips = [
+    (rows.length > 0 || filter !== 'all') && <Chip key="all" label="All" value={rows.length} active={filter === 'all'} onClick={() => setFilter('all')} />,
+    chip('on', 'On site', 'green'),
+    chip('late', 'Late', 'amber'),
+    chip('no_show', 'No-show', 'red'),
+    chip('issues', 'Issues', 'red'),
+    chip('upcoming', 'Due on', 'blue'),
+    chip('done', 'Finished', 'grey'),
+    !venue && chip('pack', 'Pack not signed', 'amber'),
+    ...Children.toArray(children),
+  ].filter(Boolean);
+  if (!chips.length) return null;
   return (
     <div role="group" aria-label="Show" className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
-      <Chip label="All" value={rows.length} active={filter === 'all'} onClick={() => setFilter('all')} />
-      {chip('on', 'On site', 'green')}
-      {chip('late', 'Late', 'amber')}
-      {chip('no_show', 'No-show', 'red')}
-      {chip('issues', 'Issues', 'red')}
-      {chip('upcoming', 'Due on', 'blue')}
-      {chip('done', 'Finished', 'grey')}
-      {!venue && n('pack') > 0 && chip('pack', 'Pack not signed', 'amber')}
-      {children}
+      {chips}
     </div>
   );
 }

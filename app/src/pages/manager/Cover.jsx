@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, Megaphone, MessagesSquare, Pencil, Trash2, X } from 'lucide-react';
 import {
-  Button, dateTime, dayLabel, Empty, isoDate, KV, List, Load, mondayOf, Page, Pill, range, relative, Row, Segmented, Sheet, Tabs, Textarea, Toggle, useAction, useApi, useUrlState,
+  Button, dateTime, dayLabel, Empty, isoDate, KV, List, Load, mondayOf, Page, Pill, range, relative, Row, Segmented, Sheet, Textarea, Toggle, useAction, useApi, useUrlState,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
@@ -42,11 +42,13 @@ export default function Cover() {
   const open = at >= 0 ? shown[at] : null;
 
   return (
-    <Page title="Cover requests" subtitle="Venues asking for extra officers">
-      <Tabs value={tab} onChange={(v) => setUrl({ tab: v })} tabs={[
+    // The status switch sits on the tab line, so the list starts high
+    <Page title="Cover requests" subtitle="Venues asking for extra officers" tools={(
+      <Segmented value={tab} onChange={(v) => setUrl({ tab: v })} options={[
           { value: 'pending', label: 'To decide', count: n('pending') }, { value: 'accepted', label: 'Staffing' }, { value: 'filled', label: 'Filled' },
           { value: 'declined', label: 'Declined' }, { value: 'all', label: 'All' },
       ]} />
+    )}>
       <Load q={q}>{() => {
         const list = shown;
         if (!list.length) return <Empty icon={Megaphone} title={tab === 'pending' ? 'Nothing to decide' : 'Nothing here'} body={tab === 'pending' ? 'New requests and changes from venues appear here.' : undefined} />;

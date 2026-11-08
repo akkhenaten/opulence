@@ -47,8 +47,7 @@ function HelpSection({ s, open, onToggle, onInstall }) {
   );
 }
 
-function Guide({ chapters }) {
-  const [q, setQ] = useState('');
+function Guide({ chapters, q }) {
   const [open, setOpen] = useState({});
   const [install, setInstall] = useState(false);
   const needle = q.trim().toLowerCase();
@@ -61,7 +60,6 @@ function Guide({ chapters }) {
 
   return (
     <>
-      <SearchInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the guide" className="mb-2 max-w-xl" />
       {!shown.length && <div className="mt-6"><Empty icon={BookOpen} title="No matches" body="Try another word, for example clock, invoice or password." /></div>}
       {shown.map((c) => (
         <Section key={c.id} title={c.title}>
@@ -80,10 +78,13 @@ function Guide({ chapters }) {
 export default function Help() {
   const g = useApi('help.guide');
   const [run, busy] = useAction();
+  const [q, setQ] = useState('');
+  // The search sits on the tab line, so the guide starts high
   return (
     <Page title="Help & user guide" subtitle="How to use the app, step by step"
+      tools={<SearchInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the guide" className="w-full sm:w-72" />}
       actions={<Button variant="secondary" icon={Download} busy={busy} onClick={() => run(() => downloadAction('help.pdf'))}>Download as PDF</Button>}>
-      <Load q={g} skeleton="rows">{(d) => <Guide chapters={d.chapters} />}</Load>
+      <Load q={g} skeleton="rows">{(d) => <Guide chapters={d.chapters} q={q} />}</Load>
     </Page>
   );
 }

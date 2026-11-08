@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2, Plus, Search, Users } from 'lucide-react';
 import { api } from '../../api.js';
 import {
-  Avatar, Button, cx, Empty, Input, List, Load, Page, PhotoCard, Pill, Pressable, Row, SearchInput, Sheet, Textarea, useAction, useApi, useForm, useUrlState,
+  Avatar, Button, Empty, Input, List, Load, Page, PhotoCard, Pill, Row, SearchInput, Segmented, Sheet, Textarea, useAction, useApi, useForm, useUrlState,
 } from '../../ui/index.jsx';
 import { useBase, VenueBadge } from './_parts.jsx';
 import { ClientSelect, ClientSheet } from './_client.jsx';
@@ -16,11 +16,19 @@ export default function Venues() {
   // Clients (who is billed) are the company manager's; security managers add and run venues
   const clients = useApi('clients.list', {}, { skip: user.role !== 'company' });
   const [addVenue, setAddVenue] = useState(false);
+  // Search and Active · Inactive · All stay in the address so Back returns to the same list; they sit on the tab line
+  const [url, setUrl] = useUrlState({ q: '', show: 'active' });
+  const show = ['active', 'inactive', 'all'].includes(url.show) ? url.show : 'active';
+  const inactive = (venues.data || []).filter((v) => !v.active).length;
   // Clients used to be a tab here
   if (params.get('tab') === 'clients') return <Navigate to="../clients" replace />;
+  const tools = venues.data?.length > 0 && <>
+    <SearchInput className="w-full sm:w-64" value={url.q} onChange={(e) => setUrl({ q: e.target.value })} placeholder="Search venues, clients, postcodes" />
+    {inactive > 0 && <Segmented value={show} onChange={(v) => setUrl({ show: v })} options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive', count: inactive }, { value: 'all', label: 'All' }]} />}
+  </>;
   return (
-    <Page title="Venues" subtitle="Sites you guard" actions={<Button icon={Plus} onClick={() => setAddVenue(true)}>Add venue</Button>}>
-      <Load q={venues}>{(rows) => <VenueGrid rows={rows} onAdd={() => setAddVenue(true)} />}</Load>
+    <Page title="Venues" subtitle="Sites you guard" tools={tools} actions={<Button icon={Plus} onClick={() => setAddVenue(true)}>Add venue</Button>}>
+      <Load q={venues}>{(rows) => <VenueGrid rows={rows} q={url.q} show={show} onAdd={() => setAddVenue(true)} />}</Load>
       <AddVenueSheet open={addVenue} onClose={() => setAddVenue(false)} clients={user.role === 'company' ? clients.data || [] : null} onClientCreated={clients.reload} />
     </Page>
   );
@@ -47,34 +55,17 @@ function setupMissing(v) {
   return [noAddress && 'address', !noAddress && (v.lat == null || v.lng == null) && 'map pin', !v.logo_url && 'logo'].filter(Boolean);
 }
 
-function VenueGrid({ rows, onAdd }) {
+function VenueGrid({ rows, q, show, onAdd }) {
   const base = useBase();
-  // Search and Active · Inactive · All stay in the address so Back returns to the same list
-  const [url, setUrl] = useUrlState({ q: '', show: 'active' });
-  const q = url.q;
-  const show = ['active', 'inactive', 'all'].includes(url.show) ? url.show : 'active';
   const list = useMemo(() => {
     const s = q.trim().toLowerCase();
     return rows.filter((v) => (show === 'all' || (show === 'active' ? v.active : !v.active))
       && (!s || [v.name, v.client_name, v.postcode, v.address].some((x) => String(x || '').toLowerCase().includes(s))));
   }, [rows, q, show]);
-  const inactive = rows.filter((v) => !v.active).length;
-
   if (!rows.length) return <Empty icon={Building2} title="No venues yet" body="Add your first venue to start building rotas and invoicing." action={<Button icon={Plus} onClick={onAdd}>Add venue</Button>} />;
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <SearchInput className="min-w-0 flex-1 basis-60" value={q} onChange={(e) => setUrl({ q: e.target.value })} placeholder="Search venues, clients, postcodes" />
-        {inactive > 0 && (
-          <div className="flex gap-1">
-            {[['active', 'Active'], ['inactive', `Inactive (${inactive})`], ['all', 'All']].map(([v, l]) => (
-              <Pressable press key={v} onClick={() => setUrl({ show: v })}
-                className={cx('relative rounded-full px-3 py-1.5 text-footnote font-semibold transition before:absolute before:inset-x-0 before:-inset-y-2', show === v ? 'bg-ink text-white' : 'bg-surface text-muted hover:text-ink')}>{l}</Pressable>
-            ))}
-          </div>
-        )}
-      </div>
       {!list.length ? <Empty icon={Search} title="No matching venues" /> : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
           {list.map((v) => {

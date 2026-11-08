@@ -4,7 +4,7 @@ import { Camera, CheckCheck, ChevronRight, Download, FilePen, MapPin, Plus, Shie
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
-import { Button, cx, dateTime, dayLabel, Empty, IconButton, List, Load, MoreMenu, Page, Pill, SearchInput, Section, Segmented, Select, Tabs, time, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { Button, cx, dateTime, dayLabel, Empty, IconButton, List, Load, MoreMenu, Page, Pill, SearchInput, Section, Segmented, Select, time, ToolField, ToolMenu, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { BanList } from '../shift/_bans.jsx';
 import { clearLocal } from '../officer/_draft.js';
 import { INCIDENT_STATUS, INCIDENT_TYPES, LatePill, NotLinked, SEVERITIES, typeLabel } from '../officer/_parts.jsx';
@@ -43,12 +43,11 @@ export default function Incidents() {
   const tab = officer && sp.get('tab') === 'ejections' ? 'ejections' : 'reports';
   const setTab = (t) => { const n = new URLSearchParams(); if (t === 'ejections') n.set('tab', t); setSp(n, { replace: true }); };
   const tabs = officer && user.officer_id && (
-    <Tabs value={tab} onChange={setTab} tabs={[{ value: 'reports', label: 'Incident reports', count: toFix }, { value: 'ejections', label: 'Ejections' }]} />
+    <Segmented value={tab} onChange={setTab} options={[{ value: 'reports', label: 'Incident reports', count: toFix }, { value: 'ejections', label: 'Ejections' }]} />
   );
   if (tab === 'ejections') {
     return (
-      <Page title="Reports" subtitle="Ejections you logged on shift">
-        {tabs}
+      <Page title="Reports" subtitle="Ejections you logged on shift" tools={tabs}>
         <MyEjections />
       </Page>
     );
@@ -60,31 +59,33 @@ export default function Incidents() {
     run(() => api('incidents.reviewMany', { ids }).then(q.reload), `${ids.length} closed`).catch(() => {});
   };
 
+  // Status and search sit on the tab line (beside the title for officers); severity, type and venue under Filters
+  const venuePick = !officer && (!isVenue || shared.many);
+  const changed = !!f.severity + !!f.type + (venuePick && !isVenue && !!f.venue_id);
+  const tools = <>
+    {tabs}
+    <Segmented value={f.status} onChange={(val) => setF('status', val)}
+      options={[{ value: '', label: 'All' }, { value: 'submitted', label: officer ? 'Submitted' : 'To review' }, { value: 'changes_requested', label: 'Changes requested', count: toFix }, { value: 'closed', label: 'Closed' }]} />
+    <SearchInput className="min-w-0 flex-1 sm:w-64 sm:flex-none" value={text} onChange={(e) => { setText(e.target.value); const n = new URLSearchParams(sp); if (e.target.value) n.set('q', e.target.value); else n.delete('q'); setSp(n, { replace: true }); }}
+      placeholder="Search ref, description, police ref" aria-label="Search incidents" />
+    <ToolMenu count={changed} onClear={() => { const n = new URLSearchParams(sp); ['severity', 'type', ...(isVenue ? [] : ['venue'])].forEach((k) => n.delete(k)); setSp(n, { replace: true }); }}>
+      <ToolField label="Severity"><Select aria-label="Severity" value={f.severity} onChange={(e) => setF('severity', e.target.value)} options={[{ value: '', label: 'Any severity' }, ...SEVERITIES.map(({ value, label }) => ({ value, label }))]} /></ToolField>
+      <ToolField label="Type"><Select aria-label="Type" value={f.type} onChange={(e) => setF('type', e.target.value)} options={[{ value: '', label: 'Any type' }, ...INCIDENT_TYPES]} /></ToolField>
+      {venuePick && (
+        <ToolField label="Venue"><Select aria-label="Venue" value={f.venue_id} onChange={(e) => setF('venue_id', e.target.value)}
+          options={[{ value: '', label: 'All venues' }, ...venueList.map((x) => ({ value: x.id, label: x.name }))]} /></ToolField>
+      )}
+    </ToolMenu>
+  </>;
+
   return (
-    <Page title={officer ? 'Reports' : 'Incidents'} subtitle={officer ? 'Your incident reports and ejections' : undefined} wide={!officer}
+    <Page title={officer ? 'Reports' : 'Incidents'} subtitle={officer ? 'Your incident reports and ejections' : undefined} wide={!officer} tools={tools}
       actions={!officer && <>{!isVenue && <Button icon={Plus} to={`${base}/incidents/new`}>Report incident</Button>}
         <MoreMenu items={[
           { icon: Download, label: 'Export to spreadsheet', hint: 'The reports shown, as CSV', onClick: () => downloadAction('incidents.exportCsv', body).catch(() => {}) },
           !isVenue && f.status === 'submitted' && (q.data || []).length > 1 && { icon: CheckCheck, label: `Close all ${(q.data || []).length} shown`, hint: 'Marks them reviewed, nothing more to do', busy, onClick: closeAll },
         ]} /></>}>
-      {tabs}
       {((officer && user.officer_id) || !officer) && <Drafts base={base} officer={officer} />}
-      <div className="mb-3 space-y-2">
-        <div className="no-scrollbar -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-          <Segmented value={f.status} onChange={(val) => setF('status', val)}
-            options={[{ value: '', label: 'All' }, { value: 'submitted', label: officer ? 'Submitted' : 'To review' }, { value: 'changes_requested', label: 'Changes requested', count: toFix }, { value: 'closed', label: 'Closed' }]} />
-        </div>
-        <div className={cx('grid gap-2', officer ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-4')}>
-          <SearchInput className="col-span-2 lg:col-span-1" value={text} onChange={(e) => { setText(e.target.value); const n = new URLSearchParams(sp); if (e.target.value) n.set('q', e.target.value); else n.delete('q'); setSp(n, { replace: true }); }}
-            placeholder="Search ref, description, police ref" aria-label="Search incidents" />
-          <Select aria-label="Severity" value={f.severity} onChange={(e) => setF('severity', e.target.value)} options={[{ value: '', label: 'Any severity' }, ...SEVERITIES.map(({ value, label }) => ({ value, label }))]} />
-          <Select aria-label="Type" value={f.type} onChange={(e) => setF('type', e.target.value)} options={[{ value: '', label: 'Any type' }, ...INCIDENT_TYPES]} />
-          {!officer && (!isVenue || shared.many) && (
-            <Select aria-label="Venue" className="col-span-2 lg:col-span-1" value={f.venue_id} onChange={(e) => setF('venue_id', e.target.value)}
-              options={[{ value: '', label: 'All venues' }, ...venueList.map((x) => ({ value: x.id, label: x.name }))]} />
-          )}
-        </div>
-      </div>
 
       {officer && !user.officer_id ? <NotLinked /> : <Load q={q}>
         {(rows) => (!rows.length ? (

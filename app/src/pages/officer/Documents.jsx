@@ -28,6 +28,9 @@ export default function Documents() {
         {(rows) => {
           const sorted = [...rows].sort((a, b) => rank(a) - rank(b));
           const warn = rows.filter((d) => d.expiry && daysUntil(d.expiry) <= 30);
+          // The quick adds show only for a licence or right to work still missing or running out; Add covers the rest
+          const quick = [{ kind: 'sia', icon: ShieldCheck, label: 'SIA licence' }, { kind: 'rtw', icon: BadgeCheck, label: 'Right to work' }]
+            .filter((k) => !rows.some((d) => d.kind === k.kind && !warn.includes(d)));
           return (
             <div className="space-y-3">
               {warn.length > 0 && (
@@ -35,10 +38,9 @@ export default function Documents() {
                   {warn.length === 1 ? `${warn[0].title}: ${expiryText(daysUntil(warn[0].expiry)).toLowerCase()}.` : `${warn.length} documents have expired or expire within 30 days.`} Upload a new copy to stay compliant.
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-2">
-                <QuickAdd icon={ShieldCheck} label="SIA licence" onClick={() => setAdding('sia')} />
-                <QuickAdd icon={BadgeCheck} label="Right to work" onClick={() => setAdding('rtw')} />
-              </div>
+              {quick.length > 0 && <div className="grid grid-cols-2 gap-2">
+                {quick.map((k) => <QuickAdd key={k.kind} icon={k.icon} label={k.label} onClick={() => setAdding(k.kind)} />)}
+              </div>}
               {!rows.length ? (
                 <Empty icon={FileText} title="No documents yet" body="Upload a photo of your SIA licence and right-to-work proof so the office can verify you." />
               ) : (

@@ -4,7 +4,7 @@ import { Download, Plus, ShieldCheck, Users } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Bento, Button, date, Empty, FilterBar, Load, MoreMenu, Page, PhotoCard, Pill, SearchInput, Segmented, Sheet, Stat, Table, Tile, useAction, useApi, useForm, useUrlState, displayName,
+  Avatar, Button, Chip, date, Empty, Load, MoreMenu, Page, PhotoCard, Pill, SearchInput, Segmented, Select, Sheet, Table, ToolField, ToolMenu, useAction, useApi, useForm, useMedia, useUrlState, displayName,
 } from '../../ui/index.jsx';
 import {
   ComplianceBadge, CopyLink, OFFICER_STATUSES, OfficerCoreFields, cleanOfficer, complianceState, emptyOfficer, useBase, useRoles,
@@ -35,6 +35,7 @@ export default function Staff() {
   const view = url.view === 'list' ? 'list' : 'grid';
   const app = APP_SETUP[url.app] ? url.app : '';
   const [adding, setAdding] = useState(false);
+  const wide = useMedia('(min-width: 640px)');
 
   const all = q.data || [];
   const counts = useMemo(() => Object.fromEntries(OFFICER_STATUSES.map((s) => [s, all.filter((o) => o.status === s).length])), [all]);
@@ -50,31 +51,39 @@ export default function Staff() {
   const active = all.filter((o) => o.status === 'active');
   const states = active.map((o) => (o.compliance?.grace && complianceState(o.compliance).tone === 'amber' ? 'grace' : complianceState(o.compliance).tone));
 
+  const pipeline = counts.onboarding + counts.applicant;
+  const nRed = states.filter((t) => t === 'red').length;
+  const nAmber = states.filter((t) => t === 'amber').length;
+  // Search and status sit on the tab line; role, compliance, app set-up and Grid · List under Filters
+  const statusOpts = OFFICER_STATUSES.map((s) => ({ value: s, label: `${s[0].toUpperCase()}${s.slice(1)}${s !== 'active' && counts[s] ? ` · ${counts[s]}` : ''}` }));
+  const statusPick = <Select aria-label="Status" value={status} onChange={(e) => setUrl({ status: e.target.value })} options={statusOpts} />;
+  const changed = !!role + (comp !== 'all') + !!app + (view !== 'grid') + (!wide && status !== 'active');
+  const tools = <>
+    <SearchInput className="min-w-0 flex-1 sm:w-56 sm:flex-none" value={search} onChange={(e) => setUrl({ q: e.target.value })} placeholder="Search name, email, phone or SIA number" />
+    <div className="hidden w-40 sm:block">{statusPick}</div>
+    <ToolMenu count={changed} onClear={() => clearUrl(['role', 'compliance', 'app', 'view', ...(wide ? [] : ['status'])])}>
+      {!wide && <ToolField label="Status">{statusPick}</ToolField>}
+      <ToolField label="Role"><Select aria-label="Role" value={role} onChange={(e) => setUrl({ role: e.target.value })} options={[{ value: '', label: 'All roles' }, ...roles.map((r) => ({ value: r.code, label: r.name }))]} /></ToolField>
+      <ToolField label="Compliance"><Select aria-label="Compliance" value={comp} onChange={(e) => setUrl({ compliance: e.target.value })} options={COMPLIANCE} /></ToolField>
+      <ToolField label="App set-up"><Select aria-label="App set-up" value={app} onChange={(e) => setUrl({ app: e.target.value })} options={[{ value: '', label: 'Any app set-up' }, ...Object.entries(APP_SETUP).map(([value, a]) => ({ value, label: a.label }))]} /></ToolField>
+      <ToolField label="Show as"><Segmented value={view} onChange={(v) => setUrl({ view: v })} options={[{ value: 'grid', label: 'Grid' }, { value: 'list', label: 'List' }]} /></ToolField>
+    </ToolMenu>
+  </>;
+  // Only what needs chasing among active officers; tap to filter the list
+  const pick = (c) => setUrl(comp === c ? { compliance: 'all' } : { compliance: c, status: 'active' });
+
   return (
-    <Page2 isCo={isCo} onAdd={() => setAdding(true)}>
+    <Page2 isCo={isCo} onAdd={() => setAdding(true)} tools={tools}>
       <Load q={q}>
         {() => (
           <>
-            <Bento className="mb-5">
-              <Tile><Stat value={active.length} label="Active" hint="Can be rostered" /></Tile>
-              <Tile><Stat value={states.filter((t) => t === 'red').length} tone={states.includes('red') ? 'red' : undefined} label="Not compliant" hint="Active, missing checks" /></Tile>
-              <Tile><Stat value={states.filter((t) => t === 'amber').length} tone={states.includes('amber') ? 'amber' : undefined} label="Expiring" hint="Within 30 days" /></Tile>
-              <Tile><Stat value={counts.onboarding + counts.applicant} label="In the pipeline" hint="Applicants and onboarding" /></Tile>
-            </Bento>
-
-            <FilterBar
-              filters={[
-                { key: 'role', label: 'Role', value: role, options: [{ value: '', label: 'All roles' }, ...roles.map((r) => ({ value: r.code, label: r.name }))] },
-                { key: 'compliance', label: 'Compliance', value: comp, empty: 'all', options: COMPLIANCE },
-                { key: 'app', label: 'App set-up', value: app, options: [{ value: '', label: 'Any app set-up' }, ...Object.entries(APP_SETUP).map(([value, a]) => ({ value, label: a.label }))] },
-              ]}
-              onChange={(k, v) => setUrl({ [k]: v })} onClear={() => clearUrl(['role', 'compliance', 'app'])}>
-              <SearchInput className="min-w-0 flex-1 basis-64" value={search} onChange={(e) => setUrl({ q: e.target.value })} placeholder="Search name, email, phone or SIA number" />
-            </FilterBar>
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <Segmented value={status} onChange={(v) => setUrl({ status: v })} options={OFFICER_STATUSES.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1), count: s === 'active' ? null : counts[s] }))} />
-              <Segmented value={view} onChange={(v) => setUrl({ view: v })} options={[{ value: 'grid', label: 'Grid' }, { value: 'list', label: 'List' }]} />
-            </div>
+            {(nRed > 0 || nAmber > 0 || pipeline > 0) && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {nRed > 0 && <Chip label="Not compliant" value={nRed} tone="red" active={comp === 'red' && status === 'active'} onClick={() => pick('red')} />}
+                {nAmber > 0 && <Chip label="Expiring" value={nAmber} tone="amber" active={comp === 'amber' && status === 'active'} onClick={() => pick('amber')} />}
+                {pipeline > 0 && <Chip label="In the pipeline" value={pipeline} tone="blue" />}
+              </div>
+            )}
 
             {!rows.length ? (
               <Empty icon={Users} title={all.length ? 'No officers match' : 'No officers yet'}
@@ -109,9 +118,9 @@ export default function Staff() {
   );
 }
 
-function Page2({ isCo, onAdd, children }) {
+function Page2({ isCo, onAdd, tools, children }) {
   return (
-    <Page title={isCo ? 'Staff' : 'Officers'} subtitle={isCo ? 'Officers, licences and compliance' : 'Officers you can roster'}
+    <Page title={isCo ? 'Staff' : 'Officers'} subtitle={isCo ? 'Officers, licences and compliance' : 'Officers you can roster'} tools={tools}
       actions={<>{isCo && <Button icon={Plus} onClick={onAdd}>Add staff member</Button>}
         <MoreMenu items={[{ icon: Download, label: 'Export to spreadsheet', hint: 'Everyone on the list, as CSV', onClick: () => downloadAction('staff.exportCsv', {}).catch(() => {}) }]} /></>}>
       {children}

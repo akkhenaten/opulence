@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Clock, Download, FileText, ReceiptText, RefreshCw, Send } from 'lucide-react';
+import { Download, FileText, ReceiptText, RefreshCw, Send } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import {
-  Bento, Button, cx, dateShort, daysUntil, Empty, Input, isoDate, KV, List, Load, money, MoreMenu, Page, Pill, SearchInput, Section, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useConfirm, useUrlState,
+  Button, Chip, cx, dateShort, daysUntil, Empty, Input, isoDate, KV, List, Load, money, MoreMenu, Page, Pill, SearchInput, Section, Segmented, Select, Sheet, Tile, ToolField, ToolMenu, useAction, useApi, useConfirm, useMedia, useUrlState,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 
@@ -35,8 +35,32 @@ function CompanyInvoices() {
     run(() => api('invoices.issueMany', {}), (x) => [`${x.issued} issued`, x.skipped.length && `${x.skipped.length} left as draft (nothing signed off yet)`].filter(Boolean).join(' · ')).then(list.reload).catch(() => {});
   };
 
+  const status = f.status;
+  const wide = useMedia('(min-width: 640px)');
+  const rows = list.data || [];
+  const out = rows.filter(outstanding);
+  const overdue = rows.filter((i) => i.status === 'overdue');
+  const month = isoDate().slice(0, 7);
+  const paidMonth = rows.filter((i) => i.status === 'paid' && i.paid_at && isoDate(i.paid_at).slice(0, 7) === month);
+  const c = (st) => rows.filter((i) => i.kind === 'invoice' && i.status === st).length;
+
+  // The totals are chips and the status, search and picker sit on the tab line, so the list starts high
+  const more = <Select aria-label="More statuses" className="w-40" value={MAIN.includes(status) ? '' : status} placeholder="More…"
+    onChange={(e) => setF({ status: e.target.value || 'all' })} options={[{ value: 'void', label: 'Void' }, { value: 'credit', label: 'Credit notes' }]} />;
+  const tools = <>
+    {out.length > 0 && <Chip label={`outstanding · ${out.length}`} value={money(sum(out))} tone="blue" />}
+    {overdue.length > 0 && <Chip label="overdue" value={money(sum(overdue))} tone="red" active={status === 'overdue'} onClick={() => setF({ status: status === 'overdue' ? 'all' : 'overdue' })} />}
+    {paidMonth.length > 0 && <Chip label="paid this month" value={money(sum(paidMonth))} tone="green" />}
+    <Segmented value={status} onChange={(v) => setF({ status: v })} options={[
+      { value: 'all', label: 'All' }, { value: 'draft', label: 'Draft', count: c('draft') }, { value: 'issued', label: 'Issued' },
+      { value: 'overdue', label: 'Overdue', count: c('overdue') }, { value: 'paid', label: 'Paid' },
+    ]} />
+    {wide ? more : <ToolMenu count={MAIN.includes(status) ? 0 : 1} onClear={() => setF({ status: 'all' })}><ToolField label="More statuses">{more}</ToolField></ToolMenu>}
+    <SearchInput className="w-full sm:w-56" value={f.q} onChange={(e) => setF({ q: e.target.value })} placeholder="Number, venue or client" />
+  </>;
+
   return (
-    <Page title="Invoices" subtitle="Approved shifts go straight onto each venue's draft"
+    <Page title="Invoices" subtitle="Approved shifts go straight onto each venue's draft" tools={tools}
       actions={<>
         <MoreMenu items={[
           { label: 'Bring drafts up to date', hint: 'Catch up approved shifts now', icon: RefreshCw, onClick: refresh },
@@ -45,7 +69,7 @@ function CompanyInvoices() {
         {drafts.length > 0 && <Button icon={Send} busy={busy} onClick={issueAll}>Issue all drafts</Button>}
       </>}>
       <Load q={list}>
-        {(rows) => <CompanyBody rows={rows} status={f.status} q={f.q} setF={setF} />}
+        {(all) => <CompanyBody rows={all} status={status} q={f.q} />}
       </Load>
       {exp && <ExportSheet onClose={() => setExp(false)} />}
     </Page>
@@ -55,13 +79,7 @@ function CompanyInvoices() {
 // The five everyday statuses are tabs; void and credit notes sit in the picker beside them
 const MAIN = ['all', 'draft', 'issued', 'overdue', 'paid'];
 
-function CompanyBody({ rows, status, q, setF }) {
-  const out = rows.filter(outstanding);
-  const overdue = rows.filter((i) => i.status === 'overdue');
-  const drafts = rows.filter((i) => i.status === 'draft');
-  const month = isoDate().slice(0, 7);
-  const paidMonth = rows.filter((i) => i.status === 'paid' && i.paid_at && isoDate(i.paid_at).slice(0, 7) === month);
-
+function CompanyBody({ rows, status, q }) {
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     return rows.filter((i) => {
@@ -69,37 +87,10 @@ function CompanyBody({ rows, status, q, setF }) {
       return !s || [i.number, i.venue_name, i.client_name].some((x) => String(x || '').toLowerCase().includes(s));
     });
   }, [rows, status, q]);
-  const c = (st) => rows.filter((i) => i.kind === 'invoice' && i.status === st).length;
 
-  return (
-    <>
-      <Bento className="mb-6">
-        <Tile title="Outstanding" icon={ReceiptText} tone="blue" className="col-span-2">
-          <Stat value={money(sum(out))} label={`${out.length} invoice${out.length === 1 ? '' : 's'} awaiting payment`} />
-        </Tile>
-        <Tile title="Overdue" icon={AlertTriangle} to="?status=overdue">
-          <Stat value={money(sum(overdue))} label={`${overdue.length} overdue`} tone={overdue.length ? 'red' : undefined} />
-        </Tile>
-        <Tile title="Paid this month" icon={Clock}>
-          <Stat value={money(sum(paidMonth))} label={`${paidMonth.length} paid`} tone="green" hint={drafts.length ? `${drafts.length} draft${drafts.length === 1 ? '' : 's'} to issue` : undefined} />
-        </Tile>
-      </Bento>
-
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <Segmented value={status} onChange={(v) => setF({ status: v })} options={[
-          { value: 'all', label: 'All' }, { value: 'draft', label: 'Draft', count: c('draft') }, { value: 'issued', label: 'Issued' },
-          { value: 'overdue', label: 'Overdue', count: c('overdue') }, { value: 'paid', label: 'Paid' },
-        ]} />
-        <Select aria-label="More statuses" className="w-40" value={MAIN.includes(status) ? '' : status} placeholder="More…"
-          onChange={(e) => setF({ status: e.target.value || 'all' })} options={[{ value: 'void', label: 'Void' }, { value: 'credit', label: 'Credit notes' }]} />
-        <SearchInput className="min-w-0 flex-1 basis-48" value={q} onChange={(e) => setF({ q: e.target.value })} placeholder="Number, venue or client" />
-      </div>
-
-      {!rows.length
-        ? <Empty icon={ReceiptText} title="No invoices yet" body="Approve a timesheet and it goes straight onto its venue's draft invoice. Issue once the venue has signed the shifts off." />
-        : <InvoiceList rows={filtered} company />}
-    </>
-  );
+  return !rows.length
+    ? <Empty icon={ReceiptText} title="No invoices yet" body="Approve a timesheet and it goes straight onto its venue's draft invoice. Issue once the venue has signed the shifts off." />
+    : <InvoiceList rows={filtered} company />;
 }
 
 function InvoiceList({ rows, company }) {
@@ -183,29 +174,25 @@ function VenueInvoices() {
   const { venueId, venue } = useVenue();
   const list = useApi('invoices.list', { venue_id: venueId || undefined });
   const [show, setShow] = useState('all');
+  const rows = list.data || [];
+  const out = rows.filter(outstanding);
+  const overdue = rows.filter((i) => i.status === 'overdue');
+  // The totals are chips beside the switch, so the list starts high
+  const tools = <>
+    {out.length > 0 && <Chip label={`to pay · ${out.length}`} value={money(sum(out))} tone="blue" active={show === 'outstanding'} onClick={() => setShow(show === 'outstanding' ? 'all' : 'outstanding')} />}
+    {overdue.length > 0 && <Chip label="overdue" value={money(sum(overdue))} tone="red" />}
+    <Segmented value={show} onChange={setShow} options={[
+      { value: 'all', label: 'All' }, { value: 'outstanding', label: 'To pay', count: out.length }, { value: 'paid', label: 'Paid' }, { value: 'credit', label: 'Credit notes' },
+    ]} />
+  </>;
   return (
-    <Page title="Invoices" subtitle={venue ? `${venue.name}: invoices and credit notes` : 'Your invoices and credit notes'}>
+    <Page title="Invoices" subtitle={venue ? `${venue.name}: invoices and credit notes` : 'Your invoices and credit notes'} tools={tools}>
       <Load q={list}>
-        {(rows) => {
-          const out = rows.filter(outstanding);
-          const overdue = rows.filter((i) => i.status === 'overdue');
-          const shown = rows.filter((i) => show === 'all' || (show === 'outstanding' ? outstanding(i) : show === 'paid' ? i.status === 'paid' : i.kind === 'credit'));
+        {(all) => {
+          const shown = all.filter((i) => show === 'all' || (show === 'outstanding' ? outstanding(i) : show === 'paid' ? i.status === 'paid' : i.kind === 'credit'));
           return (
             <>
-              <Bento className="mb-6">
-                <Tile title="Outstanding" icon={ReceiptText} tone="blue" className="col-span-2">
-                  <Stat value={money(sum(out))} label={`${out.length} invoice${out.length === 1 ? '' : 's'} to pay`} />
-                </Tile>
-                <Tile title="Overdue" icon={AlertTriangle} className="col-span-2 lg:col-span-1">
-                  <Stat value={money(sum(overdue))} label={`${overdue.length} overdue`} tone={overdue.length ? 'red' : undefined} />
-                </Tile>
-              </Bento>
-              <Section title="All invoices" className="mt-0">
-                <Segmented className="mb-3" value={show} onChange={setShow} options={[
-                  { value: 'all', label: 'All' }, { value: 'outstanding', label: 'To pay', count: out.length }, { value: 'paid', label: 'Paid' }, { value: 'credit', label: 'Credit notes' },
-                ]} />
-                {!rows.length ? <Empty icon={ReceiptText} title="No invoices yet" body="Invoices appear here once they are issued." /> : <InvoiceList rows={shown} />}
-              </Section>
+              {!all.length ? <Empty icon={ReceiptText} title="No invoices yet" body="Invoices appear here once they are issued." /> : <InvoiceList rows={shown} />}
               {out.length > 0 && <PayTo />}
             </>
           );
@@ -214,4 +201,3 @@ function VenueInvoices() {
     </Page>
   );
 }
-

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CalendarOff, Check, Download, Plus } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
-import { Bento, Button, Empty, List, Load, MoreMenu, Page, Section, Segmented, Stat, Tile, addDays, isoDate, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { Button, Chip, Empty, List, Load, MoreMenu, Page, Section, Select, addDays, isoDate, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { TIMEOFF_KINDS } from './_parts.jsx';
 import { TimeOffRow, TimeOffSheet } from './_profileTabs.jsx';
 
@@ -35,19 +35,18 @@ export default function TimeOff() {
   };
 
   return (
+    // Kind and the two counts the lists below don't show (off sick, starting soon) sit on the tab line
     <Page title="Time off" subtitle="Holidays, sickness and unavailability"
+      tools={<>
+        {sickNow > 0 && <Chip label="Off sick" value={sickNow} tone="red" />}
+        {in14 > 0 && <Chip label="Starting in 14 days" value={in14} tone="blue" />}
+        <div className="w-40"><Select aria-label="Kind" value={kind} onChange={(e) => setKind(e.target.value)} options={[{ value: 'all', label: 'All kinds' }, ...TIMEOFF_KINDS.map((k) => ({ value: k, label: k[0].toUpperCase() + k.slice(1) }))]} /></div>
+      </>}
       actions={<><Button icon={Plus} onClick={() => setAdding(true)}>Add for officer</Button>
         <MoreMenu items={[{ icon: Download, label: 'Export to spreadsheet', hint: 'The last 60 days and ahead, as CSV', onClick: () => downloadAction('timeoff.exportCsv', { from: addDays(today, -60) }).catch(() => {}) }]} /></>}>
       <Load q={q}>
         {() => (
           <>
-            <Bento className="mb-5">
-              <Tile tone={groups.pending.length ? 'blue' : undefined}><Stat value={all.filter((t) => t.status === 'pending').length} label="To decide" hint="Pending requests" /></Tile>
-              <Tile><Stat value={all.filter((t) => t.status === 'approved' && t.start_date <= today && t.end_date >= today).length} label="Off today" /></Tile>
-              <Tile><Stat value={sickNow} label="Off sick" tone={sickNow ? 'red' : undefined} /></Tile>
-              <Tile><Stat value={in14} label="Starting soon" hint="Next 14 days" /></Tile>
-            </Bento>
-            <Segmented value={kind} onChange={setKind} options={[{ value: 'all', label: 'All' }, ...TIMEOFF_KINDS.map((k) => ({ value: k, label: k[0].toUpperCase() + k.slice(1) }))]} />
             <Block title="Pending" rows={groups.pending} onDone={q.reload} empty="No requests waiting"
               action={groups.pending.length > 1 && <Button size="sm" variant="secondary" icon={Check} busy={busy} onClick={approveAll}>Approve all</Button>} />
             <Block title="Off now" rows={groups.now} onDone={q.reload} />

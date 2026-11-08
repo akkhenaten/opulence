@@ -80,10 +80,10 @@ function Statements() {
                 {latest.status === 'paid' && latest.paid_at && <div className="mt-1 text-footnote opacity-75">Paid on {date(latest.paid_at)}</div>}
               </Tile>}
 
-              <Bento className="!grid-cols-2">
+              {ytd.length > 0 && <Bento className="!grid-cols-2">
                 <Tile title={`${year} so far`} icon={Banknote}><Stat value={money(ytdTotal)} label={`${ytd.length} statement${ytd.length === 1 ? '' : 's'}`} /></Tile>
                 <Tile title="Hours paid"><Stat value={hours(ytdHours)} label={`In ${year}`} /></Tile>
-              </Bento>
+              </Bento>}
 
               <SelfEmployedNote />
 

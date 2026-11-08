@@ -16,20 +16,20 @@ export default function TimeOff() {
   const [url, set] = useUrlState({ tab: 'timeoff' });
   const tab = url.tab === 'availability' ? 'availability' : 'timeoff';
   const setTab = (t) => set({ tab: t });
+  const [asking, setAsking] = useState(false);
   if (!user.officer_id) return <Page title="Time off" back={{ to: '/officer/me', label: 'Me' }}><NotLinked /></Page>;
   return (
-    <Page title="Time off" back={{ to: '/officer/me', label: 'Me' }}>
+    <Page title="Time off" back={{ to: '/officer/me', label: 'Me' }} actions={tab === 'timeoff' && <Button icon={Plus} onClick={() => setAsking(true)}>Request time off</Button>}>
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'timeoff', label: 'Time off' }, { value: 'availability', label: 'Weekly availability' }]} />
-      {tab === 'timeoff' ? <Requests /> : <Availability />}
+      {tab === 'timeoff' ? <Requests open={asking} setOpen={setAsking} /> : <Availability />}
     </Page>
   );
 }
 
 const days = (a, b) => Math.round((new Date(`${b}T12:00:00Z`) - new Date(`${a}T12:00:00Z`)) / 86400000) + 1;
 
-function Requests() {
+function Requests({ open, setOpen }) {
   const q = useApi('timeoff.list');
-  const [open, setOpen] = useState(false);
   const [run] = useAction();
   const confirm = useConfirm();
   const cancel = async (t) => {
@@ -39,7 +39,6 @@ function Requests() {
   };
   return (
     <>
-      <Button size="lg" icon={Plus} className="w-full" onClick={() => setOpen(true)}>Request time off</Button>
       <Load q={q} skeleton="rows">
         {(rows) => {
           const today = isoDate();

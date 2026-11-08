@@ -32,15 +32,16 @@ export default function ToolboxAdmin() {
   const [add, setAdd] = useState(false);
   const base = `/${user.role}/team/toolbox`;
   return (
+    // Search and category sit on the tab line, so the cards start high
     <Page title="Toolbox" subtitle="Quick guides officers can open on shift, even offline" wide
+      tools={<>
+        <SearchInput className="w-full sm:w-56" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search cards" />
+        <Segmented value={cat} onChange={setCat} options={[{ value: 'all', label: 'All' }, { value: 'draft', label: 'Drafts' }, ...CATEGORIES]} />
+      </>}
       actions={co && <><Button variant="secondary" icon={Plus} to={`${base}/new`}>Blank card</Button><Button icon={Sparkles} onClick={() => setAdd(true)}>Draft with AI</Button></>}>
       <EmergencyEntry from={base} />
       <FlowEntry from={base} />
       {user.platform && <GuideLevel />}
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <SearchInput className="min-w-0 flex-1 sm:max-w-sm" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search cards" />
-        <Segmented value={cat} onChange={setCat} options={[{ value: 'all', label: 'All' }, { value: 'draft', label: 'Drafts' }, ...CATEGORIES]} />
-      </div>
       <Load q={q}>
         {({ cards }) => {
           const rows = searchCards(cat === 'all' ? cards : cat === 'draft' ? cards.filter((c) => c.status === 'draft') : cards.filter((c) => c.category === cat), text);
