@@ -389,7 +389,7 @@ export const actions = {
     if (conv) await post(conv.id, user.id, { body: `${text}. We'll confirm the team nearer the time.` });
     await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Cover request accepted', body: text, link: '/venue/rota?tab=requests', email: true });
     await audit(user, 'cover.accept', 'cover_request', occ.id, { scope: all ? 'series' : 'one', count: shifts.length });
-    return all ? { accepted: shifts.length } : shifts[0];
+    return all ? { accepted: shifts.length, shift_ids: shifts.map((s) => s.id), starts_at: shifts[0]?.starts_at } : shifts[0];
   }),
 
   'cover.decline': def(MGR, async (b, { user }) => {

@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Clock, History, Lock, LogOut, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
+  AlertTriangle, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Clock, History, HandCoins, Lock, LogOut, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
 } from 'lucide-react';
 import {
   ActionBar, addDays, Avatar, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, MoreMenu, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, useAction, useApi, useConfirm, useForm, useUrlState,
@@ -44,7 +45,9 @@ const FROM_STATUS = { pending: 'review', disputed: 'queried', missing: 'no_clock
 const DAYS = (week) => Array.from({ length: 7 }, (_, i) => addDays(week, i));
 
 export default function Timesheets() {
-  const { user, isManager } = useBase();
+  const { user, isManager, base } = useBase();
+  const nav = useNavigate();
+  const confirm = useConfirm();
   const isVenue = user.role === 'venue';
   const isCo = user.role === 'company';
   const canSign = isCo || isVenue;
@@ -80,6 +83,7 @@ export default function Timesheets() {
   const rows = all.filter((r) => (!officerId || r.officer_id === officerId) && (FILTERS[filter] || FILTERS.all)(r, isVenue));
   const see = q.data?.see || {};
 
+  const health = q.data?.health || {};
   const can = (r) => {
     if (r.self_locked || r.locked) return {};
     const s = r.state;
@@ -113,6 +117,15 @@ export default function Timesheets() {
   const approve = (list) => run(() => api('timesheets.approve', { ids: list.map((r) => r.id) }),
     (r) => `${r.approved} approved${r.message ? ` · ${r.message}` : ''}`).then(done).catch(() => {});
   const sign = (list) => run(() => api('timesheets.sign', { ids: list.map((r) => r.id) }), (r) => `${r.signed} signed`).then(done).catch(() => {});
+  // The next step for the whole week in one tap: venues sign off everything approved; the company sends approved hours to pay
+  const toSignWeek = all.filter((r) => can(r).sign);
+  const signWeek = async () => {
+    if (!(await confirm({ title: `Sign off ${toSignWeek.length} shift${toSignWeek.length === 1 ? '' : 's'}?`, body: `Every approved shift in the week of ${dayLabel(week)}. Query any you don't agree with first.`, confirm: 'Sign off' }))) return;
+    sign(toSignWeek);
+  };
+  const readyToPay = isCo && !health.to_review && all.some((r) => ['approved', 'signed'].includes(r.state));
+  const sendToPay = () => run(() => api('pay.generate', {}), (x) => `Pay run up to date · ${x.created} draft statement${x.created === 1 ? '' : 's'}`)
+    .then((x) => { if (x?.pay_run_id) nav(`${base}/pay/runs/${x.pay_run_id}`); }).catch(() => {});
   const act = {
     approve: (r) => approve([r]), sign: (r) => sign([r]),
     query: (r) => setSheet({ kind: 'query', rows: [r] }), decline: (r) => setSheet({ kind: 'decline', rows: [r] }),
@@ -123,7 +136,6 @@ export default function Timesheets() {
 
   const weekLabel = `${dateShort(week)} – ${dateShort(addDays(week, 6))}`;
   const isThisWeek = week === thisWeek;
-  const health = q.data?.health || {};
   const wk = q.data?.week;
   const segs = isVenue
     ? [{ value: 'all', label: 'All' }, { value: 'live', label: 'On site', count: all.filter((r) => r.state === 'live').length || undefined },
@@ -131,7 +143,9 @@ export default function Timesheets() {
     : [{ value: 'all', label: 'All' }, { value: 'review', label: 'Needs review', count: health.to_review }, { value: 'queried', label: 'Queried' }, { value: 'no_clock_in', label: 'No clock-in' }];
 
   return (
-    <Page title="Timesheets" subtitle={`Week of ${dayLabel(week)}`} wide>
+    <Page title="Timesheets" subtitle={`Week of ${dayLabel(week)}`} wide
+      actions={isVenue ? (toSignWeek.length > 0 && <Button icon={Signature} busy={busy} onClick={signWeek}>Sign off week · {toSignWeek.length}</Button>)
+        : readyToPay && <Button variant="secondary" icon={HandCoins} busy={busy} onClick={sendToPay}>Send to pay run</Button>}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1 rounded-xl bg-surface p-1 shadow-tile">
           <IconButton icon={ChevronLeft} label="Previous week" onClick={() => setWeek(addDays(week, -7))} />

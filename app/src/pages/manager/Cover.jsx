@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Check, Megaphone, MessagesSquare, Pencil, Trash2, X } from 'lucide-react';
 import {
   Button, dateTime, dayLabel, Empty, isoDate, KV, List, Load, mondayOf, Page, Pill, range, relative, Row, Segmented, Sheet, Tabs, Textarea, Toggle, useAction, useApi, useUrlState,
@@ -76,6 +77,7 @@ export default function Cover() {
 const rotaLink = (base, c) => (c.shift_id ? `${base}/rota?shift=${c.shift_id}` : `${base}/rota?week=${mondayOf(isoDate(c.starts_at))}`);
 
 function Detail({ c, dates, base, onClose, onDone, onPrev, onNext }) {
+  const nav = useNavigate();
   const [mode, setMode] = useState(null); // 'accept' | 'decline' | 'edit' | 'delete' | 'refuse'
   const [scope, setScope] = useState(dates.length > 1 ? 'series' : 'one');
   const [asOpen, setAsOpen] = useState(true);
@@ -83,7 +85,12 @@ function Detail({ c, dates, base, onClose, onDone, onPrev, onNext }) {
   const [run, busy] = useAction();
   const series = c.kind === 'recurring';
   const many = scope === 'series' && series;
-  const accept = () => run(() => api('cover.accept', { id: c.id, open: asOpen, scope: many ? 'series' : 'one' }), many ? 'All dates accepted' : 'Accepted, shift created').then(onDone).catch(() => {});
+  // Accepting goes straight on to staffing the (first) new shift
+  const accept = () => run(() => api('cover.accept', { id: c.id, open: asOpen, scope: many ? 'series' : 'one' }), many ? 'All dates accepted' : 'Accepted, shift created')
+    .then((r) => {
+      const id = r?.id || r?.shift_ids?.[0];
+      if (id) nav(`${base}/rota?shift=${id}&assign=1&week=${mondayOf(isoDate(r.starts_at || c.starts_at))}`); else onDone();
+    }).catch(() => {});
   const decline = () => run(() => api('cover.decline', { id: c.id, reason: reason.trim(), scope: many ? 'series' : 'one' }), 'Declined').then(onDone).catch(() => {});
   const decide = (approve) => run(() => api('cover.decideChange', { id: c.id, approve, reason: reason.trim() }), approve ? 'Change approved' : 'Change declined').then(onDone).catch(() => {});
 

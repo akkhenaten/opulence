@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Clock, Download, FileText, ReceiptText, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Clock, Download, FileText, ReceiptText, RefreshCw, Send } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import {
-  Bento, Button, cx, dateShort, daysUntil, Empty, Input, isoDate, List, Load, money, MoreMenu, Page, Pill, SearchInput, Section, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useUrlState,
+  Bento, Button, cx, dateShort, daysUntil, Empty, Input, isoDate, List, Load, money, MoreMenu, Page, Pill, SearchInput, Section, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useConfirm, useUrlState,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 
@@ -27,12 +27,22 @@ function CompanyInvoices() {
   const [run, busy] = useAction();
   // Drafts fill themselves from approved timesheets; this only catches up anything the 5-minute sweep has not reached yet
   const refresh = () => run(() => api('invoices.generate', {}), (x) => `Drafts up to date · ${x.created} open`).then(list.reload).catch(() => {});
+  // One confirm issues every draft; a draft with nothing signed off by the venue yet stays a draft
+  const confirm = useConfirm();
+  const drafts = (list.data || []).filter((i) => i.status === 'draft' && i.kind === 'invoice');
+  const issueAll = async () => {
+    if (!(await confirm({ title: `Issue ${drafts.length} draft invoice${drafts.length === 1 ? '' : 's'}?`, body: 'Each venue is sent its invoice. Only hours the venue has signed off are billed; the rest move to the next invoice.', confirm: 'Issue all' }))) return;
+    run(() => api('invoices.issueMany', {}), (x) => [`${x.issued} issued`, x.skipped.length && `${x.skipped.length} left as draft (nothing signed off yet)`].filter(Boolean).join(' · ')).then(list.reload).catch(() => {});
+  };
 
   return (
     <Page title="Invoices" subtitle="Approved shifts go straight onto each venue's draft"
       actions={<>
-        <MoreMenu items={[{ label: 'Export CSV', hint: 'Issued invoices and credit notes', icon: Download, onClick: () => setExp(true) }]} />
-        <Button icon={RefreshCw} busy={busy} onClick={refresh}>Bring up to date</Button>
+        <MoreMenu items={[
+          { label: 'Bring drafts up to date', hint: 'Catch up approved shifts now', icon: RefreshCw, onClick: refresh },
+          { label: 'Export CSV', hint: 'Issued invoices and credit notes', icon: Download, onClick: () => setExp(true) },
+        ]} />
+        {drafts.length > 0 && <Button icon={Send} busy={busy} onClick={issueAll}>Issue all drafts</Button>}
       </>}>
       <Load q={list}>
         {(rows) => <CompanyBody rows={rows} status={f.status} q={f.q} setF={setF} />}

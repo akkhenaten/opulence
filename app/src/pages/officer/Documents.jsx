@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { BadgeCheck, Camera, Clock3, ExternalLink, Eye, FileText, Paperclip, Plus, ShieldCheck, Trash2, Upload } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -15,7 +16,9 @@ const isShareCode = (s) => /^W[A-Z0-9]{8}$/.test(String(s || '').toUpperCase().r
 
 export default function Documents() {
   const { user } = useAuth();
-  const [adding, setAdding] = useState(null);
+  // ?add=sia (from a Home warning) opens the upload sheet on that document straight away
+  const [params] = useSearchParams();
+  const [adding, setAdding] = useState(() => (DOC_KINDS.some((k) => k.value === params.get('add')) ? params.get('add') : null));
   const q = useApi('docs.list', { owner_type: 'officer', owner_id: user.officer_id }, { skip: !user.officer_id });
   if (!user.officer_id) return <Page title="Documents" back={{ to: '/officer/me', label: 'Me' }}><NotLinked /></Page>;
 

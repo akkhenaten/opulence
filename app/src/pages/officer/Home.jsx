@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AlertTriangle, CalendarClock, CalendarDays, Check, Clock3, Coffee, FileSignature, GraduationCap, ListChecks, LogIn, LogOut, MapPin, Megaphone, NotebookPen, PencilLine,
+  AlertTriangle, BookOpenCheck, CalendarClock, CalendarDays, Check, Clock3, Coffee, FilePen, FileSignature, GraduationCap, ListChecks, LogIn, LogOut, MapPin, Megaphone, NotebookPen, PencilLine,
   ShieldAlert, ShieldCheck, X,
 } from 'lucide-react';
 import { api } from '../../api.js';
@@ -11,7 +11,8 @@ import {
 } from '../../ui/index.jsx';
 import { useModules } from '../learn/_parts.jsx';
 import { ChaseBanner, useOps } from './_ops.jsx';
-import { clockOpensAt, DeclineSheet, expiryText, greeting, NotLinked, ShiftCard, until } from './_parts.jsx';
+import { clockOpensAt, DeclineSheet, expiryText, greeting, NotLinked, ShiftCard, typeLabel, until } from './_parts.jsx';
+import { docKindFor, packTodos } from './_todo.js';
 import { InstallCard } from '../../ui/pwa.jsx';
 import { PushCard } from './_notify.jsx';
 import { PhoneCard } from './_phone.jsx';
@@ -84,13 +85,16 @@ function Body({ d, clock, ops, reload }) {
   const accept = (a) => run(() => api('shifts.respond', { assignment_id: a.assignment_id, accept: true }), 'Shift confirmed').then(reload).catch(() => {});
 
   const offers = (ops.data?.offers || []).filter((o) => o.status === 'offered');
+  // Site packs to read before upcoming shifts: a To do row each, and a line on the next shift's card
+  const packs = packTodos(useApi('venuePacks.myList', {}).data?.venues);
+  const addFor = (kind) => `/officer/documents${kind ? `?add=${kind}` : ''}`;
 
   // The next shift comes first; everything else waiting on the officer sits under it as one line each
   return (
     <div className="space-y-5">
       <Section title="Next shift">
         {confirmed.length === 0 ? <Nothing /> : (
-          <Hero s={confirmed[0]} clockable={cur?.assignment_id === confirmed[0].assignment_id} clockedIn={cur?.assignment_id === confirmed[0].assignment_id && (cur.events || []).some((e) => e.status !== 'rejected')} blocked={d.issues?.length > 0} onDecline={() => setDeclining(confirmed[0])} />
+          <Hero s={confirmed[0]} clockable={cur?.assignment_id === confirmed[0].assignment_id} clockedIn={cur?.assignment_id === confirmed[0].assignment_id && (cur.events || []).some((e) => e.status !== 'rejected')} blocked={d.issues?.length > 0} pack={packs.find((v) => v.venue_id === confirmed[0].venue_id)} onDecline={() => setDeclining(confirmed[0])} />
         )}
       </Section>
 
@@ -99,10 +103,10 @@ function Body({ d, clock, ops, reload }) {
       {(offers.length > 0 || d.issues?.length > 0 || d.grace || (siaDays != null && siaDays <= 60)) && (
         <List>
           {d.issues?.length > 0 && (
-            <Row to="/officer/documents" left={<Ico icon={ShieldAlert} tone="red" />} title="You can't work shifts right now" subtitle={d.issues.join(' · ')} />
+            <Row to={addFor(docKindFor(d.issues[0]))} left={<Ico icon={ShieldAlert} tone="red" />} title="You can't work shifts right now" subtitle={d.issues.join(' · ')} />
           )}
           {!d.issues?.length && d.grace && (
-            <Row to="/officer/documents" left={<Ico icon={CalendarClock} tone={d.grace.days_left <= 3 ? 'red' : 'amber'} />}
+            <Row to={addFor(docKindFor((d.graced || [])[0]))} left={<Ico icon={CalendarClock} tone={d.grace.days_left <= 3 ? 'red' : 'amber'} />}
               title={`You can work until ${date(d.grace.ends_on)}`} subtitle={`Send by then: ${(d.graced || []).join(' · ')}`} chevron />
           )}
           {offers.length > 0 && (
@@ -110,7 +114,7 @@ function Body({ d, clock, ops, reload }) {
               title={`${offers.length} cover offer${offers.length === 1 ? '' : 's'}`} subtitle="First to accept gets the shift" />
           )}
           {!d.issues?.length && siaDays != null && siaDays <= 60 && (
-            <Row to="/officer/documents" left={<Ico icon={AlertTriangle} tone="amber" />} title={`SIA licence: ${expiryText(siaDays).toLowerCase()}`} subtitle="Renew it and upload the new licence" />
+            <Row to={addFor('sia')} left={<Ico icon={AlertTriangle} tone="amber" />} title={`SIA licence: ${expiryText(siaDays).toLowerCase()}`} subtitle="Renew it and upload the new licence" />
           )}
         </List>
       )}
@@ -139,7 +143,7 @@ function Body({ d, clock, ops, reload }) {
       )}
 
       <OpenShifts />
-      <ToDo d={d} />
+      <ToDo d={d} packs={packs} />
       <DeclineSheet s={declining} phone={d.office_phone} onClose={() => setDeclining(null)} onDone={() => { setDeclining(null); reload(); }} />
     </div>
   );
@@ -157,7 +161,7 @@ function Nothing() {
 }
 
 // The next confirmed shift; it turns into Clock in 15 minutes before the start
-function Hero({ s, clockable, clockedIn, blocked, onDecline }) {
+function Hero({ s, clockable, clockedIn, blocked, pack, onDecline }) {
   const opens = clockOpensAt(s.starts_at);
   const open = Date.now() >= opens.getTime() && (clockable || new Date(s.ends_at) > new Date());
   const started = new Date(s.starts_at) <= new Date();
@@ -181,6 +185,11 @@ function Hero({ s, clockable, clockedIn, blocked, onDecline }) {
         {s.role_name && <span className="min-w-0 truncate rounded-full bg-white/15 px-3 py-1 text-footnote font-semibold">{s.role_name}</span>}
       </div>
       </Link>
+      {pack && (
+        <Link to={`/officer/venue-pack/${pack.venue_id}`} className="pressable mt-4 flex items-center gap-2 rounded-2xl bg-amber/90 px-3 py-2 text-subhead font-semibold text-white">
+          <BookOpenCheck size={18} className="shrink-0" />Read the site pack before this shift
+        </Link>
+      )}
       {blocked ? (
         <p className="mt-5 rounded-2xl bg-white/12 p-3 text-subhead font-semibold">You can't clock in until the items above are sorted.</p>
       ) : open ? (
@@ -196,6 +205,12 @@ function Hero({ s, clockable, clockedIn, blocked, onDecline }) {
 
 function OpenShifts() {
   const q = useApi('shifts.open', {});
+  const [run] = useAction();
+  const [pending, setPending] = useState(null);
+  const request = (s) => {
+    setPending(s.id);
+    run(() => api('shifts.request', { shift_id: s.id }), 'Requested. The office will confirm.').then(q.reload).catch(() => {}).finally(() => setPending(null));
+  };
   const rows = (q.data || []).filter((s) => s.my_status !== 'requested' && s.headcount > Number(s.filled || 0));
   if (!rows.length) return null;
   return (
@@ -203,7 +218,11 @@ function OpenShifts() {
       <div className="space-y-2.5">
         {rows.slice(0, 3).map((s) => {
           const left = s.headcount - Number(s.filled || 0);
-          return <ShiftCard key={s.id} s={s} to="/officer/shifts?tab=open" status={`${left} place${left === 1 ? '' : 's'}`} statusTone="blue" />;
+          return (
+            <ShiftCard key={s.id} s={s} status={`${left} place${left === 1 ? '' : 's'}`} statusTone="blue">
+              <Button className="mt-3 w-full" variant="secondary" icon={Megaphone} busy={pending === s.id} onClick={() => request(s)}>Request this shift</Button>
+            </ShiftCard>
+          );
         })}
       </div>
     </Section>
@@ -214,12 +233,14 @@ const TODO_TONE = { red: 'bg-red text-white', amber: 'bg-amber text-white', blue
 const Ico = ({ icon: I, tone }) => <span className={cx('grid h-8 w-8 place-items-center rounded-lg', TODO_TONE[tone])}><I size={18} /></span>;
 
 // Everything waiting on the officer in one list; each row opens the place to finish it
-function ToDo({ d }) {
+function ToDo({ d, packs }) {
   const m = useModules();
   const tasks = useApi('onboarding.tasks', {});
   const contracts = useApi('contracts.list', {});
   const learn = useApi('academy.my', {}, { skip: !m?.academy });
+  const drafts = useApi('incidents.drafts', {});
   const rows = [];
+  (drafts.data || []).forEach((x) => rows.push({ k: `r${x.id}`, to: `/officer/incidents/new?draft=${x.id}`, icon: FilePen, tone: 'amber', title: 'Finish your report', sub: x.type ? typeLabel(x.type) : 'Incident report' }));
   if (d.incidentsToFix > 0) rows.push({ k: 'fix', to: '/officer/incidents?status=changes_requested', icon: PencilLine, tone: 'amber', title: `${d.incidentsToFix} report${d.incidentsToFix === 1 ? '' : 's'} to fix`, sub: 'Your manager asked for more detail' });
   (contracts.data || []).filter((c) => c.status === 'sent').forEach((c) => rows.push({ k: `c${c.id}`, to: `/officer/contracts/${c.id}`, icon: FileSignature, tone: 'blue', title: `Sign: ${c.title}`, sub: 'Waiting for your signature' }));
   const due = m?.academy ? (learn.data?.courses || []).filter((c) => c.assignment_id && c.state !== 'passed') : [];
@@ -227,9 +248,10 @@ function ToDo({ d }) {
     const late = c.state === 'overdue' || c.state === 'expired';
     rows.push({ k: `t${c.id}`, to: `/officer/learn/academy/${c.id}`, icon: GraduationCap, tone: late ? 'red' : 'blue', title: c.title, sub: late ? 'Training overdue' : c.due_date ? `Training due ${date(c.due_date)}` : 'Training to do' });
   });
+  packs.forEach((v) => rows.push({ k: `p${v.venue_id}`, to: `/officer/venue-pack/${v.venue_id}`, icon: BookOpenCheck, tone: 'amber', title: `Read the site pack for ${v.name}`, sub: `Before your shift on ${dayLabel(v.next_shift)}` }));
   (d.expiringDocs || []).forEach((x, i) => {
     const n = daysUntil(x.expiry);
-    rows.push({ k: `d${i}`, to: '/officer/documents', icon: ShieldCheck, tone: n < 0 ? 'red' : 'amber', title: x.title, sub: n < 0 ? 'Expired: upload a new one' : `Expires ${date(x.expiry)}` });
+    rows.push({ k: `d${i}`, to: `/officer/documents?add=${x.kind}`, icon: ShieldCheck, tone: n < 0 ? 'red' : 'amber', title: x.title, sub: n < 0 ? 'Expired: upload a new one' : `Expires ${date(x.expiry)}` });
   });
   const signing = rows.some((r) => r.icon === FileSignature);
   (tasks.data || []).filter((t) => !t.done && !(signing && t.code === 'contract')).forEach((t) => rows.push(t.office

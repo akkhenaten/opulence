@@ -859,6 +859,12 @@ function HrSheet({ o, isCo, onClose, onDone }) {
 
 /* ---------------- Onboarding ---------------- */
 
+// Where on the profile each step gets done, so an open step is one tap from finishing
+const STEP_TAB = {
+  profile: 'tab=overview', bank: 'tab=overview', sia: 'tab=compliance&sub=compliance', rtw: 'tab=compliance&sub=compliance', id: 'tab=compliance&sub=documents',
+  poa: 'tab=compliance&sub=documents', verified: 'tab=compliance&sub=documents', contract: 'tab=hr&sub=contracts', induction: 'tab=compliance&sub=training',
+};
+
 export function OnboardingTab({ o, reload, onForbidden }) {
   const q = useTabApi('onboarding.tasks', { officer_id: o.id }, onForbidden);
   const [run] = useAction();
@@ -881,11 +887,14 @@ export function OnboardingTab({ o, reload, onForbidden }) {
             </Tile>
             <List className="lg:col-span-2">
               {tasks.map((t) => (
-                <Pressable press key={t.code} onClick={() => toggle(t)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-bg">
-                  <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${t.done ? 'border-green bg-green text-white' : 'border-line'}`}>{t.done && <Check size={14} strokeWidth={3} />}</span>
-                  <span className={`flex-1 text-body ${t.done ? 'text-muted line-through' : 'font-semibold'}`}>{t.title}</span>
-                  {t.done_at && <span className="text-caption text-faint">{dateShort(t.done_at)}</span>}
-                </Pressable>
+                <div key={t.code} className="flex items-center">
+                  <Pressable press onClick={() => toggle(t)} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition hover:bg-bg">
+                    <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${t.done ? 'border-green bg-green text-white' : 'border-line'}`}>{t.done && <Check size={14} strokeWidth={3} />}</span>
+                    <span className={`flex-1 text-body ${t.done ? 'text-muted line-through' : 'font-semibold'}`}>{t.title}</span>
+                    {t.done_at && <span className="text-caption text-faint">{dateShort(t.done_at)}</span>}
+                  </Pressable>
+                  {!t.done && STEP_TAB[t.code] && <Button size="sm" variant="ghost" className="mr-2" to={`?${STEP_TAB[t.code]}`} replace>Do it</Button>}
+                </div>
               ))}
             </List>
           </div>

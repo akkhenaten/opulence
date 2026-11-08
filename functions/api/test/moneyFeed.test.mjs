@@ -88,7 +88,7 @@ test('wiring: generate is a sweep, issue holds back unsigned lines, timesheet li
   const ts = read('../modules/timesheets.mjs');
   const index = read('../index.mjs');
   assert.doesNotMatch(money, /pr_status/, 'invoices no longer wait for the pay run');
-  assert.match(money, /holdBackUnsigned\(t, \{ invoiceId: b\.id \}\)/);
+  assert.match(money, /holdBackUnsigned\(t, \{ invoiceId: id \}\)/);
   assert.match(money, /follows its timesheet/);
   assert.match(payruns, /holdBackUnsigned\(t, \{ runId: b\.id \}\)/);
   assert.match(ts, /timesheet_billed\(t\.statement_id, t\.invoice_id\) AS locked/);

@@ -34,11 +34,11 @@ function useDensity() {
 export default function Rota() {
   // Tab, open shift, week, venue, view and filters live in the address, so Back and shared links land on the same view
   const thisWeek = mondayOf(isoDate());
-  const [url, setUrl] = useUrlState({ tab: 'rota', shift: '', week: thisWeek, venue: '', view: 'venues', f: '', empty: '1' });
+  const [url, setUrl] = useUrlState({ tab: 'rota', shift: '', assign: '', week: thisWeek, venue: '', view: 'venues', f: '', empty: '1' });
   const tab = url.tab === 'requests' ? 'requests' : 'rota';
   const setTab = (t) => setUrl({ tab: t });
   const openId = url.shift || null;
-  const setOpenId = (id) => setUrl({ shift: id || '' });
+  const setOpenId = (id) => setUrl({ shift: id || '', assign: '' });
   const week = /^\d{4}-\d{2}-\d{2}$/.test(url.week) ? mondayOf(url.week) : thisWeek;
   const setWeek = (w) => setUrl({ week: w });
   const venueId = url.venue;
@@ -105,7 +105,7 @@ export default function Rota() {
         <div className="sm:hidden"><MoreMenu items={[pubItem, ...more]} title="Rota" /></div>
         <Button icon={Plus} onClick={() => setForm({})}>New shift</Button>
       </>}>
-      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'rota', label: 'Rota' }, { value: 'requests', label: 'Requests', count: reqs.data?.length }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'rota', label: 'Rota' }, { value: 'requests', label: 'Shift requests', count: reqs.data?.length }]} />
 
       {tab === 'requests' ? <Requests q={reqs} roleName={roleName} onChanged={reload} onOpen={setOpenId} /> : (
         <>
@@ -150,7 +150,7 @@ export default function Rota() {
         </>
       )}
 
-      {openId && <ShiftDetail id={openId} roleName={roleName} onClose={() => setOpenId(null)} onChanged={reload} onPrev={step(at - 1)} onNext={step(at + 1)}
+      {openId && <ShiftDetail id={openId} startAssign={url.assign === '1'} roleName={roleName} onClose={() => setOpenId(null)} onChanged={reload} onPrev={step(at - 1)} onNext={step(at + 1)}
         onEdit={(s) => { setOpenId(null); setForm({ shift: s }); }} />}
       {form && <ShiftForm init={form} venues={(venues.data || []).filter((v) => v.active)} roles={roles.data || []} onClose={() => setForm(null)}
         onSaved={(d) => { setForm(null); if (d && (d >= addDays(week, 7) || d < week)) setWeek(mondayOf(d)); reload(); }} />}
@@ -580,7 +580,7 @@ function Requests({ q, roleName, onChanged, onOpen }) {
 
 /* ---------- Shift detail ---------- */
 
-function ShiftDetail({ id, roleName, onClose, onChanged, onEdit, onPrev, onNext }) {
+function ShiftDetail({ id, startAssign, roleName, onClose, onChanged, onEdit, onPrev, onNext }) {
   const q = useApi('shifts.get', { id });
   const [run, busy] = useAction();
   const confirm = useConfirm();
@@ -591,7 +591,8 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit, onPrev, onNext 
   const [reason, setReason] = useState('');
   const changed = () => { q.reload(); onChanged(); };
   // The drawer stays open beside the board; picking another shift starts it afresh
-  useEffect(() => { setAssigning(false); setReplacing(null); setCancelling(false); setReason(''); }, [id]);
+  // ?assign=1 (just accepted from Cover) opens Assign straight away
+  useEffect(() => { setAssigning(!!startAssign); setReplacing(null); setCancelling(false); setReason(''); }, [id]);
   const s = q.data && String(q.data.id) === String(id) ? q.data : null;
   const { base } = useBase();
   const toast = useToast();

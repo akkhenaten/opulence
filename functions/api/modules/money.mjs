@@ -208,6 +208,32 @@ async function reconcileAfter(start, end) {
   }
 }
 
+/** Issue one draft invoice: number it, hold back unsigned lines, tell the venue, archive the PDF */
+async function issueInvoice(id, user, via) {
+  let held = [];
+  const inv = await tx(async (t) => {
+    await t.q('SELECT pg_advisory_xact_lock(424243)');
+    const cur = need(await t.one('SELECT * FROM invoices WHERE id = $1 FOR UPDATE', [id]));
+    if (cur.status !== 'draft') fail(400, 'Already issued');
+    const hold = await holdBackUnsigned(t, { invoiceId: id });
+    if (!hold.kept) fail(400, hold.moved.length ? 'Nothing on this draft is signed off by the venue yet' : 'This draft has no lines');
+    held = hold.moved;
+    const s = await t.one('UPDATE settings SET invoice_seq = invoice_seq + 1 RETURNING invoice_prefix, invoice_seq, payment_terms_days');
+    return t.one(
+      `UPDATE invoices SET status = 'issued', number = $2, issue_date = (now() AT TIME ZONE 'Europe/London')::date,
+         due_date = (now() AT TIME ZONE 'Europe/London')::date + $3::int WHERE id = $1 RETURNING *`,
+      [id, `${s.invoice_prefix}${s.invoice_seq}`, s.payment_terms_days]);
+  });
+  const v = await one('SELECT name FROM venues WHERE id = $1', [inv.venue_id]);
+  await notify(await venueContacts(inv.venue_id), {
+    kind: 'invoice', title: `Invoice ${inv.number}`, body: `${v.name} · ${gbp(inv.gross)} due ${fmtDate(inv.due_date)}`, link: `/venue/invoices/${inv.id}`, email: true,
+  });
+  await syncTimesheets(held);
+  const docId = await archiveInvoice(inv.id, user.id);
+  await audit(user, 'invoice.issue', 'invoice', inv.id, { number: inv.number, gross: inv.gross, held_back: held.length, via });
+  return { ...inv, pdf_document_id: docId, held_back: held.length };
+}
+
 export const actions = {
   'pay.suggestPeriod': def(CO, async () => {
     const s = await getSettings();
@@ -462,28 +488,18 @@ export const actions = {
   // Bills only the hours the venue has signed off; the rest move to the next draft on their own
   'invoices.issue': def(CO, async (b, { user }) => {
     required(b, 'id');
-    let held = [];
-    const inv = await tx(async (t) => {
-      await t.q('SELECT pg_advisory_xact_lock(424243)');
-      const cur = need(await t.one('SELECT * FROM invoices WHERE id = $1 FOR UPDATE', [b.id]));
-      if (cur.status !== 'draft') fail(400, 'Already issued');
-      const hold = await holdBackUnsigned(t, { invoiceId: b.id });
-      if (!hold.kept) fail(400, hold.moved.length ? 'Nothing on this draft is signed off by the venue yet' : 'This draft has no lines');
-      held = hold.moved;
-      const s = await t.one('UPDATE settings SET invoice_seq = invoice_seq + 1 RETURNING invoice_prefix, invoice_seq, payment_terms_days');
-      return t.one(
-        `UPDATE invoices SET status = 'issued', number = $2, issue_date = (now() AT TIME ZONE 'Europe/London')::date,
-           due_date = (now() AT TIME ZONE 'Europe/London')::date + $3::int WHERE id = $1 RETURNING *`,
-        [b.id, `${s.invoice_prefix}${s.invoice_seq}`, s.payment_terms_days]);
-    });
-    const v = await one('SELECT name FROM venues WHERE id = $1', [inv.venue_id]);
-    await notify(await venueContacts(inv.venue_id), {
-      kind: 'invoice', title: `Invoice ${inv.number}`, body: `${v.name} · ${gbp(inv.gross)} due ${fmtDate(inv.due_date)}`, link: `/venue/invoices/${inv.id}`, email: true,
-    });
-    await syncTimesheets(held);
-    const docId = await archiveInvoice(inv.id, user.id);
-    await audit(user, 'invoice.issue', 'invoice', inv.id, { number: inv.number, gross: inv.gross, held_back: held.length, via: b.via });
-    return { ...inv, pdf_document_id: docId, held_back: held.length };
+    return issueInvoice(b.id, user, b.via);
+  }),
+
+  // "Issue all drafts": each draft is issued on its own; one with nothing signed off is skipped, not a failure
+  'invoices.issueMany': def(CO, async (b, { user }) => {
+    const ids = Array.isArray(b.ids) && b.ids.length ? b.ids.slice(0, 200)
+      : (await q("SELECT id FROM invoices WHERE status = 'draft' AND kind = 'invoice' ORDER BY created_at")).map((r) => r.id);
+    const issued = []; const skipped = [];
+    for (const id of ids) {
+      try { issued.push((await issueInvoice(id, user, b.via)).number); } catch (e) { skipped.push({ id, reason: e.message }); }
+    }
+    return { issued: issued.length, numbers: issued, skipped };
   }),
 
   'invoices.markPaid': def(CO, async (b, { user }) => {

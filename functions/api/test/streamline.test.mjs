@@ -47,3 +47,29 @@ test('a page finds its section; detail pages show no tab row', () => {
   assert.ok(findHub('/company/messages/9', co, allOn, {}));
   assert.ok(!hubTabs('reports', co, (m) => m !== 'analytics').some((t) => t.to.endsWith('/analytics')));
 });
+
+// Release C: fewer steps
+import { packTodos, docKindFor } from '../../../app/src/pages/officer/_todo.js';
+
+test('Home lists site packs to read only for shifts in the next 14 days', () => {
+  const now = new Date('2026-11-08T12:00:00Z');
+  const list = [
+    { venue_id: 'a', status: 'unsigned', next_shift: '2026-11-20T20:00:00Z' },
+    { venue_id: 'b', status: 'current', next_shift: '2026-11-09T20:00:00Z' },
+    { venue_id: 'c', status: 'resign', next_shift: '2026-11-10T20:00:00Z' },
+    { venue_id: 'd', status: 'refresher', next_shift: '2026-12-30T20:00:00Z' },
+    { venue_id: 'e', status: 'unsigned', next_shift: null },
+  ];
+  assert.deepEqual(packTodos(list, now).map((v) => v.venue_id), ['c', 'a']);
+  assert.deepEqual(packTodos(undefined, now), []);
+});
+
+test('a compliance warning opens the upload sheet on the right document', () => {
+  assert.equal(docKindFor('SIA licence expired'), 'sia');
+  assert.equal(docKindFor('No right to work evidence'), 'rtw');
+  assert.equal(docKindFor('Something else'), null);
+});
+
+test('invoices can be issued all at once', () => {
+  assert.ok(ACTIONS['invoices.issueMany']);
+});

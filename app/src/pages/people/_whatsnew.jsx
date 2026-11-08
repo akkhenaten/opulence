@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Nfc, Palette, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
+  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Nfc, Palette, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-08', icon: Zap, title: 'Fewer steps for everyday jobs', image: 'streamline-fewer-steps',
+    lede: 'The third part of tidying up the app: the things you do most now take fewer taps, and the next step is waiting where you finish the last one.',
+    points: ["Officers: Home lists any site pack to read before a shift in the next two weeks, and the shift card says so too. A warning about your SIA licence or right to work opens the upload straight away. Request an open shift right from Home", "Officers on shift: Report in the shift bar takes the kind of incident and one line, saved to finish later. Home reminds you with 'Finish your report'", "Managers: accepting a venue's cover request opens Assign on the new shift. The rota's Requests tab is now Shift requests", "Money: Invoices has Issue all drafts (only hours the venue has signed off are billed), and Timesheets has Send to pay run once the week is reviewed. Bring drafts up to date is in the ⋯ menu", "Onboarding steps on a profile have Do it, which opens the place to finish that step. Venues can sign off the whole week from Timesheets"],
+  },
   {
     month: 'November 2026', date: '2026-11-08', icon: LayoutList, title: 'A shorter menu: each thing lives in one place', image: 'streamline-one-place',
     lede: 'The second part of tidying up the app. Related pages are now tabs of one section, so the menu is short and you always know where to look. Old links and bookmarks still work.',

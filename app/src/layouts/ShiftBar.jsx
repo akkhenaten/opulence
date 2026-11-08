@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Coffee, FilePen, LogIn, LogOut, Siren } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { Button, cx, IconButton, time, useApi } from '../ui/index.jsx';
 import { clockOpensAt } from '../pages/officer/_parts.jsx';
+import QuickIncident from '../pages/shared/QuickIncident.jsx';
 
 // Pages that already are the next step (or need the whole screen): no bar there. Home shows the shift card itself.
 const HIDE = [/^\/officer\/?$/, /^\/officer\/clock/, /^\/officer\/incidents\/new/, /^\/guide\//];
@@ -17,6 +18,7 @@ export default function ShiftBar() {
   const mgrSide = user.role !== 'officer';
   const clock = useApi('clock.status', mgrSide ? { _as: 'officer' } : {}, { poll: 60000, skip: mgrSide ? !user.self_officer_id : !user.officer_id });
   const settings = useApi('settings.get', {});
+  const [reporting, setReporting] = useState(false);
   const cur = clock.data?.current;
   const now = Date.now();
   const onShift = cur && (cur.state === 'on_shift' || cur.state === 'on_break');
@@ -51,10 +53,13 @@ export default function ShiftBar() {
           </div>
           <div className="truncate text-subhead font-semibold">{cur.venue_name}</div>
         </div>
-        {canReport && <IconButton icon={FilePen} label="Report an incident" tone="soft" to={`/officer/incidents/new?shift=${cur.shift_id}`} />}
+        {canReport && (mgrSide
+          ? <IconButton icon={FilePen} label="Report an incident" tone="soft" to={`/officer/incidents/new?shift=${cur.shift_id}`} />
+          : <IconButton icon={FilePen} label="Report an incident" tone="soft" onClick={() => setReporting(true)} />)}
         {emergency && <IconButton icon={Siren} label="Emergency guide" tone="danger" to={emergency} />}
         <Button size="sm" variant={onShift ? 'secondary' : 'primary'} icon={next.icon} to="/officer/clock">{next.label}</Button>
       </div>
+      <QuickIncident shiftId={cur.shift_id} open={reporting} onClose={() => setReporting(false)} />
     </div>
   );
 }
