@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Ban, Check, ClipboardList, History, ListChecks, MapPin, Pencil, Sparkles, Star, User, X } from 'lucide-react';
 import {
-  ActionBar, Button, Callout, cx, MoreMenu, dateTime, dayLabel, Empty, hours, Input, Load, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
+  ActionBar, Button, Callout, cx, MoreMenu, dateTime, dayLabel, Empty, hours, Input, Load, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useUrlState,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
@@ -22,10 +22,12 @@ const ITEM_STATUS = { approved: 'Offers sent', done: 'Done', rejected: 'Rejected
 /* ---------- Inbox ---------- */
 
 /**
- * Orb cards to approve. compact = one column, for the panel beside the Live board.
- * slim = the panel itself: Orb's own header with a … menu (Decided, Select several), and the cards scroll on their own.
+ * Orb cards to approve. compact = one column, for the queue on Today.
+ * slim = one header row with a … menu (Decided, Select several); scroll = the cards scroll on their own (the desktop column).
+ * title / pill replace "Orb" and "N to approve"; before / after go above and below the cards (Today's other to-dos), and
+ * empty replaces "All clear" when there is nothing at all.
  */
-export function Inbox({ onChange, compact, slim, n, reloadKey }) {
+export function Inbox({ onChange, compact, slim, scroll, n, reloadKey, title = 'Orb', pill, before, after, empty }) {
   const [view, setView] = useState('pending');
   const q = useApi('ops.inbox', { status: view }, { poll: 30000 });
   const reload = () => { q.reload(); onChange?.(); };
@@ -61,8 +63,8 @@ export function Inbox({ onChange, compact, slim, n, reloadKey }) {
   const header = slim ? (
     <div className="mb-3 flex shrink-0 items-center gap-2">
       <Sparkles size={18} className="text-blue" />
-      <h2 className="text-headline font-bold">Orb</h2>
-      {view === 'pending' && n > 0 && <Pill tone="blue">{n} to approve</Pill>}
+      <h2 className="text-headline font-bold">{title}</h2>
+      {view === 'pending' && (pill ?? (n > 0 && <Pill tone="blue">{n} to approve</Pill>))}
       {view === 'decided' && <span className="text-footnote font-semibold text-muted">Decided</span>}
       <div className="ml-auto flex items-center gap-1">
         {view === 'decided' && <Button size="sm" variant="ghost" icon={ArrowLeft} onClick={() => switchView('pending')}>To approve</Button>}
@@ -91,21 +93,23 @@ export function Inbox({ onChange, compact, slim, n, reloadKey }) {
           ))}
         </div>
       )}
+      {view === 'pending' && before}
       <Load q={q}>{(rows) => (rows.length ? (
         <div className={compact ? 'space-y-3' : 'grid grid-cols-1 gap-3 lg:grid-cols-2'}>
           {rows.map((it) => <ItemCard key={it.id} it={it} onDone={reload} compact={compact}
             select={selecting ? { on: sel.includes(it.id), can: !kind || kind === it.kind, toggle: () => toggle(it) } : null} />)}
         </div>
-      ) : (
+      ) : view === 'pending' && (before || after) ? null : view === 'pending' && empty ? empty : (
         <Empty icon={Sparkles} title={view === 'pending' ? 'All clear' : 'Nothing decided yet'}
           body={view === 'pending' ? 'Orb checks every 5 minutes for no-shows, gaps on the rota, venue requests, feedback, hours that don\'t match and venues missing an address, map pin, logo or clock-in radius.' : undefined} />
       ))}</Load>
+      {view === 'pending' && after}
     </>
   );
   return (
     <>
       {header}
-      {slim ? (
+      {scroll ? (
         <div className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-4 [mask-image:linear-gradient(to_bottom,#000_calc(100%-24px),transparent)]">{body}</div>
       ) : body}
       <ActionBar show={selecting && chosen.length > 0}>
@@ -411,6 +415,21 @@ function RejectSheet({ open, busy, venue, setup, many, dismiss, onClose, onRejec
       {(many > 0 || setup) && <p className="mb-3 text-subhead text-muted">{[many > 0 && 'The same reason is kept on each card.', setup && "Orb won't ask about these details again unless they change."].filter(Boolean).join(' ')}</p>}
       <Textarea label={venue ? 'Reason (sent to the venue)' : 'Reason (optional)'} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
     </Sheet>
+  );
+}
+
+/* ---------- Orb page: the log and the settings (reached from … on Today) ---------- */
+
+export default function OrbPage() {
+  const { user, base } = useBase();
+  const company = user.role === 'company';
+  const [url, setUrl] = useUrlState({ tab: 'activity' });
+  const tab = company && url.tab === 'settings' ? 'settings' : 'activity';
+  return (
+    <Page title="Orb" back={{ to: base, label: 'Today' }} subtitle="What Orb has done, and what it is allowed to do">
+      {company && <div className="mb-3"><Tabs value={tab} onChange={(v) => setUrl({ tab: v })} tabs={[{ value: 'activity', label: 'Activity' }, { value: 'settings', label: 'Settings' }]} /></div>}
+      {tab === 'settings' ? <OpsSettings /> : <Activity />}
+    </Page>
   );
 }
 

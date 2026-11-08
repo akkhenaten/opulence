@@ -9,12 +9,11 @@ import {
 export const NAV = {
   company: [
     { title: 'Overview', items: [
-      { to: '/company', label: 'Dashboard', icon: LayoutGrid, end: true, tab: true, badge: 'everyday' },
+      { to: '/company', label: 'Today', icon: LayoutGrid, end: true, tab: true, badge: 'ops' },
       { to: '/company/messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
       { to: '/company/email', label: 'Email', icon: Mail, badge: 'email' },
     ] },
     { title: 'Operations', items: [
-      { to: '/company/live', label: 'Live operations', short: 'Live', icon: Radio, tab: true, badge: 'ops' },
       { to: '/company/rota', label: 'Rota', icon: CalendarDays, tab: true },
       { to: '/company/exceptions', label: 'Exceptions', icon: TriangleAlert },
       { to: '/company/cover', label: 'Cover requests', icon: Megaphone },
@@ -58,11 +57,10 @@ export const NAV = {
   ],
   security: [
     { title: 'Overview', items: [
-      { to: '/security', label: 'Dashboard', icon: LayoutGrid, end: true, tab: true, badge: 'everyday' },
+      { to: '/security', label: 'Today', icon: LayoutGrid, end: true, tab: true, badge: 'ops' },
       { to: '/security/messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
     ] },
     { title: 'Operations', items: [
-      { to: '/security/live', label: 'Live operations', short: 'Live', icon: Radio, tab: true, badge: 'ops' },
       { to: '/security/rota', label: 'Rota', icon: CalendarDays, tab: true },
       { to: '/security/exceptions', label: 'Exceptions', icon: TriangleAlert },
       { to: '/security/cover', label: 'Cover requests', icon: Megaphone },

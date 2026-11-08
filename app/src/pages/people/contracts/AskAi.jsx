@@ -118,7 +118,7 @@ export default function AskAi({ v, onChat, onApply, onJump }) {
       </div>
 
       {paused ? (
-        <p className="sticky bottom-0 mt-3 rounded-2xl bg-amber-soft px-4 py-3 text-footnote">{paused}. A company admin can raise the Contracts AI cap in Live operations → Settings.</p>
+        <p className="sticky bottom-0 mt-3 rounded-2xl bg-amber-soft px-4 py-3 text-footnote">{paused}. A company admin can raise the Contracts AI cap in Orb settings (… on Today).</p>
       ) : (
         <form className="sticky bottom-0 mt-3 flex items-end gap-2 rounded-2xl bg-surface p-2 shadow-tile" onSubmit={(e) => { e.preventDefault(); send(); }}>
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={1} maxLength={2000} aria-label="Message Contracts AI" placeholder="Ask about this contract, or ask for a change"

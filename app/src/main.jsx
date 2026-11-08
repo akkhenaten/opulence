@@ -13,6 +13,7 @@ const P = (f) => lazy(f);
 // Managers (company + security share most screens; components check role for extras)
 const ManagerDashboard = P(() => import('./pages/manager/Dashboard.jsx'));
 const Live = P(() => import('./pages/shared/Live.jsx'));
+const OrbPage = P(() => import('./pages/manager/OpsAI.jsx'));
 const Rota = P(() => import('./pages/manager/Rota.jsx'));
 const CoverManage = P(() => import('./pages/manager/Cover.jsx'));
 const Exceptions = P(() => import('./pages/manager/Exceptions.jsx'));
@@ -117,7 +118,7 @@ function Root() {
 }
 // Home-screen shortcuts (manifest) are the same for everyone: open the right page for the person's role
 const SHORTCUTS = {
-  clock: { officer: '/officer/clock', company: '/company/live', security: '/security/live', venue: '/venue/live' },
+  clock: { officer: '/officer/clock', company: '/company', security: '/security', venue: '/venue/live' },
   rota: { officer: '/officer/shifts', company: '/company/rota', security: '/security/rota', venue: '/venue/rota' },
   incidents: { officer: '/officer/incidents', company: '/company/incidents', security: '/security/incidents', venue: '/venue/incidents' },
 };
@@ -146,10 +147,15 @@ function PublicOnly({ children }) {
   return user ? <Navigate to={HOME[user.role]} replace /> : children;
 }
 
-// Orb now lives on Live operations; old links and notifications keep their ?tab=
-function OpsRedirect() {
+// Live operations (and Ops AI before it) is now Today: the board and Orb's cards are there, its log and settings on the Orb page.
+// Old links, bookmarks and notifications keep their ?tab= and ?show=
+function LiveRedirect() {
   const { search } = useLocation();
-  return <Navigate to={`../live${search}`} replace />;
+  const p = new URLSearchParams(search);
+  const tab = p.get('tab');
+  if (tab === 'activity' || tab === 'settings') return <Navigate to={`../orb${tab === 'settings' ? '?tab=settings' : ''}`} replace />;
+  p.delete('tab');
+  return <Navigate to={`..${p.toString() ? `?${p}` : ''}`} replace />;
 }
 
 // The venue's Cover page is now the Requests tab of their rota; a message draft comes along
@@ -161,8 +167,9 @@ function OldVenueCover() {
 // Screens shared by company and security managers, mounted under each prefix
 const managerRoutes = (
   <>
-    <Route path="ops" element={<OpsRedirect />} />
-    <Route path="live" element={<Live />} />
+    <Route path="ops" element={<LiveRedirect />} />
+    <Route path="live" element={<LiveRedirect />} />
+    <Route path="orb" element={<OrbPage />} />
     <Route path="rota" element={<Rota />} />
     <Route path="shifts/:id" element={<ShiftView />} />
     <Route path="cover" element={<CoverManage />} />
