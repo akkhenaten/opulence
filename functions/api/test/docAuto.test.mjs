@@ -141,9 +141,10 @@ test('Ticked by hand with no evidence: a British passport fills the evidence eve
   assert.deepEqual(run(o, pass, [pass]), { kind: 'rtw_type', rtw_type: 'British passport', fit: 'full', proof: { number: false, photo: false } });
   assert.equal(run({ ...o, rtw_type: 'Share code' }, pass, [pass]), null);
   const card = officerIssues(o, { today, roles, docs: [pass] }).find((i) => i.key === 'rtw:no_record');
-  assert.match(card.title, /no evidence or check saved/);
-  assert.deepEqual(card.actions.map((a) => [a.kind, a.params.rtw_type]), [['rtw_type', 'British passport']]);
+  assert.match(card.title, /evidence not recorded, no check saved/);
+  assert.deepEqual(card.actions.map((a) => [a.kind, !!a.default]), [['rtw_type', true], ['remind', false], ['rtw_grace', false]]);
+  assert.equal(card.actions[0].params.rtw_type, 'British passport');
   const none = officerIssues(o, { today, roles, docs: [] }).find((i) => i.key === 'rtw:no_record');
-  assert.deepEqual(none.actions, []);
-  assert.match(none.detail, /Edit on the Right to work tile/);
+  assert.deepEqual(none.actions.map((a) => [a.kind, !!a.default]), [['remind', true], ['rtw_grace', false]]);
+  assert.match(none.detail, /Nothing on file says what was seen/);
 });

@@ -57,6 +57,21 @@ test('no share code: not verified; ticked by hand without a saved check: flagged
   assert.ok(!keys({ ...officer, rtw_verified: true, rtw_checked_at: '2026-11-07T10:00:00Z' }).includes('rtw:no_record'));
 });
 
+test('ticked by hand: Orb offers a reminder, a re-read of a passport it could not use, or untick with a grace period to send it', () => {
+  const card = (o, docs = []) => officerIssues({ ...officer, rtw_verified: true, ...o }, ctx(docs)).find((i) => i.key === 'rtw:no_record');
+  const grace = card({}).actions.find((a) => a.kind === 'rtw_grace');
+  assert.equal(grace.company_only, true);
+  assert.equal(grace.default, false);
+  assert.equal(grace.params.days, 14);
+  assert.match(grace.label, /Untick right to work and give Sam 14 days/);
+  const blurry = { id: 'p1', kind: 'rtw', title: 'Passport', s3_key: 'k', ai_read_key: 'k', created_at: '2026-11-01T10:00:00Z', ai_read: { readable: false, is_passport: true } };
+  assert.ok(card({}, [blurry]).actions.some((a) => a.kind === 'recheck' && a.params.doc_id === 'p1'));
+  assert.ok(!card({}).actions.some((a) => a.kind === 'recheck'));
+  // Already on a grace period, or not active: no second one from the card
+  assert.ok(!card({ grace_until: '2026-11-15' }).actions.some((a) => a.kind === 'rtw_grace'));
+  assert.ok(!card({ status: 'onboarding' }).actions.some((a) => a.kind === 'rtw_grace'));
+});
+
 test('a right to work check needs the saved page, the photo confirmed and an end date when time-limited', () => {
   const ok = { id: 'o1', s3_key: 'docs/officers/check.pdf', photo_matched: true, permission: 'unlimited' };
   assert.equal(rtwCheckInput(ok, TODAY).expiry, null);

@@ -103,6 +103,31 @@ export async function graceJob() {
   return out;
 }
 
+/** Start one: shared by the sheet and Orb's card. `officer` is how they'll be once `prep` has run (in the same transaction) */
+export async function grantGrace(officerId, b, user, { prep, officer } = {}) {
+  const today = londonDate(new Date());
+  const o = officer || await officerOf(officerId);
+  if (o.status !== 'active') fail(422, 'Only active staff can be given a grace period');
+  if (await openGrace(o.id)) fail(409, 'Already on a grace period; extend it instead');
+  const reason = reasonOf(b);
+  const ends = lengthOf(b, today);
+  const possible = graceable(o, today, ends);
+  const covers = b.covers?.length ? b.covers.filter((k) => possible.includes(k)) : possible;
+  if (!covers.length) fail(422, 'Nothing for a grace period to cover: they can already work');
+  checkRisk(covers, b.risk_ack);
+  const g = await tx(async (db) => {
+    await prep?.(db);
+    const r = await db.one(`INSERT INTO compliance_grace (officer_id, covers, starts_on, ends_on, reason, risk_ack, granted_by) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [o.id, covers, today, ends, reason, !!b.risk_ack, user.id]);
+    await event(db, r.id, 'grant', user, { ends_on: ends, covers, reason });
+    await sync(db, o.id, r);
+    return r;
+  });
+  await audit(user, 'compliance.grace_grant', 'officer', o.id, { grace_id: g.id, ends_on: ends, covers, reason, risk_ack: !!b.risk_ack, issues: blockers(o, today).map((x) => x.text) });
+  await tellOfficer(o.id, `You can work until ${fmtDate(ends)}`, `Upload ${graceAsk(covers)} by then under Documents, or you won't be able to clock in or take shifts after it.`);
+  return g;
+}
+
 /** Start or extend: shared by the sheet and Orb's grace-ended card */
 export async function renewGrace(officerId, b, user) {
   const today = londonDate(new Date());
@@ -170,26 +195,7 @@ export const actions = {
 
   'compliance.grace.grant': def(CO, async (b, { user }) => {
     required(b, 'officer_id');
-    const today = londonDate(new Date());
-    const o = await officerOf(b.officer_id);
-    if (o.status !== 'active') fail(422, 'Only active staff can be given a grace period');
-    if (await openGrace(o.id)) fail(409, 'Already on a grace period; extend it instead');
-    const reason = reasonOf(b);
-    const ends = lengthOf(b, today);
-    const possible = graceable(o, today, ends);
-    const covers = b.covers?.length ? b.covers.filter((k) => possible.includes(k)) : possible;
-    if (!covers.length) fail(422, 'Nothing for a grace period to cover: they can already work');
-    checkRisk(covers, b.risk_ack);
-    const g = await tx(async (db) => {
-      const r = await db.one(`INSERT INTO compliance_grace (officer_id, covers, starts_on, ends_on, reason, risk_ack, granted_by) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-        [o.id, covers, today, ends, reason, !!b.risk_ack, user.id]);
-      await event(db, r.id, 'grant', user, { ends_on: ends, covers, reason });
-      await sync(db, o.id, r);
-      return r;
-    });
-    await audit(user, 'compliance.grace_grant', 'officer', o.id, { grace_id: g.id, ends_on: ends, covers, reason, risk_ack: !!b.risk_ack, issues: blockers(o, today).map((x) => x.text) });
-    await tellOfficer(o.id, `You can work until ${fmtDate(ends)}`, `Upload ${graceAsk(covers)} by then under Documents, or you won't be able to clock in or take shifts after it.`);
-    return { ok: true, grace: g };
+    return { ok: true, grace: await grantGrace(b.officer_id, b, user) };
   }),
 
   'compliance.grace.renew': def(CO, async (b, { user }) => {

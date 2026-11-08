@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-08', icon: BadgeCheck, title: 'More ways to sort right to work ticked by hand', image: 'rtw-hand-ticked',
+    lede: "When someone's right to work was ticked by hand with no evidence or saved check, Orb's card now says the same as their profile and gives you choices instead of just a note.",
+    points: ['Record their British or Irish passport as the evidence, when a good one is on file', 'Remind them to upload their passport or a share code (ticked when there is no passport to use)', "Have Orb read their passport again when it couldn't use it the first time", "Not sure? Untick right to work and give them 14 days to send it: they keep working on a grace period, Orb chases them, and it closes by itself when the document is in (company managers)", 'Cards raised before today are refreshed with the new wording and choices'],
+  },
+  {
     month: 'November 2026', date: '2026-11-08', icon: ArrowRightLeft, title: 'Documents sent under the wrong type are put right', image: 'doc-refile',
     lede: "An officer who uploads their passport as Proof of address, or their SIA card as Right to work, no longer leaves a gap on their profile. Orb spots it, files it where it belongs and carries on. Managers can also change any upload's type themselves, and the Right to work tile has its own Edit.",
     points: ["Orb now also reads Proof of address and Other uploads; a passport or SIA card found there is moved to Right to work or SIA licence, and the officer is told", "An upload a manager already checked isn't moved: Orb raises a card on the Compliance page with a Re-file button instead", "In the profile's Documents, the new Edit (pencil) changes an upload's type, title, number or expiry; uploads that look wrong are marked in amber", "Right to work ticked by hand with no evidence: Orb fills in British or Irish passport from their passport, or offers it on their Compliance card for you to approve", "The Right to work tile's Edit now opens just the evidence, expiry and an upload, without the SIA fields; British passport and Irish passport are in the list"],

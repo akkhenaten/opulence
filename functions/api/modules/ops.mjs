@@ -649,8 +649,8 @@ const JOBS = {
     const waiting = await unreadDocCount();
     if (waiting) return readDocuments(waiting > 6 ? 6 : 4, { refresh: true });
     // Backlog cleared: one full check, so every card reflects the new reads (once per re-read migration)
-    if (await one("SELECT 1 FROM ops_activity WHERE kind = 'compliance_reread_done' AND text = '056'")) return 'idle';
-    await logActivity('compliance_reread_done', '056');
+    if (await one("SELECT 1 FROM ops_activity WHERE kind = 'compliance_reread_done' AND text = '057'")) return 'idle';
+    await logActivity('compliance_reread_done', '057');
     return runCompliance();
   },
 

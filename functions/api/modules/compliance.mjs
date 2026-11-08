@@ -22,8 +22,8 @@ import { CO, MGR, def } from './_def.mjs';
 import { statusesFor, pairKey, OK } from '../lib/venuePack.mjs';
 import { NOT_CLEARED, STATUS_LABEL, RECHECK_DAYS, daysSinceCheck, siaCheckOn } from '../lib/sia.mjs';
 import { officerDisplay } from '../lib/names.mjs';
-import { compliance } from './officers.mjs';
-import { renewGrace, graceAsk } from './grace.mjs';
+import { compliance, graceOn, GRACE_MAX_DAYS } from './officers.mjs';
+import { grantGrace, renewGrace, graceAsk } from './grace.mjs';
 import { docFaceMatch, docPairMatch } from '../lib/face.mjs';
 import { autoApply, fitOf, nameOk, numberAgrees, PASSPORT_RTW, refile, SMALL_GAP } from '../lib/docAuto.mjs';
 import { cardSet, filed, mergedRead, misfiledAs, passportSet } from '../lib/docSets.mjs';
@@ -297,11 +297,19 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
     const pass = !o.rtw_type ? passportSet(filed(docs), o) : [];
     const pr = pass.length ? mergedRead(pass, o).read : null;
     const type = pr && !(pr.concerns || []).length && pr.readable !== false && PASSPORT_RTW[pr.nationality] && fitOf(pr, o) !== 'no' ? PASSPORT_RTW[pr.nationality] : null;
+    // A passport on file Orb couldn't use (unreadable, flagged, another name, not British or Irish): read it again
+    const bad = pass[0] && !type && (!pr || pr.readable === false || (pr.concerns || []).length || fitOf(pr, o) === 'no');
     add({
       key: 'rtw:no_record', severity: 'advisory', sig: sig(o.rtw_type, o.rtw_expiry, type && pass[0].id),
-      title: o.rtw_type ? 'Right to work ticked by hand, no check saved' : 'Right to work ticked by hand, no evidence or check saved',
-      detail: `${type ? `Their uploaded ${type} can go down as the evidence. ` : o.rtw_type ? '' : 'Set the evidence with Edit on the Right to work tile. '}Do the check again and upload the GOV.UK page (or your copy of their passport) with Check right to work.`,
-      actions: type ? [{ kind: 'rtw_type', label: `Record their ${type} as the evidence`, params: { rtw_type: type, doc_id: pass[0].id }, company_only: true, default: true }] : [],
+      title: o.rtw_type ? 'Right to work ticked by hand, no check saved' : 'Right to work evidence not recorded, no check saved',
+      detail: `${type ? `Their uploaded ${type} can go down as the evidence. ` : o.rtw_type ? '' : 'Nothing on file says what was seen. '}Or do the check again with Check right to work on their profile.`,
+      actions: [
+        ...(type ? [{ kind: 'rtw_type', label: `Record their ${type} as the evidence`, params: { rtw_type: type, doc_id: pass[0].id }, company_only: true, default: true }] : []),
+        { ...remind(o, 'rtw', 'their passport or right to work share code'), default: !type },
+        ...(bad ? [recheck(pass[0])] : []),
+        // Not sure they have the right to work: block them again, with time to send it while Orb chases
+        ...(o.status === 'active' && !graceOn(o, today) ? [{ kind: 'rtw_grace', label: `Untick right to work and give ${o.first_name} ${GRACE_MAX_DAYS} days to send it`, params: { days: GRACE_MAX_DAYS }, company_only: true, default: false }] : []),
+      ],
     });
   }
 
@@ -653,6 +661,16 @@ export async function decideCompliance(it, b, user) {
     if (!row) continue;
     await autoApply(row.id).catch((e) => console.error('[compliance] auto-apply after re-file', row.id, e.message));
     done.push(`Re-filed "${d.title}" as ${docLabel(a.params.to)}`);
+  }
+  // Recording the evidence settles it, so an untick picked alongside is skipped
+  for (const a of picked.filter((x) => x.kind === 'rtw_grace' && !picked.some((y) => y.kind === 'rtw_type'))) {
+    if (user.role !== 'company') fail(403, 'Only a company manager can give a grace period');
+    if (!o.rtw_verified) continue;
+    const g = await grantGrace(o.id, { days: a.params.days, reason: `From Orb's card: ${a.issue.title}` }, user, {
+      officer: { ...o, rtw_verified: false }, prep: (db) => db.q('UPDATE officers SET rtw_verified = false WHERE id = $1', [o.id]),
+    });
+    await audit(user, 'officer.update', 'officer', o.id, { rtw_verified: { from: true, to: false }, grace_id: g.id, via: 'compliance' });
+    done.push(`Unticked right to work; ${o.first_name} can work until ${fmtDate(g.ends_on)} while they send it`);
   }
   for (const a of picked.filter((x) => x.kind === 'grace_renew')) {
     if (user.role !== 'company') fail(403, 'Only a company manager can extend a grace period');
