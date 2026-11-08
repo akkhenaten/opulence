@@ -519,6 +519,10 @@ export const actions = {
     if (event) {
       await notify(await allStaff(user.id), { kind: 'event', title: `New event: ${event.title}`, body: new Date(event.starts_at).toLocaleString('en-GB', { timeZone: 'Europe/London', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }), link: postLink(post.id), dedupe: `event:${post.id}` });
     }
+    // A manager's "Notify everyone": a phone notice to all staff (events already tell everyone; held posts wait for review)
+    if (b.notify_all && isManager(user) && !check.serious && !event) {
+      await notify(await allStaff(user.id), { kind: 'announcement', title: `${user.name} posted on Everyday`, body: snippet(f.body) || 'New photo', link: postLink(post.id), dedupe: `everyone:${post.id}` });
+    }
     await publishFeed('feed.post', { id: post.id, author_id: user.id });
     return { id: post.id };
   }),

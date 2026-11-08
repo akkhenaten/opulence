@@ -755,7 +755,7 @@ function RulesTab() {
 // The three tiers set in the API (lib/notify.mjs TIER)
 const PHONE_TIERS = [
   { label: 'Urgent: phone, email and bell', text: 'No-shows, high-risk incidents, shifts cancelled or changed within 48 hours, documents expiring within a week, instructions during a shift.' },
-  { label: 'Action: phone and bell', text: 'New shifts, cover requests, late clock-ins, timesheet and pay queries, things to sign, messages and mentions.' },
+  { label: 'Action: phone and bell', text: 'New shifts, cover requests, late clock-ins, timesheet and pay queries, things to sign, messages and mentions, announcements and Everyday posts sent to everyone.' },
   { label: 'FYI: bell only', text: 'Contracts signed, time off requested, payments sent, applications, training, invoices, Everyday reactions and celebrations.' },
 ];
 

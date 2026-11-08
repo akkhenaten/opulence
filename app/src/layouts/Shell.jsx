@@ -77,6 +77,12 @@ function NotificationBell() {
     last.current = latest;
   }, [count.data, unread, brand.name]);
 
+  // The red count on the installed app's icon follows the bell
+  useEffect(() => {
+    if (!count.data) return;
+    try { (unread ? navigator.setAppBadge?.(unread) : navigator.clearAppBadge?.())?.catch?.(() => {}); } catch { /* no badge support */ }
+  }, [count.data, unread]);
+
   const openItem = async (n) => {
     setOpen(false);
     if (!n.read_at) await api('notifications.markRead', { ids: [n.id] }).catch(() => {});

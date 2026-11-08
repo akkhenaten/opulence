@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'everyday-notify': 'A phone home-screen icon on a dark navy background with a bright red round badge showing the number 1 in its corner, a notification banner sliding down above it with a small gold megaphone icon, soft glow, warm lamp light, dark navy and gold.',
   'notify-tiers': 'Three phones lying side by side on a dark navy desk: the first lit with a bright gold alert banner and a soft glow, the second with a calm small banner, the third dark with only a tiny bell icon, warm lamp light, dark navy and gold.',
   'push-test': 'A phone standing on a dark navy bedside table at night, a single notification banner glowing at the top of the lock screen with a small gold bell icon and a soft gold tick beside it, a hand reaching towards it out of focus, warm lamp light, dark navy and gold.',
   'manager-clock-out': 'A manager\'s hand tapping a tablet on a dark navy desk, the screen showing a single officer card with a round avatar, a clock face and a bold gold Clock out button, a small door sign glowing softly in the background of a late-night venue, warm lamp light, dark navy and gold.',

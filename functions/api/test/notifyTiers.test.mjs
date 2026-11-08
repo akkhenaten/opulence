@@ -28,3 +28,7 @@ test('every notify kind in the API has a tier', () => {
   const missing = [...kinds].filter((k) => !(k in TIER));
   assert.deepEqual(missing, []);
 });
+
+test('announcements and posts sent to everyone reach the phone', () => {
+  assert.equal(tierOf('announcement'), 'action');
+});

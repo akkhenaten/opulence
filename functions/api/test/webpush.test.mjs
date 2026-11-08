@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { encrypt } from '../lib/webpush.mjs';
+import { encrypt, payloadFor } from '../lib/webpush.mjs';
 
 const hkdf = (salt, ikm, info, len) => Buffer.from(crypto.hkdfSync('sha256', ikm, salt, info, len));
 
@@ -22,4 +22,13 @@ test('push payload decrypts on the device side (RFC 8291 aes128gcm)', () => {
   const pt = Buffer.concat([d.update(rest.subarray(0, rest.length - 16)), d.final()]);
   assert.equal(pt[pt.length - 1], 2);
   assert.equal(pt.subarray(0, -1).toString(), msg);
+});
+
+test('each device can get its own payload (its unread count for the app icon)', () => {
+  const data = { title: 'Hi' };
+  assert.deepEqual(payloadFor(data, { user_id: 'a' }), data);
+  const badges = { a: 3 };
+  const per = (s) => ({ ...data, badge: badges[s.user_id] ?? 0 });
+  assert.deepEqual(payloadFor(per, { user_id: 'a' }), { title: 'Hi', badge: 3 });
+  assert.deepEqual(payloadFor(per, { user_id: 'b' }), { title: 'Hi', badge: 0 });
 });

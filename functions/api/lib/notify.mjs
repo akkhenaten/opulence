@@ -12,8 +12,8 @@ export const OPTIONAL_KINDS = ['mention', 'comment', 'reaction', 'announcement',
 export const TIER = {
   shift: 'action', open_shift: 'action', cover: 'action', late: 'action', clock_out: 'action', clock_exception: 'action', pack_blocked: 'action',
   venue_pack: 'action', contract: 'action', pay: 'action', timeoff: 'action', timesheet: 'action', incident: 'action', message: 'action',
-  mention: 'action', reminder: 'action', expiry: 'action', compliance: 'action', demo: 'action', staff_setup: 'action',
-  hr: 'fyi', feed: 'fyi', announcement: 'fyi', reaction: 'fyi', comment: 'fyi', tag: 'fyi', shoutout: 'fyi', event: 'fyi', celebration: 'fyi',
+  mention: 'action', reminder: 'action', expiry: 'action', compliance: 'action', demo: 'action', staff_setup: 'action', announcement: 'action',
+  hr: 'fyi', feed: 'fyi', reaction: 'fyi', comment: 'fyi', tag: 'fyi', shoutout: 'fyi', event: 'fyi', celebration: 'fyi',
   training: 'fyi', review: 'fyi', invoice: 'fyi', feedback: 'fyi', ops: 'fyi', applicant: 'fyi', app_feedback: 'fyi',
 };
 export function tierOf(kind, severity, tier) {
@@ -90,7 +90,10 @@ export async function notify(userIds, { kind, title, body = '', link = '', sever
   );
   if (rows.length && t !== 'fyi') {
     try {
-      await pushToUsers(rows.map((r) => r.user_id), { title, body, link, tier: t });
+      const to = rows.map((r) => r.user_id);
+      // Each person's unread count rides along for the red badge on the app icon
+      const counts = await q('SELECT user_id, count(*)::int AS n FROM notifications WHERE user_id = ANY($1::uuid[]) AND read_at IS NULL GROUP BY user_id', [to]);
+      await pushToUsers(to, { title, body, link, tier: t }, Object.fromEntries(counts.map((c) => [c.user_id, c.n])));
     } catch (e) {
       console.warn('[push] not sent:', e.message);
     }

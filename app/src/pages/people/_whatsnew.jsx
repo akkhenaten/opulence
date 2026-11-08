@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-08', icon: Megaphone, title: 'Tell everyone from Everyday, and a red count on the app icon', image: 'everyday-notify',
+    lede: "Managers can now switch on Notify everyone when they post on Everyday, and every member of staff gets it on their phone. The installed app's icon also shows a red count of unread notifications, like any other app.",
+    points: ['Notify everyone is under the box when a manager writes a post, poll or shout-out; leave it off and the post just appears in the feed as before', 'Announcements made by pinning a post now reach phones too, not only the bell', 'Anyone who has switched off Announcements from managers in Notifications isn\'t sent them', 'The red count on the app icon goes down as notifications are read under the bell, and goes away when they are all read', 'The count shows on iPhone (home-screen app, iOS 16.4 or later) and Android once phone notifications are on'],
+  },
+  {
     month: 'November 2026', date: '2026-11-08', icon: BellRing, title: 'The phone only buzzes when it matters', image: 'notify-tiers',
     lede: "Every notice now has a level. Urgent ones (a no-show, a high-risk incident, a shift cancelled at short notice) come to the phone and by email. Things to do today come to the phone. Everything else waits quietly under the bell.",
     points: ['Urgent: phone, email and bell, and on Android the alert stays on screen until it is seen', 'Action: phone and bell, for new shifts, cover, late clock-ins, queries and things to sign', 'FYI: bell only, for contracts signed, payments sent, applications, reactions and the like', 'Clients now hear straight away when an officer can\'t make it to their venue, and again when a replacement is confirmed', 'The Orb platform account no longer gets Opulence\'s day-to-day alerts, only platform matters such as demo requests and app feedback'],

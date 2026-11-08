@@ -69,17 +69,21 @@ export async function sendPush(sub, data) {
 
 const host = (endpoint) => { try { return new URL(endpoint).host; } catch { return '?'; } };
 
+/** What one subscription is sent: data, or data(sub) when each device gets its own (e.g. its unread count). */
+export const payloadFor = (data, sub) => (typeof data === 'function' ? data(sub) : data);
+
 /** Push to these subscriptions; logs refusals and drops the ones the browser has revoked. Returns one result per subscription. */
 export async function pushToSubs(subs, data) {
-  const results = await Promise.all(subs.map((s) => sendPush(s, data).then((r) => ({ s, ...r }))));
+  const results = await Promise.all(subs.map((s) => sendPush(s, payloadFor(data, s)).then((r) => ({ s, ...r }))));
   for (const r of results) if (r.status < 200 || r.status >= 300) console.warn('[push] refused:', host(r.s.endpoint), r.status, r.reason);
   const gone = results.filter((r) => r.status === 404 || r.status === 410).map((r) => r.s.id);
   if (gone.length) await q('DELETE FROM push_subscriptions WHERE id = ANY($1::uuid[])', [gone]);
   return results;
 }
 
-/** Push to every subscription of these users. */
-export async function pushToUsers(userIds, data) {
+/** Push to every subscription of these users. badges: { user_id: unread } sets the app icon count on each person's devices. */
+export async function pushToUsers(userIds, data, badges = null) {
   if (!userIds.length) return;
-  await pushToSubs(await q('SELECT id, endpoint, keys FROM push_subscriptions WHERE user_id = ANY($1::uuid[])', [userIds]), data);
+  const subs = await q('SELECT id, user_id, endpoint, keys FROM push_subscriptions WHERE user_id = ANY($1::uuid[])', [userIds]);
+  await pushToSubs(subs, badges ? (s) => ({ ...data, badge: badges[s.user_id] ?? 0 }) : data);
 }
