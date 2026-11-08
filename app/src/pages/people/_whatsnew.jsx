@@ -1,6 +1,6 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  ArrowRightLeft, BadgeCheck, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LogOut, Mail, MessageSquareHeart,
+  ArrowRightLeft, BadgeCheck, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LogOut, Mail, MessageSquareHeart,
   Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-08', icon: CalendarClock, title: 'Time to send documents: grace periods', image: 'grace-periods',
+    lede: "An officer who can't work because a document is missing or out of date can now be given a grace period of up to 14 days. They keep clocking in and being rostered while they send it, Orb chases them, and the grace closes by itself once the documents are in.",
+    points: ["On the Compliance page, Can't work lists everyone blocked, with Give grace period on each (company managers)", 'Pick 7 days, 14 days or a date, give a reason and choose what it covers; it can be extended twice, each time with a reason', 'Covering an expired SIA licence, an SIA register problem or expired right to work needs a tick to accept the risk', 'The officer sees You can work until … on their Home, and is reminded 3 days and 1 day before it ends', "When it runs out with the documents still missing they are blocked again, and Orb's compliance card offers to take them off their shifts and find cover", 'Today shows grace periods ending within 3 days; the profile, staff list (On grace filter) and the rota mark who is on one', 'Not active staff can\'t be given one; every grace, extension and ending is in the audit trail and the officer\'s history'],
+  },
   {
     month: 'November 2026', date: '2026-11-08', icon: LayoutGrid, title: 'Today: everything in one place', image: 'today-one-page',
     lede: "Dashboard and Live operations are now one page, Today. Who is on the floor sits on the left, and one Needs you list on the right holds everything waiting for you: Orb's cards and the other to-dos together, most urgent first.",

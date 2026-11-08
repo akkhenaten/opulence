@@ -22,6 +22,8 @@ import { CO, MGR, def } from './_def.mjs';
 import { statusesFor, pairKey, OK } from '../lib/venuePack.mjs';
 import { NOT_CLEARED, STATUS_LABEL, RECHECK_DAYS, daysSinceCheck, siaCheckOn } from '../lib/sia.mjs';
 import { officerDisplay } from '../lib/names.mjs';
+import { compliance } from './officers.mjs';
+import { renewGrace, graceAsk } from './grace.mjs';
 import { docFaceMatch, docPairMatch } from '../lib/face.mjs';
 import { autoApply, fitOf, nameOk, numberAgrees, SMALL_GAP } from '../lib/docAuto.mjs';
 import { cardSet, mergedRead, passportSet } from '../lib/docSets.mjs';
@@ -223,6 +225,22 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
         actions: [remind(o, e.doc, `a renewed ${label}`)],
       });
     }
+  }
+
+  // A grace period ran out with the documents still missing: blocked again, so their booked shifts need cover
+  const lapsed = o.grace_lapsed_on && !o.grace_until ? compliance(o, today) : null;
+  if (lapsed && !lapsed.ok && o.status === 'active') {
+    add({
+      key: 'grace_expired', severity: 'urgent', sig: sig(o.grace_lapsed_on),
+      title: `Grace period ended ${fmtDate(o.grace_lapsed_on)}, still can't work`,
+      detail: `${lapsed.issues.join(', ')}.${shifts.length ? ` Booked on ${plural(shifts.length, 'shift')}: ${shifts.slice(0, 3).map(shiftLine).join('; ')}${shifts.length > 3 ? '…' : ''}` : ''}`,
+      shift: shifts[0],
+      actions: [
+        ...(shifts.length ? [{ ...unassign(shifts), default: true }] : []),
+        { ...remind(o, 'documents', 'the documents still missing'), default: !shifts.length },
+        { kind: 'grace_renew', label: 'Give them 7 more days', params: { days: 7 }, company_only: true, default: false },
+      ],
+    });
   }
 
   // Missing licence or right to work
@@ -582,6 +600,11 @@ export async function decideCompliance(it, b, user) {
     await audit(user, 'officer.update', 'officer', o.id, { [a.params.field]: { from: a.params.from, to: a.params.to }, via: 'compliance' });
     done.push(`Updated ${{ sia_number: 'SIA number', sia_expiry: 'SIA expiry', rtw_expiry: 'right to work expiry' }[a.params.field]} to ${a.params.field.endsWith('expiry') ? fmtDate(a.params.to) : a.params.to}`);
   }
+  for (const a of picked.filter((x) => x.kind === 'grace_renew')) {
+    if (user.role !== 'company') fail(403, 'Only a company manager can extend a grace period');
+    const g = await renewGrace(o.id, { days: a.params.days, reason: `Extended from Orb's card: ${a.issue.title}` }, user);
+    done.push(`Grace period extended to ${fmtDate(g.ends_on)}`);
+  }
   for (const a of picked.filter((x) => x.kind === 'recheck')) {
     // The scan is read again from fresh: its photo, readability and name flags go until that read says otherwise
     const d = await one("UPDATE documents SET verified_at = NULL, verified_by = NULL, ai_read = NULL, ai_read_key = NULL, ai_read_at = NULL WHERE id = $1 AND owner_id = $2 RETURNING title", [a.params.doc_id, o.id]);
@@ -759,8 +782,11 @@ export async function buildDigest() {
 <table style="width:100%;border-collapse:collapse;margin:8px 0 4px">${all.slice(0, 10).map((i) => `<tr><td style="padding:8px 0;border-top:1px solid #E5E7EB;vertical-align:top;width:10px"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:${tone[i.severity]}"></span></td><td style="padding:8px 0 8px 8px;border-top:1px solid #E5E7EB;color:#0B1220;font-size:14px"><b>${esc(i.name)}</b><br><span style="color:#4B5563">${esc(i.title)}</span></td></tr>`).join('')}</table>
 <p style="color:#4B5563;line-height:1.5">${all.length > 10 ? `And ${plural(all.length - 10, 'more item')}. ` : ''}Open Compliance to see everything and approve the actions.`
     : 'Nobody has an expired or missing licence, right to work, certificate or training this week.';
+  const graces = await q(`SELECT o.first_name, o.last_name, o.goes_by, g.ends_on, g.renewals, g.covers FROM compliance_grace g JOIN officers o ON o.id = g.officer_id
+                           WHERE g.ended_at IS NULL ORDER BY g.ends_on`);
+  const graceHtml = graces.length ? `<p style="color:#0B1220;font-weight:600;margin:16px 0 4px">On a grace period (${graces.length})</p>${graces.map((g) => `<p style="color:#4B5563;margin:4px 0;line-height:1.5"><b style="color:#0B1220">${esc(officerDisplay(g))}</b>: until ${fmtDate(g.ends_on)}${g.renewals ? `, extended ${g.renewals}×` : ''}. Still to send: ${esc(graceAsk(g.covers))}.</p>`).join('')}` : '';
   const lawHtml = law.length ? `<p style="color:#0B1220;font-weight:600;margin:16px 0 4px">Law changes coming</p>${law.map((l) => `<p style="color:#4B5563;margin:4px 0;line-height:1.5"><a href="${esc(l.url)}" style="color:#0B1220">${esc(l.title)}</a>: from ${fmtDate(l.effective_date)}, touches ${plural(l.contracts, 'signed contract')}. Review the wording before then.</p>`).join('')}` : '';
-  return { subject: `${name} — ${title}`, title, html: await emailHtml(title, body + lawHtml, '/company/people/compliance'), issues: all.length, law: law.length };
+  return { subject: `${name} — ${title}`, title, html: await emailHtml(title, body + graceHtml + lawHtml, '/company/people/compliance'), issues: all.length, law: law.length };
 }
 
 export async function sendDigest() {

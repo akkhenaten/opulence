@@ -132,9 +132,10 @@ function Profile({ o, reload, user, base }) {
             </div>
           </div>
         </div>
-        {o.compliance?.issues?.length > 0 && (
+        {(o.compliance?.issues?.length > 0 || o.compliance?.graced?.length > 0) && (
           <div className="mt-4 flex flex-wrap gap-1.5 border-t border-line pt-3">
             {o.compliance.issues.map((i) => <span key={i} className="rounded-lg bg-red-soft px-2 py-0.5 text-caption font-semibold text-red">{i}</span>)}
+            {(o.compliance.graced || []).map((i) => <span key={i} className="rounded-lg bg-amber-soft px-2 py-0.5 text-caption font-semibold text-amber">{i} · grace</span>)}
           </div>
         )}
         {invited && <p className={`mt-3 text-footnote ${invited.tone === 'amber' ? 'text-amber' : 'text-muted'}`}>{invited.short}</p>}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AlertTriangle, CalendarDays, Check, Clock3, Coffee, FileSignature, GraduationCap, ListChecks, LogIn, LogOut, MapPin, Megaphone, Newspaper, NotebookPen, PencilLine,
+  AlertTriangle, CalendarClock, CalendarDays, Check, Clock3, Coffee, FileSignature, GraduationCap, ListChecks, LogIn, LogOut, MapPin, Megaphone, Newspaper, NotebookPen, PencilLine,
   ShieldAlert, ShieldCheck, X,
 } from 'lucide-react';
 import { api } from '../../api.js';
@@ -96,10 +96,14 @@ function Body({ d, clock, ops, reload }) {
 
       <ChaseBanner ops={ops} />
       <PhoneCard soon={next.some((s) => new Date(s.starts_at) - Date.now() < 864e5)} />
-      {(offers.length > 0 || d.issues?.length > 0 || (siaDays != null && siaDays <= 60)) && (
+      {(offers.length > 0 || d.issues?.length > 0 || d.grace || (siaDays != null && siaDays <= 60)) && (
         <List>
           {d.issues?.length > 0 && (
             <Row to="/officer/documents" left={<Ico icon={ShieldAlert} tone="red" />} title="You can't work shifts right now" subtitle={d.issues.join(' · ')} />
+          )}
+          {!d.issues?.length && d.grace && (
+            <Row to="/officer/documents" left={<Ico icon={CalendarClock} tone={d.grace.days_left <= 3 ? 'red' : 'amber'} />}
+              title={`You can work until ${date(d.grace.ends_on)}`} subtitle={`Send by then: ${(d.graced || []).join(' · ')}`} chevron />
           )}
           {offers.length > 0 && (
             <Row to="/officer/shifts?tab=offers" left={<Ico icon={Megaphone} tone="blue" />}

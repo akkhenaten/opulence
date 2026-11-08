@@ -14,6 +14,7 @@ import { checkOfficerForShift, getShift, filledCount, shiftsWithAssignments, lon
 import { recalcStatement, recalcInvoice } from './money.mjs';
 import { ALL, MGR, CO, def } from './_def.mjs';
 import { runCompliance, readDocuments, unreadDocCount, decideCompliance, computeIssues, sendDigest, dismissComplianceIssues } from './compliance.mjs';
+import { graceJob } from './grace.mjs';
 import { runVenueSetup, decideVenueSetup, dismissVenueIssues } from './venueSetup.mjs';
 import { defaultActions } from '../lib/venueSetup.mjs';
 import { evidenceScan } from './incidentAi.mjs';
@@ -628,6 +629,12 @@ const JOBS = {
     const r = await runCompliance();
     if (jobOn(s, 'compliance_digest')) r.digest = await sendDigest().catch((e) => ({ error: e.message }));
     return r;
+  },
+
+  // Grace periods: close the ones whose documents are in, remind before the end, close the ones that ran out
+  async grace(s) {
+    if (!jobOn(s, 'grace')) return 'off';
+    return graceJob();
   },
 
   async venueSetup(s) {

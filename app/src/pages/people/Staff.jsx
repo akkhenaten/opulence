@@ -18,7 +18,7 @@ const APP_SETUP = {
 const AppSetup = ({ o }) => (o.has_phone && o.has_push ? <span className="text-footnote text-faint">Set up</span> : (
   <span className="flex flex-wrap gap-1">{!o.has_phone && <Pill tone="amber">No phone</Pill>}{!o.has_push && <Pill tone="grey">No notifications</Pill>}</span>
 ));
-const COMPLIANCE = [{ value: 'all', label: 'Any compliance' }, { value: 'green', label: 'Compliant' }, { value: 'amber', label: 'Expiring soon' }, { value: 'red', label: 'Not compliant' }];
+const COMPLIANCE = [{ value: 'all', label: 'Any compliance' }, { value: 'green', label: 'Compliant' }, { value: 'amber', label: 'Expiring soon' }, { value: 'grace', label: 'On grace' }, { value: 'red', label: 'Not compliant' }];
 
 export default function Staff() {
   const { user } = useAuth();
@@ -42,13 +42,13 @@ export default function Staff() {
     const s = search.trim().toLowerCase();
     return all.filter((o) => o.status === status
       && (!role || (o.roles || []).includes(role))
-      && (comp === 'all' || complianceState(o.compliance).tone === comp)
+      && (comp === 'all' || (comp === 'grace' ? !!o.compliance?.grace : complianceState(o.compliance).tone === comp && !(comp === 'amber' && o.compliance?.grace)))
       && (!app || !APP_SETUP[app].test(o))
       && (!s || `${o.name} ${o.full_name || ''} ${o.email} ${o.phone} ${o.sia_number}`.toLowerCase().includes(s)));
   }, [all, status, role, comp, app, search]);
 
   const active = all.filter((o) => o.status === 'active');
-  const states = active.map((o) => complianceState(o.compliance).tone);
+  const states = active.map((o) => (o.compliance?.grace && complianceState(o.compliance).tone === 'amber' ? 'grace' : complianceState(o.compliance).tone));
 
   return (
     <Page2 isCo={isCo} onAdd={() => setAdding(true)}>

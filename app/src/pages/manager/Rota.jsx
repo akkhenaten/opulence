@@ -729,7 +729,7 @@ function AssignSheet({ shift, replace, onClose, onDone }) {
                   className={cx('flex w-full items-center gap-3 px-4 py-3 text-left transition', blocked ? 'opacity-60' : 'hover:bg-surface active:bg-surface')}>
                   <Avatar name={c.name} size={36} />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 truncate text-body font-semibold">{displayName(c)}{c.id === user.self_officer_id && <Pill tone="blue">You</Pill>}</div>
+                    <div className="flex items-center gap-1.5 truncate text-body font-semibold">{displayName(c)}{c.id === user.self_officer_id && <Pill tone="blue">You</Pill>}{c.grace_until && !blocked && <Pill tone="amber">On grace until {dateShort(c.grace_until)}</Pill>}</div>
                     {blocked ? <div className="text-caption text-red">{c.blocking.join(' · ')}</div>
                       : c.warnings.length ? <div className="text-caption text-amber">{c.warnings.join(' · ')}</div>
                         : <div className="text-caption text-green">Available</div>}

@@ -469,6 +469,7 @@ const JOBS = [
   { k: 'orb_voice', label: 'Talk to Orb', hint: 'Managers can dictate or talk to Orb by voice' },
   { k: 'compliance', label: 'Compliance checks', hint: 'Licences, right to work and documents against the rota. Weekly' },
   { k: 'venue_setup', label: 'Check venue details', hint: 'Address, map pin, logo and clock-in radius: Orb finds what is missing and proposes it for you to approve' },
+  { k: 'grace', label: 'Grace periods', hint: 'Reminds officers on a grace period 3 days and 1 day before it ends, closes it once their documents are in, and raises a card when it runs out' },
   { k: 'compliance_digest', label: 'Weekly compliance email', hint: 'After the weekly check, the worst issues by email to company managers' },
   { k: 'incident_ai', label: 'AI on incident reports', hint: 'Drafts from officers\' notes and photos; evidence review for managers' },
 ];

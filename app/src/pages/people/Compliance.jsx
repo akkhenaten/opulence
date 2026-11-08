@@ -1,11 +1,12 @@
 // Every compliance issue across the workforce in one place: what is wrong, how urgent, and what Orb advises
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Mail, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Ban, CalendarClock, Mail, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
+import GraceSheet, { GRACE_LABEL } from './_graceSheet.jsx';
 import {
-  Avatar, Button, date, Empty, Load, MoreMenu, Page, Pill, Segmented, Select, Sheet, Spinner, Tile, time, useAction, useApi, useUrlState,
+  Avatar, Button, Callout, date, Empty, Load, MoreMenu, Page, Pill, Segmented, Select, Sheet, Spinner, Tile, time, useAction, useApi, useConfirm, useUrlState,
 } from '../../ui/index.jsx';
 
 const SEV = {
@@ -41,6 +42,7 @@ export default function Compliance() {
           <Button icon={RefreshCw} busy={busy} onClick={check}>Run check now</Button>
         </>
       )}>
+      <CantWork company={company} openStaff={(id) => nav(`/${user.role}/staff/${id}?tab=compliance`)} />
       <Load q={q} skeleton="rows">
         {(d) => <Body d={d} sev={sev} setSev={(v) => setUrl({ severity: v })} area={area} setArea={(v) => setUrl({ area: v })} dismiss={dismiss} busy={busy}
           openCard={() => nav(`/${user.role}`)} openStaff={(id) => nav(`/${user.role}/staff/${id}?tab=documents`)}
@@ -48,6 +50,99 @@ export default function Compliance() {
       </Load>
       {preview && <DigestPreview onClose={() => setPreview(false)} />}
     </Page>
+  );
+}
+
+// Who can't work right now and who is working on a grace period while they send their documents
+function CantWork({ company, openStaff }) {
+  const q = useApi('compliance.blocked');
+  const [params] = useSearchParams();
+  const ref = useRef(null);
+  const [sheet, setSheet] = useState(null);
+  const [run, busy] = useAction();
+  const confirm = useConfirm();
+  useEffect(() => {
+    if (params.get('view') === 'cantwork' && q.data) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [params, q.data]);
+  const d = q.data;
+  if (!d || (!d.blocked.length && !d.onGrace.length)) return null;
+  const end = async (r) => {
+    const ok = await confirm({ title: `End ${r.officer.name}'s grace period now?`, body: "They can't clock in or be rostered again until their documents are in. They are told.", confirm: 'End now', danger: true });
+    if (ok) run(() => api('compliance.grace.end', { officer_id: r.officer.id, reason: 'Ended early from Compliance' }), 'Grace period ended').then(q.reload).catch(() => {});
+  };
+  const limits = { maxDays: d.max_days, maxRenewals: d.max_renewals };
+
+  return (
+    <div ref={ref} className="mb-6 scroll-mt-20 space-y-5">
+      {d.blocked.length > 0 && (
+        <section>
+          <h2 className="mb-2 flex items-center gap-2 text-headline font-bold"><Ban size={18} className="text-red" aria-hidden />Can't work ({d.blocked.length})</h2>
+          <p className="mb-3 text-footnote text-muted">They can't clock in or be rostered.{company ? ' Give a grace period to let them work while they send their documents.' : ' A company manager can give them a grace period.'}</p>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {d.blocked.map((r) => (
+              <Tile key={r.officer.id}>
+                <Who r={r} openStaff={openStaff} />
+                <ul className="mt-2 space-y-1 text-subhead">{r.issues.map((i) => <li key={i} className="text-red">{i}</li>)}</ul>
+                {r.lapsed && <p className="mt-1 text-footnote text-muted">Grace period ended {date(r.lapsed.ends_on)} · extended {r.lapsed.renewals} of {d.max_renewals} times</p>}
+                {company && (
+                  <div className="mt-3 flex justify-end gap-2">
+                    {r.lapsed && r.lapsed.renewals < d.max_renewals
+                      ? <Button size="sm" variant="soft" icon={CalendarClock} onClick={() => setSheet({ r, mode: 'renew', grace: r.lapsed })}>Extend grace period</Button>
+                      : r.keys.length > 0
+                        ? <Button size="sm" variant="soft" icon={CalendarClock} onClick={() => setSheet({ r, mode: 'grant' })}>Give grace period</Button>
+                        : <span className="text-footnote text-muted">{r.issues.some((i) => i.startsWith('Status')) ? 'Not active: no grace period' : 'Fix on their profile'}</span>}
+                  </div>
+                )}
+              </Tile>
+            ))}
+          </div>
+        </section>
+      )}
+      {d.onGrace.length > 0 && (
+        <section>
+          <h2 className="mb-2 flex items-center gap-2 text-headline font-bold"><CalendarClock size={18} className="text-amber" aria-hidden />On grace ({d.onGrace.length})</h2>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {d.onGrace.map((r) => {
+              const g = r.grace;
+              return (
+                <Tile key={r.officer.id}>
+                  <Who r={r} openStaff={openStaff} right={(
+                    <>
+                      <Pill tone={g.days_left <= 3 ? 'red' : 'amber'}>{g.days_left <= 0 ? 'Last day' : `${g.days_left} day${g.days_left === 1 ? '' : 's'} left`}</Pill>
+                      {company && (
+                        <MoreMenu size="sm" items={[
+                          { label: g.renewals >= d.max_renewals ? `Extended ${d.max_renewals} times already` : 'Extend', disabled: g.renewals >= d.max_renewals, onClick: () => setSheet({ r, mode: 'renew', grace: g }) },
+                          { label: 'End now', danger: true, disabled: busy, onClick: () => end(r) },
+                          { label: 'Profile', onClick: () => openStaff(r.officer.id) },
+                        ]} />
+                      )}
+                    </>
+                  )} />
+                  <p className="num mt-2 text-subhead">Can work until <b>{date(g.ends_on)}</b>{g.renewals ? ` · extended ${g.renewals} of ${d.max_renewals}` : ''}</p>
+                  <p className="mt-0.5 text-footnote text-muted">Covers: {g.covers.map((k) => GRACE_LABEL[k] || k).join(', ')}</p>
+                  <p className="mt-0.5 text-footnote text-muted">"{g.reason}"{g.granted_by ? ` · ${g.granted_by}` : ''}</p>
+                  {r.issues.length > 0 && <Callout tone="danger" className="mt-2">Still blocked: {r.issues.join(', ')}</Callout>}
+                </Tile>
+              );
+            })}
+          </div>
+        </section>
+      )}
+      {sheet && <GraceSheet officer={sheet.r.officer} mode={sheet.mode} keys={sheet.r.keys} grace={sheet.grace} {...limits} onClose={() => setSheet(null)} onDone={q.reload} />}
+    </div>
+  );
+}
+
+function Who({ r, openStaff, right }) {
+  return (
+    <div className="flex items-center gap-3">
+      <Avatar name={r.officer.name} src={r.officer.photo_url} size={40} />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-headline font-bold">{r.officer.name}</div>
+        <div className="num text-footnote text-muted">{r.next ? `Next shift: ${r.next.venue_name} · ${date(r.next.starts_at)} ${time(r.next.starts_at)}` : 'No shifts coming up'}</div>
+      </div>
+      {right || <Button size="sm" variant="link" onClick={() => openStaff(r.officer.id)}>Profile</Button>}
+    </div>
   );
 }
 

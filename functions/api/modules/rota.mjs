@@ -2,7 +2,7 @@ import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, need, pick } from '../lib/http.mjs';
 import { venueScope, assertVenue } from '../lib/scope.mjs';
 import { notify, managersFor, venueContacts, officerUser } from '../lib/notify.mjs';
-import { fmtDateTime, fmtTime, londonParts } from '../lib/time.mjs';
+import { fmtDate, fmtDateTime, fmtTime, londonParts } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { compliance } from './officers.mjs';
 import { ALL, MGR, def } from './_def.mjs';
@@ -23,7 +23,11 @@ export async function checkOfficerForShift(officerId, shift, { ignoreAssignment 
   blocking.push(...c.issues);
   // Licence must still be valid on the shift date
   const shiftDay = londonParts(shift.starts_at).date;
-  if (o.sia_expiry && o.sia_expiry < shiftDay && !c.issues.includes('SIA licence expired') && shift.role !== 'steward') blocking.push('SIA licence expires before this shift');
+  const graceCovers = (key) => c.grace?.covers.includes(key) && shiftDay <= c.grace.ends_on;
+  if (o.sia_expiry && o.sia_expiry < shiftDay && !c.issues.includes('SIA licence expired') && !c.graced.includes('SIA licence expired') && shift.role !== 'steward'
+    && !graceCovers('sia_expiry_shift')) blocking.push('SIA licence expires before this shift');
+  // A grace period only lets them work up to its last day
+  if (c.grace && shiftDay > c.grace.ends_on) blocking.push(`Grace period ends ${fmtDate(c.grace.ends_on)}; can't roster after it`);
 
   const [ban, overlap, off, avail, hours] = await Promise.all([
     one('SELECT reason FROM venue_bans WHERE officer_id = $1 AND venue_id = $2', [officerId, shift.venue_id]),
@@ -54,7 +58,7 @@ export async function checkOfficerForShift(officerId, shift, { ignoreAssignment 
   const notes = [];
   const pk = await statusFor(o.id, shift.venue_id);
   if (pk && !OK.has(pk.status)) notes.push(pk.status === 'unsigned' ? 'Not worked here before: they will read and sign the site pack before clock-in' : `Site pack: ${STATUS_LABEL[pk.status].toLowerCase()} before clock-in`);
-  return { blocking, warnings, notes, officer: { id: o.id, name: officerDisplay(o), full_name: `${o.first_name} ${o.last_name}`, goes_by: o.goes_by || '' } };
+  return { blocking, warnings, notes, grace_until: c.grace?.ends_on || null, officer: { id: o.id, name: officerDisplay(o), full_name: `${o.first_name} ${o.last_name}`, goes_by: o.goes_by || '' } };
 }
 
 export async function getShift(id) {
@@ -268,7 +272,7 @@ export const actions = {
     for (const o of officers) {
       if (assigned.has(o.id)) continue;
       const c = await checkOfficerForShift(o.id, s);
-      results.push({ ...c.officer, blocking: c.blocking, warnings: c.warnings, notes: c.notes });
+      results.push({ ...c.officer, blocking: c.blocking, warnings: c.warnings, notes: c.notes, grace_until: c.grace_until });
     }
     return results.sort((a, b2) => a.blocking.length - b2.blocking.length || a.warnings.length - b2.warnings.length || a.name.localeCompare(b2.name));
   }),

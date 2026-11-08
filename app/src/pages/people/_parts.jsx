@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Check, Copy, FileText, Link2 } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { viewFiles } from '../../ui/FileViewer.jsx';
-import { Button, Chips, Input, Pill, Pressable, Select, Toggle, cx, daysUntil, useApi, useToast } from '../../ui/index.jsx';
+import { Button, Chips, Input, Pill, Pressable, Select, Toggle, cx, date, daysUntil, useApi, useToast } from '../../ui/index.jsx';
 
 export const OFFICER_STATUSES = ['active', 'onboarding', 'applicant', 'suspended', 'left'];
 
@@ -43,6 +43,7 @@ export function complianceState(c) {
   if (!c) return { tone: 'grey', label: 'Unknown' };
   const hard = (c.issues || []).filter((i) => !i.startsWith('Status:'));
   if (hard.length) return { tone: 'red', label: hard.some((i) => i.startsWith('SIA register')) ? 'SIA not active' : hard.some((i) => /expired/i.test(i)) ? 'Expired' : 'Missing checks', detail: hard.join(' · ') };
+  if (c.grace) return { tone: 'amber', label: `On grace until ${date(c.grace.ends_on)}`, detail: `Can work while they send: ${(c.graced || []).join(' · ')}` };
   const soon = [c.sia_days, c.rtw_days].filter((d) => d != null && d <= 30);
   if (soon.length) {
     const d = Math.min(...soon);

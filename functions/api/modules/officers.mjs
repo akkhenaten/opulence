@@ -26,18 +26,42 @@ const SELF_FIELDS = ['goes_by', 'phone', 'address', 'postcode', 'dob', 'ni_numbe
 
 const daysUntil = (d, today) => (d ? Math.round((new Date(d) - new Date(today)) / 86400000) : null);
 
-export function compliance(o, today = londonDate(new Date())) {
-  const issues = [];
+// What stops someone working, by key. A grace period covers keys; Status (not active) is never graced.
+export const GRACE_KEYS = ['sia_missing', 'sia_expired', 'sia_register', 'rtw_unverified', 'rtw_expired', 'sia_expiry_shift'];
+// Covering these means working with no valid licence or right to work: the manager ticks that they accept the risk
+export const GRACE_RISKY = ['sia_expired', 'sia_register', 'rtw_expired', 'sia_expiry_shift'];
+export const GRACE_MAX_DAYS = 14;
+export const GRACE_MAX_RENEWALS = 2;
+
+/** The grace on the officer row, while it lasts (to the end of grace_until, London time) */
+export const graceOn = (o, today = londonDate(new Date())) => (o.grace_until && o.grace_until >= today ? { ends_on: o.grace_until, covers: o.grace_covers || [], days_left: daysUntil(o.grace_until, today) } : null);
+
+/** Every reason someone can't work, with its key (graced or not) */
+export function blockers(o, today = londonDate(new Date())) {
+  const out = [];
   const needsSia = (o.roles || []).some((r) => !NON_SIA.has(r)) || !(o.roles || []).length;
   if (needsSia) {
-    if (!o.sia_number || !o.sia_expiry) issues.push('No SIA licence on file');
-    else if (o.sia_expiry < today) issues.push('SIA licence expired');
-    if (siaCheckOn() && NOT_CLEARED.includes(o.sia_status)) issues.push(`SIA register shows the licence as ${STATUS_LABEL[o.sia_status]}`);
+    if (!o.sia_number || !o.sia_expiry) out.push({ key: 'sia_missing', text: 'No SIA licence on file' });
+    else if (o.sia_expiry < today) out.push({ key: 'sia_expired', text: 'SIA licence expired' });
+    if (siaCheckOn() && NOT_CLEARED.includes(o.sia_status)) out.push({ key: 'sia_register', text: `SIA register shows the licence as ${STATUS_LABEL[o.sia_status]}` });
   }
-  if (!o.rtw_verified) issues.push('Right to work not verified');
-  else if (o.rtw_expiry && o.rtw_expiry < today) issues.push('Right to work expired');
-  if (o.status !== 'active') issues.push(`Status: ${o.status}`);
-  return { ok: !issues.length, issues, sia_days: daysUntil(o.sia_expiry, today), rtw_days: daysUntil(o.rtw_expiry, today) };
+  if (!o.rtw_verified) out.push({ key: 'rtw_unverified', text: 'Right to work not verified' });
+  else if (o.rtw_expiry && o.rtw_expiry < today) out.push({ key: 'rtw_expired', text: 'Right to work expired' });
+  if (o.status !== 'active') out.push({ key: 'status', text: `Status: ${o.status}` });
+  return out;
+}
+
+export function compliance(o, today = londonDate(new Date())) {
+  const grace = graceOn(o, today);
+  const all = blockers(o, today);
+  // Covering a licence that runs out during the grace covers it once it has run out
+  const covered = (k) => grace?.covers.includes(k) || (k === 'sia_expired' && grace?.covers.includes('sia_expiry_shift'));
+  const graced = all.filter((b) => covered(b.key));
+  const issues = all.filter((b) => !graced.includes(b)).map((b) => b.text);
+  return {
+    ok: !issues.length, issues, graced: graced.map((b) => b.text), grace: graced.length ? grace : null,
+    sia_days: daysUntil(o.sia_expiry, today), rtw_days: daysUntil(o.rtw_expiry, today),
+  };
 }
 
 // App set-up managers can chase: a registered clock-in phone, and push notifications on at least one device

@@ -77,7 +77,11 @@ async function managerDash(ctx) {
       count("SELECT count(*)::int AS n FROM time_off WHERE status = 'pending'"),
       q("SELECT status, count(*)::int AS n FROM officers GROUP BY status"),
     ]);
-    Object.assign(out, { nonCompliant: nonCompliant.slice(0, 10), nonCompliantCount: nonCompliant.length, expiring, pipeline });
+    // On a grace period (working while they send documents); ending within 3 days needs a decision soon
+    const onGrace = officers.filter((o) => o.status === 'active' && compliance(o, today).grace);
+    const graceEnding = onGrace.filter((o) => compliance(o, today).grace.days_left <= 3).length;
+    Object.assign(out, { nonCompliant: nonCompliant.slice(0, 10), nonCompliantCount: nonCompliant.length, onGraceCount: onGrace.length, expiring, pipeline });
+    out.counts.graceEnding = graceEnding;
     out.counts.timeOff = timeOff;
     out.activeOfficers = officers.filter((o) => o.status === 'active').length;
   }
@@ -152,7 +156,7 @@ async function officerDash({ user }) {
   ]);
   return {
     role: 'officer', linked: true, officer: { id: officer.id, first_name: officer.first_name, status: officer.status, sia_expiry: officer.sia_expiry },
-    issues: compliance(officer, today).issues, next, openCount, hoursWeek, lastStatement, incidentsToFix: incidents, expiringDocs: docs,
+    issues: compliance(officer, today).issues, graced: compliance(officer, today).graced, grace: compliance(officer, today).grace, next, openCount, hoursWeek, lastStatement, incidentsToFix: incidents, expiringDocs: docs,
     office_phone: (await getSettings())?.company_phone || null,
   };
 }
