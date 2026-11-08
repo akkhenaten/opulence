@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { decide } from '../lib/docAuto.mjs';
-import { cardSet, mergedRead, passportSet, setFor } from '../lib/docSets.mjs';
+import { cardSet, mergedRead, passportSet, rtwShown, setFor } from '../lib/docSets.mjs';
 import { officerIssues } from '../modules/compliance.mjs';
 
 const today = '2026-11-08';
@@ -99,4 +99,12 @@ test('Sets: front and back within 30 days go together; an old card and the GOV.U
   const gov = doc('rtw', { is_passport: true }, { created_at: '2026-11-08T10:00:00Z' });
   const pass = doc('id', { is_passport: true });
   assert.deepEqual(passportSet([gov, pass], { rtw_check_doc: gov.id, rtw_method: 'share_code' }).map((d) => d.id), [pass.id]);
+});
+
+test('Aaron: a passport uploaded as Right to work shows on the profile before Orb has read it as one', () => {
+  const up = { ...doc('rtw', {}), ai_read: null };
+  const check = doc('rtw', {}, { title: 'Right to work — manual check', created_at: '2026-11-08T10:00:00Z' });
+  assert.deepEqual(rtwShown([check, up], {}).map((d) => d.id), [up.id]);
+  const pass = doc('id', { is_passport: true });
+  assert.deepEqual(rtwShown([check, up, pass], {}).map((d) => d.id), [pass.id]);
 });

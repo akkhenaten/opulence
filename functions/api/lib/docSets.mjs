@@ -22,6 +22,17 @@ export function passportSet(docs, o = {}) {
   return d ? [d] : [];
 }
 
+const CHECK_TITLES = ['GOV.UK right to work check', 'Right to work — manual check'];
+
+/** What the Right to work section shows: the passport, else the officer's latest Right to work upload (not yet read,
+ *  or not recognised as a passport), never a saved check page */
+export function rtwShown(docs, o = {}) {
+  const pass = passportSet(docs, o);
+  if (pass.length) return pass;
+  const d = docs.filter((x) => x.kind === 'rtw' && x.s3_key && x.id !== o.rtw_check_doc && !CHECK_TITLES.includes(x.title)).sort(newest)[0];
+  return d ? [d] : [];
+}
+
 /** The set a document belongs to (for auto-apply) */
 export const setFor = (d, docs, o) => (d.kind === 'sia' ? cardSet(docs) : passportSet(docs, o).some((x) => x.id === d.id) ? passportSet(docs, o) : [d]);
 
