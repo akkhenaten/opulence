@@ -5,6 +5,7 @@ import {
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
+import { GRACE_ISSUE, GraceButton } from '../people/_graceSheet.jsx';
 
 const KIND = {
   cover: { label: 'Cover', tone: 'blue' },
@@ -335,8 +336,10 @@ function ReconcileBody({ p }) {
 }
 
 function ComplianceBody({ it, pending, manual, picked, setPicked, allowed, onChanged, radius, setRadius }) {
-  const { base } = useBase();
+  const { base, user } = useBase();
   const p = it.payload || {};
+  // Licence or right to work stops them working: a company manager can let them work while they send it
+  const grace = pending && it.kind === 'compliance' && user.role === 'company' && p.officer_id && (p.issues || []).some((i) => GRACE_ISSUE.test(i.key));
   const [dismiss, setDismiss] = useState(null);
   const [reason, setReason] = useState('');
   const [run, busy] = useAction();
@@ -349,7 +352,12 @@ function ComplianceBody({ it, pending, manual, picked, setPicked, allowed, onCha
     .then(() => { setDismiss(null); setReason(''); onChanged(); }).catch(() => {});
   return (
     <div className="space-y-2">
-      {!(pending && manual) && p.officer_id && <Button size="sm" variant="soft" to={`${base}/staff/${p.officer_id}`}>Open {p.officer_name}</Button>}
+      {((!(pending && manual) && p.officer_id) || grace) && (
+        <div className="flex flex-wrap gap-2">
+          {!(pending && manual) && p.officer_id && <Button size="sm" variant="soft" to={`${base}/staff/${p.officer_id}`}>Open {p.officer_name}</Button>}
+          {grace && <GraceButton officer={{ id: p.officer_id, name: p.officer_name }} variant="secondary" onDone={onChanged} />}
+        </div>
+      )}
       {!(pending && manual) && venue && it.venue_id && <Button size="sm" variant="soft" icon={MapPin} to={`${base}/venues/${it.venue_id}?tab=setup`}>Open Setup</Button>}
       {(p.issues || []).map((i) => {
         const folded = venue && !shown.has(i.key);

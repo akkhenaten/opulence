@@ -16,7 +16,7 @@ import { PackPill } from '../shared/PackPaper.jsx';
 import { SiaCheckPill, SiaVerifyButton, useSiaVerify } from './SiaVerify.jsx';
 import { SIA_CHECK_ON } from '../../ui/sia.js';
 import RtwCheckSheet from './RtwCheckSheet.jsx';
-import GraceSheet, { GRACE_LABEL } from './_graceSheet.jsx';
+import GraceSheet, { GRACE_LABEL, GraceButton, graceFromHistory } from './_graceSheet.jsx';
 
 // useApi that reports 403 to the parent so the tab can be hidden
 function useTabApi(action, body, onForbidden, opts) {
@@ -148,17 +148,15 @@ function ContactsSheet({ o, onClose, onDone }) {
 
 const GRACE_EVENT = { grant: 'Given', renew: 'Extended', cover: 'Now also covers', documents: 'Closed: documents in', expired: 'Ran out, documents still missing', ended: 'Ended early' };
 
-// Grace period: on one now, can be given one, or has had one before (with what happened)
-function GraceTile({ o, isCo, reload }) {
-  const q = useApi('compliance.grace.history', { officer_id: o.id });
+// Grace period: on one now, or has had one before (with what happened)
+function GraceTile({ o, q, isCo, reload }) {
   const [sheet, setSheet] = useState(null);
   const confirm = useConfirm();
   const [run, busy] = useAction();
   const d = q.data;
-  const c = o.compliance || {};
-  if (!d || (!d.graces.length && (c.ok || !d.keys.length))) return null;
+  // Giving one sits on the SIA licence and Right to work tiles; this one is the open grace and the history
+  if (!d?.graces.length) return null;
   const open = d.graces.find((g) => !g.ended_at);
-  const lapsed = !open && d.graces[0]?.end_reason === 'expired' && o.grace_lapsed_on ? d.graces[0] : null;
   const done = () => { q.reload(); reload(); };
   const end = async () => {
     if (!(await confirm({ title: 'End the grace period now?', body: "They can't clock in or be rostered again until their documents are in. They are told.", confirm: 'End now', danger: true }))) return;
@@ -168,10 +166,7 @@ function GraceTile({ o, isCo, reload }) {
   const canRenew = (g) => g && g.renewals < d.max_renewals;
   return (
     <Tile title="Grace period" icon={CalendarClock}
-      action={isCo && (open
-        ? <div className="flex gap-1">{canRenew(open) && <Button size="sm" variant="ghost" onClick={() => setSheet({ mode: 'renew', grace: open })}>Extend</Button>}<Button size="sm" variant="ghost" disabled={busy} onClick={end}>End now</Button></div>
-        : !c.ok && (canRenew(lapsed) ? <Button size="sm" variant="soft" onClick={() => setSheet({ mode: 'renew', grace: lapsed })}>Extend grace period</Button>
-          : d.keys.length > 0 && <Button size="sm" variant="soft" onClick={() => setSheet({ mode: 'grant' })}>Give grace period</Button>))}>
+      action={isCo && open && <div className="flex gap-1">{canRenew(open) && <Button size="sm" variant="ghost" onClick={() => setSheet({ mode: 'renew', grace: open })}>Extend</Button>}<Button size="sm" variant="ghost" disabled={busy} onClick={end}>End now</Button></div>}>
       {open ? (
         <>
           <div className="mb-2"><Pill tone={left <= 3 ? 'red' : 'amber'}>Can work until {date(open.ends_on)}</Pill></div>
@@ -182,16 +177,12 @@ function GraceTile({ o, isCo, reload }) {
             ['Given by', open.granted_by_name],
           ]} />
         </>
-      ) : !c.ok ? (
-        <p className="text-subhead text-muted">{lapsed ? `Their grace period ran out on ${date(lapsed.ends_on)}.` : "They can't work right now."}{isCo ? ' A grace period lets them work for up to 14 days while they send their documents.' : ' A company manager can give them a grace period.'}</p>
-      ) : null}
-      {d.graces.length > 0 && (
-        <ul className="mt-3 space-y-1 border-t border-line pt-3 text-footnote text-muted">
-          {d.graces.flatMap((g) => [...g.events].reverse()).slice(0, 8).map((e) => (
-            <li key={e.id}><span className="num">{date(e.created_at)}</span> · {GRACE_EVENT[e.kind] || e.kind}{e.ends_on && ['grant', 'renew'].includes(e.kind) ? ` until ${date(e.ends_on)}` : ''}{e.kind === 'cover' && e.covers ? `: ${e.covers.map((k) => GRACE_LABEL[k] || k).join(', ')}` : ''}{e.by_name ? ` · ${e.by_name}` : ''}{e.reason ? ` · "${e.reason}"` : ''}</li>
-          ))}
-        </ul>
-      )}
+      ) : <p className="text-subhead text-muted">Not on a grace period now.</p>}
+      <ul className="mt-3 space-y-1 border-t border-line pt-3 text-footnote text-muted">
+        {d.graces.flatMap((g) => [...g.events].reverse()).slice(0, 8).map((e) => (
+          <li key={e.id}><span className="num">{date(e.created_at)}</span> · {GRACE_EVENT[e.kind] || e.kind}{e.ends_on && ['grant', 'renew'].includes(e.kind) ? ` until ${date(e.ends_on)}` : ''}{e.kind === 'cover' && e.covers ? `: ${e.covers.map((k) => GRACE_LABEL[k] || k).join(', ')}` : ''}{e.by_name ? ` · ${e.by_name}` : ''}{e.reason ? ` · "${e.reason}"` : ''}</li>
+        ))}
+      </ul>
       {sheet && <GraceSheet officer={o} mode={sheet.mode} grace={sheet.grace} keys={d.keys} maxDays={d.max_days} maxRenewals={d.max_renewals} onClose={() => setSheet(null)} onDone={done} />}
     </Tile>
   );
@@ -212,9 +203,14 @@ export function ComplianceTab({ o, reload, isCo, user }) {
   };
   const c = o.compliance || {};
   const orbRtw = o.rtw_verified && o.rtw_method === 'orb_passport';
+  const gq = useApi('compliance.grace.history', { officer_id: o.id }, { skip: !isMgr });
+  const gs = gq.data && graceFromHistory(gq.data);
+  // Give a grace period (or extend one that ran out) on the tile whose problem stops them working; an open one is extended on its own tile
+  const graceOn = (area) => isCo && gs && !gs.grace && !c.ok && [...gs.keys, ...(gs.grace?.covers || []), ...(gs.lapsed?.covers || [])].some((k) => k.startsWith(area))
+    && <GraceButton officer={o} state={gs} onDone={() => { gq.reload(); reload(); }} />;
   return (
     <div className="space-y-4">
-      {isMgr && <GraceTile o={o} isCo={isCo} reload={reload} />}
+      {isMgr && <GraceTile o={o} q={gq} isCo={isCo} reload={reload} />}
       <Bento className="lg:grid-cols-2">
         <Tile title="SIA licence" icon={BadgeCheck} className="col-span-2 lg:col-span-1" action={isCo && <Button size="sm" variant="ghost" onClick={() => setEdit(true)}>Edit</Button>}>
           <div className="mb-3"><ExpiryPill date={o.sia_expiry} missing="No licence" /></div>
@@ -226,6 +222,7 @@ export function ComplianceTab({ o, reload, isCo, user }) {
           ]} />
           <DocThumbs docs={o.id_docs?.filter((d) => d.kind === 'sia')} className="mt-3" />
           {SIA_CHECK_ON && isMgr && <div className="mt-3"><SiaVerifyButton o={o} onSaved={reload} /></div>}
+          {graceOn('sia_') && <div className="mt-3">{graceOn('sia_')}</div>}
         </Tile>
         <Tile title="Right to work" icon={BadgeCheck} className="col-span-2 lg:col-span-1" action={isCo && <Button size="sm" variant="ghost" onClick={() => setEdit(true)}>Edit</Button>}>
           <div className="mb-3">{o.rtw_verified ? <ExpiryPill date={o.rtw_expiry} missing="Verified, no time limit" /> : <Pill tone="red">Not verified</Pill>}</div>
@@ -242,6 +239,7 @@ export function ComplianceTab({ o, reload, isCo, user }) {
           {(isCo || (o.rtw_check_doc && !orbRtw)) && (
             <div className="mt-3 flex flex-wrap gap-2">
               {isCo && <Button size="sm" icon={ShieldCheck} onClick={() => setRtwCheck(true)}>{o.rtw_verified ? 'Check again' : 'Check right to work'}</Button>}
+              {graceOn('rtw_')}
               {o.rtw_check_doc && !orbRtw && <Button size="sm" variant="secondary" icon={Eye} onClick={() => openUrl(() => api('docs.url', { id: o.rtw_check_doc }))}>View check</Button>}
             </div>
           )}

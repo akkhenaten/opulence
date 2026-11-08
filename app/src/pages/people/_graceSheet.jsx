@@ -2,13 +2,53 @@
 // their documents. Company managers only; renewable twice; anything about an expired licence or right to work needs a tick.
 import { useState } from 'react';
 import { api } from '../../api.js';
-import { addDays, Button, Callout, Check, date, Input, isoDate, Segmented, Sheet, Textarea, useAction } from '../../ui/index.jsx';
+import { CalendarClock } from 'lucide-react';
+import { addDays, Button, Callout, Check, date, Input, isoDate, Segmented, Sheet, Textarea, useAction, useToast } from '../../ui/index.jsx';
 
 export const GRACE_LABEL = {
   sia_missing: 'No SIA licence on file', sia_expired: 'SIA licence expired', sia_register: 'SIA register shows a problem',
   rtw_unverified: 'Right to work not verified', rtw_expired: 'Right to work expired', sia_expiry_shift: 'SIA licence runs out during the grace',
 };
 const RISKY = ['sia_expired', 'sia_register', 'rtw_expired', 'sia_expiry_shift'];
+// Orb card issues a grace period can cover (licence and right to work)
+export const GRACE_ISSUE = /^(missing:sia|register:sia|unverified:rtw|expiry_soon:(sia|rtw)|expiry_shift:(sia|rtw)|grace_expired)$/;
+
+/** compliance.grace.history → { keys, grace (open), lapsed (ran out, documents still missing), maxDays, maxRenewals } */
+export function graceFromHistory(d) {
+  const grace = d.graces.find((g) => !g.ended_at) || null;
+  const lapsed = !grace && d.graces[0]?.end_reason === 'expired' ? d.graces[0] : null;
+  return { keys: d.keys, grace, lapsed, maxDays: d.max_days, maxRenewals: d.max_renewals };
+}
+
+/** What the button does next: extend the open grace, extend the one that ran out, give a new one, or nothing */
+export function graceNext({ keys = [], grace, lapsed, maxRenewals = 2 }) {
+  if (grace) return grace.renewals < maxRenewals ? { mode: 'renew', grace, label: 'Extend grace period' } : null;
+  if (lapsed && keys.length && lapsed.renewals < maxRenewals) return { mode: 'renew', grace: lapsed, label: 'Extend grace period' };
+  if (keys.length) return { mode: 'grant', label: 'Give grace period' };
+  return null;
+}
+
+/** Grace period on an SIA / right to work card (company managers). With state it knows its label up front; without, it looks the officer up on tap. */
+export function GraceButton({ officer, state, onDone, size = 'sm', variant = 'soft', label }) {
+  const [open, setOpen] = useState(null);
+  const [run, busy] = useAction();
+  const toast = useToast();
+  const known = state && graceNext(state);
+  if (state && !known) return null;
+  const click = () => (state ? setOpen({ s: state, next: known }) : run(() => api('compliance.grace.history', { officer_id: officer.id })).then((d) => {
+    const s = graceFromHistory(d);
+    const next = graceNext(s);
+    if (next) setOpen({ s, next });
+    else toast(s.grace ? `Already extended ${s.maxRenewals} times` : 'Nothing for a grace period to cover: they can already work');
+  }).catch(() => {}));
+  return (
+    <>
+      <Button size={size} variant={variant} icon={CalendarClock} busy={busy} onClick={click}>{label || known?.label || 'Grace period'}</Button>
+      {open && <GraceSheet officer={officer} mode={open.next.mode} grace={open.next.grace} keys={open.s.keys} maxDays={open.s.maxDays} maxRenewals={open.s.maxRenewals}
+        onClose={() => setOpen(null)} onDone={onDone} />}
+    </>
+  );
+}
 
 /** mode 'grant' (keys = what can be covered) or 'renew' (grace = the open or just-lapsed one) */
 export default function GraceSheet({ officer, mode = 'grant', keys = [], grace, maxDays = 14, maxRenewals = 2, onClose, onDone }) {

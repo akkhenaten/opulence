@@ -95,7 +95,7 @@ export async function graceJob() {
       if ((daysLeft === 3 || daysLeft === 1) && g.reminded_on !== today) {
         await q('UPDATE compliance_grace SET reminded_on = $2 WHERE id = $1', [g.id, today]);
         await tellOfficer(o.id, `Grace period ends in ${plural(daysLeft, 'day')}`, `Upload ${graceAsk(left)} by ${fmtDate(g.ends_on)}, or you won't be able to clock in or take shifts after it.`);
-        if (g.granted_by) await notify([g.granted_by], { kind: 'compliance', title: `${officerDisplay(o)}'s grace period ends in ${plural(daysLeft, 'day')}`, body: `Still missing: ${graceAsk(left)}.`, link: `/company/people/compliance?view=cantwork` });
+        if (g.granted_by) await notify([g.granted_by], { kind: 'compliance', title: `${officerDisplay(o)}'s grace period ends in ${plural(daysLeft, 'day')}`, body: `Still missing: ${graceAsk(left)}.`, link: '/company/people/compliance?view=grace' });
         out.reminded++;
       }
     }
