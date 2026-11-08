@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { decide } from '../lib/docAuto.mjs';
-import { cardSet, mergedRead, passportSet, rtwShown, setFor } from '../lib/docSets.mjs';
+import { cardSet, mergedRead, misfiledAs, passportSet, rtwShown, setFor } from '../lib/docSets.mjs';
 import { officerIssues } from '../modules/compliance.mjs';
 
 const today = '2026-11-08';
@@ -66,7 +66,7 @@ test('Hand-ticked right to work: a British passport whose photo matches the SIA 
   const act = run(o, pass, [pass]);
   assert.equal(act?.kind, 'rtw');
   assert.equal(act.upgrade, true);
-  assert.equal(run({ ...o, rtw_checked_at: '2026-10-01T10:00:00Z' }, pass, [pass]), null);
+  assert.equal(run({ ...o, rtw_checked_at: '2026-10-01T10:00:00Z', rtw_type: 'Share code' }, pass, [pass]), null);
   assert.equal(run({ ...o, rtw_checked_at: null }, { ...pass, ai_read: { ...pass.ai_read, nationality: 'NGA' } }, [{ ...pass, ai_read: { ...pass.ai_read, nationality: 'NGA' } }]), null);
 });
 
@@ -107,4 +107,43 @@ test('Aaron: a passport uploaded as Right to work shows on the profile before Or
   assert.deepEqual(rtwShown([check, up], {}).map((d) => d.id), [up.id]);
   const pass = doc('id', { is_passport: true });
   assert.deepEqual(rtwShown([check, up, pass], {}).map((d) => d.id), [pass.id]);
+});
+
+test('A passport sent as the SIA licence (or proof of address) is spotted, kept out of the SIA card, and re-filed as right to work', () => {
+  const o = officer({ first_name: 'Onyeka', last_name: 'Goddey', sia_number: '1019 5635 4728 9638', sia_expiry: '2027-11-21', rtw_checked_at: null, rtw_method: '', rtw_type: '' });
+  const pass = doc('sia', { name: 'ONYEKA GODDEY', number: '123456789', is_passport: true, nationality: 'GBR', expiry: '2031-03-01', has_photo: true, face: match }, { title: 'SIA licence' });
+  assert.equal(misfiledAs(pass), 'rtw');
+  assert.equal(misfiledAs({ ...pass, kind: 'poa' }), 'rtw');
+  assert.equal(run(o, pass, [pass]), null);
+  const issues = officerIssues(o, { today, roles, docs: [pass] });
+  const card = issues.find((i) => i.key === `doc_misfiled:${pass.id}`);
+  assert.equal(card.actions[0].kind, 'refile');
+  assert.deepEqual(card.actions[0].params, { doc_id: pass.id, to: 'rtw' });
+  // Not read as an SIA card with a wrong number
+  assert.ok(!issues.some((i) => i.key.includes(':number') || i.key.startsWith('doc_number_unread')));
+  // Once re-filed it counts as their passport
+  assert.equal(run(o, { ...pass, kind: 'rtw' }, [{ ...pass, kind: 'rtw' }])?.kind, 'rtw');
+});
+
+test('An SIA card sent as right to work or photo ID is spotted; a passport or a share code letter is not', () => {
+  const card = doc('rtw', { name: 'ONYEKA GODDEY', licence_type: 'Door Supervisor', doc_type: 'SIA licence card', expiry: '2027-11-21' });
+  assert.equal(misfiledAs(card), 'sia');
+  assert.equal(misfiledAs({ ...card, kind: 'id' }), 'sia');
+  assert.equal(misfiledAs({ ...card, kind: 'sia' }), null);
+  assert.equal(misfiledAs(doc('rtw', { is_passport: true, nationality: 'GBR' })), null);
+  assert.equal(misfiledAs(doc('rtw', { doc_type: 'share code letter', share_code: 'W12345678' })), null);
+  assert.equal(misfiledAs(doc('rtw', { readable: false, licence_type: 'Door Supervisor' })), null);
+});
+
+test('Ticked by hand with no evidence: a British passport fills the evidence even when its photo can\'t be scored, and the card offers it', () => {
+  const o = officer({ first_name: 'Onyeka', last_name: 'Goddey', rtw_checked_at: null, rtw_method: '', rtw_type: '' });
+  const pass = doc('id', { name: 'ONYEKA GODDEY', is_passport: true, nationality: 'GBR', expiry: '2031-03-01', has_photo: true, face: { result: 'unscored' } });
+  assert.deepEqual(run(o, pass, [pass]), { kind: 'rtw_type', rtw_type: 'British passport', fit: 'full', proof: { number: false, photo: false } });
+  assert.equal(run({ ...o, rtw_type: 'Share code' }, pass, [pass]), null);
+  const card = officerIssues(o, { today, roles, docs: [pass] }).find((i) => i.key === 'rtw:no_record');
+  assert.match(card.title, /no evidence or check saved/);
+  assert.deepEqual(card.actions.map((a) => [a.kind, a.params.rtw_type]), [['rtw_type', 'British passport']]);
+  const none = officerIssues(o, { today, roles, docs: [] }).find((i) => i.key === 'rtw:no_record');
+  assert.deepEqual(none.actions, []);
+  assert.match(none.detail, /Edit on the Right to work tile/);
 });

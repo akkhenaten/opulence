@@ -14,7 +14,7 @@ import { autoCheckEnabled, lookupLicence } from './siaChecker.mjs';
 
 const digits = (s) => String(s || '').replace(/\D/g, '');
 const siaFmt = (x) => digits(x).replace(/(\d{4})(?=\d)/g, '$1 ');
-const PASSPORT_RTW = { GBR: 'British passport', IRL: 'Irish passport' };
+export const PASSPORT_RTW = { GBR: 'British passport', IRL: 'Irish passport' };
 
 // A partial licence number read off a card (the last 8+ digits) still agrees with the full number on the profile
 const suffixOf = (part, whole) => part.length >= 8 && part.length < 16 && whole.length === 16 && whole.endsWith(part);
@@ -65,9 +65,13 @@ export function decide(o, d, r, today) {
     return { kind: 'sia', number: have ? o.sia_number : siaFmt(r.number), expiry: r.expiry, licence_type: r.licence_type, fit, proof, shortened: gap > 0 };
   }
   if (['rtw', 'id'].includes(d.kind) && r.is_passport) {
+    const type = PASSPORT_RTW[r.nationality];
+    if (!type) return null;
     // A tick by hand with no check saved gets Orb's check; a saved check is never redone
-    if (!PASSPORT_RTW[r.nationality] || !proof.photo || (o.rtw_verified && o.rtw_checked_at)) return null;
-    return { kind: 'rtw', rtw_type: PASSPORT_RTW[r.nationality], fit, proof, upgrade: !!o.rtw_verified };
+    if (proof.photo && !(o.rtw_verified && o.rtw_checked_at)) return { kind: 'rtw', rtw_type: type, fit, proof, upgrade: !!o.rtw_verified };
+    // Ticked by hand with the evidence left blank: the passport says what the evidence is, even when the photo can't be scored
+    if (o.rtw_verified && !o.rtw_type) return { kind: 'rtw_type', rtw_type: type, fit, proof };
+    return null;
   }
   if (d.kind === 'rtw' && o.rtw_verified && o.rtw_expiry && !['share_code', 'manual'].includes(o.rtw_method)) {
     const gap = daysFrom(r.expiry, o.rtw_expiry);
@@ -76,7 +80,7 @@ export function decide(o, d, r, today) {
   return null;
 }
 
-/** Apply one read document (with the files that go with it) if it all agrees. Returns 'sia' | 'rtw' | 'rtw_expiry' | null */
+/** Apply one read document (with the files that go with it) if it all agrees. Returns 'sia' | 'rtw' | 'rtw_type' | 'rtw_expiry' | null */
 export async function autoApply(docId) {
   const d = await one("SELECT * FROM documents WHERE id = $1 AND owner_type = 'officer'", [docId]);
   if (!d?.ai_read) return null;
@@ -122,6 +126,11 @@ export async function autoApply(docId) {
       : `Orb verified ${name}'s right to work from their uploaded ${act.rtw_type}`, { ref_type: 'officer', ref_id: o.id });
     // Already shown as verified to them, so nothing new to tell them after an upgrade
     if (!act.upgrade) await notify(await officerUser(o.id), { kind: 'hr', title: 'Right to work checked', body: 'Your passport confirms your right to work.', link: '/officer/documents', dedupe: `rtwok:${d.id}` });
+  } else if (act.kind === 'rtw_type') {
+    await q("UPDATE officers SET rtw_type = $2 WHERE id = $1 AND COALESCE(rtw_type, '') = ''", [o.id, act.rtw_type]);
+    await q('UPDATE documents SET auto_applied_at = now() WHERE id = $1', [d.id]);
+    await audit(null, 'orb.apply_rtw_type', 'officer', o.id, { doc: d.id, rtw_type: act.rtw_type, name_fit: act.fit, proof: act.proof });
+    await logActivity('compliance', `Orb recorded ${name}'s uploaded ${act.rtw_type} as their right to work evidence`, { ref_type: 'officer', ref_id: o.id });
   } else {
     await q('UPDATE officers SET rtw_expiry = $2 WHERE id = $1', [o.id, act.expiry]);
     await q('UPDATE documents SET auto_applied_at = now() WHERE id = $1', [d.id]);
@@ -135,6 +144,24 @@ export async function autoApply(docId) {
     console.error('[docAuto] compliance refresh', e.message);
   }
   return act.kind;
+}
+
+const KIND_TITLE = { sia: 'SIA licence', rtw: 'Right to work', id: 'Photo ID', poa: 'Proof of address', other: 'Document' };
+
+/** Put an upload under the kind it really is. by: the manager, or null when Orb does it. The default title follows the
+ *  kind (a passport gets "Passport"); a title the officer typed stays. Returns the updated document, or null. */
+export async function refile(d, to, by = null) {
+  if (!d || d.kind === to) return null;
+  const typed = d.title && !Object.values(KIND_TITLE).concat('Passport').some((t) => t.toLowerCase() === d.title.trim().toLowerCase());
+  const title = typed ? d.title : to === 'rtw' && d.ai_read?.is_passport ? 'Passport' : KIND_TITLE[to] || d.title;
+  const row = await one('UPDATE documents SET kind = $2, title = $3 WHERE id = $1 AND kind = $4 RETURNING *', [d.id, to, title, d.kind]);
+  if (!row) return null;
+  if (row.owner_type === 'officer') {
+    const { tickOnboarding } = await import('../modules/hr.mjs');
+    if (['sia', 'rtw', 'id', 'poa'].includes(to)) await tickOnboarding(row.owner_id, to);
+  }
+  await audit(by, by ? 'doc.refile' : 'orb.refile', 'document', d.id, { owner: d.owner_id, from: d.kind, to, title: { from: d.title, to: title } });
+  return row;
 }
 
 // With SIA Checker on, look the licence up on the register straight away and save what it shows

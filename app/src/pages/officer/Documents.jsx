@@ -161,9 +161,11 @@ function AddSheet({ kind, onClose, ownerId, onDone }) {
   }, 'Uploaded — Orb is checking it').then((d) => {
     onDone();
     // Orb reads a licence or passport straight away and adds it to the profile when it all agrees
-    if (d?.s3_key && ['sia', 'rtw', 'id'].includes(d.kind)) {
+    if (d?.s3_key && ['sia', 'rtw', 'id', 'poa', 'other'].includes(d.kind)) {
       api('docs.read', { id: d.id }).then((r) => {
         if (r.applied?.length) { toast(r.applied.includes('sia') ? 'Checked — your SIA licence is on your profile' : 'Checked — your right to work is confirmed'); onDone(); }
+        // Sent under the wrong type: Orb moved it to the right one
+        else if (r.refiled?.length) { toast(r.refiled[0] === 'sia' ? 'That was your SIA licence, so Orb filed it there' : 'That was your passport, so Orb filed it under Right to work'); onDone(); }
       }).catch(() => {});
     }
   }).catch(() => {});

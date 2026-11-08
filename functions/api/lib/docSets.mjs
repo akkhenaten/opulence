@@ -2,12 +2,26 @@
 // a retake). These pick the files that belong together and put what Orb read off them into one read, so the back of a
 // card (no name printed) doesn't count against the front.
 import { nameFit } from './names.mjs';
+import { SIA_TYPES } from './licences.mjs';
 
 const WINDOW = 30 * 864e5;
 const newest = (a, b) => new Date(b.created_at) - new Date(a.created_at);
 // A photo that looks like someone else on any of the files wins, so a person always looks at it
 const FACE_RANK = { no_match: 5, match: 4, unsure: 3, unscored: 1 };
 const usable = (r) => r && !r.error && !r.skipped;
+
+/** The kind an upload really is when the officer filed it under the wrong one (from what Orb read), else null:
+ *  a passport filed as an SIA licence, proof of address or other is right to work; an SIA card filed as anything else is
+ *  an SIA licence */
+export function misfiledAs(d) {
+  const r = d.ai_read;
+  if (!d.s3_key || !usable(r) || r.readable === false) return null;
+  if (['sia', 'poa', 'other'].includes(d.kind) && r.is_passport) return 'rtw';
+  if (['rtw', 'id', 'poa', 'other'].includes(d.kind) && !r.is_passport && (SIA_TYPES.includes(r.licence_type) || /\bSIA\b|security industry/i.test(r.doc_type || ''))) return 'sia';
+  return null;
+}
+/** Uploads filed under the kind they really are (mis-filed ones are left out until a manager or Orb re-files them) */
+export const filed = (docs) => docs.filter((d) => !misfiledAs(d));
 
 /** The latest SIA uploads that belong together: the newest and any others within 30 days before it (at most 3) */
 export function cardSet(docs, kind = 'sia') {
@@ -34,7 +48,10 @@ export function rtwShown(docs, o = {}) {
 }
 
 /** The set a document belongs to (for auto-apply) */
-export const setFor = (d, docs, o) => (d.kind === 'sia' ? cardSet(docs) : passportSet(docs, o).some((x) => x.id === d.id) ? passportSet(docs, o) : [d]);
+export const setFor = (d, all, o) => {
+  const docs = filed(all);
+  return d.kind === 'sia' ? cardSet(docs) : passportSet(docs, o).some((x) => x.id === d.id) ? passportSet(docs, o) : [d];
+};
 
 /**
  * One read from a set: each detail from the newest file that shows it; the name from a file where it could be read;

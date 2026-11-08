@@ -12,7 +12,7 @@ export const SIA_TYPES = [
 ].map((s) => ({ value: s, label: s }));
 
 export const RTW_TYPES = [
-  'British or Irish passport', 'Birth certificate and NI', 'Share code', 'EU Settled Status', 'Biometric residence permit', 'Visa', 'Other',
+  'British or Irish passport', 'British passport', 'Irish passport', 'Birth certificate and NI', 'Share code', 'EU Settled Status', 'Biometric residence permit', 'Visa', 'Other',
 ].map((s) => ({ value: s, label: s }));
 
 export const DOC_KINDS = [

@@ -25,14 +25,16 @@ import { officerDisplay } from '../lib/names.mjs';
 import { compliance } from './officers.mjs';
 import { renewGrace, graceAsk } from './grace.mjs';
 import { docFaceMatch, docPairMatch } from '../lib/face.mjs';
-import { autoApply, fitOf, nameOk, numberAgrees, SMALL_GAP } from '../lib/docAuto.mjs';
-import { cardSet, mergedRead, passportSet } from '../lib/docSets.mjs';
+import { autoApply, fitOf, nameOk, numberAgrees, PASSPORT_RTW, refile, SMALL_GAP } from '../lib/docAuto.mjs';
+import { cardSet, filed, mergedRead, misfiledAs, passportSet } from '../lib/docSets.mjs';
 import { cleanShareCode, SHARE_CODE_OLD } from '../lib/rtw.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const NO_CLOCK_IN = "NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')";
 const RANK = { urgent: 3, soon: 2, advisory: 1 };
 const READ_KINDS = ['sia', 'rtw', 'id'];
+// Also read: where a passport or SIA card ends up when the officer picks the wrong type (Orb re-files it)
+const SCAN_KINDS = [...READ_KINDS, 'poa', 'other'];
 const sig = (...parts) => createHash('sha1').update(JSON.stringify(parts)).digest('hex').slice(0, 12);
 const days = (from, to) => Math.round((new Date(to) - new Date(from)) / 86400000);
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -77,7 +79,7 @@ export async function readDocuments(limit = 4, { id = null, refresh = false } = 
         AND o.status IN ('active','onboarding','applicant')
         AND NOT (o.status = 'applicant' AND EXISTS (SELECT 1 FROM applications ap WHERE ap.officer_id = o.id))
         AND ($3::uuid IS NULL OR d.id = $3)
-      ORDER BY (d.ai_read_key IS NULL AND d.ai_read IS NOT NULL), d.created_at DESC LIMIT $2`, [READ_KINDS, limit, id]);
+      ORDER BY (d.ai_read_key IS NULL AND d.ai_read IS NOT NULL), d.created_at DESC LIMIT $2`, [SCAN_KINDS, limit, id]);
   let n = 0;
   let credits = 0;
   const owners = new Set();
@@ -115,6 +117,16 @@ export async function readDocuments(limit = 4, { id = null, refresh = false } = 
     if (code) await q('UPDATE documents SET number = $2 WHERE id = $1', [d.id, code]);
     n++;
     owners.add(d.owner_id);
+    // Filed under the wrong kind (a passport sent as the SIA licence, the SIA card sent as right to work): Orb moves it,
+    // unless a manager already checked it as it stands
+    const to = misfiledAs({ ...d, ai_read: read });
+    if (to && !(d.verified_at && !d.auto_applied_at)) {
+      try {
+        if (await refile(d, to)) await logActivity('compliance', `Orb re-filed "${d.title}": it was sent as ${docLabel(d.kind)} but is ${to === 'sia' ? 'an SIA licence card' : 'a passport (right to work)'}`, { ref_type: 'officer', ref_id: d.owner_id });
+      } catch (e) {
+        console.error('[compliance] re-file failed', d.id, e.message);
+      }
+    }
     try {
       await autoApply(d.id);
     } catch (e) {
@@ -133,7 +145,7 @@ export async function unreadDocCount() {
     `SELECT count(*)::int AS n FROM documents d JOIN officers o ON o.id = d.owner_id
       WHERE d.owner_type = 'officer' AND d.kind = ANY($1) AND d.s3_key IS NOT NULL AND d.ai_read_key IS DISTINCT FROM d.s3_key
         AND o.status IN ('active','onboarding','applicant')
-        AND NOT (o.status = 'applicant' AND EXISTS (SELECT 1 FROM applications ap WHERE ap.officer_id = o.id))`, [READ_KINDS]);
+        AND NOT (o.status = 'applicant' AND EXISTS (SELECT 1 FROM applications ap WHERE ap.officer_id = o.id))`, [SCAN_KINDS]);
   return r?.n || 0;
 }
 
@@ -277,10 +289,36 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
       add({ key: 'rtw:code_ready', severity: shifts.length ? near(shifts) : 'soon', sig: sig(codeDoc.id), title: 'Right to work share code ready to check on GOV.UK', detail: `Share code ${cleanShareCode(codeDoc.number)}. Open their profile and tap Check right to work.${shifts.length ? ` Rostered on ${plural(shifts.length, 'shift')}.` : ''}`, shift: shifts[0], actions: [] });
     }
   } else if (!o.rtw_verified) {
-    const why = rtwWhy(mergedRead(passportSet(docs, o), o).read, passportSet(docs, o)[0]);
+    const pass = passportSet(filed(docs), o);
+    const why = rtwWhy(mergedRead(pass, o).read, pass[0]);
     add({ key: 'unverified:rtw', severity: shifts.length ? near(shifts) : 'soon', sig: sig(o.rtw_type), title: 'Right to work not verified', detail: [why || 'Ask for their share code, or check their passport, then tap Check right to work on the profile.', shifts.length ? `Rostered on ${plural(shifts.length, 'shift')}.` : ''].filter(Boolean).join(' '), shift: shifts[0], actions: [remind(o, 'rtw', 'their right to work share code')] });
   } else if (!o.rtw_checked_at) {
-    add({ key: 'rtw:no_record', severity: 'advisory', sig: sig(o.rtw_type, o.rtw_expiry), title: 'Right to work ticked by hand, no check saved', detail: 'Do the check again and upload the GOV.UK page (or your copy of their passport) with Check right to work.', actions: [] });
+    // No evidence recorded either: a British or Irish passport on file can be put down as the evidence
+    const pass = !o.rtw_type ? passportSet(filed(docs), o) : [];
+    const pr = pass.length ? mergedRead(pass, o).read : null;
+    const type = pr && !(pr.concerns || []).length && pr.readable !== false && PASSPORT_RTW[pr.nationality] && fitOf(pr, o) !== 'no' ? PASSPORT_RTW[pr.nationality] : null;
+    add({
+      key: 'rtw:no_record', severity: 'advisory', sig: sig(o.rtw_type, o.rtw_expiry, type && pass[0].id),
+      title: o.rtw_type ? 'Right to work ticked by hand, no check saved' : 'Right to work ticked by hand, no evidence or check saved',
+      detail: `${type ? `Their uploaded ${type} can go down as the evidence. ` : o.rtw_type ? '' : 'Set the evidence with Edit on the Right to work tile. '}Do the check again and upload the GOV.UK page (or your copy of their passport) with Check right to work.`,
+      actions: type ? [{ kind: 'rtw_type', label: `Record their ${type} as the evidence`, params: { rtw_type: type, doc_id: pass[0].id }, company_only: true, default: true }] : [],
+    });
+  }
+
+  // An upload filed under the wrong kind (Orb re-files these itself, unless a manager had already checked it)
+  for (const d of docs) {
+    const to = misfiledAs(d);
+    if (!to) continue;
+    const is = to === 'sia' ? 'an SIA licence card' : 'a passport';
+    add({
+      key: `doc_misfiled:${d.id}`, severity: 'soon', sig: sig(d.s3_key, d.kind),
+      title: `"${d.title}" was sent as ${docLabel(d.kind)} but looks like ${is}`,
+      detail: `Re-file it as ${to === 'sia' ? 'their SIA licence' : 'right to work'} so it counts for ${to === 'sia' ? 'the licence' : 'their right to work'}, or open it on the Documents tab and change the type.`,
+      actions: [
+        { kind: 'refile', label: `Re-file it as ${to === 'sia' ? 'SIA licence' : 'right to work'}`, params: { doc_id: d.id, to }, company_only: true, default: true },
+        remind(o, d.kind, `their ${docLabel(d.kind)} (the upload was ${is})`),
+      ],
+    });
   }
 
   // A fixed-term contract coming to an end: extend it, replace it or let it end
@@ -324,8 +362,9 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
   // What the AI read on the scans against the profile: the SIA card (front and back together), the passport or ID,
   // and any other right to work document
   const newest = (a, b) => new Date(b.created_at) - new Date(a.created_at);
-  const otherRtw = docs.filter((d) => d.kind === 'rtw' && d.s3_key && !d.ai_read?.is_passport && d.id !== o.rtw_check_doc).sort(newest).slice(0, 1);
-  for (const [kind, set] of [['sia', cardSet(docs)], ['id', passportSet(docs, o)], ['rtw', otherRtw]]) {
+  const kept = filed(docs);
+  const otherRtw = kept.filter((d) => d.kind === 'rtw' && d.s3_key && !d.ai_read?.is_passport && d.id !== o.rtw_check_doc).sort(newest).slice(0, 1);
+  for (const [kind, set] of [['sia', cardSet(kept)], ['id', passportSet(kept, o)], ['rtw', otherRtw]]) {
     let suspect = false;
     for (const d of set) {
       const r = d.ai_read;
@@ -599,6 +638,21 @@ export async function decideCompliance(it, b, user) {
     await q(`UPDATE officers SET ${a.params.field} = $2 WHERE id = $1`, [o.id, a.params.to]);
     await audit(user, 'officer.update', 'officer', o.id, { [a.params.field]: { from: a.params.from, to: a.params.to }, via: 'compliance' });
     done.push(`Updated ${{ sia_number: 'SIA number', sia_expiry: 'SIA expiry', rtw_expiry: 'right to work expiry' }[a.params.field]} to ${a.params.field.endsWith('expiry') ? fmtDate(a.params.to) : a.params.to}`);
+  }
+  for (const a of picked.filter((x) => x.kind === 'rtw_type')) {
+    if (user.role !== 'company') fail(403, 'Only a company manager can change profile details');
+    const r = await one("UPDATE officers SET rtw_type = $2 WHERE id = $1 AND COALESCE(rtw_type, '') = '' RETURNING id", [o.id, a.params.rtw_type]);
+    if (!r) continue;
+    await audit(user, 'officer.update', 'officer', o.id, { rtw_type: { from: o.rtw_type, to: a.params.rtw_type }, doc: a.params.doc_id, via: 'compliance' });
+    done.push(`Recorded their ${a.params.rtw_type} as the right to work evidence`);
+  }
+  for (const a of picked.filter((x) => x.kind === 'refile')) {
+    if (user.role !== 'company') fail(403, 'Only a company manager can re-file documents');
+    const d = await one("SELECT * FROM documents WHERE id = $1 AND owner_type = 'officer' AND owner_id = $2", [a.params.doc_id, o.id]);
+    const row = d && await refile(d, a.params.to, user);
+    if (!row) continue;
+    await autoApply(row.id).catch((e) => console.error('[compliance] auto-apply after re-file', row.id, e.message));
+    done.push(`Re-filed "${d.title}" as ${docLabel(a.params.to)}`);
   }
   for (const a of picked.filter((x) => x.kind === 'grace_renew')) {
     if (user.role !== 'company') fail(403, 'Only a company manager can extend a grace period');

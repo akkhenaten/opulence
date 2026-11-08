@@ -8,11 +8,15 @@ import { tickOnboarding } from './hr.mjs';
 import { canSeePay } from '../lib/auth.mjs';
 import { cleanShareCode } from '../lib/rtw.mjs';
 import { notify, officerUser } from '../lib/notify.mjs';
+import { autoApply, refile } from '../lib/docAuto.mjs';
+import { misfiledAs } from '../lib/docSets.mjs';
 
 // Saved invoices and pay statements are money documents
 const MONEY_KINDS = ['invoice', 'pay_statement', 'pay_agreement'];
 const hidesMoney = (user) => user.role === 'security' && !canSeePay(user);
 
+// What a manager can re-file an upload as (contracts and money documents are made by the app)
+const EDIT_KINDS = ['sia', 'rtw', 'id', 'poa', 'training', 'first_aid', 'cctv', 'other'];
 const ONBOARD_FOR_KIND = { sia: 'sia', rtw: 'rtw', id: 'id', poa: 'poa' };
 
 async function assertOwner(user, ownerType, ownerId, write = false) {
@@ -41,8 +45,8 @@ export const actions = {
         WHERE owner_type = $1 AND owner_id IS NOT DISTINCT FROM $2 AND ($3::boolean OR d.kind <> ALL($4::text[]))
           AND ($5::text IS NULL OR d.kind = $5) ORDER BY created_at DESC`,
       [b.owner_type, b.owner_id || null, !hidesMoney(user), MONEY_KINDS, b.kind || null]);
-    // The AI read is a manager's compliance aid
-    return MGR.includes(user.role) ? rows : rows.map(({ ai_read, ai_read_key, ai_read_at, ...d }) => d);
+    // The AI read is a manager's compliance aid (with the kind Orb thinks a mis-filed upload really is)
+    return MGR.includes(user.role) ? rows.map((d) => ({ ...d, misfiled_as: misfiledAs(d) })) : rows.map(({ ai_read, ai_read_key, ai_read_at, ...d }) => d);
   }),
 
   'docs.create': def(ALL, async (b, { user }) => {
@@ -70,14 +74,14 @@ export const actions = {
     return { url: await downloadUrl(d.s3_key, d.title), mime: d.mime || null, name: d.title };
   }),
 
-  // Straight after an upload: Orb reads a licence or ID scan and applies it to the profile when it all agrees.
+  // Straight after an upload: Orb reads a licence or ID scan (or a passport sent under another type) and applies it to the profile when it all agrees.
   // { id } one document, or { officer_id } every unread one of theirs (a new staff profile). Best effort — the
   // 5-minute job reads anything missed.
   'docs.read': def(ALL, async (b, { user }) => {
     const ids = b.id
-      ? [need(await one("SELECT id, owner_id FROM documents WHERE id = $1 AND owner_type = 'officer'", [b.id]))]
+      ? [need(await one("SELECT id, owner_id, kind FROM documents WHERE id = $1 AND owner_type = 'officer'", [b.id]))]
       : b.officer_id ? await q(
-        "SELECT id, owner_id FROM documents WHERE owner_type = 'officer' AND owner_id = $1 AND kind IN ('sia','rtw','id') AND s3_key IS NOT NULL AND ai_read_key IS DISTINCT FROM s3_key ORDER BY created_at DESC LIMIT 4",
+        "SELECT id, owner_id, kind FROM documents WHERE owner_type = 'officer' AND owner_id = $1 AND kind IN ('sia','rtw','id','poa','other') AND s3_key IS NOT NULL AND ai_read_key IS DISTINCT FROM s3_key ORDER BY created_at DESC LIMIT 4",
         [b.officer_id]) : fail(400, 'Document missing');
     for (const d of ids) await assertOwner(user, 'officer', d.owner_id);
     const { readDocuments } = await import('./compliance.mjs');
@@ -88,8 +92,45 @@ export const actions = {
         console.error('[docs.read]', e.message);
       }
     }
-    const done = ids.length ? await q('SELECT kind FROM documents WHERE id = ANY($1) AND auto_applied_at IS NOT NULL', [ids.map((d) => d.id)]) : [];
-    return { applied: done.map((d) => (d.kind === 'sia' ? 'sia' : 'rtw')) };
+    const now = ids.length ? await q('SELECT id, kind, auto_applied_at FROM documents WHERE id = ANY($1)', [ids.map((d) => d.id)]) : [];
+    // refiled: Orb moved an upload sent under the wrong type
+    return {
+      applied: now.filter((d) => d.auto_applied_at).map((d) => (d.kind === 'sia' ? 'sia' : 'rtw')),
+      refiled: now.filter((d) => ids.find((x) => x.id === d.id)?.kind !== d.kind).map((d) => d.kind),
+    };
+  }),
+
+  // Fix an upload: put it under the right kind (the officer picked the wrong one), or correct its title, number or expiry.
+  // A re-filed licence or passport is read (if it wasn't) and applied by Orb as if it had been sent that way.
+  'docs.update': def(CO, async (b, { user }) => {
+    required(b, 'id');
+    const d = need(await one('SELECT * FROM documents WHERE id = $1', [b.id]));
+    if (d.system) fail(400, 'Saved invoices, pay statements and signed documents cannot be changed');
+    await assertOwner(user, d.owner_type, d.owner_id, true);
+    const kind = b.kind && b.kind !== d.kind ? b.kind : null;
+    if (kind && (MONEY_KINDS.includes(kind) || !EDIT_KINDS.includes(kind))) fail(400, 'Choose another type');
+    if (kind && await one('SELECT 1 FROM officers WHERE rtw_check_doc = $1', [d.id])) fail(400, 'This is the saved right to work check, so it stays under Right to work');
+    if (kind) await refile(d, kind, user);
+    const f = {};
+    if (typeof b.title === 'string' && b.title.trim()) f.title = b.title.trim().slice(0, 200);
+    if (b.number !== undefined) f.number = (d.kind === 'rtw' || kind === 'rtw') && cleanShareCode(b.number) ? cleanShareCode(b.number) : String(b.number || '').trim().slice(0, 60);
+    if (b.expiry !== undefined) f.expiry = /^\d{4}-\d{2}-\d{2}$/.test(b.expiry || '') ? b.expiry : null;
+    const keys = Object.keys(f);
+    if (keys.length) await q(`UPDATE documents SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [d.id, ...keys.map((k) => f[k])]);
+    await audit(user, 'doc.update', 'document', d.id, { kind: kind ? { from: d.kind, to: kind } : undefined, ...f });
+    if (d.owner_type === 'officer') {
+      const { readDocuments, runCompliance } = await import('./compliance.mjs');
+      try {
+        if (kind && ['sia', 'rtw', 'id', 'poa', 'other'].includes(kind) && d.s3_key) {
+          if (d.ai_read_key === d.s3_key) await autoApply(d.id);
+          else await readDocuments(1, { id: d.id });
+        }
+        await runCompliance({ officerIds: [d.owner_id] });
+      } catch (e) {
+        console.error('[docs.update]', e.message);
+      }
+    }
+    return one('SELECT * FROM documents WHERE id = $1', [d.id]);
   }),
 
   'docs.verify': def(CO, async (b, { user }) => {
