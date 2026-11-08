@@ -117,7 +117,7 @@ export const actions = {
     });
     if (status === 'pending') {
       const o = await one('SELECT first_name, last_name FROM officers WHERE id = $1', [officerId]);
-      await notify(await companyManagers(), { kind: 'timeoff', title: 'Time off request', body: `${o.first_name} ${o.last_name}: ${b.kind} ${fmtDate(b.start_date)} – ${fmtDate(b.end_date)}`, link: '/company/hr/time-off' });
+      await notify(await companyManagers(), { kind: 'timeoff', title: 'Time off request', body: `${o.first_name} ${o.last_name}: ${b.kind} ${fmtDate(b.start_date)} – ${fmtDate(b.end_date)}`, link: '/company/hr/time-off', tier: 'fyi' });
     }
     return t;
   }),
@@ -322,7 +322,7 @@ export const actions = {
     if (c.category !== 'policy') await tickOnboarding(user.officer_id, 'contract');
     if (c.source !== 'template') await recordEngagement(c);
     await notify(await companyManagers(), {
-      kind: 'contract', title: c.category === 'policy' ? 'Policy signed' : 'Contract signed', body: `${name} signed "${c.title}" (${c.reference})`, link: `/company/staff/${user.officer_id}`,
+      kind: 'contract', title: c.category === 'policy' ? 'Policy signed' : 'Contract signed', body: `${name} signed "${c.title}" (${c.reference})`, link: `/company/staff/${user.officer_id}`, tier: 'fyi',
     });
     await audit(user, 'contract.sign', 'contract', c.id, { ip, reference: c.reference });
     return { ok: true, reference: c.reference, filename: out?.filename };

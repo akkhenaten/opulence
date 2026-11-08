@@ -140,7 +140,7 @@ async function coverThread(series, venueName) {
 async function notifyShiftOfficers(shiftId, title, body) {
   const rows = await q(
     `SELECT a.officer_id FROM shift_assignments a WHERE a.shift_id = $1 AND a.status IN ('assigned','accepted')`, [shiftId]);
-  for (const a of rows) await notify(await officerUser(a.officer_id), { kind: 'shift', severity: 'warning', title, body, link: '/officer/shifts', email: true });
+  for (const a of rows) await notify(await officerUser(a.officer_id), { kind: 'shift', severity: 'warning', title, body, link: '/officer/shifts', email: true, tier: 'urgent' });
 }
 
 // Inside a transaction the tidy-up waits until it has committed, so it sees the change

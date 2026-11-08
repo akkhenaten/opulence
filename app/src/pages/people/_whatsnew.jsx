@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-08', icon: BellRing, title: 'The phone only buzzes when it matters', image: 'notify-tiers',
+    lede: "Every notice now has a level. Urgent ones (a no-show, a high-risk incident, a shift cancelled at short notice) come to the phone and by email. Things to do today come to the phone. Everything else waits quietly under the bell.",
+    points: ['Urgent: phone, email and bell, and on Android the alert stays on screen until it is seen', 'Action: phone and bell, for new shifts, cover, late clock-ins, queries and things to sign', 'FYI: bell only, for contracts signed, payments sent, applications, reactions and the like', 'Clients now hear straight away when an officer can\'t make it to their venue, and again when a replacement is confirmed', 'The Orb platform account no longer gets Opulence\'s day-to-day alerts, only platform matters such as demo requests and app feedback'],
+  },
+  {
     month: 'November 2026', date: '2026-11-08', icon: BellRing, title: 'Phone notifications you can check', image: 'push-test',
     lede: "Anyone can now check phone notifications work, from their own phone, in one tap: Notifications → Send a test. If the phone's notification service turns it down, it says why, so it can be fixed instead of guessed.",
     points: ['Send a test in Notifications (account menu, or Me for officers) sends a notification to this phone only', 'If it doesn\'t arrive, it says what to check: phone settings, Focus or Do Not Disturb, or an expired sign-up to turn on again', 'Every sign-in now re-saves the phone\'s notification sign-up, so a phone that said "On" but never got anything starts getting them', 'Shift, cover and safety alerts are sent as urgent, so phones in battery saver deliver them straight away'],

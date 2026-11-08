@@ -897,7 +897,7 @@ export const actions = {
       // Must-acknowledge announcements always reach everyone; plain ones respect "Announcements" being switched off
       await notify(await allStaff(user.id), {
         kind: ack ? 'feed' : 'announcement', title: ack ? `Please read and confirm: announcement from ${user.name}` : `Announcement from ${user.name}`,
-        body: snippet(p.body, 120), link: postLink(p.id), dedupe: `announce:${p.id}`,
+        body: snippet(p.body, 120), link: postLink(p.id), dedupe: `announce:${p.id}`, tier: ack ? 'action' : null,
       });
     }
     await audit(user, b.on ? 'everyday.pin' : 'everyday.unpin', 'post', p.id, { announce: !!b.announce || ack, must_ack: ack });

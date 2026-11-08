@@ -1,7 +1,7 @@
 // Claude via the OpenKBS proxy (plain fetch, no SDK) with a monthly credit cap.
 import { one, q } from './db.mjs';
 import { HttpError } from './http.mjs';
-import { notify, companyManagers } from './notify.mjs';
+import { notify, companyManagers, platformAdmins } from './notify.mjs';
 
 export const SONNET = 'claude-sonnet-5';
 export const HAIKU = 'claude-haiku-4-5-20251001';
@@ -37,7 +37,7 @@ export async function checkCap(module = 'ops') {
     `UPDATE settings SET ops_ai_used = CASE WHEN ops_ai_month = $1 THEN ops_ai_used ELSE 0 END, ops_ai_month = $1 WHERE id = 1
      RETURNING ops_ai_used, ops_ai_cap_credits, ai_module_caps`, [m]);
   if (Number(s.ops_ai_used) >= Number(s.ops_ai_cap_credits)) {
-    await notify(await companyManagers(), {
+    await notify([...await companyManagers(), ...await platformAdmins()], {
       kind: 'ops', severity: 'warning', title: 'Orb paused: monthly credit cap reached',
       body: 'Raise the cap in Live operations → Settings to resume AI features. Reminders and records keep running.', link: '/company/live?tab=settings', dedupe: `aicap:${m}`,
     });
@@ -47,7 +47,7 @@ export async function checkCap(module = 'ops') {
   if (cap != null && cap !== '') {
     const u = await one('SELECT credits FROM ai_usage WHERE month = $1 AND module = $2', [m, module]);
     if (Number(u?.credits || 0) >= Number(cap)) {
-      await notify(await companyManagers(), {
+      await notify([...await companyManagers(), ...await platformAdmins()], {
         kind: 'ops', severity: 'warning', title: `AI for ${MODULE_NAMES[module] || module} paused: its monthly cap is reached`,
         body: 'Raise the cap in Live operations → Settings. Everything else keeps working.', link: '/company/live?tab=settings', dedupe: `aicap:${module}:${m}`,
       });

@@ -2,9 +2,26 @@ import { q } from './db.mjs';
 import { pushToUsers } from './webpush.mjs';
 import { esc, getBrand, getSender, onColor } from './brand.mjs';
 import { fmtDateTime } from './time.mjs';
+import { platformEmails } from './platform.mjs';
 
 // Kinds a person can switch off in their notification settings; operational alerts always go
 export const OPTIONAL_KINDS = ['mention', 'comment', 'reaction', 'announcement', 'training', 'shoutout', 'tag', 'event', 'celebration'];
+
+// What reaches the phone. Urgent: phone + email + bell. Action: phone + bell. FYI: bell only.
+// critical is always urgent and warning at least action; a call can name its own tier.
+export const TIER = {
+  shift: 'action', open_shift: 'action', cover: 'action', late: 'action', clock_out: 'action', clock_exception: 'action', pack_blocked: 'action',
+  venue_pack: 'action', contract: 'action', pay: 'action', timeoff: 'action', timesheet: 'action', incident: 'action', message: 'action',
+  mention: 'action', reminder: 'action', expiry: 'action', compliance: 'action', demo: 'action', staff_setup: 'action',
+  hr: 'fyi', feed: 'fyi', announcement: 'fyi', reaction: 'fyi', comment: 'fyi', tag: 'fyi', shoutout: 'fyi', event: 'fyi', celebration: 'fyi',
+  training: 'fyi', review: 'fyi', invoice: 'fyi', feedback: 'fyi', ops: 'fyi', applicant: 'fyi', app_feedback: 'fyi',
+};
+export function tierOf(kind, severity, tier) {
+  if (tier) return tier;
+  if (severity === 'critical') return 'urgent';
+  if (severity === 'warning') return 'action';
+  return TIER[kind] || 'fyi';
+}
 
 const APP_URL = () => process.env.APP_URL || '';
 
@@ -54,10 +71,12 @@ async function emailHtml(title, body, link, button = null) {
 }
 
 /**
- * Notify a set of users in-app (and by email when `email` is true).
- * users: array of user ids. dedupe: optional key to avoid repeats.
+ * Notify a set of users in the bell; urgent and action tiers also go to the phone, urgent ones by email too
+ * (unless `email: false`), and `email: true` always emails. users: array of user ids. dedupe: optional key to avoid repeats.
  */
-export async function notify(userIds, { kind, title, body = '', link = '', severity = 'info', dedupe = null, email = false, ref = null }) {
+export async function notify(userIds, { kind, title, body = '', link = '', severity = 'info', dedupe = null, email, ref = null, tier = null }) {
+  const t = tierOf(kind, severity, tier);
+  const mail = email === true || (t === 'urgent' && email !== false);
   let ids = [...new Set((userIds || []).filter(Boolean))];
   if (OPTIONAL_KINDS.includes(kind) && ids.length) {
     ids = (await q("SELECT id FROM users WHERE id = ANY($1::uuid[]) AND COALESCE(notify_prefs->>$2, (SELECT notify_defaults->>$2 FROM settings WHERE id = 1)) IS DISTINCT FROM 'false'", [ids, kind])).map((r) => r.id);
@@ -69,14 +88,14 @@ export async function notify(userIds, { kind, title, body = '', link = '', sever
      ON CONFLICT DO NOTHING RETURNING user_id`,
     [ids, kind, title, body, link, severity, dedupe, ref],
   );
-  if (rows.length) {
+  if (rows.length && t !== 'fyi') {
     try {
-      await pushToUsers(rows.map((r) => r.user_id), { title, body, link });
+      await pushToUsers(rows.map((r) => r.user_id), { title, body, link, tier: t });
     } catch (e) {
       console.warn('[push] not sent:', e.message);
     }
   }
-  if (email && rows.length) {
+  if (mail && rows.length) {
     const users = await q("SELECT email FROM users WHERE id = ANY($1::uuid[]) AND status = 'active'", [rows.map((r) => r.user_id)]);
     const [{ name }, html] = await Promise.all([getBrand(), emailHtml(title, body, link)]);
     await Promise.allSettled(users.map((u) => sendEmail(u.email, `${name} — ${title}`, html)));
@@ -120,7 +139,9 @@ export const sendRawEmail = sendEmail;
 export { emailHtml };
 
 // Recipient helpers
-export const companyManagers = async () => (await q("SELECT id FROM users WHERE role = 'company' AND status = 'active'")).map((r) => r.id);
+// Opulence's own managers: not the Orb bot, not the platform admin (who gets platform notices only)
+export const companyManagers = async () => (await q("SELECT id FROM users WHERE role = 'company' AND status = 'active' AND NOT system AND lower(COALESCE(email, '')) <> ALL($1::text[])", [platformEmails()])).map((r) => r.id);
+export const platformAdmins = async () => (await q("SELECT id FROM users WHERE status = 'active' AND lower(email) = ANY($1::text[])", [platformEmails()])).map((r) => r.id);
 export const securityFor = async (venueId) => (await q("SELECT s.user_id AS id FROM security_venues s JOIN users u ON u.id = s.user_id WHERE s.venue_id = $1 AND u.status = 'active'", [venueId])).map((r) => r.id);
 export const venueContacts = async (venueId) => (await q("SELECT c.user_id AS id FROM venue_contacts c JOIN users u ON u.id = c.user_id WHERE c.venue_id = $1 AND u.status = 'active'", [venueId])).map((r) => r.id);
 export const officerUser = async (officerId) => (await q('SELECT user_id AS id FROM officers WHERE id = $1 AND user_id IS NOT NULL', [officerId])).map((r) => r.id);

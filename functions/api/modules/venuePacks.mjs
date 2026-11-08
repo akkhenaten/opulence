@@ -700,7 +700,7 @@ export const actions = {
     const out = await sealQuietly('venue_pack', row, await packInput(row), { userId: user.id, filename: packFile(row, venue.name) });
     await notify(await managersFor(b.venue_id), {
       kind: 'venue_pack', title: `Site pack signed: ${venue.name}`, body: `${name} signed the instructions and procedures (${row.reference})`,
-      link: `/company/venues/${b.venue_id}?tab=pack`, dedupe: `pack-signed:${row.id}`,
+      link: `/company/venues/${b.venue_id}?tab=pack`, dedupe: `pack-signed:${row.id}`, tier: 'fyi',
     });
     await audit(user, 'venue_pack.sign', 'pack_signing', row.id, { venue_id: b.venue_id, reference: row.reference, ip });
     return { ok: true, reference: row.reference, id: row.id, filename: out?.filename };
@@ -796,7 +796,7 @@ export const actions = {
     const venue = await one('SELECT name FROM venues WHERE id = $1', [b.venue_id]);
     await notify((await managersFor(b.venue_id)).filter((id) => id !== user.id), {
       kind: 'venue_pack', title: `Suggested change: ${p.title}`, body: `${user.name || 'The client'} (${venue.name}): ${clip(b.body, 160)}`,
-      link: `/company/people/procedures/${p.id}`, email: true,
+      link: `/company/people/procedures/${p.id}`, email: true, tier: 'fyi',
     });
     await audit(user, 'procedure.suggest', 'procedure', p.id, { venue_id: b.venue_id });
     return s;
@@ -821,7 +821,7 @@ export const actions = {
     if (b.status !== 'open' && s.author_id && s.author_id !== user.id) {
       await notify([s.author_id], {
         kind: 'venue_pack', title: `Your suggestion on "${s.title}" was ${b.status === 'accepted' ? 'accepted' : 'not taken forward'}`,
-        body: clip(b.reply, 300) || (b.status === 'accepted' ? 'It will appear once the updated document is published.' : ''), link: '/venue/site',
+        body: clip(b.reply, 300) || (b.status === 'accepted' ? 'It will appear once the updated document is published.' : ''), link: '/venue/site', tier: 'fyi',
       });
     }
     return { ok: true };

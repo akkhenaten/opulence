@@ -475,7 +475,7 @@ export async function decideCompliance(it, b, user) {
     for (const r of rows) {
       await afterShiftChange({ removed: [{ ...r, officer_id: o.id }] });
       const sh = await getShift(r.shift_id);
-      await notify(await officerUser(o.id), { kind: 'shift', severity: 'warning', title: 'Taken off a shift', body: `${sh.venue_name} · ${fmtDate(sh.starts_at)} ${fmtTime(sh.starts_at)}. ${a.issue.title}. Contact the office if this is wrong.`, link: '/officer/shifts' });
+      await notify(await officerUser(o.id), { kind: 'shift', severity: 'warning', title: 'Taken off a shift', body: `${sh.venue_name} · ${fmtDate(sh.starts_at)} ${fmtTime(sh.starts_at)}. ${a.issue.title}. Contact the office if this is wrong.`, link: '/officer/shifts', tier: 'urgent', email: false });
       const prev = await one("SELECT max((payload->>'batch')::int) AS b FROM ops_items WHERE kind = 'cover' AND shift_id = $1", [sh.id]);
       if (sh.status === 'published') await proposeCover(sh, 'Officer taken off for compliance', { batch: (prev?.b || 0) + 1, exclude: [o.id] });
     }

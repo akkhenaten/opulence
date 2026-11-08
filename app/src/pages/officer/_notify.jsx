@@ -161,7 +161,7 @@ export function NotificationsSheet({ open, onClose }) {
           <div className="space-y-4">
             <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Tell me about</div>
             {NOTIFY_KINDS.map((k) => <Toggle key={k.key} checked={prefs[k.key] !== false} onChange={flip(k.key)} label={k.label} hint={k.hint} />)}
-            <p className="text-footnote text-muted">Shifts, cover, pay and safety alerts always come through.</p>
+            <p className="text-footnote text-muted">Shifts, cover, pay and safety alerts always come through. Urgent and action alerts come to your phone; FYI ones wait under the bell.</p>
           </div>
         )}
       </Load>

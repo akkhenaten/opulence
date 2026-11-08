@@ -225,7 +225,7 @@ export const actions = {
     await ensureLog(ax.sh.id);
     const e = await one("INSERT INTO shift_log_entries (shift_id, author_user_id, kind, body, to_user_id) VALUES ($1,$2,'instruction',$3,$4) RETURNING *",
       [ax.sh.id, user.id, body, to]);
-    await notify(ids, { kind: 'shift', severity: 'warning', title: 'From your manager', body: body.slice(0, 160), link: `/officer/shifts/${ax.sh.id}`, dedupe: `instr:${e.id}` });
+    await notify(ids, { kind: 'shift', severity: 'warning', title: 'From your manager', body: body.slice(0, 160), link: `/officer/shifts/${ax.sh.id}`, dedupe: `instr:${e.id}`, tier: 'urgent', email: false });
     await audit(user, 'shiftlog.instruct', 'shift', ax.sh.id, { entry_id: e.id, to: to || 'team', recipients: ids.length });
     return { ...e, recipients: ids.length };
   }),

@@ -1,6 +1,6 @@
 import { one, q } from '../lib/db.mjs';
 import { fail } from '../lib/http.mjs';
-import { notify } from '../lib/notify.mjs';
+import { notify, platformAdmins } from '../lib/notify.mjs';
 import { CO, def, pub } from './_def.mjs';
 
 // "Request a private demo" form on the public landing page
@@ -18,8 +18,7 @@ export const actions = {
     if (n >= 5) fail(429, 'Too many requests — please try again later');
     await q('INSERT INTO demo_requests (name, company, email, phone, sites, message, ip) VALUES ($1,$2,$3,$4,$5,$6,$7)',
       [r.name, r.company, r.email, r.phone, r.sites, r.message, ip]);
-    const ids = (await q("SELECT id FROM users WHERE role = 'company' AND status = 'active' AND NOT system")).map((u) => u.id);
-    await notify(ids, { kind: 'demo', title: `New demo request from ${r.company}`, body: `${r.name} · ${r.email}`, link: '/company/settings?tab=demos', email: true });
+    await notify(await platformAdmins(), { kind: 'demo', title: `New demo request from ${r.company}`, body: `${r.name} · ${r.email}`, link: '/company/settings?tab=demos', email: true });
     return { ok: true };
   }),
 

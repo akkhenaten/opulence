@@ -334,6 +334,8 @@ async function escalate(a, s) {
     await opsMessage(uid, `We still haven't seen you clock in at ${sh.venue_name}, so the office is lining up cover. If you're on your way, tell us now.`);
   }
   await notifyManagers(sh.venue_id, { kind: 'late', severity: 'critical', title: `${name} ${a.reply === 'cant_make_it' ? "can't make it" : 'is a no-show'}`, body: `${sh.venue_name} · ${when(sh)}. ${name} ${why}. Cover options are in Live operations.`, link: 'live', dedupe: `esc:${a.id}`, ref: `asg:${a.id}`, email: true });
+  // The client hears it too, without the officer's name
+  await notify(await venueContacts(sh.venue_id), { kind: 'late', severity: 'critical', title: `An officer can't make it to ${sh.venue_name}`, body: `${when(sh)}. We're arranging cover and will tell you when a replacement is confirmed.`, link: '/venue/rota', dedupe: `vesc:${a.id}`, ref: `asg:${a.id}` });
   await logActivity('escalate', `Escalated ${name} at ${sh.venue_name} (${fmtTime(sh.starts_at)}) — ${why}`, { ref_type: 'assignment', ref_id: a.id, venue_id: sh.venue_id });
   if (jobOn(s, 'cover')) await proposeCover(sh, a.reply === 'cant_make_it' ? 'cant_make_it' : 'no-show', { replacing: a.reply === 'cant_make_it' ? null : a.id });
 }
@@ -1021,6 +1023,7 @@ export async function offerRespond(b, user) {
   await opsMessage(user.id, `It's yours: ${sh.venue_name} · ${when(sh)}. It is now on your rota.`);
   await coverFilledThreads(sh, firstLast(o));
   await notifyManagers(sh.venue_id, { kind: 'ops', title: `${firstLast(o)} took the cover shift`, body: `${sh.venue_name} · ${when(sh)}`, link: 'rota', dedupe: `took:${offer.id}` });
+  await notify(await venueContacts(sh.venue_id), { kind: 'cover', title: `Replacement confirmed · ${sh.venue_name}`, body: `${firstLast(o)} is covering ${when(sh)}`, link: '/venue/rota', dedupe: `vtook:${offer.id}` });
   await logActivity('offer', `${firstLast(o)} accepted cover at ${sh.venue_name} (${when(sh)})`, { ref_type: 'shift', ref_id: sh.id, venue_id: sh.venue_id });
   await audit(user, 'ops.offer_accept', 'shift', sh.id, { officer: offer.officer_id });
   return { ok: true };

@@ -90,7 +90,7 @@ export const actions = {
     const g = c.organisation_id && await one('SELECT name FROM organisations WHERE id = $1', [c.organisation_id]);
     await notify(await companyManagers(), {
       kind: 'contract', title: 'Contract signed', body: `${name}${g ? ` for ${g.name}` : ''} signed "${c.title}" (${c.reference})`,
-      link: c.officer_id ? `/company/staff/${c.officer_id}` : '/company/people/contracts',
+      link: c.officer_id ? `/company/staff/${c.officer_id}` : '/company/people/contracts', tier: 'fyi',
     });
     await audit(null, 'link.sign', 'contract', c.id, { ip, reference: c.reference, name, email: link.email });
     return { ok: true, reference: c.reference, filename: out?.filename, signed_at: c.signed_at, download_until: new Date(Date.now() + DOWNLOAD_DAYS * 864e5) };

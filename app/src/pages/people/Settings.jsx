@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Bell, Building2, ImageUp, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Newspaper, Percent, Plus, ReceiptText, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
+import { Bell, Building2, ImageUp, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Newspaper, Percent, Plus, ReceiptText, ShieldCheck, Smartphone, Trash2, UserPlus, Users } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -752,6 +752,13 @@ function RulesTab() {
   );
 }
 
+// The three tiers set in the API (lib/notify.mjs TIER)
+const PHONE_TIERS = [
+  { label: 'Urgent: phone, email and bell', text: 'No-shows, high-risk incidents, shifts cancelled or changed within 48 hours, documents expiring within a week, instructions during a shift.' },
+  { label: 'Action: phone and bell', text: 'New shifts, cover requests, late clock-ins, timesheet and pay queries, things to sign, messages and mentions.' },
+  { label: 'FYI: bell only', text: 'Contracts signed, time off requested, payments sent, applications, training, invoices, Everyday reactions and celebrations.' },
+];
+
 // What everyone gets unless they change it under My account → Notifications
 function NotificationsTab() {
   const q = useApi('settings.get');
@@ -763,12 +770,25 @@ function NotificationsTab() {
   return (
     <Load q={q}>
       {(s) => (
+        <>
         <Tile title="Optional alerts — company defaults" icon={Bell} className="max-w-2xl">
           <div className="space-y-2">
             {NOTIFY_KINDS.map((k) => <Toggle key={k.key} checked={s.notify_defaults?.[k.key] !== false} onChange={flip(k.key)} label={k.label} hint={k.hint} />)}
           </div>
           <p className="mt-3 text-caption text-faint">Applies to managers and officers who haven't chosen for themselves. Anyone can change their own under My account. Shifts, cover, pay and safety alerts always come through.</p>
         </Tile>
+        <Tile title="What reaches the phone" icon={Smartphone} className="mt-4 max-w-2xl">
+          <dl className="space-y-3 text-subhead">
+            {PHONE_TIERS.map((t) => (
+              <div key={t.label}>
+                <dt className="font-semibold">{t.label}</dt>
+                <dd className="text-muted">{t.text}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-3 text-caption text-faint">Fixed for everyone, so the phone only buzzes when it matters. Everything is always under the bell.</p>
+        </Tile>
+        </>
       )}
     </Load>
   );
