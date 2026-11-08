@@ -17,6 +17,7 @@ const OrbPage = P(() => import('./pages/manager/OpsAI.jsx'));
 const Rota = P(() => import('./pages/manager/Rota.jsx'));
 const CoverManage = P(() => import('./pages/manager/Cover.jsx'));
 const Exceptions = P(() => import('./pages/manager/Exceptions.jsx'));
+const Phones = P(() => import('./pages/manager/Exceptions.jsx').then((m) => ({ default: m.PhonesPage })));
 const Messages = P(() => import('./pages/messages/Messages.jsx'));
 const VenueSite = P(() => import('./pages/venue/Site.jsx'));
 const Timesheets = P(() => import('./pages/shared/Timesheets.jsx'));
@@ -153,9 +154,17 @@ function LiveRedirect() {
   const { search } = useLocation();
   const p = new URLSearchParams(search);
   const tab = p.get('tab');
-  if (tab === 'activity' || tab === 'settings') return <Navigate to={`../orb${tab === 'settings' ? '?tab=settings' : ''}`} replace />;
+  if (tab === 'activity') return <Navigate to="../orb" replace />;
+  if (tab === 'settings') return <Navigate to="../settings?tab=orb" replace />;
   p.delete('tab');
   return <Navigate to={`..${p.toString() ? `?${p}` : ''}`} replace />;
+}
+
+// A page that moved inside its section keeps its old address working, with the same ?tab= and filters
+function Moved({ to }) {
+  const { user } = useAuth();
+  const { search, state } = useLocation();
+  return <Navigate to={`/${user.role}/${to}${search}`} replace state={state} />;
 }
 
 // The venue's Cover page is now the Requests tab of their rota; a message draft comes along
@@ -179,8 +188,9 @@ const managerRoutes = (
     <Route path="incidents/new" element={<IncidentForm />} />
     <Route path="incidents/:id" element={<IncidentDetail />} />
     <Route path="staff" element={<Staff />} />
+    <Route path="staff/phones" element={<Phones />} />
     <Route path="staff/:id" element={<StaffProfile />} />
-    <Route path="team/academy" element={<Academy />} />
+    <Route path="team/academy" element={<Moved to="team/training" />} />
     <Route path="team/training" element={<Academy />} />
     <Route path="people/compliance" element={<Compliance />} />
     <Route path="people/procedures" element={<Procedures />} />

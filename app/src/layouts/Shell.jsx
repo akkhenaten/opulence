@@ -1,12 +1,13 @@
-import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { Bell, BellOff, BookOpen, Briefcase, ChevronRight, ExternalLink, Globe, LogOut, MessagesSquare, MoreHorizontal, Newspaper, Pin } from 'lucide-react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Link, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
+import { Bell, BellOff, Briefcase, ChevronRight, ExternalLink, Globe, LogOut, MessagesSquare, MoreHorizontal, Newspaper, Pin } from 'lucide-react';
 import { api } from '../api.js';
 import { startRealtime, useRealtime, useRealtimeConnected } from '../realtime.js';
 import { HOME, portalLink, useAuth } from '../auth.jsx';
 import { VenueChip } from '../venue.jsx';
 import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, usePageHeader, useScrollMemory } from '../ui/index.jsx';
 import { NAV, ROLE_LABEL } from './nav.js';
+import { HubCtx, hubTabs } from '../ui/hub.jsx';
 import { motionFor } from './navMotion.js';
 import { SideSwitch } from './SideSwitch.jsx';
 import { AccountSheet } from './AccountSheet.jsx';
@@ -185,16 +186,16 @@ function useSidebar() {
 
 // A sidebar link: the icon with its own motion (navMotion.js), the label that fades when the strip shrinks, the badge
 // as a corner dot on the icon while shrunk
-function SideLink({ it, i, open, n, className, on = NAV_ON, onClick }) {
+function SideLink({ it, i, open, n, className, on = NAV_ON, onClick, active }) {
   return (
-    <NavLink to={it.to} end={it.end} onClick={onClick} aria-label={it.label} title={open ? undefined : it.label} style={{ '--i': i }}
-      className={({ isActive }) => cx(NAV_ITEM, className, isActive ? on : NAV_OFF)}>
+    <Link to={it.to} onClick={onClick} aria-label={it.label} title={open ? undefined : it.label} style={{ '--i': i }} aria-current={active ? 'page' : undefined}
+      className={cx(NAV_ITEM, className, active ? on : NAV_OFF)}>
       <span className={cx('nav-ic relative grid shrink-0 place-items-center', `nav-m-${motionFor(it.icon)}`)}>
         <it.icon size={18} />
         {!open && <Badge n={n} className="absolute -right-3 -top-2.5 ring-2 ring-bg" />}
       </span>
       <span className="side-label flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap"><span className="flex-1 truncate">{it.label}</span><Tag t={it.tag} /><Badge n={n} /></span>
-    </NavLink>
+    </Link>
   );
 }
 
@@ -254,6 +255,8 @@ export default function Shell() {
   useEffect(() => { const h = () => fb.reload(); window.addEventListener('orb:feedback-status', h); return () => window.removeEventListener('orb:feedback-status', h); });
   const fbOn = !!fb.data?.on;
   const badges = { ops: opsCount.data?.n || 0, everyday: feed.data?.unread || 0, messages: msgs.data?.unread || 0, email: (mail.data?.accounts || []).reduce((n, a) => n + (a.unread || 0), 0), platform: fb.data?.new || 0 };
+  badges.inbox = badges.messages + badges.email;
+  const chatBadge = badges.messages + (user.role === 'officer' && feedOn ? badges.everyday : 0);
   const loc = useLocation();
   const [more, setMore] = useState(false);
   const [account, setAccount] = useState(false);
@@ -290,8 +293,15 @@ export default function Shell() {
   const reloadFeed = useRef(feed.reload);
   reloadFeed.current = feed.reload;
   useRealtime('feed.post', (d) => { if (feedOn && !onFeed && d.author_id !== user.id) reloadFeed.current(); });
+  const hubCtx = useMemo(() => ({ user, on }), [user, settings.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A section item opens its first tab, and is named after it when it is the only one
+  const resolve = (it) => {
+    if (!it.hub) return it;
+    const tabs = hubTabs(it.hub, user, on);
+    return tabs.length ? { ...it, to: tabs[0].to, label: tabs.length > 1 ? it.label : tabs[0].label, tabs } : null;
+  };
   const groups = NAV[user.role]
-    .map((g) => ({ ...g, items: g.items.filter((it) => (!it.module || on(it.module)) && (!it.moduleAny || it.moduleAny.some(on)) && (!it.perm || user[it.perm]) && (!it.gate || settings.data?.[it.gate])) }))
+    .map((g) => ({ ...g, items: g.items.map(resolve).filter((it) => it && (!it.module || on(it.module)) && (!it.moduleAny || it.moduleAny.some(on)) && (!it.perm || user[it.perm]) && (!it.gate || settings.data?.[it.gate])) }))
     .filter((g) => g.items.length);
   const all = groups.flatMap((g) => g.items);
   const tabs = all.filter((i) => i.tab);
@@ -315,7 +325,7 @@ export default function Shell() {
   }, []);
   const navType = useNavigationType();
   // Pages slide in going forward, back the other way, and cross-fade when switching sections
-  const isSection = all.some((i) => i.to === loc.pathname);
+  const isSection = all.some((i) => i.to === loc.pathname || i.tabs?.some((t) => t.to === loc.pathname));
   // Slide in for drill-in, slide back for Back; the first page and tab switches fade
   const firstPath = useRef(loc.pathname);
   useEffect(() => { if (loc.pathname !== firstPath.current) firstPath.current = null; }, [loc.pathname]);
@@ -375,7 +385,8 @@ export default function Shell() {
     const f = requestAnimationFrame(() => pill.setAttribute('data-ready', ''));
     return () => { cancelAnimationFrame(f); clearTimeout(t); };
   }, [loc.pathname, groups.length, side.open]);
-  const isActive = (it) => (it.end ? loc.pathname === it.to : loc.pathname === it.to || loc.pathname.startsWith(`${it.to}/`));
+  const under = (to) => loc.pathname === to || loc.pathname.startsWith(`${to}/`);
+  const isActive = (it) => (it.end ? loc.pathname === it.to : it.tabs ? it.tabs.some((t) => under(t.to)) : under(it.to));
   // Tapping the tab you're already on scrolls back to the top
   const tabTap = (it) => (e) => { if (loc.pathname === it.to) { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); } };
 
@@ -398,7 +409,7 @@ export default function Shell() {
             {side.open && <div className="side-fade"><SideSwitch full className="mb-4" /></div>}
             <nav ref={navRef} className="relative flex-1 space-y-4 overflow-y-auto overflow-x-hidden no-scrollbar">
               <span ref={pillRef} aria-hidden className={cx('nav-pill pointer-events-none absolute inset-x-0 top-0 rounded-xl opacity-0', NAV_PILL)} />
-              {groups.map((g, gi) => (
+              {groups.filter((g) => !g.foot).map((g, gi) => (
                 <div key={gi} className="relative">
                   {g.title && (
                     <div className="relative mb-0.5 h-4 px-3">
@@ -406,11 +417,13 @@ export default function Shell() {
                       <div className={cx('absolute left-3 top-2 h-px w-6 bg-line transition-opacity duration-[var(--dur-2)]', side.open ? 'opacity-0' : 'opacity-100')} />
                     </div>
                   )}
-                  {g.items.map((it, i) => <SideLink key={it.to} it={it} i={i} open={side.open} n={badges[it.badge]} onClick={tabTap(it)} />)}
+                  {g.items.map((it, i) => <SideLink key={it.to} it={it} i={i} open={side.open} n={badges[it.badge]} onClick={tabTap(it)} active={isActive(it)} />)}
                 </div>
               ))}
             </nav>
-            <SideLink it={{ to: `/${user.role}/help`, label: 'Help & user guide', icon: BookOpen }} open={side.open} className="mt-2" on={NAV_ON_STATIC} />
+            {groups.filter((g) => g.foot).map((g, gi) => (
+              <div key={gi} className="mt-2">{g.items.map((it, i) => <SideLink key={it.to} it={it} i={i} open={side.open} n={badges[it.badge]} onClick={tabTap(it)} active={isActive(it)} on={NAV_ON_STATIC} />)}</div>
+            ))}
             <Pressable press onClick={() => setAccount(true)} aria-label="My account" title={side.open ? undefined : `${user.name} · My account`}
               className={cx('mt-4 flex items-center gap-3 rounded-2xl bg-fill hover:bg-fill-strong transition-[padding] duration-[var(--dur-3)] ease-ios', side.open ? 'p-3' : 'p-1.5')}>
               <Avatar name={user.name} src={[user.photo_thumb_url, user.photo_url]} size={side.open ? 36 : 32} />
@@ -430,12 +443,11 @@ export default function Shell() {
             <div className="flex items-center gap-2">
               {/* Phones: managers reach the website from More and Everyday from the Dashboard tab */}
               {!isOfficer && <span className="hidden lg:block"><WebsiteButton /></span>}
-              {feedOn && (isOfficer
-                ? <EverydayButton to="/officer/everyday" unread={badges.everyday} />
-                : <span className="hidden lg:block"><EverydayButton to={`/${user.role}?tab=everyday`} unread={badges.everyday} /></span>)}
+              {/* Officers find Everyday as a tab of Messages */}
+              {feedOn && !isOfficer && <span className="hidden lg:block"><EverydayButton to={`/${user.role}?tab=everyday`} unread={badges.everyday} /></span>}
               {user.role !== 'venue' && (
                 <span className={cx(!isOfficer && 'lg:hidden')}>
-                  <IconButton icon={MessagesSquare} tone="solid" to={`/${user.role}/messages`} active={loc.pathname.startsWith(`/${user.role}/messages`)} badge={badges.messages} label={`Messages${badges.messages ? `, ${badges.messages} unread` : ''}`} />
+                  <IconButton icon={MessagesSquare} tone="solid" to={`/${user.role}/messages`} active={loc.pathname.startsWith(`/${user.role}/messages`) || (isOfficer && onFeed)} badge={chatBadge} label={`Messages${chatBadge ? `, ${chatBadge} unread` : ''}`} />
                 </span>
               )}
               {user.role === 'venue' && <VenueChip />}
@@ -450,7 +462,7 @@ export default function Shell() {
         <UpdateBanner />
         <main className={cx(isOfficer && 'mx-auto max-w-2xl')}>
           <Suspense fallback={<SkeletonPage />}>
-            <div key={loc.pathname} className={pageAnim}><Outlet /></div>
+            <HubCtx.Provider value={hubCtx}><div key={loc.pathname} className={pageAnim}><Outlet /></div></HubCtx.Provider>
           </Suspense>
         </main>
       </div>
@@ -460,13 +472,13 @@ export default function Shell() {
       <nav aria-label="Main" className={cx('fixed inset-x-0 bottom-0 z-40 border-t border-line/70 bg-surface/85 backdrop-blur-xl safe-b safe-x', !isOfficer && 'lg:hidden')}>
         <div className="mx-auto flex max-w-2xl items-stretch justify-around px-2">
           {tabs.map((it) => (
-            <NavLink key={it.to} to={it.to} end={it.end} onClick={tabTap(it)}
-              className={({ isActive: on }) => cx('pressable flex min-h-[54px] flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-caption2 font-semibold', on ? 'text-blue' : 'text-faint')}>
+            <Link key={it.to} to={it.to} onClick={tabTap(it)} aria-current={isActive(it) ? 'page' : undefined}
+              className={cx('pressable flex min-h-[54px] flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-caption2 font-semibold', isActive(it) ? 'text-blue' : 'text-faint')}>
               {it.primary
                 ? <span className={cx('-mt-5 grid h-14 w-14 place-items-center rounded-full bg-blue text-white shadow-[0_8px_20px_-6px_color-mix(in_srgb,var(--accent-fill,var(--color-blue))_80%,transparent)] ring-4 ring-bg', isActive(it) && 'anim-pop')}><it.icon size={24} /></span>
                 : <span className={cx(isActive(it) && 'anim-pop')}><it.icon size={24} /></span>}
               <span className={cx(it.primary && 'mt-0.5')}>{it.short || it.label}</span>
-            </NavLink>
+            </Link>
           ))}
           {extra.length > 0 && (
             <Pressable press onClick={() => setMore(true)} className={cx('pressable flex min-h-[54px] flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-caption2 font-semibold', extra.some(isActive) ? 'text-blue' : 'text-faint')}>
@@ -482,17 +494,14 @@ export default function Shell() {
             <div key={i}>
               {g.title && <div className="mb-1 px-3 text-caption2 font-semibold uppercase tracking-wider text-faint">{g.title}</div>}
               {g.items.map((it) => (
-                <NavLink key={it.to} to={it.to} end={it.end} className={({ isActive: on }) => cx(MORE_ROW, on ? 'bg-blue-soft text-blue' : 'text-ink')}>
+                <Link key={it.to} to={it.to} className={cx(MORE_ROW, isActive(it) ? 'bg-blue-soft text-blue' : 'text-ink')}>
                   <span className={MORE_ICON}><it.icon size={20} /></span>
                   <span className="min-w-0 flex-1 truncate">{it.label}</span><Tag t={it.tag} /><Badge n={badges[it.badge]} /><ChevronRight size={18} className="text-faint" />
-                </NavLink>
+                </Link>
               ))}
             </div>
           ))}
           <div className="border-t border-line pt-3">
-            <NavLink to={`/${user.role}/help`} className={({ isActive: on }) => cx(MORE_ROW, on ? 'bg-blue-soft text-blue' : 'text-ink')}>
-              <span className={MORE_ICON}><BookOpen size={20} /></span><span className="flex-1">Help & user guide</span><ChevronRight size={18} className="text-faint" />
-            </NavLink>
             <a {...WEBSITE} className={cx(MORE_ROW, 'text-ink')}>
               <span className={MORE_ICON}><Globe size={20} /></span><span className="flex-1">Our website</span><ExternalLink size={16} className="text-faint" />
             </a>
@@ -504,7 +513,7 @@ export default function Shell() {
           <ChevronRight size={18} className="text-faint" />
         </Pressable>
       </Sheet>
-      {!isOfficer && <AccountSheet open={account} onClose={() => setAccount(false)} feedback={fbOn} />}
+      {!isOfficer && <AccountSheet open={account} onClose={() => setAccount(false)} feedback={fbOn} emergency={!!settings.data?.emergency_visible} />}
       <AppFeedbackSheet />
       {isMgr && <WhatsNewSplash user={user} />}
       {isMgr && <OrbFab onClick={() => setAsk(true)} hidden={ask} dot={orbDot} />}

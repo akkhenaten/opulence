@@ -133,20 +133,9 @@ function Body({ d, name }) {
           )}
         </Section>
 
-        <Section title="Cover requests" action={<Link to="/venue/rota?new=1" className="-my-2.5 inline-block py-2.5 text-subhead font-semibold text-blue">Request staff</Link>}>
-          {!d.cover.length ? <Quiet icon={Megaphone} text="No upcoming cover requests." action={<Button size="sm" variant="soft" icon={Plus} to="/venue/rota?new=1">Request staff</Button>} /> : (
-            <List>
-              {d.cover.map((c) => (
-                <Row key={c.id} to="/venue/rota?tab=requests" title={`${c.headcount} × ${c.role_name}`}
-                  subtitle={`${dayLabel(c.starts_at)} · ${range(c.starts_at, c.ends_at)}${multi ? ` · ${c.venue_name}` : ''}`}
-                  right={<Pill status={c.status} />} />
-              ))}
-            </List>
-          )}
-        </Section>
-
-        <Section title="Recent incidents" action={<Link to="/venue/incidents" className="-my-2.5 inline-block py-2.5 text-subhead font-semibold text-blue">See all</Link>}>
-          {!d.incidents.length ? <Quiet icon={ShieldAlert} text="No incidents reported." /> : (
+        {/* Cover requests are on the Cover tile and Rota → Requests; incidents show only when there are some */}
+        {d.incidents.length > 0 && (
+          <Section title="Recent incidents" action={<Link to="/venue/incidents" className="-my-2.5 inline-block py-2.5 text-subhead font-semibold text-blue">See all</Link>}>
             <List>
               {d.incidents.map((i) => (
                 <Row key={i.id} to={`/venue/incidents/${i.id}`}
@@ -155,8 +144,8 @@ function Body({ d, name }) {
                   right={<Pill status={i.severity} />} />
               ))}
             </List>
-          )}
-        </Section>
+          </Section>
+        )}
 
         {!d.tiles && <Section title={d.venues.length > 1 ? 'Your venues' : 'Your venue'}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">

@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Mail, RefreshCw, Settings, SquarePen, Star } from 'lucide-react';
 import { Button, cx, Empty, IconButton, Load, Pressable, SearchInput, Segmented, Select, SkeletonPage, useAction, useApi } from '../../ui/index.jsx';
 import { api } from '../../api.js';
+import { HubTabs, SectionTabs, useHub } from '../../ui/hub.jsx';
 import Composer from './Composer.jsx';
 import Thread from './Thread.jsx';
 import { ConnectButtons, ReconnectBanner } from './_settings.jsx';
@@ -35,6 +36,7 @@ export default function Email() {
   if (!list.length) {
     return (
       <div className="mx-auto w-full max-w-3xl px-4 py-8">
+        <SectionTabs />
         <Load q={accounts}>
           {(d) => (
             <Empty icon={Mail} title="Connect your email"
@@ -76,6 +78,7 @@ export default function Email() {
 }
 
 function Inbox({ acc, accounts, folder, current, onAccount, onFolder, onOpen, onCompose, onAccountsChanged }) {
+  const hub = useHub({ inside: true });
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
   useEffect(() => { const t = setTimeout(() => setTerm(search.trim()), 400); return () => clearTimeout(t); }, [search]);
@@ -109,11 +112,12 @@ function Inbox({ acc, accounts, folder, current, onAccount, onFolder, onOpen, on
     <>
       <div className="px-4 pb-2 pt-4">
         <div className="mb-3 flex items-center gap-1">
-          <h1 className="min-w-0 flex-1 text-title1 font-bold">Email</h1>
+          <h1 className="min-w-0 flex-1 text-title1 font-bold">{hub ? hub.title : 'Email'}</h1>
           <IconButton icon={RefreshCw} label="Check for new email" onClick={refresh} disabled={busy} />
           <IconButton icon={Settings} label="Email settings" to="/company/settings?tab=notifications&part=email" />
           <IconButton icon={SquarePen} tone="solid" label="New email" onClick={onCompose} disabled={!!reconnect} />
         </div>
+        <HubTabs hub={hub} className="mb-3" />
         {accounts.length > 1 && (
           <Select className="mb-2" aria-label="Mailbox" value={acc.id} onChange={(e) => onAccount(e.target.value)}
             options={accounts.map((a) => ({ value: a.id, label: `${a.address}${a.shared ? ' (shared)' : ''}${a.unread ? ` · ${a.unread}` : ''}` }))} />

@@ -7,6 +7,7 @@ import { initials, titleCase } from './format.js';
 import { usePresence, useScrollLock } from './motion.js';
 import { pageHeader, previousEntry, previousPath, setTrailTitle } from './nav.js';
 import { Photo } from './Photo.jsx';
+import { HubTabs, useHub } from './hub.jsx';
 
 export * from './format.js';
 export { usePresence, useScrollLock } from './motion.js';
@@ -110,8 +111,12 @@ export function ToastProvider({ children }) {
 
 // photo: a brand photo name (ui/Photo.jsx) behind the title
 // backLabel: what the next page's Back calls this one when the title is long or not text (e.g. "Home" for a greeting)
-export function Page({ title, subtitle, actions, back, backLabel, children, wide, photo, slim }) {
+export function Page({ title: own, subtitle, actions, back, backLabel: ownLabel, children, wide, photo, slim }) {
   const nav = useNavigate();
+  // A page that is one tab of a section (Staff → Recruitment) takes the section's title and shows its tabs
+  const hub = useHub();
+  const title = !back && hub ? hub.title : own;
+  const backLabel = ownLabel || (!back && hub ? hub.current.label : undefined);
   const sentinel = useRef(null);
   useEffect(() => {
     pageHeader.set({ title: typeof title === 'string' ? title : '', wide: !!wide });
@@ -156,6 +161,7 @@ export function Page({ title, subtitle, actions, back, backLabel, children, wide
       ) : (
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">{head}{actionBox}</div>
       )}
+      {!back && <HubTabs hub={hub} />}
       {children}
       <PoweredBy className="mt-10" />
     </div>

@@ -18,6 +18,8 @@ import ContractFile from './ContractFile.jsx';
 import { flash, JURISDICTIONS, SEVERITY, useDraftPdf } from './_shared.jsx';
 
 const BACK = '/company/people/contracts?view=drafts';
+// A contract for one officer is drafted from, and returns to, their profile
+const backFor = (party) => (party?.kind === 'officer' && party.id ? `/company/staff/${party.id}?tab=hr&sub=contracts` : BACK);
 
 // Patches merge per key so quick edits to different questions travel in one save
 function merge(a, b) {
@@ -138,7 +140,7 @@ export default function Workspace() {
   const take = useCallback((x) => { setV(x); setRev((r) => r + 1); }, []);
   useEffect(() => {
     api('contracts.draft.get', { id }).then((x) => {
-      if (x.draft.status !== 'draft') { nav(BACK, { replace: true }); return; }
+      if (x.draft.status !== 'draft') { nav(backFor(x.party), { replace: true }); return; }
       take(x);
     }).catch(setError);
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -183,7 +185,7 @@ export default function Workspace() {
     } catch (e) { toast(e.message, 'error'); }
   }, [id, flush, take, toast]);
 
-  const close = async () => { await flush().catch(() => {}); nav(BACK); };
+  const close = async () => { await flush().catch(() => {}); nav(backFor(v?.party)); };
   useEffect(() => {
     const k = (e) => e.key === 'Escape' && !file && !sending && close();
     document.addEventListener('keydown', k);
@@ -294,7 +296,7 @@ export default function Workspace() {
       </footer>
 
       {file && <ContractFile v={v} onClose={() => setFile(false)} />}
-      {sending && <SendSheet v={v} onClose={() => setSending(false)} onSent={() => nav('/company/people/contracts', { replace: true })} />}
+      {sending && <SendSheet v={v} onClose={() => setSending(false)} onSent={() => nav(backFor(v.party) === BACK ? '/company/people/contracts' : backFor(v.party), { replace: true })} />}
     </>,
   );
 }

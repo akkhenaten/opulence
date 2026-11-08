@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Award, BadgeCheck, Bell, BookOpen, Download, MessageCircleWarning, Globe, Newspaper, Target, CalendarOff, GraduationCap, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
+  BadgeCheck, Bell, BookOpen, Download, MessageCircleWarning, Globe, Target, CalendarOff, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
   Avatar, Button, cx, date, dateShort, Input, List, Load, Page, Pill, Row, Section, Sheet, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
-import { StatePill, useModules } from '../learn/_parts.jsx';
 import { NotificationsSheet } from './_notify.jsx';
 import { InstallSheet, usePwa } from '../../ui/pwa.jsx';
 import { expiryText, expiryTone, NotLinked } from './_parts.jsx';
@@ -25,13 +24,11 @@ export default function Me() {
   const [notes, setNotes] = useState(false);
   const [inst, setInst] = useState(false);
   const pwa = usePwa();
-  const modules = useModules();
   const linked = !!user.officer_id;
   const me = useApi('officers.get', {}, { skip: !linked });
   const contracts = useApi('contracts.list', {}, { skip: !linked });
   const tasks = useApi('onboarding.tasks', {}, { skip: !linked });
   const fix = useApi('incidents.list', { status: 'changes_requested' }, { skip: !linked });
-  const learn = useApi('academy.my', {}, { skip: !linked || !modules?.academy });
   const fb = useApi('appFeedback.status', {});
 
   // Set-up links can point at a section (e.g. #contracts) once its data is in
@@ -130,21 +127,7 @@ export default function Me() {
                 </Section>
               )}
 
-              {modules?.academy && learn.data && (learn.data.courses.length > 0 || learn.data.certificates.length > 0) && (
-                <Section title="Training" action={<Link to="/officer/learn" className="-my-2.5 inline-block py-2.5 text-subhead font-semibold text-blue">Open Learn</Link>}>
-                  <List>
-                    {learn.data.courses.filter((x) => x.state !== 'passed').map((x) => (
-                      <Row key={x.id} to={`/officer/learn/academy/${x.id}`} left={<Ico icon={GraduationCap} tone={x.state === 'overdue' || x.state === 'expired' ? 'red' : 'blue'} />}
-                        title={x.title} subtitle={x.due_date ? `Due ${date(x.due_date)}` : 'No due date'} right={<StatePill state={x.state} />} />
-                    ))}
-                    {learn.data.certificates.map((c) => (
-                      <Row key={c.id} to={`/officer/learn/certificates/${c.id}`} left={<Ico icon={Award} tone={c.expires_at && new Date(c.expires_at) < new Date() ? 'grey' : 'green'} />}
-                        title={c.title} subtitle={`${c.ref} · ${c.score}% · ${c.expires_at ? `${new Date(c.expires_at) < new Date() ? 'expired' : 'valid until'} ${date(c.expires_at)}` : `passed ${date(c.issued_at)}`}`} />
-                    ))}
-                  </List>
-                </Section>
-              )}
-
+              {/* Training lives on the Learn tab */}
               {(contracts.data || []).length > 0 && (
                 <Section title="Contracts">
                   <span id="contracts" className="block scroll-mt-24" />
@@ -158,15 +141,16 @@ export default function Me() {
                 </Section>
               )}
 
-              <Section title="My details">
+              <Section title="Me">
                 <List>
-                  <Row to="/officer/profile" left={<Ico icon={UserRound} />} title="Personal and bank details" subtitle={[o.phone, o.postcode].filter(Boolean).join(' · ') || 'Phone, address, NI, UTR, bank'} />
-                  <Row to="/officer/documents" left={<Ico icon={BadgeCheck} tone="green" />} title="Documents" subtitle="Licence, right to work, certificates" />
+                  <Row to="/officer/documents" left={<Ico icon={BadgeCheck} tone="green" />} title="Documents and licence" subtitle="SIA licence, right to work, certificates" />
+                  <Row to="/officer/pay" left={<Ico icon={FileText} />} title="Pay" subtitle="Statements and your rates" />
+                  <Row to="/officer/profile" left={<Ico icon={UserRound} />} title="My details" subtitle={[o.phone, o.postcode].filter(Boolean).join(' · ') || 'Phone, address, NI, UTR, bank'} />
                   <Row to="/officer/time-off" left={<Ico icon={CalendarOff} tone="ink" />} title="Time off and availability" />
-                  <Row to="/officer/incidents" left={<Ico icon={ShieldAlert} tone="red" />} title="Reports" subtitle="Incident reports and ejections you logged" right={toFix.length ? <Pill tone="amber">{toFix.length} to fix</Pill> : null} />
-                  <Row to="/officer/pay" left={<Ico icon={FileText} />} title="Pay statements" />
+                </List>
+                <List className="mt-3">
+                  <Row to="/officer/incidents" left={<Ico icon={ShieldAlert} tone="red" />} title="My reports" subtitle="Incident reports and ejections you logged" right={toFix.length ? <Pill tone="amber">{toFix.length} to fix</Pill> : null} />
                   <Row to="/officer/me/growth" left={<Ico icon={Target} tone="green" />} title="Goals and one-to-ones" subtitle="What you're working on, notes and pay rises" />
-                  <Row to="/officer/everyday" left={<Ico icon={Newspaper} tone="amber" />} title="Everyday" subtitle="News and updates from the team" />
                 </List>
               </Section>
 

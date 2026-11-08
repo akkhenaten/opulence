@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Ban, Check, ClipboardList, History, ListChecks, MapPin, Pencil, Sparkles, Star, User, X } from 'lucide-react';
+import { Navigate } from 'react-router-dom';
+import { ArrowLeft, Ban, Check, ClipboardList, History, ListChecks, MapPin, Pencil, Settings, Sparkles, Star, User, X } from 'lucide-react';
 import {
   ActionBar, Button, Callout, cx, MoreMenu, dateTime, dayLabel, Empty, hours, Input, Load, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useUrlState,
 } from '../../ui/index.jsx';
@@ -513,17 +514,18 @@ function RejectSheet({ open, busy, venue, setup, many, dismiss, cover, onClose, 
   );
 }
 
-/* ---------- Orb page: the log and the settings (reached from … on Today) ---------- */
+/* ---------- Orb page: the log (reached from … on Today); settings are in Settings → Orb ---------- */
 
 export default function OrbPage() {
   const { user, base } = useBase();
   const company = user.role === 'company';
-  const [url, setUrl] = useUrlState({ tab: 'activity' });
-  const tab = company && url.tab === 'settings' ? 'settings' : 'activity';
+  const [url] = useUrlState({ tab: 'activity' });
+  // Orb's settings live in Settings → Orb; old links land there
+  if (company && url.tab === 'settings') return <Navigate to={`${base}/settings?tab=orb`} replace />;
   return (
-    <Page title="Orb" back={{ to: base, label: 'Today' }} subtitle="What Orb has done, and what it is allowed to do">
-      {company && <div className="mb-3"><Tabs value={tab} onChange={(v) => setUrl({ tab: v })} tabs={[{ value: 'activity', label: 'Activity' }, { value: 'settings', label: 'Settings' }]} /></div>}
-      {tab === 'settings' ? <OpsSettings /> : <Activity />}
+    <Page title="Orb" back={{ to: base, label: 'Today' }} subtitle="What Orb has done"
+      actions={company && <Button variant="secondary" icon={Settings} to={`${base}/settings?tab=orb`}>Orb settings</Button>}>
+      <Activity />
     </Page>
   );
 }

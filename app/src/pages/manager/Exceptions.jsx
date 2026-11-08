@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { Check, ListChecks, ShieldCheck, Smartphone, X } from 'lucide-react';
 import {
   ActionBar, Avatar, Button, Check as Tick, cx, dayLabel, Empty, List, Load, Page, Pill, range, relative, Row, Section, Sheet, Tabs, time, useAction, useApi, useConfirm,
@@ -12,10 +12,10 @@ const KIND = { in: 'Clock-in', out: 'Clock-out', break_start: 'Break start', bre
 
 export default function Exceptions() {
   const [sp, setSp] = useSearchParams();
-  const tab = ['open', 'decided', 'phones'].includes(sp.get('tab')) ? sp.get('tab') : 'open';
+  const { base } = useBase();
+  const tab = sp.get('tab') === 'decided' ? 'decided' : 'open';
   const setTab = (t) => setSp(t === 'open' ? {} : { tab: t }, { replace: true });
-  const q = useApi('clock.exceptions', { include_decided: tab === 'decided' }, { skip: tab === 'phones' });
-  const phones = useApi('device.list', { pending: true });
+  const q = useApi('clock.exceptions', { include_decided: tab === 'decided' }, { skip: sp.get('tab') === 'phones' });
   const [run] = useAction();
   const confirm = useConfirm();
   const [busyId, setBusyId] = useState(null);
@@ -45,6 +45,8 @@ export default function Exceptions() {
     run(() => api('clock.decide', { id: e.id, approve }), approve ? 'Approved' : 'Rejected').then(() => q.reload()).catch(() => {}).finally(() => setBusyId(null));
   };
 
+  // Phone changes moved to Staff → Phones
+  if (sp.get('tab') === 'phones') return <Navigate to={`${base}/staff/phones`} replace />;
   return (
     <Page title="Exceptions" subtitle="Clock events that failed a check: phone, location, venue code or selfie"
       actions={open.length > 1 && (picking
@@ -52,9 +54,8 @@ export default function Exceptions() {
         : <Button variant="secondary" icon={ListChecks} onClick={() => setPicking(true)}>Select</Button>)}>
       <Tabs value={tab} onChange={changeTab} tabs={[
         { value: 'open', label: 'To review', count: tab === 'open' ? q.data?.length : undefined }, { value: 'decided', label: 'History' },
-        { value: 'phones', label: 'Phones', count: phones.data?.length || undefined },
       ]} />
-      {tab === 'phones' ? <><Phones q={phones} /><NotRegistered /></> : <Load q={q}>{(rows) => {
+      <Load q={q}>{(rows) => {
         const list = tab === 'decided' ? rows.filter((r) => r.status !== 'exception') : rows;
         if (!list.length) return <Empty icon={ShieldCheck} title={tab === 'open' ? 'All clear' : 'No decisions yet'} body={tab === 'open' ? 'No clock exceptions waiting for review.' : undefined} />;
         return (
@@ -101,7 +102,7 @@ export default function Exceptions() {
             })}
           </div>
         );
-      }}</Load>}
+      }}</Load>
       <ActionBar show={picking && chosen.length > 0}>
         <span className="num pr-1 text-subhead font-semibold">{chosen.length} selected</span>
         <Button size="sm" variant="secondary" icon={X} disabled={busyMany} onClick={() => setRejecting(true)}>Reject {chosen.length}</Button>
@@ -112,6 +113,17 @@ export default function Exceptions() {
         <p className="text-body text-muted">{[...new Set(chosen.map((e) => e.officer_name))].join(', ')}</p>
         <p className="mt-2 text-subhead text-muted">These events will not count towards the officers' timesheets. You can set the times by hand from Live.</p>
       </Sheet>
+    </Page>
+  );
+}
+
+/** Staff → Phones: officers asking to clock in on a different phone, and those with none yet */
+export function PhonesPage() {
+  const phones = useApi('device.list', { pending: true });
+  return (
+    <Page title="Phones" subtitle="The phone each officer clocks in with">
+      <Phones q={phones} />
+      <NotRegistered />
     </Page>
   );
 }

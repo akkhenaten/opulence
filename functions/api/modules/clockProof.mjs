@@ -140,7 +140,7 @@ export const actions = {
     if (status === 'pending') {
       await notify(await companyManagers(), {
         kind: 'clock_exception', severity: 'warning', title: `${user.name} wants to clock in on a new phone`,
-        body: `${label}. Approve it only if you know they changed phone.`, link: '/company/exceptions?tab=phones',
+        body: `${label}. Approve it only if you know they changed phone.`, link: '/company/staff/phones',
       });
     }
     return d;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AlertTriangle, CalendarClock, CalendarDays, Check, Clock3, Coffee, FileSignature, GraduationCap, ListChecks, LogIn, LogOut, MapPin, Megaphone, Newspaper, NotebookPen, PencilLine,
+  AlertTriangle, CalendarClock, CalendarDays, Check, Clock3, Coffee, FileSignature, GraduationCap, ListChecks, LogIn, LogOut, MapPin, Megaphone, NotebookPen, PencilLine,
   ShieldAlert, ShieldCheck, X,
 } from 'lucide-react';
 import { api } from '../../api.js';
@@ -140,7 +140,6 @@ function Body({ d, clock, ops, reload }) {
 
       <OpenShifts />
       <ToDo d={d} />
-      <Everyday />
       <DeclineSheet s={declining} phone={d.office_phone} onClose={() => setDeclining(null)} onDone={() => { setDeclining(null); reload(); }} />
     </div>
   );
@@ -246,25 +245,3 @@ function ToDo({ d }) {
   );
 }
 
-function Everyday() {
-  const m = useModules();
-  const feed = useApi('everyday.latest', {}, { skip: !m?.everyday });
-  const posts = feed.data || [];
-  if (!m?.everyday || !posts.length) return null;
-  return (
-    <Tile title="Latest from Everyday" icon={Newspaper} to="/officer/everyday">
-      <div className="divide-y divide-line">
-        {posts.map((p) => (
-          <div key={p.id} className="flex items-center gap-3 py-2.5">
-            <Avatar name={p.author.name} src={[p.author.photo_thumb_url, p.author.photo_url]} size={34} />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-subhead"><b>{p.author.name.split(' ')[0]}</b> {p.body || 'shared a photo'}</div>
-              <div className="text-caption text-faint">{relative(p.created_at)}{p.comment_count ? ` · ${p.comment_count} comment${p.comment_count === 1 ? '' : 's'}` : ''}</div>
-            </div>
-            {p.photos[0] && <img src={p.photos[0].url} alt="" className="h-11 w-11 shrink-0 rounded-xl object-cover" />}
-          </div>
-        ))}
-      </div>
-    </Tile>
-  );
-}

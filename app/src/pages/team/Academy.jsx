@@ -64,7 +64,7 @@ function Courses({ co }) {
           ]} />
         ) : (
           <Empty icon={GraduationCap} title="No courses yet" body={co ? 'Create one, or draft the whole starter library with AI.' : 'Your company has not added any courses yet.'}
-            action={co && <Button icon={Sparkles} to={`/${user.role}/team/academy?tab=starter`}>Open the starter library</Button>} />
+            action={co && <Button icon={Sparkles} to={`/${user.role}/team/training?tab=starter`}>Open the starter library</Button>} />
         )}
       </Load>
       <NewCourseSheet open={add} onClose={() => setAdd(false)} onCreated={(id) => nav(`/${user.role}/team/academy/${id}`)} />

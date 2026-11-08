@@ -362,8 +362,8 @@ export async function callTool(name, input, turn, tools) {
 }
 
 const ROUTES = {
-  both: 'home: /ROLE, live (Live operations: live board + Orb inbox; live?tab=settings for Orb settings), rota, shifts/<id>, cover, timesheets, exceptions, incidents, incidents/<id>, staff, staff/<id>, team/academy, team/training, people/compliance, team/toolbox, team/toolbox/<id>, everyday, messages, messages/<id>, venues, venues/<id>, pay, pay/runs/<id>, help',
-  company: 'recruitment (online applicants: recruitment?applicant=<officer id>), hr/time-off, people/contracts, clients, invoices, invoices/<id>, reports, settings, audit',
+  both: 'home: /ROLE (Today: live board + Orb cards; ?tab=everyday for Everyday), orb (Orb activity log), rota, shifts/<id>, cover, timesheets, exceptions, incidents, incidents/<id>, staff, staff/<id>, staff/phones (phone change requests), team/training, people/compliance, people/procedures (site packs), team/toolbox, team/toolbox/<id>, messages, messages/<id>, venues, venues/<id>, feedback, reviews, analytics, pay, pay/runs/<id>, help',
+  company: 'recruitment (online applicants: recruitment?applicant=<officer id>), hr/time-off, people/contracts, clients, invoices, invoices/<id>, reports, email, settings (settings?tab=orb for Orb settings), audit',
 };
 
 function systemPrompt(user, page, companyName, rules = '') {

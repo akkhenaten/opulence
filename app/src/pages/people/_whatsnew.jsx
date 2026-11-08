@@ -1,6 +1,6 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  ArrowRightLeft, BadgeCheck, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LogOut, Mail, MessageSquareHeart,
+  ArrowRightLeft, BadgeCheck, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
   Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Nfc, Palette, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-08', icon: LayoutList, title: 'A shorter menu: each thing lives in one place', image: 'streamline-one-place',
+    lede: 'The second part of tidying up the app. Related pages are now tabs of one section, so the menu is short and you always know where to look. Old links and bookmarks still work.',
+    points: ['Managers: the menu is Today, Messages, Rota, Incidents, Staff, Venues, Money and Reports, with Learning and Settings at the bottom. Each section has tabs across the top', 'Staff holds Officers, Recruitment, Compliance, Contracts, Time off and Phones. Venues holds Clients, Site packs, Feedback and Reviews. Money holds Timesheets, Pay runs and Invoices. Rota holds Cover and Exceptions', 'Messages and Email are tabs of Messages. Training, Toolbox and Help are under Learning. Orb settings are only in Settings, Orb, and a contract drafted from a profile goes back to that profile', "Officers: Everyday is a tab in Messages, and Me is shorter: documents and licence, pay, details, time off, then reports and goals", 'Venues: the menu is Overview, On site, Rota, Logs, Feedback, Billing and Messages. My venue and the emergency guide are in the account menu'],
+  },
   {
     month: 'November 2026', date: '2026-11-08', icon: Nfc, title: 'Fewer dead ends: tag taps, shift alerts and links that land in the right place', image: 'streamline-fixes',
     lede: 'The first part of tidying up the whole app: small fixes so each tap goes straight to the thing you need.',

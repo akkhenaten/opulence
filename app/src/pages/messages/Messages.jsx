@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { BellOff, Camera, Mic, SquarePen } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { cx, Empty, IconButton, Load, Pressable, SearchInput, useApi } from '../../ui/index.jsx';
+import { HubTabs, useHub } from '../../ui/hub.jsx';
 import { api } from '../../api.js';
 import { useRealtime, useRealtimeConnected } from '../../realtime.js';
 import NewMessage from './NewMessage.jsx';
@@ -34,6 +35,7 @@ export default function Messages() {
 
 function Inbox({ q, current }) {
   const { user } = useAuth();
+  const hub = useHub({ inside: true });
   const base = useBase();
   const [search, setSearch] = useState('');
   const [compose, setCompose] = useState(false);
@@ -56,6 +58,7 @@ function Inbox({ q, current }) {
           <h1 className="text-title1 font-bold">Messages</h1>
           <IconButton icon={SquarePen} tone="solid" label="New message" onClick={() => setCompose(true)} />
         </div>
+        <HubTabs hub={hub} className="mb-3" />
         <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search messages" />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(16px+var(--fab-room))]">

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Bell, BookOpen, Camera, Download, Globe, KeyRound, LogOut, MessageCircleWarning, UserPen } from 'lucide-react';
+import { Bell, BookOpen, Camera, Download, Globe, KeyRound, LogOut, MessageCircleWarning, Siren, Store, UserPen } from 'lucide-react';
 import { openFeedback } from '../ui/AppFeedback.jsx';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
@@ -13,8 +13,9 @@ import { InstallSheet, usePwa } from '../ui/pwa.jsx';
 
 const TITLES = { password: 'Change password', details: 'My details' };
 
-/** My account for managers: who you are, photo, details, password, which alerts you get, sign out */
-export function AccountSheet({ open, onClose, feedback }) {
+/** My account for managers and venues: who you are, photo, details, password, which alerts you get, sign out.
+    Venues also find their venue's details and the emergency guide here. */
+export function AccountSheet({ open, onClose, feedback, emergency }) {
   const { user, signOut, refresh } = useAuth();
   const [view, setView] = useState('main');
   const [runPhoto, photoBusy] = useAction();
@@ -55,6 +56,12 @@ export function AccountSheet({ open, onClose, feedback }) {
               <Row left={<KeyRound size={20} className="text-blue" />} title="Password" subtitle="Change the password you sign in with" chevron onClick={() => setView('password')} />
               <Row left={<Bell size={20} className="text-blue" />} title="Notifications" subtitle="Which alerts you get, and phone notifications" chevron onClick={() => setView('notify')} />
             </List>
+            {user.role === 'venue' && (
+              <List>
+                <Row left={<Store size={20} className="text-blue" />} title="My venue" subtitle="Your venue's details and contacts" chevron onClick={() => { close(); nav('/venue/site'); }} />
+                {emergency && <Row left={<Siren size={20} className="text-red" />} title="Emergency guide" subtitle="What to do, step by step" chevron onClick={() => { close(); nav('/guide/emergency/S00?from=/venue'); }} />}
+              </List>
+            )}
             <List>
               <Row left={<BookOpen size={20} className="text-blue" />} title="Help & user guide" subtitle="How to use the app, step by step" chevron onClick={() => { close(); nav(`/${user.role}/help`); }} />
               {feedback && <Row left={<MessageCircleWarning size={20} className="text-blue" />} title="Send feedback" subtitle="Tell us what's wrong or what would be better" chevron onClick={() => { close(); openFeedback(); }} />}

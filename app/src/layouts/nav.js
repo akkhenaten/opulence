@@ -4,103 +4,53 @@ import {
   GraduationCap, BookOpenCheck, Crown, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck, MessageSquareHeart, LineChart, Siren, Star,
 } from 'lucide-react';
 
-// Sidebar sections per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
-// `perm` hides an item unless the user has that permission.
+// Sidebar per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
+// `perm` hides an item unless the user has that permission. `hub` makes the item a section (ui/hub.jsx): it opens the
+// first tab the person can see, is lit on any of them, takes that tab's name when it is the only one, and goes when
+// there are none. `foot` items sit at the bottom of the sidebar.
 export const NAV = {
   company: [
-    { title: 'Overview', items: [
+    { items: [
       { to: '/company', label: 'Today', icon: LayoutGrid, end: true, tab: true, badge: 'ops' },
-      { to: '/company/messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
-      { to: '/company/email', label: 'Email', icon: Mail, badge: 'email' },
-    ] },
-    { title: 'Operations', items: [
-      { to: '/company/rota', label: 'Rota', icon: CalendarDays, tab: true },
-      { to: '/company/exceptions', label: 'Exceptions', icon: TriangleAlert },
-      { to: '/company/cover', label: 'Cover requests', icon: Megaphone },
-      { to: '/company/timesheets', label: 'Timesheets', icon: ClipboardCheck },
+      { hub: 'messages', label: 'Messages', icon: MessagesSquare, badge: 'inbox' },
+      { hub: 'rota', label: 'Rota', icon: CalendarDays, tab: true },
       { to: '/company/incidents', label: 'Incidents', icon: ShieldAlert, tab: true },
+      { hub: 'staff', label: 'Staff', icon: Users },
+      { hub: 'venues', label: 'Venues', icon: Building2 },
+      { hub: 'money', label: 'Money', icon: Banknote },
+      { hub: 'reports', label: 'Reports', icon: BarChart3 },
     ] },
-    { title: 'People', items: [
-      { to: '/company/staff', label: 'Staff', icon: Users },
-      { to: '/company/recruitment', label: 'Recruitment', icon: UserPlus },
-      // The platform admin only: the one-off shared link officers use to send their details
-      { to: '/company/staff-setup', label: 'Staff setup', icon: ClipboardList, perm: 'platform', tag: 'Admin' },
-      { to: '/company/people/contracts', label: 'Staff contracts', icon: FileSignature },
-      { to: '/company/hr/time-off', label: 'Time off', icon: CalendarOff },
-      { to: '/company/team/training', label: 'Training', icon: GraduationCap },
-      { to: '/company/people/compliance', label: 'Compliance', icon: ShieldCheck },
-    ] },
-    { title: 'Resources', items: [
-      { to: '/company/team/toolbox', label: 'Toolbox', icon: BookOpenCheck, module: 'toolbox' },
-    ] },
-    { title: 'Clients & sites', items: [
-      { to: '/company/clients', label: 'Clients', icon: Briefcase },
-      { to: '/company/venues', label: 'Venues', icon: Building2 },
-      { to: '/company/people/procedures', label: 'Site packs', icon: BookText },
-      { to: '/company/reviews', label: 'Reviews', icon: Star },
-      { to: '/company/feedback', label: 'Feedback', icon: MessageSquareHeart },
-    ] },
-    { title: 'Finance', items: [
-      { to: '/company/pay', label: 'Pay runs', icon: Banknote },
-      { to: '/company/invoices', label: 'Invoices', icon: ReceiptText },
-    ] },
-    { title: 'Reporting', items: [
-      { to: '/company/reports', label: 'Reports', icon: BarChart3 },
-      { to: '/company/analytics', label: 'Analytics', icon: LineChart, module: 'analytics' },
-    ] },
-    { title: 'Administration', items: [
-      { to: '/company/settings', label: 'Settings', icon: Settings },
-      { to: '/company/audit', label: 'Audit log', icon: ScrollText },
-      // The platform admin only (set by the platform); shows the count of new app feedback
-      { to: '/company/platform', label: 'Platform', icon: Crown, perm: 'platform', badge: 'platform', tag: 'Admin' },
+    { foot: true, items: [
+      { hub: 'learning', label: 'Learning', icon: GraduationCap },
+      // Platform tabs (feedback, staff setup) are the platform admin's; shows the count of new app feedback
+      { hub: 'settings', label: 'Settings', icon: Settings, badge: 'platform' },
     ] },
   ],
   security: [
-    { title: 'Overview', items: [
+    { items: [
       { to: '/security', label: 'Today', icon: LayoutGrid, end: true, tab: true, badge: 'ops' },
-      { to: '/security/messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
-    ] },
-    { title: 'Operations', items: [
-      { to: '/security/rota', label: 'Rota', icon: CalendarDays, tab: true },
-      { to: '/security/exceptions', label: 'Exceptions', icon: TriangleAlert },
-      { to: '/security/cover', label: 'Cover requests', icon: Megaphone },
-      { to: '/security/timesheets', label: 'Timesheets', icon: ClipboardCheck },
+      { hub: 'messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
+      { hub: 'rota', label: 'Rota', icon: CalendarDays, tab: true },
       { to: '/security/incidents', label: 'Incidents', icon: ShieldAlert, tab: true },
+      { hub: 'staff', label: 'Staff', icon: Users },
+      { hub: 'venues', label: 'Venues', icon: Building2 },
+      { hub: 'money', label: 'Money', icon: Banknote },
+      { hub: 'reports', label: 'Reports', icon: BarChart3 },
     ] },
-    { title: 'People', items: [
-      { to: '/security/staff', label: 'Officers', icon: Users },
-      { to: '/security/team/training', label: 'Training', icon: GraduationCap },
-      { to: '/security/people/compliance', label: 'Compliance', icon: ShieldCheck },
-    ] },
-    { title: 'Resources', items: [
-      { to: '/security/team/toolbox', label: 'Toolbox', icon: BookOpenCheck, module: 'toolbox' },
-    ] },
-    { title: 'Sites', items: [
-      { to: '/security/venues', label: 'Venues', icon: Building2 },
-      { to: '/security/people/procedures', label: 'Site packs', icon: BookText },
-      { to: '/security/reviews', label: 'Reviews', icon: Star },
-      { to: '/security/feedback', label: 'Feedback', icon: MessageSquareHeart },
-      { to: '/security/analytics', label: 'Analytics', icon: LineChart, module: 'analytics' },
-    ] },
-    { title: 'Finance', items: [
-      { to: '/security/pay', label: 'Pay runs', icon: Banknote, perm: 'can_see_pay' },
+    { foot: true, items: [
+      { hub: 'learning', label: 'Learning', icon: GraduationCap },
     ] },
   ],
+  // My venue and the emergency guide are in the account menu
   venue: [
     { items: [
       { to: '/venue', label: 'Overview', icon: LayoutGrid, end: true, tab: true },
       { to: '/venue/live', label: 'On site', icon: Radio, tab: true },
-      { to: '/venue/messages', label: 'Messages', icon: MessagesSquare, tab: true, badge: 'messages' },
-      { to: '/venue/site', label: 'My venue', icon: Store },
-      { to: '/venue/feedback', label: 'Feedback', icon: MessageSquareHeart },
-      { to: '/venue/analytics', label: 'Analytics', icon: LineChart, module: 'analytics' },
       { to: '/venue/rota', label: 'Rota', icon: CalendarDays },
-      { to: '/venue/logs', label: 'Shift logs', icon: NotebookPen },
-      { to: '/venue/bans', label: 'Ejection log', icon: Ban },
-      { to: '/venue/timesheets', label: 'Timesheets', icon: ClipboardCheck },
-      { to: '/venue/incidents', label: 'Incidents', icon: ShieldAlert, tab: true },
-      { to: '/venue/invoices', label: 'Invoices', icon: ReceiptText },
-      { to: '/guide/emergency/S00?from=/venue', label: 'Emergency guide', icon: Siren, gate: 'emergency_visible' },
+      { hub: 'logs', label: 'Logs', icon: NotebookPen, tab: true },
+      { hub: 'feedback', label: 'Feedback', icon: MessageSquareHeart },
+      { hub: 'billing', label: 'Billing', icon: ReceiptText },
+      { to: '/venue/messages', label: 'Messages', icon: MessagesSquare, tab: true, badge: 'messages' },
     ] },
   ],
   officer: [

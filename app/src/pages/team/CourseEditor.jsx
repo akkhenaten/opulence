@@ -256,7 +256,7 @@ export default function CourseEditor() {
           {co && c.status !== 'archived' && (
             <Button variant="danger" icon={Archive} disabled={busy} onClick={async () => {
               if (await confirm({ title: 'Archive this course?', body: 'Officers no longer see it. Certificates already issued stay valid.', confirm: 'Archive', danger: true })) {
-                await setStatus('archived', 'Archived'); nav(`${base}/team/academy`);
+                await setStatus('archived', 'Archived'); nav(`${base}/team/training`);
               }
             }}>Archive</Button>
           )}
