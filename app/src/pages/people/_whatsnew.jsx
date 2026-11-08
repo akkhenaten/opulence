@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-08', icon: Mail, title: 'Every email now ends with your company details', image: 'email-footer',
+    lede: 'Everything the app emails, and every email you send from the built-in mailbox, now finishes with a neat company footer, so whoever receives it knows exactly who it is from.',
+    points: ["The footer shows your company name, address, phone, email, company number and VAT number, all taken from Settings → Company. Change them there and the next email follows", "Anything left blank in Settings is simply left out, with no empty lines", "Automatic emails (invites, shift offers, payslips, invoices, reminders and the rest) carry it inside the card, above the small Orb line", "Emails you or Orb send from the mailbox get your logo and the footer under your message, above the quoted email when you reply. Drafts get it when they are sent"],
+  },
+  {
     month: 'November 2026', date: '2026-11-08', icon: Palette, title: 'Three new looks: Soft, Glass and Flat', image: 'more-app-styles',
     lede: 'Settings → Look now has three more styles beside Day and Night. Pick the one your team likes, and every screen follows it on phones, tablets and computers.',
     points: ["Soft: a warm stone background with buttons, cards and icons that look gently raised, fields and switches pressed into the page, and buttons that sink in when you tap them", "Glass: frosted, see-through cards, menus and pop-ups over softly drifting colour, with glossy buttons and icons", "Flat: clean and bold, with solid colours, crisp outlines, simple icons and solid buttons with a light edge underneath", "Each style covers every portal: officers, managers, venues and the platform, including the side menu, the tab bar, lists, tables and pop-ups. Documents and certificates stay plain white for printing", "Your brand colour is still used for buttons in every style, and text stays easy to read. Day and Night are unchanged"],

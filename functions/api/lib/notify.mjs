@@ -1,6 +1,6 @@
 import { q } from './db.mjs';
 import { pushToUsers } from './webpush.mjs';
-import { esc, getBrand, getSender, onColor } from './brand.mjs';
+import { esc, footerHtml, getBrand, getFooter, getSender, onColor } from './brand.mjs';
 import { fmtDateTime } from './time.mjs';
 import { platformEmails } from './platform.mjs';
 
@@ -51,9 +51,9 @@ async function sendEmail(to, subject, html) {
   }
 }
 
-// Emails carry the company's own logo, name and colour, with a small "Powered by orbsolutions.co.uk" line
+// Emails carry the company's own logo, name and colour, its details in a footer, and a small "Powered by orbsolutions.co.uk" line
 async function emailHtml(title, body, link, button = null) {
-  const b = await getBrand();
+  const [b, f] = await Promise.all([getBrand(), getFooter()]);
   const url = link ? `${APP_URL()}/app${link}` : `${APP_URL()}/app`;
   const head = b.logo_url
     ? `<img src="${esc(b.logo_url)}" alt="${esc(b.name)}" height="36" style="display:block;height:36px;max-width:200px;object-fit:contain">`
@@ -65,6 +65,7 @@ async function emailHtml(title, body, link, button = null) {
   <h2 style="margin:16px 0 8px;color:#0B1220;font-size:20px">${title}</h2>
   <p style="color:#4B5563;line-height:1.5">${body || ''}</p>
   <a href="${url}" style="display:inline-block;margin-top:12px;background:${b.color};color:${onColor(b.color)};padding:10px 18px;border-radius:12px;text-decoration:none;font-weight:600">${label}</a>
+  <div style="border-top:1px solid #E5E7EB;margin-top:20px;padding-top:14px">${footerHtml(f)}</div>
   </div>
   <div style="text-align:center;margin-top:14px"><a href="https://orbsolutions.co.uk/" style="color:#9CA3AF;font-size:11px;text-decoration:none"><img src="${APP_URL()}/app/orb-lockup.png" alt="Orb Security" height="18" style="height:18px;vertical-align:middle;margin-right:6px">Powered by <span style="text-decoration:underline">orbsolutions.co.uk</span></a></div></div>`;
 }

@@ -16,7 +16,7 @@ export async function getBrand() {
   }
   return cached;
 }
-export const clearBrand = () => { cached = null; sender = null; };
+export const clearBrand = () => { cached = null; sender = null; footer = null; };
 
 // Who app emails come from: the company name as the sender name, and replies going to the company's own email.
 // Kept apart from getBrand, which is public.
@@ -34,6 +34,49 @@ export async function getSender() {
     senderAt = Date.now();
   }
   return sender;
+}
+
+// The company footer on every email: name, address, phone and email, company and VAT numbers, from Settings.
+// Blank details are left out, with their separators.
+const clean = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
+export const footerOf = (s) => {
+  const address = String(s?.company_address || '').split(/\r?\n/).map(clean).filter(Boolean).join(', ').replace(/,(\s*,)+/g, ',');
+  const phone = clean(s?.company_phone);
+  const email = clean(s?.company_email);
+  const reg = [s?.company_number && `Company no. ${clean(s.company_number)}`, s?.vat_number && `VAT ${clean(s.vat_number)}`].filter(Boolean);
+  return {
+    name: clean(s?.company_name) || 'Orb Security', address, phone, email: EMAIL.test(email) ? email : '', reg,
+    logo_url: s?.logo_url || null, color: s?.brand_color || DEFAULT_COLOR,
+  };
+};
+let footer = null;
+let footerAt = 0;
+export async function getFooter() {
+  if (!footer || Date.now() - footerAt > 60_000) {
+    footer = footerOf(await one(`SELECT company_name, company_address, company_phone, company_email, company_number, vat_number, logo_url, brand_color
+      FROM settings WHERE id = 1`));
+    footerAt = Date.now();
+  }
+  return footer;
+}
+
+/** The footer as email HTML (plain blocks, so the text part reads well too). logo: the mailbox version, with logo and a brand-colour rule. */
+export function footerHtml(f, { logo = false } = {}) {
+  const link = 'color:#6B7280;text-decoration:none';
+  const contact = [
+    f.phone && `<a href="tel:${esc(f.phone.replace(/[^\d+]/g, ''))}" style="${link}">${esc(f.phone)}</a>`,
+    f.email && `<a href="mailto:${esc(f.email)}" style="${link}">${esc(f.email)}</a>`,
+  ].filter(Boolean).join(' · ');
+  const lines = [
+    `<div style="font-weight:700;color:#374151">${esc(f.name)}</div>`,
+    f.address && `<div>${esc(f.address)}</div>`,
+    contact && `<div>${contact}</div>`,
+    f.reg.length && `<div>${f.reg.map(esc).join(' · ')}</div>`,
+  ].filter(Boolean).join('');
+  const top = logo ? `border-top:2px solid ${esc(f.color)};padding-top:12px;margin-top:16px;` : '';
+  const img = logo && f.logo_url
+    ? `<img src="${esc(f.logo_url)}" alt="${esc(f.name)}" height="28" style="display:block;height:28px;max-width:180px;object-fit:contain;margin-bottom:8px">` : '';
+  return `<div data-co-footer="1" style="${top}font-family:-apple-system,Segoe UI,sans-serif;font-size:12px;line-height:1.5;color:#6B7280">${img}${lines}</div>`;
 }
 
 // Logo bytes for PDFs, kept per key (a new upload gets a new key)

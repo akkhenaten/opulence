@@ -93,7 +93,7 @@ export default function Composer({ init, account, accounts, onClose, onSent }) {
     try {
       await run(() => api('email.send', {
         account_id: from.id, to, cc, bcc, subject, draft,
-        html: `${body}${init.quote ? `<br>${init.quote}` : ''}`,
+        html: body, quote: init.quote || undefined,
         attachments: files.map(({ key, name }) => ({ key, name })),
         reply: init.reply, forward: init.forward && fwdFiles.length ? { ...init.forward, attachments: fwdFiles } : undefined,
       }), draft ? 'Saved to drafts' : 'Sent');

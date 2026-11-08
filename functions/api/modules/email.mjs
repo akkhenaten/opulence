@@ -14,6 +14,7 @@ import { cfg, invalidate, loadConfig } from '../lib/mail/config.mjs';
 import { adapter, PROVIDERS, redirectUri, withMail } from '../lib/mail/index.mjs';
 import { mapLimit, FOLDERS, lower, uniq } from '../lib/mail/common.mjs';
 import { cleanHtml, cleanRecipients, escapeHtml, htmlToText, isEmail, textToHtml } from '../lib/mail/html.mjs';
+import { footerHtml, getFooter } from '../lib/brand.mjs';
 import { def, CO } from './_def.mjs';
 
 const NAME = { google: 'Google', microsoft: 'Microsoft' };
@@ -187,9 +188,13 @@ async function outgoing(user, acc, b) {
     });
   }
   const r = b.reply;
+  // Sent emails end with the company footer, above any quoted original (drafts get it when they are sent)
+  let html = String(b.html || textToHtml(b.text || ''));
+  if (!b.draft && !html.includes('data-co-footer')) html += `<br>${footerHtml(await getFooter(), { logo: true })}`;
+  if (b.quote) html += `<br>${b.quote}`;
   return {
     from: { name: acc.display_name || user.name, email: acc.address }, to, cc, bcc,
-    subject: header(b.subject).slice(0, 500), html: cleanHtml(b.html || textToHtml(b.text || '')), attachments,
+    subject: header(b.subject).slice(0, 500), html: cleanHtml(html), attachments,
     reply: r?.thread_id ? { threadId: String(r.thread_id), id: r.id && String(r.id), messageId: header(r.message_id), references: header(r.references), all: !!r.all } : null,
   };
 }
