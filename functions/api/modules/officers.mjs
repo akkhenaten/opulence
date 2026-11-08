@@ -5,8 +5,9 @@ import { assertOfficerAccess, venueScope } from '../lib/scope.mjs';
 import { downloadUrl, checkOwnPhoto, saveThumb, photoUrls, getObjectBytes, headObject } from '../lib/storage.mjs';
 import { extract, fileBlock, canRead, HAIKU } from '../lib/ai.mjs';
 import { RTW_CHECK_TOOL, rtwResultOf, cleanShareCode } from '../lib/rtw.mjs';
-import { londonDate } from '../lib/time.mjs';
+import { fmtDate, londonDate } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
+import { notify, officerUser } from '../lib/notify.mjs';
 import { createInvite, sendInvite } from './users.mjs';
 import { guardPlatformAccount } from '../lib/platform.mjs';
 import { seedOnboarding, syncOnboarding, tickOnboarding } from './hr.mjs';
@@ -291,6 +292,7 @@ export const actions = {
       return d.id;
     });
     await tickOnboarding(o.id, 'rtw');
+    await notify(await officerUser(o.id), { kind: 'hr', title: 'Right to work checked', body: v.expiry ? `Valid until ${fmtDate(v.expiry)}` : 'Your right to work is confirmed.', link: '/officer/documents', dedupe: `rtwok:${docId}` });
     await audit(user, 'officer.rtw_check', 'officer', o.id, { method: v.method, permission: v.permission, expiry: v.expiry, doc: docId });
     return { ok: true, doc_id: docId };
   }),

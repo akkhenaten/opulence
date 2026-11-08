@@ -327,7 +327,7 @@ export const actions = {
   'pay.markPaid': def(CO, async (b, { user }) => {
     required(b, 'ids');
     const rows = await q("UPDATE statements SET status = 'paid', paid_at = now() WHERE id = ANY($1::uuid[]) AND status = 'issued' RETURNING id, officer_id, total", [b.ids]);
-    for (const st of rows) await notify(await officerUser(st.officer_id), { kind: 'pay', title: 'Payment sent', body: `${gbp(st.total)} is on its way to your bank.`, link: `/officer/pay/${st.id}`, tier: 'fyi' });
+    for (const st of rows) await notify(await officerUser(st.officer_id), { kind: 'pay', title: 'Payment sent', body: `${gbp(st.total)} is on its way to your bank.`, link: `/officer/pay/${st.id}` });
     // A run is paid once every statement in it that was issued is paid
     await q(`UPDATE pay_runs r SET status = 'paid', updated_at = now() WHERE r.status = 'issued'
                AND r.id IN (SELECT pay_run_id FROM statements WHERE id = ANY($1::uuid[]))

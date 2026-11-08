@@ -3,7 +3,7 @@ import { fail, required, need } from '../lib/http.mjs';
 import { venueScope, assertVenue } from '../lib/scope.mjs';
 import { roundHours, bandFractions, money } from '../lib/rates.mjs';
 import { notify, managersFor, venueContacts, officerUser } from '../lib/notify.mjs';
-import { fmtDate, londonDate } from '../lib/time.mjs';
+import { fmtDate, fmtTime, londonDate } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { downloadUrl } from '../lib/storage.mjs';
 import { getSettings } from './settings.mjs';
@@ -183,6 +183,9 @@ export const actions = {
       });
     }
     for (const r of ready) {
+      if (!selfIds.includes(r.id)) {
+        await notify(await officerUser(r.officer_id), { kind: 'timesheet', title: 'Timesheet approved', body: `${r.venue_name} on ${fmtDate(r.starts_at)} · ${Number(r.hours || 0)} h`, link: '/officer/pay' });
+      }
       await audit(user, 'timesheet.approve', 'timesheet', r.id, { charge_rate: r.charge_rate, pay_rate: r.pay_rate, ...(selfIds.includes(r.id) ? { self_approved: true } : {}) });
     }
     return { approved: ready.length, skipped_own: own.length - selfIds.length, blocked, ...(blocked.length ? { message: rateMsg(user, blocked) } : {}) };
@@ -337,6 +340,11 @@ export const actions = {
       [t.id, start, end, brk, hours, status, b.reason, !!self.selfApproved, rates.charge_rate, rates.pay_rate]);
     if (t.status === 'disputed' || t.status === 'signed') {
       await notify(await venueContacts(t.venue_id), { kind: 'timesheet', title: 'Timesheet updated — please re-check', body: `${t.officer_name} on ${fmtDate(t.starts_at)}: ${b.reason}`, link: '/venue/timesheets', email: true });
+    }
+    if (!self.selfApproved) {
+      await notify(await officerUser(t.officer_id), {
+        kind: 'timesheet', title: 'Your timesheet was changed', body: `${t.venue_name} on ${fmtDate(t.starts_at)}: ${fmtTime(start)}–${fmtTime(end)}, ${hours} h. ${b.reason}`, link: '/officer/pay',
+      });
     }
     await audit(user, 'timesheet.edit', 'timesheet', t.id, {
       from: { start: t.actual_start, end: t.actual_end, hours: t.hours, status: t.status }, to: { start, end, hours, status },

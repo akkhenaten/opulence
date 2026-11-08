@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, BookmarkX, EyeOff, Flag, MessageCircle, Pencil, Pin, PinOff, Send, Trash2, UserMinus, VolumeX } from 'lucide-react';
+import { Bookmark, BookmarkX, EyeOff, Flag, Megaphone, MessageCircle, Pencil, Pin, PinOff, Send, Trash2, UserMinus, VolumeX } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { Avatar, Button, cx, MoreMenu, Pressable, relative, Sheet, Toggle, useAction, useConfirm, useToast } from '../../ui/index.jsx';
@@ -120,6 +120,7 @@ export default function PostCard({ post: initial, onChanged, onPerson, full, hig
   return (
     <article ref={el} className={cx('overflow-hidden rounded-tile bg-surface shadow-tile', post.hidden_at && 'ring-2 ring-red/30')}>
       {post.pinned_at && <div className="flex items-center gap-1.5 bg-blue-soft px-4 py-1.5 text-caption font-semibold text-blue"><Pin size={14} /> {post.must_ack ? 'Pinned — please read and confirm' : 'Pinned announcement'}</div>}
+      {!post.pinned_at && post.announced && <div className="flex items-center gap-1.5 bg-blue-soft px-4 py-1.5 text-caption font-semibold text-blue"><Megaphone size={14} /> Important notice</div>}
       {post.hidden_at && <div className="flex items-center gap-1.5 bg-red-soft px-4 py-1.5 text-caption font-semibold text-red"><EyeOff size={14} /> Hidden from staff{post.hidden_reason ? ` — ${post.hidden_reason}` : ''}</div>}
       <header className="flex items-start gap-3 px-4 pt-3">
         <Pressable press onClick={() => onPerson(post.author.id)}><Avatar name={post.author.name} src={[post.author.photo_thumb_url, post.author.photo_url]} size={42} /></Pressable>

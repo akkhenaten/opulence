@@ -5,11 +5,8 @@ import { Button, IconButton, Load, Sheet, Tile, Toggle, useAction, useApi, useTo
 import { installCardShowing, isIOS, standalone } from '../../ui/pwa.jsx';
 
 export const NOTIFY_KINDS = [
-  { key: 'mention', label: 'Someone mentions me', hint: 'In an Everyday post or comment' },
   { key: 'comment', label: 'Comments on my posts' },
   { key: 'reaction', label: 'Reactions to my posts', hint: 'One summary a day' },
-  { key: 'announcement', label: 'Announcements from managers' },
-  { key: 'training', label: 'Training reminders', hint: 'New courses, due dates and certificates' },
   { key: 'shoutout', label: 'Shout-outs for me', hint: 'When a colleague thanks you on Everyday' },
   { key: 'tag', label: 'Someone tags me in a post' },
   { key: 'event', label: 'Team events', hint: 'Reminders for events you said you\'d go to, and changes' },
@@ -159,9 +156,9 @@ export function NotificationsSheet({ open, onClose }) {
       <Load q={q} skeleton="rows">
         {() => prefs && (
           <div className="space-y-4">
-            <div className="text-footnote font-semibold uppercase tracking-wide text-muted">Tell me about</div>
+            <div className="text-footnote font-semibold uppercase tracking-wide text-muted">On Everyday, tell me about</div>
             {NOTIFY_KINDS.map((k) => <Toggle key={k.key} checked={prefs[k.key] !== false} onChange={flip(k.key)} label={k.label} hint={k.hint} />)}
-            <p className="text-footnote text-muted">Shifts, cover, pay and safety alerts always come through. Urgent and action alerts come to your phone; FYI ones wait under the bell.</p>
+            <p className="text-footnote text-muted">Everything about your shifts, timesheets, pay and work, important notices and mentions always come to your phone. You can switch off the Everyday ones above.</p>
           </div>
         )}
       </Load>

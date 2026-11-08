@@ -504,9 +504,11 @@ export const actions = {
     } else if (!f.body && !f.photos.length && !f.video) fail(400, 'Write something or add a photo');
     const check = await precheck(checkText([event?.title, f.body].filter(Boolean).join('\n'), f.photos), checkKeys(f.photos, f.video));
     const mentions = await cleanPeople(b.mentions, f.body);
-    const post = await one(`INSERT INTO posts (author_id, kind, body, photos, video, link, place, venue_id, tags, topics, shoutout, mentions, ai_check)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
-    [user.id, kind, f.body, JSON.stringify(f.photos), f.video, f.link, f.place, f.venue_id, f.tags, f.topics, shoutout, mentions, check]);
+    // A manager's important notice: everyone is told on their phone, and nobody can switch it off (events already tell everyone)
+    const important = !!b.important && isManager(user) && !event;
+    const post = await one(`INSERT INTO posts (author_id, kind, body, photos, video, link, place, venue_id, tags, topics, shoutout, mentions, ai_check, announced)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+    [user.id, kind, f.body, JSON.stringify(f.photos), f.video, f.link, f.place, f.venue_id, f.tags, f.topics, shoutout, mentions, check, important]);
     if (poll) await q('INSERT INTO post_polls (post_id, options, multi, anonymous, show_results, closes_at) VALUES ($1,$2,$3,$4,$5,$6)', [post.id, JSON.stringify(poll.options), poll.multi, poll.anonymous, poll.show_results, poll.closes_at]);
     if (event) await q('INSERT INTO feed_events (post_id, title, starts_at, ends_at, capacity) VALUES ($1,$2,$3,$4,$5)', [post.id, event.title, event.starts_at, event.ends_at, event.capacity]);
     if (check.serious) await flagPost(user, post.id, check, f.body);
@@ -519,9 +521,9 @@ export const actions = {
     if (event) {
       await notify(await allStaff(user.id), { kind: 'event', title: `New event: ${event.title}`, body: new Date(event.starts_at).toLocaleString('en-GB', { timeZone: 'Europe/London', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }), link: postLink(post.id), dedupe: `event:${post.id}` });
     }
-    // A manager's "Notify everyone": a phone notice to all staff (events already tell everyone; held posts wait for review)
-    if (b.notify_all && isManager(user) && !check.serious && !event) {
-      await notify(await allStaff(user.id), { kind: 'announcement', title: `${user.name} posted on Everyday`, body: snippet(f.body) || 'New photo', link: postLink(post.id), dedupe: `everyone:${post.id}` });
+    // Held posts wait for review before anyone is told
+    if (important && !check.serious) {
+      await notify(await allStaff(user.id), { kind: 'announcement', title: `Important notice from ${user.name}`, body: snippet(f.body) || 'New photo', link: postLink(post.id), dedupe: `important:${post.id}` });
     }
     await publishFeed('feed.post', { id: post.id, author_id: user.id });
     return { id: post.id };

@@ -7,6 +7,7 @@ import { ALL, CO, MGR, def } from './_def.mjs';
 import { tickOnboarding } from './hr.mjs';
 import { canSeePay } from '../lib/auth.mjs';
 import { cleanShareCode } from '../lib/rtw.mjs';
+import { notify, officerUser } from '../lib/notify.mjs';
 
 // Saved invoices and pay statements are money documents
 const MONEY_KINDS = ['invoice', 'pay_statement', 'pay_agreement'];
@@ -76,6 +77,7 @@ export const actions = {
     if (d.owner_type === 'officer' && d.kind === 'sia') {
       await q('UPDATE officers SET sia_number = COALESCE(NULLIF($2, \'\'), sia_number), sia_expiry = COALESCE($3, sia_expiry) WHERE id = $1', [d.owner_id, d.number, d.expiry]);
     }
+    if (d.owner_type === 'officer') await notify(await officerUser(d.owner_id), { kind: 'hr', title: 'Document checked', body: d.title || '', link: '/officer/documents', dedupe: `docok:${d.id}` });
     await audit(user, 'doc.verify', 'document', d.id);
     return d;
   }),

@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { TIER, tierOf } from '../lib/notify.mjs';
+import { OPTIONAL_KINDS, TIER, tierOf } from '../lib/notify.mjs';
 
 test('tiers: severity lifts, an explicit tier wins, unknown kinds wait under the bell', () => {
   assert.equal(tierOf('ops', 'critical'), 'urgent');
   assert.equal(tierOf('feed', 'warning'), 'action');
   assert.equal(tierOf('shift', 'warning', 'urgent'), 'urgent');
   assert.equal(tierOf('contract', 'info', 'fyi'), 'fyi');
-  assert.equal(tierOf('no_such_kind'), 'fyi');
-  assert.equal(tierOf('reaction'), 'fyi');
+  assert.equal(tierOf('no_such_kind'), 'action');
+  assert.equal(tierOf('reaction'), 'action');
   assert.equal(tierOf('shift'), 'action');
 });
 
@@ -31,4 +31,16 @@ test('every notify kind in the API has a tier', () => {
 
 test('announcements and posts sent to everyone reach the phone', () => {
   assert.equal(tierOf('announcement'), 'action');
+});
+
+// Anything to a person about their own work reaches the phone; bell only is just managers hearing someone signed something
+test('every kind reaches the phone; bell only is named on the "someone signed" notes alone', () => {
+  assert.deepEqual([...new Set(Object.values(TIER))], ['action']);
+  const files = fs.readdirSync(new URL('../modules/', import.meta.url)).filter((f) => f.endsWith('.mjs')).map((f) => [f, new URL(`../modules/${f}`, import.meta.url)]);
+  const fyi = files.flatMap(([name, f]) => (fs.readFileSync(f, 'utf8').match(/tier: 'fyi'/g) || []).map(() => name)).sort();
+  assert.deepEqual(fyi, ['hr.mjs', 'signLinks.mjs', 'venuePacks.mjs']);
+});
+
+test('only Everyday social notices can be switched off', () => {
+  assert.deepEqual([...OPTIONAL_KINDS].sort(), ['celebration', 'comment', 'event', 'reaction', 'shoutout', 'tag']);
 });

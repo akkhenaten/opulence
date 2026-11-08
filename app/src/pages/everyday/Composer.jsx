@@ -55,7 +55,7 @@ export default function Composer({ rulesAccepted, onPosted, post, onCancel, auto
   const people = usePeople();
   const [kind, setKind] = useState(post?.kind || 'post');
   const [text, setText] = useState(post?.body || '');
-  const [notifyAll, setNotifyAll] = useState(false);
+  const [important, setImportant] = useState(false);
   const canNotify = !post && ['company', 'security'].includes(user.role) && ['post', 'poll', 'shoutout'].includes(kind);
   const [mentions, setMentions] = useState(post?.mentions?.map((m) => m.id) || []);
   const [photos, setPhotos] = useState(post?.photos?.map((p) => ({ key: p.key, url: p.url, w: p.w, h: p.h, caption: p.caption || '' })) || []);
@@ -160,13 +160,13 @@ export default function Composer({ rulesAccepted, onPosted, post, onCancel, auto
         if (kind === 'shoutout') Object.assign(b, { badge, to });
         if (kind === 'poll') Object.assign(b, { options: options.map((o) => o.trim()).filter(Boolean), multi, anonymous, show_results: showResults, closes_at: fromLocalInput(closes) });
         if (kind === 'event') Object.assign(b, eventFields());
-        if (canNotify && notifyAll) b.notify_all = true;
+        if (canNotify && important) b.important = true;
         await api('everyday.create', b);
       }
       setText(''); setMentions([]); setPhotos([]); setVideo(null); setPlace(null); setTags([]); setLink(null); setLinkOff([]); setWarn(null);
-      setTo([]); setOptions(['', '']); setCloses(''); setTitle(''); setStarts(''); setEnds(''); setCapacity(''); setKind('post'); setNotifyAll(false);
+      setTo([]); setOptions(['', '']); setCloses(''); setTitle(''); setStarts(''); setEnds(''); setCapacity(''); setKind('post'); setImportant(false);
       onPosted?.();
-      toast(post ? 'Post updated' : `${{ shoutout: 'Shout-out posted', poll: 'Poll posted', event: 'Event posted' }[kind] || 'Posted'}${canNotify && notifyAll ? ' — everyone notified' : ''}`);
+      toast(post ? 'Post updated' : `${{ shoutout: 'Shout-out posted', poll: 'Poll posted', event: 'Event posted' }[kind] || 'Posted'}${canNotify && important ? ' — everyone notified' : ''}`);
     } catch (e) {
       if (e.data?.need_rules) { setAccepted(false); setRules(true); } else toast(e.message, 'error');
     } finally {
@@ -297,7 +297,7 @@ export default function Composer({ rulesAccepted, onPosted, post, onCancel, auto
 
       {canNotify && (
         <div className="mt-3">
-          <Toggle checked={notifyAll} onChange={setNotifyAll} label="Notify everyone" hint="Every member of staff gets a phone notification." />
+          <Toggle checked={important} onChange={setImportant} label="Important notice" hint="Every member of staff gets it on their phone. It can't be switched off." />
         </div>
       )}
 

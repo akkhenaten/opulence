@@ -117,7 +117,7 @@ export const actions = {
     });
     if (status === 'pending') {
       const o = await one('SELECT first_name, last_name FROM officers WHERE id = $1', [officerId]);
-      await notify(await companyManagers(), { kind: 'timeoff', title: 'Time off request', body: `${o.first_name} ${o.last_name}: ${b.kind} ${fmtDate(b.start_date)} – ${fmtDate(b.end_date)}`, link: '/company/hr/time-off', tier: 'fyi' });
+      await notify(await companyManagers(), { kind: 'timeoff', title: 'Time off request', body: `${o.first_name} ${o.last_name}: ${b.kind} ${fmtDate(b.start_date)} – ${fmtDate(b.end_date)}`, link: '/company/hr/time-off' });
     }
     return t;
   }),

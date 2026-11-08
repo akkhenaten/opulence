@@ -4,23 +4,22 @@ import { esc, getBrand, getSender, onColor } from './brand.mjs';
 import { fmtDateTime } from './time.mjs';
 import { platformEmails } from './platform.mjs';
 
-// Kinds a person can switch off in their notification settings; operational alerts always go
-export const OPTIONAL_KINDS = ['mention', 'comment', 'reaction', 'announcement', 'training', 'shoutout', 'tag', 'event', 'celebration'];
+// Everyday kinds a person can switch off in their notification settings; everything about their work always goes
+export const OPTIONAL_KINDS = ['comment', 'reaction', 'shoutout', 'tag', 'event', 'celebration'];
 
 // What reaches the phone. Urgent: phone + email + bell. Action: phone + bell. FYI: bell only.
-// critical is always urgent and warning at least action; a call can name its own tier.
-export const TIER = {
-  shift: 'action', open_shift: 'action', cover: 'action', late: 'action', clock_out: 'action', clock_exception: 'action', pack_blocked: 'action',
-  venue_pack: 'action', contract: 'action', pay: 'action', timeoff: 'action', timesheet: 'action', incident: 'action', message: 'action',
-  mention: 'action', reminder: 'action', expiry: 'action', compliance: 'action', demo: 'action', staff_setup: 'action', announcement: 'action',
-  hr: 'fyi', feed: 'fyi', reaction: 'fyi', comment: 'fyi', tag: 'fyi', shoutout: 'fyi', event: 'fyi', celebration: 'fyi',
-  training: 'fyi', review: 'fyi', invoice: 'fyi', feedback: 'fyi', ops: 'fyi', applicant: 'fyi', app_feedback: 'fyi',
-};
+// Anything to a person about their own work reaches the phone; bell only is just for telling managers someone else
+// signed something (those calls say tier: 'fyi'). critical is always urgent; a call can name its own tier.
+export const TIER = Object.fromEntries([
+  'shift', 'open_shift', 'cover', 'late', 'clock_out', 'clock_exception', 'pack_blocked', 'venue_pack', 'contract', 'pay', 'timeoff', 'timesheet',
+  'incident', 'message', 'mention', 'reminder', 'expiry', 'compliance', 'demo', 'staff_setup', 'announcement', 'hr', 'feed', 'reaction', 'comment',
+  'tag', 'shoutout', 'event', 'celebration', 'training', 'review', 'invoice', 'feedback', 'ops', 'applicant', 'app_feedback',
+].map((k) => [k, 'action']));
 export function tierOf(kind, severity, tier) {
   if (tier) return tier;
   if (severity === 'critical') return 'urgent';
   if (severity === 'warning') return 'action';
-  return TIER[kind] || 'fyi';
+  return TIER[kind] || 'action';
 }
 
 const APP_URL = () => process.env.APP_URL || '';
