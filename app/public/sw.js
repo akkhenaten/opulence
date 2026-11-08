@@ -14,21 +14,26 @@ self.addEventListener('fetch', (e) => {
   }
 });
 
-// Phone notifications: { title, body, link, tier, badge } — the link is opened in the app on tap; urgent ones stay on screen until dismissed;
-// badge is the person's unread count, shown in red on the app icon
+// Phone notifications: { title, body, link, tier, badge, actions } — the link is opened in the app on tap; urgent ones stay on screen until dismissed;
+// badge is the person's unread count, shown in red on the app icon;
+// actions: up to two buttons (Accept, On my way, Sign site pack). A reply opens the app, which sends it and shows the conversation
 self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
   const icon = typeof d.badge === 'number' && self.navigator.setAppBadge ? self.navigator.setAppBadge(d.badge).catch(() => {}) : null;
   e.waitUntil(Promise.all([icon, self.registration.showNotification(d.title || 'Orb Security', {
-    body: d.body || '', icon: '/app/icon-192.png', badge: '/app/badge-96.png', data: { link: d.link || '' }, requireInteraction: d.tier === 'urgent',
+    body: d.body || '', icon: '/app/icon-192.png', badge: '/app/badge-96.png', data: { link: d.link || '', actions: d.actions || [] },
+    ...(Array.isArray(d.actions) && d.actions.length ? { actions: d.actions.map((a) => ({ action: a.action, title: a.title })) } : {}), requireInteraction: d.tier === 'urgent',
     // Never silent: the phone's own sound and vibration in normal mode, quiet on silent or Do Not Disturb
     silent: false, vibrate: [200, 100, 200], ...(d.tag ? { tag: d.tag, renotify: true } : {}),
   })]));
 });
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-  const url = `/app/open?to=${encodeURIComponent(e.notification.data?.link || '')}`;
+  const data = e.notification.data || {};
+  const act = e.action && (data.actions || []).find((a) => a.action === e.action);
+  const url = act?.to ? `/app/open?to=${encodeURIComponent(act.to)}`
+    : `/app/open?to=${encodeURIComponent(data.link || '')}${act?.reply ? `&reply=${encodeURIComponent(act.reply)}&value=${encodeURIComponent(act.value)}` : ''}`;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
     const win = list.find((c) => new URL(c.url).pathname.startsWith('/app'));
     if (win) { win.focus(); return win.navigate(url); }

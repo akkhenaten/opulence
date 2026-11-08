@@ -1,11 +1,12 @@
-import { lazy, StrictMode, Suspense, useEffect } from 'react';
+import { lazy, StrictMode, Suspense, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
 import './styles.css';
 import { AuthProvider, HOME, otherSide, portalLink, useAuth } from './auth.jsx';
 import { VenueProvider } from './venue.jsx';
 import Shell from './layouts/Shell.jsx';
-import { ConfirmProvider, Spinner, ToastProvider } from './ui/index.jsx';
+import { api } from './api.js';
+import { ConfirmProvider, Spinner, ToastProvider, useToast } from './ui/index.jsx';
 import { FileViewerHost } from './ui/FileViewer.jsx';
 import { AcceptInvite, Forgot, Login, Reset, Verify } from './pages/auth/AuthPages.jsx';
 
@@ -124,12 +125,32 @@ const SHORTCUTS = {
   rota: { officer: '/officer/shifts', company: '/company/rota', security: '/security/rota', venue: '/venue/rota' },
   incidents: { officer: '/officer/incidents', company: '/company/incidents', security: '/security/incidents', venue: '/venue/incidents' },
 };
+// A button on the notification (Accept, On my way): sent once, even if the page renders twice
+const sentReplies = new Set();
+function useNotificationReply(user, sp) {
+  const toast = useToast();
+  const reply = sp.get('reply');
+  const value = sp.get('value');
+  const [done, setDone] = useState(!reply);
+  useEffect(() => {
+    if (!user || !reply || sentReplies.has(reply)) return;
+    sentReplies.add(reply);
+    api('messages.reply', { message_id: reply, value })
+      .then(() => toast('Sent'))
+      .catch((e) => toast(e.message, 'error'))
+      .finally(() => setDone(true));
+  }, [user, reply, value, toast]);
+  return done;
+}
+
 // Tapping a phone notification lands here: send the person to the link inside their own portal
 function Open() {
   const { user, ready } = useAuth();
   const [sp] = useSearchParams();
+  const replied = useNotificationReply(ready && user, sp);
   if (!ready) return <Spinner className="min-h-dvh" />;
   if (!user) return <Navigate to="/login" replace />;
+  if (!replied) return <Spinner className="min-h-dvh" />;
   const to = sp.get('to') || '';
   if (SHORTCUTS[to]) return <Navigate to={SHORTCUTS[to][user.role] || HOME[user.role]} replace />;
   // Someone on both sides: an officer link opens "My shifts", a manager link opens "Manager" (Guard switches)

@@ -33,6 +33,18 @@ export async function ensureThread(kind, refId, memberIds = [], title = '', crea
 export const preview = (body, attachments) => (body || '').trim().slice(0, 120)
   || (attachments?.some((a) => /^audio\//.test(a.mime || '')) ? 'Voice message' : attachments?.length ? 'Sent a photo' : '');
 
+// Replies that need a reason or stand someone down stay in the app, never one tap on a lock screen
+const NOT_FROM_LOCK_SCREEN = ['cant_make_it'];
+/** Buttons on the phone notification for an Orb message with quick replies (most phones show two):
+ * the message's link first ("Sign site pack"), then its replies. Tapping a reply sends it as if tapped in the app. */
+export function pushActions(quick, messageId) {
+  if (!quick) return [];
+  const link = quick.link?.to ? [{ action: 'open', title: quick.link.label || 'Open', to: quick.link.to }] : [];
+  const replies = (quick.options || []).filter((o) => !NOT_FROM_LOCK_SCREEN.includes(o.value))
+    .map((o) => ({ action: `reply:${o.value}`, title: o.label, reply: messageId, value: o.value }));
+  return [...link, ...replies].slice(0, 2);
+}
+
 /** Post a message; members other than the sender get a push (one per conversation until they read it).
  * skipPush: people who get their own notice instead (an @mention). */
 export async function post(convId, senderId, { body = '', attachments = [], quick = null, email = false, replyTo = null, mentions = [], mustConfirm = false, skipPush = [], share = null } = {}) {
@@ -58,7 +70,7 @@ export async function post(convId, senderId, { body = '', attachments = [], quic
       const seen = await one('SELECT last_read_at FROM conversation_members WHERE conversation_id = $1 AND user_id = $2', [convId, r.user_id]);
       await notify([r.user_id], {
         kind: 'message', title, body: share && !body ? 'Shared a post from Everyday' : preview(body, attachments), link: `/messages/${convId}`,
-        severity: quick || mustConfirm ? 'warning' : 'info', email, dedupe: `msg:${convId}:${new Date(seen.last_read_at).getTime()}${quick || mustConfirm ? `:${m.id}` : ''}`,
+        severity: quick || mustConfirm ? 'warning' : 'info', email, actions: pushActions(quick, m.id), dedupe: `msg:${convId}:${new Date(seen.last_read_at).getTime()}${quick || mustConfirm ? `:${m.id}` : ''}`,
       });
     }
   }

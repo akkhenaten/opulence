@@ -137,3 +137,15 @@ test('the ejections register is a tab of Incidents for managers only', () => {
   assert.match(csv, /"Refused entry"/);
   assert.match(csv, /"Tall man, ""red cap"""/);
 });
+
+test('phone notification buttons: cover offer, late chase and site pack chase', async () => {
+  const { pushActions } = await import('../lib/threads.mjs');
+  const offer = pushActions({ ref: 'offer:1', options: [{ label: 'Accept', value: 'accept' }, { label: 'Decline', value: 'decline' }] }, 'm1');
+  assert.deepEqual(offer.map((a) => [a.title, a.reply, a.value]), [['Accept', 'm1', 'accept'], ['Decline', 'm1', 'decline']]);
+  // "Can't make it" needs a reason and stands them down, so it is never one tap on a lock screen
+  const late = pushActions({ ref: 'chase:1', options: [{ label: 'On my way', value: 'on_my_way' }, { label: "Can't make it", value: 'cant_make_it' }] }, 'm2');
+  assert.deepEqual(late.map((a) => a.action), ['reply:on_my_way']);
+  const pack = pushActions({ ref: 'pack:1', link: { label: 'Sign site pack', to: '/officer/venue-pack/v1' }, options: [{ label: 'Signing now', value: 'signing_now' }, { label: "Can't make it", value: 'cant_make_it' }] }, 'm3');
+  assert.deepEqual(pack.map((a) => [a.title, a.to || a.value]), [['Sign site pack', '/officer/venue-pack/v1'], ['Signing now', 'signing_now']]);
+  assert.deepEqual(pushActions(null, 'm4'), []);
+});

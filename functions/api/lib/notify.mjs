@@ -73,8 +73,9 @@ async function emailHtml(title, body, link, button = null) {
 /**
  * Notify a set of users in the bell; urgent and action tiers also go to the phone, urgent ones by email too
  * (unless `email: false`), and `email: true` always emails. users: array of user ids. dedupe: optional key to avoid repeats.
+ * actions: buttons on the phone notification (threads.mjs pushActions).
  */
-export async function notify(userIds, { kind, title, body = '', link = '', severity = 'info', dedupe = null, email, ref = null, tier = null }) {
+export async function notify(userIds, { kind, title, body = '', link = '', severity = 'info', dedupe = null, email, ref = null, tier = null, actions = [] }) {
   const t = tierOf(kind, severity, tier);
   const mail = email === true || (t === 'urgent' && email !== false);
   let ids = [...new Set((userIds || []).filter(Boolean))];
@@ -93,7 +94,7 @@ export async function notify(userIds, { kind, title, body = '', link = '', sever
       const to = rows.map((r) => r.user_id);
       // Each person's unread count rides along for the red badge on the app icon
       const counts = await q('SELECT user_id, count(*)::int AS n FROM notifications WHERE user_id = ANY($1::uuid[]) AND read_at IS NULL GROUP BY user_id', [to]);
-      await pushToUsers(to, { title, body, link, tier: t }, Object.fromEntries(counts.map((c) => [c.user_id, c.n])));
+      await pushToUsers(to, { title, body, link, tier: t, ...(actions.length ? { actions } : {}) }, Object.fromEntries(counts.map((c) => [c.user_id, c.n])));
     } catch (e) {
       console.warn('[push] not sent:', e.message);
     }
