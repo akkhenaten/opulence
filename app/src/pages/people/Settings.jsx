@@ -10,7 +10,7 @@ import { Chips, CopyLink, DOC_KINDS, docKindLabel, SIA_TYPES } from './_parts.js
 import { ROLE_LABEL } from '../../layouts/nav.js';
 import { NOTIFY_KINDS } from '../officer/_notify.jsx';
 import { resetEverydaySettings } from '../everyday/_parts.jsx';
-import { previewStyle, restoreStyle, styleVars } from '../../ui/style.js';
+import { loadStyleFonts, previewStyle, restoreStyle, styleVars } from '../../ui/style.js';
 import { TemplatesTab } from './_esign.jsx';
 import LibraryTab from './contracts/Library.jsx';
 import { EmailTab } from '../email/_settings.jsx';
@@ -224,21 +224,29 @@ function BrandingTile({ s, onSaved }) {
 const APP_STYLES = [
   { value: 'classic', label: 'Day', hint: 'Light, warm and easy to read in daylight.' },
   { value: 'control', label: 'Night', hint: 'Black and gold, compact, numbers in a fixed-width font. Built for night shifts and the ops desk.' },
+  { value: 'soft', label: 'Soft', hint: 'Neumorphic: cards and buttons look moulded from one soft surface, fields are pressed in, buttons sink when tapped.' },
+  { value: 'glass', label: 'Glass', hint: 'Frosted, see-through cards, menus and windows over a colourful blurred background.' },
+  { value: 'flat', label: 'Flat', hint: 'Clean and simple: no shadows or gradients, bold solid colours and a plain sans-serif.' },
 ];
 
 // A small shift card drawn in the given style, so each option always shows its own look
 function StylePreview({ style, color }) {
+  useEffect(() => loadStyleFonts(style), [style]);
   return (
-    <div data-style={style} style={styleVars(style, color)} className="rounded-tile bg-bg p-3 text-ink" aria-hidden>
-      <div className="rounded-tile border border-hairline bg-surface p-3 shadow-tile">
+    <div data-style={style} data-preview={style} style={styleVars(style, color)} className="pv" aria-hidden>
+      <div className="pv-card">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate text-subhead font-bold">Riverside Mall</span>
           <span className="shrink-0 rounded-full bg-green-soft px-2 py-0.5 text-caption2 font-bold text-green">On shift</span>
         </div>
         <div className="num mt-1 text-footnote text-muted">18:00 – 02:00 · 8.0 h</div>
         <div className="mt-3 flex items-center gap-2">
-          <span className="rounded-control bg-blue px-3 py-1.5 text-footnote font-semibold text-white">Clock out</span>
+          <span className="pv-btn">Clock out</span>
           <span className="rounded-full bg-amber-soft px-2 py-0.5 text-caption2 font-bold text-amber">2 alerts</span>
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <span className="pv-field">Add a note</span>
+          <span className="pv-toggle" />
         </div>
       </div>
     </div>
@@ -264,7 +272,7 @@ function AppStyleTile({ s, onSaved }) {
   return (
     <Tile title="App style" icon={MonitorSmartphone} className="mb-4">
       <p className="mb-4 text-subhead text-muted">How the app looks for everyone in your company — managers, officers and venue staff. Printouts, PDFs and emails always stay in the classic light look.</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="App style">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" role="radiogroup" aria-label="App style">
         {APP_STYLES.map((o) => (
           <Pressable key={o.value} press role="radio" aria-checked={pick === o.value} onClick={() => choose(o.value)}
             className={cx('rounded-tile border p-2 text-left transition', pick === o.value ? 'border-blue ring-2 ring-blue' : 'border-line')}>

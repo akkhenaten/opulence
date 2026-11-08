@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-08', icon: Palette, title: 'Three new looks: Soft, Glass and Flat', image: 'more-app-styles',
+    lede: 'Settings → Look now has three more styles beside Day and Night. Pick the one your team likes, and every screen follows it on phones, tablets and computers.',
+    points: ["Soft: a warm stone background with buttons, cards and icons that look gently raised, fields and switches pressed into the page, and buttons that sink in when you tap them", "Glass: frosted, see-through cards, menus and pop-ups over softly drifting colour, with glossy buttons and icons", "Flat: clean and bold, with solid colours, crisp outlines, simple icons and solid buttons with a light edge underneath", "Each style covers every portal: officers, managers, venues and the platform, including the side menu, the tab bar, lists, tables and pop-ups. Documents and certificates stay plain white for printing", "Your brand colour is still used for buttons in every style, and text stays easy to read. Day and Night are unchanged"],
+  },
+  {
     month: 'November 2026', date: '2026-11-08', icon: Ban, title: 'Every ejection in one register', image: 'ejections-register',
     lede: 'Incidents now has a second tab, the Ejections register: everyone ejected or refused entry at your venues, newest first, in one list instead of venue by venue.',
     points: ["Managers: Incidents → Ejections register lists every ejection and refusal across your venues, with who logged it and whether it became a ban. Pick a venue to narrow it down", "Log an ejection or ban someone from the register: it asks which venue when you are looking at all of them", "The current, ended and lifted bans are tabs of the same register, and the ⋯ menu exports the list to a spreadsheet for the licensing authority or the police", "Security managers see only their own venues. Each venue's own register is still on the venue page, and venues keep their Ejections tab under Logs"],

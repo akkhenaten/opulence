@@ -92,7 +92,7 @@ export function ToastProvider({ children }) {
             onClick={() => dismiss(t.id)}
             onPointerDown={(e) => { swipe.current[t.id] = e.clientY; }}
             onPointerUp={(e) => { if (e.clientY - (swipe.current[t.id] ?? e.clientY) < -20) dismiss(t.id); }}
-            className={cx('pointer-events-auto flex max-w-full cursor-default items-center gap-2 rounded-full py-2.5 pl-4 text-subhead font-semibold shadow-tile backdrop-blur-xl',
+            className={cx('ui-float pointer-events-auto flex max-w-full cursor-default items-center gap-2 rounded-full py-2.5 pl-4 text-subhead font-semibold shadow-tile backdrop-blur-xl',
               t.action ? 'pr-1.5' : 'pr-4',
               t.kind === 'error' ? 'bg-red text-white' : 'bg-ink/90 text-white', t.leaving ? 'anim-toast-out' : 'anim-toast-in')}>
             {t.kind === 'error' ? <AlertCircle size={16} className="shrink-0" /> : <CheckIcon size={16} className="shrink-0" />}<span className="min-w-0">{t.message}</span>
@@ -290,7 +290,7 @@ export function FilterBar({ filters, onChange, onClear, children, className }) {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {on.map((f) => (
             <button key={f.key} type="button" onClick={() => onChange(f.key, f.empty ?? '')} aria-label={`Remove filter: ${f.label} ${name(f)}`}
-              className="pressable relative inline-flex min-h-9 items-center gap-1.5 rounded-full border border-blue bg-blue-soft px-3 py-1 text-footnote font-semibold text-blue before:absolute before:inset-x-0 before:-inset-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue">
+              className="ui-chip pressable relative inline-flex min-h-9 items-center gap-1.5 rounded-full border border-blue bg-blue-soft px-3 py-1 text-footnote font-semibold text-blue before:absolute before:inset-x-0 before:-inset-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue">
               {name(f)}<X size={14} aria-hidden />
             </button>
           ))}
@@ -368,8 +368,8 @@ const BTN_S = {
 export function Button({ variant = 'primary', size = 'md', icon: Icon, iconRight: IconRight, iconOnly, busy, className, children, to, href, ...p }) {
   const [s, sq, is] = BTN_S[size];
   const link = variant.startsWith('link');
-  const cls = cx('pressable relative inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap font-semibold disabled:pointer-events-none disabled:opacity-50',
-    BTN_V[variant],
+  const cls = cx('ui-btn pressable relative inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap font-semibold disabled:pointer-events-none disabled:opacity-50',
+    `ui-btn-${variant}`, BTN_V[variant],
     link ? cx('-mx-1 rounded-md px-1', { sm: 'text-footnote', md: 'text-subhead', lg: 'text-callout' }[size], 'min-h-9 before:absolute before:inset-x-0 before:-inset-y-1') : s,
     iconOnly && !link && cx(sq, 'px-0'), className);
   const spin = <Loader2 size={is} className="shrink-0 animate-spin" />;
@@ -397,7 +397,7 @@ const ICON_T = {
 const ICON_S = { sm: 'h-9 w-9 before:absolute before:-inset-1', md: 'h-10 w-10 before:absolute before:-inset-0.5', lg: 'h-12 w-12' };
 // Round icon-only button. badge: a count shown top-right
 export function IconButton({ icon: Icon, label, tone = 'ghost', size = 'md', badge, badgeTone = 'blue', active, to, className, ...p }) {
-  const cls = cx('pressable relative grid shrink-0 place-items-center rounded-full disabled:opacity-50', active ? 'bg-blue text-white shadow-tile' : ICON_T[tone], ICON_S[size], className);
+  const cls = cx('ui-icon-btn pressable relative grid shrink-0 place-items-center rounded-full disabled:opacity-50', `ui-icon-${active ? 'active' : tone}`, active ? 'bg-blue text-white shadow-tile' : ICON_T[tone], ICON_S[size], className);
   const inner = (
     <>
       <Icon size={size === 'lg' ? 24 : 20} />
@@ -419,7 +419,7 @@ export function Pressable({ to, href, onClick, card, press, className, children,
 }
 
 // 16px text so iOS doesn't zoom into the field on focus
-const inputCls = 'w-full rounded-xl border border-line bg-surface px-3.5 h-11 text-callout outline-none transition placeholder:text-faint focus:border-blue focus:ring-4 focus:ring-blue/10 disabled:bg-bg aria-[invalid=true]:border-red aria-[invalid=true]:focus:ring-red/10';
+const inputCls = 'ui-input w-full rounded-xl border border-line bg-surface px-3.5 h-11 text-callout outline-none transition placeholder:text-faint focus:border-blue focus:ring-4 focus:ring-blue/10 disabled:bg-bg aria-[invalid=true]:border-red aria-[invalid=true]:focus:ring-red/10';
 export { inputCls };
 export function Field({ label, hint, error, children, className }) {
   return (
@@ -471,7 +471,7 @@ export function YesNo({ label, hint, icon: I, value, onChange, danger }) {
     const chosen = value === on;
     return (
       <Pressable press aria-pressed={chosen} onClick={() => onChange(on)}
-        className={cx('flex h-12 flex-1 items-center justify-center gap-1.5 rounded-2xl border-2 text-callout font-semibold transition-colors',
+        className={cx('ui-choice flex h-12 flex-1 items-center justify-center gap-1.5 rounded-2xl border-2 text-callout font-semibold transition-colors',
           !chosen ? 'border-transparent bg-bg text-ink' : on && danger ? 'border-red bg-red-soft text-red' : 'border-blue bg-blue-soft text-blue')}>
         {chosen && <CheckIcon size={18} aria-hidden />}{text}
       </Pressable>
@@ -516,8 +516,8 @@ export function Toggle({ checked, onChange, label, hint }) {
     <label className="flex cursor-pointer items-center justify-between gap-4 py-1">
       <span><span className="block text-body font-medium">{label}</span>{hint && <span className="block text-caption text-muted">{hint}</span>}</span>
       <button type="button" role="switch" aria-checked={!!checked} onClick={() => onChange(!checked)}
-        className={cx('relative h-[31px] w-[51px] shrink-0 rounded-full before:absolute before:-inset-[7px] transition-colors duration-[var(--dur-2)]', checked ? 'bg-green' : 'bg-toggle-off')}>
-        <span className={cx('absolute top-[2px] h-[27px] w-[27px] rounded-full bg-white shadow transition-[left] duration-[var(--dur-2)] ease-ios', checked ? 'left-[22px]' : 'left-[2px]')} />
+        className={cx('ui-toggle relative h-[31px] w-[51px] shrink-0 rounded-full before:absolute before:-inset-[7px] transition-colors duration-[var(--dur-2)]', checked ? 'bg-green' : 'bg-toggle-off')}>
+        <span className={cx('ui-toggle-thumb absolute top-[2px] h-[27px] w-[27px] rounded-full bg-white shadow transition-[left] duration-[var(--dur-2)] ease-ios', checked ? 'left-[22px]' : 'left-[2px]')} />
       </button>
     </label>
   );
@@ -545,14 +545,14 @@ export function Segmented({ value, onChange, options, className, full }) {
     return () => ro.disconnect();
   }, [value, options.length]);
   return (
-    <div ref={wrap} className={cx(full ? 'flex w-full' : 'inline-flex', 'relative max-w-full overflow-x-auto rounded-xl bg-fill-strong p-[3px] no-scrollbar', className)} role="tablist">
-      {thumb && <span aria-hidden="true" className="absolute bottom-[3px] top-[3px] rounded-lg bg-raised shadow-sm transition-[left,width] duration-[var(--dur-2)] ease-ios" style={{ left: thumb.left, width: thumb.width }} />}
+    <div ref={wrap} className={cx(full ? 'flex w-full' : 'inline-flex', 'ui-seg relative max-w-full overflow-x-auto rounded-xl bg-fill-strong p-[3px] no-scrollbar', className)} role="tablist">
+      {thumb && <span aria-hidden="true" className="ui-seg-thumb absolute bottom-[3px] top-[3px] rounded-lg bg-raised shadow-sm transition-[left,width] duration-[var(--dur-2)] ease-ios" style={{ left: thumb.left, width: thumb.width }} />}
       {options.map((o) => {
         const v = typeof o === 'string' ? o : o.value;
         const l = typeof o === 'string' ? titleCase(o) : o.label;
         return (
           <button key={v} type="button" role="tab" aria-selected={value === v} onClick={() => onChange(v)}
-            className={cx(full && 'flex-1', 'relative min-h-[44px] whitespace-nowrap rounded-lg before:absolute before:inset-x-0 before:-inset-y-[3px] px-3.5 py-1.5 text-footnote font-semibold transition-colors', value === v ? 'text-ink' : 'text-muted hover:text-ink', !thumb && value === v && 'bg-raised shadow-sm')}>
+            className={cx(full && 'flex-1', 'relative min-h-[44px] whitespace-nowrap rounded-lg before:absolute before:inset-x-0 before:-inset-y-[3px] px-3.5 py-1.5 text-footnote font-semibold transition-colors', value === v ? 'text-ink' : 'text-muted hover:text-ink', !thumb && value === v && 'ui-seg-thumb bg-raised shadow-sm')}>
             {l}{o.count != null && o.count > 0 && <span className="ml-1.5 rounded-full bg-blue px-1.5 text-caption2 text-white">{o.count}</span>}
           </button>
         );
@@ -660,7 +660,7 @@ export function Callout({ tone = 'info', icon, title, children, action, classNam
   const [cls, Def] = CALLOUT[tone] || CALLOUT.info;
   const I = icon === false ? null : icon || Def;
   return (
-    <div className={cx('flex gap-2.5 rounded-2xl px-3.5 py-3 text-subhead', cls, className)}>
+    <div className={cx('ui-callout flex gap-2.5 rounded-2xl px-3.5 py-3 text-subhead', cls, className)}>
       {I && <I size={18} className="mt-0.5 shrink-0" aria-hidden />}
       <div className="min-w-0 flex-1">
         {title && <div className="font-semibold">{title}</div>}
@@ -685,7 +685,7 @@ const STATUS_TONE = {
 };
 export function Pill({ children, tone, status, className }) {
   const t = tone || STATUS_TONE[status] || 'grey';
-  return <span className={cx('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-caption font-semibold', PILL[t], className)}>{children ?? titleCase(status)}</span>;
+  return <span className={cx('ui-pill inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-caption font-semibold', PILL[t], className)}>{children ?? titleCase(status)}</span>;
 }
 // Shift assignments: 'assigned' means the officer has not confirmed yet, 'accepted' means they have
 export function AssignPill({ status, className }) {
@@ -776,10 +776,10 @@ export function SkeletonPage() {
 // photo: a brand photo name (ui/Photo.jsx) shown in place of the icon tile
 export function Empty({ title = 'Nothing here yet', body, icon: Icon = Inbox, action, photo }) {
   return (
-    <div className="flex flex-col items-center rounded-tile border border-dashed border-line bg-surface/60 px-6 py-12 text-center">
+    <div className="ui-empty flex flex-col items-center rounded-tile border border-dashed border-line bg-surface/60 px-6 py-12 text-center">
       {photo
         ? <img src={`/app/brand/${photo}-800.webp`} alt="" loading="lazy" className="mb-4 h-24 w-36 rounded-tile object-cover" />
-        : <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-soft text-blue"><Icon size={24} /></div>}
+        : <div className="ui-raised-icon mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-soft text-blue"><Icon size={24} /></div>}
       <div className="text-callout font-semibold">{title}</div>
       {body && <p className="mt-1 max-w-sm text-subhead text-muted">{body}</p>}
       {action && <div className="mt-4">{action}</div>}
@@ -892,8 +892,8 @@ export function Sheet({ open, onClose, title, children, footer, size = 'md', sid
     <div className={cx('fixed flex', layer === 'top' ? 'z-[60]' : 'z-50', drawer ? 'inset-y-0 right-0 w-[480px] max-w-full' : 'inset-0 items-end justify-center sm:items-center sm:p-6'
       , closing && 'pointer-events-none')}
       role="dialog" aria-modal={drawer ? undefined : 'true'} aria-label={typeof title === 'string' ? title : undefined}>
-      {!drawer && <div className={cx('absolute inset-0 bg-ink/30 backdrop-blur-[2px]', closing ? 'anim-fade-out' : 'anim-fade-in')} onClick={close} />}
-      <div ref={panel} className={cx('relative flex w-full flex-col bg-surface shadow-sheet safe-x',
+      {!drawer && <div className={cx('ui-scrim absolute inset-0 bg-ink/30 backdrop-blur-[2px]', closing ? 'anim-fade-out' : 'anim-fade-in')} onClick={close} />}
+      <div ref={panel} className={cx('ui-sheet relative flex w-full flex-col bg-surface shadow-sheet safe-x',
         drawer ? 'h-full border-l border-line' : cx('max-h-[92dvh] rounded-t-sheet sm:rounded-sheet', w, full && 'max-sm:h-dvh max-sm:max-h-none max-sm:rounded-none max-sm:pt-[env(safe-area-inset-top)]'),
         closing ? (!dragged.current && (drawer ? 'anim-drawer-out' : 'anim-sheet-out')) : (drawer ? 'anim-drawer-in' : 'anim-sheet-in'))}>
         <div className="touch-none" {...grab}>
@@ -983,7 +983,7 @@ export function Check({ checked, onChange, label, className, round }) {
   return (
     <button type="button" role="checkbox" aria-checked={!!checked} aria-label={label}
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange(!checked); }}
-      className={cx('relative grid h-[22px] w-[22px] shrink-0 place-items-center border-2 transition-colors before:absolute before:-inset-2.5', round ? 'rounded-full' : 'rounded-md',
+      className={cx('ui-check relative grid h-[22px] w-[22px] shrink-0 place-items-center border-2 transition-colors before:absolute before:-inset-2.5', round ? 'rounded-full' : 'rounded-md',
         checked ? 'border-blue bg-blue text-white' : 'border-line bg-surface hover:border-faint', className)}>
       {checked && <CheckIcon size={14} strokeWidth={3} className="anim-pop" />}
     </button>
@@ -996,8 +996,8 @@ export function Progress({ value, max, done, total, count, className }) {
   const m = max ?? total ?? 0;
   const pct = m ? Math.min(100, Math.round((v / m) * 100)) : 0;
   const bar = (
-    <div className={cx('h-1.5 overflow-hidden rounded-full bg-fill-strong', count ?? done != null ? 'flex-1' : cx('w-full', className))}>
-      <div className={cx('h-full rounded-full transition-[width] duration-[var(--dur-3)] ease-ios', pct >= 100 ? 'bg-green' : 'bg-blue')} style={{ width: `${pct}%` }} />
+    <div className={cx('ui-progress h-1.5 overflow-hidden rounded-full bg-fill-strong', count ?? done != null ? 'flex-1' : cx('w-full', className))}>
+      <div className={cx('ui-progress-bar h-full rounded-full transition-[width] duration-[var(--dur-3)] ease-ios', pct >= 100 ? 'bg-green' : 'bg-blue')} style={{ width: `${pct}%` }} />
     </div>
   );
   if (!(count ?? done != null)) return bar;
@@ -1012,7 +1012,7 @@ export function Chip({ label, value, tone = 'grey', active, onClick, quiet }) {
   const hush = quiet && !active;
   return (
     <Tag type={onClick ? 'button' : undefined} onClick={onClick} aria-pressed={onClick ? !!active : undefined}
-      className={cx('relative inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-footnote font-semibold', !hush && 'shadow-tile', onClick && 'before:absolute before:inset-x-0 before:-inset-y-1',
+      className={cx('ui-chip relative inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-footnote font-semibold', !hush && 'shadow-tile', onClick && 'before:absolute before:inset-x-0 before:-inset-y-1',
         hush ? 'bg-transparent text-faint' : tones[tone], active ? 'border-blue ring-2 ring-blue/15' : 'border-hairline', onClick && 'pressable focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue')}>
       <span className="num text-body font-bold">{value}</span>{label}
     </Tag>
@@ -1028,7 +1028,7 @@ export function Chips({ options, value = [], onChange, label }) {
       <div className="flex flex-wrap gap-x-2 gap-y-3">
         {options.map((o) => (
           <button key={o.value} type="button" onClick={() => toggle(o.value)} aria-pressed={value.includes(o.value)}
-            className={cx('pressable relative min-h-9 rounded-full border px-3.5 py-1.5 text-footnote font-semibold before:absolute before:inset-x-0 before:-inset-y-1',
+            className={cx('ui-chip pressable relative min-h-9 rounded-full border px-3.5 py-1.5 text-footnote font-semibold before:absolute before:inset-x-0 before:-inset-y-1',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-offset-2',
               value.includes(o.value) ? 'border-blue bg-blue text-white' : 'border-line bg-surface text-ink hover:bg-bg')}>
             {o.label}
@@ -1047,7 +1047,7 @@ export function ActionBar({ show = true, children, className, tone = 'dark' }) {
   // in-flow spacer so the floating bar never covers the last row of the page
   return <><div aria-hidden="true" className="h-20" />{createPortal(
     <div className="action-bar pointer-events-none fixed inset-x-0 z-40 flex justify-center [--px:1rem] safe-x">
-      <div className={cx('pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full py-2 pl-5 pr-2 shadow-sheet backdrop-blur-xl',
+      <div className={cx('ui-float pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full py-2 pl-5 pr-2 shadow-sheet backdrop-blur-xl',
         tone === 'dark' ? 'bg-ink/95 text-white' : 'border border-hairline bg-surface/95 text-ink', closing ? 'anim-toast-out' : 'anim-bar-in', className)}>
         {children}
       </div>

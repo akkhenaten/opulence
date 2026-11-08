@@ -15,8 +15,8 @@ import { canSeeGuide, canSeeFlow } from '../lib/emergency.mjs';
 const FIELDS = ['company_name', 'company_address', 'company_email', 'company_phone', 'vat_number', 'vat_rate', 'company_number', 'bank_name',
   'bank_sort_code', 'bank_account', 'invoice_prefix', 'invoice_cycle', 'payment_terms_days', 'pay_period', 'grace_minutes', 'auto_signoff_days',
   'rounding_minutes', 'night_start', 'night_end', 'pay_night_uplift', 'pay_weekend_uplift', 'pay_bh_uplift', 'gps_tolerance_m', 'brand_color', 'ui_style', 'default_signatory_id', 'face_match_enabled'];
-export const UI_STYLES = ['classic', 'control'];
-const STYLE_NAMES = { classic: 'Classic', control: 'Control Room' };
+export const UI_STYLES = ['classic', 'control', 'soft', 'glass', 'flat'];
+const STYLE_NAMES = { classic: 'Day', control: 'Night', soft: 'Soft', glass: 'Glass', flat: 'Flat' };
 
 
 export const getSettings = () => one('SELECT * FROM settings WHERE id = 1');

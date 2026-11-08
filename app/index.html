@@ -24,7 +24,7 @@
         var o = JSON.parse(localStorage.getItem('orb.style') || 'null');
         if (o) {
           var r = document.documentElement;
-          if (o.style === 'control') r.dataset.style = 'control';
+          if (o.style && o.style !== 'classic') r.dataset.style = o.style;
           for (var k in o.vars || {}) r.style.setProperty(k, o.vars[k]);
         }
       } catch (e) {}

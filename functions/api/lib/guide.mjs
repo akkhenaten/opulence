@@ -71,10 +71,13 @@ Open Settings, then Company details, and fill in your company name, address, com
         id: 'style', title: 'Choosing the app style',
         body: `In Settings, under Branding, App style lets you pick how the app looks for everyone in your company.
 
-- **Classic** is light and rounded, with an iPhone feel. It is the default.
-- **Control Room** is dark and compact, with sharper corners and numbers in a console font. It is easier on the eyes at night and fits more on screen. Buttons use your brand colour, or amber if you have not set one.
+- **Day** is light and warm, with an iPhone feel. It is the default.
+- **Night** is black and gold and compact, with sharper corners and numbers in a console font. It is easier on the eyes at night and fits more on screen.
+- **Soft** is neumorphic: everything is moulded from one soft surface, so cards and buttons look raised, fields look pressed in, and a button sinks when you press it.
+- **Glass** puts frosted, see-through cards, menus and windows over a colourful blurred background.
+- **Flat** is clean and simple: no shadows or gradients, bold solid colours and a plain sans-serif font.
 
-Tap a style to preview the whole app, then Save to apply it for every manager, officer and venue user. Cancel goes back. Printouts, PDFs and emails always keep the light look. Every change is recorded in the audit log.`,
+Buttons use your brand colour in every style, or Opulence gold if you have not set one. Tap a style to preview the whole app, then Save to apply it for every manager, officer and venue user. Cancel goes back. Printouts, PDFs and emails always keep the light look. Every change is recorded in the audit log.`,
       },
       {
         id: 'modules', title: 'Choose which features you use',

@@ -8,6 +8,7 @@ import { VenueChip } from '../venue.jsx';
 import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, usePageHeader, useScrollMemory } from '../ui/index.jsx';
 import { NAV, ROLE_LABEL } from './nav.js';
 import { HubCtx, hubTabs } from '../ui/hub.jsx';
+import { OWN_CHROME, useAppStyle } from '../ui/style.js';
 import { motionFor } from './navMotion.js';
 import { SideSwitch } from './SideSwitch.jsx';
 import { AccountSheet } from './AccountSheet.jsx';
@@ -157,7 +158,7 @@ const NAV_OFF = 'text-ink/70 hover:bg-fill hover:text-ink';
 
 // Rows in the phone More menu
 const MORE_ROW = 'pressable flex min-h-[52px] items-center gap-3 rounded-xl px-3 text-body font-semibold';
-const MORE_ICON = 'grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-bg text-blue';
+const MORE_ICON = 'ui-raised-icon grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-bg text-blue';
 
 // Count badge for a nav item (Orb inbox)
 const Badge = ({ n, className }) => (n > 0 ? <span className={cx('rounded-full bg-blue px-1.5 text-caption2 font-bold leading-[18px] text-white', className)}>{n > 99 ? '99+' : n}</span> : null);
@@ -314,7 +315,9 @@ export default function Shell() {
   const header = usePageHeader();
   // Black top bar on phones and for officers; managers on desktop keep the light see-through bar
   const narrow = useNarrow();
-  const darkBar = isOfficer || narrow;
+  // Soft, Glass and Flat draw the top bar and sidebar in their own look; Day and Night keep the black chrome
+  const ownChrome = OWN_CHROME.includes(useAppStyle());
+  const darkBar = (isOfficer || narrow) && !ownChrome;
   // Desktop header is see-through at the top; it gets its frosted background once the page scrolls under it
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -396,11 +399,11 @@ export default function Shell() {
       {!isOfficer && (
         <aside className="side-spacer sticky top-0 z-40 hidden h-dvh shrink-0 lg:block" style={{ width: side.pinned ? 260 : 72 }}
           onMouseEnter={side.pinned ? undefined : side.enter} onMouseLeave={side.pinned ? undefined : side.leave}>
-          <div data-style="control" data-open={side.open || undefined} data-peek={(!side.pinned && side.open) || undefined}
-            className="side-panel absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r border-line px-3 py-5" style={{ width: side.open ? 260 : 72 }}
+          <div data-style={ownChrome ? undefined : 'control'} data-open={side.open || undefined} data-peek={(!side.pinned && side.open) || undefined}
+            className="ui-sidebar side-panel absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r border-line px-3 py-5" style={{ width: side.open ? 260 : 72 }}
             onFocus={side.pinned ? undefined : () => side.enter()}
             onBlur={side.pinned ? undefined : (e) => { if (!e.currentTarget.contains(e.relatedTarget)) side.leave(); }}>
-            <div className="pb-6 pl-1.5"><Logo place="sidebar" tone="light" compact={!side.open} /></div>
+            <div className="pb-6 pl-1.5"><Logo place="sidebar" tone={ownChrome ? 'dark' : 'light'} compact={!side.open} /></div>
             <Pressable press onClick={() => side.setPinned(!side.pinned)} aria-pressed={side.pinned}
               aria-label={side.pinned ? 'Let the menu shrink to icons ([)' : 'Keep the menu open ([)'} title={side.pinned ? 'Let the menu shrink to icons ([)' : 'Keep the menu open ([)'}
               className={cx('side-fade absolute right-1.5 top-1.5 z-10 grid h-7 w-7 place-items-center rounded-full before:absolute before:-inset-2 hover:bg-fill hover:text-gold', side.pinned ? 'text-gold' : 'text-faint')}>
@@ -436,7 +439,7 @@ export default function Shell() {
 
       <div className="min-w-0 flex-1">
         {/* Top bar */}
-        <header data-style={darkBar ? 'control' : undefined} className={cx('sticky top-0 z-30 border-b border-line/50 bg-bg/80 backdrop-blur-xl safe-t', !isOfficer && !scrolled && 'lg:border-transparent lg:bg-transparent lg:backdrop-blur-none', 'transition-[background-color,border-color] duration-200')}>
+        <header data-style={darkBar ? 'control' : undefined} className={cx('ui-topbar sticky top-0 z-30 border-b border-line/50 bg-bg/80 backdrop-blur-xl safe-t', !isOfficer && !scrolled && 'lg:border-transparent lg:bg-transparent lg:backdrop-blur-none', 'transition-[background-color,border-color] duration-200')}>
           <div className={cx('relative mx-auto flex h-14 items-center justify-between [--px:1rem] sm:[--px:1.5rem] safe-x', isOfficer ? 'max-w-2xl' : header.wide ? 'max-w-[1400px]' : 'max-w-6xl')}>
             <HeaderTitle wide={isOfficer} />
             <div className={cx('flex min-w-0', !isOfficer && 'lg:invisible')}><Logo tone={darkBar ? 'light' : 'dark'} faded={header.collapsed && !!header.title} /></div>
@@ -469,13 +472,13 @@ export default function Shell() {
 
       {(isOfficer || user.dual) && <ShiftBar />}
       {/* Mobile tab bar (and officer tab bar on all sizes) */}
-      <nav aria-label="Main" className={cx('fixed inset-x-0 bottom-0 z-40 border-t border-line/70 bg-surface/85 backdrop-blur-xl safe-b safe-x', !isOfficer && 'lg:hidden')}>
+      <nav aria-label="Main" className={cx('ui-tabbar fixed inset-x-0 bottom-0 z-40 border-t border-line/70 bg-surface/85 backdrop-blur-xl safe-b safe-x', !isOfficer && 'lg:hidden')}>
         <div className="mx-auto flex max-w-2xl items-stretch justify-around px-2">
           {tabs.map((it) => (
             <Link key={it.to} to={it.to} onClick={tabTap(it)} aria-current={isActive(it) ? 'page' : undefined}
               className={cx('pressable flex min-h-[54px] flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-caption2 font-semibold', isActive(it) ? 'text-blue' : 'text-faint')}>
               {it.primary
-                ? <span className={cx('-mt-5 grid h-14 w-14 place-items-center rounded-full bg-blue text-white shadow-[0_8px_20px_-6px_color-mix(in_srgb,var(--accent-fill,var(--color-blue))_80%,transparent)] ring-4 ring-bg', isActive(it) && 'anim-pop')}><it.icon size={24} /></span>
+                ? <span className={cx('ui-tab-primary -mt-5 grid h-14 w-14 place-items-center rounded-full bg-blue text-white shadow-[0_8px_20px_-6px_color-mix(in_srgb,var(--accent-fill,var(--color-blue))_80%,transparent)] ring-4 ring-bg', isActive(it) && 'anim-pop')}><it.icon size={24} /></span>
                 : <span className={cx(isActive(it) && 'anim-pop')}><it.icon size={24} /></span>}
               <span className={cx(it.primary && 'mt-0.5')}>{it.short || it.label}</span>
             </Link>
