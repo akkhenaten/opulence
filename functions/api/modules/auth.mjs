@@ -9,6 +9,7 @@ import { getBrand } from '../lib/brand.mjs';
 import { welcomeDue } from '../lib/feed.mjs';
 import { isPlatformAdmin } from '../lib/platform.mjs';
 import { celebrate } from './everydayJobs.mjs';
+import { ownShiftDue } from '../lib/shiftDue.mjs';
 
 // A new session always starts on the manager side; the app picks "My shifts" with auth.landing
 const loadUser = async (userId, as) => resolveActing(await ensurePlatformRole(await one(
@@ -56,16 +57,7 @@ export const actions = {
   'auth.landing': def(ALL, async (_b, { user }) => {
     const oid = ownOfficer(user);
     if (!user.dual || !oid) return { side: user.role === 'officer' ? 'officer' : 'manager' };
-    const due = await one(
-      `SELECT 1 FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
-        WHERE a.officer_id = $1 AND a.status IN ('assigned','accepted') AND s.status = 'published'
-          AND (
-            (s.starts_at BETWEEN now() - interval '30 minutes' AND now() + interval '2 hours')
-            OR EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected'
-                        AND NOT EXISTS (SELECT 1 FROM clock_events co WHERE co.assignment_id = a.id AND co.kind = 'out' AND co.status <> 'rejected'))
-          )
-          AND s.ends_at > now() - interval '2 hours'
-        LIMIT 1`, [oid]);
+    const due = await ownShiftDue(oid);
     return { side: due ? 'officer' : 'manager' };
   }),
 

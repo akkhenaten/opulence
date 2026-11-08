@@ -140,13 +140,13 @@ export default function Dashboard() {
       {tab !== 'everyday' && <PushCard className="mb-4" later="your account menu" />}
       {tab === 'everyday'
         ? <FeedBody lead={<Button size="sm" variant="ghost" icon={ChevronLeft} onClick={() => setSp({}, { replace: true })}>Today</Button>} />
-        : <Today d={q.data} board={board} base={base} isCompany={isCompany} lg={lg} orb={orb} reloadKey={reloadKey} onOrbChange={() => { count.reload(); q.reload(); }} />}
+        : <Today d={q.data} board={board} base={base} isCompany={isCompany} lg={lg} orb={orb} reloadKey={reloadKey} focus={sp.get('card')} onOrbChange={() => { count.reload(); q.reload(); }} />}
       {tab !== 'everyday' && <InstallCard className="mt-4" later={isCompany ? 'Settings' : 'My account'} />}
     </Page>
   );
 }
 
-function Today({ d, board, base, isCompany, lg, orb, reloadKey, onOrbChange }) {
+function Today({ d, board, base, isCompany, lg, orb, reloadKey, onOrbChange, focus }) {
   const c = countsOf(d);
   const list = needsFor(c, isCompany);
   const total = list.reduce((a, x) => a + c[x.key], 0) + orb;
@@ -160,7 +160,7 @@ function Today({ d, board, base, isCompany, lg, orb, reloadKey, onOrbChange }) {
   const onSite = board.rows.filter((r) => ['on_shift', 'on_break'].includes(r.state)).length;
 
   const queue = (
-    <Inbox slim scroll={lg} compact n={orb} reloadKey={reloadKey} onChange={onOrbChange} title="Needs you"
+    <Inbox slim scroll={lg} compact n={orb} reloadKey={reloadKey} onChange={onOrbChange} focus={focus} title="Needs you"
       pill={total > 0 ? <Pill tone="blue" className="num">{total}</Pill> : null}
       before={rows(['red'])} after={rows(['amber', 'blue'])}
       empty={(

@@ -133,7 +133,7 @@ function Body({ d, reload, role, live, preview }) {
     // Two columns only when the page itself is wide enough (the officer app stays one column on a desktop)
     <div className="@container"><div className="grid grid-cols-1 gap-5 @4xl:grid-cols-[minmax(0,1fr)_380px] @4xl:items-start">
       <div className="space-y-5">
-        <Header s={s} me={me} officer={officer} signed={signed} live={live} phone={d.office_phone} />
+        <Header s={s} me={me} officer={officer && !preview} signed={signed} live={live} phone={d.office_phone} reload={reload} />
         {/* The Emergency flowchart on every shift card, for everyone who can open it; Leave comes back here */}
         <FlowEntry shift from={loc.pathname + loc.search} />
         {officer && <PinnedInstructions d={d} reload={reload} />}
@@ -183,9 +183,15 @@ function Body({ d, reload, role, live, preview }) {
   );
 }
 
-function Header({ s, me, officer, signed, live: onShift, phone }) {
+function Header({ s, me, officer, signed, live: onShift, phone, reload }) {
   const nav = useNavigate();
   const [declining, setDeclining] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const accept = async () => {
+    setBusy(true);
+    try { await api('shifts.respond', { assignment_id: me.assignment_id, accept: true }); reload(); } finally { setBusy(false); }
+  };
+  const unanswered = officer && me.assignment_status === 'assigned' && s.status !== 'cancelled' && new Date(s.ends_at) > new Date();
   const opens = clockOpensAt(s.starts_at);
   const canClock = Date.now() >= opens.getTime();
   const ins = me.clock.filter((e) => e.kind === 'in' && e.status !== 'rejected');
@@ -227,13 +233,17 @@ function Header({ s, me, officer, signed, live: onShift, phone }) {
             : <span className="text-footnote font-semibold text-muted">Clock-in opens at <span className="num">{time(opens)}</span>{dayLabel(opens) !== dayLabel(new Date()) && ` ${dayLabel(opens)}`}</span>)}
         </div>
       )}
-      {officer && me.assignment_status === 'accepted' && !ins.length && new Date(s.starts_at) > new Date() && (
-        <>
-          <Button className="mt-2 w-full" variant="ghost" icon={X} onClick={() => setDeclining(true)}>I can't work this</Button>
-          <DeclineSheet s={declining ? { ...s, assignment_id: me.assignment_id, assignment_status: 'accepted' } : null} phone={phone}
-            onClose={() => setDeclining(false)} onDone={() => { setDeclining(false); nav('/officer', { replace: true }); }} />
-        </>
+      {unanswered && (
+        <div className="mt-3 flex gap-2 border-t border-sep pt-3">
+          <Button className="flex-1" disabled={busy} onClick={accept}>Accept shift</Button>
+          <Button className="flex-1" variant="secondary" disabled={busy} onClick={() => setDeclining(true)}>Decline</Button>
+        </div>
       )}
+      {officer && me.assignment_status === 'accepted' && !ins.length && new Date(s.starts_at) > new Date() && (
+        <Button className="mt-2 w-full" variant="ghost" icon={X} onClick={() => setDeclining(true)}>I can't work this</Button>
+      )}
+      {officer && <DeclineSheet s={declining ? { ...s, assignment_id: me.assignment_id, assignment_status: me.assignment_status } : null} phone={phone}
+        onClose={() => setDeclining(false)} onDone={() => { setDeclining(false); nav('/officer', { replace: true }); }} />}
     </div>
   );
 }

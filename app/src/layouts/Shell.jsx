@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 're
 import { Bell, BellOff, BookOpen, Briefcase, ChevronRight, ExternalLink, Globe, LogOut, MessagesSquare, MoreHorizontal, Newspaper, Pin } from 'lucide-react';
 import { api } from '../api.js';
 import { startRealtime, useRealtime, useRealtimeConnected } from '../realtime.js';
-import { portalLink, useAuth } from '../auth.jsx';
+import { HOME, portalLink, useAuth } from '../auth.jsx';
 import { VenueChip } from '../venue.jsx';
 import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, usePageHeader, useScrollMemory } from '../ui/index.jsx';
 import { NAV, ROLE_LABEL } from './nav.js';
@@ -210,8 +210,31 @@ function ManagerButton() {
   return <Button variant="secondary" size="sm" icon={Briefcase} disabled={busy} onClick={go}>Manager</Button>;
 }
 
+// A manager who also works shifts: opening the app (or coming back to it) on the manager home while due on shift
+// lands on "My shifts", the same rule as at sign-in. Checked at most every 10 minutes; never mid-task.
+function useLandingCheck(user) {
+  const { switchSide } = useAuth();
+  const nav = useNavigate();
+  const loc = useLocation();
+  const atHome = loc.pathname === HOME[user.role] || loc.pathname === `${HOME[user.role]}/`;
+  const last = useRef(0);
+  useEffect(() => {
+    if (!user.dual || user.role === 'officer') return undefined;
+    const check = async () => {
+      if (!atHome || document.visibilityState !== 'visible' || Date.now() - last.current < 600000) return;
+      last.current = Date.now();
+      const { side } = await api('auth.landing').catch(() => ({}));
+      if (side === 'officer') { await switchSide('officer'); nav('/officer', { replace: true }); }
+    };
+    check();
+    document.addEventListener('visibilitychange', check);
+    return () => document.removeEventListener('visibilitychange', check);
+  }, [user.dual, user.role, atHome]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 export default function Shell() {
   const { user, signOut } = useAuth();
+  useLandingCheck(user);
   const isMgr = ['company', 'security'].includes(user.role);
   const opsCount = useApi('ops.count', {}, { poll: 30000, skip: !isMgr });
   const settings = useApi('settings.get', {});
@@ -432,7 +455,7 @@ export default function Shell() {
         </main>
       </div>
 
-      {isOfficer && <ShiftBar />}
+      {(isOfficer || user.dual) && <ShiftBar />}
       {/* Mobile tab bar (and officer tab bar on all sizes) */}
       <nav aria-label="Main" className={cx('fixed inset-x-0 bottom-0 z-40 border-t border-line/70 bg-surface/85 backdrop-blur-xl safe-b safe-x', !isOfficer && 'lg:hidden')}>
         <div className="mx-auto flex max-w-2xl items-stretch justify-around px-2">

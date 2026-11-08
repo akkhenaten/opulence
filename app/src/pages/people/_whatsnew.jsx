@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LogOut, Mail, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
+  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Nfc, Palette, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-08', icon: Nfc, title: 'Fewer dead ends: tag taps, shift alerts and links that land in the right place', image: 'streamline-fixes',
+    lede: 'The first part of tidying up the whole app: small fixes so each tap goes straight to the thing you need.',
+    points: ['Managers who also work shifts: tapping the NFC tag clocks you in when you are due on shift there, even from the manager side, and opening the app before a shift takes you to My shifts. Your shift bar shows on the manager side too', 'Officers: a new shift alert opens that shift, with Accept and Decline right there', 'Compliance: Open in Today now opens that exact card', "Venues: 'timesheets to sign' opens the list filtered to the ones to sign", 'Old settings links and wording fixed, and an unused venue chat switch removed'],
+  },
   {
     month: 'November 2026', date: '2026-11-08', icon: GraduationCap, title: 'Orb knows security, and Orb settings are in Settings', image: 'orb-knowledge',
     lede: "Orb now has a library of UK security know-how, with Scotland first, so it can answer questions about the law and good practice as well as the app. Your house rules are filled in to start with, and Orb's settings have moved to where you'd look for them.",

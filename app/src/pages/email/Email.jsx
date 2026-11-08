@@ -111,7 +111,7 @@ function Inbox({ acc, accounts, folder, current, onAccount, onFolder, onOpen, on
         <div className="mb-3 flex items-center gap-1">
           <h1 className="min-w-0 flex-1 text-title1 font-bold">Email</h1>
           <IconButton icon={RefreshCw} label="Check for new email" onClick={refresh} disabled={busy} />
-          <IconButton icon={Settings} label="Email settings" to="/company/settings?tab=email" />
+          <IconButton icon={Settings} label="Email settings" to="/company/settings?tab=notifications&part=email" />
           <IconButton icon={SquarePen} tone="solid" label="New email" onClick={onCompose} disabled={!!reconnect} />
         </div>
         {accounts.length > 1 && (

@@ -1332,15 +1332,14 @@ Answer in short, plain British business English. Use the officers' and venues' n
   // ----- Venues -----
   'venueRequests.create': def(['venue', 'company'], async (b, { user }) => {
     required(b, 'text');
-    const s = await getSettings();
-    if (!b.draft && !jobOn(s, 'venue_requests')) fail(400, 'Chat requests are switched off — please use Cover requests');
+    // Reads a chat message into a cover request form for the person to check; nothing is filed from here
+    if (!b.draft) fail(400, 'Use Request cover to ask for staff');
     const scope = await venueScope(user);
     const mine = await q('SELECT id, name FROM venues WHERE ($1::uuid[] IS NULL OR id = ANY($1)) AND active ORDER BY name', [scope]);
     need(scope === null || scope.length, 'No venue linked to your account');
     // The venue they picked, their only venue, or the one their message names — never a guess
     const venueId = b.venue_id || (scope?.length === 1 ? scope[0] : pickVenueFromText(b.text, mine)?.id) || null;
     if (venueId) await assertVenue(user, venueId);
-    if (!venueId && !b.draft) return { status: 'question', reply: `Which venue is this for? ${mine.map((v) => v.name).join(', ')}` };
     const venue = venueId ? await one('SELECT id, name FROM venues WHERE id = $1', [venueId]) : { id: null, name: 'a client venue' };
     const roles = await q('SELECT code, name FROM roles ORDER BY name');
     const upcoming = !venueId ? [] : await q(
@@ -1356,52 +1355,23 @@ If the date, times or number of officers are missing or ambiguous, use intent "u
     const messages = [...history, { role: 'user', content: String(b.text).slice(0, 2000) }];
     while (messages.length && messages[0].role !== 'user') messages.shift();
     const { input: parsed, credits } = await extract({ model: HAIKU, system, messages, tool: REQUEST_TOOL, max_tokens: 800 });
-    // Draft: read a message into a cover request form for the person to check — nothing is filed
-    if (b.draft) {
-      const codes = roles.map((r) => r.code);
-      const okRole = (r) => (codes.includes(r) ? r : codes.includes('door') ? 'door' : codes[0]);
-      const hhmm = (t) => (/^\d{1,2}:\d{2}$/.test(t || '') ? t.padStart(5, '0') : '');
-      const rec = parsed?.recurrence;
-      if (rec?.days?.length) {
-        return { status: 'draft', credits, draft: {
-          venue_id: venueId, kind: 'recurring', role: okRole(rec.role || parsed.shifts?.[0]?.role), frequency: rec.frequency === 'fortnightly' ? 'fortnightly' : 'weekly',
-          days: rec.days.filter((d) => d.dow >= 1 && d.dow <= 7).map((d) => ({ dow: d.dow, start: hhmm(d.start) || '21:00', end: hhmm(d.end) || '03:00', headcount: Math.max(1, d.headcount || 1) })),
-          start_date: /^\d{4}-\d{2}-\d{2}$/.test(rec.start_date || '') && rec.start_date >= today ? rec.start_date : today,
-          end_date: /^\d{4}-\d{2}-\d{2}$/.test(rec.end_date || '') ? rec.end_date : '', notes: parsed.summary || '',
-        } };
-      }
-      const x = parsed?.shifts?.[0];
+    const codes = roles.map((r) => r.code);
+    const okRole = (r) => (codes.includes(r) ? r : codes.includes('door') ? 'door' : codes[0]);
+    const hhmm = (t) => (/^\d{1,2}:\d{2}$/.test(t || '') ? t.padStart(5, '0') : '');
+    const rec = parsed?.recurrence;
+    if (rec?.days?.length) {
       return { status: 'draft', credits, draft: {
-        venue_id: venueId, kind: 'one_off', role: okRole(x?.role), date: /^\d{4}-\d{2}-\d{2}$/.test(x?.date || '') && x.date >= today ? x.date : '',
-        start: hhmm(x?.start), end: hhmm(x?.end), headcount: Math.max(1, x?.headcount || 1), notes: x?.notes || parsed?.summary || '',
+        venue_id: venueId, kind: 'recurring', role: okRole(rec.role || parsed.shifts?.[0]?.role), frequency: rec.frequency === 'fortnightly' ? 'fortnightly' : 'weekly',
+        days: rec.days.filter((d) => d.dow >= 1 && d.dow <= 7).map((d) => ({ dow: d.dow, start: hhmm(d.start) || '21:00', end: hhmm(d.end) || '03:00', headcount: Math.max(1, d.headcount || 1) })),
+        start_date: /^\d{4}-\d{2}-\d{2}$/.test(rec.start_date || '') && rec.start_date >= today ? rec.start_date : today,
+        end_date: /^\d{4}-\d{2}-\d{2}$/.test(rec.end_date || '') ? rec.end_date : '', notes: parsed.summary || '',
       } };
     }
-    if (parsed?.intent === 'unclear' || !parsed) return { status: 'question', reply: parsed?.question || 'Could you tell us the date, start and finish times, and how many officers you need?' };
-    const v = validateRequest(parsed, { today, roles: roles.map((r) => r.code), shiftIds: upcoming.map((x) => x.id) });
-    if (!v.ok) return { status: 'question', reply: v.errors.join(' ') };
-    const fullText = [...history.filter((m) => m.role === 'user').map((m) => m.content), b.text].join('\n');
-    const req = await insert('venue_requests', { venue_id: venueId, user_id: user.id, text: fullText, parsed });
-    const lines = v.shifts.map((x) => {
-      if (parsed.intent === 'cancel') { const u = upcoming.find((y) => y.id === x.shift_id); return `cancel ${fmtDate(u.starts_at)} ${fmtTime(u.starts_at)}`; }
-      return `${x.headcount} × ${roles.find((r) => r.code === x.role)?.name || x.role} ${fmtDate(x.date)} ${x.start}–${x.end}`;
-    });
-    const it = await createItem({
-      kind: 'venue_request', venue_id: venueId, title: `${venue.name}: ${parsed.intent === 'new' ? 'new shifts' : parsed.intent === 'change' ? 'change a shift' : 'cancel a shift'}`,
-      reason: `${lines.join(', ')}. Asked by ${user.name}.`,
-      payload: { request_id: req.id, intent: parsed.intent, shifts: v.shifts.map((x, i) => ({ ...x, role_name: roles.find((r) => r.code === x.role)?.name, label: lines[i] })), text: fullText },
-      dedupe: `vreq:${req.id}`,
-    });
-    await q('UPDATE venue_requests SET item_id = $2 WHERE id = $1', [req.id, it.id]);
-    await logActivity('venue_request', `Read a request from ${venue.name}: ${lines.join(', ')}`, { ref_type: 'venue_request', ref_id: req.id, venue_id: venueId, credits });
-    return { status: 'requested', reply: `Thanks — request sent to Orb: ${lines.join(', ')}. We'll confirm shortly.`, request: req };
-  }),
-
-  'venueRequests.list': def(['venue', 'company', 'security'], async (_b, { user }) => {
-    const scope = await venueScope(user);
-    return q(
-      `SELECT r.id, r.text, r.parsed, r.status, r.decline_reason, r.created_at, v.name AS venue_name, ${userName('u')} AS user_name FROM venue_requests r
-         JOIN venues v ON v.id = r.venue_id LEFT JOIN users u ON u.id = r.user_id
-        WHERE ($1::uuid[] IS NULL OR r.venue_id = ANY($1)) ORDER BY r.created_at DESC LIMIT 50`, [scope]);
+    const x = parsed?.shifts?.[0];
+    return { status: 'draft', credits, draft: {
+      venue_id: venueId, kind: 'one_off', role: okRole(x?.role), date: /^\d{4}-\d{2}-\d{2}$/.test(x?.date || '') && x.date >= today ? x.date : '',
+      start: hhmm(x?.start), end: hhmm(x?.end), headcount: Math.max(1, x?.headcount || 1), notes: x?.notes || parsed?.summary || '',
+    } };
   }),
 
   'feedback.pending': def(['venue'], async (_b, { user }) => {

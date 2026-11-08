@@ -13,6 +13,8 @@ import { faceMatch } from '../lib/face.mjs';
 import { getSettings } from './settings.mjs';
 import { MGR, CO, def } from './_def.mjs';
 import { officerName, userName } from '../lib/names.mjs';
+import { ownOfficer } from '../lib/auth.mjs';
+import { ownShiftDue, tapSide } from '../lib/shiftDue.mjs';
 import QRCode from 'qrcode';
 
 const SELFIE_DAYS = 90;
@@ -225,9 +227,11 @@ export const actions = {
     // Each tap carries a counter that only goes up, so a copied link works at most once
     const fresh = await one("UPDATE venue_tags SET last_counter = $2, last_tap_at = now() WHERE id = $1 AND last_counter < $2 AND status = 'active' RETURNING id", [tag.id, sun.counter]);
     if (!fresh) fail(400, tag.status === 'paused' ? 'This tag is paused. Scan the QR code instead.' : 'This tap link was already used. Tap the tag again.');
-    if (manager) return { checked: true, venue_id: tag.venue_id, venue_name: tag.venue_name, tag: { id: tag.id, label: tag.label } };
+    // A manager who also works shifts and is due here clocks in, even from the manager side
+    const due = manager && user.dual && await ownShiftDue(ownOfficer(user), tag.venue_id);
+    if (tapSide({ manager, dual: user.dual, due }) === 'check') return { checked: true, venue_id: tag.venue_id, venue_name: tag.venue_name, tag: { id: tag.id, label: tag.label } };
     const tap = await one("INSERT INTO tag_taps (tag_id, user_id, counter, expires_at) VALUES ($1,$2,$3, now() + interval '10 minutes') RETURNING id, expires_at", [tag.id, user.id, sun.counter]);
-    return { tap_id: tap.id, expires_at: tap.expires_at, venue_id: tag.venue_id, venue_name: tag.venue_name };
+    return { tap_id: tap.id, expires_at: tap.expires_at, venue_id: tag.venue_id, venue_name: tag.venue_name, side: 'officer' };
   }),
 
   'venues.tags': def(MGR, async (b, { user }) => {

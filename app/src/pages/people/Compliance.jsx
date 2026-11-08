@@ -47,7 +47,7 @@ export default function Compliance() {
       )}>
       <Load q={q} skeleton="rows">
         {(d) => <Body d={d} gd={gq.data} company={company} reloadGrace={() => { gq.reload(); q.reload(); }} view={view} setView={(v) => setUrl({ view: v })} sev={sev} setSev={(v) => setUrl({ severity: v })} area={area} setArea={(v) => setUrl({ area: v })} dismiss={dismiss} busy={busy}
-          openCard={() => nav(`/${user.role}`)} openStaff={(id) => nav(`/${user.role}/staff/${id}?tab=documents`)}
+          openCard={(id) => nav(id ? `/${user.role}?card=${id}` : `/${user.role}`)} openStaff={(id) => nav(`/${user.role}/staff/${id}?tab=documents`)}
           openRtw={company ? (id) => nav(`/${user.role}/staff/${id}?tab=compliance&rtw=check`) : null} />}
       </Load>
       {preview && <DigestPreview onClose={() => setPreview(false)} />}
@@ -194,7 +194,7 @@ function Body({ d, gd, company, reloadGrace, view, setView, sev, setSev, area, s
                 )}
                 {g.card_id && (
                   <div className="mt-2 flex justify-end">
-                    <Button size="sm" variant="soft" onClick={openCard}>Open in Today</Button>
+                    <Button size="sm" variant="soft" onClick={() => openCard(g.card_id)}>Open in Today</Button>
                   </div>
                 )}
               </Tile>
@@ -213,7 +213,7 @@ function DigestPreview({ onClose }) {
       footer={<Button variant="secondary" onClick={onClose}>Close</Button>}>
       {!q.data ? <Spinner /> : (
         <>
-          <p className="mb-2 text-footnote text-muted">Subject: {q.data.subject}. Sent to company managers after the weekly check (turn it off in Orb settings, under … on Today).</p>
+          <p className="mb-2 text-footnote text-muted">Subject: {q.data.subject}. Sent to company managers after the weekly check (turn it off in Settings → Orb).</p>
           <iframe title="Email preview" srcDoc={q.data.html} className="h-[560px] max-h-full w-full rounded-2xl border border-sep bg-paper" />
         </>
       )}

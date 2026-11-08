@@ -182,7 +182,7 @@ function Body({ d, name }) {
 function NeedsYou({ d, toSign }) {
   const late = (d.live.late || 0) + (d.live.no_show || 0);
   const items = [
-    toSign > 0 && { key: 'sign', to: '/venue/timesheets', icon: ClipboardCheck, tone: 'bg-blue-soft text-blue', title: `${toSign} timesheet${toSign === 1 ? '' : 's'} to sign`, sub: 'Check the hours and sign' },
+    toSign > 0 && { key: 'sign', to: '/venue/timesheets?show=review', icon: ClipboardCheck, tone: 'bg-blue-soft text-blue', title: `${toSign} timesheet${toSign === 1 ? '' : 's'} to sign`, sub: 'Check the hours and sign' },
     late > 0 && { key: 'late', to: '/venue/live', icon: Radio, tone: 'bg-red-soft text-red', title: `${late} officer${late === 1 ? '' : 's'} late or not arrived`, sub: 'See who is on site now' },
     d.invoices.count > 0 && { key: 'pay', to: '/venue/invoices', icon: ReceiptText, tone: 'bg-amber-soft text-amber', title: `${d.invoices.count} invoice${d.invoices.count === 1 ? '' : 's'} to pay`, sub: `${money(d.invoices.outstanding)} outstanding` },
   ].filter(Boolean);

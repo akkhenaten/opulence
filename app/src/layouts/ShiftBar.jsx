@@ -9,11 +9,13 @@ import { clockOpensAt } from '../pages/officer/_parts.jsx';
 const HIDE = [/^\/officer\/?$/, /^\/officer\/clock/, /^\/officer\/incidents\/new/, /^\/guide\//];
 
 /* The officer's shift in one bar above the tab bar, on every page, from the moment clock-in opens until they clock out:
-   where they are in the shift, the one button that comes next, and Report incident and Emergency one tap away. */
+   where they are in the shift, the one button that comes next, and Report incident and Emergency one tap away.
+   A manager who also works shifts sees it on the manager side too; its buttons open "My shifts". */
 export default function ShiftBar() {
   const { user } = useAuth();
   const loc = useLocation();
-  const clock = useApi('clock.status', {}, { poll: 60000, skip: !user.officer_id });
+  const mgrSide = user.role !== 'officer';
+  const clock = useApi('clock.status', mgrSide ? { _as: 'officer' } : {}, { poll: 60000, skip: mgrSide ? !user.self_officer_id : !user.officer_id });
   const settings = useApi('settings.get', {});
   const cur = clock.data?.current;
   const now = Date.now();
@@ -38,7 +40,7 @@ export default function ShiftBar() {
 
   return (
     <div role="region" aria-label="Your shift"
-      className="fixed inset-x-0 z-40 border-t border-line/70 bg-surface/95 backdrop-blur-xl safe-x [bottom:calc(58px+env(safe-area-inset-bottom))]">
+      className={cx('fixed inset-x-0 z-40 border-t border-line/70 bg-surface/95 backdrop-blur-xl safe-x [bottom:calc(58px+env(safe-area-inset-bottom))]', mgrSide && 'lg:bottom-0 lg:left-[var(--sidebar-w)]')}>
       <div className="mx-auto flex h-[var(--shiftbar-h)] max-w-2xl items-center gap-2 px-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap text-caption font-semibold uppercase tracking-wide text-muted">

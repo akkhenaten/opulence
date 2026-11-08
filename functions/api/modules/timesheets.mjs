@@ -378,9 +378,4 @@ export const actions = {
           AND ($1::uuid[] IS NULL OR s.venue_id = ANY($1))
         ORDER BY s.starts_at DESC LIMIT 500`, [scope]);
   }),
-
-  'timesheets.venueCheck': def(['venue'], async (b, { user }) => {
-    await assertVenue(user, b.venue_id);
-    return { ok: true };
-  }),
 };

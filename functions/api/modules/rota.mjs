@@ -109,12 +109,15 @@ async function cancelShift(s, user, reason) {
   await audit(user, 'shift.cancel', 'shift', s.id, { reason });
 }
 
+// The shift page itself, where the officer can accept or decline
+export const assignedLink = (shift) => (shift?.id ? `/officer/shifts/${shift.id}` : '/officer/shifts');
+
 async function notifyAssigned(assignment, shift, kind = 'assigned') {
   const title = kind === 'assigned' ? 'New shift assigned' : kind === 'approved' ? 'Shift request approved' : 'Shift updated';
   // A change to a shift in the next 48 hours is urgent
   const soon = kind === 'changed' && new Date(shift.starts_at) - Date.now() < 48 * 3600e3;
   await notify(await officerUser(assignment.officer_id), {
-    kind: 'shift', title, body: `${shift.venue_name} · ${fmtDateTime(shift.starts_at)} – ${fmtTime(shift.ends_at)}`, link: '/officer/shifts', email: true, ref: `asg:${assignment.id}`, tier: soon ? 'urgent' : null,
+    kind: 'shift', title, body: `${shift.venue_name} · ${fmtDateTime(shift.starts_at)} – ${fmtTime(shift.ends_at)}`, link: assignedLink(shift), email: true, ref: `asg:${assignment.id}`, tier: soon ? 'urgent' : null,
   });
 }
 

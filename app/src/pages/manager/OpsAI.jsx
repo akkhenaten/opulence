@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Ban, Check, ClipboardList, History, ListChecks, MapPin, Pencil, Sparkles, Star, User, X } from 'lucide-react';
 import {
   ActionBar, Button, Callout, cx, MoreMenu, dateTime, dayLabel, Empty, hours, Input, Load, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useUrlState,
@@ -29,7 +29,7 @@ const ITEM_STATUS = { approved: 'Offers sent', done: 'Done', rejected: 'Rejected
  * title / pill replace "Orb" and "N to approve"; before / after go above and below the cards (Today's other to-dos), and
  * empty replaces "All clear" when there is nothing at all.
  */
-export function Inbox({ onChange, compact, slim, scroll, n, reloadKey, title = 'Orb', pill, before, after, empty }) {
+export function Inbox({ onChange, compact, slim, scroll, n, reloadKey, title = 'Orb', pill, before, after, empty, focus }) {
   const [view, setView] = useState('pending');
   const q = useApi('ops.inbox', { status: view }, { poll: 30000 });
   const reload = () => { q.reload(); onChange?.(); };
@@ -98,7 +98,7 @@ export function Inbox({ onChange, compact, slim, scroll, n, reloadKey, title = '
       {view === 'pending' && before}
       <Load q={q}>{(rows) => (rows.length ? (
         <div className={compact ? 'space-y-3' : 'grid grid-cols-1 gap-3 lg:grid-cols-2'}>
-          {rows.map((it) => <ItemCard key={it.id} it={it} onDone={reload} compact={compact}
+          {rows.map((it) => <ItemCard key={it.id} it={it} onDone={reload} compact={compact} focus={focus === it.id}
             select={selecting ? { on: sel.includes(it.id), can: !kind || kind === it.kind, toggle: () => toggle(it) } : null} />)}
         </div>
       ) : view === 'pending' && (before || after) ? null : view === 'pending' && empty ? empty : (
@@ -125,9 +125,12 @@ export function Inbox({ onChange, compact, slim, scroll, n, reloadKey, title = '
   );
 }
 
-function ItemCard({ it, onDone, select, compact }) {
+function ItemCard({ it, onDone, select, compact, focus }) {
   const { base, user } = useBase();
-  const [more, setMore] = useState(false);
+  const [more, setMore] = useState(!!focus);
+  // Opened from a link to this card (say, Compliance → Open in Today): scroll to it and show it in full
+  const el = useRef(null);
+  useEffect(() => { if (focus) setTimeout(() => el.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150); }, [focus]);
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const [edit, setEdit] = useState(false);
@@ -170,7 +173,8 @@ function ItemCard({ it, onDone, select, compact }) {
   };
 
   return (
-    <Tile className={cx('flex flex-col transition', select && !select.can && 'opacity-50', select?.on && 'ring-2 ring-blue')}>
+    <div ref={el} className="scroll-mt-24">
+    <Tile className={cx('flex flex-col transition', select && !select.can && 'opacity-50', (select?.on || focus) && 'ring-2 ring-blue')}>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         {select && (
           <input type="checkbox" aria-label={`Select ${it.title}`} className="h-5 w-5 shrink-0 cursor-pointer accent-[var(--color-blue)] disabled:cursor-not-allowed"
@@ -224,6 +228,7 @@ function ItemCard({ it, onDone, select, compact }) {
       {feedback && <FeedbackDecide it={it} busy={busy} onClose={() => setFeedback(false)} onSave={(edits) => decide('approve', { edits }).then(() => setFeedback(false))} />}
       <RejectSheet open={rejecting} busy={busy} dismiss={manual || it.kind === 'incident'} cover={it.kind === 'cover'} venue={it.kind === 'venue_request' && p.request_id} setup={it.kind === 'venue_setup'} onClose={() => setRejecting(false)} onReject={(reason, then) => decide('reject', { reason, then })} />
     </Tile>
+    </div>
   );
 }
 
@@ -553,7 +558,6 @@ const JOBS = [
   { k: 'pack', label: 'Chase unsigned site packs before shifts', hint: 'Officers who can\'t clock in until they sign: chased, then you are told, then cover is prepared' },
   { k: 'cover', label: 'Find cover', hint: 'Shortlists free officers for gaps and no-shows' },
   { k: 'feedback', label: 'Ask venues for feedback', hint: 'After each shift, with one reminder' },
-  { k: 'venue_requests', label: 'Venue request chat', hint: 'Venues ask for staff in plain words' },
   { k: 'reconcile', label: 'Check hours against pay and invoices', hint: 'Weekly, and after each pay run or invoice run' },
   { k: 'chat', label: 'Orb chat for managers', hint: 'For managers' },
   { k: 'orb_voice', label: 'Talk to Orb', hint: 'Managers can dictate or talk to Orb by voice' },
@@ -637,7 +641,7 @@ export function OpsSettings() {
         <ModuleUsage />
         <div className="flex flex-wrap gap-2">
           <Button busy={busy} onClick={save}>Save settings</Button>
-          <Button variant="secondary" busy={running} onClick={() => runNow(() => api('ops.runNow', { reconcile: true }), 'Checks run — see the Board tab')}>Run checks now</Button>
+          <Button variant="secondary" busy={running} onClick={() => runNow(() => api('ops.runNow', { reconcile: true }), 'Checks run — new cards are on Today')}>Run checks now</Button>
           <Button variant="secondary" busy={checking} onClick={() => runCheck(() => api('ops.complianceRun', {}), (r) => `Checked ${r.checked} officers · ${r.attention} need attention`).catch(() => {})}>Run compliance check</Button>
         </div>
       </div>

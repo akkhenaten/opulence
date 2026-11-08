@@ -28,7 +28,7 @@ export default function Shifts() {
   const pull = usePullRefresh(() => Promise.all([open.reload(), ops.reload()]), !['mine', 'calendar'].includes(tab) && !!user.officer_id);
 
   return (
-    <Page title="Shifts" actions={<><Button size="sm" variant="secondary" icon={CalendarOff} to="/officer/time-off?tab=availability">Availability</Button><MoreMenu items={[{ label: 'Clock history', icon: History, to: '/officer/clock' }]} /></>}>
+    <Page title="Shifts" actions={<><Button size="sm" variant="secondary" icon={CalendarOff} to="/officer/time-off?tab=availability">Availability</Button><MoreMenu items={[{ label: 'Past shifts', icon: History, to: '/officer/shifts?tab=mine' }]} /></>}>
       {pull}
       {!user.officer_id ? <NotLinked /> : (
         <>
@@ -146,7 +146,7 @@ function Open({ q }) {
               <ShiftCard key={s.id} s={s} status={s.my_status === 'requested' ? 'Requested' : `${left} place${left === 1 ? '' : 's'}`} statusTone={s.my_status === 'requested' ? 'blue' : 'grey'}>
                 {s.notes && <p className="mt-2 text-footnote text-muted">{s.notes}</p>}
                 {s.my_status === 'requested' ? (
-                  <p className="mt-3 text-footnote font-semibold text-blue">Waiting for the office to approve. You can withdraw it from My shifts.</p>
+                  <p className="mt-3 text-footnote font-semibold text-blue">Waiting for the office to approve. You can withdraw it from List.</p>
                 ) : (
                   <Button size="lg" icon={Hand} className="mt-3 w-full" busy={busy && pending === s.id} disabled={busy} onClick={() => request(s)}>Request shift</Button>
                 )}

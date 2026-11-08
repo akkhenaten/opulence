@@ -9,7 +9,7 @@ import { AuthCard } from '../auth/AuthPages.jsx';
 // An NFC tag at a venue opens /t?p=…&c=… on the phone. Officers go on to clock in with the tag counted;
 // a manager pairing a tag sees it linked to the venue.
 export default function TagTap() {
-  const { user, ready } = useAuth();
+  const { user, ready, switchSide } = useAuth();
   const [sp] = useSearchParams();
   const nav = useNavigate();
   const [st, setSt] = useState({ loading: true });
@@ -22,8 +22,12 @@ export default function TagTap() {
     sent.current = true;
     if (!p || !c) { setSt({ error: 'This tag link is incomplete. Tap the tag again, or scan the QR code.' }); return; }
     api('clock.tagTap', { p, c })
-      .then((r) => {
-        if (r.tap_id) nav(`/officer/clock?tap=${r.tap_id}`, { replace: true });
+      .then(async (r) => {
+        if (r.tap_id) {
+          // A manager who also works shifts and is due here goes straight to clocking in
+          if (user.role !== 'officer') await switchSide('officer');
+          nav(`/officer/clock?tap=${r.tap_id}`, { replace: true });
+        }
         else setSt({ result: r });
       })
       .catch((e) => setSt({ error: e.message }));
