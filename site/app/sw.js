@@ -1,5 +1,5 @@
 // App-shell cache only: API calls and private files always go to the network.
-const CACHE = 'orb-shell-v6';
+const CACHE = 'orb-shell-v7';
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/app/', '/app/favicon-64.png', '/app/icon-192.png', '/app/badge-96.png']))); self.skipWaiting(); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => {
@@ -21,7 +21,9 @@ self.addEventListener('push', (e) => {
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
   const icon = typeof d.badge === 'number' && self.navigator.setAppBadge ? self.navigator.setAppBadge(d.badge).catch(() => {}) : null;
   e.waitUntil(Promise.all([icon, self.registration.showNotification(d.title || 'Orb Security', {
-    body: d.body || '', icon: '/app/icon-192.png', badge: '/app/badge-96.png', data: { link: d.link || '' }, tag: d.tag, requireInteraction: d.tier === 'urgent',
+    body: d.body || '', icon: '/app/icon-192.png', badge: '/app/badge-96.png', data: { link: d.link || '' }, requireInteraction: d.tier === 'urgent',
+    // Never silent: the phone's own sound and vibration in normal mode, quiet on silent or Do Not Disturb
+    silent: false, vibrate: [200, 100, 200], ...(d.tag ? { tag: d.tag, renotify: true } : {}),
   })]));
 });
 self.addEventListener('notificationclick', (e) => {
