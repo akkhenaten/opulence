@@ -25,9 +25,11 @@ import { officerDisplay } from '../lib/names.mjs';
 import { compliance, graceOn, GRACE_MAX_DAYS } from './officers.mjs';
 import { grantGrace, renewGrace, graceAsk } from './grace.mjs';
 import { docFaceMatch, docPairMatch } from '../lib/face.mjs';
-import { autoApply, fitOf, nameOk, numberAgrees, PASSPORT_RTW, refile, SMALL_GAP } from '../lib/docAuto.mjs';
+import { autoApply, checkRegister, fitOf, nameOk, numberAgrees, PASSPORT_RTW, refile, SMALL_GAP } from '../lib/docAuto.mjs';
 import { cardSet, filed, mergedRead, misfiledAs, passportSet } from '../lib/docSets.mjs';
 import { cleanShareCode, SHARE_CODE_OLD } from '../lib/rtw.mjs';
+import { autoCheckEnabled } from '../lib/siaChecker.mjs';
+import { houseRulesBlock } from '../lib/houseRules.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const NO_CLOCK_IN = "NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')";
@@ -174,6 +176,11 @@ const unassign = (shifts) => ({ kind: 'unassign', label: `Take them off ${shifts
 const correct = (field, from, to, label) => ({ kind: 'correct', label, params: { field, from, to }, company_only: true, default: false });
 const remindTraining = (o, t, refresher = false) => ({ kind: 'remind', label: `Remind ${o.first_name} to ${refresher ? 'redo' : 'complete'} "${t.title}"`, params: { course_id: t.course_id, what: `"${t.title}"`, refresher }, default: true });
 const recheck = (d) => ({ kind: 'recheck', label: `Mark "${d.title}" for re-check`, params: { doc_id: d.id }, default: false });
+// A manager looked and it's fine: the document is marked verified and this flag stays quiet until the scan changes
+const verifyDoc = (o, d) => ({ kind: 'verify_doc', label: `I've checked "${d.title}": it's ${o.first_name}'s, mark it verified`, params: { doc_id: d.id }, company_only: true, default: false });
+const clearer = (o, d) => remind(o, d.kind, `a clearer photo of their ${docLabel(d.kind)}`);
+const siaCheck = (on = true) => ({ kind: 'sia_check', label: 'Check the SIA register now and save what it shows', params: {}, default: on });
+const autoSia = () => siaCheckOn() && autoCheckEnabled();
 
 // Why Orb couldn't verify right to work from what's uploaded, for the "not verified" card
 function rtwWhy(r, d) {
@@ -266,7 +273,7 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
       key: 'register:sia', severity: 'urgent', sig: sig(o.sia_status, o.sia_last_verified_at),
       title: `SIA register shows the licence as ${STATUS_LABEL[o.sia_status]}`,
       detail: `Checked ${fmtDate(o.sia_last_verified_at)}. They can't be rostered for licensed work until a check shows Active.${siaShifts.length ? ` Rostered on ${plural(siaShifts.length, 'licensed shift')}.` : ''}`,
-      shift: siaShifts[0], actions: [...(siaShifts.length ? [{ ...unassign(siaShifts), default: true }] : []), remind(o, 'sia', 'proof their SIA licence is active')],
+      shift: siaShifts[0], actions: [...(siaShifts.length ? [{ ...unassign(siaShifts), default: true }] : []), remind(o, 'sia', 'proof their SIA licence is active'), ...(autoSia() ? [siaCheck(false)] : [])],
     });
   } else if (needsLicence && o.sia_number && o.status !== 'applicant') {
     const since = daysSinceCheck(o.sia_last_verified_at, today);
@@ -274,8 +281,8 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
       add({
         key: 'recheck:sia', severity: siaShifts.length ? near(siaShifts) : 'advisory', sig: sig(o.sia_last_verified_at),
         title: since === null ? 'SIA licence never checked on the register' : `SIA register check is ${plural(since, 'day')} old`,
-        detail: `Use "Verify SIA licence" on their profile.${siaShifts.length ? ` Rostered on ${plural(siaShifts.length, 'licensed shift')}.` : ''}`,
-        shift: siaShifts[0], actions: [],
+        detail: `${autoSia() ? 'Orb can check the register now, or use' : 'Use'} "Verify SIA licence" on their profile.${siaShifts.length ? ` Rostered on ${plural(siaShifts.length, 'licensed shift')}.` : ''}`,
+        shift: siaShifts[0], actions: autoSia() ? [siaCheck()] : [],
       });
     }
   }
@@ -284,14 +291,14 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
   if (!o.rtw_verified && codeDoc) {
     const age = days(londonDate(codeDoc.created_at), today);
     if (age > SHARE_CODE_OLD) {
-      add({ key: 'rtw:code_old', severity: shifts.length ? near(shifts) : 'soon', sig: sig(codeDoc.id), title: `Right to work share code is ${plural(age, 'day')} old — ask for a new one`, detail: 'Share codes stop working after 90 days.', shift: shifts[0], actions: [remind(o, 'rtw', 'a new right to work share code')] });
+      add({ key: 'rtw:code_old', severity: shifts.length ? near(shifts) : 'soon', sig: sig(codeDoc.id), title: `Right to work share code is ${plural(age, 'day')} old — ask for a new one`, detail: 'Share codes stop working after 90 days.', shift: shifts[0], actions: [remind(o, 'rtw', 'a new right to work share code'), ...(shifts.length ? [unassign(shifts)] : [])] });
     } else {
-      add({ key: 'rtw:code_ready', severity: shifts.length ? near(shifts) : 'soon', sig: sig(codeDoc.id), title: 'Right to work share code ready to check on GOV.UK', detail: `Share code ${cleanShareCode(codeDoc.number)}. Open their profile and tap Check right to work.${shifts.length ? ` Rostered on ${plural(shifts.length, 'shift')}.` : ''}`, shift: shifts[0], actions: [] });
+      add({ key: 'rtw:code_ready', severity: shifts.length ? near(shifts) : 'soon', sig: sig(codeDoc.id), title: 'Right to work share code ready to check on GOV.UK', detail: `Share code ${cleanShareCode(codeDoc.number)}. Open their profile and tap Check right to work.${shifts.length ? ` Rostered on ${plural(shifts.length, 'shift')}.` : ''}`, shift: shifts[0], actions: shifts.length ? [unassign(shifts)] : [] });
     }
   } else if (!o.rtw_verified) {
     const pass = passportSet(filed(docs), o);
     const why = rtwWhy(mergedRead(pass, o).read, pass[0]);
-    add({ key: 'unverified:rtw', severity: shifts.length ? near(shifts) : 'soon', sig: sig(o.rtw_type), title: 'Right to work not verified', detail: [why || 'Ask for their share code, or check their passport, then tap Check right to work on the profile.', shifts.length ? `Rostered on ${plural(shifts.length, 'shift')}.` : ''].filter(Boolean).join(' '), shift: shifts[0], actions: [remind(o, 'rtw', 'their right to work share code')] });
+    add({ key: 'unverified:rtw', severity: shifts.length ? near(shifts) : 'soon', sig: sig(o.rtw_type), title: 'Right to work not verified', detail: [why || 'Ask for their share code, or check their passport, then tap Check right to work on the profile.', shifts.length ? `Rostered on ${plural(shifts.length, 'shift')}.` : ''].filter(Boolean).join(' '), shift: shifts[0], actions: [remind(o, 'rtw', 'their right to work share code'), ...(shifts.length ? [unassign(shifts)] : [])] });
   } else if (!o.rtw_checked_at) {
     // No evidence recorded either: a British or Irish passport on file can be put down as the evidence
     const pass = !o.rtw_type ? passportSet(filed(docs), o) : [];
@@ -338,6 +345,7 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
         key: 'contract_end', severity: left < 0 ? 'soon' : 'advisory', sig: sig(o.contract_end, o.engagement_contract_id),
         title: left < 0 ? `Fixed-term contract ended ${fmtDate(o.contract_end)}` : `Fixed-term contract ends in ${plural(left, 'day')} (${fmtDate(o.contract_end)})`,
         detail: `${renewed ? `Extended ${plural(renewed, 'time')} so far. ` : ''}Extend or replace it from their Contracts tab, or let it end.${renewed >= 3 ? ' After four years of successive fixed-term contracts an employee may count as permanent: take advice before extending again.' : ''}`,
+        actions: [{ kind: 'let_end', label: `Let it end: note it on ${o.first_name}'s HR record`, params: { ends: o.contract_end }, company_only: true, default: false }],
       });
     }
   }
@@ -355,7 +363,10 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
         key: `licence_role:${code}`, severity: inRole.length ? near(inRole) : 'advisory', sig: sig([...licences].sort(), accepted, inRole.map((s) => s.assignment_id)),
         title: `${licences.size ? [...licences].join(' + ') : 'Licence type unknown'} — not valid for ${name}`,
         detail: `${name} needs ${accepted.join(' or ')}.${inRole.length ? ` Rostered: ${inRole.slice(0, 4).map(shiftLine).join('; ')}` : ' The role is on their profile.'}`,
-        shift: inRole[0], actions: inRole.length ? [unassign(inRole), remind(o, 'sia', `a ${accepted[0]} licence`)] : [remind(o, 'sia', `a ${accepted[0]} licence`)],
+        shift: inRole[0], actions: [
+          ...(inRole.length ? [unassign(inRole)] : []), remind(o, 'sia', `a ${accepted[0]} licence`),
+          ...(!inRole.length && (o.roles || []).includes(code) ? [{ kind: 'remove_role', label: `Take ${name} off their profile roles`, params: { role: code, name }, company_only: true, default: false }] : []),
+        ],
       });
     }
   }
@@ -388,15 +399,15 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
     const fit = fitOf(r, o);
     const nd = at('name');
     if (fit === 'no') {
-      add({ key: `doc_mismatch:${nd.id}:name`, severity: 'soon', sig: sig(nd.s3_key, o.first_name, o.last_name), title: `Name on "${nd.title}" doesn't match the profile`, detail: `Scan reads "${r.name}"; profile is ${o.first_name} ${o.last_name}.`, actions: [recheck(nd)] });
+      add({ key: `doc_mismatch:${nd.id}:name`, severity: 'soon', sig: sig(nd.s3_key, o.first_name, o.last_name), title: `Name on "${nd.title}" doesn't match the profile`, detail: `Scan reads "${r.name}"; profile is ${o.first_name} ${o.last_name}. If it's them under another name (married name, a reading slip), mark it verified.`, actions: [recheck(nd), verifyDoc(o, nd), clearer(o, nd)] });
     } else if (r.name && !nameOk(fit, r, o)) {
       add(fit === 'unread'
-        ? { key: `doc_name_unread:${nd.id}`, severity: 'advisory', sig: sig(nd.s3_key), title: `Couldn't read the name on "${nd.title}"`, detail: 'No licence number or photo to confirm it\'s them either. Check the card, or ask for a clearer photo of the front.', actions: [recheck(nd)] }
-        : { key: `doc_name_initial:${nd.id}`, severity: 'advisory', sig: sig(nd.s3_key, o.first_name, o.last_name), title: `"${nd.title}" shows ${r.name} — ${fit === 'initial' ? 'initial only' : 'not the full name'}`, detail: 'No licence number or photo to confirm it\'s them. Add a profile photo, or check the card.', actions: [] });
+        ? { key: `doc_name_unread:${nd.id}`, severity: 'advisory', sig: sig(nd.s3_key), title: `Couldn't read the name on "${nd.title}"`, detail: 'No licence number or photo to confirm it\'s them either. Check the card, or ask for a clearer photo of the front.', actions: [verifyDoc(o, nd), clearer(o, nd), recheck(nd)] }
+        : { key: `doc_name_initial:${nd.id}`, severity: 'advisory', sig: sig(nd.s3_key, o.first_name, o.last_name), title: `"${nd.title}" shows ${r.name} — ${fit === 'initial' ? 'initial only' : 'not the full name'}`, detail: 'No licence number or photo to confirm it\'s them. Add a profile photo, or check the card.', actions: [verifyDoc(o, nd), { ...clearer(o, nd), default: false }] });
     }
     if (r.face?.result === 'no_match') {
       const fd = at('face');
-      add({ key: `doc_mismatch:${fd.id}:photo`, severity: 'soon', sig: sig(fd.s3_key, o.photo_key), title: `Photo on "${fd.title}" may not match ${r.face.against === 'sia' ? 'their SIA card' : r.face.against === 'passport' ? 'their passport' : 'the profile photo'}`, detail: r.face.note || 'Check the card against the person.', actions: [recheck(fd)] });
+      add({ key: `doc_mismatch:${fd.id}:photo`, severity: 'soon', sig: sig(fd.s3_key, o.photo_key), title: `Photo on "${fd.title}" may not match ${r.face.against === 'sia' ? 'their SIA card' : r.face.against === 'passport' ? 'their passport' : 'the profile photo'}`, detail: r.face.note || 'Check the card against the person.', actions: [recheck(fd), { ...clearer(o, fd), default: false }] });
     }
     // A clean 16-digit number that differs can be put on the profile; a part read that fits the profile number is fine;
     // anything else wasn't read fully and only needs a look
@@ -405,7 +416,7 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
       const dd = at('number');
       add(cardNo.length === 16
         ? { key: `doc_mismatch:${dd.id}:number`, severity: 'soon', sig: sig(dd.s3_key, o.sia_number), title: 'SIA number on the card differs from the profile', detail: `Card reads ${r.number}; profile has ${o.sia_number}.`, actions: [correct('sia_number', o.sia_number, siaFmt(r.number), `Update profile SIA number to ${siaFmt(r.number)}`), recheck(dd)] }
-        : { key: `doc_number_unread:${dd.id}`, severity: 'advisory', sig: sig(dd.s3_key, o.sia_number), title: `SIA number on "${dd.title}" wasn't read fully`, detail: `Scan reads ${r.number} (${cardNo.length} digits); profile has ${o.sia_number}.`, actions: [recheck(dd)] });
+        : { key: `doc_number_unread:${dd.id}`, severity: 'advisory', sig: sig(dd.s3_key, o.sia_number), title: `SIA number on "${dd.title}" wasn't read fully`, detail: `Scan reads ${r.number} (${cardNo.length} digits); profile has ${o.sia_number}.`, actions: [verifyDoc(o, dd), { ...clearer(o, dd), default: false }, recheck(dd)] });
     }
     const ed = at('expiry');
     const profileExpiry = kind === 'sia' ? o.sia_expiry : kind === 'rtw' ? o.rtw_expiry : ed.expiry;
@@ -423,7 +434,7 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
 
   // Scans waiting for a manager to verify
   for (const d of docs.filter((x) => x.s3_key && !x.verified_at && [...READ_KINDS, ...required].includes(x.kind) && !(x.kind === 'rtw' && (o.rtw_verified || x === codeDoc)) && days(x.created_at, today) >= 3)) {
-    add({ key: `unverified:${d.id}`, severity: 'advisory', sig: sig(d.s3_key), title: `"${d.title}" uploaded ${fmtDate(d.created_at)} but not verified`, detail: 'Check it on the officer\'s Documents tab.', actions: [] });
+    add({ key: `unverified:${d.id}`, severity: 'advisory', sig: sig(d.s3_key), title: `"${d.title}" uploaded ${fmtDate(d.created_at)} but not verified`, detail: 'Check it on the officer\'s Documents tab.', actions: [verifyDoc(o, d)] });
   }
   if (o.status === 'onboarding' && openTasks) {
     add({ key: 'onboarding', severity: shifts.length ? 'soon' : 'advisory', sig: sig(openTasks, shifts.length), title: `Onboarding not finished (${plural(openTasks, 'step')} open)`, detail: shifts.length ? `Already rostered on ${plural(shifts.length, 'shift')}.` : '', shift: shifts[0], actions: [remind(o, 'onboarding', 'the rest of their onboarding documents')] });
@@ -536,11 +547,11 @@ function templateAdvice(o, issues) {
   return `${urgent ? `${plural(urgent, 'urgent issue')} for ${o.first_name}. ` : ''}${top.title}.${issues.length > 1 ? ` Plus ${plural(issues.length - 1, 'other item')}.` : ''} Tick the actions to take and tap Apply selected.`;
 }
 
-async function advise(o, issues) {
+async function advise(o, issues, rules = '') {
   try {
     const r = await extract({
       model: HAIKU, max_tokens: 300,
-      system: 'You advise a UK security company manager on staff compliance (SIA licensing, right to work). Write 1–3 short plain sentences: what matters most and what to do first. No greeting, no markdown. Never say an officer is definitely non-compliant when a document only needs checking. Refer to the officer by first name or "they" — never he, she, his or her. Only SIA licensing and right to work are legal requirements; other documents are company rules, so do not call them legal or regulatory. Do not invent deadlines, dates or facts that are not in the list.',
+      system: `You advise a UK security company manager on staff compliance (SIA licensing, right to work). Write 1–3 short plain sentences: what matters most and what to do first. No greeting, no markdown. Never say an officer is definitely non-compliant when a document only needs checking. Refer to the officer by first name or "they" — never he, she, his or her. Only SIA licensing and right to work are legal requirements; other documents are company rules, so do not call them legal or regulatory. Do not invent deadlines, dates or facts that are not in the list.${houseRulesBlock(rules)}`,
       messages: [{ role: 'user', content: `Officer: ${o.first_name} ${o.last_name}\nIssues:\n${issues.map((i) => `- [${i.severity}] ${i.title}. ${i.detail || ''}`).join('\n')}` }],
       tool: { name: 'advice', description: 'Advice for the manager', input_schema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } },
     });
@@ -564,6 +575,7 @@ export async function runCompliance({ manual = false, officerIds = null } = {}) 
   let created = 0;
   let updated = 0;
   let credits = 0;
+  const rules = results.length ? (await one('SELECT ops_house_rules FROM settings WHERE id = 1'))?.ops_house_rules : '';
   for (const { officer: o, issues } of results) {
     const severity = issues[0].severity;
     const at = issues.map((i) => i.shift).filter(Boolean).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))[0];
@@ -572,7 +584,7 @@ export async function runCompliance({ manual = false, officerIds = null } = {}) 
     if (card && card.payload.sig === issuesSig) continue;
     // Already raised (and decided) for exactly these issues: no new card, so no AI advice either
     if (!card && await one('SELECT 1 FROM ops_items WHERE dedupe = $1', [`compliance:${o.id}:${issuesSig}`])) continue;
-    const advice = await advise(o, issues);
+    const advice = await advise(o, issues, rules);
     credits += advice.credits;
     const payload = { officer_id: o.id, officer_name: officerDisplay(o), severity, issues, sig: issuesSig };
     if (card) {
@@ -616,7 +628,7 @@ export async function decideCompliance(it, b, user) {
     await notify(await officerUser(o.id), {
       kind: 'compliance', severity: 'warning', title: `Please ${a.params.refresher ? 'redo' : 'complete'} your training: ${a.params.what.replace(/"/g, '')}`,
       body: a.params.refresher ? 'Your certificate is running out. Open the course under Learn and pass the quiz again to renew it.' : 'This course is mandatory. Open it in the app under Learn and pass the quiz to get your certificate.',
-      link: `/officer/learn/academy/${a.params.course_id}`,
+      link: `/officer/learn/academy/${a.params.course_id}`, email: true,
     });
     done.push(`Reminded ${o.first_name} to complete ${a.params.what}`);
   }
@@ -684,6 +696,33 @@ export async function decideCompliance(it, b, user) {
     await q("DELETE FROM compliance_dismissals WHERE officer_id = $1 AND (issue_key = 'doc_suspect:' || $2 OR issue_key LIKE 'doc\\_mismatch:' || $2 || ':%')", [o.id, a.params.doc_id]);
     await q("INSERT INTO hr_notes (officer_id, kind, title, body, author_id) VALUES ($1, 'note', 'Document re-check', $2, $3)", [o.id, `"${d.title}" marked for re-check — ${a.issue.title}.`, user.id]);
     done.push(`Marked "${d.title}" for re-check`);
+  }
+  for (const a of picked.filter((x) => x.kind === 'verify_doc' && !picked.some((y) => y.kind === 'recheck' && y.params.doc_id === x.params.doc_id))) {
+    if (user.role !== 'company') fail(403, 'Only a company manager can verify documents');
+    const d = await one("UPDATE documents SET verified_at = now(), verified_by = $3 WHERE id = $1 AND owner_type = 'officer' AND owner_id = $2 RETURNING id, title", [a.params.doc_id, o.id, user.id]);
+    if (!d) continue;
+    await dismissComplianceIssues(it, [a.issue.key], user, 'Checked by a manager from the card');
+    await notify(await officerUser(o.id), { kind: 'hr', title: 'Document checked', body: d.title || '', link: '/officer/documents', dedupe: `docok:${d.id}` });
+    await audit(user, 'doc.verify', 'document', d.id, { via: 'compliance', issue: a.issue.key });
+    done.push(`Marked "${d.title}" verified`);
+  }
+  for (const a of picked.filter((x) => x.kind === 'sia_check').slice(0, 1)) {
+    const r = await checkRegister(o.id, user, `Checked from Orb's card by ${user.name || 'a manager'}`);
+    done.push(r.status ? `SIA register checked: ${STATUS_LABEL[r.status] || r.status}${r.expiry ? `, expires ${fmtDate(r.expiry)}` : ''}` : `SIA register not checked: ${r.message}`);
+  }
+  for (const a of picked.filter((x) => x.kind === 'remove_role')) {
+    if (user.role !== 'company') fail(403, 'Only a company manager can change profile details');
+    const r = await one('UPDATE officers SET roles = array_remove(roles, $2) WHERE id = $1 AND $2 = ANY(roles) RETURNING roles', [o.id, a.params.role]);
+    if (!r) continue;
+    await audit(user, 'officer.update', 'officer', o.id, { roles: { from: o.roles, to: r.roles }, via: 'compliance' });
+    done.push(`Took ${a.params.name} off ${o.first_name}'s roles`);
+  }
+  for (const a of picked.filter((x) => x.kind === 'let_end')) {
+    if (user.role !== 'company') fail(403, 'Only a company manager can decide on contracts');
+    await q("INSERT INTO hr_notes (officer_id, kind, title, body, author_id) VALUES ($1, 'note', 'Fixed-term contract left to end', $2, $3)",
+      [o.id, `Decided from Orb's card to let the fixed-term contract end on ${fmtDate(a.params.ends)}.`, user.id]);
+    await dismissComplianceIssues(it, [a.issue.key], user, 'Left to end');
+    done.push(`Noted that the contract ends ${fmtDate(a.params.ends)}`);
   }
   return { done };
 }

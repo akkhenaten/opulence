@@ -1,5 +1,6 @@
 // Orb — the in-app operations manager. The AI prepares, a manager taps Approve.
 // Reminders to officers and feedback prompts to venues go out without approval.
+import { houseRulesBlock, cleanRules } from '../lib/houseRules.mjs';
 import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, need, pick } from '../lib/http.mjs';
 import { venueScope, assertVenue, assertOfficerAccess, narrowScope } from '../lib/scope.mjs';
@@ -17,7 +18,7 @@ import { runCompliance, readDocuments, unreadDocCount, decideCompliance, compute
 import { graceJob } from './grace.mjs';
 import { runVenueSetup, decideVenueSetup, dismissVenueIssues } from './venueSetup.mjs';
 import { defaultActions } from '../lib/venueSetup.mjs';
-import { evidenceScan } from './incidentAi.mjs';
+import { evidenceScan, decideIncident } from './incidentAi.mjs';
 import { afterShiftChange, FRESH } from './shiftSync.mjs';
 import { opsMessage, closeQuick, ensureThread, post, opsUser, syncMembers } from '../lib/threads.mjs';
 import { statusesFor, pairKey, packDue, OK } from '../lib/venuePack.mjs';
@@ -278,6 +279,19 @@ export function reconcileRow({ rota_h, clock_h, ts_h, stmt_h, inv_h, min_hours =
   const billable = Math.max(truth, Number(min_hours) || 0);
   if (inv_h != null && Math.abs(inv_h - billable) > tol) { issues.push({ field: 'inv', text: `Invoice ${inv_h}h, should be ${billable}h${billable > truth ? ` (${min_hours}h minimum)` : ''}` }); fix.invoice_hours = billable; }
   return { issues, fix, truth, rota_h };
+}
+
+/** The corrections when the manager picks which hours are right: 'clock' (clocked), 'rota' (rostered) or Orb's pick. */
+export function reconcileFix(fig, use = null) {
+  const truth = use === 'rota' ? fig.rota_h : use === 'clock' && fig.clock_h != null ? fig.clock_h : reconcileRow(fig).truth;
+  const fix = {};
+  const tol = 0.25;
+  if (truth == null) return fix;
+  if (Math.abs(fig.ts_h - truth) > tol) fix.timesheet_hours = truth;
+  if (fig.stmt_h != null && Math.abs(fig.stmt_h - truth) > tol) fix.statement_hours = truth;
+  const billable = Math.max(truth, Number(fig.min_hours) || 0);
+  if (fig.inv_h != null && Math.abs(fig.inv_h - billable) > tol) fix.invoice_hours = billable;
+  return fix;
 }
 
 export async function runReconcile(start, end) {
@@ -649,8 +663,8 @@ const JOBS = {
     const waiting = await unreadDocCount();
     if (waiting) return readDocuments(waiting > 6 ? 6 : 4, { refresh: true });
     // Backlog cleared: one full check, so every card reflects the new reads (once per re-read migration)
-    if (await one("SELECT 1 FROM ops_activity WHERE kind = 'compliance_reread_done' AND text = '057'")) return 'idle';
-    await logActivity('compliance_reread_done', '057');
+    if (await one("SELECT 1 FROM ops_activity WHERE kind = 'compliance_reread_done' AND text = '058'")) return 'idle';
+    await logActivity('compliance_reread_done', '058');
     return runCompliance();
   },
 
@@ -682,6 +696,8 @@ function bulkEdits(it, user) {
   const p = it.payload || {};
   if (it.kind === 'compliance' || it.kind === 'venue_setup') return { actions: defaultActions(p.issues || [], user.role) };
   if (it.kind === 'feedback') return { hr_note: false };
+  // Bulk approve marks evidence cards reviewed; sending a report back is a choice made on the card
+  if (it.kind === 'incident') return { send: false };
   return undefined;
 }
 
@@ -698,8 +714,9 @@ async function decideItem(user, it, b) {
     // The same for a declined compliance card: its issues stay quiet until the document or profile changes
     if (it.kind === 'compliance') await dismissComplianceIssues(it, (it.payload.issues || []).map((i) => i.key), user, b.reason);
     result = { rejected: true, reason: b.reason || '' };
+    if (it.kind === 'cover') Object.assign(result, await rejectCover(it, b, user));
   } else if (b.decision === 'approve') {
-    result = await { cover: decideCover, venue_request: decideVenueRequest, reconcile: decideReconcile, feedback: decideFeedback, compliance: decideCompliance, venue_setup: decideVenueSetup }[it.kind](it, b, user);
+    result = await { cover: decideCover, venue_request: decideVenueRequest, reconcile: decideReconcile, feedback: decideFeedback, compliance: decideCompliance, venue_setup: decideVenueSetup, incident: decideIncident }[it.kind](it, b, user);
   } else fail(400, 'decision must be approve or reject');
   const status = b.decision === 'reject' ? 'rejected' : it.kind === 'cover' ? 'approved' : 'done';
   // A venue setup card can be raised again for the same gaps (e.g. only the radius was applied), so it frees its dedupe key
@@ -752,6 +769,24 @@ async function decideCover(it, b, user) {
   return { offered: offered.length };
 }
 
+// Not these officers: offer the next ones, note agency cover, or leave the place open (rejected cover isn't raised again)
+const COVER_THEN = { next: 'next officers', agency: 'agency cover', unfilled: 'left unfilled' };
+async function rejectCover(it, b, user) {
+  const then = COVER_THEN[b.then] ? b.then : 'unfilled';
+  const sh = await getShift(it.shift_id);
+  if (then === 'next' && sh) {
+    if (await staleReason(it)) return { then: 'unfilled' };
+    const before = await q('SELECT officer_id FROM cover_offers WHERE shift_id = $1', [sh.id]);
+    const exclude = [...new Set([...(it.payload.officer_ids || []), ...before.map((r) => r.officer_id)])];
+    const next = await proposeCover(sh, 'next', { batch: (it.payload.batch || 1) + 1, exclude, replacing: it.payload.replacing || null, note: 'the last picks were turned down' });
+    return { then, next_item: next?.id || null };
+  }
+  if (then === 'agency' && sh) {
+    await logActivity('decision', `${user.name} is covering ${sh.venue_name} · ${when(sh)} with agency staff`, { ref_type: 'shift', ref_id: sh.id, venue_id: sh.venue_id });
+  }
+  return { then };
+}
+
 async function decideVenueRequest(it, b, user) {
   const req = it.payload.request_id ? await one('SELECT * FROM venue_requests WHERE id = $1', [it.payload.request_id]) : null;
   if (req && req.status !== 'requested') fail(409, `This request was already ${req.status}`);
@@ -791,13 +826,16 @@ async function decideVenueRequest(it, b, user) {
 }
 
 async function decideReconcile(it, b, user) {
-  const p = it.payload;
+  const p = { ...it.payload };
   if (p.info_only) return { reviewed: true };
+  const use = ['rota', 'clock'].includes(b.edits?.use) ? b.edits.use : null;
+  if (use) p.fix = reconcileFix(p.figures, use);
+  if (!Object.keys(p.fix || {}).length) return { reviewed: true, use };
   if (user.role !== 'company' && (p.fix.statement_hours != null || p.fix.invoice_hours != null)) fail(403, 'Only company managers can correct pay statements and invoices');
   await tx(async (t) => {
     if (p.fix.timesheet_hours != null) {
       await t.q(`UPDATE timesheets SET hours = $2, flags = array_append(array_remove(flags, 'edited'), 'edited'), resolution = $3, updated_at = now() WHERE id = $1`,
-        [p.timesheet_id, p.fix.timesheet_hours, 'Orb reconcile: matched to clocked hours']);
+        [p.timesheet_id, p.fix.timesheet_hours, `Orb reconcile: matched to ${use === 'rota' ? 'rota' : 'clocked'} hours`]);
     }
     if (p.fix.statement_hours != null && p.stmt_line_id) {
       const l = need(await t.one("SELECT l.*, s.status FROM statement_lines l JOIN statements s ON s.id = l.statement_id WHERE l.id = $1", [p.stmt_line_id]));
@@ -816,18 +854,35 @@ async function decideReconcile(it, b, user) {
       await recalcInvoice(t, l.invoice_id);
     }
   });
-  return { fixed: p.fix };
+  return { fixed: p.fix, use };
 }
 
 async function decideFeedback(it, b, user) {
+  const e = b.edits || {};
+  const reply = String(e.reply || '').trim().slice(0, 1000);
+  if (e.ban && user.role !== 'company') fail(403, 'Only a company manager can stop an officer going to a venue');
   // Feedback left through "Give feedback" is closed along with its Orb card
   if (it.payload.comment_id) await q("UPDATE venue_comments SET status = 'resolved' WHERE id = $1", [it.payload.comment_id]);
-  if (b.edits?.hr_note && it.officer_id) {
+  const result = {};
+  if (e.hr_note && it.officer_id) {
     const rating = it.payload.rating != null ? ` (rating ${it.payload.rating}/5)` : '';
     await insert('hr_notes', { officer_id: it.officer_id, kind: 'venue_feedback', title: it.title, body: `${it.payload.note || ''}${rating}`, author_id: user.id });
-    return { hr_note: true };
+    result.hr_note = true;
   }
-  return { reviewed: true };
+  if (e.ban && it.officer_id && it.venue_id) {
+    const why = `Venue feedback: ${String(it.payload.note || `rated ${it.payload.rating}/5`).slice(0, 200)}`;
+    await q('INSERT INTO venue_bans (officer_id, venue_id, reason) VALUES ($1,$2,$3) ON CONFLICT (officer_id, venue_id) DO UPDATE SET reason = EXCLUDED.reason', [it.officer_id, it.venue_id, why]);
+    await audit(user, 'officer.ban', 'officer', it.officer_id, { venue: it.venue_id, via: 'feedback', item: it.id });
+    result.banned = true;
+  }
+  // The venue hears back from a person, never with the officer's record
+  if (reply && it.venue_id) {
+    const s = await getSettings();
+    await notify(await venueContacts(it.venue_id), { kind: 'feedback', title: `${s.company_name || 'Your security team'} replied to your feedback`, body: reply, link: '/venue', email: true });
+    await logActivity('feedback', `${user.name} replied to the venue about their feedback`, { ref_type: 'ops_item', ref_id: it.id, venue_id: it.venue_id });
+    result.replied = true;
+  }
+  return Object.keys(result).length ? result : { reviewed: true };
 }
 
 // ---------- Manager chat ----------
@@ -1043,7 +1098,7 @@ export async function offerRespond(b, user) {
   return { ok: true };
 }
 
-const OPS_SETTINGS = ['ops_jobs', 'ops_escalate_minutes', 'ops_offer_wait_minutes', 'ops_reconcile_dow', 'ops_compliance_dow', 'ops_ai_cap_credits', 'ops_pack_chase1', 'ops_pack_chase2', 'ops_pack_escalate', 'ops_pack_cover'];
+const OPS_SETTINGS = ['ops_jobs', 'ops_escalate_minutes', 'ops_offer_wait_minutes', 'ops_reconcile_dow', 'ops_compliance_dow', 'ops_ai_cap_credits', 'ops_pack_chase1', 'ops_pack_chase2', 'ops_pack_escalate', 'ops_pack_cover', 'ops_house_rules'];
 
 export const actions = {
   'ops.inbox': def(MGR, async (b, { user }) => {
@@ -1073,6 +1128,34 @@ export const actions = {
     return q(
       `SELECT * FROM ops_activity WHERE kind NOT IN ('reconcile_run','compliance_run','applicant_purge') AND ($1::uuid[] IS NULL OR venue_id = ANY($1) ${''}OR (venue_id IS NULL AND $2))
         ORDER BY created_at DESC LIMIT 150`, [scope, user.role === 'company']);
+  }),
+
+  // A manager (or Orb on their Confirm) offers an open shift to officers they picked: first to accept gets it
+  'ops.offerCover': def(MGR, async (b, { user }) => {
+    required(b, 'shift_id', 'officer_ids');
+    const ids = [...new Set((Array.isArray(b.officer_ids) ? b.officer_ids : []).map(String))].slice(0, 10);
+    if (!ids.length) fail(400, 'Pick at least one officer to offer the shift to');
+    const sh = need(await getShift(b.shift_id), 'Shift not found');
+    const scope = await venueScope(user);
+    if (scope && !scope.includes(sh.venue_id)) fail(403, 'Not your venue');
+    if (sh.status !== 'published' || new Date(sh.ends_at) < new Date()) fail(409, 'Only an upcoming published shift can be offered');
+    const short = sh.headcount - (await filledCount(sh.id));
+    if (short <= 0) fail(409, 'That shift is already filled');
+    const ranked = await rankCover(sh);
+    const free = ranked.filter((c) => ids.includes(c.officer_id));
+    const out = ids.filter((id) => !free.some((c) => c.officer_id === id));
+    if (out.length) {
+      const names = await q('SELECT first_name, last_name FROM officers WHERE id = ANY($1::uuid[])', [out]);
+      fail(422, `Not free or not able to work this shift: ${names.map(firstLast).join(', ') || 'unknown officer'}. Use cover_candidates to see who can`);
+    }
+    const prev = await one("SELECT max((payload->>'batch')::int) AS b FROM ops_items WHERE kind = 'cover' AND shift_id = $1", [sh.id]);
+    const batch = (prev?.b || 0) + 1;
+    const it = need(await createItem({
+      kind: 'cover', title: `Cover ${sh.venue_name} · ${when(sh)}`, reason: `Offered by ${user.name}.`, venue_id: sh.venue_id, shift_id: sh.id, quiet: true,
+      payload: { shift_id: sh.id, cause: 'manager', batch, short, replacing: null, officer_ids: ids, candidates: free.slice(0, 8) }, dedupe: `cover:${sh.id}:${batch}`,
+    }), 'Could not prepare the offers, try again');
+    const r = await decideItem(user, it, { decision: 'approve', edits: { officer_ids: ids } });
+    return { ...r, offered_to: free.map((c) => c.name) };
   }),
 
   'ops.decide': def(MGR, async (b, { user }) => {
@@ -1109,7 +1192,7 @@ export const actions = {
     const system = `You are Orb, the operations manager assistant inside Orb Security, a UK manned-security company. You help ${user.name} (${user.role === 'company' ? 'company manager' : 'security manager'}) run rotas, cover, attendance and hours.
 Today is ${londonParts(now).weekday} ${londonDate(now)}, time ${fmtTime(now)} Europe/London. Weeks run Monday to Sunday.
 Rules: use the tools to look things up — never guess figures. For licences, right to work or "who can work" questions use compliance_status; compliance fixes are approved on the compliance cards in the Orb inbox. You can NEVER change anything yourself: to make a change, call propose_change, which puts a card in the Orb inbox for the manager to approve, and say so.
-Answer in short, plain British business English. Use the officers' and venues' names, dates like "Sat 24 Oct" and 24-hour times. No markdown tables; short lists are fine.`;
+Answer in short, plain British business English. Use the officers' and venues' names, dates like "Sat 24 Oct" and 24-hour times. No markdown tables; short lists are fine.${houseRulesBlock(s.ops_house_rules)}`;
     const messages = b.messages.slice(-20).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 4000) })).filter((m) => m.content);
     if (!messages.length || messages[messages.length - 1].role !== 'user') fail(400, 'Send a question');
     const created = [];
@@ -1207,6 +1290,7 @@ Answer in short, plain British business English. Use the officers' and venues' n
     for (const k of ['ops_reconcile_dow', 'ops_compliance_dow']) if (f[k] != null && !(f[k] >= 1 && f[k] <= 7)) fail(400, 'Day must be 1–7');
     for (const k of ['ops_escalate_minutes', 'ops_offer_wait_minutes']) if (f[k] != null && !(f[k] >= 1 && f[k] <= 240)) fail(400, 'Minutes must be 1–240');
     if (f.ops_ai_cap_credits != null && !(Number(f.ops_ai_cap_credits) >= 0)) fail(400, 'Cap must be 0 or more');
+    if (f.ops_house_rules != null) f.ops_house_rules = cleanRules(f.ops_house_rules) || null;
     const pk = ['ops_pack_chase1', 'ops_pack_chase2', 'ops_pack_escalate', 'ops_pack_cover'];
     for (const k of pk) if (f[k] != null && !(Number.isInteger(Number(f[k])) && f[k] >= -240 && f[k] <= 240)) fail(400, 'Site pack times must be whole minutes between −240 and 240');
     if (pk.some((k) => f[k] != null)) {

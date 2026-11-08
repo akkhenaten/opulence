@@ -9,7 +9,7 @@ import { extract, fileBlock, canRead, SONNET } from '../lib/ai.mjs';
 import { fmtDateTime } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { getSettings } from './settings.mjs';
-import { loadFull, ownUpload, TYPES } from './incidents.mjs';
+import { loadFull, ownUpload, TYPES, actions as incidentActions } from './incidents.mjs';
 import { MGR, def } from './_def.mjs';
 
 const MAX_IMAGES = 12;
@@ -128,7 +128,42 @@ export async function reviewIncident(id) {
     summary = { error: e.message || 'AI review failed' };
   }
   await q('UPDATE incidents SET ai_summary = $2, ai_summary_sig = $3, ai_summary_at = now() WHERE id = $1', [id, summary, sig]);
+  await raiseEvidenceCard(inc, summary, sig).catch((e) => console.error('[incidentAi] evidence card', id, e.message));
   return { ...summary, sig };
+}
+
+/** What to ask the officer for, from the review: contradictions first, then what's missing */
+export function evidenceAsk(summary) {
+  const lines = [...(summary.mismatches || []).map((m) => `Please check: ${m}`), ...(summary.missing || []).map((m) => `Please add: ${m}`)];
+  return lines.slice(0, 6).join('\n');
+}
+
+// A report whose files contradict it, or that leaves out what a manager or the police would expect, gets an Orb card
+async function raiseEvidenceCard(inc, summary, sig) {
+  if (summary.error || inc.status !== 'submitted') return;
+  const mismatches = summary.mismatches || [];
+  const missing = summary.missing || [];
+  if (!mismatches.length && !missing.length) return;
+  const { createItem } = await import('./ops.mjs');
+  // A newer review replaces the open card for this report
+  await q("UPDATE ops_items SET status = 'done', decided_at = now(), result = '{\"auto_closed\":true}' WHERE kind = 'incident' AND status = 'pending' AND payload->>'incident_id' = $1", [inc.id]);
+  await createItem({
+    kind: 'incident', venue_id: inc.venue_id, officer_id: inc.officer_id || null, quiet: !mismatches.length, severity: 'warning',
+    title: `${inc.ref}: ${mismatches.length ? 'the evidence doesn\'t match the report' : 'details missing from the report'}`,
+    reason: summary.summary || '',
+    payload: { incident_id: inc.id, ref: inc.ref, venue_name: inc.venue_name, officer_name: inc.officer_name, mismatches, missing, ask: evidenceAsk(summary) },
+    dedupe: `incident:${inc.id}:${sig}`,
+  });
+}
+
+/** Orb's evidence card: send the report back to the officer with what's needed, or just mark it reviewed */
+export async function decideIncident(it, b, user) {
+  const inc = need(await one('SELECT id, officer_id, status, ref FROM incidents WHERE id = $1', [it.payload.incident_id]), 'Report not found');
+  const ask = String(b.edits?.ask ?? it.payload.ask ?? '').trim().slice(0, 2000);
+  if (b.edits?.send === false || !inc.officer_id || !ask) return { reviewed: true };
+  if (inc.status === 'closed') fail(409, 'This report is already closed');
+  await incidentActions['incidents.review'].fn({ id: inc.id, decision: 'changes_requested', comment: ask }, { user });
+  return { sent_back: true };
 }
 
 // Ops job: refresh up to 2 submitted reports whose files or text changed since the last summary

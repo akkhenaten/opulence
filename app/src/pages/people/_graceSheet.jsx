@@ -11,7 +11,7 @@ export const GRACE_LABEL = {
 };
 const RISKY = ['sia_expired', 'sia_register', 'rtw_expired', 'sia_expiry_shift'];
 // Orb card issues a grace period can cover (licence and right to work)
-export const GRACE_ISSUE = /^(missing:sia|register:sia|unverified:rtw|expiry_soon:(sia|rtw)|expiry_shift:(sia|rtw)|grace_expired)$/;
+export const GRACE_ISSUE = /^(missing:sia|register:sia|unverified:rtw|rtw:code_(old|ready)|expiry_soon:(sia|rtw)|expiry_shift:(sia|rtw)|grace_expired)$/;
 
 /** compliance.grace.history → { keys, grace (open), lapsed (ran out, documents still missing), maxDays, maxRenewals } */
 export function graceFromHistory(d) {

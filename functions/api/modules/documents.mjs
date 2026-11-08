@@ -10,6 +10,7 @@ import { cleanShareCode } from '../lib/rtw.mjs';
 import { notify, officerUser } from '../lib/notify.mjs';
 import { autoApply, refile } from '../lib/docAuto.mjs';
 import { misfiledAs } from '../lib/docSets.mjs';
+import { DOC_LABEL } from '../lib/licences.mjs';
 
 // Saved invoices and pay statements are money documents
 const MONEY_KINDS = ['invoice', 'pay_statement', 'pay_agreement'];
@@ -131,6 +132,24 @@ export const actions = {
       }
     }
     return one('SELECT * FROM documents WHERE id = $1', [d.id]);
+  }),
+
+  // Ask an officer for one document: in the app and by email, with the manager's note
+  'docs.request': def(MGR, async (b, { user }) => {
+    required(b, 'officer_id', 'kind');
+    if (!EDIT_KINDS.includes(b.kind)) fail(400, 'Choose a document type');
+    await assertOfficerAccess(user, b.officer_id);
+    const o = need(await one("SELECT id, first_name, last_name FROM officers WHERE id = $1 AND status IN ('applicant','onboarding','active','suspended')", [b.officer_id]), 'Officer not found');
+    const what = String(b.title || '').trim().slice(0, 80) || DOC_LABEL[b.kind];
+    const note = String(b.note || '').trim().slice(0, 500);
+    const to = await officerUser(o.id);
+    if (!to.filter(Boolean).length) fail(422, `${o.first_name} has no app login yet, so the request can't reach them. Invite them to log in first`);
+    await notify(to, {
+      kind: 'compliance', severity: 'warning', title: `Please upload your ${what}`, link: '/officer/documents', email: true,
+      body: note || `The office needs your ${what}. Upload it in the app under Documents.`,
+    });
+    await audit(user, 'doc.request', 'officer', o.id, { kind: b.kind, what, note });
+    return { ok: true, officer: `${o.first_name} ${o.last_name}`, asked_for: what };
   }),
 
   'docs.verify': def(CO, async (b, { user }) => {

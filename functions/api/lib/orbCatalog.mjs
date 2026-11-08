@@ -35,8 +35,23 @@ export const CATALOG = {
   'docs.list': r('documents', 'Documents on file', 'owner_type (officer|venue|company), owner_id, kind?'),
   'docs.expiring': r('documents', 'Documents expiring soon', 'days?'),
   'docs.verify': c('documents', 'Mark a document verified', 'id'),
+  'docs.update': c('documents', 'Change an uploaded document: re-file it under the right type, or fix its title, number or expiry (re-filing a passport or SIA card lets Orb apply it)', 'id, kind? (sia|rtw|id|poa|training|first_aid|cctv|other), title?, number?, expiry? (YYYY-MM-DD, or empty to clear)', { words: 'refile re-file wrong type edit document change expiry number' }),
+  'docs.request': c('documents', 'Ask an officer to upload a specific document (sent in the app and by email, with an optional note)', 'officer_id, kind (sia|rtw|id|poa|training|first_aid|cctv|other), title? (what exactly, e.g. "the back of your SIA card"), note? (the message they read)', {
+    link: (_r, b) => staff(b.officer_id), words: 'ask request chase upload send document passport licence certificate' }),
   'docs.read': c('documents', 'Have Orb read an uploaded SIA card or passport now and apply it to the profile when it all agrees', 'id | officer_id'),
   'compliance.overview': r('compliance', 'Compliance issues (SIA, right to work, documents)', 'severity?'),
+  'compliance.blocked': r('compliance', "Who can't work right now (no valid SIA licence or right to work) and who is working on a grace period", '', { words: 'blocked cannot work grace who' }),
+  'compliance.grace.history': r('compliance', "An officer's grace periods, and what a new one could cover", 'officer_id'),
+  'compliance.grace.grant': c('compliance', 'Give an officer a grace period: they can work for up to 14 days while they send a missing or expired document. Ask the manager for the reason if they gave none. Expired, suspended or register-flagged SIA and expired right to work need risk_ack, only when the manager has said in their own words that they accept the risk', 'officer_id, days (1–14) | ends_on, reason, covers[]? (from compliance.grace.history keys), risk_ack?', {
+    link: (_r, b) => staff(b.officer_id), words: 'grace period let them work temporarily allow time to send documents' }),
+  'compliance.grace.renew': c('compliance', 'Extend an open grace period (up to 14 more days, at most twice)', 'officer_id, days | ends_on, reason, risk_ack?', { link: (_r, b) => staff(b.officer_id), words: 'grace extend renew more time' }),
+  'compliance.grace.cover': c('compliance', 'Add another document to what an open grace period covers', 'officer_id, add[] (keys from compliance.grace.history), reason, risk_ack?', { link: (_r, b) => staff(b.officer_id) }),
+  'compliance.grace.end': c('compliance', 'End a grace period now (they are blocked again until their documents are in)', 'officer_id, reason?', { link: (_r, b) => staff(b.officer_id), words: 'grace end stop finish' }),
+  'ops.complianceRun': c('compliance', 'Run the compliance check for everyone now and refresh the compliance cards', '', { words: 'compliance check run refresh cards' }),
+  'sia.history': r('compliance', "An officer's SIA register checks", 'officer_id'),
+  'sia.lookup': r('compliance', "Look an officer's licence up on the SIA register (automatic check; nothing is saved until sia.record)", 'officer_id', { words: 'sia register check licence status active' }),
+  'sia.record': c('compliance', 'Save what the SIA register shows for an officer (after sia.lookup, with what it returned and source auto)', 'officer_id, status (active|expired|suspended|revoked|investigation|not_found), expiry (YYYY-MM-DD, not needed for not_found), sector?, notes?, source? (auto|manual)', {
+    link: (_r, b) => staff(b.officer_id), words: 'sia register record save check' }),
   'ops.dismissIssue': c('compliance', 'Dismiss a compliance issue', 'id, key, reason'),
   'ops.dismissVenueIssue': c('venues', 'Dismiss one missing venue detail on a venue setup card', 'id, key (address|pin|logo|radius), reason'),
   'timeoff.list': r('people', 'Time-off requests', 'officer_id?, status?, from?, to?'),
@@ -102,7 +117,10 @@ export const CATALOG = {
   'shiftlog.list': r('rota', 'Shift logs', 'venue_id?, status?, from?, to?'),
   'ops.inbox': r('rota', 'Orb inbox (suggestions waiting)', 'status?'),
   'ops.activity': r('rota', 'Orb activity', ''),
-  'ops.decide': c('rota', 'Accept or reject an Orb suggestion', 'id, decision (approve|reject), reason?'),
+  'ops.decide': c('rota', "Accept or reject an Orb suggestion. Approve with the card's own choices unless the manager picks others in edits", `id, decision (approve|reject), reason?,
+    edits? (cover: { officer_ids[] } who to offer it to; compliance: { actions[] } action ids "<issue key>|<kind>" from the card; reconcile: { use: rota|clock } which hours are right; feedback: { hr_note?, reply? (text to the venue), ban? (stop them going to that venue) }),
+    then? (rejecting a cover card: next (offer the next officers) | agency | unfilled)`),
+  'ops.offerCover': c('rota', 'Offer an open shift to officers the manager picked, all at once (first to accept gets it). Use cover_candidates first: only free, eligible officers can be offered', 'shift_id, officer_ids[] (up to 10)', { words: 'cover offer send shift several officers ask fill' }),
   'ops.decideMany': c('rota', 'Approve or decline several Orb suggestions of one kind with their default choices', 'ids, decision (approve|reject), reason?'),
   'venues.list': r('venues', 'Venues', 'include_inactive?'),
   'venues.get': r('venues', 'Venue details', 'id'),
@@ -222,7 +240,7 @@ export function catalogFor(user, actions) {
 }
 
 // Changes that reach people outside the app's managers: messages, posts, documents to sign, the published rota, invites
-const OUTWARD = /^(email\.send|messages\.send|messages\.createGroup|everyday\.create|shifts\.publish|contracts\.send|contracts\.draft\.send|contracts\.upload\.send|contracts\.link\.resend|esign\.remind|officers\.inviteLogin|users\.invite)$/;
+const OUTWARD = /^(email\.send|messages\.send|messages\.createGroup|everyday\.create|shifts\.publish|contracts\.send|contracts\.draft\.send|contracts\.upload\.send|contracts\.link\.resend|esign\.remind|officers\.inviteLogin|users\.invite|docs\.request|ops\.offerCover)$/;
 
 /** A Confirm card line a spoken "yes" cannot approve: money, or anything sent to people. Returns why, or null. */
 export function needsTap(step) {
@@ -232,6 +250,8 @@ export function needsTap(step) {
   if (OUTWARD.test(name)) return 'something sent to people';
   if (name === 'onboarding.setStatus' && body.invite) return 'something sent to people';
   if (name === 'toolbox.setStatus' && body.status === 'published') return 'something sent to people';
+  // Approving a cover card sends offers; a reply on a feedback card goes to the venue
+  if (name === 'ops.decide' && (body.edits?.reply || body.edits?.officer_ids)) return 'something sent to people';
   return null;
 }
 

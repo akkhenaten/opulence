@@ -166,19 +166,23 @@ export async function refile(d, to, by = null) {
 
 // With SIA Checker on, look the licence up on the register straight away and save what it shows
 async function registerCheck(officerId) {
-  if (!siaCheckOn() || !autoCheckEnabled()) return;
   try {
-    const o = await one('SELECT sia_number FROM officers WHERE id = $1', [officerId]);
-    if (digits(o?.sia_number).length !== 16) return;
-    const r = await lookupLicence(digits(o.sia_number));
-    const status = r.outcome === 'not_found' ? 'not_found' : r.outcome === 'found' ? r.status : null;
-    if (!status) return;
-    const { recordSiaCheck } = await import('../modules/sia.mjs');
-    await recordSiaCheck({
-      officerId, status, expiry: r.expiry, sector: r.sector,
-      notes: 'Checked by Orb after reading the uploaded card', source: 'auto',
-    });
+    await checkRegister(officerId);
   } catch (e) {
     console.error('[docAuto] register check', e.message);
   }
+}
+
+/** Ask the SIA register about this officer's licence and save the answer. user: the manager who asked (null = Orb).
+ *  Returns { status } when the register answered (saved), or { outcome, message } when it couldn't (nothing saved). */
+export async function checkRegister(officerId, user = null, notes = 'Checked by Orb after reading the uploaded card') {
+  if (!siaCheckOn() || !autoCheckEnabled()) return { outcome: 'off', message: "Automatic register checks aren't set up" };
+  const o = await one('SELECT sia_number FROM officers WHERE id = $1', [officerId]);
+  if (digits(o?.sia_number).length !== 16) return { outcome: 'no_number', message: 'No 16-digit licence number on the profile' };
+  const r = await lookupLicence(digits(o.sia_number));
+  const status = r.outcome === 'not_found' ? 'not_found' : r.outcome === 'found' ? r.status : null;
+  if (!status) return { outcome: r.outcome, message: r.message || 'The register did not answer' };
+  const { recordSiaCheck } = await import('../modules/sia.mjs');
+  await recordSiaCheck({ officerId, user, status, expiry: r.expiry, sector: r.sector, notes, source: 'auto' });
+  return { status, expiry: r.expiry };
 }

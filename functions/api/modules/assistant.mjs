@@ -1,6 +1,7 @@
 // Orb: the managers' assistant. It knows the user guide, looks things up across the app and acts through the
 // same actions as the screens, always as the signed-in manager with their own permissions.
 // Small, reversible changes run straight away (with Undo); everything else waits on a Confirm card.
+import { houseRulesBlock } from '../lib/houseRules.mjs';
 import { one, q } from '../lib/db.mjs';
 import { fail, required, need, HttpError } from '../lib/http.mjs';
 import { canSeePay } from '../lib/auth.mjs';
@@ -365,7 +366,7 @@ const ROUTES = {
   company: 'recruitment (online applicants: recruitment?applicant=<officer id>), hr/time-off, people/contracts, clients, invoices, invoices/<id>, reports, settings, audit',
 };
 
-function systemPrompt(user, page, companyName) {
+function systemPrompt(user, page, companyName, rules = '') {
   const now = new Date();
   const pay = canSeePay(user);
   const base = `/${user.role}`;
@@ -380,6 +381,8 @@ How you work:
 - Put everything one request needs on the same card. If a later change needs the id of something the card will create (for example a shift at a venue that does not exist yet), put the first change on the card, say what you will do next, and carry on after they confirm.
 - Pay and invoices use their own tools (create_pay_run … mark_paid). The pay workflow is: create the pay run, send it to officers to check (1–7 days), resolve queries, finalise, issue, mark paid. Invoices are made from approved hours after finalising.
 - Venue addresses and logos: you can look them up on the internet with venues.findAddress / venues.findAddresses (the venue's own website, then OpenStreetMap; postcodes.io checks the postcode and gives the map pin) and venues.findLogo. Put what you found on the Confirm card (venues.save with address, postcode, lat and lng; venues.useLogo for a logo) and say where each came from. Never make up an address, postcode or logo: if nothing was found, say so and suggest adding it by hand.
+- Compliance: compliance.blocked says who can't work; grace periods (compliance.grace.*), SIA register checks (sia.lookup then sia.record), asking an officer for a document (docs.request), re-filing or editing an upload (docs.update) and fixes on Orb's compliance cards (ops.decide with edits.actions) are all available. Grace periods and re-filing are for company managers only.
+- To offer an open shift to several officers at once use ops.offerCover with officers from cover_candidates.
 - To swap or replace someone on a shift use shifts.reassign (one step, works on a full shift). shifts.assign only fills empty places. People may be called by their goes-by name (find_shifts and list_officers include it).
 - If something fails, explain why in plain words and what would fix it.
 - When you have acted, say in one or two sentences what is done and what is waiting for Confirm. Link to the screen with markdown links to app paths, e.g. [Open the rota](${base}/rota). Paths start with ${base}/ and can only be: ${routes}.
@@ -388,7 +391,7 @@ How you work:
   const live = `You are helping ${user.name}, ${user.role === 'company' ? 'a company manager (full access)' : 'a security / ops manager'}.
 Today is ${londonParts(now).weekday} ${londonDate(now)}, time ${fmtTime(now)} Europe/London. Weeks run Monday to Sunday.
 ${pay ? 'They can see pay.' : 'They CANNOT see pay, pay statements, rates or invoices: decline those politely and say the company can give them access.'}${user.role === 'company' ? ' They can run pay and invoices.' : ' Only the company can run pay, invoices, contracts, settings and logins; say so if asked.'}
-${page?.name ? `They are looking at: ${page.name}${page.id ? ` (id ${page.id})` : ''}. "This" or "here" usually means that.` : ''}`;
+${page?.name ? `They are looking at: ${page.name}${page.id ? ` (id ${page.id})` : ''}. "This" or "here" usually means that.` : ''}${houseRulesBlock(rules)}`;
   return [{ type: 'text', text: stable, cache_control: { type: 'ephemeral' } }, { type: 'text', text: live }];
 }
 
@@ -466,7 +469,7 @@ export const actions = {
 
     const page = b.page && typeof b.page === 'object' ? { name: String(b.page.name || '').slice(0, 80), id: String(b.page.id || '').slice(0, 40) } : null;
     const companyName = s.company_name || 'Orb Security';
-    const system = systemPrompt(user, page, companyName);
+    const system = systemPrompt(user, page, companyName, s.ops_house_rules);
     const tools = toolsFor(user);
     const turn = {
       id: row.id, user, ctx, companyName, catalog: catalogFor(user, ACTIONS), created: [], done: [], card: [], progress: [],

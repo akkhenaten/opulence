@@ -14,6 +14,7 @@ const KIND = {
   feedback: { label: 'Feedback', tone: 'grey' },
   compliance: { label: 'Compliance', tone: 'red' },
   venue_setup: { label: 'Venue setup', tone: 'blue' },
+  incident: { label: 'Incident', tone: 'amber' },
 };
 const RADIUS_CHOICES = [50, 75, 100, 150, 200, 300, 500];
 const ISSUE_CARDS = ['compliance', 'venue_setup'];
@@ -134,7 +135,10 @@ function ItemCard({ it, onDone, select, compact }) {
   const k = KIND[it.kind];
   const pending = it.status === 'pending';
   const p = it.payload || {};
-  const approveLabel = { cover: 'Send offers', venue_request: 'Approve & publish', reconcile: p.info_only ? 'Mark reviewed' : 'Approve fix', feedback: 'Mark reviewed', compliance: 'Apply selected', venue_setup: 'Apply selected' }[it.kind];
+  const [use, setUse] = useState('');
+  const [ask, setAsk] = useState(p.ask || '');
+  const [feedback, setFeedback] = useState(false);
+  const approveLabel = { cover: 'Send offers', venue_request: 'Approve & publish', reconcile: p.info_only ? 'Mark reviewed' : 'Approve fix', feedback: 'Decide…', compliance: 'Apply selected', venue_setup: 'Apply selected', incident: it.officer_id ? 'Send back to the officer' : 'Mark reviewed' }[it.kind];
   const allowed = (a) => !a.company_only || user.role === 'company';
   const [picked, setPicked] = useState(() => new Set((p.issues || []).flatMap((i) => i.actions.filter((a) => a.default && allowed(a)).map((a) => a.id))));
   const [radius, setRadius] = useState(() => (p.issues || []).find((i) => i.key === 'radius')?.actions[0]?.params.radius_m || 150);
@@ -157,10 +161,9 @@ function ItemCard({ it, onDone, select, compact }) {
   });
 
   const approve = async () => {
-    if (it.kind === 'feedback') {
-      const add = await confirm({ title: 'Add to HR notes?', body: 'Keep a record of this feedback on the officer\'s HR notes.', confirm: 'Add to HR notes' });
-      return decide('approve', { edits: { hr_note: add } });
-    }
+    if (it.kind === 'feedback') return setFeedback(true);
+    if (it.kind === 'reconcile' && use) return decide('approve', { edits: { use } });
+    if (it.kind === 'incident') return decide('approve', { edits: { ask, send: !!it.officer_id } });
     if (it.kind === 'compliance') return decide('approve', { edits: { actions: [...picked] } });
     if (it.kind === 'venue_setup') return decide('approve', { edits: { actions: [...picked], radius_m: Number(radius) } });
     return decide('approve');
@@ -185,7 +188,8 @@ function ItemCard({ it, onDone, select, compact }) {
       <div className="mt-3 flex-1">
         {it.kind === 'cover' && <CoverBody it={it} />}
         {it.kind === 'venue_request' && <RequestBody it={it} />}
-        {it.kind === 'reconcile' && <ReconcileBody p={p} />}
+        {it.kind === 'reconcile' && <ReconcileBody p={p} use={pending ? use : ''} setUse={pending && setUse} />}
+        {it.kind === 'incident' && <IncidentBody it={it} pending={pending} ask={ask} setAsk={setAsk} />}
         {ISSUE_CARDS.includes(it.kind) && <ComplianceBody it={it} pending={pending} manual={manual} picked={picked} setPicked={setPicked} allowed={allowed} onChanged={onDone} radius={radius} setRadius={setRadius} />}
         {it.kind === 'feedback' && p.rating && <div className="flex items-center gap-1 text-amber">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={18} fill={n <= p.rating ? 'currentColor' : 'none'} />)}<span className="ml-2 text-footnote text-muted">{p.shift}</span></div>}
         {it.kind === 'feedback' && p.comment_id && (
@@ -205,6 +209,7 @@ function ItemCard({ it, onDone, select, compact }) {
         <div className={cx('flex flex-wrap gap-2', compact ? 'mt-3' : 'mt-4')}>
           <Button size={size} icon={Check} busy={busy} onClick={approve} disabled={(it.kind === 'cover' && !(p.officer_ids || []).length) || (ISSUE_CARDS.includes(it.kind) && !picked.size)}>{approveLabel}</Button>
           {['cover', 'venue_request'].includes(it.kind) && <Button size={size} variant="secondary" icon={Pencil} onClick={() => setEdit(true)}>Edit</Button>}
+          {it.kind === 'incident' && it.officer_id && <Button size={size} variant="secondary" busy={busy} onClick={() => decide('approve', { edits: { send: false } })}>Mark reviewed</Button>}
           <Button size={size} variant="ghost" icon={X} onClick={() => setRejecting(true)}>Reject</Button>
         </div>
       ) : (
@@ -216,7 +221,8 @@ function ItemCard({ it, onDone, select, compact }) {
 
       {edit && it.kind === 'cover' && <CoverEdit it={it} busy={busy} onClose={() => setEdit(false)} onSave={(ids) => decide('approve', { edits: { officer_ids: ids } })} />}
       {edit && it.kind === 'venue_request' && <RequestEdit it={it} busy={busy} onClose={() => setEdit(false)} onSave={(shifts) => decide('approve', { edits: { shifts } })} />}
-      <RejectSheet open={rejecting} busy={busy} dismiss={manual} venue={it.kind === 'venue_request' && p.request_id} setup={it.kind === 'venue_setup'} onClose={() => setRejecting(false)} onReject={(reason) => decide('reject', { reason })} />
+      {feedback && <FeedbackDecide it={it} busy={busy} onClose={() => setFeedback(false)} onSave={(edits) => decide('approve', { edits }).then(() => setFeedback(false))} />}
+      <RejectSheet open={rejecting} busy={busy} dismiss={manual || it.kind === 'incident'} cover={it.kind === 'cover'} venue={it.kind === 'venue_request' && p.request_id} setup={it.kind === 'venue_setup'} onClose={() => setRejecting(false)} onReject={(reason, then) => decide('reject', { reason, then })} />
     </Tile>
   );
 }
@@ -303,7 +309,19 @@ function RequestEdit({ it, busy, onClose, onSave }) {
   );
 }
 
-function ReconcileBody({ p }) {
+// The same sums as the server (ops.mjs reconcileFix) when the manager picks which hours are right
+function fixFor(f, use) {
+  const truth = use === 'rota' ? f.rota_h : f.clock_h;
+  const fix = {};
+  if (truth == null) return fix;
+  if (Math.abs(f.ts_h - truth) > 0.25) fix.timesheet_hours = truth;
+  if (f.stmt_h != null && Math.abs(f.stmt_h - truth) > 0.25) fix.statement_hours = truth;
+  const billable = Math.max(truth, Number(f.min_hours) || 0);
+  if (f.inv_h != null && Math.abs(f.inv_h - billable) > 0.25) fix.invoice_hours = billable;
+  return fix;
+}
+
+function ReconcileBody({ p, use, setUse }) {
   const { base } = useBase();
   const f = p.figures || {};
   const bad = new Set((p.issues || []).map((i) => i.field));
@@ -311,7 +329,8 @@ function ReconcileBody({ p }) {
     { k: 'rota', label: 'Rota', v: f.rota_h }, { k: 'clock', label: 'Clocked', v: f.clock_h }, { k: 'ts', label: 'Timesheet', v: f.ts_h },
     { k: 'stmt', label: 'Pay', v: f.stmt_h }, { k: 'inv', label: 'Invoice', v: f.inv_h },
   ];
-  const fix = p.fix || {};
+  const fix = use ? fixFor(f, use) : p.fix || {};
+  const choose = setUse && !p.info_only && f.rota_h != null;
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-5 gap-1 text-center">
@@ -322,6 +341,13 @@ function ReconcileBody({ p }) {
           </div>
         ))}
       </div>
+      {choose && (
+        <div>
+          <div className="mb-1 text-footnote font-semibold text-muted">Which hours are right?</div>
+          <Segmented full value={use} onChange={setUse} options={[{ value: '', label: "Orb's pick" }, ...(f.clock_h != null ? [{ value: 'clock', label: 'Clocked' }] : []), { value: 'rota', label: 'Rota' }]} />
+        </div>
+      )}
+      {!p.info_only && use && !Object.keys(fix).length && <div className="text-footnote text-muted">Nothing to change with these hours: approving marks it reviewed.</div>}
       {!p.info_only && Object.keys(fix).length > 0 && (
         <div className="text-footnote text-muted">Fix: {[fix.timesheet_hours != null && `timesheet → ${hours(fix.timesheet_hours)}`, fix.statement_hours != null && `pay → ${hours(fix.statement_hours)}`, fix.invoice_hours != null && `invoice → ${hours(fix.invoice_hours)}`].filter(Boolean).join(' · ')}</div>
       )}
@@ -415,12 +441,68 @@ function ComplianceBody({ it, pending, manual, picked, setPicked, allowed, onCha
   );
 }
 
-function RejectSheet({ open, busy, venue, setup, many, dismiss, onClose, onReject }) {
+function IncidentBody({ it, pending, ask, setAsk }) {
+  const { base } = useBase();
+  const p = it.payload;
+  return (
+    <div className="space-y-2">
+      {p.mismatches?.length > 0 && (
+        <div><div className="text-footnote font-semibold text-red">Doesn't match the report</div>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-subhead">{p.mismatches.map((m, i) => <li key={i}>{m}</li>)}</ul></div>
+      )}
+      {p.missing?.length > 0 && (
+        <div><div className="text-footnote font-semibold text-muted">Missing</div>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-subhead">{p.missing.map((m, i) => <li key={i}>{m}</li>)}</ul></div>
+      )}
+      {pending && it.officer_id && <Textarea label={`Message to ${p.officer_name || 'the officer'} (the report goes back to them)`} rows={4} value={ask} onChange={(e) => setAsk(e.target.value)} />}
+      <Button size="sm" variant="soft" to={`${base}/incidents/${p.incident_id}`}>Open {p.ref || 'the report'}</Button>
+    </div>
+  );
+}
+
+// What to do about a venue's feedback: any of an HR note, a reply to the venue and keeping the officer away from that venue
+function FeedbackDecide({ it, busy, onClose, onSave }) {
+  const { user } = useBase();
+  const [hrNote, setHrNote] = useState(true);
+  const [ban, setBan] = useState(false);
+  const [reply, setReply] = useState('');
+  const officer = !!it.officer_id;
+  return (
+    <Sheet open onClose={onClose} title="What should happen?" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={() => onSave({ hr_note: officer && hrNote, ban: officer && ban, reply })}>Done</Button></>}>
+      <div className="space-y-3">
+        {officer && <Toggle label="Add to their HR notes" hint="Keeps a record of this feedback on the officer's profile" checked={hrNote} onChange={setHrNote} />}
+        {officer && user.role === 'company' && it.venue_id && <Toggle label={`Don't send them to ${it.venue_name || 'this venue'} again`} hint="Bars them from this venue on the rota and in cover offers" checked={ban} onChange={setBan} />}
+        {it.venue_id && <Textarea label="Reply to the venue (optional)" hint="Sent to the venue's managers in the app and by email" rows={3} value={reply} onChange={(e) => setReply(e.target.value)} />}
+      </div>
+    </Sheet>
+  );
+}
+
+const COVER_THEN = [
+  { value: 'next', label: 'Offer the next officers', hint: 'Orb picks the next best free officers and makes a new card' },
+  { value: 'agency', label: "We'll use agency staff", hint: 'Noted in Orb activity; Orb stops looking for this shift' },
+  { value: 'unfilled', label: 'Leave it unfilled', hint: 'Orb stops looking for this shift' },
+];
+
+function RejectSheet({ open, busy, venue, setup, many, dismiss, cover, onClose, onReject }) {
   const [reason, setReason] = useState('');
+  const [then, setThen] = useState('next');
   const label = many ? `Decline ${many}` : dismiss ? 'Dismiss' : 'Reject';
   return (
-    <Sheet open={open} onClose={onClose} title={label} size="sm" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant="danger" busy={busy} onClick={() => onReject(reason)}>{label}</Button></>}>
+    <Sheet open={open} onClose={onClose} title={label} size="sm" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant="danger" busy={busy} onClick={() => onReject(reason, cover ? then : undefined)}>{label}</Button></>}>
       {(many > 0 || setup) && <p className="mb-3 text-subhead text-muted">{[many > 0 && 'The same reason is kept on each card.', setup && "Orb won't ask about these details again unless they change."].filter(Boolean).join(' ')}</p>}
+      {cover && (
+        <div className="mb-3 space-y-2" role="radiogroup" aria-label="Then">
+          <div className="text-footnote font-semibold text-muted">Not these officers. Then:</div>
+          {COVER_THEN.map((o) => (
+            <Pressable press key={o.value} role="radio" aria-checked={then === o.value} onClick={() => setThen(o.value)}
+              className={cx('flex w-full items-start gap-3 rounded-2xl border px-3 py-2.5 text-left transition', then === o.value ? 'border-blue bg-blue-soft' : 'border-line bg-surface')}>
+              <span className={cx('mt-1 h-4 w-4 shrink-0 rounded-full border-2', then === o.value ? 'border-blue bg-blue' : 'border-line')} />
+              <span className="min-w-0 flex-1"><span className="block text-body font-semibold">{o.label}</span><span className="block text-footnote text-muted">{o.hint}</span></span>
+            </Pressable>
+          ))}
+        </div>
+      )}
       <Textarea label={venue ? 'Reason (sent to the venue)' : 'Reason (optional)'} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
     </Sheet>
   );
@@ -507,6 +589,7 @@ export function OpsSettings() {
       ops_jobs: v.ops_jobs, ops_escalate_minutes: Number(v.ops_escalate_minutes), ops_offer_wait_minutes: Number(v.ops_offer_wait_minutes),
       ops_reconcile_dow: Number(v.ops_reconcile_dow), ops_compliance_dow: Number(v.ops_compliance_dow), ops_ai_cap_credits: Number(v.ops_ai_cap_credits),
       ...Object.fromEntries(PACK_TIMES.map((t) => [t.k, Number(v[t.k])])),
+      ops_house_rules: v.ops_house_rules || '',
     });
     q.setData(r);
   }, 'Saved');
@@ -537,6 +620,11 @@ export function OpsSettings() {
             </div>
           </Tile>
         )}
+        <Tile title="House rules for Orb">
+          <Textarea rows={6} maxLength={2000} autoGrow minRows={6} value={v.ops_house_rules || ''} onChange={(e) => set('ops_house_rules', e.target.value)}
+            placeholder={'e.g. Prefer officers who have worked the venue before.\nNever offer cover to officers under 21 at nightclubs.\nAlways remind before giving a grace period.'}
+            hint={`How your company likes things done. Orb follows these in chat, voice and its card advice, but they can't skip a Confirm tap, show pay to someone who can't see it, or bend the law. ${(v.ops_house_rules || '').length}/2000`} />
+        </Tile>
         <Tile title="AI usage this month">
           <div className="mb-2 flex items-baseline justify-between gap-2">
             <span className="num text-title2 font-bold">{Math.round(used).toLocaleString('en-GB')}</span>
