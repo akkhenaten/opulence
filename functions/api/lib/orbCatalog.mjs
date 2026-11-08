@@ -88,6 +88,7 @@ export const CATALOG = {
   'device.revoke': c('rota', 'Remove an officer\'s registered clock-in phone', 'id'),
   'venues.tags': r('venues', 'NFC tags at a venue', 'venue_id'),
   'clock.manual': c('rota', 'Record hours manually', 'assignment_id, start (ISO), end (ISO), reason, break_minutes?'),
+  'clock.managerOut': c('rota', 'Clock out an officer who forgot (keeps their clock-in)', 'assignment_id, reason, at? (ISO, default now)'),
   'timesheets.list': r('rota', 'Timesheets', 'status (pending|approved|signed|disputed|declined)?, from?, to?, venue_id?, officer_id?'),
   'timesheets.missing': r('rota', 'Worked shifts with no timesheet yet', ''),
   'timesheets.approve': c('rota', 'Approve timesheets', 'ids[]', { link: () => 'timesheets' }),

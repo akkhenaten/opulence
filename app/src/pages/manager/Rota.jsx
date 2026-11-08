@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Copy, Crown, Hand, NotebookPen, Plus, Printer, Repeat, Rows2, Rows4, Send, Trash2, UserMinus, UserPlus, X,
+  CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Copy, Crown, Hand, LogOut, NotebookPen, Plus, Printer, Repeat, Rows2, Rows4, Send, Trash2, UserMinus, UserPlus, X,
 } from 'lucide-react';
 import {
   ActionBar, addDays, AssignPill, Avatar, Button, Chip, confirmState, cx, dateShort, dayLabel, Dot, Empty, ErrorBox, FilterBar, IconButton, Input, isoDate, KV, List, Load, mondayOf, MoreMenu, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useMedia, useToast, useUrlState, nameMatches, displayName,
@@ -9,6 +9,7 @@ import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { Check as Tick, WEEKDAYS, durationH, londonIso, londonParts, shiftTimes, useBase } from './_parts.jsx';
 import { PackPill } from '../shared/PackPaper.jsx';
+import { ClockOutSheet } from '../shared/_clockOut.jsx';
 
 const dayOf = (iso) => londonParts(iso).date;
 const ACTIVE = ['assigned', 'accepted'];
@@ -585,6 +586,7 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit, onPrev, onNext 
   const confirm = useConfirm();
   const [assigning, setAssigning] = useState(false);
   const [replacing, setReplacing] = useState(null);
+  const [clockingOut, setClockingOut] = useState(null);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
   const changed = () => { q.reload(); onChanged(); };
@@ -671,6 +673,7 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit, onPrev, onNext 
                     {ACTIVE.includes(a.status) && s.status !== 'cancelled' && (
                       <MoreMenu label={`Actions for ${a.name}`} title={a.name} items={[
                         { label: a.is_lead ? 'Remove as shift lead' : 'Make shift lead', icon: Crown, onClick: () => setLead(a), disabled: busy },
+                        a.clocked_in && !a.clocked_out && { label: 'Clock out', icon: LogOut, onClick: () => setClockingOut(a) },
                         !a.clocked_in && { label: 'Replace with someone else', icon: Repeat, onClick: () => setReplacing(a) },
                         !a.clocked_in && { label: 'Remove from shift', icon: UserMinus, danger: true, onClick: () => unassign(a) },
                       ]} />
@@ -683,6 +686,8 @@ function ShiftDetail({ id, roleName, onClose, onChanged, onEdit, onPrev, onNext 
         </div>
       )}
       {assigning && s && <AssignSheet shift={s} onClose={() => setAssigning(false)} onDone={() => { setAssigning(false); changed(); }} />}
+      {s && <ClockOutSheet open={!!clockingOut} onClose={() => setClockingOut(null)} onDone={() => { setClockingOut(null); changed(); }}
+        row={clockingOut && { assignment_id: clockingOut.id, officer_name: clockingOut.name, venue_name: s.venue_name, clocked_in: clockingOut.clocked_in, ends_at: s.ends_at }} />}
       {replacing && s && <AssignSheet shift={s} replace={replacing} onClose={() => setReplacing(null)} onDone={() => { setReplacing(null); changed(); }} />}
     </Sheet>
   );

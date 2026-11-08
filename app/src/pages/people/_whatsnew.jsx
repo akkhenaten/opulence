@@ -1,6 +1,6 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  ArrowRightLeft, BadgeCheck, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, Mail, MessageSquareHeart,
+  ArrowRightLeft, BadgeCheck, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LogOut, Mail, MessageSquareHeart,
   Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, Radio, ReceiptText, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-08', icon: LogOut, title: 'Clock out an officer who forgot', image: 'manager-clock-out',
+    lede: "When an officer forgets to clock out, a manager can now do it for them in two taps: choose now, the shift end or another time, pick a reason, done. Their real clock-in and its checks stay as recorded, the timesheet updates, and the officer gets a notification.",
+    points: ['Live operations: open an officer who is on shift and tap Clock out; anyone still on after their shift ended shows Past shift end', 'Rota: Clock out is in each clocked-in officer\'s … menu', 'Timesheets: shifts closed at the scheduled end because nobody clocked out get Set clock-out time, so the hours match what was really worked', 'Unlike Set times manually, their clock-in, phone, location and selfie checks are kept', 'The officer is told who clocked them out, when and why, and it is kept in the timesheet history and audit log'],
+  },
   {
     month: 'November 2026', date: '2026-11-07', icon: BellRing, title: 'Phone set-up and notifications, sorted', image: 'phone-and-push',
     lede: "Officers are now asked to register their clock-in phone before their first shift, with a Register now button on their Home page, so clock-ins stop showing \"Phone not verified\". Everyone is also asked to turn on phone notifications, so shift offers, changes and safety alerts arrive straight away.",

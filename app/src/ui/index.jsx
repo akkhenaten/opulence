@@ -214,7 +214,7 @@ function SheetMenu({ open, onClose, items, title }) {
               </span>
             </>
           );
-          if (a.to) return <Link key={a.label} to={a.to} onClick={onClose} className={cls}>{inner}</Link>;
+          if (a.to) return <Link key={a.label} to={a.to} state={a.state} onClick={onClose} className={cls}>{inner}</Link>;
           if (a.href) return <a key={a.label} href={a.href} target="_blank" rel="noopener" onClick={onClose} className={cls}>{inner}</a>;
           return <button key={a.label} type="button" disabled={a.disabled || a.busy} onClick={() => pick(a)} className={cls}>{inner}</button>;
         })}

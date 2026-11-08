@@ -1,12 +1,13 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Clock, History, Lock, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
+  AlertTriangle, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Clock, History, Lock, LogOut, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
 } from 'lucide-react';
 import {
   ActionBar, addDays, Avatar, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, MoreMenu, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, useAction, useApi, useConfirm, useForm, useUrlState,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useVenue } from '../../venue.jsx';
+import { ClockOutSheet } from './_clockOut.jsx';
 import { Check as Tick, fromLondonInput, londonIso, SELF_HINT, SelfPills, toLondonInput, useBase } from '../manager/_parts.jsx';
 
 const FLAG_TONE = { late: 'amber', left_early: 'amber', exception: 'red', no_clock_out: 'red', manual: 'blue', edited: 'blue', cancelled_after_billing: 'red' };
@@ -88,6 +89,8 @@ export default function Timesheets() {
       decline: isManager && ['awaiting', 'queried', 'no_clock_in', 'cancelled'].includes(s),
       sign: canSign && s === 'approved',
       times: isManager && s === 'no_clock_in',
+      // Clocked in, never out (still on, or closed at the shift end by the overnight check): a manager sets the real clock-out
+      clockout: isManager && !!r.clock_in && !r.clock_out && !['cancelled', 'declined'].includes(s),
       answer: isManager && s === 'queried',
       rate: isCo && !!r.id && !['declined', 'cancelled'].includes(s),
       edit: isManager && !!r.id && !['cancelled', 'declined'].includes(s),
@@ -115,6 +118,7 @@ export default function Timesheets() {
     query: (r) => setSheet({ kind: 'query', rows: [r] }), decline: (r) => setSheet({ kind: 'decline', rows: [r] }),
     times: (r) => setSheet({ kind: 'manual', rows: [r] }), answer: (r) => setSheet({ kind: 'answer', rows: [r] }), rate: (r) => setSheet({ kind: 'rate', rows: [r] }),
     edit: (r) => setSheet({ kind: 'edit', rows: [r] }),
+    clockout: (r) => setSheet({ kind: 'clockout', rows: [r] }),
   };
 
   const weekLabel = `${dateShort(week)} – ${dateShort(addDays(week, 6))}`;
@@ -183,6 +187,8 @@ export default function Timesheets() {
       {sheet?.kind === 'rate' && <RateSheet t={sheet.rows[0]} onClose={() => setSheet(null)} onDone={done} />}
       {sheet?.kind === 'manual' && <ManualSheet m={sheet.rows[0]} onClose={() => setSheet(null)} onDone={done} />}
       {sheet?.kind === 'edit' && <EditSheet t={sheet.rows[0]} onClose={() => setSheet(null)} onDone={done} />}
+      <ClockOutSheet open={sheet?.kind === 'clockout'} later onClose={() => setSheet(null)} onDone={done}
+        row={sheet?.kind === 'clockout' && { ...sheet.rows[0], clocked_in: sheet.rows[0].clock_in }} />
       {sheet?.kind === 'answer' && <AnswerSheet t={sheet.rows[0]} onClose={() => setSheet(null)} onDone={done} />}
     </Page>
   );
@@ -439,6 +445,7 @@ function Actions({ r, c, act, busy }) {
   return (
     <div className="inline-flex flex-wrap justify-end gap-1.5">
       {b('times', Clock, 'Set times', 'soft')}
+      {b('clockout', LogOut, 'Set clock-out', 'soft')}
       {b('answer', MessageSquareReply, 'Answer', 'soft')}
       {b('query', AlertTriangle, 'Query', 'danger')}
       {b('decline', Ban, 'Decline')}
@@ -451,11 +458,12 @@ function Actions({ r, c, act, busy }) {
 // Desktop rows: one labelled main action (Approve or Sign off; Set times or Answer when that is all there is) and the rest under …
 function RowActions({ r, c, act, busy }) {
   const main = c.approve ? ['approve', Check, 'Approve', 'primary'] : c.sign ? ['sign', Signature, 'Sign off', 'primary']
-    : c.times ? ['times', Clock, 'Set times', 'soft'] : c.answer ? ['answer', MessageSquareReply, 'Answer', 'soft'] : null;
+    : c.times ? ['times', Clock, 'Set times', 'soft'] : c.clockout ? ['clockout', LogOut, 'Set clock-out', 'soft'] : c.answer ? ['answer', MessageSquareReply, 'Answer', 'soft'] : null;
   const item = (key, icon, label, danger) => c[key] && key !== main?.[0] && { label, icon, danger, onClick: () => act[key](r) };
   const more = [
     item('answer', MessageSquareReply, 'Answer query'),
     item('times', Clock, 'Set times'),
+    item('clockout', LogOut, 'Set clock-out time'),
     item('edit', PenLine, r.state === 'queried' ? 'Correct times' : 'Edit times'),
     item('query', AlertTriangle, 'Query'),
     item('decline', Ban, 'Decline', true),
@@ -472,7 +480,7 @@ function RowActions({ r, c, act, busy }) {
 
 const TRAIL = {
   'timesheet.approve': 'Approved', 'timesheet.sign': 'Venue signed', 'timesheet.dispute': 'Queried', 'timesheet.answer': 'Query answered',
-  'timesheet.decline': 'Declined', 'timesheet.reopen': 'Reopened', 'timesheet.rate': 'Rate changed', 'timesheet.edit': 'Times corrected', 'clock.manual': 'Times set by hand',
+  'timesheet.decline': 'Declined', 'timesheet.reopen': 'Reopened', 'timesheet.rate': 'Rate changed', 'timesheet.edit': 'Times corrected', 'clock.manual': 'Times set by hand', 'clock.managerOut': 'Clocked out by a manager',
 };
 const trailNote = (a) => a.detail?.reason || a.detail?.comment || a.detail?.reply || '';
 
@@ -497,11 +505,12 @@ function Detail({ t, can, isManager, see, act, busy, onClose, onDone, onPrev, on
     can.sign && { key: 'sign', label: 'Sign off', icon: Signature, onClick: () => act.sign(t), busy },
     can.answer && { key: 'answer', label: 'Answer', icon: MessageSquareReply, onClick: () => setMode('answer') },
     can.times && { key: 'times', label: 'Set times', icon: Clock, onClick: () => act.times(t) },
+    can.clockout && { key: 'clockout', label: 'Set clock-out time', icon: LogOut, onClick: () => act.clockout(t) },
     canReopen && { key: 'reopen', label: 'Reopen', icon: Undo2, onClick: reopen, busy: rbusy },
     editable && { key: 'edit', label: t.state === 'queried' ? 'Correct' : 'Edit times', icon: PenLine, onClick: () => setMode('edit') },
     can.decline && { key: 'decline', label: 'Decline', icon: Ban, onClick: () => act.decline(t), danger: true },
   ].filter(Boolean);
-  const main = actions.find((a) => ['approve', 'sign', 'answer', 'times', 'reopen'].includes(a.key));
+  const main = actions.find((a) => ['approve', 'sign', 'answer', 'times', 'clockout', 'reopen'].includes(a.key));
   const more = actions.filter((a) => a !== main);
   const footer = (main || can.query || more.length > 0) && (
     <>

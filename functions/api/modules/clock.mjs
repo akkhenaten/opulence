@@ -4,7 +4,7 @@ import { venueScope, assertVenue } from '../lib/scope.mjs';
 import { insideFence } from '../lib/geo.mjs';
 import { parseQr } from '../lib/qr.mjs';
 import { roundHours } from '../lib/rates.mjs';
-import { notify, managersFor } from '../lib/notify.mjs';
+import { notify, managersFor, officerUser } from '../lib/notify.mjs';
 import { fmtTime } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { downloadUrl, photoUrls } from '../lib/storage.mjs';
@@ -277,6 +277,40 @@ export const actions = {
       ...(self.selfApproved ? { self_approved: true } : {}),
     });
     return { ok: true };
+  }),
+
+  // A manager clocks out an officer who forgot: the real clock-in and its checks stay, a manual 'out' is added (audited, officer told)
+  'clock.managerOut': def(MGR, async (b, { user }) => {
+    required(b, 'assignment_id', 'reason');
+    const at = b.at ? new Date(b.at) : new Date();
+    if (Number.isNaN(at.getTime())) fail(400, 'Choose a clock-out time');
+    if (at - Date.now() > 60000) fail(400, "Clock-out can't be in the future");
+    const a = need(await one('SELECT a.*, s.venue_id, v.name AS venue_name FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id WHERE a.id = $1', [b.assignment_id]));
+    await assertVenue(user, a.venue_id);
+    const self = await guardSelf(user, a.officer_id, { venueId: a.venue_id });
+    const ts = await one('SELECT * FROM timesheets WHERE assignment_id = $1', [a.id]);
+    if (await isBilled(ts)) fail(400, 'This timesheet is already on an issued invoice or a pay run in review');
+    const events = (await q('SELECT kind, ts, status FROM clock_events WHERE assignment_id = $1 ORDER BY ts', [a.id])).filter((e) => e.status !== 'rejected');
+    const state = stateOf(events);
+    if (state === 'not_started') fail(400, "They're not clocked in");
+    if (state === 'finished') fail(400, "They've already clocked out");
+    if (at <= new Date(events.at(-1).ts)) fail(400, `Clock-out must be after ${fmtTime(events.at(-1).ts)}`);
+    const kinds = state === 'on_break' ? ['break_end', 'out'] : ['out'];
+    for (const kind of kinds) {
+      await q("INSERT INTO clock_events (assignment_id, kind, ts, status, exception_reason, decided_by, decided_at, self_approved) VALUES ($1,$2,$3,'manual',$4,$5,now(),$6)",
+        [a.id, kind, at, b.reason, user.id, !!self.selfApproved]);
+    }
+    const t = await buildTimesheet(a.id, { force: true });
+    if (t && self.selfApproved) await q('UPDATE timesheets SET self_approved = true WHERE id = $1', [t.id]);
+    await audit(user, 'clock.managerOut', 'assignment', a.id, {
+      at, reason: b.reason, timesheet_id: t?.id || null, from: ts ? { hours: ts.hours, status: ts.status } : null, to: t ? { hours: t.hours, status: t.status } : null,
+      ...(self.selfApproved ? { self_approved: true } : {}),
+    });
+    await notify(await officerUser(a.officer_id), {
+      kind: 'clock_out', title: 'You were clocked out',
+      body: `${user.name} clocked you out at ${fmtTime(at)} (${a.venue_name}) — ${b.reason}`, link: `/officer/shifts/${a.shift_id}`, ref: `asg:${a.id}`,
+    });
+    return { ok: true, hours: t?.hours ?? null };
   }),
 
   // Live board for managers and venues: everyone due on site in the window

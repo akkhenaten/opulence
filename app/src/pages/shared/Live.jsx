@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, Clock3, FileSignature, Lock, MapPin, Phone, QrCode, Radio, RefreshCw, TriangleAlert } from 'lucide-react';
+import { ClipboardList, Clock3, FileSignature, Lock, LogOut, MapPin, Phone, QrCode, Radio, RefreshCw, TriangleAlert } from 'lucide-react';
 import {
   Avatar, Button, Callout, Dot, Empty, IconButton, Input, KV, List, Load, MoreMenu, Page, Pill, Row, Sheet, Tabs, Textarea, cx, range, time, titleCase, useAction, useApi, useForm, useMedia, useToast, useUrlState,
 } from '../../ui/index.jsx';
@@ -9,6 +9,7 @@ import { useVenue } from '../../venue.jsx';
 import { Chip, fromLondonInput, toLondonInput, useBase } from '../manager/_parts.jsx';
 import { ProofFlags, SelfieCompare } from '../manager/_proof.jsx';
 import { Activity, Inbox, OpsSettings } from '../manager/OpsAI.jsx';
+import { ClockOutSheet } from './_clockOut.jsx';
 
 const ISSUE = ['late', 'no_show', 'left_early'];
 const ON = ['on_shift', 'on_break'];
@@ -210,6 +211,7 @@ function Board({ rows, shown, filter, setFilter, onOpen, base, venue, narrow }) 
                     right={
                       <div className="flex flex-col items-end gap-1">
                         {!r.blocked && <Pill status={r.state} />}
+                        {!venue && pastEnd(r) && <Pill tone="amber">Past shift end</Pill>}
                         {r.state === 'upcoming' && r.assignment_status === 'assigned' && <Pill tone="amber">Unconfirmed</Pill>}
                         <PackPill r={r} venue={venue} />
                         {r.has_exception && <Pill tone="red"><TriangleAlert size={14} />Exception</Pill>}
@@ -225,16 +227,23 @@ function Board({ rows, shown, filter, setFilter, onOpen, base, venue, narrow }) 
   );
 }
 
+// Still clocked in after the shift ended: most likely forgot to clock out
+const pastEnd = (r) => ON.includes(r.state) && new Date(r.ends_at) < new Date();
+
 // Venues open the shift log (read only); the office opens the full shift card
 const shiftCard = (base, id) => (base === '/venue' ? `/venue/logs/${id}` : `${base}/shifts/${id}`);
 
 // One officer on the board, in a drawer beside it on wide screens: ↑ ↓ step through the rows
 function Detail({ row, venue, onClose, onDone, base, onPrev, onNext }) {
   const [manual, setManual] = useState(false);
-  useEffect(() => setManual(false), [row.assignment_id]);
+  const [clockOut, setClockOut] = useState(false);
+  useEffect(() => { setManual(false); setClockOut(false); }, [row.assignment_id]);
   const events = row.events || [];
   const inEv = events.find((e) => e.kind === 'in' && e.status !== 'rejected');
+  // Managers: while the officer is clocked in, Clock out is the main button and the shift card moves under …
+  const canOut = !venue && ON.includes(row.state);
   const more = venue ? [] : [
+    canOut && row.shift_id && { label: 'Open shift card', icon: ClipboardList, to: shiftCard(base, row.shift_id), state: { from: 'live' } },
     { label: 'Set times manually', icon: Clock3, onClick: () => setManual(true) },
     row.has_exception && { label: 'Review exception', icon: TriangleAlert, to: `${base}/exceptions` },
     row.pack !== 'none' && { label: 'Open site pack', icon: FileSignature, to: `${base}/venues/${row.venue_id}?tab=pack` },
@@ -244,11 +253,12 @@ function Detail({ row, venue, onClose, onDone, base, onPrev, onNext }) {
       footer={manual ? null : <>
         <MoreMenu items={more} title={row.officer_name} />
         {!venue && row.phone && <Button variant="secondary" icon={Phone} onClick={() => { window.location.href = `tel:${row.phone}`; }}>Call</Button>}
-        {row.shift_id && <Button to={shiftCard(base, row.shift_id)} state={{ from: 'live' }} icon={ClipboardList}>Open shift card</Button>}
+        {canOut ? <Button icon={LogOut} onClick={() => setClockOut(true)}>Clock out</Button>
+          : row.shift_id && <Button to={shiftCard(base, row.shift_id)} state={{ from: 'live' }} icon={ClipboardList}>Open shift card</Button>}
       </>}>
       {manual ? <ManualForm row={row} onCancel={() => setManual(false)} onDone={onDone} /> : (
         <div className="space-y-5">
-          <div className="flex flex-wrap items-center gap-2"><Pill status={row.state} /><PackPill r={row} venue={venue} />{row.has_exception && <Pill tone="red">Exception</Pill>}</div>
+          <div className="flex flex-wrap items-center gap-2"><Pill status={row.state} />{!venue && pastEnd(row) && <Pill tone="amber">Past shift end</Pill>}<PackPill r={row} venue={venue} />{row.has_exception && <Pill tone="red">Exception</Pill>}</div>
           <KV items={[
             ['Venue', row.venue_name], ['Shift', <span className="num">{range(row.starts_at, row.ends_at)}</span>], ['Role', row.role_name],
             !venue && ['SIA', row.sia_number], !venue && ['Phone', row.phone], ['Clocked in', row.clocked_in && <span className="num">{time(row.clocked_in)}</span>],
@@ -277,6 +287,7 @@ function Detail({ row, venue, onClose, onDone, base, onPrev, onNext }) {
           )}
         </div>
       )}
+      {canOut && <ClockOutSheet open={clockOut} row={{ ...row, on_break: row.state === 'on_break' }} onClose={() => setClockOut(false)} onDone={() => { setClockOut(false); onDone(); }} />}
     </Sheet>
   );
 }
