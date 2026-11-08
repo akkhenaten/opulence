@@ -210,6 +210,7 @@ const managerRoutes = (
     <Route path="incidents" element={<Incidents />} />
     <Route path="incidents/new" element={<IncidentForm />} />
     <Route path="incidents/:id" element={<IncidentDetail />} />
+    <Route path="incidents/:id/edit" element={<IncidentForm />} />
     <Route path="ejections" element={<Ejections />} />
     <Route path="staff" element={<Staff />} />
     <Route path="staff/phones" element={<Phones />} />

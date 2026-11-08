@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, CalendarClock, CalendarDays, CalendarOff, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Hand, History, Megaphone, Newspaper, RefreshCw, Settings, ShieldAlert, ShieldCheck,
+  AlertTriangle, CalendarClock, CalendarDays, CalendarOff, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, FileSignature, Hand, History, Megaphone, Newspaper, RefreshCw, Settings, ShieldAlert, ShieldCheck,
   Sparkles, TrendingUp, TriangleAlert, UserX,
 } from 'lucide-react';
 import {
@@ -34,6 +34,7 @@ const NEEDS = [
   { key: 'unfilled', to: '/rota', icon: CalendarClock, tone: 'red', one: 'unfilled shift in the next 7 days', many: 'unfilled shifts in the next 7 days' },
   { key: 'disputed', to: '/timesheets?status=disputed', icon: AlertTriangle, tone: 'red', one: 'disputed timesheet', many: 'disputed timesheets' },
   { key: 'cantWork', to: '/people/compliance?view=cantwork', icon: UserX, tone: 'red', one: 'officer can’t work (compliance)', many: 'officers can’t work (compliance)', company: true },
+  { key: 'incidentsToSign', to: '/incidents?to_sign=1', icon: FileSignature, tone: 'amber', one: 'incident report to sign', many: 'incident reports to sign' },
   { key: 'openIncidents', to: '/incidents', icon: ShieldAlert, tone: 'amber', one: 'open incident', many: 'open incidents' },
   { key: 'pendingCover', to: '/cover', icon: Megaphone, tone: 'amber', one: 'cover request to answer', many: 'cover requests to answer' },
   { key: 'graceEnding', to: '/people/compliance?view=cantwork', icon: CalendarClock, tone: 'amber', one: 'grace period ends within 3 days', many: 'grace periods end within 3 days', company: true },
@@ -90,6 +91,9 @@ export default function Dashboard() {
   const tab = feedOn && sp.get('tab') === 'everyday' ? 'everyday' : 'overview';
   const q = useApi('dashboard.get', {}, { poll: 30000 });
   const count = useApi('ops.count', {}, { poll: 30000 });
+  // Incident reports an officer signed that wait on a manager's signature (a dashboard count wins if the API sends one)
+  const toSign = useApi('incidents.list', { to_sign: true }, { poll: 60000 });
+  const dash = q.data && { ...q.data, counts: { incidentsToSign: toSign.data?.length || 0, ...(q.data.counts || {}) } };
   const unread = useApi('everyday.unread', {}, { poll: 60000, skip: !feedOn });
   const board = useLiveBoard();
   const lg = useMedia('(min-width: 1024px)');
@@ -106,7 +110,7 @@ export default function Dashboard() {
 
   // Any shift change or Orb decision anywhere in the app: the board, the counts and the cards catch up
   useEffect(() => {
-    const h = () => { board.q.reload(); count.reload(); q.reload(); setReloadKey((k) => k + 1); };
+    const h = () => { board.q.reload(); count.reload(); q.reload(); toSign.reload(); setReloadKey((k) => k + 1); };
     window.addEventListener('orb:ops', h);
     return () => window.removeEventListener('orb:ops', h);
   });
@@ -136,11 +140,11 @@ export default function Dashboard() {
   );
 
   return (
-    <Page backLabel="Today" title={`${greet}${first ? `, ${first}` : ''}`} subtitle={summaryLine(tab === 'everyday' ? null : q.data, isCompany, onSite, orb)} wide photo="door" slim actions={actions || undefined}>
+    <Page backLabel="Today" title={`${greet}${first ? `, ${first}` : ''}`} subtitle={summaryLine(tab === 'everyday' ? null : dash, isCompany, onSite, orb)} wide photo="door" slim actions={actions || undefined}>
       {tab !== 'everyday' && <PushCard className="mb-4" later="your account menu" />}
       {tab === 'everyday'
         ? <FeedBody lead={<Button size="sm" variant="ghost" icon={ChevronLeft} onClick={() => setSp({}, { replace: true })}>Today</Button>} />
-        : <Today d={q.data} board={board} base={base} isCompany={isCompany} lg={lg} orb={orb} reloadKey={reloadKey} focus={sp.get('card')} onOrbChange={() => { count.reload(); q.reload(); }} />}
+        : <Today d={dash} board={board} base={base} isCompany={isCompany} lg={lg} orb={orb} reloadKey={reloadKey} focus={sp.get('card')} onOrbChange={() => { count.reload(); q.reload(); }} />}
       {tab !== 'everyday' && <InstallCard className="mt-4" later={isCompany ? 'Settings' : 'My account'} />}
     </Page>
   );

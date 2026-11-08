@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Ban, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Nfc, Palette, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, SlidersHorizontal, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
+  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, SlidersHorizontal, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-08', icon: PenLine, title: 'Write incidents like notes, sign them together', image: 'incident-notes-sign',
+    lede: "An incident report is now one page you write like notes. Orb turns the notes and photos into a factual, neutral report, then the officer, their manager and the venue each sign it.",
+    points: ["Write freely and add things with small icons: photos, files, a person or witness, voice, police, ambulance or force used. Type / for the same list. Every change saves as a draft", "Tap Orb and it writes the report in plain, neutral language, with each photo placed under the part it supports and captioned. It asks about anything missing", "Edit any part, or ask Orb to redo one section, then sign on the screen to send it to your manager", "The manager signs to approve it, adds a statement, edits it (the officer then signs again) or sends it back with a note", "The venue signs to say they have received and read it. They get a reminder the next morning, then every two days", "Once everyone has signed, a sealed PDF with a signing certificate and QR check is filed under the venue's incidents. Reports filed before today work as they did"],
+  },
   {
     month: 'November 2026', date: '2026-11-08', icon: BellRing, title: 'Answer from the notification', image: 'push-actions',
     lede: "Orb's most urgent questions now come with buttons on the phone notification, so an officer can answer without hunting for the message.",

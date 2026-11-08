@@ -189,6 +189,83 @@ export async function evidenceScan(s) {
   return n;
 }
 
+// The officer's files (their own uploads, or ones already on the report) and the shift, checked against who is asking
+async function gather(b, user, keys) {
+  const officer = user.role === 'officer';
+  let own = [];
+  if (b.incident_id) {
+    const inc = need(await one('SELECT id, officer_id, venue_id FROM incidents WHERE id = $1', [b.incident_id]));
+    if (!officer) await assertVenue(user, inc.venue_id);
+    else if (inc.officer_id !== user.officer_id) fail(403, 'Forbidden');
+    own = await q('SELECT s3_key, mime, name, size_bytes FROM incident_attachments WHERE incident_id = $1 AND removed_at IS NULL', [inc.id]);
+  }
+  const files = [];
+  for (const key of keys) {
+    const saved = own.find((a) => a.s3_key === key);
+    if (saved) { files.push({ key, mime: saved.mime, name: saved.name, size_bytes: saved.size_bytes }); continue; }
+    if (!ownUpload(user, key)) fail(400, 'Invalid file');
+    const head = await headObject(key);
+    if (head) files.push({ key, mime: head.mime, name: key.split('/').pop().replace(/^[0-9a-f-]{36}-/, ''), size_bytes: head.size });
+  }
+  const shift = b.shift_id ? await one(
+    `SELECT s.starts_at, s.ends_at, v.name AS venue_name, r.name AS role_name FROM shifts s JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role
+      WHERE s.id = $1 AND ($3::uuid[] IS NULL OR s.venue_id = ANY($3))
+        AND ($2::uuid IS NULL OR EXISTS (SELECT 1 FROM shift_assignments a WHERE a.shift_id = s.id AND a.officer_id = $2))`,
+    [b.shift_id, officer ? user.officer_id : null, officer ? null : await venueScope(user)]) : null;
+  return { shift, ...(await loadBlocks(files)) };
+}
+
+const para = (desc) => ({ type: 'string', description: desc });
+const WRITE_TOOL = {
+  name: 'incident_report',
+  description: 'The finished incident report, written from the officer\'s notes and photos',
+  input_schema: {
+    type: 'object',
+    properties: {
+      title: para('A short neutral title, 4–9 words, e.g. "Refused entry and assault at main door"'),
+      sections: {
+        type: 'object',
+        properties: {
+          what: para('What happened, in time order, in short paragraphs separated by a blank line'),
+          people: para('People involved and witnesses, broad descriptions; names only where the officer gave them'),
+          injuries: para('Injuries seen or reported, or "None reported"'),
+          actions: para('What the officers did, including police or ambulance contact'),
+          force_justification: para('Only if force was used: why it was necessary, reasonable and proportionate, from the notes. Otherwise empty.'),
+        },
+        required: ['what', 'people', 'injuries', 'actions'],
+      },
+      photos: {
+        type: 'array',
+        description: 'One entry per photo file, in file order',
+        items: {
+          type: 'object',
+          properties: {
+            file: { type: 'integer', description: 'The file number as given ("File 1" is 1)' },
+            section: { type: 'string', enum: ['what', 'people', 'injuries', 'actions'], description: 'The section the photo supports' },
+            caption: para('A factual caption, one short sentence, what is visible only'),
+          },
+          required: ['file', 'section', 'caption'],
+        },
+      },
+      chips: {
+        type: 'object',
+        description: 'Facts for the report header; leave out any the notes and photos do not show',
+        properties: {
+          type: field(`One of: ${TYPES.join(', ')}`),
+          severity: field('One of: low, medium, high, critical'),
+          location: field('Where in or near the venue'),
+          police_called: field('Whether police were called', 'boolean'),
+          ambulance_called: field('Whether an ambulance was called', 'boolean'),
+          force_used: field('Whether any officer used force', 'boolean'),
+        },
+      },
+      questions: { type: 'array', items: { type: 'string' }, description: 'Short questions for the officer where facts a report needs are missing or the notes and photos disagree. At most 4.' },
+    },
+    required: ['title', 'sections', 'questions'],
+  },
+};
+const SECTION_KEYS = ['what', 'people', 'injuries', 'actions', 'force_justification'];
+
 export const actions = {
   // Officer: suggest report fields from their photos/files and rough notes
   // Officers draft from their shift; managers filing from the office can use it too
@@ -198,27 +275,7 @@ export const actions = {
     const keys = [...new Set(b.keys || [])].slice(0, 20);
     const notes = String(b.notes || '').slice(0, 4000);
     if (!keys.length && !notes.trim()) fail(400, 'Add photos or a few notes first');
-    let own = [];
-    if (b.incident_id) {
-      const inc = need(await one('SELECT id, officer_id, venue_id FROM incidents WHERE id = $1', [b.incident_id]));
-      if (!officer) await assertVenue(user, inc.venue_id);
-      else if (inc.officer_id !== user.officer_id) fail(403, 'Forbidden');
-      own = await q('SELECT s3_key, mime, name, size_bytes FROM incident_attachments WHERE incident_id = $1 AND removed_at IS NULL', [inc.id]);
-    }
-    const files = [];
-    for (const key of keys) {
-      const saved = own.find((a) => a.s3_key === key);
-      if (saved) { files.push({ key, mime: saved.mime, name: saved.name, size_bytes: saved.size_bytes }); continue; }
-      if (!ownUpload(user, key)) fail(400, 'Invalid file');
-      const head = await headObject(key);
-      if (head) files.push({ key, mime: head.mime, name: key.split('/').pop().replace(/^[0-9a-f-]{36}-/, ''), size_bytes: head.size });
-    }
-    const shift = b.shift_id ? await one(
-      `SELECT s.starts_at, s.ends_at, v.name AS venue_name, r.name AS role_name FROM shifts s JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role
-        WHERE s.id = $1 AND ($3::uuid[] IS NULL OR s.venue_id = ANY($3))
-          AND ($2::uuid IS NULL OR EXISTS (SELECT 1 FROM shift_assignments a WHERE a.shift_id = s.id AND a.officer_id = $2))`,
-      [b.shift_id, officer ? user.officer_id : null, officer ? null : await venueScope(user)]) : null;
-    const { blocks, used, skipped } = await loadBlocks(files);
+    const { shift, blocks, used, skipped } = await gather(b, user, keys);
     const current = Object.entries(b.current || {}).filter(([, v]) => v !== '' && v != null).map(([k, v]) => `${k}: ${String(v).slice(0, 500)}`).join('\n');
     const text = [
       officer ? `Officer: ${user.name}.` : `Written by ${user.name} from the office, not the officer on the door.`,
@@ -242,6 +299,61 @@ export const actions = {
     if (suggestions.severity && !['low', 'medium', 'high', 'critical'].includes(suggestions.severity.value)) delete suggestions.severity;
     await audit(user, 'incident.ai_draft', 'incident', b.incident_id || null, { files: used.length, credits: r.credits });
     return { suggestions, questions: out.questions || [], skipped: skipped.map((f) => f.name), credits: r.credits };
+  }),
+
+  // The writing page: Orb writes the whole report (or redoes one section) from the officer's notes, people, facts and photos
+  'incidents.aiWrite': def(['officer', 'company', 'security'], async (b, { user }) => {
+    const officer = user.role === 'officer';
+    if (!aiOn(await getSettings())) fail(400, 'AI on incidents is switched off by your company');
+    const keys = [...new Set(b.keys || [])].slice(0, 20);
+    const notes = String(b.notes || '').slice(0, 12000);
+    if (!keys.length && !notes.trim()) fail(400, 'Write a few notes or add a photo first');
+    const section = SECTION_KEYS.includes(b.section) ? b.section : null;
+    const instruction = String(b.instruction || '').slice(0, 1000);
+    const { shift, blocks, used, skipped } = await gather(b, user, keys);
+    const captions = b.captions && typeof b.captions === 'object' ? b.captions : {};
+    const people = (Array.isArray(b.people) ? b.people : []).slice(0, 20).filter((p) => p && typeof p === 'object')
+      .map((p) => ['name', 'role', 'statement', 'injuries'].map((k) => (p[k] ? `${k}: ${String(p[k]).slice(0, 1500)}` : '')).filter(Boolean).join('; '))
+      .filter(Boolean);
+    const chips = Object.entries(b.chips || {}).filter(([, v]) => v !== '' && v != null).map(([k, v]) => `${k}: ${String(v).slice(0, 500)}`).join('\n');
+    const answers = (Array.isArray(b.answers) ? b.answers : []).slice(0, 8).filter((a) => a?.answer)
+      .map((a) => `Q: ${String(a.question || '').slice(0, 300)}\nA: ${String(a.answer).slice(0, 1000)}`).join('\n');
+    const current = b.current && typeof b.current === 'object'
+      ? SECTION_KEYS.filter((k) => b.current[k]).map((k) => `[${k}]\n${String(b.current[k]).slice(0, 6000)}`).join('\n\n') : '';
+    const text = [
+      officer ? `Officer: ${user.name}.` : `Written by ${user.name} from the office, not the officer on the door.`,
+      shift ? `Shift: ${shift.role_name} at ${shift.venue_name}, ${fmtDateTime(shift.starts_at)} to ${fmtDateTime(shift.ends_at)}.` : '',
+      b.occurred_at ? `Incident time given: ${fmtDateTime(b.occurred_at)}.` : '',
+      `Officer's notes:\n${notes || '(none)'}`,
+      people.length ? `People the officer added:\n${people.map((p) => `- ${p}`).join('\n')}` : '',
+      chips ? `Facts the officer set:\n${chips}` : '',
+      answers ? `The officer answered your questions:\n${answers}` : '',
+      current ? `The current version of the report:\n${current}` : '',
+      section ? `Rewrite only the "${section}" section${instruction ? `, following this instruction from the officer: ${instruction}` : ''}. Return the other sections exactly as they are in the current version.` : '',
+      used.length ? `${used.length} photo(s)/file(s) follow.${used.some((f) => captions[f.key]?.caption) ? ` Captions the officer wrote: ${used.map((f, i) => (captions[f.key]?.caption ? `File ${i + 1}: ${String(captions[f.key].caption).slice(0, 300)}` : '')).filter(Boolean).join('; ')}` : ''}` : 'No photos.',
+      skipped.length ? `Not readable here: ${skipped.map((f) => f.name).join(', ')}` : '',
+    ].filter(Boolean).join('\n\n');
+    const r = await extract({
+      model: SONNET, max_tokens: 3000, timeout: 90000,
+      system: `You write the final incident report for a UK SIA-licensed security officer from their notes and photos. The officer reads and edits it, then signs it as their own account, so it must be factual and neutral.\n${RULES}\n- The officer's notes and answers are the main source; photos add detail. Never add facts that are not in them.\n- Neutral wording: no opinions, no blame, no emotive words. Quote what people said only if the notes do.\n- Don't contradict the officer; raise it as a question instead.\n- Place each photo under the section it best supports and caption it with what is visible.`,
+      messages: [{ role: 'user', content: [{ type: 'text', text }, ...blocks] }],
+      tool: WRITE_TOOL,
+    });
+    const out = r.input || {};
+    const sections = Object.fromEntries(SECTION_KEYS.map((k) => [k, String(out.sections?.[k] || '').trim()]));
+    if (section && b.current) for (const k of SECTION_KEYS) if (k !== section) sections[k] = String(b.current[k] || '');
+    const photos = (Array.isArray(out.photos) ? out.photos : [])
+      .map((p) => ({ key: used[(Number(p.file) || 0) - 1]?.key, section: ['what', 'people', 'injuries', 'actions'].includes(p.section) ? p.section : 'what', caption: String(p.caption || '').slice(0, 300) }))
+      .filter((p) => p.key && !String(used.find((f) => f.key === p.key)?.mime).includes('pdf'));
+    const outChips = Object.fromEntries(Object.entries(out.chips || {}).filter(([, v]) => v && v.value !== undefined && v.value !== ''));
+    if (outChips.type && !TYPES.includes(outChips.type.value)) delete outChips.type;
+    if (outChips.severity && !['low', 'medium', 'high', 'critical'].includes(outChips.severity.value)) delete outChips.severity;
+    await audit(user, 'incident.ai_write', 'incident', b.incident_id || null, { files: used.length, section, credits: r.credits });
+    return {
+      title: String(out.title || '').slice(0, 200), sections, photos, chips: outChips,
+      questions: (Array.isArray(out.questions) ? out.questions : []).slice(0, 4).map(String),
+      skipped: skipped.map((f) => f.name), credits: r.credits,
+    };
   }),
 
   // Manager: build or refresh the evidence summary now

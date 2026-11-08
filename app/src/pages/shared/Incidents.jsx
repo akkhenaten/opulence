@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Camera, CheckCheck, ChevronRight, Download, FilePen, MapPin, Plus, ShieldAlert, Trash2 } from 'lucide-react';
+import { Camera, CheckCheck, ChevronRight, Download, FilePen, FileSignature, MapPin, Plus, ShieldAlert, Trash2 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import { Button, cx, dateTime, dayLabel, Empty, IconButton, List, Load, MoreMenu, Page, Pill, SearchInput, Section, Segmented, Select, time, ToolField, ToolMenu, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { BanList } from '../shift/_bans.jsx';
 import { clearLocal } from '../officer/_draft.js';
+import { StagePill } from './incident/SignStrip.jsx';
 import { INCIDENT_STATUS, INCIDENT_TYPES, LatePill, NotLinked, SEVERITIES, typeLabel } from '../officer/_parts.jsx';
 
 const SEV_BAR = { low: 'bg-faint', medium: 'bg-amber', high: 'bg-red', critical: 'bg-red' };
@@ -21,10 +22,12 @@ export default function Incidents() {
   // A venue manager's venue is the one chosen on their home tiles / top-bar chip
   const isVenue = user.role === 'venue';
   const shared = useVenue();
-  const f = { status: sp.get('status') || '', severity: sp.get('severity') || '', type: sp.get('type') || '', venue_id: isVenue ? shared.venueId : sp.get('venue') || '' };
+  // "To sign" is the reports waiting on the person looking; ?to_sign=1 is what reminders link to
+  const f = { status: sp.get('to_sign') ? 'to_sign' : sp.get('status') || '', severity: sp.get('severity') || '', type: sp.get('type') || '', venue_id: isVenue ? shared.venueId : sp.get('venue') || '' };
   const setF = (k, val) => {
     if (isVenue && k === 'venue_id') { shared.setVenueId(val); return; }
     const n = new URLSearchParams(sp);
+    if (k === 'status') n.delete('to_sign');
     if (val) n.set(k === 'venue_id' ? 'venue' : k, val); else n.delete(k === 'venue_id' ? 'venue' : k);
     setSp(n, { replace: true });
   };
@@ -33,17 +36,20 @@ export default function Incidents() {
   useEffect(() => { const t = setTimeout(() => setSearch(text.trim()), 300); return () => clearTimeout(t); }, [text]);
 
   const body = Object.fromEntries(Object.entries({ ...f, search }).filter(([, val]) => val));
+  if (body.status === 'to_sign') { delete body.status; body.to_sign = true; }
   const q = useApi('incidents.list', body, { poll: 60000, skip: officer && !user.officer_id });
   const venues = useApi('venues.list', {}, { skip: officer || isVenue });
   const venueList = isVenue ? shared.venues : venues.data || [];
   const counts = useApi('incidents.list', { status: 'changes_requested' }, { skip: officer && !user.officer_id });
   const toFix = counts.data?.length || 0;
+  const signQ = useApi('incidents.list', { to_sign: true }, { poll: 60000, skip: officer && !user.officer_id });
+  const toSign = signQ.data?.length || 0;
 
   // Officers look back here at what they reported and logged; new reports start from the shift card
   const tab = officer && sp.get('tab') === 'ejections' ? 'ejections' : 'reports';
   const setTab = (t) => { const n = new URLSearchParams(); if (t === 'ejections') n.set('tab', t); setSp(n, { replace: true }); };
   const tabs = officer && user.officer_id && (
-    <Segmented value={tab} onChange={setTab} options={[{ value: 'reports', label: 'Incident reports', count: toFix }, { value: 'ejections', label: 'Ejections' }]} />
+    <Segmented value={tab} onChange={setTab} options={[{ value: 'reports', label: 'Incident reports', count: toFix + toSign }, { value: 'ejections', label: 'Ejections' }]} />
   );
   if (tab === 'ejections') {
     return (
@@ -65,7 +71,7 @@ export default function Incidents() {
   const tools = <>
     {tabs}
     <Segmented value={f.status} onChange={(val) => setF('status', val)}
-      options={[{ value: '', label: 'All' }, { value: 'submitted', label: officer ? 'Submitted' : 'To review' }, { value: 'changes_requested', label: 'Changes requested', count: toFix }, { value: 'closed', label: 'Closed' }]} />
+      options={[{ value: '', label: 'All' }, (toSign > 0 || f.status === 'to_sign') && { value: 'to_sign', label: 'To sign', icon: FileSignature, count: toSign }, { value: 'submitted', label: officer ? 'Submitted' : 'To review' }, { value: 'changes_requested', label: 'Changes requested', count: toFix }, { value: 'closed', label: 'Closed' }].filter(Boolean)} />
     <SearchInput className="min-w-0 flex-1 sm:w-64 sm:flex-none" value={text} onChange={(e) => { setText(e.target.value); const n = new URLSearchParams(sp); if (e.target.value) n.set('q', e.target.value); else n.delete('q'); setSp(n, { replace: true }); }}
       placeholder="Search ref, description, police ref" aria-label="Search incidents" />
     <ToolMenu count={changed} onClear={() => { const n = new URLSearchParams(sp); ['severity', 'type', ...(isVenue ? [] : ['venue'])].forEach((k) => n.delete(k)); setSp(n, { replace: true }); }}>
@@ -102,10 +108,10 @@ export default function Incidents() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="text-caption font-semibold text-muted">{r.ref} · {dateTime(r.occurred_at)}</div>
-                      <div className="truncate text-headline font-bold">{typeLabel(r.type)}</div>
+                      <div className="truncate text-headline font-bold">{r.title || typeLabel(r.type)}</div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <Pill status={r.status}>{INCIDENT_STATUS[r.status]}</Pill>
+                      {r.sign_stage ? <StagePill inc={r} /> : <Pill status={r.status}>{INCIDENT_STATUS[r.status]}</Pill>}
                       <Pill status={r.severity} />
                       <LatePill inc={r} />
                     </div>
@@ -116,8 +122,11 @@ export default function Incidents() {
                     {!officer && r.officer_name && <span>{r.officer_name}</span>}
                     {r.attachment_count > 0 && <span className="inline-flex items-center gap-1"><Camera size={14} />{r.attachment_count}</span>}
                   </div>
-                  {r.status === 'changes_requested' && r.review_comment && (
+                  {(r.sign_stage ? r.sign_stage === 'officer' && r.resign_reason !== 'edited' : r.status === 'changes_requested') && r.review_comment && (
                     <div className="mt-2 rounded-xl bg-amber-soft px-3 py-2 text-footnote font-medium text-amber line-clamp-2">{r.review_comment}</div>
+                  )}
+                  {r.sign_stage === 'officer' && r.resign_reason === 'edited' && (
+                    <div className="mt-2 rounded-xl bg-amber-soft px-3 py-2 text-footnote font-medium text-amber">{officer ? 'Your manager edited this report. Check it and sign again.' : 'Edited, waiting for the officer to sign again.'}</div>
                   )}
                 </div>
               </Link>
@@ -154,9 +163,9 @@ function Drafts({ base, officer }) {
             <Link to={`${base}/incidents/new?draft=${d.id}`} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition-colors hover:bg-bg active:bg-fill">
               <FilePen size={20} className="shrink-0 text-amber" aria-hidden />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-body font-semibold">{d.type ? typeLabel(d.type) : 'Untitled report'}{d.venue_name ? ` · ${d.venue_name}` : ''}</div>
+                <div className="truncate text-body font-semibold">{d.title || (d.type ? typeLabel(d.type) : 'Untitled report')}{d.venue_name ? ` · ${d.venue_name}` : ''}</div>
                 <div className="truncate text-footnote text-muted">
-                  {d.shift_starts_at ? `${dayLabel(d.shift_starts_at)} shift · ` : ''}Saved {dayLabel(d.updated_at)} {time(d.updated_at)} · {d.progress.done} of {d.progress.total} parts
+                  {d.shift_starts_at ? `${dayLabel(d.shift_starts_at)} shift · ` : ''}Saved {dayLabel(d.updated_at)} {time(d.updated_at)}{d.progress ? ` · ${d.progress.done} of ${d.progress.total} parts` : ''}
                 </div>
               </div>
               <ChevronRight size={18} className="shrink-0 text-faint" aria-hidden />

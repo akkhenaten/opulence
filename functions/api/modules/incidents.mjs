@@ -11,11 +11,18 @@ import { ALL, MGR, def } from './_def.mjs';
 import { summarySig } from './incidentAi.mjs';
 import { officerName, userName } from '../lib/names.mjs';
 import { cleanDraft, draftProgress } from '../lib/incidentDrafts.mjs';
+import { nextReference, uaOf, verifyUrl } from '../lib/esign.mjs';
+import { archivePdf, savedPdf, nameSafe } from '../lib/archive.mjs';
+import { renderIncident } from '../lib/incidentDoc.mjs';
+import { nextStage, signerRole } from '../lib/incidentSign.mjs';
+import crypto from 'node:crypto';
 
 export const TYPES = ['ejection', 'refused_entry', 'assault', 'theft', 'drugs', 'weapon', 'medical', 'damage', 'fire', 'disorder', 'lost_child', 'vulnerable_person', 'other'];
 const SEVERITIES = ['low', 'medium', 'high', 'critical'];
 const FIELDS = ['type', 'severity', 'occurred_at', 'location', 'description', 'people_involved', 'injuries', 'actions_taken',
-  'force_used', 'force_justification', 'police_called', 'police_ref', 'ambulance_called', 'ambulance_ref'];
+  'force_used', 'force_justification', 'police_called', 'police_ref', 'ambulance_called', 'ambulance_ref', 'title', 'notes'];
+const PNG = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
+const SECTIONS = ['what', 'people', 'injuries', 'actions', ''];
 
 const BASE_SQL = `
   SELECT i.*, v.name AS venue_name, ${officerName('o')} AS officer_name, ${userName('ur')} AS reported_by_name, ${userName('uv')} AS reviewed_by_name,
@@ -62,9 +69,61 @@ async function canSee(user, inc) {
 }
 
 const pickFields = (b) => ({
-  ...Object.fromEntries(FIELDS.filter((k) => b[k] !== undefined).map((k) => [k, b[k]])),
+  ...Object.fromEntries(FIELDS.filter((k) => b[k] !== undefined).map((k) => [k, k === 'title' ? String(b[k] || '').slice(0, 200) : b[k]])),
   ...(b.ai_assisted ? { ai_assisted: true } : {}),
+  // The writing page's blocks and Orb's versions travel with the report as its original record
+  ...(Array.isArray(b.body) ? { body: JSON.stringify(b.body.slice(0, 200)) } : {}),
+  ...(Array.isArray(b.orb_versions) ? { orb_versions: JSON.stringify(b.orb_versions.slice(-10)) } : {}),
 });
+
+// Photo captions and which report section each photo sits under, keyed by the file's storage key
+async function saveCaptions(t, incidentId, captions) {
+  if (!captions || typeof captions !== 'object') return;
+  for (const [key, c] of Object.entries(captions).slice(0, 40)) {
+    const section = SECTIONS.includes(c?.section) ? c.section : '';
+    await t.q('UPDATE incident_attachments SET caption = $3, section = $4 WHERE incident_id = $1 AND s3_key = $2', [incidentId, key, String(c?.caption || '').slice(0, 300), section]);
+  }
+}
+
+
+/** Add one signature to the report as it stands now. Managers may sign with their saved signature. */
+async function addSignature(t, inc, user, { png, useSaved, ip, event }) {
+  const role = signerRole(user.role);
+  let ink = png;
+  let { name, title } = { name: user.name, title: '' };
+  if (role === 'manager') {
+    const saved = await one('SELECT name, title, png FROM user_signatures WHERE user_id = $1', [user.id]);
+    if (saved) ({ name, title } = saved);
+    if (useSaved || !png) {
+      if (!saved) fail(400, 'Draw your signature, or save one in Settings → Your signature');
+      ink = saved.png;
+    }
+  }
+  if (!PNG.test(ink || '') || ink.length > 300000) fail(400, 'Draw your signature again');
+  if (role === 'officer' && inc.officer_id) {
+    const o = await one("SELECT first_name || ' ' || last_name AS name FROM officers WHERE id = $1", [inc.officer_id]);
+    if (o?.name?.trim()) name = o.name;
+  }
+  await t.q('INSERT INTO incident_signatures (incident_id, version, role, user_id, name, title, png, ip, ua) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+    [inc.id, inc.version, role, user.id, name, title || (role === 'venue' ? 'Venue manager' : ''), ink, ip || null, uaOf(event) || null]);
+}
+
+// A change to the wording undoes every signature on it; the old ones stay in the history
+const voidSignatures = (t, id) => t.q('UPDATE incident_signatures SET void_at = now() WHERE incident_id = $1 AND void_at IS NULL', [id]);
+
+const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
+
+/** Freeze the fully signed report: render, file it with the officer (or the company), store its fingerprint. */
+export async function sealIncident(id, userId = null) {
+  const inc = await loadFull(id);
+  const { bytes, fingerprint } = await renderIncident(inc, {
+    company: await getSettings(), signatures: inc.signatures, status: 'signed', verifyUrl: verifyUrl(inc.reference), role: 'venue',
+  });
+  const filename = nameSafe(`Incident ${inc.ref} - ${inc.venue_name}.pdf`);
+  const doc = await archivePdf({ ownerType: inc.officer_id ? 'officer' : 'company', ownerId: inc.officer_id || null, kind: 'incident', filename, bytes, title: filename, number: inc.reference || inc.ref, userId });
+  await q('UPDATE incidents SET fingerprint = $2, pdf_sha256 = $3, pdf_document_id = $4, sealed_at = now() WHERE id = $1', [id, fingerprint, sha(bytes), doc.id]);
+  return { filename, pdf: Buffer.from(bytes).toString('base64'), saved: true };
+}
 
 async function saveWitnesses(t, incidentId, witnesses) {
   if (!Array.isArray(witnesses)) return;
@@ -81,7 +140,7 @@ export const allowedMime = (m) => /^image\/(jpeg|png|webp|gif|heic|heif)$/.test(
 // Fresh uploads land under the uploader's own incident folder (see files.uploadUrl)
 export const ownUpload = (user, key) => String(key || '').startsWith(`docs/incidents/${user.id.slice(0, 8)}/`);
 
-async function saveAttachments(t, incidentId, attachments, user) {
+async function saveAttachments(t, incidentId, attachments, user, captions = {}) {
   const list = attachments || [];
   if (!list.length) return;
   const { n } = await t.one('SELECT count(*)::int AS n FROM incident_attachments WHERE incident_id = $1 AND removed_at IS NULL', [incidentId]);
@@ -93,20 +152,22 @@ async function saveAttachments(t, incidentId, attachments, user) {
     const mime = a.mime || head.mime;
     if (!allowedMime(mime)) fail(400, `${a.name || 'This file'} is not a supported type (photos, PDF, Word or text)`);
     if (head.size > MAX_BYTES) fail(400, `${a.name || 'This file'} is over 15 MB`);
-    await t.q('INSERT INTO incident_attachments (incident_id, s3_key, mime, name, uploaded_by, size_bytes) VALUES ($1,$2,$3,$4,$5,$6)',
-      [incidentId, a.key, mime, a.name || '', user.id, head.size]);
+    const c = captions?.[a.key] || {};
+    await t.q('INSERT INTO incident_attachments (incident_id, s3_key, mime, name, uploaded_by, size_bytes, caption, section) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+      [incidentId, a.key, mime, a.name || '', user.id, head.size, String(c.caption || '').slice(0, 300), SECTIONS.includes(c.section) ? c.section : '']);
   }
 }
 
 export async function loadFull(id) {
   const inc = need(await one(`${BASE_SQL} WHERE i.id = $1`, [id]));
-  const [witnesses, attachments, versions] = await Promise.all([
+  const [witnesses, attachments, versions, signatures] = await Promise.all([
     q('SELECT * FROM incident_witnesses WHERE incident_id = $1 ORDER BY name', [id]),
     q(`SELECT x.*, ${userName('u')} AS uploaded_by_name, ${userName('ur')} AS removed_by_name FROM incident_attachments x LEFT JOIN users u ON u.id = x.uploaded_by LEFT JOIN users ur ON ur.id = x.removed_by WHERE incident_id = $1 ORDER BY x.created_at`, [id]),
     q(`SELECT v.id, v.version, v.created_at, ${userName('u')} AS edited_by_name FROM incident_versions v LEFT JOIN users u ON u.id = v.edited_by WHERE incident_id = $1 ORDER BY version`, [id]),
+    q('SELECT id, version, role, user_id, name, title, png, ip, ua, at, void_at FROM incident_signatures WHERE incident_id = $1 ORDER BY at', [id]),
   ]);
   return {
-    ...inc, witnesses, versions, attachments: attachments.filter((a) => !a.removed_at),
+    ...inc, witnesses, versions, signatures, attachments: attachments.filter((a) => !a.removed_at),
     removed: attachments.filter((a) => a.removed_at).map(({ id: aid, name, removed_at, removed_by_name, uploaded_by_name }) => ({ id: aid, name, removed_at, removed_by_name, uploaded_by_name })),
   };
 }
@@ -136,10 +197,13 @@ export const actions = {
         WHERE ($1::uuid[] IS NULL OR i.venue_id = ANY($1)) AND ($2::uuid IS NULL OR i.officer_id = $2)
           AND ($3::text IS NULL OR i.status = $3) AND ($4::text IS NULL OR i.severity = $4) AND ($5::text IS NULL OR i.type = $5)
           AND ($6::uuid IS NULL OR i.venue_id = $6) AND ($7::timestamptz IS NULL OR i.occurred_at >= $7) AND ($8::timestamptz IS NULL OR i.occurred_at < $8)
-          AND ($9::text IS NULL OR i.ref ILIKE $9 OR i.description ILIKE $9 OR i.location ILIKE $9 OR i.police_ref ILIKE $9)
+          AND ($9::text IS NULL OR i.ref ILIKE $9 OR i.title ILIKE $9 OR i.description ILIKE $9 OR i.location ILIKE $9 OR i.police_ref ILIKE $9)
+          AND ($11::text IS NULL OR i.sign_stage = $11)
         ORDER BY ${b.sort === 'reported' ? 'i.created_at' : 'i.occurred_at'} DESC LIMIT $10`,
       [user.role === 'officer' ? null : scope, user.role === 'officer' ? user.officer_id : b.officer_id || null, b.status || null, b.severity || null, b.type || null,
-        b.venue_id || null, b.from || null, b.to || null, b.search ? `%${b.search}%` : null, Math.min(Number(b.limit) || 200, 500)]);
+        b.venue_id || null, b.from || null, b.to || null, b.search ? `%${b.search}%` : null, Math.min(Number(b.limit) || 200, 500),
+        // "To sign": the reports waiting on the caller's own signature
+        b.to_sign ? signerRole(user.role) : b.sign_stage || null]);
   }),
 
   'incidents.get': def(ALL, async (b, { user }) => {
@@ -150,6 +214,7 @@ export const actions = {
       a.can_remove = user.role === 'company' || (a.uploaded_by === user.id && inc.status !== 'closed');
     }
     if (user.role === 'venue') inc.witnesses = inc.witnesses.map(({ contact, ...w }) => w);
+    inc.signatures = inc.signatures.map(({ ip, ua, user_id, ...s }) => s);
     if (MGR.includes(user.role)) inc.ai_summary_stale = !!inc.ai_summary && inc.ai_summary_sig !== summarySig(inc);
     else { delete inc.ai_summary; delete inc.ai_summary_sig; }
     return inc;
@@ -164,7 +229,7 @@ export const actions = {
   // Drafts: half-written reports saved as the writer goes, seen by nobody else until they submit
   'incidents.drafts': def(['officer', 'company', 'security'], async (b, { user }) => {
     const rows = await q(`${DRAFT_SQL} WHERE d.user_id = $1 ORDER BY d.updated_at DESC LIMIT 50`, [user.id]);
-    return rows.map(({ data, ...d }) => ({ ...d, type: data.type || null, shift_id: d.shift_id || data.shift_id || null, manager: !!data.manager, progress: draftProgress(data) }));
+    return rows.map(({ data, ...d }) => ({ ...d, type: data.type || null, title: data.title || '', shift_id: d.shift_id || data.shift_id || null, manager: !!data.manager, progress: draftProgress(data) }));
   }),
 
   'incidents.draftGet': def(['officer', 'company', 'security'], async (b, { user }) => {
@@ -206,7 +271,7 @@ export const actions = {
   }),
 
   // Officers report from their shift; managers can file on behalf of an officer.
-  'incidents.create': def(['officer', 'company', 'security'], async (b, { user }) => {
+  'incidents.create': def(['officer', 'company', 'security'], async (b, { user, ip, event }) => {
     required(b, 'type', 'severity', 'occurred_at', 'description');
     validate(b);
     let venueId = b.venue_id;
@@ -238,14 +303,22 @@ export const actions = {
     }
     // Written up from a shift log note: the report and the note point at each other
     const entry = b.log_entry_id ? need(await one('SELECT id, shift_id FROM shift_log_entries WHERE id = $1 AND shift_id = $2', [b.log_entry_id, shiftId]), 'That log note is not on this shift') : null;
+    // Written on the new page and signed: an officer's goes to their manager; a manager's own goes straight to the venue
+    const signed = !!b.signature;
+    if (signed && !PNG.test(b.signature.png || '') && !(user.role !== 'officer' && b.signature.use_saved)) fail(400, 'Draw your signature again');
     const inc = await tx(async (t) => {
       const f = pickFields(b);
       if (entry) f.log_entry_id = entry.id;
+      if (signed) {
+        Object.assign(f, { reference: await nextReference('incident', t), stage_at: new Date() },
+          user.role === 'officer' ? { sign_stage: 'manager' } : { sign_stage: 'venue', status: 'closed', reviewed_by: user.id, reviewed_at: new Date(), manager_statement: String(b.statement || '').slice(0, 4000) });
+      }
       const cols = ['venue_id', 'shift_id', 'officer_id', 'reported_by', ...Object.keys(f)];
       const vals = [venueId, shiftId, officerId, user.id, ...Object.values(f)];
       const row = await t.one(`INSERT INTO incidents (${cols.join(',')}) VALUES (${cols.map((_, i) => `$${i + 1}`).join(',')}) RETURNING *`, vals);
       await saveWitnesses(t, row.id, b.witnesses);
-      await saveAttachments(t, row.id, b.attachments, user);
+      await saveAttachments(t, row.id, b.attachments, user, b.captions);
+      if (signed) await addSignature(t, row, user, { png: b.signature.png, useSaved: b.signature.use_saved, ip, event });
       if (entry) await t.q("UPDATE shift_log_entries SET incident_id = $2, kind = 'incident', updated_at = now() WHERE id = $1", [entry.id, row.id]);
       await t.q('INSERT INTO incident_versions (incident_id, version, data, edited_by) VALUES ($1,1,$2,$3)', [row.id, JSON.stringify({ ...f, witnesses: b.witnesses || [] }), user.id]);
       // The draft it was written from is done; its files now belong to the report
@@ -257,10 +330,12 @@ export const actions = {
     // A report filed a week or more after the event is a record, not an alert
     const late = lateDays(inc);
     const urgent = ['high', 'critical'].includes(inc.severity) && late < 7;
-    const msg = { kind: 'incident', severity: urgent ? 'critical' : 'info', title: `${urgent ? `${inc.severity.toUpperCase()} incident` : 'New incident'} · ${v.name}`,
+    const msg = { kind: 'incident', severity: urgent ? 'critical' : 'info', title: `${urgent ? `${inc.severity.toUpperCase()} incident` : inc.sign_stage === 'manager' ? 'Incident to sign' : 'New incident'} · ${v.name}`,
       body: `${inc.ref}: ${inc.type.replace(/_/g, ' ')} at ${fmtDateTime(inc.occurred_at)}${inc.location ? ` — ${inc.location}` : ''}${late ? ` · reported ${late} day${late > 1 ? 's' : ''} later` : ''}`, email: urgent };
     await notify((await managersFor(venueId)).filter((id) => id !== user.id), { ...msg, link: `/company/incidents/${inc.id}` });
-    if (urgent) await notify(await venueContacts(venueId), { ...msg, link: `/venue/incidents/${inc.id}` });
+    if (inc.sign_stage === 'venue') {
+      await notify(await venueContacts(venueId), { kind: 'incident', severity: urgent ? 'critical' : 'info', title: `Incident report to sign · ${v.name}`, body: `${inc.ref}: signed by ${user.name}. Read it and sign to confirm you have received it.`, link: `/venue/incidents/${inc.id}`, email: true });
+    } else if (urgent) await notify(await venueContacts(venueId), { ...msg, link: `/venue/incidents/${inc.id}` });
     await audit(user, 'incident.create', 'incident', inc.id, { ref: inc.ref, severity: inc.severity });
     return inc;
   }),
@@ -273,6 +348,10 @@ export const actions = {
     await canSee(user, cur);
     if (user.role === 'officer' && cur.status !== 'changes_requested' && cur.reported_by !== user.id) fail(403, 'This report can no longer be edited');
     if (user.role === 'officer' && cur.status === 'closed') fail(400, 'This report is closed');
+    // Signed reports: the officer can change theirs until a manager signs; a manager only while it waits for them
+    const staged = !!cur.sign_stage;
+    if (staged && ['venue', 'complete'].includes(cur.sign_stage)) fail(400, 'A manager has signed this report, so it can no longer be changed');
+    const turn = staged && user.role !== 'officer' ? nextStage(cur, 'edit', user.role) : staged ? { sign_stage: 'officer', status: cur.status } : null;
     if (user.role === 'officer' && b.occurred_at && new Date(b.occurred_at).getTime() !== new Date(cur.occurred_at).getTime()) {
       await officerShift(user.officer_id, cur.shift_id, cur.venue_id, b.occurred_at);
     }
@@ -280,18 +359,27 @@ export const actions = {
     const inc = await tx(async (t) => {
       const keys = Object.keys(f);
       const sets = keys.map((k, i) => `${k} = $${i + 2}`);
-      const status = user.role === 'officer' && cur.status === 'changes_requested' ? 'submitted' : cur.status;
+      const status = turn ? turn.status : user.role === 'officer' && cur.status === 'changes_requested' ? 'submitted' : cur.status;
       const row = await t.one(
         `UPDATE incidents SET ${[...sets, `version = version + 1`, `updated_at = now()`, `status = $${keys.length + 2}`].join(', ')} WHERE id = $1 RETURNING *`,
         [b.id, ...Object.values(f), status]);
       await saveWitnesses(t, row.id, b.witnesses);
-      await saveAttachments(t, row.id, b.attachments, user);
+      await saveAttachments(t, row.id, b.attachments, user, b.captions);
+      await saveCaptions(t, row.id, b.captions);
+      if (turn) {
+        await voidSignatures(t, row.id);
+        const reason = turn.resign_reason || (cur.resign_reason && user.role === 'officer' ? cur.resign_reason : '');
+        Object.assign(row, await t.one('UPDATE incidents SET sign_stage = $2, resign_reason = $3, stage_at = now() WHERE id = $1 RETURNING sign_stage, resign_reason', [row.id, turn.sign_stage, reason]));
+      }
       const witnesses = b.witnesses || cur.witnesses.map(({ name, contact, statement }) => ({ name, contact, statement }));
       const snapshot = Object.fromEntries(FIELDS.map((k) => [k, row[k]]));
       await t.q('INSERT INTO incident_versions (incident_id, version, data, edited_by) VALUES ($1,$2,$3,$4)', [row.id, row.version, JSON.stringify({ ...snapshot, witnesses }), user.id]);
       return row;
     });
-    if (user.role === 'officer' && cur.status === 'changes_requested') {
+    if (turn && user.role !== 'officer' && inc.officer_id) {
+      await notify(await officerUser(inc.officer_id), { kind: 'incident', severity: 'warning', title: `Your manager edited ${inc.ref}`, body: 'Check the changes and sign the report again.', link: `/officer/incidents/${inc.id}`, email: true });
+    }
+    if (!staged && user.role === 'officer' && cur.status === 'changes_requested') {
       await notify(await managersFor(inc.venue_id), { kind: 'incident', title: `Incident ${inc.ref} resubmitted`, body: 'The officer has updated the report.', link: `/company/incidents/${inc.id}` });
     }
     await audit(user, 'incident.update', 'incident', inc.id, { version: inc.version, fields: Object.keys(f) });
@@ -311,8 +399,9 @@ export const actions = {
   // Soft delete so the report history shows what was removed and by whom
   'incidents.removeAttachment': def(['officer', 'company', 'security'], async (b, { user }) => {
     required(b, 'id');
-    const a = need(await one('SELECT x.*, i.status, i.venue_id, i.officer_id FROM incident_attachments x JOIN incidents i ON i.id = x.incident_id WHERE x.id = $1 AND x.removed_at IS NULL', [b.id]));
+    const a = need(await one('SELECT x.*, i.status, i.sign_stage, i.venue_id, i.officer_id FROM incident_attachments x JOIN incidents i ON i.id = x.incident_id WHERE x.id = $1 AND x.removed_at IS NULL', [b.id]));
     await canSee(user, a);
+    if (['venue', 'complete'].includes(a.sign_stage)) fail(400, 'This report has been signed by a manager');
     if (user.role !== 'company') {
       if (a.uploaded_by !== user.id) fail(403, 'Only the person who added this file or a company manager can remove it');
       if (a.status === 'closed') fail(400, 'This report is closed');
@@ -329,9 +418,16 @@ export const actions = {
     if (b.decision === 'changes_requested' && !b.comment) fail(400, 'Say what needs changing');
     const cur = need(await one('SELECT * FROM incidents WHERE id = $1', [b.id]));
     await assertVenue(user, cur.venue_id);
+    // Signed reports are closed by signing; sending one back undoes the officer's signature
+    if (cur.sign_stage && b.decision !== 'changes_requested') fail(400, 'Sign this report to approve it');
+    const turn = cur.sign_stage ? nextStage(cur, 'send_back', user.role) : null;
     const status = { close: 'closed', changes_requested: 'changes_requested', reopen: 'submitted' }[b.decision];
-    const inc = await one('UPDATE incidents SET status = $2, review_comment = $3, reviewed_by = $4, reviewed_at = now(), updated_at = now() WHERE id = $1 RETURNING *',
-      [b.id, status, b.comment || '', user.id]);
+    const inc = await tx(async (t) => {
+      if (turn) await voidSignatures(t, cur.id);
+      return t.one(`UPDATE incidents SET status = $2, review_comment = $3, reviewed_by = $4, reviewed_at = now(), updated_at = now()
+          ${turn ? ", sign_stage = 'officer', resign_reason = 'sent_back', stage_at = now()" : ''} WHERE id = $1 RETURNING *`,
+        [b.id, status, b.comment || '', user.id]);
+    });
     if (inc.officer_id && b.decision === 'changes_requested') {
       await notify(await officerUser(inc.officer_id), { kind: 'incident', severity: 'warning', title: `More detail needed on ${inc.ref}`, body: b.comment, link: `/officer/incidents/${inc.id}`, email: true });
     }
@@ -339,10 +435,71 @@ export const actions = {
     return inc;
   }),
 
+  // The signing chain: the officer, then a manager (optionally with a statement), then the venue to say they have read it
+  'incidents.sign': def(ALL, async (b, { user, ip, event }) => {
+    required(b, 'id');
+    const cur = await loadFull(b.id);
+    await canSee(user, cur);
+    const turn = nextStage(cur, 'sign', user.role);
+    const role = signerRole(user.role);
+    const inc = await tx(async (t) => {
+      const extra = role === 'manager' && b.statement != null ? String(b.statement).slice(0, 4000) : null;
+      let row = cur;
+      // A statement is part of what everyone signs, so it is a new version of the report
+      if (extra !== null && extra !== (cur.manager_statement || '')) {
+        row = await t.one('UPDATE incidents SET manager_statement = $2, version = version + 1, updated_at = now() WHERE id = $1 RETURNING *', [cur.id, extra]);
+        const snapshot = Object.fromEntries(FIELDS.map((k) => [k, row[k]]));
+        await t.q('INSERT INTO incident_versions (incident_id, version, data, edited_by) VALUES ($1,$2,$3,$4)',
+          [row.id, row.version, JSON.stringify({ ...snapshot, manager_statement: extra, witnesses: cur.witnesses.map(({ name, contact, statement }) => ({ name, contact, statement })) }), user.id]);
+      }
+      await addSignature(t, row, user, { png: b.png, useSaved: b.use_saved, ip, event });
+      const sets = ['sign_stage = $2', 'status = $3', 'stage_at = now()', 'updated_at = now()', "resign_reason = ''", 'manager_reminded = false', 'venue_reminded_at = NULL'];
+      const args = [cur.id, turn.sign_stage, turn.status];
+      if (role === 'manager') { args.push(user.id); sets.push(`reviewed_by = $${args.length}`, 'reviewed_at = now()'); }
+      if (role === 'venue') { args.push(String(b.comment || '').slice(0, 2000)); sets.push(`venue_comment = $${args.length}`); }
+      return t.one(`UPDATE incidents SET ${sets.join(', ')} WHERE id = $1 RETURNING *`, args);
+    });
+    const v = await one('SELECT name FROM venues WHERE id = $1', [inc.venue_id]);
+    const others = (ids) => ids.filter((id) => id !== user.id);
+    if (role === 'officer') {
+      await notify(others(await managersFor(inc.venue_id)), { kind: 'incident', title: `Incident to sign · ${v.name}`, body: `${inc.ref} was signed by ${user.name}${cur.resign_reason ? ' after changes' : ''}.`, link: `/company/incidents/${inc.id}` });
+    } else if (role === 'manager') {
+      await notify(await venueContacts(inc.venue_id), { kind: 'incident', title: `Incident report to sign · ${v.name}`, body: `${inc.ref}: signed by ${user.name}. Read it and sign to confirm you have received it.`, link: `/venue/incidents/${inc.id}`, email: true });
+      if (inc.officer_id) await notify(await officerUser(inc.officer_id), { kind: 'incident', title: `${inc.ref} signed by your manager`, body: 'It has gone to the venue to sign.', link: `/officer/incidents/${inc.id}` });
+    } else {
+      await sealIncident(inc.id, user.id).catch((e) => console.error('[incidents] seal failed, sealed on download', inc.id, e));
+      const to = [...await managersFor(inc.venue_id), ...(inc.officer_id ? await officerUser(inc.officer_id) : [])];
+      await notify(others(to), { kind: 'incident', title: `${inc.ref} is complete`, body: `Signed by ${v.name}${inc.venue_comment ? `: "${inc.venue_comment.slice(0, 140)}"` : ''}.`, link: `/company/incidents/${inc.id}` });
+    }
+    await audit(user, `incident.sign_${role}`, 'incident', inc.id, { ref: inc.ref, version: inc.version, stage: inc.sign_stage });
+    return inc;
+  }),
+
+  // A nudge for the venue when a signed report is still waiting for them
+  'incidents.remindVenue': def(MGR, async (b, { user }) => {
+    required(b, 'id');
+    const inc = need(await one('SELECT * FROM incidents WHERE id = $1', [b.id]));
+    await assertVenue(user, inc.venue_id);
+    if (inc.sign_stage !== 'venue') fail(400, 'This report is not waiting for the venue');
+    if (inc.venue_reminded_at && Date.now() - new Date(inc.venue_reminded_at) < 3600e3) fail(400, 'A reminder went out less than an hour ago');
+    const ids = await venueContacts(inc.venue_id);
+    if (!ids.length) fail(400, 'This venue has no contacts with a login yet. Add one under the venue’s contacts.');
+    await notify(ids, { kind: 'incident', severity: 'warning', title: `Please sign incident report ${inc.ref}`, body: 'It is waiting for your signature to confirm you have received it.', link: `/venue/incidents/${inc.id}`, email: true });
+    await q('UPDATE incidents SET venue_reminded_at = now() WHERE id = $1', [inc.id]);
+    await audit(user, 'incident.remind_venue', 'incident', inc.id, { ref: inc.ref });
+    return { ok: true };
+  }),
+
   'incidents.pdf': def(ALL, async (b, { user }) => {
     const inc = await loadFull(b.id);
     await canSee(user, inc);
     const s = await getSettings();
+    // Signed reports: the sealed copy once everyone has signed, otherwise a live copy marked with who it waits for
+    if (inc.sign_stage) {
+      if (inc.sign_stage === 'complete') return (await savedPdf(inc.pdf_document_id)) || sealIncident(inc.id, user.id);
+      const { bytes } = await renderIncident(inc, { company: s, signatures: inc.signatures, verifyUrl: verifyUrl(inc.reference), role: user.role });
+      return { filename: `${inc.ref}.pdf`, pdf: Buffer.from(bytes).toString('base64') };
+    }
     const d = await Doc.create(`Incident ${inc.ref}`);
     await d.header(s, 'Incident report', `${inc.ref} · v${inc.version}`);
     const yn = (v, ref) => (v ? `Yes${ref ? ` (ref ${ref})` : ''}` : 'No');

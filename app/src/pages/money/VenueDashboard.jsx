@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Building2, CalendarDays, ClipboardCheck, Layers, LineChart, MapPin, Megaphone, MessageSquareHeart, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
+import { Bell, Building2, CalendarDays, ClipboardCheck, FileSignature, Layers, LineChart, MapPin, Megaphone, MessageSquareHeart, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import { FeedbackTile, GiveFeedbackSheet, RateStaffSheet } from '../venue/_feedback.jsx';
@@ -61,7 +61,7 @@ function Body({ d, name }) {
       <PushCard className="mb-4" later="your account menu" />
       <RateStaffSheet open={rate} onClose={() => setRate(false)} />
       <GiveFeedbackSheet open={give} onClose={() => setGive(false)} />
-      <NeedsYou d={d} toSign={toSign} />
+      <NeedsYou d={d} toSign={toSign} venueId={venueId} />
       {d.tiles && <VenueTiles d={d} venueId={venueId} onPick={setVenueId} />}
       <Bento>
         <Tile tone="blue" to="/venue/live" title="On site now" icon={Radio} className="col-span-2 lg:row-span-2">
@@ -169,10 +169,14 @@ function Body({ d, name }) {
 }
 
 // What is waiting on the venue itself, from what the page already loads; hidden when nothing is
-function NeedsYou({ d, toSign }) {
+function NeedsYou({ d, toSign, venueId }) {
+  // Incident reports the officer and the manager have signed, waiting on the venue's signature
+  const inc = useApi('incidents.list', { to_sign: true, venue_id: venueId || undefined }, { poll: 60000 });
+  const reports = d.counts?.incidentsToSign ?? (inc.data?.length || 0);
   const late = (d.live.late || 0) + (d.live.no_show || 0);
   const items = [
     toSign > 0 && { key: 'sign', to: '/venue/timesheets?show=review', icon: ClipboardCheck, tone: 'bg-blue-soft text-blue', title: `${toSign} timesheet${toSign === 1 ? '' : 's'} to sign`, sub: 'Check the hours and sign' },
+    reports > 0 && { key: 'incidents', to: '/venue/incidents?to_sign=1', icon: FileSignature, tone: 'bg-blue-soft text-blue', title: `${reports} incident report${reports === 1 ? '' : 's'} to sign`, sub: 'Read what happened and sign' },
     late > 0 && { key: 'late', to: '/venue/live', icon: Radio, tone: 'bg-red-soft text-red', title: `${late} officer${late === 1 ? '' : 's'} late or not arrived`, sub: 'See who is on site now' },
     d.invoices.count > 0 && { key: 'pay', to: '/venue/invoices', icon: ReceiptText, tone: 'bg-amber-soft text-amber', title: `${d.invoices.count} invoice${d.invoices.count === 1 ? '' : 's'} to pay`, sub: `${money(d.invoices.outstanding)} outstanding` },
   ].filter(Boolean);
@@ -188,8 +192,8 @@ function NeedsYou({ d, toSign }) {
   // Phones: one glowing bar that opens the list; from lg up the list sits on the page
   return (
     <>
-      <AttentionDrawer id="needs" title="Needs you" className="mb-4 lg:hidden" count={items.length} tone={late > 0 ? 'red' : toSign > 0 ? 'blue' : 'amber'}
-        preview={items.map((i) => ({ icon: i.icon, tone: i.key === 'late' ? 'red' : i.key === 'sign' ? 'blue' : 'amber' }))} lead={items[0].title}>
+      <AttentionDrawer id="needs" title="Needs you" className="mb-4 lg:hidden" count={items.length} tone={late > 0 ? 'red' : toSign > 0 || reports > 0 ? 'blue' : 'amber'}
+        preview={items.map((i) => ({ icon: i.icon, tone: i.key === 'late' ? 'red' : i.key === 'sign' || i.key === 'incidents' ? 'blue' : 'amber' }))} lead={items[0].title}>
         {list}
       </AttentionDrawer>
       <Section title="Needs you" icon={Bell} className="!mt-0 mb-4 hidden lg:block">{list}</Section>

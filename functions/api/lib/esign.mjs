@@ -11,12 +11,12 @@ import { getObjectBytes } from './storage.mjs';
 import { issueLink, liveLink } from './signLinks.mjs';
 
 export const TABLE = { contract: 'contracts', pay_agreement: 'pay_agreements', venue_pack: 'pack_signings' };
-const PREFIX = { contract: 'C', policy: 'P', pay_rise: 'R', venue_pack: 'V' };
+const PREFIX = { contract: 'C', policy: 'P', pay_rise: 'R', venue_pack: 'V', incident: 'I' };
 const ARCHIVE_KIND = { contract: 'contract', policy: 'policy', pay_rise: 'pay_agreement', venue_pack: 'venue_pack' };
 // Documents that are sent and wait for a signature (a venue pack is signed by the officer on their own)
 const SENT = ['contract', 'pay_agreement'];
 
-/** ORB-C-2026-0142 — C contract, P policy, R pay rise, V venue pack */
+/** ORB-C-2026-0142 — C contract, P policy, R pay rise, V venue pack, I incident report */
 export async function nextReference(category, t = null) {
   const run = t ? t.q.bind(t) : q;
   const [r] = await run("SELECT nextval('esign_ref_seq') AS n");

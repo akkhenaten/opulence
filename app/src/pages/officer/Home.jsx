@@ -288,9 +288,15 @@ function useToDo(d, packs) {
   const contracts = useApi('contracts.list', {});
   const learn = useApi('academy.my', {}, { skip: !m?.academy });
   const drafts = useApi('incidents.drafts', {});
+  const resign = useApi('incidents.list', { to_sign: true }, { poll: 60000 });
   const rows = [];
-  (drafts.data || []).forEach((x) => rows.push({ k: `r${x.id}`, to: `/officer/incidents/new?draft=${x.id}`, icon: FilePen, tone: 'amber', title: 'Finish your report', sub: x.type ? typeLabel(x.type) : 'Incident report' }));
-  if (d.incidentsToFix > 0) rows.push({ k: 'fix', to: '/officer/incidents?status=changes_requested', icon: PencilLine, tone: 'amber', title: `${d.incidentsToFix} report${d.incidentsToFix === 1 ? '' : 's'} to fix`, sub: 'Your manager asked for more detail' });
+  (drafts.data || []).forEach((x) => rows.push({ k: `r${x.id}`, to: `/officer/incidents/new?draft=${x.id}`, icon: FilePen, tone: 'amber', title: 'Finish your report', sub: x.title || (x.type ? typeLabel(x.type) : 'Incident report') }));
+  // Signed reports back with the officer (sent back, or edited by the manager) get their own row; the rest of "to fix" are older reports
+  const again = resign.data || [];
+  again.forEach((x) => rows.push({ k: `s${x.id}`, to: `/officer/incidents/${x.id}/edit`, icon: FileSignature, tone: 'amber', title: 'Sign your report again',
+    sub: `${x.title || typeLabel(x.type)} · ${x.resign_reason === 'edited' ? 'Your manager edited it' : 'Your manager asked for more detail'}` }));
+  const fix = Math.max(0, (d.incidentsToFix || 0) - again.filter((x) => x.status === 'changes_requested').length);
+  if (fix > 0) rows.push({ k: 'fix', to: '/officer/incidents?status=changes_requested', icon: PencilLine, tone: 'amber', title: `${fix} report${fix === 1 ? '' : 's'} to fix`, sub: 'Your manager asked for more detail' });
   (contracts.data || []).filter((c) => c.status === 'sent').forEach((c) => rows.push({ k: `c${c.id}`, to: `/officer/contracts/${c.id}`, icon: FileSignature, tone: 'blue', title: `Sign: ${c.title}`, sub: 'Waiting for your signature' }));
   const due = m?.academy ? (learn.data?.courses || []).filter((c) => c.assignment_id && c.state !== 'passed') : [];
   due.forEach((c) => {

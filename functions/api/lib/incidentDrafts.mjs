@@ -26,6 +26,13 @@ export function cleanDraft(d) {
     out.manager = { venue_id: id(src.manager.venue_id), shift_id: id(src.manager.shift_id), officer_id: id(src.manager.officer_id) };
   }
   if (out.shift_id) out.shift_id = id(out.shift_id);
+  if (src.title != null) out.title = str(src.title, 200);
+  // The writing page: its blocks, Orb's latest version and photo captions, each kept to a sane size
+  const json = (v, max) => { const s = JSON.stringify(v); return s && s.length <= max ? JSON.parse(s) : undefined; };
+  if (Array.isArray(src.body)) out.body = json(src.body.slice(0, 200), 120000);
+  if (src.orb && typeof src.orb === 'object') out.orb = json(src.orb, 60000);
+  if (src.captions && typeof src.captions === 'object') out.captions = json(src.captions, 20000);
+  for (const k of ['body', 'orb', 'captions']) if (out[k] === undefined) delete out[k];
   return out;
 }
 

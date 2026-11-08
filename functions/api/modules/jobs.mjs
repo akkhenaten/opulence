@@ -1,6 +1,6 @@
 // Scheduled work, run every 5 minutes by the platform timer (event.source === 'schedule').
 import { q } from '../lib/db.mjs';
-import { notify, managersFor, officerUser, companyManagers } from '../lib/notify.mjs';
+import { notify, managersFor, officerUser, companyManagers, venueContacts } from '../lib/notify.mjs';
 import { fmtDate, fmtTime, londonDate, addDays } from '../lib/time.mjs';
 import { buildTimesheet } from './clock.mjs';
 import { sweep } from './moneyFeed.mjs';
@@ -23,6 +23,7 @@ import { applicantJobs } from './apply.mjs';
 import { staffSetupJobs } from './staffSetup.mjs';
 import { dropDraft } from './incidents.mjs';
 import { reminderDue } from '../lib/incidentDrafts.mjs';
+import { venueReminderDue, managerReminderDue } from '../lib/incidentSign.mjs';
 import { officerName } from '../lib/names.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in.
@@ -169,10 +170,31 @@ export async function draftReminders(s, now = new Date()) {
   return { sent, removed };
 }
 
+// Signed incident reports waiting on someone: the venue the next morning and every 2 days after; managers once after a day
+export async function signReminders(s, now = new Date()) {
+  let sent = 0;
+  const rows = await q(`SELECT i.id, i.ref, i.venue_id, i.sign_stage, i.stage_at, i.venue_reminded_at, i.manager_reminded, v.name AS venue_name
+      FROM incidents i JOIN venues v ON v.id = i.venue_id WHERE i.sign_stage IN ('manager','venue') ORDER BY i.stage_at LIMIT 300`);
+  for (const r of rows) {
+    if (venueReminderDue(r, now)) {
+      const claimed = await q('UPDATE incidents SET venue_reminded_at = now() WHERE id = $1 AND venue_reminded_at IS NOT DISTINCT FROM $2 RETURNING id', [r.id, r.venue_reminded_at]);
+      if (!claimed.length) continue;
+      await notify(await venueContacts(r.venue_id), { kind: 'incident', severity: 'warning', title: `Please sign incident report ${r.ref}`, body: 'It is waiting for your signature to confirm you have received it.', link: `/venue/incidents/${r.id}`, email: true });
+      sent++;
+    } else if (managerReminderDue(r, now)) {
+      const claimed = await q('UPDATE incidents SET manager_reminded = true WHERE id = $1 AND NOT manager_reminded RETURNING id', [r.id]);
+      if (!claimed.length) continue;
+      await notify(await managersFor(r.venue_id), { kind: 'incident', title: `Incident ${r.ref} still needs your signature`, body: `${r.venue_name}: the officer signed it a day ago.`, link: `/company/incidents/${r.id}` });
+      sent++;
+    }
+  }
+  return sent;
+}
+
 export async function runJobs() {
   const s = await getSettings();
   const result = {};
-  for (const [name, fn] of Object.entries({ lateAlerts, reminders, closeOpenShifts, autoSignoff, expiryAlerts, overdueInvoices, draftReminders })) {
+  for (const [name, fn] of Object.entries({ lateAlerts, reminders, closeOpenShifts, autoSignoff, expiryAlerts, overdueInvoices, draftReminders, signReminders })) {
     try {
       result[name] = await fn(s);
     } catch (e) {

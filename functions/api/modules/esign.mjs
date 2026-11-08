@@ -10,7 +10,7 @@ import { fmtDate } from '../lib/time.mjs';
 import { CO, def, pub } from './_def.mjs';
 
 export const CATEGORIES = ['contract', 'policy', 'pay_rise'];
-export const TYPE_LABEL = { contract: 'Contract', policy: 'Policy', pay_rise: 'Pay rise agreement', venue_pack: 'Venue pack' };
+export const TYPE_LABEL = { contract: 'Contract', policy: 'Policy', pay_rise: 'Pay rise agreement', venue_pack: 'Venue pack', incident: 'Incident report' };
 const ACK = { policy: 'I have read and understood this policy and agree to follow it.' };
 const PNG = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
 
@@ -166,8 +166,8 @@ export const actions = {
   // Public: confirm a document is genuine. The PDF is hashed in the browser; no file and no wording leave the server.
   'esign.verify': pub(async (b) => {
     const ref = String(b.reference || '').trim().toUpperCase().slice(0, 40);
-    if (!/^ORB-[CPRV]-\d{4}-\d{4,}$/.test(ref)) return { found: false };
-    const [s, c, a, p] = await Promise.all([
+    if (!/^ORB-[CPRVI]-\d{4}-\d{4,}$/.test(ref)) return { found: false };
+    const [s, c, a, p, inc] = await Promise.all([
       one('SELECT company_name FROM settings WHERE id = 1'),
       one(`SELECT c.reference, c.category, c.title, c.status, c.signed_name, c.signed_at, c.company_name_signed, c.fingerprint, c.pdf_sha256, c.sealed_at,
                   COALESCE(o.first_name || ' ' || o.last_name, g.signatory_name, g.name) AS officer_name, g.name AS party
@@ -178,8 +178,18 @@ export const actions = {
       one(`SELECT p.reference, 'venue_pack' AS category, 'Venue pack: ' || v.name AS title, p.status, p.signed_name, p.signed_at, NULL AS company_name_signed,
                   p.fingerprint, p.pdf_sha256, p.sealed_at, o.first_name || ' ' || o.last_name AS officer_name
              FROM pack_signings p JOIN officers o ON o.id = p.officer_id JOIN venues v ON v.id = p.venue_id WHERE p.reference = $1`, [ref]),
+      // Incident reports: signed by the officer, a manager and the venue; complete once the venue has signed
+      one(`SELECT i.reference, 'incident' AS category, 'Incident report ' || i.ref || ' · ' || v.name AS title,
+                  CASE WHEN i.sign_stage = 'complete' THEN 'signed' ELSE 'sent' END AS status,
+                  so.name AS signed_name, sv.at AS signed_at, sm.name AS company_name_signed, i.fingerprint, i.pdf_sha256, i.sealed_at,
+                  o.first_name || ' ' || o.last_name AS officer_name, v.name AS party
+             FROM incidents i JOIN venues v ON v.id = i.venue_id LEFT JOIN officers o ON o.id = i.officer_id
+             LEFT JOIN incident_signatures so ON so.incident_id = i.id AND so.role = 'officer' AND so.void_at IS NULL
+             LEFT JOIN incident_signatures sm ON sm.incident_id = i.id AND sm.role = 'manager' AND sm.void_at IS NULL
+             LEFT JOIN incident_signatures sv ON sv.incident_id = i.id AND sv.role = 'venue' AND sv.void_at IS NULL
+            WHERE i.reference = $1`, [ref]),
     ]);
-    const d = c || a || p;
+    const d = c || a || p || inc;
     if (!d) return { found: false };
     const status = d.status === 'applied' ? 'signed' : d.status;
     const sha = String(b.sha256 || '').toLowerCase();

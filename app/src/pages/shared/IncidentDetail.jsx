@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  AlertTriangle, CheckCircle2, Download, Eye, FilePlus, FileText, History, ImagePlus, Images, MessageSquareReply, MessagesSquare, Pencil, RefreshCw, RotateCcw, Siren, Sparkles, Trash2, Users, X,
+  AlertTriangle, Ambulance, BellRing, CheckCircle2, Download, Eye, FilePlus, FileSignature, FileText, Hand, History, ImagePlus, Images, MessageSquareReply, MessagesSquare, NotebookPen, Pencil,
+  RefreshCw, RotateCcw, Siren, Sparkles, Trash2, Users, X,
 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Button, Callout, cx, dateTime, KV, Lightbox, List, Load, Page, Pill, Pressable, Row, Section, Sheet, Spinner, Textarea, Tile, useAction, useApi, useConfirm, useToast,
+  ActionBar, Button, Callout, cx, dateTime, KV, Lightbox, List, Load, Page, Pill, Pressable, Row, Section, Sheet, Spinner, Textarea, Tile, useAction, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
 import { INCIDENT_STATUS, LatePill, typeLabel } from '../officer/_parts.jsx';
 import { DOC_ACCEPT, fileSize, MAX_FILES, useUploads } from './evidence.jsx';
 import { viewFiles } from '../../ui/FileViewer.jsx';
 import { useOfficeChat } from './_office.js';
+import { SignSheet } from './incident/SignSheet.jsx';
+import { SignStrip, StagePill } from './incident/SignStrip.jsx';
 
 const yn = (b, ref) => (b ? `Yes${ref ? ` (ref ${ref})` : ''}` : 'No');
 const LABELS = {
@@ -29,26 +32,34 @@ export default function IncidentDetail() {
   const pdf = () => run(() => downloadAction('incidents.pdf', { id })).catch(() => {});
   // Venues follow a report up with the office in their chat, the reference already typed
   const [office, asking] = useOfficeChat(base);
+  const inc = q.data;
   return (
-    <Page title={q.data?.ref || 'Incident'} subtitle={q.data && `${typeLabel(q.data.type)} · ${q.data.venue_name}`} back={{ to: `${base}/incidents`, label: 'Incidents' }}
-      actions={q.data && <>{user.role === 'venue' && <Button variant="secondary" icon={MessagesSquare} iconOnly="phone" busy={asking} onClick={() => office(q.data.venue_id, `About incident ${q.data.ref}: `)}>Ask the office</Button>}
-        <Button variant="secondary" icon={Download} iconOnly="phone" busy={busy} onClick={pdf}>PDF</Button></>}>
-      <Load q={q}>{(inc) => <Detail inc={inc} reload={q.reload} base={base} />}</Load>
+    <Page title={inc ? inc.reference || inc.ref : 'Incident'} subtitle={inc && `${typeLabel(inc.type)} · ${inc.venue_name}`} back={{ to: `${base}/incidents`, label: 'Incidents' }}
+      actions={inc && user.role === 'venue' && <Button variant="secondary" icon={MessagesSquare} iconOnly="phone" busy={asking} onClick={() => office(inc.venue_id, `About incident ${inc.reference || inc.ref}: `)}>Ask the office</Button>}>
+      <Load q={q}>{(x) => <Detail inc={x} reload={q.reload} base={base} pdf={pdf} pdfBusy={busy} />}</Load>
     </Page>
   );
 }
 
-function Detail({ inc, reload, base }) {
+// Photos the writer (or Orb) placed under a part of the report show with that part
+const inSection = (inc, key) => inc.attachments.filter((a) => a.mime?.startsWith('image/') && a.section === key);
+
+function Detail({ inc, reload, base, pdf, pdfBusy }) {
   const { user } = useAuth();
   const isMgr = user.role === 'company' || user.role === 'security';
   const isOfficer = user.role === 'officer';
-  const canEdit = isOfficer && inc.status !== 'closed' && (inc.status === 'changes_requested' || inc.reported_by === user.id);
+  const staged = !!inc.sign_stage;
+  // Reports from before signing keep their edit and review; signed ones are edited from the sign step
+  const canEdit = !staged && isOfficer && inc.status !== 'closed' && (inc.status === 'changes_requested' || inc.reported_by === user.id);
   const [lightbox, setLightbox] = useState(null);
   const [version, setVersion] = useState(null);
   const [prefill, setPrefill] = useState(null);
-  const canAdd = isMgr || (isOfficer && inc.status !== 'closed');
+  const canAdd = !['venue', 'complete'].includes(inc.sign_stage) && (isMgr || (isOfficer && inc.status !== 'closed'));
   const images = inc.attachments.filter((a) => a.mime?.startsWith('image/'));
   const files = inc.attachments.filter((a) => !a.mime?.startsWith('image/'));
+  const openPhoto = (a) => setLightbox(images.findIndex((x) => x.id === a.id));
+  const strip = (key) => <PhotoStrip photos={inSection(inc, key)} onOpen={openPhoto} />;
+  const sev = inc.severity;
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -61,12 +72,17 @@ function Detail({ inc, reload, base }) {
         )}
 
         <Tile>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <Pill status={inc.severity}>{inc.severity === 'critical' ? 'Critical' : `${inc.severity[0].toUpperCase()}${inc.severity.slice(1)} severity`}</Pill>
-            <Pill status={inc.status}>{INCIDENT_STATUS[inc.status]}</Pill>
+          <h2 className="display text-title2 font-bold leading-tight">{inc.title || `${typeLabel(inc.type)} at ${inc.venue_name}`}</h2>
+          <div className="mb-3 mt-2.5 flex flex-wrap items-center gap-2">
+            <Pill status={sev}>{sev === 'critical' ? 'Critical' : `${sev[0].toUpperCase()}${sev.slice(1)} severity`}</Pill>
+            <Pill tone="grey">{typeLabel(inc.type)}</Pill>
+            {staged ? <StagePill inc={inc} /> : <Pill status={inc.status}>{INCIDENT_STATUS[inc.status]}</Pill>}
+            {inc.police_called && <Pill tone="blue"><Siren size={14} />Police</Pill>}
+            {inc.ambulance_called && <Pill tone="red"><Ambulance size={14} />Ambulance</Pill>}
+            {inc.force_used && <Pill tone="red"><Hand size={14} />Force used</Pill>}
             {inc.version > 1 && <Pill tone="grey">Version {inc.version}</Pill>}
             <LatePill inc={inc} />
-            {isMgr && inc.ai_assisted && <Pill tone="blue"><Sparkles size={14} />AI-assisted</Pill>}
+            {isMgr && inc.ai_assisted && <Pill tone="blue"><Sparkles size={14} />Written with Orb</Pill>}
           </div>
           <KV items={[
             ['Occurred', dateTime(inc.occurred_at)],
@@ -75,14 +91,18 @@ function Detail({ inc, reload, base }) {
             ['Officer', inc.officer_name],
             inc.reported_by_name && inc.reported_by_name !== inc.officer_name && ['Reported by', inc.reported_by_name],
             ['Submitted', dateTime(inc.created_at)],
+            inc.reference && ['Reference', <span key="r" className="num">{inc.reference}</span>],
           ]} />
         </Tile>
 
-        <Section title="What happened" icon={FileText} className="!mt-4"><Tile><p className="whitespace-pre-line text-body leading-relaxed">{inc.description}</p></Tile></Section>
+        <Section title="What happened" icon={FileText} className="!mt-4"><Tile><p className="whitespace-pre-line text-body leading-relaxed">{inc.description}</p>{strip('what')}</Tile></Section>
 
-        {(inc.people_involved || inc.injuries) && (
+        {(inc.people_involved || inc.injuries || inSection(inc, 'people').length > 0 || inSection(inc, 'injuries').length > 0) && (
           <Section title="People" icon={Users} className="!mt-4">
-            <Tile><KV items={[['People involved', inc.people_involved && <span className="whitespace-pre-line">{inc.people_involved}</span>], ['Injuries', inc.injuries ? <span className="whitespace-pre-line">{inc.injuries}</span> : 'None recorded']]} /></Tile>
+            <Tile>
+              <KV items={[['People involved', inc.people_involved && <span className="whitespace-pre-line">{inc.people_involved}</span>], ['Injuries', inc.injuries ? <span className="whitespace-pre-line">{inc.injuries}</span> : 'None recorded']]} />
+              {strip('people')}{strip('injuries')}
+            </Tile>
           </Section>
         )}
 
@@ -95,6 +115,7 @@ function Detail({ inc, reload, base }) {
               ['Police', yn(inc.police_called, inc.police_ref)],
               ['Ambulance', yn(inc.ambulance_called, inc.ambulance_ref)],
             ]} />
+            {strip('actions')}
           </Tile>
         </Section>
 
@@ -114,13 +135,28 @@ function Detail({ inc, reload, base }) {
           </Section>
         )}
 
+        {inc.manager_statement && (
+          <Section title="Manager's statement" icon={FileSignature} className="!mt-4"><Tile><p className="whitespace-pre-line text-body leading-relaxed">{inc.manager_statement}</p></Tile></Section>
+        )}
+        {inc.venue_comment && (
+          <Section title="Venue's comment" icon={MessageSquareReply} className="!mt-4"><Tile><p className="whitespace-pre-line text-body leading-relaxed">{inc.venue_comment}</p></Tile></Section>
+        )}
+        {user.role !== 'venue' && inc.notes && inc.notes.trim() !== (inc.description || '').trim() && (
+          <details className="rounded-tile bg-surface px-4 py-1 shadow-tile">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-subhead font-semibold"><NotebookPen size={16} className="text-muted" aria-hidden />The officer's own notes</summary>
+            <p className="whitespace-pre-line pb-3 text-subhead text-muted">{inc.notes}</p>
+          </details>
+        )}
+
+        {staged && <div className="!mt-4"><SignStrip inc={inc} /></div>}
+
         {(inc.attachments.length > 0 || canAdd || inc.removed?.length > 0) && (
           <Attachments inc={inc} images={images} files={files} canAdd={canAdd} reload={reload} openImage={setLightbox} />
         )}
       </div>
 
       <aside className="space-y-3">
-        {isMgr && <ReviewPanel inc={inc} reload={reload} prefill={prefill} clearPrefill={() => setPrefill(null)} />}
+        {isMgr && !staged && <ReviewPanel inc={inc} reload={reload} prefill={prefill} clearPrefill={() => setPrefill(null)} />}
         {isMgr && inc.attachments.length > 0 && <EvidenceReview inc={inc} onRequest={(text) => setPrefill(text)} />}
         {inc.versions.length > 0 && (
           <Section title="History" icon={History} className="!mt-0 lg:!mt-0">
@@ -136,13 +172,104 @@ function Detail({ inc, reload, base }) {
         )}
       </aside>
 
+      <SignBar inc={inc} reload={reload} base={base} pdf={pdf} pdfBusy={pdfBusy} prefill={staged ? prefill : null} clearPrefill={() => setPrefill(null)} />
       <Lightbox photos={images} index={lightbox} onClose={() => setLightbox(null)} download />
       <VersionSheet v={version} onClose={() => setVersion(null)} hideContacts={user.role === 'venue'} />
     </div>
   );
 }
 
+function PhotoStrip({ photos, onOpen }) {
+  if (!photos.length) return null;
+  return (
+    <div className="no-scrollbar -mx-1 mt-3 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
+      {photos.map((a) => (
+        <figure key={a.id} className="w-36 shrink-0 snap-start sm:w-44">
+          <Pressable press onClick={() => onOpen(a)} className="block aspect-[4/3] w-full overflow-hidden rounded-2xl bg-bg" aria-label={`Open ${a.name || 'photo'}`}>
+            <img src={a.url} alt={a.caption || ''} loading="lazy" className="h-full w-full object-cover" />
+          </Pressable>
+          {a.caption && <figcaption className="mt-1 line-clamp-2 px-0.5 text-caption text-muted">{a.caption}</figcaption>}
+        </figure>
+      ))}
+    </div>
+  );
+}
+
+// What the person looking at the report can do at its stage: sign, send back, edit, remind, and the PDF any time
+function SignBar({ inc, reload, base, pdf, pdfBusy, prefill, clearPrefill }) {
+  const { user } = useAuth();
+  const toast = useToast();
+  const [run, busy] = useAction();
+  const [signing, setSigning] = useState(false);
+  const [back, setBack] = useState(null); // the send-back note while its sheet is open
+  const isMgr = user.role === 'company' || user.role === 'security';
+  const s = inc.sign_stage;
+  useEffect(() => {
+    if (!prefill) return;
+    setBack((c) => (c?.trim() ? `${c.trim()}\n${prefill}` : prefill));
+    clearPrefill();
+  }, [prefill]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sign = (body) => run(() => api('incidents.sign', { id: inc.id, ...body }),
+    s === 'venue' ? 'Signed. The report is complete' : 'Signed and sent to the venue').then(() => { setSigning(false); reload(); }).catch(() => {});
+  const sendBack = () => run(() => api('incidents.review', { id: inc.id, decision: 'changes_requested', comment: back.trim() }), 'Sent back to the officer')
+    .then(() => { setBack(null); reload(); }).catch(() => {});
+  const remind = () => run(() => api('incidents.remindVenue', { id: inc.id }), 'Reminder sent to the venue').then(reload).catch((e) => toast(e.message, 'error'));
+
+  const pdfBtn = <Button variant="secondary" icon={Download} iconOnly="phone" busy={pdfBusy} onClick={pdf}>PDF</Button>;
+  let label = null;
+  let acts = null;
+  if (isMgr && s === 'manager') {
+    label = 'Ready for you to sign';
+    acts = <>
+      <Button variant="secondary" icon={MessageSquareReply} iconOnly="phone" onClick={() => setBack('')}>Send back</Button>
+      <Button variant="secondary" icon={Pencil} iconOnly="phone" to={`${base}/incidents/${inc.id}/edit`}>Edit</Button>
+      <Button icon={FileSignature} onClick={() => setSigning(true)}>Sign</Button>
+    </>;
+  } else if (user.role === 'officer' && s === 'officer') {
+    label = inc.resign_reason === 'edited' ? 'Edited by your manager' : 'Sent back to you';
+    acts = <Button icon={FileSignature} to={`${base}/incidents/${inc.id}/edit`}>Check & sign</Button>;
+  } else if (user.role === 'venue' && s === 'venue') {
+    label = 'Read it, then sign';
+    acts = <Button icon={FileSignature} onClick={() => setSigning(true)}>Sign</Button>;
+  } else if (isMgr && s === 'venue') {
+    label = inc.venue_reminded_at ? `Reminded ${dateTime(inc.venue_reminded_at)}` : 'With the venue to sign';
+    acts = <Button variant="secondary" icon={BellRing} busy={busy} onClick={remind}>Remind venue</Button>;
+  }
+
+  return (
+    <>
+      <ActionBar tone="light">
+        {label && <span className="mr-1 min-w-0 truncate text-subhead font-semibold">{label}</span>}
+        {!label && <span className="mr-1 text-subhead font-semibold">{s === 'complete' ? 'Signed by everyone' : 'Incident report'}</span>}
+        {pdfBtn}
+        {acts}
+      </ActionBar>
+      <SignSheet open={signing} onClose={() => !busy && setSigning(false)} role={user.role === 'venue' ? 'venue' : 'manager'} busy={busy} onSign={sign} />
+      <Sheet open={back != null} onClose={() => setBack(null)} title="Send back to the officer" size="sm"
+        footer={<><Button variant="secondary" onClick={() => setBack(null)}>Cancel</Button><Button busy={busy} disabled={!back?.trim()} onClick={sendBack}>Send to officer</Button></>}>
+        <Textarea label="What needs changing?" rows={4} value={back || ''} onChange={(e) => setBack(e.target.value)} placeholder="e.g. Please add the police CAD number and describe the hold used." />
+        <p className="mt-2 text-footnote text-muted">{inc.officer_name || 'The officer'} gets a notification and email, changes the report and signs it again.</p>
+      </Sheet>
+    </>
+  );
+}
+
 function StatusBanner({ inc, isOfficer }) {
+  if (inc.sign_stage === 'officer') {
+    const edited = inc.resign_reason === 'edited';
+    return (
+      <div className="flex gap-3 rounded-tile bg-amber-soft p-4 text-amber">
+        <AlertTriangle size={24} className="mt-0.5 shrink-0" />
+        <div className="min-w-0">
+          <div className="text-callout font-bold">{edited ? (isOfficer ? 'Your manager edited this report' : 'Edited, waiting for the officer to sign again') : isOfficer ? 'More detail needed' : 'Sent back to the officer'}</div>
+          {!edited && inc.review_comment && <p className="mt-0.5 whitespace-pre-line text-subhead font-medium">{inc.review_comment}</p>}
+          {edited && isOfficer && <p className="mt-0.5 text-subhead font-medium">Check the changes and sign it again.</p>}
+          <div className="mt-1 text-caption opacity-80">{[inc.reviewed_by_name, inc.reviewed_at && dateTime(inc.reviewed_at)].filter(Boolean).join(' · ')}</div>
+        </div>
+      </div>
+    );
+  }
+  if (inc.sign_stage) return null;
   if (inc.status === 'changes_requested') {
     return (
       <div className="flex gap-3 rounded-tile bg-amber-soft p-4 text-amber">
