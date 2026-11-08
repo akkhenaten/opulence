@@ -21,9 +21,10 @@ import { lawAlerts } from '../lib/contractContent.mjs';
 import { CO, MGR, def } from './_def.mjs';
 import { statusesFor, pairKey, OK } from '../lib/venuePack.mjs';
 import { NOT_CLEARED, STATUS_LABEL, RECHECK_DAYS, daysSinceCheck, siaCheckOn } from '../lib/sia.mjs';
-import { officerDisplay, nameFit } from '../lib/names.mjs';
-import { docFaceMatch } from '../lib/face.mjs';
-import { autoApply, nameOk } from '../lib/docAuto.mjs';
+import { officerDisplay } from '../lib/names.mjs';
+import { docFaceMatch, docPairMatch } from '../lib/face.mjs';
+import { autoApply, fitOf, nameOk, numberAgrees, SMALL_GAP } from '../lib/docAuto.mjs';
+import { cardSet, mergedRead, passportSet } from '../lib/docSets.mjs';
 import { cleanShareCode, SHARE_CODE_OLD } from '../lib/rtw.mjs';
 
 const ACTIVE = "('assigned','accepted')";
@@ -72,7 +73,7 @@ export async function readDocuments(limit = 4, { id = null } = {}) {
         AND o.status IN ('active','onboarding','applicant')
         AND NOT (o.status = 'applicant' AND EXISTS (SELECT 1 FROM applications ap WHERE ap.officer_id = o.id))
         AND ($3::uuid IS NULL OR d.id = $3)
-      ORDER BY d.created_at DESC LIMIT $2`, [READ_KINDS, limit, id]);
+      ORDER BY (d.ai_read_key IS NULL AND d.ai_read IS NOT NULL), d.created_at DESC LIMIT $2`, [READ_KINDS, limit, id]);
   let n = 0;
   let credits = 0;
   for (const d of docs) {
@@ -93,10 +94,9 @@ export async function readDocuments(limit = 4, { id = null } = {}) {
         read = r.input || { error: 'No answer' };
         for (const k of ['expiry', 'date_of_birth']) if (read[k] && !/^\d{4}-\d{2}-\d{2}$/.test(read[k])) read[k] = '';
         read.nationality = String(read.nationality || '').toUpperCase().slice(0, 3);
-        // The photo on the card against the profile photo: one of the proofs that a card printed "S SCANLON" is Scott's
-        read.face = read.readable !== false && read.has_photo && /^image\//.test(mime || '') && d.profile_photo
-          ? await docFaceMatch({ doc: bytes, profile: await getObjectBytes(d.profile_photo).catch(() => null) })
-          : { result: 'unscored', note: d.profile_photo ? 'No photo to compare' : 'No profile photo to compare with' };
+        // The photo on the card against the profile photo: one of the proofs that a card printed "S SCANLON" is Scott's.
+        // No profile photo, or no clear answer: against the photo on their other document (passport ↔ SIA card)
+        read.face = read.readable !== false && read.has_photo ? await faceProof(d, bytes) : { result: 'unscored', note: 'No photo to compare' };
       }
     } catch (e) {
       if (e.status === 429) break;
@@ -118,6 +118,33 @@ export async function readDocuments(limit = 4, { id = null } = {}) {
   return n;
 }
 
+/** How many uploads are waiting to be read (the read job takes bigger batches while there's a backlog) */
+export async function unreadDocCount() {
+  const r = await one(
+    `SELECT count(*)::int AS n FROM documents d JOIN officers o ON o.id = d.owner_id
+      WHERE d.owner_type = 'officer' AND d.kind = ANY($1) AND d.s3_key IS NOT NULL AND d.ai_read_key IS DISTINCT FROM d.s3_key
+        AND o.status IN ('active','onboarding','applicant')`, [READ_KINDS]);
+  return r?.n || 0;
+}
+
+// The holder photo on a document against the profile photo, else against the officer's other photo document
+async function faceProof(d, bytes) {
+  const profile = d.profile_photo && await getObjectBytes(d.profile_photo).catch(() => null);
+  const first = profile ? await docFaceMatch({ doc: bytes, profile }) : null;
+  if (first && ['match', 'no_match'].includes(first.result)) return { ...first, against: 'profile' };
+  const other = await one(
+    `SELECT kind, s3_key FROM documents WHERE owner_type = 'officer' AND owner_id = $1 AND id <> $2 AND s3_key IS NOT NULL
+        AND COALESCE(ai_read->>'has_photo', 'true') <> 'false' AND COALESCE(ai_read->>'readable', 'true') <> 'false'
+        AND ${d.kind === 'sia' ? "(kind = 'id' OR (kind = 'rtw' AND ai_read->>'is_passport' = 'true'))" : "kind = 'sia'"}
+      ORDER BY created_at DESC LIMIT 1`, [d.owner_id, d.id]);
+  const otherBytes = other && await getObjectBytes(other.s3_key).catch(() => null);
+  if (otherBytes) {
+    const pair = await docPairMatch({ a: otherBytes, b: bytes });
+    if (pair.result !== 'unscored' || !first) return { ...pair, against: d.kind === 'sia' ? 'passport' : 'sia' };
+  }
+  return first ? { ...first, against: 'profile' } : { result: 'unscored', note: 'No profile photo or other document photo to compare with' };
+}
+
 // ---------- Rules ----------
 const PACK_TITLE = { unsigned: 'Site pack not signed', resign: 'Site pack changed, needs signing again', refresher: 'Site pack refresher due' };
 const remind = (o, kind, what) => ({ kind: 'remind', label: `Remind ${o.first_name} to upload ${what}`, params: { doc_kind: kind, what }, default: true });
@@ -125,6 +152,17 @@ const unassign = (shifts) => ({ kind: 'unassign', label: `Take them off ${shifts
 const correct = (field, from, to, label) => ({ kind: 'correct', label, params: { field, from, to }, company_only: true, default: false });
 const remindTraining = (o, t, refresher = false) => ({ kind: 'remind', label: `Remind ${o.first_name} to ${refresher ? 'redo' : 'complete'} "${t.title}"`, params: { course_id: t.course_id, what: `"${t.title}"`, refresher }, default: true });
 const recheck = (d) => ({ kind: 'recheck', label: `Mark "${d.title}" for re-check`, params: { doc_id: d.id }, default: false });
+
+// Why Orb couldn't verify right to work from what's uploaded, for the "not verified" card
+function rtwWhy(r, d) {
+  if (!d) return '';
+  if (!r) return `"${d.title}" hasn't been read yet.`;
+  if (r.readable === false || (r.concerns || []).length) return `"${d.title}" needs a human look.`;
+  if (!r.is_passport) return '';
+  if (r.nationality && !['GBR', 'IRL'].includes(r.nationality)) return `Passport is ${r.nationality}: needs a share code checked on GOV.UK.`;
+  if (r.face?.result !== 'match') return 'Passport uploaded, but Orb couldn\'t confirm the photo is them. Add a profile photo, or check it in person.';
+  return '';
+}
 
 // Every issue for one officer. ctx: { today, roles: {code: role}, docs, shifts, openTasks }
 export function officerIssues(o, { today, roles, docs = [], shifts = [], openTasks = 0, training = [], certs = [], packs = [] }) {
@@ -213,7 +251,8 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
       add({ key: 'rtw:code_ready', severity: shifts.length ? near(shifts) : 'soon', sig: sig(codeDoc.id), title: 'Right to work share code ready to check on GOV.UK', detail: `Share code ${cleanShareCode(codeDoc.number)}. Open their profile and tap Check right to work.${shifts.length ? ` Rostered on ${plural(shifts.length, 'shift')}.` : ''}`, shift: shifts[0], actions: [] });
     }
   } else if (!o.rtw_verified) {
-    add({ key: 'unverified:rtw', severity: shifts.length ? near(shifts) : 'soon', sig: sig(o.rtw_type), title: 'Right to work not verified', detail: shifts.length ? `Rostered on ${plural(shifts.length, 'shift')}.` : 'Ask for their share code, or check their passport, then tap Check right to work on the profile.', shift: shifts[0], actions: [remind(o, 'rtw', 'their right to work share code')] });
+    const why = rtwWhy(mergedRead(passportSet(docs, o), o).read, passportSet(docs, o)[0]);
+    add({ key: 'unverified:rtw', severity: shifts.length ? near(shifts) : 'soon', sig: sig(o.rtw_type), title: 'Right to work not verified', detail: [why || 'Ask for their share code, or check their passport, then tap Check right to work on the profile.', shifts.length ? `Rostered on ${plural(shifts.length, 'shift')}.` : ''].filter(Boolean).join(' '), shift: shifts[0], actions: [remind(o, 'rtw', 'their right to work share code')] });
   } else if (!o.rtw_checked_at) {
     add({ key: 'rtw:no_record', severity: 'advisory', sig: sig(o.rtw_type, o.rtw_expiry), title: 'Right to work ticked by hand, no check saved', detail: 'Do the check again and upload the GOV.UK page (or your copy of their passport) with Check right to work.', actions: [] });
   }
@@ -256,35 +295,55 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
     add({ key: `missing:${kind}`, severity: inRole.length ? 'soon' : 'advisory', sig: sig(kind), title: `No ${docLabel(kind)} on file`, detail: `Required for ${(o.roles || []).filter((r) => (roles[r]?.required_docs || []).includes(kind)).map((r) => roles[r]?.name || r).join(', ')}.`, shift: inRole[0], actions: [remind(o, kind, `their ${docLabel(kind)}`)] });
   }
 
-  // What the AI read on the scans against the profile
-  for (const kind of READ_KINDS) {
-    const d = latest(kind);
-    const r = d?.ai_read;
-    if (!r || r.error || r.skipped) continue;
-    if (r.readable === false || (r.concerns || []).length) {
-      add({ key: `doc_suspect:${d.id}`, severity: 'urgent', sig: sig(d.s3_key), title: `"${d.title}" needs a human look`, detail: r.readable === false ? 'The scan could not be read clearly.' : r.concerns.join('; '), actions: [recheck(d), remind(o, kind, `a clear photo of their ${docLabel(kind)}`)] });
-      continue;
+  // What the AI read on the scans against the profile: the SIA card (front and back together), the passport or ID,
+  // and any other right to work document
+  const newest = (a, b) => new Date(b.created_at) - new Date(a.created_at);
+  const otherRtw = docs.filter((d) => d.kind === 'rtw' && d.s3_key && !d.ai_read?.is_passport && d.id !== o.rtw_check_doc).sort(newest).slice(0, 1);
+  for (const [kind, set] of [['sia', cardSet(docs)], ['id', passportSet(docs, o)], ['rtw', otherRtw]]) {
+    let suspect = false;
+    for (const d of set) {
+      const r = d.ai_read;
+      if (!r || r.error || r.skipped || (r.readable !== false && !(r.concerns || []).length)) continue;
+      suspect = true;
+      add({ key: `doc_suspect:${d.id}`, severity: 'urgent', sig: sig(d.s3_key), title: `"${d.title}" needs a human look`, detail: r.readable === false ? 'The scan could not be read clearly.' : r.concerns.join('; '), actions: [recheck(d), remind(o, d.kind, `a clear photo of their ${docLabel(d.kind)}`)] });
     }
-    // Surname plus first name, or plus just the initial when the licence number or the photo confirms it's them
-    const fit = nameFit(r.name, o.first_name, o.last_name);
+    const { read: r, from } = mergedRead(set, o);
+    if (suspect || !r) continue;
+    const at = (f) => from[f] || from.doc;
+    // Surname plus first name; anything less (an initial, a reading slip, the surname alone, an unreadable name) only
+    // when the licence number or the photo confirms it's them
+    const fit = fitOf(r, o);
+    const nd = at('name');
     if (fit === 'no') {
-      add({ key: `doc_mismatch:${d.id}:name`, severity: 'soon', sig: sig(d.s3_key, o.first_name, o.last_name), title: `Name on "${d.title}" doesn't match the profile`, detail: `Scan reads "${r.name}"; profile is ${o.first_name} ${o.last_name}.`, actions: [recheck(d)] });
-    } else if (!nameOk(fit, r, o)) {
-      add({ key: `doc_name_initial:${d.id}`, severity: 'advisory', sig: sig(d.s3_key, o.first_name, o.last_name), title: `"${d.title}" shows ${r.name} — initial only`, detail: 'No licence number or photo to confirm it\'s them. Add a profile photo, or check the card.', actions: [] });
+      add({ key: `doc_mismatch:${nd.id}:name`, severity: 'soon', sig: sig(nd.s3_key, o.first_name, o.last_name), title: `Name on "${nd.title}" doesn't match the profile`, detail: `Scan reads "${r.name}"; profile is ${o.first_name} ${o.last_name}.`, actions: [recheck(nd)] });
+    } else if (r.name && !nameOk(fit, r, o)) {
+      add(fit === 'unread'
+        ? { key: `doc_name_unread:${nd.id}`, severity: 'advisory', sig: sig(nd.s3_key), title: `Couldn't read the name on "${nd.title}"`, detail: 'No licence number or photo to confirm it\'s them either. Check the card, or ask for a clearer photo of the front.', actions: [recheck(nd)] }
+        : { key: `doc_name_initial:${nd.id}`, severity: 'advisory', sig: sig(nd.s3_key, o.first_name, o.last_name), title: `"${nd.title}" shows ${r.name} — ${fit === 'initial' ? 'initial only' : 'not the full name'}`, detail: 'No licence number or photo to confirm it\'s them. Add a profile photo, or check the card.', actions: [] });
     }
     if (r.face?.result === 'no_match') {
-      add({ key: `doc_mismatch:${d.id}:photo`, severity: 'soon', sig: sig(d.s3_key, o.photo_key), title: `Photo on "${d.title}" may not match the profile photo`, detail: r.face.note || 'Check the card against the person.', actions: [recheck(d)] });
+      const fd = at('face');
+      add({ key: `doc_mismatch:${fd.id}:photo`, severity: 'soon', sig: sig(fd.s3_key, o.photo_key), title: `Photo on "${fd.title}" may not match ${r.face.against === 'sia' ? 'their SIA card' : r.face.against === 'passport' ? 'their passport' : 'the profile photo'}`, detail: r.face.note || 'Check the card against the person.', actions: [recheck(fd)] });
     }
-    if (kind === 'sia' && digits(r.number) && digits(o.sia_number) && digits(r.number) !== digits(o.sia_number)) {
-      add({ key: `doc_mismatch:${d.id}:number`, severity: 'soon', sig: sig(d.s3_key, o.sia_number), title: 'SIA number on the card differs from the profile', detail: `Card reads ${r.number}; profile has ${o.sia_number}.`, actions: [correct('sia_number', o.sia_number, siaFmt(r.number), `Update profile SIA number to ${siaFmt(r.number)}`), recheck(d)] });
+    // A clean 16-digit number that differs can be put on the profile; a part read that fits the profile number is fine;
+    // anything else wasn't read fully and only needs a look
+    const cardNo = digits(r.number);
+    if (kind === 'sia' && cardNo && digits(o.sia_number) && !numberAgrees(cardNo, o.sia_number)) {
+      const dd = at('number');
+      add(cardNo.length === 16
+        ? { key: `doc_mismatch:${dd.id}:number`, severity: 'soon', sig: sig(dd.s3_key, o.sia_number), title: 'SIA number on the card differs from the profile', detail: `Card reads ${r.number}; profile has ${o.sia_number}.`, actions: [correct('sia_number', o.sia_number, siaFmt(r.number), `Update profile SIA number to ${siaFmt(r.number)}`), recheck(dd)] }
+        : { key: `doc_number_unread:${dd.id}`, severity: 'advisory', sig: sig(dd.s3_key, o.sia_number), title: `SIA number on "${dd.title}" wasn't read fully`, detail: `Scan reads ${r.number} (${cardNo.length} digits); profile has ${o.sia_number}.`, actions: [recheck(dd)] });
     }
-    const profileExpiry = kind === 'sia' ? o.sia_expiry : kind === 'rtw' ? o.rtw_expiry : d.expiry;
+    const ed = at('expiry');
+    const profileExpiry = kind === 'sia' ? o.sia_expiry : kind === 'rtw' ? o.rtw_expiry : ed.expiry;
     if (r.expiry && profileExpiry && r.expiry !== profileExpiry) {
+      const earlier = r.expiry < profileExpiry;
+      const small = earlier && days(r.expiry, profileExpiry) <= SMALL_GAP;
       add({
-        key: `doc_mismatch:${d.id}:expiry`, severity: r.expiry < profileExpiry ? 'urgent' : 'advisory', sig: sig(d.s3_key, profileExpiry),
-        title: `Expiry on "${d.title}" is ${fmtDate(r.expiry)}, profile says ${fmtDate(profileExpiry)}`,
-        detail: r.expiry < profileExpiry ? 'The real expiry may be earlier than the rota checks assume.' : 'The profile may be out of date.',
-        actions: [...(['sia', 'rtw'].includes(kind) ? [correct(`${kind}_expiry`, profileExpiry, r.expiry, `Update ${docLabel(kind)} expiry to ${fmtDate(r.expiry)}`)] : []), recheck(d)],
+        key: `doc_mismatch:${ed.id}:expiry`, severity: earlier && !small ? 'urgent' : 'advisory', sig: sig(ed.s3_key, profileExpiry),
+        title: `Expiry on "${ed.title}" is ${fmtDate(r.expiry)}, profile says ${fmtDate(profileExpiry)}`,
+        detail: small ? 'A few days apart, likely a typo on one side. Use the earlier date to be safe.' : earlier ? 'The real expiry may be earlier than the rota checks assume.' : 'The profile may be out of date.',
+        actions: [...(['sia', 'rtw'].includes(kind) ? [correct(`${kind}_expiry`, profileExpiry, r.expiry, `Update ${docLabel(kind)} expiry to ${fmtDate(r.expiry)}`)] : []), recheck(ed)],
       });
     }
   }

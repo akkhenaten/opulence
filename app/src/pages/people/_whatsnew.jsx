@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LogOut, Mail, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, Radio, ReceiptText, ScanLine, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
+  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-08', icon: ScanSearch, title: 'Orb clears more Compliance cards on its own', image: 'orb-reads-closer',
+    lede: "Orb now reads uploaded SIA cards and passports the way a person would. It looks at the front and back of a card together, and it doesn't count a smudged letter or an unreadable name as a different person when the photo or the licence number shows who it is. Everyone's uploads are being read again, so many of the cards on the Compliance page close by themselves.",
+    points: ["Front and back of an SIA card count as one card, so the back (no name printed) no longer raises a name card", 'A reading slip in the surname (A. ADULOJILII for Aduloju), or the surname alone, is accepted when the photo or the licence number matches', "Part of a licence number that fits the profile number counts as a match; a number that wasn't read fully gets a quiet card with no Update button", "Expiry dates a few days apart: Orb takes the earlier date, the safe one, on the profile. Bigger gaps still come to you", "Right to work ticked by hand: a British or Irish passport whose photo matches now saves Orb's check, labelled Copy only", "No profile photo? Orb compares the passport photo with their SIA card photo instead, and reads PDFs too", "Right to work not verified now says why: a non-British passport needing a share code, or a photo Orb couldn't confirm", "Still for you: a name that's clearly different, an obscured passport and share codes to check on GOV.UK"],
+  },
   {
     month: 'November 2026', date: '2026-11-08', icon: ScanLine, title: 'Uploads make officers compliant on their own', image: 'orb-auto-compliance',
     lede: "When an officer uploads their SIA card or passport, Orb now reads it straight away and, when everything on it agrees with their profile, fills it in for you. The SIA licence lands on the profile, and a British or Irish passport confirms right to work, with no manager steps.",

@@ -39,7 +39,23 @@ test('nameFit accepts an initial with the surname, never a different initial', a
   assert.equal(nameFit('SCANLON S', 'Scott', 'Scanlon'), 'initial');
   assert.equal(nameFit('SAMUEL OKAFOR', 'Sam', 'Okafor'), 'initial');
   assert.equal(nameFit('J SCANLON', 'Scott', 'Scanlon'), 'no');
-  assert.equal(nameFit('SCANLON', 'Scott', 'Scanlon'), 'no');
+  assert.equal(nameFit('SCANLON', 'Scott', 'Scanlon'), 'surname');
   assert.equal(nameFit('S SMITH', 'Scott', 'Scanlon'), 'no');
   assert.equal(nameFit('STEVEN SCANLON', 'Scott', 'Scanlon'), 'no');
+});
+
+test('nameFit tells an unreadable name, a reading slip and a surname alone from someone else', async () => {
+  const { nameFit, nameMatches } = await import('../lib/names.mjs');
+  assert.equal(nameFit('<UNKNOWN>', 'Akeem', 'Lasisi'), 'unread');
+  assert.equal(nameFit('N/A', 'Akeem', 'Lasisi'), 'unread');
+  assert.equal(nameFit('A. ADULOJILII', 'Ayodeji', 'Aduloju'), 'close');
+  assert.equal(nameFit('AYODEJI ADULOJILII', 'Ayodeji', 'Aduloju'), 'close');
+  assert.equal(nameFit('S SMYTH', 'Sam', 'Smith'), 'close');
+  assert.equal(nameFit('SCOTT', 'Aaron', 'Scott'), 'surname');
+  assert.equal(nameFit('JOHN SCOTT', 'Aaron', 'Scott'), 'no');
+  assert.equal(nameFit('AARON JAMES BEATTIE', 'Aaron', 'Scott'), 'no');
+  assert.equal(nameFit('MARY JAMES', 'Mary', 'Jones'), 'no');
+  assert.equal(nameFit('S. SCANLON', 'Stanley', 'Scanlon'), 'initial');
+  assert.ok(!nameMatches('<UNKNOWN>', 'Akeem', 'Lasisi'));
+  assert.ok(!nameMatches('A. ADULOJILII', 'Ayodeji', 'Aduloju'));
 });

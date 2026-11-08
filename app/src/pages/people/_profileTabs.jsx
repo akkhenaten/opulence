@@ -180,7 +180,7 @@ export function ComplianceTab({ o, reload, isCo, user }) {
             ['Evidence', o.rtw_type],
             ['Share code', o.rtw_share_code && <span className="num whitespace-nowrap">{o.rtw_share_code}</span>],
             ['Checked', o.rtw_checked_at
-              ? orbRtw ? `By Orb from the uploaded passport, ${date(o.rtw_checked_at)}` : `${o.rtw_method === 'manual' ? 'In person' : 'On GOV.UK'} by ${o.rtw_checked_by_name || 'a manager'}, ${date(o.rtw_checked_at)}`
+              ? orbRtw ? `By Orb from the uploaded passport${o.id_docs?.find((d) => d.kind === 'id')?.face_against === 'sia' ? ' (photo matched their SIA card)' : ''}, ${date(o.rtw_checked_at)}` : `${o.rtw_method === 'manual' ? 'In person' : 'On GOV.UK'} by ${o.rtw_checked_by_name || 'a manager'}, ${date(o.rtw_checked_at)}`
               : o.rtw_verified ? 'Ticked by hand, no check saved' : 'Not yet'],
             ['Follow-up check', o.rtw_expiry ? `by ${date(o.rtw_expiry)}${c.rtw_days != null ? ` (${c.rtw_days < 0 ? `${-c.rtw_days} days ago` : `in ${c.rtw_days} days`})` : ''}` : o.rtw_verified ? 'Not needed (no time limit)' : null],
           ]} />

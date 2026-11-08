@@ -14,6 +14,7 @@ import { seedOnboarding, syncOnboarding, tickOnboarding } from './hr.mjs';
 import { guardSelf } from '../lib/selfcheck.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
 import { NOT_CLEARED, STATUS_LABEL, siaCheckOn } from '../lib/sia.mjs';
+import { cardSet, passportSet } from '../lib/docSets.mjs';
 import { officerDisplay, officerName, userName } from '../lib/names.mjs';
 
 const NON_SIA = new Set(['steward']);
@@ -47,15 +48,12 @@ const APP_SETUP = `EXISTS (SELECT 1 FROM officer_devices d WHERE d.officer_id = 
 // the latest passport or ID, so the licence and right to work can be checked by eye on the Compliance tab
 async function idDocs(o) {
   const rows = await q(
-    `SELECT id, kind, title, mime, s3_key, created_at FROM documents
-      WHERE owner_type = 'officer' AND owner_id = $1 AND s3_key IS NOT NULL
-        AND (kind IN ('sia','id') OR (kind = 'rtw' AND ai_read->>'is_passport' = 'true')) AND id IS DISTINCT FROM $2
-      ORDER BY created_at DESC LIMIT 20`, [o.id, o.rtw_method === 'orb_passport' ? null : o.rtw_check_doc]);
-  const sia = rows.filter((d) => d.kind === 'sia');
-  const near = sia.filter((d) => Math.abs(new Date(d.created_at) - new Date(sia[0].created_at)) < 30 * 864e5).slice(0, 2);
-  const id = rows.find((d) => d.kind !== 'sia');
-  return Promise.all([...near, ...(id ? [id] : [])].map(async (d) => ({
+    `SELECT id, kind, title, mime, s3_key, created_at, ai_read FROM documents
+      WHERE owner_type = 'officer' AND owner_id = $1 AND s3_key IS NOT NULL AND kind IN ('sia','rtw','id')
+      ORDER BY created_at DESC LIMIT 20`, [o.id]);
+  return Promise.all([...cardSet(rows).slice(0, 2), ...passportSet(rows, o)].map(async (d) => ({
     id: d.id, kind: d.kind === 'sia' ? 'sia' : 'id', title: d.title, mime: d.mime, url: await downloadUrl(d.s3_key, d.title),
+    face_against: d.ai_read?.face?.result === 'match' ? d.ai_read.face.against || 'profile' : null,
   })));
 }
 

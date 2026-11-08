@@ -13,7 +13,7 @@ import { getSettings } from './settings.mjs';
 import { checkOfficerForShift, getShift, filledCount, shiftsWithAssignments, londonToUtc, actions as rota } from './rota.mjs';
 import { recalcStatement, recalcInvoice } from './money.mjs';
 import { ALL, MGR, CO, def } from './_def.mjs';
-import { runCompliance, readDocuments, decideCompliance, computeIssues, sendDigest, dismissComplianceIssues } from './compliance.mjs';
+import { runCompliance, readDocuments, unreadDocCount, decideCompliance, computeIssues, sendDigest, dismissComplianceIssues } from './compliance.mjs';
 import { runVenueSetup, decideVenueSetup, dismissVenueIssues } from './venueSetup.mjs';
 import { defaultActions } from '../lib/venueSetup.mjs';
 import { evidenceScan } from './incidentAi.mjs';
@@ -637,7 +637,8 @@ const JOBS = {
 
   async docRead(s) {
     if (!jobOn(s, 'compliance')) return 'off';
-    return readDocuments(4);
+    // Bigger batches while there's a backlog (everyone's uploads read again after a rule change)
+    return readDocuments((await unreadDocCount()) > 12 ? 12 : 4);
   },
 
   evidenceScan,
