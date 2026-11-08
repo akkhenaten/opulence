@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'orb-knowledge': 'A glowing gold orb resting on a stack of leather-bound books on a dark navy desk, an SIA-style licence card and a small Scottish saltire pin beside the books, an open notebook with neat handwritten rules, warm lamp light, dark navy and gold.',
   'orb-more-skills': 'A glowing gold orb hovering above a dark navy desk, around it a fan of small paper cards each with a different simple icon (a calendar, an envelope, a passport, a clipboard, a shield), a short handwritten note pinned beside it titled with neat lines of text, warm lamp light, dark navy and gold.',
   'rtw-hand-ticked': 'A paper checklist on a dark navy desk with one hand-drawn tick in pencil beside a blank line, a passport lying open next to it, a small gold hourglass and a soft gold pen resting across the page, warm lamp light, dark navy and gold.',
   'doc-refile': 'Two open paper folders on a dark navy desk, one labelled with a small house icon and one with a small passport icon, a passport gliding along a soft gold arc of light from the first folder into the second, a security licence card already tucked in a third folder, warm lamp light, dark navy and gold.',

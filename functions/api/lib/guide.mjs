@@ -282,7 +282,24 @@ Use the filters for Announcements, Shout-outs, Events, Polls, My venues and Save
     sections: [
       {
         id: 'ops', title: 'Orb operations', image: 'ops.png',
-        body: `Orb is your AI operations manager. It watches the rota, clocking, incidents and compliance, and suggests what to do next, for example filling an unfilled shift or chasing an expiring licence. Nothing changes until you approve it. Orb sits beside the board on Live operations, and the number on Live operations shows items waiting for you. It checks every 5 minutes; tap the round arrows at the top of Live operations to run every check straight away (no-show chasing, cover, site packs, hours and compliance). Its activity log and settings are the Activity and Settings tabs on the same page.`,
+        body: `Orb is your AI operations manager. It watches the rota, clocking, incidents and compliance, and suggests what to do next, for example filling an unfilled shift or chasing an expiring licence. Nothing changes until you approve it. Orb's cards are on Today, and the number on Today shows items waiting for you. It checks every 5 minutes; tap the round arrows at the top of Today to run every check straight away (no-show chasing, cover, site packs, hours and compliance). Its activity log is under the Orb menu (…) on Today.`,
+      },
+      {
+        id: 'orb-settings', title: 'Orb settings and house rules', roles: ['company'],
+        body: `Company managers find Orb's settings in Settings, Orb (or from the Orb menu on Today, Orb settings).
+
+- What Orb does: switch each of Orb's jobs on or off.
+- Timings: when Orb escalates a no-reply, how long it waits for cover replies, and the days of the weekly hours and compliance checks.
+- House rules for Orb: write how your company likes things done, in plain sentences, up to 2,000 characters. For example "Prefer officers who have worked the venue before" or "Reports must have the Police Scotland incident number". Orb follows them in typed chat, voice and its advice on cards. They can't skip a Confirm tap, show pay to someone who can't see it, or bend the law.
+- AI usage: how many AI credits Orb used this month, and the monthly cap.
+
+Tap Save settings when you're done.`,
+      },
+      {
+        id: 'knowledge', title: 'What Orb knows about security',
+        body: `As well as this guide and your live data, Orb has a library of UK security know-how, with Scotland first: SIA licences, right to work, BS 7858 vetting, licensed premises and Challenge 25, use of force, ejections and arrest, searching and drugs, vulnerability and spiking, first aid, incident reports and evidence, data protection and ban lists, Martyn's Law, self-employed officers, lone working, events and working with venues.
+
+Ask it things like "Can a door supervisor arrest someone?", "What ID can we accept?" or "What should an incident report with force used include?". It is general guidance, not legal advice: for a specific case, check with the SIA, Police Scotland or a solicitor.`,
       },
       {
         id: 'ask', title: 'Orb, your assistant',
@@ -412,5 +429,5 @@ export function guideFor(role, companyName) {
   const list = CHAPTERS.filter((c) => role === 'company' || c.roles.includes(role));
   // The person's own role chapter comes first, then install, then the rest in order
   list.sort((a, b) => (b.id === own) - (a.id === own));
-  return list.map((c) => ({ ...c, sections: c.sections.filter((s) => !OFF().includes(s.id)).map((s) => ({ ...s, title: fill(s.title), body: fill(s.body) })) }));
+  return list.map((c) => ({ ...c, sections: c.sections.filter((s) => !OFF().includes(s.id) && (!s.roles || role === 'company' || s.roles.includes(role))).map((s) => ({ ...s, title: fill(s.title), body: fill(s.body) })) }));
 }

@@ -29,6 +29,7 @@ import { autoApply, checkRegister, fitOf, nameOk, numberAgrees, PASSPORT_RTW, re
 import { cardSet, filed, mergedRead, misfiledAs, passportSet } from '../lib/docSets.mjs';
 import { cleanShareCode, SHARE_CODE_OLD } from '../lib/rtw.mjs';
 import { autoCheckEnabled } from '../lib/siaChecker.mjs';
+import { TOPICS } from '../lib/securityKnowledge.mjs';
 import { houseRulesBlock } from '../lib/houseRules.mjs';
 
 const ACTIVE = "('assigned','accepted')";
@@ -547,11 +548,19 @@ function templateAdvice(o, issues) {
   return `${urgent ? `${plural(urgent, 'urgent issue')} for ${o.first_name}. ` : ''}${top.title}.${issues.length > 1 ? ` Plus ${plural(issues.length - 1, 'other item')}.` : ''} Tick the actions to take and tap Apply selected.`;
 }
 
+// The background Orb leans on: SIA and right to work guidance, only for the issues on the card
+export function adviceGuidance(issues) {
+  const keys = issues.map((i) => i.key).join(' ');
+  const ids = [/sia|licence/.test(keys) && 'sia', /rtw/.test(keys) && 'rtw'].filter(Boolean);
+  const topics = TOPICS.filter((t) => ids.includes(t.id));
+  return topics.length ? `\n\nBackground (general guidance):\n${topics.map((t) => `${t.title}\n${t.body}`).join('\n\n')}` : '';
+}
+
 async function advise(o, issues, rules = '') {
   try {
     const r = await extract({
       model: HAIKU, max_tokens: 300,
-      system: `You advise a UK security company manager on staff compliance (SIA licensing, right to work). Write 1–3 short plain sentences: what matters most and what to do first. No greeting, no markdown. Never say an officer is definitely non-compliant when a document only needs checking. Refer to the officer by first name or "they" — never he, she, his or her. Only SIA licensing and right to work are legal requirements; other documents are company rules, so do not call them legal or regulatory. Do not invent deadlines, dates or facts that are not in the list.${houseRulesBlock(rules)}`,
+      system: `You advise a UK security company manager on staff compliance (SIA licensing, right to work). Write 1–3 short plain sentences: what matters most and what to do first. No greeting, no markdown. Never say an officer is definitely non-compliant when a document only needs checking. Refer to the officer by first name or "they" — never he, she, his or her. Only SIA licensing and right to work are legal requirements; other documents are company rules, so do not call them legal or regulatory. Do not invent deadlines, dates or facts that are not in the list.${adviceGuidance(issues)}${houseRulesBlock(rules)}`,
       messages: [{ role: 'user', content: `Officer: ${o.first_name} ${o.last_name}\nIssues:\n${issues.map((i) => `- [${i.severity}] ${i.title}. ${i.detail || ''}`).join('\n')}` }],
       tool: { name: 'advice', description: 'Advice for the manager', input_schema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } },
     });

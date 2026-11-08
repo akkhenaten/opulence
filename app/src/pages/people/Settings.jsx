@@ -15,11 +15,13 @@ import { TemplatesTab } from './_esign.jsx';
 import LibraryTab from './contracts/Library.jsx';
 import { EmailTab } from '../email/_settings.jsx';
 import { InstallTile } from '../../ui/pwa.jsx';
+import { OpsSettings } from '../manager/OpsAI.jsx';
 import { AccessFields, InviteSheet, inviteStatus, USER_ROLES } from './_access.jsx';
 
 const TABS = [
   { value: 'company', label: 'Company' }, { value: 'users', label: 'Users & access' }, { value: 'rules', label: 'Workforce rules' },
-  { value: 'templates', label: 'Templates & contracts' }, { value: 'notifications', label: 'Notifications & email' }, { value: 'demos', label: 'Demo requests' },
+  { value: 'templates', label: 'Templates & contracts' }, { value: 'notifications', label: 'Notifications & email' }, { value: 'orb', label: 'Orb' },
+  { value: 'demos', label: 'Demo requests' },
 ];
 // Older links used these tab names; library and email are now a part of a shared tab
 const OLD_TAB = { calendar: 'rules', contracts: 'templates', account: 'company', library: 'templates', email: 'notifications' };
@@ -50,7 +52,7 @@ export default function Settings() {
     setSp(next, { replace: true });
   };
   return (
-    <Page title="Settings" subtitle="Company details, access, workforce rules and templates">
+    <Page title="Settings" subtitle="Company details, access, workforce rules, templates and Orb">
       <DirtyCtx.Provider value={mark}>
         <Tabs tabs={TABS} value={tab} onChange={(t) => t !== tab && go(t === 'company' ? {} : { tab: t })} />
         {PARTS[tab] && <Segmented className="mb-4" value={part} options={PARTS[tab]} onChange={(x) => x !== part && go({ tab, part: x })} />}
@@ -59,6 +61,7 @@ export default function Settings() {
         {tab === 'rules' && <RulesTab />}
         {tab === 'templates' && (part === 'library' ? <LibraryTab /> : <TemplatesTab />)}
         {tab === 'notifications' && (part === 'email' ? <EmailTab /> : <NotificationsTab />)}
+        {tab === 'orb' && <OpsSettings />}
         {tab === 'demos' && <DemosTab />}
       </DirtyCtx.Provider>
     </Page>

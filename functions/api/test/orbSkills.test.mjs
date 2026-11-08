@@ -65,3 +65,37 @@ test("Orb's new skills exist, and the ones that reach people need a tap", () => 
   assert.ok(needsTap({ action: 'ops.decide', body: { id: 'i1', decision: 'approve', edits: { reply: 'Thanks' } } }));
   assert.equal(needsTap({ action: 'ops.decide', body: { id: 'i1', decision: 'reject', then: 'next' } }), null);
 });
+
+test('Orb finds the right security guidance, Scotland first', async () => {
+  const { searchKnowledge, TOPICS } = await import('../lib/securityKnowledge.mjs');
+  assert.equal(searchKnowledge('can a door supervisor arrest someone')[0].topic, 'Use of force, ejections and arrest');
+  assert.equal(searchKnowledge('what ID is accepted for Challenge 25')[0].topic, 'Licensed premises in Scotland');
+  assert.equal(searchKnowledge('share code expired')[0].topic, 'Right to work checks');
+  assert.equal(searchKnowledge('drugs found in a bag search')[0].topic, 'Searching, drugs and weapons');
+  assert.deepEqual(searchKnowledge('zz qq'), []);
+  assert.ok(TOPICS.every((t) => t.body.length < 3000));
+});
+
+test('compliance advice gets SIA and right to work guidance only for those issues', async () => {
+  const { adviceGuidance } = await import('../modules/compliance.mjs');
+  assert.match(adviceGuidance([{ key: 'sia_expired' }]), /SIA licences/);
+  assert.doesNotMatch(adviceGuidance([{ key: 'sia_expired' }]), /Right to work checks/);
+  assert.match(adviceGuidance([{ key: 'unverified:rtw' }]), /Right to work checks/);
+  assert.equal(adviceGuidance([{ key: 'contract_end' }]), '');
+});
+
+test("Opulence's starting house rules fit in the box", async () => {
+  const fs = await import('node:fs');
+  const sql = fs.readFileSync(new URL('../db/migrations/059_opulence_house_rules.sql', import.meta.url), 'utf8');
+  const text = sql.split('$rules$')[1];
+  assert.ok(text.length <= HOUSE_RULES_MAX);
+  assert.equal(cleanRules(text), text.trim());
+});
+
+test('the Orb settings section of the guide is for company managers only', async () => {
+  const { guideFor } = await import('../lib/guide.mjs');
+  const ids = (role) => guideFor(role, 'X').flatMap((c) => c.sections.map((s) => s.id));
+  assert.ok(ids('company').includes('orb-settings'));
+  assert.ok(!ids('security').includes('orb-settings'));
+  assert.ok(ids('security').includes('knowledge'));
+});

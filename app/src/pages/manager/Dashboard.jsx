@@ -130,7 +130,7 @@ export default function Dashboard() {
       <IconButton icon={RefreshCw} tone="solid" label="Run Orb checks and refresh" onClick={refresh} disabled={busy} className={cx(busy && '[&>svg]:animate-spin')} />
       <MoreMenu tone="solid" label="Orb" items={[
         { label: 'Orb activity', hint: lastChecked ? `Last checked ${time(lastChecked)}` : 'Everything Orb has done', icon: History, to: `${base}/orb` },
-        isCompany && { label: 'Orb settings', hint: 'What Orb checks, timings and AI limits', icon: Settings, to: `${base}/orb?tab=settings` },
+        isCompany && { label: 'Orb settings', hint: 'House rules, what Orb checks, timings and AI limits', icon: Settings, to: `${base}/settings?tab=orb` },
       ]} />
     </>
   );

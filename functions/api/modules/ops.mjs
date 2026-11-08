@@ -1,5 +1,6 @@
 // Orb — the in-app operations manager. The AI prepares, a manager taps Approve.
 // Reminders to officers and feedback prompts to venues go out without approval.
+import { searchKnowledge, KNOWLEDGE_NOTE } from '../lib/securityKnowledge.mjs';
 import { houseRulesBlock, cleanRules } from '../lib/houseRules.mjs';
 import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, need, pick } from '../lib/http.mjs';
@@ -887,6 +888,8 @@ async function decideFeedback(it, b, user) {
 
 // ---------- Manager chat ----------
 export const CHAT_TOOLS = [
+  { name: 'security_knowledge', description: 'UK private security know-how, Scotland first: SIA licences, right to work, BS 7858 vetting, licensed premises and Challenge 25, use of force, ejections and arrest, searching and drugs, vulnerability and spiking, first aid, incident reports and evidence, data protection and ban lists, Martyn\'s Law, self-employed officers, lone working, events, working with venues. Use it for any question about the law, good practice or the industry, and when advising on a card.',
+    input_schema: { type: 'object', properties: { question: { type: 'string' } }, required: ['question'] } },
   { name: 'find_shifts', description: 'List shifts in a date range (London dates). Includes headcount, filled and assigned officers (with officer_id, assignment_id and whether they have confirmed).',
     input_schema: { type: 'object', properties: { from: { type: 'string', description: 'YYYY-MM-DD' }, to: { type: 'string', description: 'YYYY-MM-DD inclusive' }, venue: { type: 'string', description: 'Venue name (partial ok)' }, unfilled_only: { type: 'boolean' } }, required: ['from', 'to'] } },
   { name: 'cover_candidates', description: 'Ranked eligible officers who could cover a shift, with reasons.',
@@ -923,6 +926,10 @@ const dayStart = (d) => londonToUtc(d, '00:00');
 export async function runTool(name, input, user, created) {
   const today = londonDate(new Date());
   switch (name) {
+    case 'security_knowledge': {
+      const hits = searchKnowledge(input.question);
+      return hits.length ? { note: KNOWLEDGE_NOTE, topics: hits } : { none: 'Nothing in the knowledge library matches. Answer carefully from general knowledge, say it is general guidance, and suggest checking with the SIA, Police Scotland or a solicitor.' };
+    }
     case 'find_shifts': {
       const scope = await venueScope(user);
       const params = [dayStart(input.from), dayStart(addDays(input.to || input.from, 1)), scope];
@@ -1191,7 +1198,7 @@ export const actions = {
     const now = new Date();
     const system = `You are Orb, the operations manager assistant inside Orb Security, a UK manned-security company. You help ${user.name} (${user.role === 'company' ? 'company manager' : 'security manager'}) run rotas, cover, attendance and hours.
 Today is ${londonParts(now).weekday} ${londonDate(now)}, time ${fmtTime(now)} Europe/London. Weeks run Monday to Sunday.
-Rules: use the tools to look things up — never guess figures. For licences, right to work or "who can work" questions use compliance_status; compliance fixes are approved on the compliance cards in the Orb inbox. You can NEVER change anything yourself: to make a change, call propose_change, which puts a card in the Orb inbox for the manager to approve, and say so.
+Rules: use the tools to look things up — never guess figures. For the law, the SIA, licensing, force, searching, welfare, incidents or good practice, use security_knowledge (Scotland first) and say it is general guidance. For licences, right to work or "who can work" questions use compliance_status; compliance fixes are approved on the compliance cards in the Orb inbox. You can NEVER change anything yourself: to make a change, call propose_change, which puts a card in the Orb inbox for the manager to approve, and say so.
 Answer in short, plain British business English. Use the officers' and venues' names, dates like "Sat 24 Oct" and 24-hour times. No markdown tables; short lists are fine.${houseRulesBlock(s.ops_house_rules)}`;
     const messages = b.messages.slice(-20).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 4000) })).filter((m) => m.content);
     if (!messages.length || messages[messages.length - 1].role !== 'user') fail(400, 'Send a question');
