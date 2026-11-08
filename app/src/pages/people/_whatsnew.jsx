@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-08', icon: BellRing, title: 'Phone notifications you can check', image: 'push-test',
+    lede: "Anyone can now check phone notifications work, from their own phone, in one tap: Notifications → Send a test. If the phone's notification service turns it down, it says why, so it can be fixed instead of guessed.",
+    points: ['Send a test in Notifications (account menu, or Me for officers) sends a notification to this phone only', 'If it doesn\'t arrive, it says what to check: phone settings, Focus or Do Not Disturb, or an expired sign-up to turn on again', 'Every sign-in now re-saves the phone\'s notification sign-up, so a phone that said "On" but never got anything starts getting them', 'Shift, cover and safety alerts are sent as urgent, so phones in battery saver deliver them straight away'],
+  },
+  {
     month: 'November 2026', date: '2026-11-08', icon: LogOut, title: 'Clock out an officer who forgot', image: 'manager-clock-out',
     lede: "When an officer forgets to clock out, a manager can now do it for them in two taps: choose now, the shift end or another time, pick a reason, done. Their real clock-in and its checks stay as recorded, the timesheet updates, and the officer gets a notification.",
     points: ['Live operations: open an officer who is on shift and tap Clock out; anyone still on after their shift ended shows Past shift end', 'Rota: Clock out is in each clocked-in officer\'s … menu', 'Timesheets: shifts closed at the scheduled end because nobody clocked out get Set clock-out time, so the hours match what was really worked', 'Unlike Set times manually, their clock-in, phone, location and selfie checks are kept', 'The officer is told who clocked them out, when and why, and it is kept in the timesheet history and audit log'],

@@ -39,6 +39,26 @@ async function enablePush() {
   return s;
 }
 
+/** Save this device's subscription again on every sign-in: covers a save that failed after the phone subscribed,
+ *  a device last used by someone else, and a subscription the server dropped. */
+export async function syncPush() {
+  try {
+    if (!supported() || Notification.permission !== 'granted') return;
+    const s = await currentSub();
+    if (s) await api('push.subscribe', { subscription: s.toJSON() });
+  } catch { /* the bell still works; the sheet shows the state */ }
+}
+
+/** Send a test notice to this device: null when sent, or what went wrong in plain words */
+async function testPush(s) {
+  await api('push.subscribe', { subscription: s.toJSON() });
+  const r = await api('push.test', { endpoint: s.endpoint });
+  if (r.ok) return null;
+  if (r.status === 404 || r.status === 410) return { gone: true, msg: 'This device\'s notification sign-up has expired. Tap Turn on again.' };
+  if (r.status === 0) return { msg: `Couldn't reach the phone's notification service (${r.reason || 'no answer'}). Try again in a minute.` };
+  return { msg: `The phone's notification service refused the test (${r.status}${r.reason ? `: ${r.reason}` : ''}). Please send this message to support.` };
+}
+
 const PUSH_LATER_KEY = 'orb-push-later';
 const PUSH_LATER_DAYS = 7;
 
@@ -94,6 +114,14 @@ export function NotificationsSheet({ open, onClose }) {
     if (sub) { await api('push.unsubscribe', { endpoint: sub.endpoint }); await sub.unsubscribe(); }
     setSub(null);
   }, 'Phone notifications are off on this device').catch(() => {});
+  const [test, testing] = useAction();
+  const [tested, setTested] = useState(null);
+  useEffect(() => { if (!open) setTested(null); }, [open]);
+  const sendTest = () => test(async () => {
+    const err = await testPush(sub);
+    if (err?.gone) { await sub.unsubscribe().catch(() => {}); setSub(null); toast(err.msg, 'error'); return; }
+    setTested(err ? { ok: false, msg: err.msg } : { ok: true });
+  }).catch(() => {});
 
   const needsHomeScreen = isIOS() && !standalone();
   return (
@@ -105,9 +133,21 @@ export function NotificationsSheet({ open, onClose }) {
         ) : !supported() ? (
           <p className="text-subhead text-muted">This browser can't show phone notifications. You'll still see everything under the bell.</p>
         ) : sub ? (
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-subhead text-muted">On for this device.</p>
-            <Button size="sm" variant="secondary" busy={busy} onClick={turnOff}>Turn off</Button>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-subhead text-muted">On for this device.</p>
+              <div className="flex shrink-0 gap-2">
+                <Button size="sm" variant="secondary" busy={testing} onClick={sendTest}>Send a test</Button>
+                <Button size="sm" variant="secondary" busy={busy} onClick={turnOff}>Turn off</Button>
+              </div>
+            </div>
+            {tested && (
+              <p role="status" className="text-footnote text-muted">
+                {tested.ok
+                  ? 'Test sent. It should pop up on this device within a few seconds. If it doesn\'t, check your phone\'s Settings → Notifications allows this app, and that Focus or Do Not Disturb is off.'
+                  : tested.msg}
+              </p>
+            )}
           </div>
         ) : (
           <div className="space-y-2">

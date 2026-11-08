@@ -30,7 +30,7 @@ function vapidJwt(endpoint, privateKey) {
 
 const hkdf = (salt, ikm, info, len) => Buffer.from(crypto.hkdfSync('sha256', ikm, salt, info, len));
 
-function encrypt(payload, sub) {
+export function encrypt(payload, sub) {
   const uaPublic = Buffer.from(sub.keys.p256dh, 'base64url');
   const authSecret = Buffer.from(sub.keys.auth, 'base64url');
   const ecdh = crypto.createECDH('prime256v1');
@@ -46,31 +46,40 @@ function encrypt(payload, sub) {
   return Buffer.concat([salt, rs, Buffer.from([asPublic.length]), asPublic, body]);
 }
 
-/** Send one push. Returns the HTTP status (0 on network failure). */
+/** Send one push: { status, reason } — status 0 on network failure, reason is the push service's answer when it refused. */
 export async function sendPush(sub, data) {
   const { privateKey, publicKey } = await vapidKeys();
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 3000);
+  const timer = setTimeout(() => ctrl.abort(), 6000);
   try {
     const res = await fetch(sub.endpoint, {
       method: 'POST',
-      headers: { 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream', TTL: '86400', Urgency: 'normal', Authorization: `vapid t=${vapidJwt(sub.endpoint, privateKey)}, k=${publicKey}` },
+      headers: { 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream', TTL: '86400', Urgency: 'high', Authorization: `vapid t=${vapidJwt(sub.endpoint, privateKey)}, k=${publicKey}` },
       body: encrypt(JSON.stringify(data), sub),
       signal: ctrl.signal,
     });
-    return res.status;
-  } catch {
-    return 0;
+    const reason = res.ok ? '' : (await res.text().catch(() => '')).slice(0, 200);
+    return { status: res.status, reason };
+  } catch (e) {
+    return { status: 0, reason: e.name === 'AbortError' ? 'timed out' : e.message };
   } finally {
     clearTimeout(timer);
   }
 }
 
-/** Push to every subscription of these users; drops subscriptions the browser has revoked. */
-export async function pushToUsers(userIds, data) {
-  if (!userIds.length) return;
-  const subs = await q('SELECT id, endpoint, keys FROM push_subscriptions WHERE user_id = ANY($1::uuid[])', [userIds]);
-  const results = await Promise.all(subs.map((s) => sendPush(s, data).then((status) => ({ s, status }))));
+const host = (endpoint) => { try { return new URL(endpoint).host; } catch { return '?'; } };
+
+/** Push to these subscriptions; logs refusals and drops the ones the browser has revoked. Returns one result per subscription. */
+export async function pushToSubs(subs, data) {
+  const results = await Promise.all(subs.map((s) => sendPush(s, data).then((r) => ({ s, ...r }))));
+  for (const r of results) if (r.status < 200 || r.status >= 300) console.warn('[push] refused:', host(r.s.endpoint), r.status, r.reason);
   const gone = results.filter((r) => r.status === 404 || r.status === 410).map((r) => r.s.id);
   if (gone.length) await q('DELETE FROM push_subscriptions WHERE id = ANY($1::uuid[])', [gone]);
+  return results;
+}
+
+/** Push to every subscription of these users. */
+export async function pushToUsers(userIds, data) {
+  if (!userIds.length) return;
+  await pushToSubs(await q('SELECT id, endpoint, keys FROM push_subscriptions WHERE user_id = ANY($1::uuid[])', [userIds]), data);
 }

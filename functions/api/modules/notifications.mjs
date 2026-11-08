@@ -1,7 +1,7 @@
 import { one, q } from '../lib/db.mjs';
 import { ALL, def } from './_def.mjs';
 import { OPTIONAL_KINDS } from '../lib/notify.mjs';
-import { vapidKeys } from '../lib/webpush.mjs';
+import { pushToSubs, vapidKeys } from '../lib/webpush.mjs';
 import { fail } from '../lib/http.mjs';
 
 export const actions = {
@@ -48,6 +48,14 @@ export const actions = {
     await q(`INSERT INTO push_subscriptions (user_id, endpoint, keys) VALUES ($1, $2, $3)
       ON CONFLICT (endpoint) DO UPDATE SET user_id = EXCLUDED.user_id, keys = EXCLUDED.keys`, [user.id, s.endpoint, { p256dh: s.keys.p256dh, auth: s.keys.auth }]);
     return { ok: true };
+  }),
+
+  // A test notice to this device only, on the person's own tap: what the push service answered
+  'push.test': def(ALL, async (b, { user }) => {
+    const s = await one('SELECT id, endpoint, keys FROM push_subscriptions WHERE user_id = $1 AND endpoint = $2', [user.id, b.endpoint || '']);
+    if (!s) return { ok: false, status: 0, reason: 'not saved' };
+    const [r] = await pushToSubs([s], { title: 'Test notification', body: 'Phone notifications are working on this device.', link: '' });
+    return { ok: r.status >= 200 && r.status < 300, status: r.status, reason: r.reason };
   }),
 
   'push.unsubscribe': def(ALL, async (b, { user }) => {

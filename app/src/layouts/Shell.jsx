@@ -15,6 +15,7 @@ import OrbFab from '../ui/OrbFab.jsx';
 import ShiftBar from './ShiftBar.jsx';
 import { WhatsNewSplash } from '../pages/people/_whatsnew.jsx';
 import { OfflineBanner, UpdateBanner } from '../ui/pwa.jsx';
+import { syncPush } from '../pages/officer/_notify.jsx';
 import { AppFeedbackSheet, FeedbackChip, FeedbackIcon } from '../ui/AppFeedback.jsx';
 
 // The Opulence horse and the company name in Playfair.
@@ -215,6 +216,7 @@ export default function Shell() {
   const live = useRealtimeConnected();
   const msgs = useApi('messages.unread', {}, { poll: live ? 120000 : 30000 });
   useEffect(() => startRealtime(user.id), [user.id]);
+  useEffect(() => { syncPush(); }, [user.id]);
   const mail = useApi('email.accounts', {}, { poll: 120000, skip: user.role !== 'company' });
   useEffect(() => { const h = () => mail.reload(); window.addEventListener('orb:email', h); return () => window.removeEventListener('orb:email', h); });
   useEffect(() => { const h = () => opsCount.reload(); window.addEventListener('orb:ops', h); return () => window.removeEventListener('orb:ops', h); });
