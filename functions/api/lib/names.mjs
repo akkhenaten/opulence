@@ -29,11 +29,20 @@ const fold = (s) => String(s || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').to
 const pieces = (t) => new Set(t.flatMap((_, i) => [1, 2, 3].map((n) => t.slice(i, i + n).join(''))));
 
 /** True unless the printed name clearly isn't this person: first name's first word and the surname must both appear. */
-export function nameMatches(printed, first, last) {
+export const nameMatches = (printed, first, last) => nameFit(printed, first, last) === 'full';
+
+/**
+ * How well a printed name fits the profile: 'full' (first name and surname), 'initial' (surname, and the first name
+ * only as its initial or as a longer name starting with it: S SCANLON, SAMUEL for Sam) or 'no'.
+ */
+export function nameFit(printed, first, last) {
   const p = fold(printed);
   const f = fold(first)[0];
   const l = fold(last);
-  if (!p.length || (!f && !l.length)) return true;
+  if (!p.length || (!f && !l.length)) return 'full';
   const have = pieces(p);
-  return (!f || have.has(f)) && (!l.length || have.has(l.join('')) || have.has(l.at(-1)));
+  if (l.length && !have.has(l.join('')) && !have.has(l.at(-1))) return 'no';
+  if (!f || have.has(f)) return 'full';
+  const surname = new Set([l.join(''), ...l]);
+  return p.some((w) => !surname.has(w) && w[0] === f[0] && (w.length === 1 || w.startsWith(f))) ? 'initial' : 'no';
 }

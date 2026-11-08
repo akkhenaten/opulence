@@ -67,11 +67,31 @@ export const actions = {
     const d = need(await one('SELECT * FROM documents WHERE id = $1', [b.id]));
     await assertOwner(user, d.owner_type, d.owner_id);
     if (MONEY_KINDS.includes(d.kind) && hidesMoney(user)) fail(403, 'You do not have access to pay information');
-    return { url: await downloadUrl(d.s3_key, d.title) };
+    return { url: await downloadUrl(d.s3_key, d.title), mime: d.mime || null, name: d.title };
   }),
 
-  // Verifying an SIA document copies its number + expiry onto the officer's compliance record. A right to work upload
-  // is only marked as seen: right to work is verified by the GOV.UK check (officers.rtwCheck)
+  // Straight after an upload: Orb reads a licence or ID scan and applies it to the profile when it all agrees.
+  // { id } one document, or { officer_id } every unread one of theirs (a new staff profile). Best effort — the
+  // 5-minute job reads anything missed.
+  'docs.read': def(ALL, async (b, { user }) => {
+    const ids = b.id
+      ? [need(await one("SELECT id, owner_id FROM documents WHERE id = $1 AND owner_type = 'officer'", [b.id]))]
+      : b.officer_id ? await q(
+        "SELECT id, owner_id FROM documents WHERE owner_type = 'officer' AND owner_id = $1 AND kind IN ('sia','rtw','id') AND s3_key IS NOT NULL AND ai_read_key IS DISTINCT FROM s3_key ORDER BY created_at DESC LIMIT 4",
+        [b.officer_id]) : fail(400, 'Document missing');
+    for (const d of ids) await assertOwner(user, 'officer', d.owner_id);
+    const { readDocuments } = await import('./compliance.mjs');
+    for (const d of ids) {
+      try {
+        await readDocuments(1, { id: d.id });
+      } catch (e) {
+        console.error('[docs.read]', e.message);
+      }
+    }
+    const done = ids.length ? await q('SELECT kind FROM documents WHERE id = ANY($1) AND auto_applied_at IS NOT NULL', [ids.map((d) => d.id)]) : [];
+    return { applied: done.map((d) => (d.kind === 'sia' ? 'sia' : 'rtw')) };
+  }),
+
   'docs.verify': def(CO, async (b, { user }) => {
     const d = need(await one('UPDATE documents SET verified_by = $2, verified_at = now() WHERE id = $1 RETURNING *', [b.id, user.id]));
     if (d.owner_type === 'officer' && d.kind === 'sia') {

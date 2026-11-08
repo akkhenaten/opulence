@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LogOut, Mail, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, Radio, ReceiptText, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
+  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Palette, Pin, Radar, Radio, ReceiptText, ScanLine, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-08', icon: ScanLine, title: 'Uploads make officers compliant on their own', image: 'orb-auto-compliance',
+    lede: "When an officer uploads their SIA card or passport, Orb now reads it straight away and, when everything on it agrees with their profile, fills it in for you. The SIA licence lands on the profile, and a British or Irish passport confirms right to work, with no manager steps.",
+    points: ['SIA card: number, type and expiry go onto the profile, and with SIA Checker on the register is checked straight away', 'Names: S SCANLON is accepted for Scott Scanlon when the licence number or the photo on the card matches the profile', 'British and Irish passports: right to work is marked verified by Orb, clearly labelled Copy only — original not seen in person; Check again in person whenever you like', 'Anything that disagrees (another name, a different photo, an expired card) is still left for you on the Compliance page', 'The Compliance tab now shows the SIA card and passport pictures; tap one to see it full size', 'Every attachment (documents, payslips, invoices, message and email files) now opens inside the app, with Download there if you want a copy', 'Uploads already on file are re-read in the next few minutes, so officers who sent theirs before today are sorted too'],
+  },
   {
     month: 'November 2026', date: '2026-11-08', icon: Smartphone, title: 'Everything about your work comes to your phone', image: 'work-notices',
     lede: "Anything about your own shifts, timesheets, pay, documents, training or messages now comes to your phone with its normal sound, shows on the lock screen and adds to the red count on the app icon. It can't be switched off. Managers can mark an Everyday post as an Important notice, and it reaches everyone the same way.",

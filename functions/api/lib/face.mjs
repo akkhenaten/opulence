@@ -1,5 +1,6 @@
-// Selfie face check: a decision aid for the manager, never an identification and never a block.
-// Gemini compares the clock-in selfie with the officer's profile photo; anything that goes wrong gives 'unscored'.
+// Face checks: a decision aid, never an identification and never a block on clocking in.
+// Gemini compares the officer's profile photo with a clock-in selfie, or with the photo on an uploaded ID or licence;
+// anything that goes wrong gives 'unscored'.
 import { checkCap, logUsage, creditsFor } from './ai.mjs';
 
 export const FACE_MODEL = 'gemini-flash-latest';
@@ -13,13 +14,21 @@ function sniff(b) {
   return null;
 }
 
+const SELFIE_PROMPT = 'A security company checks that the person clocking in to a shift is the officer on its staff record. Image 1 is the staff profile photo. Image 2 is a selfie taken at clock-in. Do these show the same person? Answer "match" if clearly the same person, "no_match" if clearly a different person, "unsure" if the selfie is unclear, covered, too dark or you cannot tell. This only helps a manager decide whether to look closer. Give a short plain-English note (under 20 words) about what you saw, without describing ethnicity, age or other personal characteristics.';
+const DOC_PROMPT = 'A security company checks that an uploaded identity document belongs to the officer on its staff record. Image 1 is the staff profile photo. Image 2 is a photo of an ID document or SIA licence card, which has a small printed photo of its holder. Is the holder in the document photo the same person as in the profile photo? Answer "match" if clearly the same person, "no_match" if clearly a different person, "unsure" if the document photo is too small, unclear, covered or missing, or you cannot tell. Give a short plain-English note (under 20 words) about what you saw, without describing ethnicity, age or other personal characteristics.';
+
 /** { result: match|unsure|no_match|unscored, note } */
-export async function faceMatch({ selfie, profile }) {
-  const sm = selfie && sniff(selfie);
+export const faceMatch = ({ selfie, profile }) => compare(SELFIE_PROMPT, profile, selfie, 'clock_face');
+
+/** The photo on an uploaded ID or licence against the profile photo: { result, note } */
+export const docFaceMatch = ({ doc, profile }) => compare(DOC_PROMPT, profile, doc, 'ops');
+
+async function compare(prompt, profile, other, module) {
+  const sm = other && sniff(other);
   const pm = profile && sniff(profile);
   if (!sm || !pm) return { result: 'unscored', note: 'Photo could not be read' };
   try {
-    await checkCap('clock_face');
+    await checkCap(module);
   } catch {
     return { result: 'unscored', note: 'Face check paused (monthly AI cap reached)' };
   }
@@ -29,9 +38,9 @@ export async function faceMatch({ selfie, profile }) {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENKBS_API_KEY}` },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [
-          { text: 'A security company checks that the person clocking in to a shift is the officer on its staff record. Image 1 is the staff profile photo. Image 2 is a selfie taken at clock-in. Do these show the same person? Answer "match" if clearly the same person, "no_match" if clearly a different person, "unsure" if the selfie is unclear, covered, too dark or you cannot tell. This only helps a manager decide whether to look closer. Give a short plain-English note (under 20 words) about what you saw, without describing ethnicity, age or other personal characteristics.' },
+          { text: prompt },
           { inlineData: { mimeType: pm, data: profile.toString('base64') } },
-          { inlineData: { mimeType: sm, data: selfie.toString('base64') } },
+          { inlineData: { mimeType: sm, data: other.toString('base64') } },
         ] }],
         generationConfig: {
           responseMimeType: 'application/json',
@@ -43,7 +52,7 @@ export async function faceMatch({ selfie, profile }) {
     });
     const data = await res.json().catch(() => ({}));
     const u = data.usageMetadata || {};
-    if (res.ok) await logUsage('clock_face', creditsFor({ input_tokens: u.promptTokenCount, output_tokens: u.candidatesTokenCount }, {}) || FACE_CREDITS);
+    if (res.ok) await logUsage(module, creditsFor({ input_tokens: u.promptTokenCount, output_tokens: u.candidatesTokenCount }, {}) || FACE_CREDITS);
     const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
     let out;
     try { out = JSON.parse(text); } catch { out = null; }

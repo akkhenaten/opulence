@@ -1,6 +1,7 @@
 // Single POST endpoint: { action, ...fields }. Token lives in localStorage.
 export const API_BASE = import.meta.env.VITE_API_BASE || 'https://6ij75kpgf7kiwtvwo3nke763dm0oejxo.lambda-url.eu-central-1.on.aws/';
 const KEY = 'orb.token';
+import { viewFiles } from './ui/FileViewer.jsx';
 
 export const getToken = () => localStorage.getItem(KEY);
 export const setToken = (t) => (t ? localStorage.setItem(KEY, t) : localStorage.removeItem(KEY));
@@ -92,8 +93,11 @@ function saveBlob(filename, blob) {
 }
 export async function downloadAction(action, body) {
   const d = await api(action, body);
-  if (d.pdf) downloadBase64(d.filename, d.pdf);
-  else if (d.csv != null) downloadText(d.filename, d.csv);
-  else if (d.url) window.open(d.url, '_blank', 'noopener');
+  // Files open in the in-app viewer (it has its own Download); spreadsheets download straight away
+  if (d.pdf) {
+    const bytes = Uint8Array.from(atob(d.pdf), (c) => c.charCodeAt(0));
+    viewFiles([{ url: URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })), mime: 'application/pdf', name: d.filename }]);
+  } else if (d.csv != null) downloadText(d.filename, d.csv);
+  else if (d.url) viewFiles([{ url: d.url, mime: d.mime, name: d.name || d.filename }]);
   return d;
 }

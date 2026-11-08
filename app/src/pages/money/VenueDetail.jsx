@@ -22,6 +22,7 @@ import { GiveFeedbackSheet } from '../venue/_feedback.jsx';
 import { FeedbackList } from './Feedback.jsx';
 import { ClientSelect } from './_client.jsx';
 import { InviteSheet } from '../people/_access.jsx';
+import { viewFiles } from '../../ui/FileViewer.jsx';
 
 const UK = [54.3, -2.6];
 // Old tab names and where each opens now: Site setup parts (and Details) live in Setup, documents, logs and bans in Records
@@ -963,10 +964,7 @@ export function DocumentsTab({ venueId, readOnly }) {
   const confirm = useConfirm();
   const [run] = useAction();
 
-  const openDoc = (d) => run(async () => {
-    const { url } = await api('docs.url', { id: d.id });
-    if (url) window.open(url, '_blank', 'noopener');
-  }).catch(() => {});
+  const openDoc = (d) => viewFiles([{ name: d.title, mime: d.mime, load: () => api('docs.url', { id: d.id }) }]);
   const del = async (d) => {
     if (!(await confirm({ title: 'Delete document?', body: d.title, confirm: 'Delete', danger: true }))) return;
     await run(() => api('docs.delete', { id: d.id }), 'Document deleted').catch(() => {});

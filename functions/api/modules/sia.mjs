@@ -86,27 +86,32 @@ export const actions = {
     const notes = String(b.notes || '').trim().slice(0, 2000) || null;
     const source = b.source === 'auto' ? 'auto' : 'manual';
     await assertOfficerAccess(user, b.officer_id);
-    const before = need(await one('SELECT * FROM officers WHERE id = $1', [b.officer_id]), 'Officer not found');
-    const number = cleanSia(before.sia_number) || cleanSia((await one("SELECT ai->'badge'->>'number' AS n FROM applications WHERE officer_id = $1", [before.id]))?.n);
-
-    const o = await tx(async (db) => {
-      await db.q('INSERT INTO sia_checks (officer_id, checked_by, status, expiry, sector, licence_number, notes, source) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-        [before.id, user.id, b.status, expiry, sector, number || null, notes, source]);
-      return db.one(
-        `UPDATE officers SET sia_status = $2, sia_last_verified_at = now(), sia_last_verified_by = $3,
-                sia_expiry = COALESCE($4::date, sia_expiry), sia_type = COALESCE($5, sia_type)
-          WHERE id = $1 RETURNING *`, [before.id, b.status, user.id, expiry, sector]);
-    });
-    await audit(user, 'sia.check', 'officer', o.id, { status: b.status, expiry, sector, source, from_expiry: before.sia_expiry, from_status: before.sia_status });
-
-    if (NOT_CLEARED.includes(b.status) && before.status !== 'applicant') {
-      await notify(await companyManagers(), {
-        kind: 'compliance', severity: 'critical', link: `/company/staff/${o.id}`, email: true,
-        title: `SIA register: ${o.first_name} ${o.last_name}'s licence shows ${STATUS_LABEL[b.status]}`,
-        body: `Checked by ${user.name || 'a manager'}. They can't be rostered for licensed work until a check shows Active.`,
-        dedupe: `sia_register:${o.id}:${b.status}:${new Date().toISOString().slice(0, 10)}`,
-      });
-    }
+    const o = await recordSiaCheck({ officerId: b.officer_id, user, status: b.status, expiry, sector, notes, source });
     return shapeOfficer(o, user);
   }),
 };
+
+/** Save what the register shows. user: who checked (null = Orb, straight after applying an uploaded card).
+ *  Anything other than Active blocks rostering and alerts company managers. Returns the officer row. */
+export async function recordSiaCheck({ officerId, user = null, status, expiry = null, sector = null, notes = null, source = 'manual' }) {
+  const before = need(await one('SELECT * FROM officers WHERE id = $1', [officerId]), 'Officer not found');
+  const number = cleanSia(before.sia_number) || cleanSia((await one("SELECT ai->'badge'->>'number' AS n FROM applications WHERE officer_id = $1", [before.id]))?.n);
+  const o = await tx(async (db) => {
+    await db.q('INSERT INTO sia_checks (officer_id, checked_by, status, expiry, sector, licence_number, notes, source) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+      [before.id, user?.id || null, status, expiry, sector, number || null, notes, source]);
+    return db.one(
+      `UPDATE officers SET sia_status = $2, sia_last_verified_at = now(), sia_last_verified_by = $3,
+              sia_expiry = COALESCE($4::date, sia_expiry), sia_type = COALESCE($5, sia_type)
+        WHERE id = $1 RETURNING *`, [before.id, status, user?.id || null, expiry, sector]);
+  });
+  await audit(user, 'sia.check', 'officer', o.id, { status, expiry, sector, source, from_expiry: before.sia_expiry, from_status: before.sia_status });
+  if (NOT_CLEARED.includes(status) && before.status !== 'applicant') {
+    await notify(await companyManagers(), {
+      kind: 'compliance', severity: 'critical', link: `/company/staff/${o.id}`, email: true,
+      title: `SIA register: ${o.first_name} ${o.last_name}'s licence shows ${STATUS_LABEL[status]}`,
+      body: `Checked by ${user ? user.name || 'a manager' : 'Orb, after reading their uploaded card'}. They can't be rostered for licensed work until a check shows Active.`,
+      dedupe: `sia_register:${o.id}:${status}:${new Date().toISOString().slice(0, 10)}`,
+    });
+  }
+  return o;
+}

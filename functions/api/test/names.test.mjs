@@ -30,3 +30,16 @@ test('nameMatches ignores capitals, accents, punctuation, spacing and middle nam
   assert.ok(!nameMatches('JOHN SMITH', 'John', 'Scott'));
   assert.ok(!nameMatches('KATHLEEN BROWN', 'Kathleen', 'Lee'));
 });
+
+test('nameFit accepts an initial with the surname, never a different initial', async () => {
+  const { nameFit } = await import('../lib/names.mjs');
+  assert.equal(nameFit('SCOTT SCANLON', 'Scott', 'Scanlon'), 'full');
+  assert.equal(nameFit('S SCANLON', 'Scott', 'Scanlon'), 'initial');
+  assert.equal(nameFit('S. J. SCANLON', 'Scott', 'Scanlon'), 'initial');
+  assert.equal(nameFit('SCANLON S', 'Scott', 'Scanlon'), 'initial');
+  assert.equal(nameFit('SAMUEL OKAFOR', 'Sam', 'Okafor'), 'initial');
+  assert.equal(nameFit('J SCANLON', 'Scott', 'Scanlon'), 'no');
+  assert.equal(nameFit('SCANLON', 'Scott', 'Scanlon'), 'no');
+  assert.equal(nameFit('S SMITH', 'Scott', 'Scanlon'), 'no');
+  assert.equal(nameFit('STEVEN SCANLON', 'Scott', 'Scanlon'), 'no');
+});

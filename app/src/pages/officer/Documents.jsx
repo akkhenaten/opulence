@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { BadgeCheck, Camera, Clock3, ExternalLink, FileText, Paperclip, Plus, ShieldCheck, Trash2, Upload } from 'lucide-react';
+import { BadgeCheck, Camera, Clock3, ExternalLink, Eye, FileText, Paperclip, Plus, ShieldCheck, Trash2, Upload } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, cx, date, daysUntil, Empty, Input, List, Load, Page, Pill, Pressable, Row, Section, Select, Sheet, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { Button, cx, date, daysUntil, Empty, Input, List, Load, Page, Pill, Pressable, Row, Section, Select, Sheet, useAction, useApi, useConfirm, useToast } from '../../ui/index.jsx';
+import { viewFiles } from '../../ui/FileViewer.jsx';
 import { PackPill } from '../shared/PackPaper.jsx';
 import { compressImage, DOC_KINDS, docKindLabel, expiryText, expiryTone, NotLinked } from './_parts.jsx';
 
@@ -88,10 +89,7 @@ function DocCard({ d, reload }) {
   const confirm = useConfirm();
   const days = daysUntil(d.expiry);
   const tone = expiryTone(days);
-  const open = () => {
-    const w = window.open('', '_blank');
-    run(() => api('docs.url', { id: d.id })).then((r) => { if (w) w.location.href = r.url; else window.location.href = r.url; }).catch(() => w?.close());
-  };
+  const open = () => viewFiles([{ name: d.title, mime: d.mime, load: () => api('docs.url', { id: d.id }) }]);
   const del = async () => {
     if (await confirm({ title: 'Delete document?', body: `${d.title} will be removed.`, confirm: 'Delete', danger: true })) {
       run(() => api('docs.delete', { id: d.id }), 'Document deleted').then(reload).catch(() => {});
@@ -107,13 +105,13 @@ function DocCard({ d, reload }) {
           <div className="truncate text-callout font-semibold">{d.title}</div>
           <div className="truncate text-footnote text-muted">{docKindLabel(d.kind)}{d.number ? ` · ${d.number}` : ''}</div>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {d.system ? <Pill tone="blue">Saved copy</Pill> : d.verified_at ? <Pill tone="green">Verified</Pill> : <Pill tone="grey"><Clock3 size={14} />Awaiting check</Pill>}
+            {d.system ? <Pill tone="blue">Saved copy</Pill> : d.auto_applied_at ? <Pill tone="green">Checked by Orb</Pill> : d.verified_at ? <Pill tone="green">Verified</Pill> : <Pill tone="grey"><Clock3 size={14} />Awaiting check</Pill>}
             {d.expiry && <Pill tone={tone}>{days < 0 || days <= 60 ? expiryText(days) : `Expires ${date(d.expiry)}`}</Pill>}
           </div>
         </div>
       </div>
       <div className="mt-3 flex gap-2">
-        {d.s3_key && <Button variant="secondary" size="sm" icon={ExternalLink} className="flex-1" disabled={busy} onClick={open}>Open</Button>}
+        {d.s3_key && <Button variant="secondary" size="sm" icon={Eye} className="flex-1" disabled={busy} onClick={open}>View</Button>}
         {!d.verified_at && !d.system && <Button variant="ghost" size="sm" icon={Trash2} className="text-red" disabled={busy} onClick={del}>Delete</Button>}
       </div>
     </div>
@@ -121,6 +119,7 @@ function DocCard({ d, reload }) {
 }
 
 function AddSheet({ kind, onClose, ownerId, onDone }) {
+  const toast = useToast();
   const [v, setV] = useState({ kind: 'sia', title: '', number: '', expiry: '', provider: '', issued_on: '' });
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -159,7 +158,15 @@ function AddSheet({ kind, onClose, ownerId, onDone }) {
       number: v.number.trim(), expiry: v.expiry || null, s3_key: key, mime: file?.type || null,
       ...(TRAINING.has(v.kind) ? { provider: v.provider.trim() || null, issued_on: v.issued_on || null } : {}),
     });
-  }, 'Uploaded. The office will check it.').then(onDone).catch(() => {});
+  }, 'Uploaded — Orb is checking it').then((d) => {
+    onDone();
+    // Orb reads a licence or passport straight away and adds it to the profile when it all agrees
+    if (d?.s3_key && ['sia', 'rtw', 'id'].includes(d.kind)) {
+      api('docs.read', { id: d.id }).then((r) => {
+        if (r.applied?.length) { toast(r.applied.includes('sia') ? 'Checked — your SIA licence is on your profile' : 'Checked — your right to work is confirmed'); onDone(); }
+      }).catch(() => {});
+    }
+  }).catch(() => {});
 
   return (
     <Sheet open={!!kind} onClose={onClose} title="Add document" size="sm"

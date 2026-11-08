@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Download, FilePlus, FileText, History, ImagePlus, MessageSquareReply, Pencil, RefreshCw, RotateCcw, Sparkles, Trash2, X,
+  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Download, Eye, FilePlus, FileText, History, ImagePlus, MessageSquareReply, Pencil, RefreshCw, RotateCcw, Sparkles, Trash2, X,
 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -10,6 +10,7 @@ import {
 } from '../../ui/index.jsx';
 import { INCIDENT_STATUS, LatePill, typeLabel } from '../officer/_parts.jsx';
 import { DOC_ACCEPT, fileSize, MAX_FILES, useUploads } from './evidence.jsx';
+import { viewFiles } from '../../ui/FileViewer.jsx';
 
 const yn = (b, ref) => (b ? `Yes${ref ? ` (ref ${ref})` : ''}` : 'No');
 const LABELS = {
@@ -246,11 +247,11 @@ function Attachments({ inc, images, files, canAdd, reload, openImage }) {
       )}
       {files.length > 0 && (
         <List className="mt-2">
-          {files.map((a) => (
-            <Row key={a.id} left={<FileText size={20} className="text-muted" />} title={<a href={a.url} target="_blank" rel="noopener noreferrer" className="hover:text-blue">{a.name || 'File'}</a>} subtitle={meta(a)}
+          {files.map((a, k) => (
+            <Row key={a.id} left={<FileText size={20} className="text-muted" />} title={<Pressable press onClick={() => viewFiles(files, k)} className="max-w-full truncate text-left hover:text-blue">{a.name || 'File'}</Pressable>} subtitle={meta(a)}
               right={(
                 <div className="flex gap-1">
-                  <a href={a.url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${a.name || 'file'}`} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-bg"><Download size={16} /></a>
+                  <Pressable press aria-label={`Open ${a.name || 'file'}`} onClick={() => viewFiles(files, k)} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-bg"><Eye size={16} /></Pressable>
                   {a.can_remove && <Pressable press aria-label={`Remove ${a.name || 'file'}`} disabled={busy} onClick={() => remove(a)} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-red-soft hover:text-red"><Trash2 size={16} /></Pressable>}
                 </div>
               )} />

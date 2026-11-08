@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Check, Copy, Link2 } from 'lucide-react';
+import { Check, Copy, FileText, Link2 } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
-import { Button, Chips, Input, Pill, Select, Toggle, cx, daysUntil, useApi, useToast } from '../../ui/index.jsx';
+import { viewFiles } from '../../ui/FileViewer.jsx';
+import { Button, Chips, Input, Pill, Pressable, Select, Toggle, cx, daysUntil, useApi, useToast } from '../../ui/index.jsx';
 
 export const OFFICER_STATUSES = ['active', 'onboarding', 'applicant', 'suspended', 'left'];
 
@@ -146,14 +147,25 @@ export function LoginPill({ o }) {
 
 export { Progress } from '../../ui/index.jsx';
 
-// Open a presigned URL from an action without the popup being blocked
+// Small pictures of uploaded cards (SIA, passport/ID) on the profile; a tap opens them full size in the app
+export function DocThumbs({ docs, className }) {
+  if (!docs?.length) return null;
+  const files = docs.map((d) => ({ url: d.url, mime: d.mime, name: d.title }));
+  return (
+    <div className={cx('flex flex-wrap gap-2', className)}>
+      {docs.map((d, k) => (
+        <Pressable press key={d.id} onClick={() => viewFiles(files, k)} aria-label={`View ${d.title}`}
+          className="grid h-[72px] w-[104px] place-items-center overflow-hidden rounded-xl border border-line bg-fill text-muted">
+          {String(d.mime || '').startsWith('image/') && d.mime !== 'image/heic'
+            ? <img src={d.url} alt={d.title} loading="lazy" className="h-full w-full object-cover" />
+            : <span className="flex flex-col items-center gap-1 px-2 text-caption"><FileText size={20} /><span className="line-clamp-1">{d.title}</span></span>}
+        </Pressable>
+      ))}
+    </div>
+  );
+}
+
+// Open a file from an action (it returns { url, mime?, name? }) in the in-app viewer
 export async function openUrl(fn) {
-  const w = window.open('', '_blank');
-  try {
-    const { url } = await fn();
-    if (w) w.location = url; else window.location.href = url;
-  } catch (e) {
-    w?.close();
-    throw e;
-  }
+  viewFiles([{ load: fn }]);
 }

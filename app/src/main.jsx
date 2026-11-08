@@ -6,6 +6,7 @@ import { AuthProvider, HOME, otherSide, portalLink, useAuth } from './auth.jsx';
 import { VenueProvider } from './venue.jsx';
 import Shell from './layouts/Shell.jsx';
 import { ConfirmProvider, Spinner, ToastProvider } from './ui/index.jsx';
+import { FileViewerHost } from './ui/FileViewer.jsx';
 import { AcceptInvite, Forgot, Login, Reset, Verify } from './pages/auth/AuthPages.jsx';
 
 const P = (f) => lazy(f);
@@ -326,6 +327,7 @@ createRoot(document.getElementById('root')).render(
         <ToastProvider>
           <ConfirmProvider>
             <App />
+            <FileViewerHost />
           </ConfirmProvider>
         </ToastProvider>
       </AuthProvider>

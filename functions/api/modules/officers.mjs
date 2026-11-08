@@ -43,6 +43,22 @@ export function compliance(o, today = londonDate(new Date())) {
 const APP_SETUP = `EXISTS (SELECT 1 FROM officer_devices d WHERE d.officer_id = o.id AND d.status IN ('active','pending')) AS has_phone,
   EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.user_id = o.user_id) AS has_push`;
 
+// The pictures behind the profile for a manager: the latest SIA card upload (front and back when sent together) and
+// the latest passport or ID, so the licence and right to work can be checked by eye on the Compliance tab
+async function idDocs(o) {
+  const rows = await q(
+    `SELECT id, kind, title, mime, s3_key, created_at FROM documents
+      WHERE owner_type = 'officer' AND owner_id = $1 AND s3_key IS NOT NULL
+        AND (kind IN ('sia','id') OR (kind = 'rtw' AND ai_read->>'is_passport' = 'true')) AND id IS DISTINCT FROM $2
+      ORDER BY created_at DESC LIMIT 20`, [o.id, o.rtw_method === 'orb_passport' ? null : o.rtw_check_doc]);
+  const sia = rows.filter((d) => d.kind === 'sia');
+  const near = sia.filter((d) => Math.abs(new Date(d.created_at) - new Date(sia[0].created_at)) < 30 * 864e5).slice(0, 2);
+  const id = rows.find((d) => d.kind !== 'sia');
+  return Promise.all([...near, ...(id ? [id] : [])].map(async (d) => ({
+    id: d.id, kind: d.kind === 'sia' ? 'sia' : 'id', title: d.title, mime: d.mime, url: await downloadUrl(d.s3_key, d.title),
+  })));
+}
+
 export function shapeOfficer(o, user) {
   const out = { ...o, name: officerDisplay(o), full_name: `${o.first_name} ${o.last_name}`, compliance: compliance(o) };
   const self = user.role === 'officer' && user.officer_id === o.id;
@@ -129,7 +145,8 @@ export const actions = {
       q('SELECT * FROM availability WHERE officer_id = $1 ORDER BY weekday', [id]),
       one('SELECT * FROM offboarding WHERE officer_id = $1', [id]),
     ]);
-    return { ...shapeOfficer(o, user), photo_url: await downloadUrl(o.photo_key), emergency_contacts: contacts, rates, bans, availability, offboarding };
+    const id_docs = MGR.includes(user.role) ? await idDocs(o) : undefined;
+    return { ...shapeOfficer(o, user), photo_url: await downloadUrl(o.photo_key), emergency_contacts: contacts, rates, bans, availability, offboarding, id_docs };
   }),
 
   // Create (company) or update (company: all fields; officer: own personal/bank fields)

@@ -4,6 +4,7 @@ import { Avatar, Button, cx, dateTime, ErrorBox, IconButton, Pressable, Spinner,
 import { api } from '../../api.js';
 import { ReconnectBanner } from './_settings.jsx';
 import { addrFull, addrLabel, MatchChips, sizeLabel, whenLabel } from './_parts.jsx';
+import { viewFiles } from '../../ui/FileViewer.jsx';
 
 const lower = (s) => String(s || '').toLowerCase();
 const prefixed = (p, s) => (new RegExp(`^${p}:`, 'i').test(s || '') ? s : `${p}: ${s || ''}`.trim());
@@ -195,20 +196,15 @@ img{max-width:100%;height:auto}table{max-width:100%!important}pre{white-space:pr
 
 function Attachments({ m, account }) {
   const [run] = useAction();
-  const [busy, setBusy] = useState(null);
-  const get = async (a) => {
-    const w = window.open('', '_blank'); // opened now, while the tap still counts, so the browser does not block it
-    setBusy(a.id);
-    try {
-      const { url } = await run(() => api('email.attachment', { account_id: account.id, message_id: m.id, id: a.id, name: a.name, mime: a.mime }));
-      if (w) w.location = url; else window.location.assign(url);
-    } catch { w?.close(); } finally { setBusy(null); }
+  const get = (a) => {
+    const list = m.attachments.map((x) => ({ name: x.name, mime: x.mime, load: () => run(() => api('email.attachment', { account_id: account.id, message_id: m.id, id: x.id, name: x.name, mime: x.mime })) }));
+    viewFiles(list, m.attachments.indexOf(a));
   };
   return (
     <div className="mt-3 flex flex-wrap gap-2">
       {m.attachments.map((a) => (
-        <Pressable key={a.id} press onClick={() => get(a)} disabled={busy === a.id}
-          className={cx('inline-flex max-w-full items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-left text-footnote', busy === a.id && 'opacity-60')}>
+        <Pressable key={a.id} press onClick={() => get(a)}
+          className={cx('inline-flex max-w-full items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-left text-footnote')}>
           <Paperclip size={16} className="shrink-0 text-muted" />
           <span className="min-w-0 truncate font-semibold">{a.name}</span>
           <span className="shrink-0 text-faint">{sizeLabel(a.size)}</span>

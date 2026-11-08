@@ -103,7 +103,11 @@ function SubmissionSheet({ id, onClose, onDone }) {
   const added = (r) => (r.kind === 'venue' ? `${r.name} added as a Venue Manager` : `${r.name} added to Staff`);
   const create = (invite) => run(() => api('staffSetup.create', { id, ...(venue && { venue_ids: picked }), ...(invite && { invite: true }) }),
     (r) => (!invite ? added(r) : r.emailed ? `${added(r)} — invite sent` : `${added(r)} — invite not sent`))
-    .then((r) => (invite ? setSent(r) : done())).catch(() => {});
+    .then((r) => {
+      // Orb reads their SIA card and passport now, so the new profile is filled in without a manager step
+      if (!venue && r.id) api('docs.read', { officer_id: r.id }).catch(() => {});
+      return invite ? setSent(r) : done();
+    }).catch(() => {});
   const discard = async () => {
     if (!(await confirm({ title: 'Discard these details?', body: 'The submission and its files are deleted.', confirm: 'Discard', danger: true }))) return;
     run(() => api('staffSetup.discard', { id }), 'Discarded').then(done).catch(() => {});

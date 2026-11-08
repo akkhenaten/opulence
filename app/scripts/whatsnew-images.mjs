@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'orb-auto-compliance': 'A security licence card and a passport photo page lying on a dark navy desk, a soft gold scanning line of light passing across them, a small glowing gold tick rising above, a phone beside them showing a profile with green ticks, warm lamp light, dark navy and gold.',
   'work-notices': 'A phone lock screen on a dark navy bedside table, a stack of three notification banners with small gold icons for a clock, a pound coin and a document with a tick, sound waves softly rippling from the phone, warm lamp light, dark navy and gold.',
   'everyday-notify': 'A phone home-screen icon on a dark navy background with a bright red round badge showing the number 1 in its corner, a notification banner sliding down above it with a small gold megaphone icon, soft glow, warm lamp light, dark navy and gold.',
   'notify-tiers': 'Three phones lying side by side on a dark navy desk: the first lit with a bright gold alert banner and a soft glow, the second with a calm small banner, the third dark with only a tiny bell icon, warm lamp light, dark navy and gold.',

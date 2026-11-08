@@ -7,7 +7,7 @@ import { api, downloadAction, upload } from '../../api.js';
 import {
   ActionBar, addDays, AssignPill, Bento, Button, cx, date, dateShort, dateTime, dayLabel, Empty, ErrorBox, hours, IconButton, Input, isoDate, KV, List, money, Pill, Pressable, range, relative, Row, Section, Segmented, Select, Sheet, Spinner, Stat, Table, Textarea, Tile, titleCase, Toggle, useAction, useApi, useConfirm, useDirtyGuard, useForm,
 } from '../../ui/index.jsx';
-import { DOC_KINDS, ExpiryPill, Progress, RTW_TYPES, SIA_TYPES, TIMEOFF_KINDS, WEEKDAYS, docKindLabel, openUrl } from './_parts.jsx';
+import { DOC_KINDS, ExpiryPill, Progress, RTW_TYPES, SIA_TYPES, TIMEOFF_KINDS, WEEKDAYS, docKindLabel, DocThumbs, openUrl } from './_parts.jsx';
 import { CertificateSheet } from '../team/_training.jsx';
 import { ContractView, DocPill, RemindButton, SendDocSheet } from './_esign.jsx';
 import StartSheet from './contracts/StartSheet.jsx';
@@ -159,6 +159,7 @@ export function ComplianceTab({ o, reload, isCo, user }) {
     reload();
   };
   const c = o.compliance || {};
+  const orbRtw = o.rtw_verified && o.rtw_method === 'orb_passport';
   return (
     <div className="space-y-4">
       <Bento className="lg:grid-cols-2">
@@ -170,6 +171,7 @@ export function ComplianceTab({ o, reload, isCo, user }) {
             ['Type', o.sia_type],
             ['Expiry', o.sia_expiry && `${date(o.sia_expiry)}${c.sia_days != null ? ` (${c.sia_days < 0 ? `${-c.sia_days} days ago` : `in ${c.sia_days} days`})` : ''}`],
           ]} />
+          <DocThumbs docs={o.id_docs?.filter((d) => d.kind === 'sia')} className="mt-3" />
           {SIA_CHECK_ON && isMgr && <div className="mt-3"><SiaVerifyButton o={o} onSaved={reload} /></div>}
         </Tile>
         <Tile title="Right to work" icon={BadgeCheck} className="col-span-2 lg:col-span-1" action={isCo && <Button size="sm" variant="ghost" onClick={() => setEdit(true)}>Edit</Button>}>
@@ -177,13 +179,17 @@ export function ComplianceTab({ o, reload, isCo, user }) {
           <KV items={[
             ['Evidence', o.rtw_type],
             ['Share code', o.rtw_share_code && <span className="num whitespace-nowrap">{o.rtw_share_code}</span>],
-            ['Checked', o.rtw_checked_at ? `${o.rtw_method === 'manual' ? 'In person' : 'On GOV.UK'} by ${o.rtw_checked_by_name || 'a manager'}, ${date(o.rtw_checked_at)}` : o.rtw_verified ? 'Ticked by hand, no check saved' : 'Not yet'],
+            ['Checked', o.rtw_checked_at
+              ? orbRtw ? `By Orb from the uploaded passport, ${date(o.rtw_checked_at)}` : `${o.rtw_method === 'manual' ? 'In person' : 'On GOV.UK'} by ${o.rtw_checked_by_name || 'a manager'}, ${date(o.rtw_checked_at)}`
+              : o.rtw_verified ? 'Ticked by hand, no check saved' : 'Not yet'],
             ['Follow-up check', o.rtw_expiry ? `by ${date(o.rtw_expiry)}${c.rtw_days != null ? ` (${c.rtw_days < 0 ? `${-c.rtw_days} days ago` : `in ${c.rtw_days} days`})` : ''}` : o.rtw_verified ? 'Not needed (no time limit)' : null],
           ]} />
-          {(isCo || o.rtw_check_doc) && (
+          {orbRtw && <Pill tone="amber" className="mt-3 whitespace-normal">Copy only — original not seen in person</Pill>}
+          <DocThumbs docs={o.id_docs?.filter((d) => d.kind === 'id')} className="mt-3" />
+          {(isCo || (o.rtw_check_doc && !orbRtw)) && (
             <div className="mt-3 flex flex-wrap gap-2">
               {isCo && <Button size="sm" icon={ShieldCheck} onClick={() => setRtwCheck(true)}>{o.rtw_verified ? 'Check again' : 'Check right to work'}</Button>}
-              {o.rtw_check_doc && <Button size="sm" variant="secondary" icon={Eye} onClick={() => openUrl(() => api('docs.url', { id: o.rtw_check_doc }))}>View check</Button>}
+              {o.rtw_check_doc && !orbRtw && <Button size="sm" variant="secondary" icon={Eye} onClick={() => openUrl(() => api('docs.url', { id: o.rtw_check_doc }))}>View check</Button>}
             </div>
           )}
         </Tile>
@@ -362,7 +368,10 @@ function DocSheet({ o, onClose, onDone }) {
     await run(async () => {
       const s3_key = file ? await upload(file, 'officer') : null;
       return api('docs.create', { owner_type: 'officer', owner_id: o.id, ...v, s3_key, mime: file?.type || null });
-    }, 'Document uploaded');
+    }, 'Document uploaded').then((d) => {
+      // Orb reads a licence or passport straight away and applies it to the profile when it all agrees
+      if (d?.s3_key && ['sia', 'rtw', 'id'].includes(d.kind)) api('docs.read', { id: d.id }).then((r) => r.applied?.length && onDone()).catch(() => {});
+    });
     onDone();
     onClose();
   };

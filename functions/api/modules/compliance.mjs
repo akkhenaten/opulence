@@ -21,7 +21,9 @@ import { lawAlerts } from '../lib/contractContent.mjs';
 import { CO, MGR, def } from './_def.mjs';
 import { statusesFor, pairKey, OK } from '../lib/venuePack.mjs';
 import { NOT_CLEARED, STATUS_LABEL, RECHECK_DAYS, daysSinceCheck, siaCheckOn } from '../lib/sia.mjs';
-import { officerDisplay, nameMatches } from '../lib/names.mjs';
+import { officerDisplay, nameFit } from '../lib/names.mjs';
+import { docFaceMatch } from '../lib/face.mjs';
+import { autoApply, nameOk } from '../lib/docAuto.mjs';
 import { cleanShareCode, SHARE_CODE_OLD } from '../lib/rtw.mjs';
 
 const ACTIVE = "('assigned','accepted')";
@@ -51,19 +53,26 @@ const READ_TOOL = {
       licence_type: { type: 'string', enum: [...SIA_TYPES, 'other', 'none'], description: 'SIA licence sector if this is an SIA licence' },
       expiry: { type: 'string', description: 'Expiry date as YYYY-MM-DD, empty if none shown' },
       share_code: { type: 'string', description: 'Right to work share code if shown (9 letters and numbers starting with W), else empty' },
+      is_passport: { type: 'boolean', description: 'True if this is a passport (photo page)' },
+      nationality: { type: 'string', description: 'Nationality as the 3-letter code printed on a passport or ID card (GBR for British citizen, IRL for Irish), else empty' },
+      date_of_birth: { type: 'string', description: 'Date of birth as YYYY-MM-DD if printed, else empty' },
+      has_photo: { type: 'boolean', description: 'True if the document shows a photo of its holder' },
       concerns: { type: 'array', items: { type: 'string' }, description: 'Only real problems: looks edited, details obscured, wrong document type, photo missing. Empty when fine.' },
     },
     required: ['readable', 'concerns'],
   },
 };
 
-export async function readDocuments(limit = 4) {
+/** Read uploaded licence/ID scans not read yet, then let Orb apply what agrees (lib/docAuto.mjs).
+ *  limit: how many; id: just this document (straight after an upload). Returns the number read. */
+export async function readDocuments(limit = 4, { id = null } = {}) {
   const docs = await q(
-    `SELECT d.* FROM documents d JOIN officers o ON o.id = d.owner_id
+    `SELECT d.*, o.photo_key AS profile_photo FROM documents d JOIN officers o ON o.id = d.owner_id
       WHERE d.owner_type = 'officer' AND d.kind = ANY($1) AND d.s3_key IS NOT NULL AND d.ai_read_key IS DISTINCT FROM d.s3_key
         AND o.status IN ('active','onboarding','applicant')
         AND NOT (o.status = 'applicant' AND EXISTS (SELECT 1 FROM applications ap WHERE ap.officer_id = o.id))
-      ORDER BY d.created_at DESC LIMIT $2`, [READ_KINDS, limit]);
+        AND ($3::uuid IS NULL OR d.id = $3)
+      ORDER BY d.created_at DESC LIMIT $2`, [READ_KINDS, limit, id]);
   let n = 0;
   let credits = 0;
   for (const d of docs) {
@@ -73,15 +82,21 @@ export async function readDocuments(limit = 4) {
       const mime = d.mime || head?.mime;
       if (!head || !canRead(mime) || head.size > 4.5 * 1024 * 1024) read = { skipped: !head ? 'File missing' : 'Not a photo or PDF the AI can read' };
       else {
+        const bytes = await getObjectBytes(d.s3_key);
         const r = await extract({
-          model: HAIKU, max_tokens: 600,
+          model: HAIKU, max_tokens: 700,
           system: 'You read UK identity and security licence documents for a security company\'s compliance check. Report only what is printed. Never guess missing details.',
-          messages: [{ role: 'user', content: [{ type: 'text', text: `Uploaded as: ${docLabel(d.kind)} — "${d.title}"` }, fileBlock(await getObjectBytes(d.s3_key), mime)] }],
+          messages: [{ role: 'user', content: [{ type: 'text', text: `Uploaded as: ${docLabel(d.kind)} — "${d.title}"` }, fileBlock(bytes, mime)] }],
           tool: READ_TOOL,
         });
         credits += r.credits;
         read = r.input || { error: 'No answer' };
-        if (read.expiry && !/^\d{4}-\d{2}-\d{2}$/.test(read.expiry)) read.expiry = '';
+        for (const k of ['expiry', 'date_of_birth']) if (read[k] && !/^\d{4}-\d{2}-\d{2}$/.test(read[k])) read[k] = '';
+        read.nationality = String(read.nationality || '').toUpperCase().slice(0, 3);
+        // The photo on the card against the profile photo: one of the proofs that a card printed "S SCANLON" is Scott's
+        read.face = read.readable !== false && read.has_photo && /^image\//.test(mime || '') && d.profile_photo
+          ? await docFaceMatch({ doc: bytes, profile: await getObjectBytes(d.profile_photo).catch(() => null) })
+          : { result: 'unscored', note: d.profile_photo ? 'No photo to compare' : 'No profile photo to compare with' };
       }
     } catch (e) {
       if (e.status === 429) break;
@@ -93,8 +108,13 @@ export async function readDocuments(limit = 4) {
     const code = d.kind === 'rtw' && !d.number && cleanShareCode(read?.share_code);
     if (code) await q('UPDATE documents SET number = $2 WHERE id = $1', [d.id, code]);
     n++;
+    try {
+      await autoApply(d.id);
+    } catch (e) {
+      console.error('[compliance] auto-apply failed', d.id, e.message);
+    }
   }
-  if (n) await logActivity('compliance', `Read ${plural(n, 'uploaded document')} for compliance checks`, { credits });
+  if (n && !id) await logActivity('compliance', `Read ${plural(n, 'uploaded document')} for compliance checks`, { credits });
   return n;
 }
 
@@ -245,8 +265,15 @@ export function officerIssues(o, { today, roles, docs = [], shifts = [], openTas
       add({ key: `doc_suspect:${d.id}`, severity: 'urgent', sig: sig(d.s3_key), title: `"${d.title}" needs a human look`, detail: r.readable === false ? 'The scan could not be read clearly.' : r.concerns.join('; '), actions: [recheck(d), remind(o, kind, `a clear photo of their ${docLabel(kind)}`)] });
       continue;
     }
-    if (!nameMatches(r.name, o.first_name, o.last_name)) {
+    // Surname plus first name, or plus just the initial when the licence number or the photo confirms it's them
+    const fit = nameFit(r.name, o.first_name, o.last_name);
+    if (fit === 'no') {
       add({ key: `doc_mismatch:${d.id}:name`, severity: 'soon', sig: sig(d.s3_key, o.first_name, o.last_name), title: `Name on "${d.title}" doesn't match the profile`, detail: `Scan reads "${r.name}"; profile is ${o.first_name} ${o.last_name}.`, actions: [recheck(d)] });
+    } else if (!nameOk(fit, r, o)) {
+      add({ key: `doc_name_initial:${d.id}`, severity: 'advisory', sig: sig(d.s3_key, o.first_name, o.last_name), title: `"${d.title}" shows ${r.name} — initial only`, detail: 'No licence number or photo to confirm it\'s them. Add a profile photo, or check the card.', actions: [] });
+    }
+    if (r.face?.result === 'no_match') {
+      add({ key: `doc_mismatch:${d.id}:photo`, severity: 'soon', sig: sig(d.s3_key, o.photo_key), title: `Photo on "${d.title}" may not match the profile photo`, detail: r.face.note || 'Check the card against the person.', actions: [recheck(d)] });
     }
     if (kind === 'sia' && digits(r.number) && digits(o.sia_number) && digits(r.number) !== digits(o.sia_number)) {
       add({ key: `doc_mismatch:${d.id}:number`, severity: 'soon', sig: sig(d.s3_key, o.sia_number), title: 'SIA number on the card differs from the profile', detail: `Card reads ${r.number}; profile has ${o.sia_number}.`, actions: [correct('sia_number', o.sia_number, siaFmt(r.number), `Update profile SIA number to ${siaFmt(r.number)}`), recheck(d)] });

@@ -35,6 +35,7 @@ export const CATALOG = {
   'docs.list': r('documents', 'Documents on file', 'owner_type (officer|venue|company), owner_id, kind?'),
   'docs.expiring': r('documents', 'Documents expiring soon', 'days?'),
   'docs.verify': c('documents', 'Mark a document verified', 'id'),
+  'docs.read': c('documents', 'Have Orb read an uploaded SIA card or passport now and apply it to the profile when it all agrees', 'id | officer_id'),
   'compliance.overview': r('compliance', 'Compliance issues (SIA, right to work, documents)', 'severity?'),
   'ops.dismissIssue': c('compliance', 'Dismiss a compliance issue', 'id, key, reason'),
   'ops.dismissVenueIssue': c('venues', 'Dismiss one missing venue detail on a venue setup card', 'id, key (address|pin|logo|radius), reason'),

@@ -11,6 +11,7 @@ import { ROLE_LABEL } from '../../layouts/nav.js';
 import { REACTIONS, reaction, useFeedHref } from '../everyday/_parts.jsx';
 import NewMessage from './NewMessage.jsx';
 import { ConvAvatar, isImage, messagesChanged, useBase, whenLabel } from './_parts.jsx';
+import { viewFiles } from '../../ui/FileViewer.jsx';
 
 const EDIT_MINUTES = 15;
 const TYPING_MS = 5000;
@@ -399,10 +400,10 @@ function Bubble({ m, me, conv, first, flash, mentionNames, onReply, onJump, onAc
             ))}
           </div>
         )}
-        {files.map((a) => (
-          <a key={a.url} href={a.url} target="_blank" rel="noopener noreferrer" className="mb-1 flex items-center gap-2 rounded-2xl bg-fill px-3 py-2 text-footnote font-semibold text-blue">
+        {files.map((a, k) => (
+          <Pressable press key={a.url} onClick={() => viewFiles(files, k)} className="mb-1 flex items-center gap-2 rounded-2xl bg-fill px-3 py-2 text-left text-footnote font-semibold text-blue">
             <FileText size={16} />{a.name}
-          </a>
+          </Pressable>
         ))}
         {m.share && live && <ShareCard s={m.share} />}
         {voice && <div className="mb-1"><VoiceNote a={voice} mine={mine} transcript={m.transcript} status={m.transcript_status} /></div>}
