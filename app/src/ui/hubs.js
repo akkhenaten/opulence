@@ -9,6 +9,7 @@ export const HUBS = {
     ] },
     rota: { title: 'Rota', tabs: [
       { to: 'rota', label: 'Week' },
+      { to: 'rota?tab=requests', label: 'Shift requests' },
       { to: 'cover', label: 'Cover' },
       { to: 'exceptions', label: 'Exceptions' },
     ] },
@@ -87,13 +88,23 @@ export function hubTabs(id, user, on = () => true) {
   return hub.tabs.filter((t) => allowed(t, user, on)).map((t) => ({ ...t, to: `/${user.role}/${t.to}` }));
 }
 
+// A tab can be a view inside a page (rota?tab=requests): it is the current tab when the address carries its query
+const pathOf = (to) => to.split('?')[0];
+const queryMatches = (to, search) => {
+  const want = new URLSearchParams(to.split('?')[1] || '');
+  const have = new URLSearchParams(search || '');
+  return [...want].every(([k, v]) => have.get(k) === v);
+};
+
 /** The section a path belongs to (its own page or a page under it), or null */
-export function findHub(path, user, on, { exact } = {}) {
+export function findHub(path, user, on, { exact, search = '' } = {}) {
   const p = path.replace(/\/$/, '');
   const hubs = HUBS[portal(user.role)] || {};
   for (const id of Object.keys(hubs)) {
     const tabs = hubTabs(id, user, on);
-    const current = tabs.find((t) => p === t.to) || (!exact && tabs.find((t) => p.startsWith(`${t.to}/`)));
+    const here = tabs.filter((t) => p === pathOf(t.to));
+    const current = here.find((t) => t.to.includes('?') && queryMatches(t.to, search)) || here.find((t) => !t.to.includes('?'))
+      || (!exact && tabs.find((t) => p.startsWith(`${pathOf(t.to)}/`)));
     if (current) return { id, title: hubs[id].title, tabs, current };
   }
   return null;

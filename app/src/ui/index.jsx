@@ -111,7 +111,8 @@ export function ToastProvider({ children }) {
 
 // photo: a brand photo name (ui/Photo.jsx) behind the title
 // backLabel: what the next page's Back calls this one when the title is long or not text (e.g. "Home" for a greeting)
-export function Page({ title: own, subtitle, actions, back, backLabel: ownLabel, children, wide, photo, slim }) {
+// tools: the page's own controls (week, view, filters), on the line of the section tabs so the content starts higher
+export function Page({ title: own, subtitle, actions, tools, tabCounts, back, backLabel: ownLabel, children, wide, photo, slim }) {
   const nav = useNavigate();
   // A page that is one tab of a section (Staff → Recruitment) takes the section's title and shows its tabs
   const hub = useHub();
@@ -140,15 +141,16 @@ export function Page({ title: own, subtitle, actions, back, backLabel: ownLabel,
     if (window.history.state?.idx > 0 && previousPath() && (previousPath() === to || previousPath().endsWith(to))) { e.preventDefault(); nav(-1); }
   };
   const head = (
-    <div className="min-w-0">
-      <h1 className="text-title1 font-bold leading-tight sm:text-large">{title}</h1>
-      {subtitle && <div className={cx('mt-0.5 text-body text-muted', photo && 'line-clamp-1 sm:line-clamp-none')}>{subtitle}</div>}
+    <div className="min-w-0 sm:flex sm:items-baseline sm:gap-3">
+      <h1 className="shrink-0 text-title1 font-bold leading-tight">{title}</h1>
+      {subtitle && <div title={typeof subtitle === 'string' ? subtitle : undefined}
+        className={cx('mt-0.5 min-w-0 text-body text-muted sm:mt-0', photo ? 'line-clamp-1 sm:line-clamp-none' : 'sm:truncate')}>{subtitle}</div>}
       <div ref={sentinel} aria-hidden="true" />
     </div>
   );
   const actionBox = Array.isArray(actions) ? <PageActions items={actions} /> : actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>;
   return (
-    <div className={cx('mx-auto w-full pb-[calc(var(--tabbar-h)+var(--fab-room)+32px)] pt-4 [--px:1rem] sm:[--px:1.5rem] lg:pt-8 safe-x', wide ? 'max-w-[1400px]' : 'max-w-6xl')}>
+    <div className={cx('mx-auto w-full pb-[calc(var(--tabbar-h)+var(--fab-room)+32px)] pt-4 [--px:1rem] sm:[--px:1.5rem] lg:pt-6 safe-x', wide ? 'max-w-[1400px]' : 'max-w-6xl')}>
       {back && (
         <Link to={back.to} onClick={goBack} className="pressable -ml-2 mb-0.5 inline-flex h-11 items-center pr-3 text-body font-semibold text-blue">
           <ChevronLeft size={24} className="-mr-0.5" /><span className="max-w-[60vw] truncate">{prev ? prev.title || 'Back' : back.label}</span>
@@ -159,9 +161,9 @@ export function Page({ title: own, subtitle, actions, back, backLabel: ownLabel,
           <div className={cx('flex min-h-[96px] flex-wrap items-end justify-between gap-3 p-4 sm:p-6', slim ? 'sm:min-h-[120px]' : 'sm:min-h-[180px]')}>{head}{actionBox}</div>
         </Photo>
       ) : (
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">{head}{actionBox}</div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">{head}{actionBox}</div>
       )}
-      {!back && <HubTabs hub={hub} />}
+      <HubTabs hub={back ? null : hub} tools={tools} counts={tabCounts} />
       {children}
       <PoweredBy className="mt-10" />
     </div>
@@ -311,6 +313,27 @@ export function FilterBar({ filters, onChange, onClear, children, className }) {
     </div>
   );
 }
+
+/** One button for the less-used switches of a page (card size, hide empty, filters on phones), opening a small sheet.
+ * count: how many of them are changed from the default, shown on the button so a filtered view is never a surprise. */
+export function ToolMenu({ label = 'Filters', title, count = 0, onClear, children, className }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="secondary" size="sm" icon={SlidersHorizontal} className={className} aria-haspopup="dialog" onClick={() => setOpen(true)}>
+        {label}{count > 0 && <span className="num ml-0.5 rounded-full bg-blue px-1.5 text-caption font-bold text-white">{count}</span>}
+      </Button>
+      <Sheet open={open} onClose={() => setOpen(false)} title={title || label} size="sm"
+        footer={onClear && count > 0 ? <Button variant="secondary" onClick={() => { onClear(); setOpen(false); }}>Clear</Button> : undefined}>
+        <div className="space-y-5">{children}</div>
+      </Sheet>
+    </>
+  );
+}
+/** A labelled control inside a ToolMenu */
+export const ToolField = ({ label, children }) => (
+  <div><div className="mb-1.5 text-footnote font-semibold text-muted">{label}</div>{children}</div>
+);
 
 export const Bento = ({ className, children }) => <div className={cx('bento grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4', className)}>{children}</div>;
 

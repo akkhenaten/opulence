@@ -3,7 +3,7 @@ import {
   CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Copy, Crown, Hand, LogOut, NotebookPen, Plus, Printer, Repeat, Rows2, Rows4, Send, Trash2, UserMinus, UserPlus, X,
 } from 'lucide-react';
 import {
-  ActionBar, addDays, AssignPill, Avatar, Button, Chip, confirmState, cx, dateShort, dayLabel, Dot, Empty, ErrorBox, FilterBar, IconButton, Input, isoDate, KV, List, Load, mondayOf, MoreMenu, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Tabs, Textarea, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useMedia, useToast, useUrlState, nameMatches, displayName,
+  ActionBar, addDays, AssignPill, Avatar, Button, Chip, confirmState, cx, dateShort, dayLabel, Dot, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, MoreMenu, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Textarea, ToolField, ToolMenu, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useMedia, useToast, useUrlState, nameMatches, displayName,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -36,7 +36,6 @@ export default function Rota() {
   const thisWeek = mondayOf(isoDate());
   const [url, setUrl] = useUrlState({ tab: 'rota', shift: '', assign: '', week: thisWeek, venue: '', view: 'venues', f: '', empty: '1' });
   const tab = url.tab === 'requests' ? 'requests' : 'rota';
-  const setTab = (t) => setUrl({ tab: t });
   const openId = url.shift || null;
   const setOpenId = (id) => setUrl({ shift: id || '', assign: '' });
   const week = /^\d{4}-\d{2}-\d{2}$/.test(url.week) ? mondayOf(url.week) : thisWeek;
@@ -95,8 +94,40 @@ export default function Rota() {
   ];
   const pubItem = drafts.length > 0 && { label: `Publish ${drafts.length}`, icon: Send, hint: hiddenDrafts ? `${hiddenDrafts} hidden by filters` : 'Send the drafts to officers', onClick: publish, busy };
 
+  // The week sits beside the title; view, venue and the display switches sit on the tab line, so the grid starts high
+  const weekPicker = (
+    <span className="inline-flex items-center gap-1">
+      <IconButton icon={ChevronLeft} label="Previous week" size="sm" onClick={() => setWeek(addDays(week, -7))} />
+      <span className="num min-w-[112px] text-center text-body font-semibold text-ink">{weekLabel}</span>
+      <IconButton icon={ChevronRight} label="Next week" size="sm" onClick={() => setWeek(addDays(week, 7))} />
+      {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(thisWeek)}>Today</Button>}
+    </span>
+  );
+  const venueOptions = [{ value: '', label: 'All venues' }, ...(venues.data || []).filter((v) => v.active).map((v) => ({ value: v.id, label: v.name }))];
+  const viewSwitch = <Segmented value={view} onChange={(v) => setUrl({ view: v })} options={VIEWS} />;
+  const venuePick = <Select aria-label="Venue" value={venueId} onChange={(e) => setUrl({ venue: e.target.value })} options={venueOptions} />;
+  const changed = (density === 'compact') + (view === 'venues' && !hideEmpty) + (!wide && !!venueId) + (!wide && view !== 'venues');
+  const tools = tab === 'rota' && <>
+    {FILTERS.filter((f) => counts[f.key] || on.includes(f.key)).map((f) => (
+      <Chip key={f.key} label={f.label} value={counts[f.key]} tone={f.tone} active={on.includes(f.key)} onClick={() => toggleFilter(f.key)} />
+    ))}
+    <div className="hidden sm:block">{viewSwitch}</div>
+    <div className="hidden w-44 sm:block">{venuePick}</div>
+    <ToolMenu label={wide ? 'Display' : 'Filters'} count={changed} onClear={() => { setDensity('comfortable'); setUrl({ empty: '1', ...(!wide && { venue: '', view: 'venues' }) }); }}>
+      {!wide && <ToolField label="View">{viewSwitch}</ToolField>}
+      {!wide && <ToolField label="Venue">{venuePick}</ToolField>}
+      <ToolField label="Card size">
+        <Segmented value={density} onChange={setDensity} options={[
+          { value: 'comfortable', label: <span className="flex items-center gap-1.5"><Rows2 size={16} aria-hidden />Comfortable</span> },
+          { value: 'compact', label: <span className="flex items-center gap-1.5"><Rows4 size={16} aria-hidden />Compact</span> },
+        ]} />
+      </ToolField>
+      {view === 'venues' && <Toggle checked={hideEmpty} onChange={(v) => setUrl({ empty: v ? '1' : '0' })} label="Hide empty venues" />}
+    </ToolMenu>
+  </>;
+
   return (
-    <Page title="Rota" subtitle={tab === 'rota' ? `Week of ${dayLabel(week)}` : 'Officer requests for open shifts'} wide
+    <Page title="Rota" subtitle={tab === 'rota' ? weekPicker : 'Officer requests for open shifts'} wide tools={tools} tabCounts={{ 'Shift requests': reqs.data?.length }}
       actions={tab === 'rota' && <>
         <div className="hidden items-center gap-2 sm:flex">
           {pubItem && <Button variant="soft" icon={Send} onClick={publish} busy={busy}>Publish {drafts.length}{hiddenDrafts > 0 && <span className="font-medium opacity-75"> ({hiddenDrafts} hidden by filters)</span>}</Button>}
@@ -105,32 +136,8 @@ export default function Rota() {
         <div className="sm:hidden"><MoreMenu items={[pubItem, ...more]} title="Rota" /></div>
         <Button icon={Plus} onClick={() => setForm({})}>New shift</Button>
       </>}>
-      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'rota', label: 'Rota' }, { value: 'requests', label: 'Shift requests', count: reqs.data?.length }]} />
-
       {tab === 'requests' ? <Requests q={reqs} roleName={roleName} onChanged={reload} onOpen={setOpenId} /> : (
         <>
-          <FilterBar className="mb-3" onChange={(k, v) => setUrl({ [k]: v })} filters={[
-            { key: 'venue', label: 'Venue', value: venueId, options: [{ value: '', label: 'All venues' }, ...(venues.data || []).filter((v) => v.active).map((v) => ({ value: v.id, label: v.name }))] },
-            !wide && { key: 'view', label: 'View', value: view, empty: 'venues', options: VIEWS },
-          ]}>
-            <div className="flex items-center gap-1 rounded-xl bg-surface p-1 shadow-tile">
-              <IconButton icon={ChevronLeft} label="Previous week" onClick={() => setWeek(addDays(week, -7))} />
-              <span className="num min-w-[124px] text-center text-subhead font-semibold">{weekLabel}</span>
-              <IconButton icon={ChevronRight} label="Next week" onClick={() => setWeek(addDays(week, 7))} />
-            </div>
-            {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(thisWeek)}>Today</Button>}
-            <div className="hidden sm:block"><Segmented value={view} onChange={(v) => setUrl({ view: v })} options={VIEWS} /></div>
-            <div className="hidden lg:block" title="Card size">
-              <Segmented value={density} onChange={setDensity} options={[
-                { value: 'comfortable', label: <span className="flex items-center gap-1.5"><Rows2 size={16} aria-hidden />Comfortable</span> },
-                { value: 'compact', label: <span className="flex items-center gap-1.5"><Rows4 size={16} aria-hidden />Compact</span> },
-              ]} />
-            </div>
-          </FilterBar>
-          <div className="-mx-4 mb-4 flex items-center gap-2 overflow-x-auto px-4 py-1 no-scrollbar sm:mx-0 sm:flex-wrap sm:px-0">
-            {FILTERS.map((f) => <Chip key={f.key} label={f.label} value={counts[f.key]} tone={f.tone} quiet={!counts[f.key]} active={on.includes(f.key)} onClick={() => toggleFilter(f.key)} />)}
-            {view === 'venues' && <div className="ml-auto hidden md:block"><Toggle checked={hideEmpty} onChange={(v) => setUrl({ empty: v ? '1' : '0' })} label="Hide empty venues" /></div>}
-          </div>
           <Load q={shifts}>{() => {
             const props = { rows: shown, all: rows, week, density, onOpen: (s) => setOpenId(s.id), onAdd: (date, vid) => setForm({ date, venue_id: vid }), onUnfilled: () => setUrl({ f: 'unfilled' }) };
             const none = on.length

@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-08', icon: LayoutGrid, title: 'More room for the rota', image: 'more-room',
+    lede: 'The first step in giving every page more room for the work itself. The rota grid now starts right under the tabs instead of halfway down the screen.',
+    points: ["The week picker sits beside the Rota title, and By venue / By day / By officer and the venue picker sit on the same line as the tabs", "Shift requests is now a tab beside Week, Cover and Exceptions, with its number on the tab. Old links still open it", "Unfilled, Drafts, Unconfirmed and Requests only show when there is something to look at. Tap one to filter the grid, as before", "Card size and Hide empty venues are under Display. The button shows a number when something is changed from the usual", "Every page has a slimmer title with its subtitle on the same line. The other pages follow the same pattern next"],
+  },
+  {
     month: 'November 2026', date: '2026-11-08', icon: Mail, title: 'Every email now ends with your company details', image: 'email-footer',
     lede: 'Everything the app emails, and every email you send from the built-in mailbox, now finishes with a neat company footer, so whoever receives it knows exactly who it is from.',
     points: ["The footer shows your company name, address, phone, email, company number and VAT number, all taken from Settings → Company. Change them there and the next email follows", "Anything left blank in Settings is simply left out, with no empty lines", "Automatic emails (invites, shift offers, payslips, invoices, reminders and the rest) carry it inside the card, above the small Orb line", "Emails you or Orb send from the mailbox get your logo and the footer under your message, above the quoted email when you reply. Drafts get it when they are sent"],
