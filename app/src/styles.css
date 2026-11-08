@@ -307,6 +307,55 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
 .nav-m-bars svg > path:nth-child(3) { animation-delay: 70ms !important; }
 .nav-m-bars svg > path:nth-child(2) { animation-delay: 140ms !important; }
 
+/* Cards ease in as they scroll into view (ui/motion.js startReveal); "backwards" so the press scale still works after */
+[data-reveal]:not([data-shown]) { opacity: 0; }
+[data-reveal][data-shown] { animation: tile-in .5s var(--ease-ios) backwards; animation-delay: calc(var(--i, 0) * 45ms); }
+/* Something waiting: the bar breathes a soft halo in its colour, the bell gives a small ring now and then */
+@keyframes attn-breathe { 0%, 100% { box-shadow: var(--shadow-tile), 0 0 0 0 color-mix(in srgb, var(--attn) 0%, transparent); }
+  50% { box-shadow: var(--shadow-tile), 0 0 0 4px color-mix(in srgb, var(--attn) 22%, transparent), 0 6px 22px -4px color-mix(in srgb, var(--attn) 55%, transparent); } }
+.attn-glow { border-color: color-mix(in srgb, var(--attn) 45%, transparent) !important; animation: attn-breathe 2.8s ease-in-out infinite; }
+@keyframes attn-ring { 0%, 88%, 100% { transform: rotate(0); } 90% { transform: rotate(14deg); } 92% { transform: rotate(-12deg); } 94% { transform: rotate(9deg); } 96% { transform: rotate(-6deg); } 98% { transform: rotate(3deg); } }
+.attn-bell svg { transform-origin: 50% 10%; animation: attn-ring 6s ease-in-out infinite; }
+/* Icons answer the pointer: each kind has its own small move, on hover (mouse) and on press (touch) */
+@keyframes ico-ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(7deg); } 80% { transform: rotate(-4deg); } }
+@keyframes ico-nudge { 0%, 100% { transform: none; } 50% { transform: translateX(3px); } }
+@keyframes ico-nudge-back { 0%, 100% { transform: none; } 50% { transform: translateX(-3px); } }
+@keyframes ico-rot { from { transform: rotate(0); } to { transform: rotate(90deg); } }
+@keyframes ico-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes ico-beat { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.22); } 60% { transform: scale(.94); } }
+@keyframes ico-fly { 0% { transform: none; } 45% { transform: translate(4px, -4px); opacity: 0; } 55% { transform: translate(-4px, 4px); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes ico-bob { 0%, 100% { transform: none; } 50% { transform: translateY(-2px) scale(1.08); } }
+:is(a, button, [role="button"]) svg.lucide { transform-origin: center; }
+@media (hover: hover) {
+  :is(a, button):hover :is(.lucide-bell, .lucide-bell-ring) { transform-origin: 50% 10%; animation: ico-ring .6s ease-in-out; }
+  :is(a, button):hover :is(.lucide-chevron-right, .lucide-arrow-right, .lucide-arrow-up-right, .lucide-external-link) { animation: ico-nudge .45s var(--ease-out); }
+  :is(a, button):hover :is(.lucide-chevron-left, .lucide-arrow-left) { animation: ico-nudge-back .45s var(--ease-out); }
+  :is(a, button):hover :is(.lucide-plus, .lucide-circle-plus, .lucide-settings, .lucide-settings-2, .lucide-sliders-horizontal) { animation: ico-rot .4s var(--ease-ios); }
+  :is(a, button):hover :is(.lucide-refresh-cw, .lucide-rotate-cw, .lucide-refresh-ccw) { animation: ico-spin .6s var(--ease-ios); }
+  :is(a, button):hover :is(.lucide-heart, .lucide-star, .lucide-thumbs-up, .lucide-sparkles) { animation: ico-beat .5s var(--ease-out); }
+  :is(a, button):hover :is(.lucide-send, .lucide-send-horizontal, .lucide-mail, .lucide-paper-plane) { animation: ico-fly .5s var(--ease-out); }
+  :is(a, button):hover :is(.lucide-check, .lucide-circle-check, .lucide-check-circle-2, .lucide-circle-check-big, .lucide-download, .lucide-upload, .lucide-search, .lucide-calendar, .lucide-calendar-days, .lucide-file-text, .lucide-pencil, .lucide-pencil-line, .lucide-trash-2, .lucide-users, .lucide-user) { animation: ico-bob .45s var(--ease-out); }
+}
+:is(a, button):active :is(.lucide-bell, .lucide-bell-ring) { transform-origin: 50% 10%; animation: ico-ring .5s ease-in-out; }
+:is(a, button):active :is(.lucide-plus, .lucide-circle-plus) { animation: ico-rot .3s var(--ease-ios); }
+:is(a, button):active :is(.lucide-heart, .lucide-star, .lucide-thumbs-up, .lucide-check, .lucide-circle-check) { animation: ico-beat .4s var(--ease-out); }
+:is(a, button):active :is(.lucide-send, .lucide-send-horizontal) { animation: ico-fly .45s var(--ease-out); }
+.ico-play { animation: ico-beat .5s var(--ease-out); }
+/* A count that changes pops once */
+.badge-bump { animation: pop var(--dur-3) var(--ease-ios); }
+/* Empty states float their icon gently */
+@keyframes float-soft { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.float-soft { animation: float-soft 3.6s ease-in-out infinite; }
+/* A row of cards that scrolls sideways snaps card by card; where the browser can, cards grow into place as they arrive */
+.snap-row { scroll-snap-type: x mandatory; scroll-padding-inline: 16px; }
+.snap-row > * { scroll-snap-align: start; }
+@supports (animation-timeline: view(inline)) {
+  @keyframes snap-in { from { opacity: .55; transform: scale(.93); } to { opacity: 1; transform: none; } }
+  .snap-row > * { animation: snap-in linear both; animation-timeline: view(inline); animation-range: entry 0% entry 70%; }
+}
+/* The sliding underline under a section's tabs */
+.hub-ink { transition: left var(--dur-2) var(--ease-ios), width var(--dur-2) var(--ease-ios); }
+
 /* Reduced motion: keep fades, drop movement; spinners still turn so loading stays visible */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; scroll-behavior: auto !important; }
@@ -314,6 +363,7 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
   .anim-sheet-out, .anim-drawer-out, .anim-toast-out, .anim-fade-out { animation: fade-out var(--dur-1) both !important; }
   .nav-ic svg, .nav-ic svg *, .live-dot, .skeleton, body::before, .silver-mark::after, .fb-glow, .fb-glow::before, .orb-voice-halo, .orb-voice-speaking, .orb-voice-turn { animation: none !important; }
   .pressable:active, .pressable-card:active { transform: none; }
+  [data-reveal], .attn-glow, .attn-bell svg, svg.lucide, .badge-bump, .float-soft, .snap-row > *, .ico-play { animation: none !important; opacity: 1 !important; }
 }
 
 .leaflet-container { font-family: var(--font-sans); border-radius: 16px; }
@@ -711,6 +761,7 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
   /* Flat icon tiles: one solid colour */
   [data-style="flat"] .ui-raised-icon { background-color: var(--accent-fill); color: var(--color-on-accent); }
   [data-style="flat"] .pressable-card:hover { box-shadow: var(--hover-shadow); }
+  [data-style="flat"] .attn-glow { animation: none; box-shadow: 0 0 0 2px var(--attn), var(--shadow-tile); }
   [data-style="flat"] .orb-fab { box-shadow: 0 0 0 1.5px #C9A45C, 0 4px 0 rgb(0 0 0 / 0.25); }
 
   /* The style cards in Settings: each draws its own look, whatever style the app is in */

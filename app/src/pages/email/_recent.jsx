@@ -9,7 +9,7 @@ export default function RecentEmail({ type, id, className }) {
   if (!d?.connected) return null;
   const to = d.addrs?.[0];
   return (
-    <Section title="Recent email" className={className}
+    <Section title="Recent email" icon={Mail} className={className}
       action={to && <Button size="sm" variant="link" icon={SquarePen} to={`${BASE}?compose=1&to=${encodeURIComponent(to)}`}>Write</Button>}>
       {d.threads.length ? (
         <List>

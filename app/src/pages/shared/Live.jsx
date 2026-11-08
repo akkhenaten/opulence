@@ -1,6 +1,6 @@
 import { Children, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, Clock3, FileSignature, Lock, LogOut, UserX, MapPin, MessagesSquare, Phone, QrCode, Radio, RefreshCw, TriangleAlert } from 'lucide-react';
+import { CalendarClock, CircleCheck, ClipboardList, Clock3, FileSignature, Lock, LogOut, UserCheck, UserX, Users, MapPin, MessagesSquare, Phone, QrCode, Radio, RefreshCw, TriangleAlert } from 'lucide-react';
 import {
   Avatar, Button, Callout, Dot, Empty, IconButton, Input, KV, List, Load, MoreMenu, Page, Pill, Row, Sheet, Textarea, cx, range, time, titleCase, useAction, useApi, useForm, useToast, useUrlState,
 } from '../../ui/index.jsx';
@@ -80,19 +80,19 @@ export default function Live() {
  * Only the ones with someone in them (or switched on) show; with nothing to show the row goes. */
 export function StatusChips({ rows, filter, setFilter, venue, children }) {
   const n = (k) => rows.filter(FILTERS[k]).length;
-  const chip = (k, label, tone) => {
+  const chip = (k, label, tone, icon) => {
     const c = n(k);
-    return (c > 0 || filter === k) && <Chip key={k} label={label} value={c} tone={tone} active={filter === k} onClick={() => setFilter(filter === k ? 'all' : k)} />;
+    return (c > 0 || filter === k) && <Chip key={k} label={label} value={c} tone={tone} icon={icon} compact="phone" active={filter === k} onClick={() => setFilter(filter === k ? 'all' : k)} />;
   };
   const chips = [
-    (rows.length > 0 || filter !== 'all') && <Chip key="all" label="All" value={rows.length} active={filter === 'all'} onClick={() => setFilter('all')} />,
-    chip('on', 'On site', 'green'),
-    chip('late', 'Late', 'amber'),
-    chip('no_show', 'No-show', 'red'),
-    chip('issues', 'Issues', 'red'),
-    chip('upcoming', 'Due on', 'blue'),
-    chip('done', 'Finished', 'grey'),
-    !venue && chip('pack', 'Pack not signed', 'amber'),
+    (rows.length > 0 || filter !== 'all') && <Chip key="all" label="All" value={rows.length} icon={Users} compact="phone" active={filter === 'all'} onClick={() => setFilter('all')} />,
+    chip('on', 'On site', 'green', UserCheck),
+    chip('late', 'Late', 'amber', Clock3),
+    chip('no_show', 'No-show', 'red', UserX),
+    chip('issues', 'Issues', 'red', TriangleAlert),
+    chip('upcoming', 'Due on', 'blue', CalendarClock),
+    chip('done', 'Finished', 'grey', CircleCheck),
+    !venue && chip('pack', 'Pack not signed', 'amber', FileSignature),
     ...Children.toArray(children),
   ].filter(Boolean);
   if (!chips.length) return null;

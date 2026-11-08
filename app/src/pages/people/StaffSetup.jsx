@@ -30,7 +30,7 @@ export default function StaffSetup() {
         <LinkCard q={venueLink} onChange={reload} kind="venue" label="Venue managers link" />
       </div>
       <Callout icon={Sparkles} className="mt-4">Ask Orb: “Set up the staff setup submissions”. Each one shows on a card for you to confirm.</Callout>
-      <Section title={`Officers${of('officer').length ? ` · ${of('officer').length}` : ''}`}>
+      <Section title="Officers" icon={UserPlus} count={of('officer').length}>
         <Load q={list} skeleton="rows" n={3}>
           {() => (of('officer').length ? (
             <List>
@@ -44,7 +44,7 @@ export default function StaffSetup() {
           ) : <Empty icon={UserPlus} title="Nothing waiting" body="When officers send the form, their details show here." />)}
         </Load>
       </Section>
-      <Section title={`Venue managers${of('venue').length ? ` · ${of('venue').length}` : ''}`}>
+      <Section title="Venue managers" icon={Store} count={of('venue').length}>
         <Load q={list} skeleton="rows" n={2}>
           {() => (of('venue').length ? (
             <List>

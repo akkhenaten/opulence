@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Banknote, Check as CheckIcon, Clock, Download, MessageSquare, Plus, RefreshCw, Send, Trash2 } from 'lucide-react';
+import { Banknote, CalendarDays, Check as CheckIcon, ClipboardCheck, Clock, Contact, Download, MessageSquare, Plus, RefreshCw, Send, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -81,7 +81,7 @@ export default function StatementDetail() {
             </Bento>
 
             {inRun && (
-              <Section title="Staff check" action={<Button size="sm" variant="soft" icon={Banknote} to={`${base}/pay/runs/${st.run.id}`}>Pay run · {RUN_LABEL[st.run.status]}</Button>}>
+              <Section title="Staff check" icon={ClipboardCheck} action={<Button size="sm" variant="soft" icon={Banknote} to={`${base}/pay/runs/${st.run.id}`}>Pay run · {RUN_LABEL[st.run.status]}</Button>}>
                 <Tile>
                   <div className="flex flex-wrap items-center gap-2">
                     {st.held ? <Pill status="held">Held back</Pill> : st.review_status ? <Pill status={st.review_status}>{REVIEW_LABEL[st.review_status]}</Pill> : <Pill status="draft">Not sent to staff</Pill>}
@@ -107,7 +107,7 @@ export default function StatementDetail() {
               </Section>
             )}
 
-            <Section title="Contractor">
+            <Section title="Contractor" icon={Contact}>
               <Tile>
                 <div className="mb-4 flex items-center gap-3">
                   <Avatar name={st.officer_name} size={44} />
@@ -122,7 +122,7 @@ export default function StatementDetail() {
               </Tile>
             </Section>
 
-            <Section title="Shifts worked" action={<span className="num text-footnote font-semibold">{money(shiftTotal)}</span>}>
+            <Section title="Shifts worked" icon={CalendarDays} action={<span className="num text-footnote font-semibold">{money(shiftTotal)}</span>}>
               {draft && shiftLines.length > 0 && (
                 <Callout tone={split.awaiting ? 'warning' : 'info'} icon={split.awaiting ? Clock : RefreshCw} className="mb-2">
                   Kept up to date from approved timesheets.
@@ -133,7 +133,7 @@ export default function StatementDetail() {
               <p className="mt-2 px-1 text-caption text-faint">Rate shown is the average hourly rate for the shift, including any night, weekend or bank holiday uplift.{editable && shiftLines.length ? ' Shift lines follow their timesheet — change them on the Timesheets page.' : ''}</p>
             </Section>
 
-            <Section title="Bonuses, expenses and deductions" action={editable && <Button size="sm" variant="soft" icon={Plus} onClick={() => setAdding(true)}>Add line</Button>}>
+            <Section title="Bonuses, expenses and deductions" icon={SlidersHorizontal} action={editable && <Button size="sm" variant="soft" icon={Plus} onClick={() => setAdding(true)}>Add line</Button>}>
               {!extras.length ? (
                 <div className="rounded-tile border border-dashed border-line bg-surface/60 px-4 py-6 text-center text-subhead text-muted">No adjustments</div>
               ) : (

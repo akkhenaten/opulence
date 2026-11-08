@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CalendarOff, Check, Download, Plus } from 'lucide-react';
+import { CalendarClock, CalendarOff, Check, Download, Hourglass, History, Plus, Stethoscope, Umbrella } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { Button, Chip, Empty, List, Load, MoreMenu, Page, Section, Select, addDays, isoDate, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { TIMEOFF_KINDS } from './_parts.jsx';
@@ -38,8 +38,8 @@ export default function TimeOff() {
     // Kind and the two counts the lists below don't show (off sick, starting soon) sit on the tab line
     <Page title="Time off" subtitle="Holidays, sickness and unavailability"
       tools={<>
-        {sickNow > 0 && <Chip label="Off sick" value={sickNow} tone="red" />}
-        {in14 > 0 && <Chip label="Starting in 14 days" value={in14} tone="blue" />}
+        {sickNow > 0 && <Chip label="Off sick" value={sickNow} tone="red" icon={Stethoscope} compact="phone" />}
+        {in14 > 0 && <Chip label="Starting in 14 days" value={in14} tone="blue" icon={CalendarClock} compact="phone" />}
         <div className="w-40"><Select aria-label="Kind" value={kind} onChange={(e) => setKind(e.target.value)} options={[{ value: 'all', label: 'All kinds' }, ...TIMEOFF_KINDS.map((k) => ({ value: k, label: k[0].toUpperCase() + k.slice(1) }))]} /></div>
       </>}
       actions={<><Button icon={Plus} onClick={() => setAdding(true)}>Add for officer</Button>
@@ -47,11 +47,11 @@ export default function TimeOff() {
       <Load q={q}>
         {() => (
           <>
-            <Block title="Pending" rows={groups.pending} onDone={q.reload} empty="No requests waiting"
+            <Block title="Pending" icon={Hourglass} rows={groups.pending} onDone={q.reload} empty="No requests waiting"
               action={groups.pending.length > 1 && <Button size="sm" variant="secondary" icon={Check} busy={busy} onClick={approveAll}>Approve all</Button>} />
-            <Block title="Off now" rows={groups.now} onDone={q.reload} />
-            <Block title="Upcoming" rows={groups.upcoming} onDone={q.reload} empty="Nothing approved ahead" />
-            <Block title="Recent" rows={groups.past.slice(0, 30)} onDone={q.reload} />
+            <Block title="Off now" icon={Umbrella} rows={groups.now} onDone={q.reload} />
+            <Block title="Upcoming" icon={CalendarClock} rows={groups.upcoming} onDone={q.reload} empty="Nothing approved ahead" />
+            <Block title="Recent" icon={History} rows={groups.past.slice(0, 30)} onDone={q.reload} />
           </>
         )}
       </Load>
@@ -60,10 +60,10 @@ export default function TimeOff() {
   );
 }
 
-function Block({ title, rows, onDone, empty, action }) {
+function Block({ title, icon, rows, onDone, empty, action }) {
   if (!rows.length && !empty) return null;
   return (
-    <Section title={`${title} · ${rows.length}`} action={action || undefined}>
+    <Section title={title} icon={icon} count={rows.length} action={action || undefined}>
       {rows.length ? <List>{rows.map((t) => <TimeOffRow key={t.id} t={t} onDone={onDone} showName />)}</List>
         : <Empty icon={CalendarOff} title={empty} />}
     </Section>

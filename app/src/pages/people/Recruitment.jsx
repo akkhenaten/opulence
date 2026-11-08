@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Plus, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, ShieldCheck, UserCheck } from 'lucide-react';
 import { api } from '../../api.js';
 import {
   Avatar, Button, Chip, cx, date, IconButton, Load, Page, Pill, Pressable, relative, Segmented, Sheet, Toggle, useAction, useApi, useConfirm, useMedia, useUrlState,
@@ -65,7 +65,7 @@ export default function Recruitment() {
     // The stage switch (phones and tablets) and who is ready to activate sit on the tab line; the columns carry their own counts
     <Page title="Recruitment" subtitle="From applicant to first shift" wide actions={<Button icon={Plus} onClick={() => setAdding(true)}>Add applicant</Button>}
       tools={(pipeline.data && (ready > 0 || !lg)) && <>
-        {ready > 0 && <Chip label="Ready to activate" value={ready} tone="green" onClick={lg ? undefined : () => setUrl({ stage: 'onboarding' })} />}
+        {ready > 0 && <Chip label="Ready to activate" value={ready} tone="green" icon={UserCheck} compact="phone" onClick={lg ? undefined : () => setUrl({ stage: 'onboarding' })} />}
         {!lg && <Segmented value={stage} onChange={(v) => setUrl({ stage: v })} options={STAGES.map((s) => ({ value: s.key, label: `${s.short} (${cols[s.key].length})` }))} />}
       </>}>
       <Load q={pipeline}>

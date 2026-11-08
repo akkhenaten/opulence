@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Briefcase, Building2, UserRound, Users } from 'lucide-react';
+import { Archive, Briefcase, Building2, Inbox, PencilLine, Send, Trash2, UserRound, Users } from 'lucide-react';
 import { api } from '../../api.js';
 import { cx } from '../../ui/index.jsx';
 
@@ -9,8 +9,8 @@ export const BASE = '/company/email';
 export const PROVIDER_NAME = { google: 'Gmail / Google Workspace', microsoft: 'Outlook / Microsoft 365' };
 export const PROVIDER_SHORT = { google: 'Google', microsoft: 'Microsoft' };
 export const FOLDERS = [
-  { value: 'inbox', label: 'Inbox' }, { value: 'sent', label: 'Sent' }, { value: 'drafts', label: 'Drafts' },
-  { value: 'archive', label: 'Archive' }, { value: 'trash', label: 'Bin' },
+  { value: 'inbox', label: 'Inbox', icon: Inbox }, { value: 'sent', label: 'Sent', icon: Send }, { value: 'drafts', label: 'Drafts', icon: PencilLine },
+  { value: 'archive', label: 'Archive', icon: Archive }, { value: 'trash', label: 'Bin', icon: Trash2 },
 ];
 
 // Tells the Shell to refresh the unread badge

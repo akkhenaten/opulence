@@ -1,7 +1,7 @@
 // Site packs: every venue's pack at a glance, company-wide procedures, and new documents (written or drafted by AI)
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookText, Building2, Plus, Sparkles } from 'lucide-react';
+import { Archive, BookText, Building2, Globe, Layers, Plus, Sparkles } from 'lucide-react';
 import { api } from '../../../api.js';
 import { HOME, useAuth } from '../../../auth.jsx';
 import {
@@ -35,13 +35,14 @@ export default function Procedures() {
   return (
     <Page title="Site packs" subtitle="Assignment instructions and procedures officers read and sign before working at a venue"
       actions={<>
-        <Button variant="secondary" icon={Plus} onClick={() => setSheet('new')}>New</Button>
+        <Button variant="secondary" icon={Plus} iconOnly="phone" onClick={() => setSheet('new')}>New</Button>
         <Button icon={Sparkles} onClick={() => setSheet('ai')}>Draft with AI</Button>
       </>}
       tools={<>
         <Segmented value={tab} onChange={setTab} options={[
-          { value: 'venues', label: 'Venues' }, { value: 'general', label: 'Company-wide' }, { value: 'all', label: 'All documents' }, { value: 'archived', label: 'Archived' },
-        ]} />
+          { value: 'venues', label: 'Venues', icon: Building2 }, { value: 'general', label: 'Company-wide', icon: Globe }, { value: 'all', label: 'All documents', icon: Layers },
+          { value: 'archived', label: 'Archived', icon: Archive },
+        ]} iconOnly="phone" />
         {tab !== 'venues' && <SearchInput className="min-w-0 flex-1 sm:w-56 sm:flex-none" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Search documents" />}
       </>}>
       {tab === 'venues' ? (

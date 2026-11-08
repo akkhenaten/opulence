@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Megaphone, Plus } from 'lucide-react';
 import {
   addDays, Button, cx, dateShort, dayLabel, Empty, IconButton, isoDate, Load, mondayOf, Page, Pill, Pressable, range, Segmented, Select, time, ToolField, ToolMenu, useApi, useMedia,
 } from '../../ui/index.jsx';
@@ -55,7 +55,7 @@ export default function VenueRota() {
   );
   const venuePick = <Select aria-label="Venue" value={venueId} onChange={(e) => setVenueId(e.target.value)} placeholder="All my venues" options={list.map((v) => ({ value: v.id, label: v.name }))} />;
   const tools = <>
-    <Segmented value={tab} onChange={setTab} options={[{ value: 'rota', label: 'Rota' }, { value: 'requests', label: 'Requests', count: upcoming || undefined }]} />
+    <Segmented value={tab} onChange={setTab} options={[{ value: 'rota', label: 'Rota', icon: CalendarDays }, { value: 'requests', label: 'Requests', icon: Megaphone, count: upcoming || undefined }]} />
     {tab === 'rota' && many && (wide ? <div className="w-56">{venuePick}</div> : (
       <ToolMenu count={venueId ? 1 : 0} onClear={() => setVenueId('')}><ToolField label="Venue">{venuePick}</ToolField></ToolMenu>
     ))}

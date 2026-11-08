@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, CalendarClock, CalendarDays, CalendarOff, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Hand, History, Megaphone, Newspaper, RefreshCw, Settings, ShieldAlert, ShieldCheck,
-  TrendingUp, TriangleAlert, UserX,
+  Sparkles, TrendingUp, TriangleAlert, UserX,
 } from 'lucide-react';
 import {
-  Button, Chip, IconButton, MoreMenu, Page, Pill, Stat, Tile, confirmState, cx, dayLabel, hours, isoDate, money0, range, time, useAction, useApi, useMedia, useToast,
+  AttentionDrawer, Button, Chip, IconButton, MoreMenu, Page, Pill, Stat, Tile, confirmState, cx, dayLabel, hours, isoDate, money0, range, time, useAction, useApi, useAttention, useMedia, useToast,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
@@ -159,8 +159,14 @@ function Today({ d, board, base, isCompany, lg, orb, reloadKey, onOrbChange, foc
   const setFilter = (v) => { board.setFilter(v); if (!lg) setTimeout(() => scrollTo('floor'), 50); };
   const onSite = board.rows.filter((r) => ['on_shift', 'on_break'].includes(r.state)).length;
 
-  const queue = (
-    <Inbox slim scroll={lg} compact n={orb} reloadKey={reloadKey} onChange={onOrbChange} focus={focus} title="Needs you"
+  // On phones the queue folds into one glowing bar that opens the full list, so the floor isn't pushed down the page
+  const drawer = useAttention('needs');
+  const openNeeds = () => (lg ? scrollTo('needs') : drawer.show());
+  // A link to one of Orb's cards opens the drawer on it
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (focus && !lg) drawer.show(); }, [focus, lg]);
+  const queueOf = (title) => (
+    <Inbox slim scroll={lg} compact n={orb} reloadKey={reloadKey} onChange={onOrbChange} focus={focus} title={title}
       pill={total > 0 ? <Pill tone="blue" className="num">{total}</Pill> : null}
       before={rows(['red'])} after={rows(['amber', 'blue'])}
       empty={(
@@ -169,6 +175,16 @@ function Today({ d, board, base, isCompany, lg, orb, reloadKey, onOrbChange, foc
           <p className="text-subhead font-semibold">All clear, nothing needs you right now.</p>
         </div>
       )} />
+  );
+  const queue = queueOf('Needs you');
+  const top = list[0];
+  const needsBar = (
+    <AttentionDrawer id="needs" title="Needs you" count={total}
+      tone={list.some((x) => x.tone === 'red') ? 'red' : orb > 0 ? 'blue' : top?.tone || 'blue'}
+      preview={[...list.filter((x) => x.tone === 'red'), ...(orb > 0 ? [{ icon: Sparkles, tone: 'blue' }] : []), ...list.filter((x) => x.tone !== 'red')]}
+      lead={top ? `${c[top.key]} ${c[top.key] === 1 ? top.one : top.many}${list.length > 1 || orb ? ' · and more' : ''}` : orb > 0 ? `${orb} from Orb to approve` : null}>
+      {queueOf('Orb and to-dos')}
+    </AttentionDrawer>
   );
   const floor = (
     <section id="floor" aria-label="On the floor" className="scroll-mt-20">
@@ -182,7 +198,7 @@ function Today({ d, board, base, isCompany, lg, orb, reloadKey, onOrbChange, foc
   const strip = (
     <StatusChips {...board} setFilter={setFilter}>
       {d && next.short > 0 && <Chip label="Short shifts" value={next.short} tone="red" onClick={() => scrollTo('tonight')} />}
-      {orb > 0 && <Chip label="To approve" value={orb} tone="blue" onClick={() => scrollTo('needs')} />}
+      {orb > 0 && <Chip label="To approve" value={orb} tone="blue" onClick={openNeeds} />}
     </StatusChips>
   );
 
@@ -202,7 +218,7 @@ function Today({ d, board, base, isCompany, lg, orb, reloadKey, onOrbChange, foc
         </div>
       ) : (
         <div className="space-y-6">
-          <section id="needs" aria-label="Needs you" className="scroll-mt-20">{queue}</section>
+          <section id="needs" aria-label="Needs you" className="scroll-mt-20">{needsBar}</section>
           {floor}
           <Tonight d={d} next={next} base={base} />
         </div>

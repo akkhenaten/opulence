@@ -80,7 +80,7 @@ export function Inbox({ onChange, compact, slim, scroll, n, reloadKey, title = '
     </div>
   ) : (
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Segmented value={view} onChange={(v) => { setView(v); stop(); }} options={[{ value: 'pending', label: 'To approve' }, { value: 'decided', label: 'Decided' }]} />
+        <Segmented value={view} onChange={(v) => { setView(v); stop(); }} options={[{ value: 'pending', label: 'To approve', icon: Sparkles }, { value: 'decided', label: 'Decided', icon: History }]} />
         {view === 'pending' && kinds.length > 0 && (
           <Button size="sm" variant={selecting ? 'secondary' : 'ghost'} icon={selecting ? X : ListChecks} onClick={() => (selecting ? stop() : setSelecting(true))}>{selecting ? 'Done' : 'Select'}</Button>
         )}
@@ -525,7 +525,7 @@ export default function OrbPage() {
   if (company && url.tab === 'settings') return <Navigate to={`${base}/settings?tab=orb`} replace />;
   return (
     <Page title="Orb" back={{ to: base, label: 'Today' }} subtitle="What Orb has done"
-      actions={company && <Button variant="secondary" icon={Settings} to={`${base}/settings?tab=orb`}>Orb settings</Button>}>
+      actions={company && <Button variant="secondary" icon={Settings} iconOnly="phone" to={`${base}/settings?tab=orb`}>Orb settings</Button>}>
       <Activity />
     </Page>
   );

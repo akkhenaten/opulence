@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Megaphone, MessagesSquare, Pencil, Plus, Repeat, Trash2 } from 'lucide-react';
+import { CalendarClock, History, Megaphone, MessagesSquare, Pencil, Plus, Repeat, Trash2 } from 'lucide-react';
 import {
   Button, Callout, Empty, KV, List, Load, Pill, Row, Segmented, Sheet, addDays, dayLabel, isoDate, range, relative, time,
 } from '../../ui/index.jsx';
@@ -11,7 +11,7 @@ export function CoverList({ q, many, onOpen, onNew }) {
   const now = Date.now();
   return (
     <>
-      <div className="mb-4"><Segmented value={tab} onChange={setTab} options={[{ value: 'upcoming', label: 'Upcoming' }, { value: 'past', label: 'Past' }]} /></div>
+      <div className="mb-4"><Segmented value={tab} onChange={setTab} options={[{ value: 'upcoming', label: 'Upcoming', icon: CalendarClock }, { value: 'past', label: 'Past', icon: History }]} /></div>
       <Load q={q}>{(rows) => {
         const list = rows.filter((c) => (tab === 'upcoming' ? new Date(c.ends_at) > now : new Date(c.ends_at) <= now))
           .sort((a, b) => (tab === 'upcoming' ? new Date(a.starts_at) - new Date(b.starts_at) : new Date(b.starts_at) - new Date(a.starts_at)));

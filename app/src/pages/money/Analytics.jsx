@@ -28,7 +28,7 @@ export function useRangeUrl(presets, def) {
   return { preset, range, setPreset, setDates: (patch) => setUrl(patch) };
 }
 
-/** The date range row: stays in view under the top bar, with chips that jump to each section. jumps: [{ id, label }]; children sit on the same line */
+/** The date range row: stays in view under the top bar, with chips that jump to each section. jumps: [{ id, label, icon }]; children sit on the same line */
 export function RangeBar({ r, presets, jumps, children }) {
   const bar = useRef(null);
   const jump = (id) => {
@@ -53,7 +53,7 @@ export function RangeBar({ r, presets, jumps, children }) {
       </div>
       {jumps?.length > 0 && (
         <nav aria-label="Jump to section" className="no-scrollbar -mx-[var(--px)] mt-2 flex gap-2 overflow-x-auto px-[var(--px)] py-1">
-          {jumps.map((j) => <Button key={j.id} size="sm" variant="secondary" className="shrink-0 rounded-full!" onClick={() => jump(j.id)}>{j.label}</Button>)}
+          {jumps.map((j) => <Button key={j.id} size="sm" variant="secondary" className="shrink-0 rounded-full!" icon={j.icon} onClick={() => jump(j.id)}>{j.label}</Button>)}
         </nav>
       )}
     </div>
@@ -64,8 +64,8 @@ export function RangeBar({ r, presets, jumps, children }) {
 export const Part = ({ id, ...p }) => <div id={id}><Section {...p} /></div>;
 
 const JUMPS = [
-  { id: 'a-attendance', label: 'Lateness and absence' }, { id: 'a-incidents', label: 'Incidents' },
-  { id: 'a-satisfaction', label: 'Satisfaction' }, { id: 'a-customers', label: 'Customers and staffing' },
+  { id: 'a-attendance', label: 'Lateness and absence', icon: CalendarClock }, { id: 'a-incidents', label: 'Incidents', icon: ShieldAlert },
+  { id: 'a-satisfaction', label: 'Satisfaction', icon: MessageSquareHeart }, { id: 'a-customers', label: 'Customers and staffing', icon: Users },
 ];
 
 const fig = (v, unit = '') => (v == null ? '–' : `${v}${unit}`);
@@ -142,7 +142,7 @@ function Sections({ d, base, office, venueFilter }) {
   const fb = (tone) => `${base}/feedback?status=${tone === 'complaint' ? 'open' : 'all'}${tone ? `&tone=${tone}` : ''}${venueFilter ? `&venue=${venueFilter}` : ''}`;
   return (
     <div className="space-y-2">
-      <Part id="a-attendance" title="Lateness and absence">
+      <Part id="a-attendance" title="Lateness and absence" icon={CalendarClock}>
         <Bento>
           <Tile icon={CalendarClock} title="On time"><Stat value={fig(a.on_time_pct, '%')} label={`${a.shifts} shift${a.shifts === 1 ? '' : 's'} worked`} hint={change(a, 'on_time_pct', { unit: '%' })} tone={toneOf(a, 'on_time_pct', 'up')} /></Tile>
           <Tile title="Late"><Stat value={a.late} label={a.avg_late ? `${a.avg_late} min late on average` : 'Late arrivals'} hint={change(a, 'late')} tone={toneOf(a, 'late')} /></Tile>
@@ -156,7 +156,7 @@ function Sections({ d, base, office, venueFilter }) {
         </div>
       </Part>
 
-      <Part id="a-incidents" title="Incidents">
+      <Part id="a-incidents" title="Incidents" icon={ShieldAlert}>
         <Bento>
           <Tile icon={ShieldAlert} title="Incidents" to={`${base}/incidents`}><Stat value={i.total} label="Reported" hint={change(i, 'total')} tone={toneOf(i, 'total')} /></Tile>
           <Tile title="High or critical"><Stat value={i.high} label="Serious incidents" hint={change(i, 'high')} tone={toneOf(i, 'high')} /></Tile>
@@ -172,7 +172,7 @@ function Sections({ d, base, office, venueFilter }) {
         </div>
       </Part>
 
-      <Part id="a-satisfaction" title="Satisfaction">
+      <Part id="a-satisfaction" title="Satisfaction" icon={MessageSquareHeart}>
         <Bento>
           <Tile icon={MessageSquareHeart} title="Average rating"><Stat value={s.avg == null ? '–' : `${s.avg}★`} label={`${s.ratings} rating${s.ratings === 1 ? '' : 's'}`} hint={change(s, 'avg')} tone={toneOf(s, 'avg', 'up')} /></Tile>
           <Tile title="Praise" to={fb('praise')}><Stat value={s.praise} label="Compliments" hint={change(s, 'praise')} tone={toneOf(s, 'praise', 'up')} /></Tile>
@@ -186,7 +186,7 @@ function Sections({ d, base, office, venueFilter }) {
         </div>
       </Part>
 
-      <Part id="a-customers" title="Customers and staffing">
+      <Part id="a-customers" title="Customers and staffing" icon={Users}>
         <Bento>
           <Tile icon={Users} title="Customers"><Stat value={c.total.toLocaleString('en-GB')} label={`${c.nights} night${c.nights === 1 ? '' : 's'} counted`} hint={change(c, 'total')} /></Tile>
           <Tile title="Per night"><Stat value={fig(c.avg_per_night)} label="Average customers" hint={change(c, 'avg_per_night')} /></Tile>

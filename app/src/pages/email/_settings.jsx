@@ -71,7 +71,7 @@ function SetupSection({ onChanged }) {
   const q = useApi('email.setup.get', { origin: window.location.origin });
   const changed = () => { q.reload(); onChanged(); emailChanged(); };
   return (
-    <Section title="Email sign-in setup" className="mt-0">
+    <Section title="Email sign-in setup" icon={KeyRound} className="mt-0">
       <Load q={q}>
         {(d) => (
           <div className="space-y-3">
@@ -166,12 +166,12 @@ export function EmailTab() {
               Connect Gmail, Google Workspace, Outlook or Microsoft 365 to read and answer email inside Orb. Mail stays with Google or Microsoft; Orb keeps only a short list of recent subjects so it can show email on staff, venue and client pages.
             </p>
             <SetupSection onChanged={q.reload} />
-            <Section title="Your mailbox">
+            <Section title="Your mailbox" icon={Mail} count={personal.length}>
               {personal.length
                 ? <div className="space-y-3">{personal.map((a) => <AccountCard key={a.id} a={a} onChanged={q.reload} />)}</div>
                 : <Empty icon={Mail} title="No mailbox connected" body="Sign in with Google or Microsoft. Only you will see this mailbox." action={<ConnectButtons providers={d.providers} ready={d.ready} />} />}
             </Section>
-            <Section title="Shared mailboxes">
+            <Section title="Shared mailboxes" icon={Users} count={shared.length}>
               {shared.length > 0 && <div className="mb-3 space-y-3">{shared.map((a) => <AccountCard key={a.id} a={a} onChanged={q.reload} />)}</div>}
               <Tile>
                 <div className="mb-3 flex items-start gap-3">

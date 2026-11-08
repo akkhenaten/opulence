@@ -1,6 +1,6 @@
 // My shifts as a calendar: a month grid or a week of columns, each shift a block that opens the shift page
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Crown } from 'lucide-react';
+import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Crown } from 'lucide-react';
 import { addDays, cx, IconButton, isoDate, mondayOf, Segmented, Spinner, ErrorBox, time, useApi, useUrlState, Pressable } from '../../ui/index.jsx';
 
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -47,7 +47,7 @@ export default function ShiftCalendar() {
           <Pressable press onClick={() => setAnchor(today)} className="pressable min-w-0 px-1 text-headline font-bold">{title}</Pressable>
           <IconButton icon={ChevronRight} label="Next" onClick={() => step(1)} />
         </div>
-        <Segmented value={view} onChange={setView} options={[{ value: 'month', label: 'Month' }, { value: 'week', label: 'Week' }]} />
+        <Segmented value={view} onChange={setView} iconOnly="phone" options={[{ value: 'month', label: 'Month', icon: CalendarDays }, { value: 'week', label: 'Week', icon: CalendarRange }]} />
       </div>
       {q.error && !q.data ? <ErrorBox error={q.error} retry={q.reload} /> : !q.data ? <Spinner /> : view === 'month' ? (
         <div className="overflow-hidden rounded-tile bg-surface shadow-tile">

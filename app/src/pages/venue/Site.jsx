@@ -1,4 +1,4 @@
-import { Building2, ChevronRight, MapPin, Phone } from 'lucide-react';
+import { Building2, ChevronRight, MapPin, NotebookPen, Phone, ShieldCheck, UsersRound } from 'lucide-react';
 import { Avatar, Empty, List, Load, Page, Pressable, Row, Section, Tile, useApi } from '../../ui/index.jsx';
 import { useVenue } from '../../venue.jsx';
 import { DocumentsTab } from '../money/VenueDetail.jsx';
@@ -63,16 +63,16 @@ function VenueView({ id }) {
             </div>
           </Tile>
           {v.instructions && (
-            <Tile title="Short note for officers">
+            <Tile title="Short note for officers" icon={NotebookPen}>
               <p className="whitespace-pre-wrap text-body text-muted">{v.instructions}</p>
             </Tile>
           )}
-          <Section title="Your security managers" className="mt-0">
+          <Section title="Your security managers" icon={ShieldCheck} count={v.security.length} className="mt-0">
             {v.security.length ? (
               <List>{v.security.map((u) => <Row key={u.id} left={<Avatar name={u.name} size={38} />} title={u.name} subtitle={[u.phone, u.email].filter(Boolean).join(' · ')} />)}</List>
             ) : <Empty title="No one assigned yet" body="The company office looks after your venue." />}
           </Section>
-          <Section title="Venue managers" className="mt-0">
+          <Section title="Venue managers" icon={UsersRound} count={v.contacts.length} className="mt-0">
             <List>{v.contacts.map((u) => <Row key={u.id} left={<Avatar name={u.name} size={38} />} title={u.name} subtitle={u.email} />)}</List>
           </Section>
           <div className="lg:col-span-2"><ClientPack venueId={v.id} /></div>

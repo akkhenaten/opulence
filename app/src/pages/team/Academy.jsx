@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Download, GraduationCap, Plus, Sparkles, UserPlus } from 'lucide-react';
+import { Award, BarChart3, Download, GraduationCap, Library, Plus, RotateCcw, Sparkles, UserPlus } from 'lucide-react';
 import { api, downloadText } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { Avatar, Button, cx, date, Empty, ErrorBox, List, Load, Page, Pill, Pressable, Row, Segmented, Spinner, Table, Tile, useAction, useApi } from '../../ui/index.jsx';
@@ -17,9 +17,9 @@ export default function Academy() {
   const academy = modules?.academy !== false;
   const tab = sp.get('tab') || 'records';
   const tabs = [
-    { value: 'records', label: 'Staff records' }, { value: 'refreshers', label: 'Refreshers due' },
-    ...(academy ? [{ value: 'courses', label: 'Courses' }, { value: 'results', label: 'Academy results' }] : []),
-    ...(academy && co ? [{ value: 'starter', label: 'Starter library' }] : []),
+    { value: 'records', label: 'Staff records', icon: Award }, { value: 'refreshers', label: 'Refreshers due', icon: RotateCcw },
+    ...(academy ? [{ value: 'courses', label: 'Courses', icon: GraduationCap }, { value: 'results', label: 'Academy results', icon: BarChart3 }] : []),
+    ...(academy && co ? [{ value: 'starter', label: 'Starter library', icon: Library }] : []),
   ];
   return (
     // The training views switch on the tab line, so each list starts high
@@ -99,7 +99,7 @@ function Results() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap justify-end gap-2">
-        <Button variant="secondary" icon={Download} onClick={csv}>Download CSV</Button>
+        <Button variant="secondary" icon={Download} iconOnly="phone" onClick={csv}>Download CSV</Button>
         <Button icon={UserPlus} onClick={() => setAssign(true)}>Assign training</Button>
       </div>
       <div className="overflow-x-auto rounded-tile border border-hairline bg-surface shadow-tile">

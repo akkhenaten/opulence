@@ -1,6 +1,6 @@
 // The officer's goals, notes from shared one-to-ones and pay rises sent to them
 import { useState } from 'react';
-import { Check, FileSignature, MessageSquare } from 'lucide-react';
+import { Check, FileSignature, MessageSquare, Target, TrendingUp } from 'lucide-react';
 import { api } from '../../api.js';
 import { Button, date, dateTime, Empty, Input, List, Load, money, Page, Pill, Row, Section, Tile, useAction, useApi } from '../../ui/index.jsx';
 
@@ -19,7 +19,7 @@ export default function Growth() {
         {(d) => (
           <>
             {d.agreements.length > 0 && (
-              <Section title="Pay rises">
+              <Section title="Pay rises" icon={TrendingUp} count={d.agreements.length}>
                 <List>
                   {d.agreements.map((a) => (
                     <Row key={a.id} to={`/officer/agreements/${a.id}`} left={<FileSignature size={20} className="text-blue" />}
@@ -30,7 +30,7 @@ export default function Growth() {
                 </List>
               </Section>
             )}
-            <Section title="My goals">
+            <Section title="My goals" icon={Target} count={d.goals.length}>
               {d.goals.length ? (
                 <div className="space-y-2">
                   {d.goals.map((g) => (
@@ -64,7 +64,7 @@ export default function Growth() {
                 </div>
               ) : <Empty icon={Check} title="No goals yet" body="Goals you agree with your manager in a one-to-one show here." />}
             </Section>
-            <Section title="One-to-one notes">
+            <Section title="One-to-one notes" icon={MessageSquare} count={d.meetings.length}>
               {d.meetings.length ? (
                 <div className="space-y-2">
                   {d.meetings.map((m) => (

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, CalendarDays, Flag, Hash, Newspaper, Search, X } from 'lucide-react';
+import { ArrowUp, BarChart3, Bookmark, Building2, CalendarDays, Flag, Hash, Megaphone, Newspaper, PartyPopper, Search, X } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useRealtime } from '../../realtime.js';
@@ -83,12 +83,12 @@ export function FeedBody({ lead, frame }) {
 
 const FILTERS = [
   { value: 'all', label: 'All' },
-  { value: 'announcements', label: 'Announcements' },
-  { value: 'shoutouts', label: 'Shout-outs' },
-  { value: 'events', label: 'Events' },
-  { value: 'polls', label: 'Polls' },
-  { value: 'venues', label: 'My venues' },
-  { value: 'saved', label: 'Saved' },
+  { value: 'announcements', label: 'Announcements', icon: Megaphone },
+  { value: 'shoutouts', label: 'Shout-outs', icon: PartyPopper },
+  { value: 'events', label: 'Events', icon: CalendarDays },
+  { value: 'polls', label: 'Polls', icon: BarChart3 },
+  { value: 'venues', label: 'My venues', icon: Building2 },
+  { value: 'saved', label: 'Saved', icon: Bookmark },
 ];
 
 const Pill = ({ on, onClick, children }) => (
@@ -178,7 +178,7 @@ function Stream({ sp, patch }) {
         </div>
       )}
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {FILTERS.map((f) => <Pill key={f.value} on={filter === f.value} onClick={() => patch({ filter: f.value === 'all' ? null : f.value })}>{f.label}</Pill>)}
+        {FILTERS.map((f) => <Pill key={f.value} on={filter === f.value} onClick={() => patch({ filter: f.value === 'all' ? null : f.value })}>{f.icon && <f.icon size={16} className="shrink-0" />}{f.label}</Pill>)}
       </div>
       {topic ? (
         <div className="flex items-center gap-2 rounded-tile bg-surface px-4 py-3 shadow-tile">
@@ -193,7 +193,7 @@ function Stream({ sp, patch }) {
         </div>
       )}
       {(filter === 'all' || filter === 'events') && !topic && !search && upcoming.length > 0 && (
-        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+        <div className="snap-row no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
           {upcoming.map((e) => (
             <Pressable press key={e.post_id} onClick={() => patch({ post: e.post_id })} className="w-56 shrink-0 overflow-hidden rounded-tile bg-surface text-left shadow-tile">
               {e.cover_url ? <img src={e.cover_url} alt="" className="h-24 w-full object-cover" /> : <div className="grid h-24 place-items-center bg-red-soft"><CalendarDays size={32} className="text-red" /></div>}

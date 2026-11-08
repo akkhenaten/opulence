@@ -225,12 +225,12 @@ export default function Timesheets() {
 
 function WeekStrip({ wk, health, see, filter, setFilter, isVenue }) {
   const chips = [
-    !isVenue && ['review', health.to_review, 'to review', 'amber'],
-    ['queried', health.queried, 'queried', 'red'],
-    !isVenue && ['no_clock_in', health.no_clock_in, 'no clock-in', 'red'],
-    !isVenue && ['cancelled', health.cancelled, 'cancelled with hours', 'red'],
-    ['no_rate', health.no_rate, 'without a rate', 'red'],
-    ['unpaid_late', health.unpaid_late, 'signed, not paid yet', 'amber'],
+    !isVenue && ['review', health.to_review, 'to review', 'amber', ClipboardCheck],
+    ['queried', health.queried, 'queried', 'red', MessageSquareReply],
+    !isVenue && ['no_clock_in', health.no_clock_in, 'no clock-in', 'red', Clock],
+    !isVenue && ['cancelled', health.cancelled, 'cancelled with hours', 'red', Ban],
+    ['no_rate', health.no_rate, 'without a rate', 'red', AlertTriangle],
+    ['unpaid_late', health.unpaid_late, 'signed, not paid yet', 'amber', HandCoins],
   ].filter((c) => c && c[1] > 0);
   // One line by default (the totals); Show breakdown opens the full strip with what still needs doing
   const [full, setFull] = useState(false);
@@ -257,10 +257,10 @@ function WeekStrip({ wk, health, see, filter, setFilter, isVenue }) {
       {see.pay && <Total label="Officer pay" value={money(wk.pay)} />}
       {chips.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 sm:ml-auto">
-          {chips.map(([f, n, label, tone]) => (
+          {chips.map(([f, n, label, tone, Icon]) => (
             <Pressable key={f} press onClick={() => setFilter(filter === f ? 'all' : f)}
-              className={cx('min-h-9 rounded-full px-3 py-1.5 text-footnote font-semibold', tone === 'red' ? 'bg-red-soft text-red' : 'bg-amber-soft text-amber', filter === f && 'ring-2 ring-current')}>
-              <span className="num">{n}</span> {label}
+              className={cx('inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 py-1.5 text-footnote font-semibold', tone === 'red' ? 'bg-red-soft text-red' : 'bg-amber-soft text-amber', filter === f && 'ring-2 ring-current')}>
+              <Icon size={14} className="shrink-0" /><span className="num">{n}</span> {label}
             </Pressable>
           ))}
         </div>

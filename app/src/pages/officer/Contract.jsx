@@ -27,7 +27,7 @@ export default function Contract() {
     <Page title={LABEL[c?.category] || 'Contract'} back={{ to: '/officer/me', label: 'Me' }}
       actions={c && <>
         <Pill tone={STATUS[c.status]?.[1]}>{STATUS[c.status]?.[0]}</Pill>
-        {c.status !== 'sent' && <Button variant="secondary" icon={Download} busy={busy} onClick={() => run(() => downloadAction('contracts.pdf', { id })).catch(() => {})}>PDF</Button>}
+        {c.status !== 'sent' && <Button variant="secondary" icon={Download} iconOnly="phone" busy={busy} onClick={() => run(() => downloadAction('contracts.pdf', { id })).catch(() => {})}>PDF</Button>}
       </>}>
       <Load q={q}>
         {(x) => <SignFlow d={contractFlow(x)} pdf={['contracts.pdf', { id }]} onSigned={q.reload}

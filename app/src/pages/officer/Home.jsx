@@ -7,7 +7,7 @@ import {
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Button, cx, date, dateShort, dayLabel, daysUntil, List, Load, money, Page, range, relative, Row, Section, Tile, time, useAction, useApi, usePullRefresh,
+  AttentionDrawer, Avatar, Button, cx, date, dateShort, dayLabel, daysUntil, List, Load, money, Page, range, relative, Row, Section, Tile, time, useAction, useApi, useMedia, usePullRefresh,
 } from '../../ui/index.jsx';
 import { useModules } from '../learn/_parts.jsx';
 import { ChaseBanner, useOps } from './_ops.jsx';
@@ -89,6 +89,25 @@ function Body({ d, clock, ops, reload }) {
   const packs = packTodos(useApi('venuePacks.myList', {}).data?.venues);
   const addFor = (kind) => `/officer/documents${kind ? `?add=${kind}` : ''}`;
   const paid = freshStatement(d.lastStatement);
+  const todo = useToDo(d, packs);
+  // Phones: the shifts to answer and the to-do list fold into one glowing bar, so the page stays short
+  const lg = useMedia('(min-width: 1024px)');
+  const tone = todo.some((r) => r.tone === 'red') ? 'red' : ask.length ? 'amber' : todo.some((r) => r.tone === 'amber') ? 'amber' : 'blue';
+
+  const answer = ask.length > 0 && (
+    <Section title="Needs your answer" icon={CalendarClock} count={ask.length}>
+      <div className="space-y-2.5">
+        {ask.map((s) => (
+          <ShiftCard key={s.assignment_id} s={s} status="Please respond" statusTone="amber" className="border-amber/30">
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Button variant="secondary" size="lg" icon={X} onClick={() => setDeclining(s)}>Decline</Button>
+              <Button size="lg" icon={Check} busy={busy} onClick={() => accept(s)}>Accept</Button>
+            </div>
+          </ShiftCard>
+        ))}
+      </div>
+    </Section>
+  );
 
   // The next shift comes first; everything else waiting on the officer sits under it as one line each
   return (
@@ -124,20 +143,21 @@ function Body({ d, clock, ops, reload }) {
         </List>
       )}
 
-      {ask.length > 0 && (
-        <Section title={`Needs your answer · ${ask.length}`}>
-          <div className="space-y-2.5">
-            {ask.map((s) => (
-              <ShiftCard key={s.assignment_id} s={s} status="Please respond" statusTone="amber" className="border-amber/30">
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <Button variant="secondary" size="lg" icon={X} onClick={() => setDeclining(s)}>Decline</Button>
-                  <Button size="lg" icon={Check} busy={busy} onClick={() => accept(s)}>Accept</Button>
-                </div>
-              </ShiftCard>
-            ))}
+      {lg ? (
+        <>
+          {answer}
+          <ToDo rows={todo} />
+        </>
+      ) : (ask.length + todo.length > 0 && (
+        <AttentionDrawer id="todo" title="To do" count={ask.length + todo.length} tone={tone}
+          preview={[...(ask.length ? [{ icon: CalendarClock, tone: 'amber' }] : []), ...todo]}
+          lead={ask.length ? `${ask.length} shift${ask.length === 1 ? '' : 's'} waiting for your answer` : todo[0]?.title}>
+          <div className="space-y-5 [&>*]:!mt-0">
+            {answer}
+            <ToDo rows={todo} />
           </div>
-        </Section>
-      )}
+        </AttentionDrawer>
+      ))}
 
       {confirmed.length > 1 && (
         <Section title="Also confirmed">
@@ -149,7 +169,6 @@ function Body({ d, clock, ops, reload }) {
 
       <OpenShifts />
       <Weekend shifts={next} />
-      <ToDo d={d} packs={packs} />
       <DeclineSheet s={declining} phone={d.office_phone} onClose={() => setDeclining(null)} onDone={() => { setDeclining(null); reload(); }} />
     </div>
   );
@@ -262,8 +281,8 @@ function OpenShifts() {
 const TODO_TONE = { red: 'bg-red text-white', amber: 'bg-amber text-white', blue: 'bg-blue text-white', grey: 'bg-faint text-white' };
 const Ico = ({ icon: I, tone }) => <span className={cx('grid h-8 w-8 place-items-center rounded-lg', TODO_TONE[tone])}><I size={18} /></span>;
 
-// Everything waiting on the officer in one list; each row opens the place to finish it
-function ToDo({ d, packs }) {
+// Everything waiting on the officer, one row each; each row opens the place to finish it
+function useToDo(d, packs) {
   const m = useModules();
   const tasks = useApi('onboarding.tasks', {});
   const contracts = useApi('contracts.list', {});
@@ -287,9 +306,13 @@ function ToDo({ d, packs }) {
   (tasks.data || []).filter((t) => !t.done && !(signing && t.code === 'contract')).forEach((t) => rows.push(t.office
     ? { k: `o${t.code}`, icon: ListChecks, tone: 'grey', title: t.title, sub: 'Waiting on the office' }
     : { k: `o${t.code}`, to: t.to, icon: ListChecks, tone: 'blue', title: t.title, sub: 'Getting set up' }));
+  return rows;
+}
+
+function ToDo({ rows }) {
   if (!rows.length) return null;
   return (
-    <Section title={`To do · ${rows.length}`}>
+    <Section title="To do" icon={ListChecks} count={rows.length}>
       <List>
         {rows.map((r) => <Row key={r.k} to={r.to} left={<Ico icon={r.icon} tone={r.tone} />} title={r.title} subtitle={r.sub} className={cx(!r.to && 'opacity-70')} />)}
       </List>

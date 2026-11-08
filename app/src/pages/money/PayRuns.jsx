@@ -1,7 +1,7 @@
 // Pay runs: draft → staff review → finalised → issued → paid. Officers check their statement; queries are resolved here.
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, Banknote, Check as CheckIcon, CircleDot, Clock, FileText, RefreshCw, Lock, MessageSquare, Pause, Receipt, Send, ShieldCheck, Trash2 } from 'lucide-react';
+import { AlertTriangle, Banknote, CalendarDays, Check as CheckIcon, CircleDot, Clock, FileText, RefreshCw, Lock, MessageSquare, Pause, Receipt, Send, ShieldCheck, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -29,7 +29,7 @@ export function RunsList({ reloadKey }) {
   const base = useBase();
   const runs = useApi('payRuns.list', { limit: 12, _k: reloadKey });
   return (
-    <Section title="Pay runs">
+    <Section title="Pay runs" icon={Banknote}>
       <Load q={runs} skeleton="rows" n={3}>
         {(rows) => (!rows.length ? <Empty icon={Banknote} title="No pay runs yet" body="A draft run opens by itself as soon as a timesheet is approved." /> : (
           <List>
@@ -136,7 +136,7 @@ function Detail({ isCo }) {
             )}
 
             {r.disputes.length > 0 && (
-              <Section title="Pay queries">
+              <Section title="Pay queries" icon={MessageSquare} count={r.disputes.length}>
                 <List>
                   {r.disputes.map((d) => (
                     <div key={d.id} className="px-4 py-3">
@@ -165,7 +165,7 @@ function Detail({ isCo }) {
             )}
 
             {held.length > 0 && (
-              <Section title="Held back">
+              <Section title="Held back" icon={Pause} count={held.length}>
                 <List>
                   {held.map((s) => (
                     <Row key={s.id} left={<Pause size={18} className="text-amber" />} title={s.officer_name} subtitle={`${money(s.total)} · did not respond`}
@@ -182,7 +182,7 @@ function Detail({ isCo }) {
               </Callout>
             )}
 
-            <Section title="Statements">
+            <Section title="Statements" icon={FileText} count={r.statements.length}>
               {!r.statements.length ? <Empty icon={FileText} title="No statements in this run" /> : (
                 <List>
                   {r.statements.map((s) => (
@@ -197,14 +197,14 @@ function Detail({ isCo }) {
             </Section>
 
             {lines.length > 0 && (
-              <Section title="Shifts by day" action={<span className="num text-footnote font-semibold">{money(lines.reduce((a, l) => a + Number(l.amount || 0), 0))}</span>}>
+              <Section title="Shifts by day" icon={CalendarDays} action={<span className="num text-footnote font-semibold">{money(lines.reduce((a, l) => a + Number(l.amount || 0), 0))}</span>}>
                 <DayLines lines={lines} periodStart={r.status === 'draft' ? r.period_start : null} showState={r.status === 'draft'} who={(l) => l.officer_name}
                   onRow={(l) => nav(`${base}/pay/${l.statement_id}`)} />
               </Section>
             )}
 
             {isCo && (
-              <Section title="Invoices" action={<Button size="sm" variant="soft" icon={Receipt} to={invoicesLink(base, r.invoices)}>Invoices</Button>}>
+              <Section title="Invoices" icon={Receipt} action={<Button size="sm" variant="soft" icon={Receipt} to={invoicesLink(base, r.invoices)}>Invoices</Button>}>
                 {!r.invoices.length ? <p className="px-1 text-subhead text-muted">No invoices share shifts with this run yet.</p> : (
                   <List>
                     {r.invoices.map((i) => <Row key={i.id} to={`${base}/invoices/${i.id}`} chevron title={i.venue_name} subtitle={i.number || 'Draft'} right={<div className="flex items-center gap-2"><span className="num font-semibold">{money(i.gross)}</span><Pill status={i.status} /></div>} />)}

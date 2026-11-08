@@ -1,7 +1,7 @@
 // Venue feedback: the office sees every venue it covers and replies; a venue sees its own feedback and the replies
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Globe, MessageSquareHeart, Plus, Reply, Star } from 'lucide-react';
+import { CheckCircle2, CircleDot, Globe, MessageSquareHeart, Plus, Reply, Star } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
@@ -81,7 +81,7 @@ export function FeedbackList({ venueId, fixedVenue, onChanged, give: giveOpen, o
   const multi = venues.length > 1;
   const changed = (!wide && !!f.tone) + (multi && !!f.venue_id) + !!f.about;
   const tools = frame && <>
-    {mgr && <Segmented value={f.status || 'all'} onChange={(v) => setF('status', v)} options={STATUS.map((o) => (o.value === 'all' ? { ...o, label: 'All' } : o))} />}
+    {mgr && <Segmented value={f.status || 'all'} onChange={(v) => setF('status', v)} options={STATUS.map((o) => (o.value === 'all' ? { ...o, label: 'All' } : { ...o, icon: o.value === 'open' ? CircleDot : CheckCircle2 }))} />}
     {wide && typePick}
     <ToolMenu count={changed} onClear={() => { setUrl({ about: '', ...(!wide && { tone: '' }), ...(mgr && multi && { venue: '' }) }); if (!mgr && multi) shared.setVenueId(''); }}>
       {!wide && <ToolField label="Type">{typePick}</ToolField>}

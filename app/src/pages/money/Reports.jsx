@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, BarChart3, Clock, Fingerprint, PoundSterling, ShieldAlert, TrendingUp } from 'lucide-react';
+import { AlertTriangle, BarChart3, Building2, Clock, Fingerprint, PoundSterling, ShieldAlert, TrendingUp, Users } from 'lucide-react';
 import {
   Bento, Empty, ErrorBox, List, Page, Pill, Row, Section, Segmented, Spinner, Stat, Table, Tile, date, dateShort, daysUntil, hours, money, money0, titleCase, useApi,
 } from '../../ui/index.jsx';
@@ -8,8 +8,8 @@ import { Part, RangeBar, useRangeUrl } from './Analytics.jsx';
 
 const SEV = ['critical', 'high', 'medium', 'low'];
 const JUMPS = [
-  { id: 'r-money', label: 'Money' }, { id: 'r-hours', label: 'Hours worked' }, { id: 'r-incidents', label: 'Incidents' },
-  { id: 'r-proof', label: 'Clock-in proof' }, { id: 'r-overdue', label: 'Overdue invoices' },
+  { id: 'r-money', label: 'Money', icon: PoundSterling }, { id: 'r-hours', label: 'Hours worked', icon: Clock }, { id: 'r-incidents', label: 'Incidents', icon: ShieldAlert },
+  { id: 'r-proof', label: 'Clock-in proof', icon: Fingerprint }, { id: 'r-overdue', label: 'Overdue invoices', icon: AlertTriangle },
 ];
 
 export default function Reports() {
@@ -41,7 +41,7 @@ function ProofSection({ q }) {
   const [by, setBy] = useState('officers');
   const share = (n, d) => (d ? `${Math.round((n / d) * 100)}%` : '–');
   return (
-    <Part id="r-proof" title="Clock-in proof" action={<Segmented value={by} onChange={setBy} options={[{ value: 'officers', label: 'Officers' }, { value: 'venues', label: 'Venues' }]} />}>
+    <Part id="r-proof" title="Clock-in proof" icon={Fingerprint} action={<Segmented value={by} onChange={setBy} iconOnly="phone" options={[{ value: 'officers', label: 'Officers', icon: Users }, { value: 'venues', label: 'Venues', icon: Building2 }]} />}>
       <Wait q={q}>
         {(d) => {
           const rows = d[by];
@@ -85,7 +85,7 @@ function MoneySection({ q, overdue, hrs }) {
         <Tile title="Overdue" icon={AlertTriangle} to="/company/invoices?status=overdue"><Stat value={money0(od)} label={`${(overdue.data || []).length} invoices`} tone={od ? 'red' : undefined} hint="Today, any period" /></Tile>
       </Bento>
 
-      <Section title="Margin by venue">
+      <Section title="Margin by venue" icon={BarChart3}>
         <Wait q={q}>
           {(data) => (!data.length ? <Empty icon={BarChart3} title="No invoiced hours in this period" body="Margin is based on invoice lines. Generate invoices to see it here." /> : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_3fr]">
@@ -127,7 +127,7 @@ function HoursSection({ q }) {
   }, [q.data]);
   const fmt = (n) => num(n).toLocaleString('en-GB', { maximumFractionDigits: 0 });
   return (
-    <Part id="r-hours" title="Hours worked">
+    <Part id="r-hours" title="Hours worked" icon={Clock}>
       <Wait q={q}>
         {() => (!weeks.length ? <Empty icon={Clock} title="No hours in this period" /> : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -142,7 +142,7 @@ function HoursSection({ q }) {
 
 function IncidentsSection({ q }) {
   return (
-    <Part id="r-incidents" title="Incidents">
+    <Part id="r-incidents" title="Incidents" icon={ShieldAlert}>
       <Wait q={q}>
         {(d) => {
           const total = d.byType.reduce((a, r) => a + num(r.n), 0);
@@ -175,7 +175,7 @@ function IncidentsSection({ q }) {
 
 function OverdueSection({ q }) {
   return (
-    <Part id="r-overdue" title="Overdue invoices">
+    <Part id="r-overdue" title="Overdue invoices" icon={AlertTriangle}>
       <Wait q={q}>
         {(rows) => (!rows.length ? <Empty icon={PoundSterling} title="Nothing overdue" body="All issued invoices are within their payment terms." /> : (
           <List>

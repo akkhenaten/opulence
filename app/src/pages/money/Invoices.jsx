@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Download, FileText, ReceiptText, RefreshCw, Send } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, FileText, Hourglass, Landmark, ReceiptText, RefreshCw, Send } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
@@ -48,9 +48,9 @@ function CompanyInvoices() {
   const more = <Select aria-label="More statuses" className="w-40" value={MAIN.includes(status) ? '' : status} placeholder="More…"
     onChange={(e) => setF({ status: e.target.value || 'all' })} options={[{ value: 'void', label: 'Void' }, { value: 'credit', label: 'Credit notes' }]} />;
   const tools = <>
-    {out.length > 0 && <Chip label={`outstanding · ${out.length}`} value={money(sum(out))} tone="blue" />}
-    {overdue.length > 0 && <Chip label="overdue" value={money(sum(overdue))} tone="red" active={status === 'overdue'} onClick={() => setF({ status: status === 'overdue' ? 'all' : 'overdue' })} />}
-    {paidMonth.length > 0 && <Chip label="paid this month" value={money(sum(paidMonth))} tone="green" />}
+    {out.length > 0 && <Chip label={`outstanding · ${out.length}`} value={money(sum(out))} tone="blue" icon={Hourglass} compact="phone" />}
+    {overdue.length > 0 && <Chip label="overdue" value={money(sum(overdue))} tone="red" icon={AlertTriangle} compact="phone" active={status === 'overdue'} onClick={() => setF({ status: status === 'overdue' ? 'all' : 'overdue' })} />}
+    {paidMonth.length > 0 && <Chip label="paid this month" value={money(sum(paidMonth))} tone="green" icon={CheckCircle2} compact="phone" />}
     <Segmented value={status} onChange={(v) => setF({ status: v })} options={[
       { value: 'all', label: 'All' }, { value: 'draft', label: 'Draft', count: c('draft') }, { value: 'issued', label: 'Issued' },
       { value: 'overdue', label: 'Overdue', count: c('overdue') }, { value: 'paid', label: 'Paid' },
@@ -162,7 +162,7 @@ function PayTo() {
   const s = useApi('settings.get').data;
   if (!s?.bank_account) return null;
   return (
-    <Section title="How to pay">
+    <Section title="How to pay" icon={Landmark}>
       <Tile>
         <KV items={[['Account name', s.company_name], ['Bank', s.bank_name], ['Sort code', <span className="num">{s.bank_sort_code}</span>], ['Account', <span className="num">{s.bank_account}</span>], ['Reference', 'The invoice number']]} />
       </Tile>
@@ -179,8 +179,8 @@ function VenueInvoices() {
   const overdue = rows.filter((i) => i.status === 'overdue');
   // The totals are chips beside the switch, so the list starts high
   const tools = <>
-    {out.length > 0 && <Chip label={`to pay · ${out.length}`} value={money(sum(out))} tone="blue" active={show === 'outstanding'} onClick={() => setShow(show === 'outstanding' ? 'all' : 'outstanding')} />}
-    {overdue.length > 0 && <Chip label="overdue" value={money(sum(overdue))} tone="red" />}
+    {out.length > 0 && <Chip label={`to pay · ${out.length}`} value={money(sum(out))} tone="blue" icon={Hourglass} compact="phone" active={show === 'outstanding'} onClick={() => setShow(show === 'outstanding' ? 'all' : 'outstanding')} />}
+    {overdue.length > 0 && <Chip label="overdue" value={money(sum(overdue))} tone="red" icon={AlertTriangle} compact="phone" />}
     <Segmented value={show} onChange={setShow} options={[
       { value: 'all', label: 'All' }, { value: 'outstanding', label: 'To pay', count: out.length }, { value: 'paid', label: 'Paid' }, { value: 'credit', label: 'Credit notes' },
     ]} />

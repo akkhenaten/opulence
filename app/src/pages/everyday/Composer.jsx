@@ -206,7 +206,7 @@ export default function Composer({ rulesAccepted, onPosted, post, onCancel, auto
           {kinds.map((k) => (
             <Pressable press key={k.id} onClick={() => setKind(k.id)}
               className={cx('flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-footnote font-semibold', kind === k.id ? 'bg-blue text-white' : 'bg-bg text-muted')}>
-              <k.icon size={15} /> {k.label}
+              <k.icon size={16} /> {k.label}
             </Pressable>
           ))}
         </div>

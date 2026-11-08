@@ -5,7 +5,7 @@ import { useImperativeHandle, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowRightLeft, Ban, BookOpen, Camera, Check, Clock3, Crown, DoorOpen, EyeOff, FilePen, FileSignature, HeartPulse, Hammer, LockOpen, MapPin, Megaphone,
-  MessagesSquare, Navigation, Pencil, Phone, Plus, MessageSquareHeart, Scale, ShieldAlert, ShoppingBag, Undo2, Users, X,
+  MessagesSquare, Navigation, NotebookPen, Pencil, Phone, Plus, MessageSquareHeart, Scale, ShieldAlert, ShoppingBag, Undo2, Users, X,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -153,7 +153,7 @@ function Body({ d, reload, role, live, preview }) {
       <div className="space-y-5">
         <Team team={team} venue={venue} />
         {!venue || d.bans.length || tonight.length ? (
-          <Section title="Ejections & bans" action={me.can_write && !signed && <Button size="sm" variant="soft" icon={Plus} onClick={() => setBanning(true)}>Log ejection</Button>}>
+          <Section title="Ejections & bans" icon={Ban} action={me.can_write && !signed && <Button size="sm" variant="soft" icon={Plus} onClick={() => setBanning(true)}>Log ejection</Button>}>
             {proposed.length > 0 && me.can_curate && <p className="mb-2 text-footnote font-semibold text-amber">{proposed.length} waiting for you to confirm</p>}
             {tonight.length > 0 && (
               <div className="mb-4">
@@ -166,7 +166,7 @@ function Body({ d, reload, role, live, preview }) {
           </Section>
         ) : null}
         {officer && started && (
-          <Section title="Toolbox">
+          <Section title="Toolbox" icon={BookOpen}>
             <div className="grid grid-cols-3 gap-2">
               {TOOLBOX.map((t) => (
                 <Button key={t.cat} variant="plain" to={`/officer/learn/toolbox?cat=${t.cat}`} className="!h-auto flex-col !gap-1.5 rounded-tile bg-surface !py-3 shadow-tile">
@@ -294,7 +294,7 @@ function ReportTiles({ s, preview }) {
   const drafts = useApi('incidents.drafts', {}, { skip: preview });
   const mine = (drafts.data || []).filter((x) => x.shift_id === s.id);
   return (
-    <Section title="Report an incident" action={w !== 'open' && <span className="text-footnote text-muted">{w === 'early' ? 'Opens 1 hour before your shift' : 'Reporting closed after 30 days'}</span>}>
+    <Section title="Report an incident" icon={ShieldAlert} action={w !== 'open' && <span className="text-footnote text-muted">{w === 'early' ? 'Opens 1 hour before your shift' : 'Reporting closed after 30 days'}</span>}>
       {mine.map((x) => (
         <Pressable key={x.id} press to={`/officer/incidents/new?draft=${x.id}`} className="mb-2 flex items-center gap-3 rounded-tile bg-amber-soft p-3 text-left">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber text-white"><FilePen size={18} /></span>
@@ -362,7 +362,7 @@ function InstructionsCard({ d, reload }) {
   const nameOf = (id) => team.find((m) => m.user_id === id)?.name || 'one officer';
   if (!me.can_instruct && !sent.length) return null;
   return (
-    <Section title="Instructions">
+    <Section title="Instructions" icon={Megaphone}>
       {me.can_instruct ? (
         <div className="rounded-tile bg-surface p-3 shadow-tile">
           <Textarea rows={2} maxLength={500} placeholder="e.g. Close the side door at 23:00 and send the queue to the front" value={text} onChange={(e) => setText(e.target.value)} />
@@ -411,7 +411,7 @@ function HandoverBlock({ d, onAdd }) {
   const mine = d.entries.filter((e) => e.kind === 'handover' && e.state === 'kept');
   if (!prev && !mine.length && !onAdd) return null;
   return (
-    <Section title="Handover">
+    <Section title="Handover" icon={ArrowRightLeft}>
       <div className="rounded-tile bg-surface p-4 shadow-tile">
         <div className="flex items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><ArrowRightLeft size={20} /></span>
@@ -505,7 +505,7 @@ function CustomersCard({ d, reload }) {
 
 function Team({ team, venue }) {
   return (
-    <Section title={`On this shift · ${team.length}`}>
+    <Section title="On this shift" icon={Users} count={team.length}>
       {!team.length ? <p className="text-subhead text-muted">Nobody booked yet.</p> : (
         <div className="divide-y divide-sep overflow-hidden rounded-tile bg-surface shadow-tile">
           {team.map((m) => (
@@ -543,7 +543,7 @@ function LogSection({ d, reload, composer }) {
   };
 
   return (
-    <Section title="Shift log" action={(
+    <Section title="Shift log" icon={NotebookPen} action={(
       <div className="flex items-center gap-2">
         {removed > 0 && me.can_curate && <Button size="sm" variant="ghost" icon={EyeOff} onClick={() => setShowRemoved((v) => !v)}>{showRemoved ? 'Hide removed' : `${removed} removed`}</Button>}
         {signed && me.access === 'mgr' && <Button size="sm" variant="ghost" icon={LockOpen} onClick={reopen} disabled={busy}>Reopen</Button>}

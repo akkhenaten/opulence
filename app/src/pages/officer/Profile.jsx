@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Award, Camera, MessageSquareText, Plus, Smartphone, Trash2 } from 'lucide-react';
+import { Award, Camera, Contact, HeartPulse, Landmark, MessageSquareText, Plus, Receipt, ShieldCheck, Smartphone, Trash2, Wallet } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { ActionBar, Avatar, Button, date, Input, KV, List, Load, Page, Pill, Pressable, Row, Section, Tile, titleCase, Toggle, useAction, useApi, useDirtyGuard } from '../../ui/index.jsx';
@@ -82,7 +82,7 @@ function Editor({ o, reload, notes }) {
         </div>
       </div>
 
-      <Section title="Contact">
+      <Section title="Contact" icon={Contact}>
         <Tile>
           <div className="space-y-3">
             <Input label="Name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} hint={nameBad ? 'Enter your name' : 'As it appears on your SIA licence'} />
@@ -97,7 +97,7 @@ function Editor({ o, reload, notes }) {
         </Tile>
       </Section>
 
-      <Section title="Tax">
+      <Section title="Tax" icon={Receipt}>
         <Tile>
           <div className="space-y-3">
             <Input label="National Insurance number" autoCapitalize="characters" placeholder="QQ123456C" value={v.ni_number} onChange={set('ni_number')} hint={niBad ? 'This does not look like an NI number' : undefined} />
@@ -106,7 +106,7 @@ function Editor({ o, reload, notes }) {
         </Tile>
       </Section>
 
-      <Section title="Bank">
+      <Section title="Bank" icon={Landmark}>
         <Tile>
           <div className="space-y-3">
             <Input label="Bank name" value={v.bank_name} onChange={set('bank_name')} />
@@ -119,7 +119,7 @@ function Editor({ o, reload, notes }) {
         </Tile>
       </Section>
 
-      <Section title="Emergency contacts" action={contacts.length < 3 && <Button size="sm" variant="ghost" icon={Plus} onClick={() => setContacts((c) => [...c, { name: '', relationship: '', phone: '' }])}>Add</Button>}>
+      <Section title="Emergency contacts" icon={HeartPulse} count={contacts.length} action={contacts.length < 3 && <Button size="sm" variant="ghost" icon={Plus} onClick={() => setContacts((c) => [...c, { name: '', relationship: '', phone: '' }])}>Add</Button>}>
         <div className="space-y-2">
           {contacts.map((c, i) => (
             <Tile key={i}>
@@ -143,7 +143,7 @@ function Editor({ o, reload, notes }) {
         <Button busy={busy} disabled={sortBad || acctBad || nameBad} onClick={save}>Save changes</Button>
       </ActionBar>
 
-      <Section title="Licence and right to work">
+      <Section title="Licence and right to work" icon={ShieldCheck}>
         <Tile>
           <KV items={[
             ['SIA licence', o.sia_number],
@@ -160,7 +160,7 @@ function Editor({ o, reload, notes }) {
       <MyPhone />
 
       {o.rates?.length > 0 && (
-        <Section title="My pay rates">
+        <Section title="My pay rates" icon={Wallet} count={o.rates.length}>
           <List>
             {o.rates.map((r) => <Row key={r.id} title={r.role_name} subtitle={[r.venue_name || 'All venues', `from ${date(r.effective_from)}`].join(' · ')} right={<span className="num font-semibold">£{Number(r.rate).toFixed(2)}/h</span>} />)}
           </List>
@@ -168,7 +168,7 @@ function Editor({ o, reload, notes }) {
       )}
 
       {notes.length > 0 && (
-        <Section title="From the office">
+        <Section title="From the office" icon={MessageSquareText} count={notes.length}>
           <List>
             {notes.map((n) => (
               <div key={n.id} className="px-4 py-3">
@@ -200,7 +200,7 @@ function MyPhone() {
   const closeRegister = () => { setRegistering(false); if (sp.get('phone')) setSp({}, { replace: true }); };
   const setConsent = (on) => run(() => api('officers.faceConsent', { consent: on }), on ? 'Face check allowed' : 'Face check turned off').then(q.reload).catch(() => {});
   return (
-    <Section title="Clock-in phone">
+    <Section title="Clock-in phone" icon={Smartphone}>
       <Load q={q}>
         {(d) => (
           <Tile>

@@ -1,7 +1,7 @@
 // Venue → Instructions & procedures: the venue's pack in order, AI drafting from the site's facts and the client's documents, and the signing register
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowDown, ArrowUp, BookText, CheckCircle2, Download, FileText, MessageSquare, PenLine, Plus, Sparkles, Upload } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookText, CalendarCheck, CheckCircle2, Download, EyeOff, FileText, ListOrdered, MessageSquare, PenLine, Plus, Sparkles, Upload } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { HOME, useAuth } from '../../auth.jsx';
 import {
@@ -36,10 +36,10 @@ export default function VenuePackTab({ venueId }) {
         return (
           <div className="space-y-6">
             <div className="flex flex-wrap gap-2">
-              <Chip value={d.counts.booked} label="booked" />
-              <Chip value={d.counts.ok} label="up to date" tone={d.counts.ok ? 'green' : 'grey'} />
-              <Chip value={d.counts.action} label="still to sign" tone={d.counts.action ? 'red' : 'grey'} />
-              {d.open_suggestions > 0 && <Chip value={d.open_suggestions} label="suggested changes" tone="blue" />}
+              <Chip value={d.counts.booked} label="booked" icon={CalendarCheck} compact="phone" />
+              <Chip value={d.counts.ok} label="up to date" tone={d.counts.ok ? 'green' : 'grey'} icon={CheckCircle2} compact="phone" />
+              <Chip value={d.counts.action} label="still to sign" tone={d.counts.action ? 'red' : 'grey'} icon={PenLine} compact="phone" />
+              {d.open_suggestions > 0 && <Chip value={d.open_suggestions} label="suggested changes" tone="blue" icon={MessageSquare} compact="phone" />}
             </div>
 
             {!instr && (
@@ -58,8 +58,8 @@ export default function VenuePackTab({ venueId }) {
               </div>
             )}
 
-            <Section title="In the pack, in reading order" action={<div className="flex gap-1.5">
-              {instr && <Button size="sm" variant="secondary" icon={Sparkles} onClick={() => setSheet('ai')}>Redraft with AI</Button>}
+            <Section title="In the pack, in reading order" icon={ListOrdered} count={d.pack.length} action={<div className="flex gap-1.5">
+              {instr && <Button size="sm" variant="secondary" icon={Sparkles} iconOnly="phone" onClick={() => setSheet('ai')}>Redraft with AI</Button>}
               <Button size="sm" icon={Plus} onClick={() => setSheet('new')}>Procedure</Button>
             </div>}>
               {d.pack.length ? (
@@ -88,7 +88,7 @@ export default function VenuePackTab({ venueId }) {
             </Section>
 
             {off.length > 0 && (
-              <Section title="Not in the pack">
+              <Section title="Not in the pack" icon={EyeOff} count={off.length}>
                 <List>
                   {off.map((x) => (
                     <Row key={x.id} onClick={() => edit(x.id)} title={x.title}
@@ -227,7 +227,7 @@ export function Register({ venueId }) {
   const exp = (format) => run(() => downloadAction('venuePacks.export', { venue_id: venueId, format })).catch(() => {});
   const t = term.trim().toLowerCase();
   return (
-    <Section title="Signing register" action={<div className="flex gap-1.5">
+    <Section title="Signing register" icon={PenLine} action={<div className="flex gap-1.5">
       <Button size="sm" variant="secondary" icon={Download} busy={busy} onClick={() => exp('pdf')}>PDF</Button>
       <Button size="sm" variant="secondary" icon={Download} busy={busy} onClick={() => exp('csv')}>CSV</Button>
     </div>}>
@@ -272,7 +272,7 @@ export function Register({ venueId }) {
 function Suggestions({ venueId, onOpen }) {
   const q = useApi('venuePacks.suggestions', { venue_id: venueId });
   return (
-    <Section title="Suggested changes">
+    <Section title="Suggested changes" icon={MessageSquare}>
       <Load q={q} skeleton="rows">{({ suggestions }) => (
         <List>
           {suggestions.filter((s) => s.status === 'open').map((s) => (

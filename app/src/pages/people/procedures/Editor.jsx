@@ -1,7 +1,7 @@
 // One instructions or procedure document: write (or ask AI to change) the draft, see it as officers will, publish, and look back at versions
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Archive, ArrowUp, CheckCircle2, History, MessageSquare, RotateCcw, Send, Sparkles, Trash2, Undo2 } from 'lucide-react';
+import { Archive, ArrowUp, CheckCircle2, Eye, History, MapPin, MessageSquare, PenLine, RotateCcw, Send, Sparkles, Trash2, Undo2 } from 'lucide-react';
 import { api } from '../../../api.js';
 import { HOME, useAuth } from '../../../auth.jsx';
 import {
@@ -96,7 +96,7 @@ function Editor({ p, reload, remount }) {
       {p.status === 'archived' && <p className="rounded-2xl bg-bg p-3 text-footnote text-muted">Archived: it is in no venue pack. Signed versions are kept for the record.</p>}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Segmented className="lg:hidden" value={view} onChange={setView} options={[{ value: 'write', label: 'Write' }, { value: 'preview', label: 'Preview' }]} />
+        <Segmented className="lg:hidden" value={view} onChange={setView} options={[{ value: 'write', label: 'Write', icon: PenLine }, { value: 'preview', label: 'Preview', icon: Eye }]} iconOnly="phone" />
         <span className="text-footnote text-muted">{ro ? '' : { dirty: 'Unsaved changes…', saving: 'Saving…', saved: unpublished ? 'Draft saved' : 'Up to date', error: 'Not saved' }[state]}</span>
         <span className="flex-1" />
         {gaps > 0 && <Pill tone="amber">{gaps} to confirm</Pill>}
@@ -126,16 +126,16 @@ function Editor({ p, reload, remount }) {
 
       {p.scope === 'general'
         ? <Where p={p} ro={ro} reload={reload} />
-        : <Section title="Where it is used"><List><Row title="This venue's pack only" subtitle="Order and the register are on the venue page" to={`${base}/venues/${p.venue_id}?tab=pack`} /></List></Section>}
+        : <Section title="Where it is used" icon={MapPin}><List><Row title="This venue's pack only" subtitle="Order and the register are on the venue page" to={`${base}/venues/${p.venue_id}?tab=pack`} /></List></Section>}
 
       {p.suggestions.length > 0 && (
-        <Section title="Suggested changes">
+        <Section title="Suggested changes" icon={MessageSquare} count={p.suggestions.length}>
           <div className="space-y-2">{p.suggestions.map((s) => <Suggestion key={s.id} s={s} reload={reload} />)}</div>
         </Section>
       )}
 
       {p.versions.length > 0 && (
-        <Section title="Published versions">
+        <Section title="Published versions" icon={History} count={p.versions.length}>
           <List>
             {p.versions.map((v) => (
               <Row key={v.version} onClick={() => setVersion(v.version)} left={<History size={18} className="text-muted" />}
@@ -216,7 +216,7 @@ function Where({ p, ro, reload }) {
   const off = p.venues.filter((v) => v.excluded);
   const save = (patch) => run(() => api('procedures.save', { id: p.id, ...patch }), 'Saved').then(reload).catch(() => {});
   return (
-    <Section title="Where it is used">
+    <Section title="Where it is used" icon={MapPin}>
       <div className="space-y-3 rounded-tile bg-surface p-4 shadow-tile">
         <Toggle checked={p.applies_all} onChange={(all) => !ro && save(all ? { applies_all: true } : { applies_all: false, venue_ids: chosen })}
           label="Every venue" hint={p.applies_all ? 'Including venues added later' : 'Only the venues chosen below'} />

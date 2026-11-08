@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarPlus, Check, CheckCircle2, Eye, Lock, Users, XCircle } from 'lucide-react';
+import { CalendarPlus, Check, CheckCircle2, CircleHelp, Eye, Lock, Users, XCircle } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { Avatar, Button, cx, Input, Load, Pressable, relative, Segmented, Sheet, useAction, useApi, useConfirm, useToast } from '../../ui/index.jsx';
@@ -169,7 +169,7 @@ function addToCalendar(post) {
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
-const ANSWERS = [{ value: 'going', label: 'Going' }, { value: 'maybe', label: 'Maybe' }, { value: 'no', label: "Can't go" }];
+const ANSWERS = [{ value: 'going', label: 'Going', icon: CheckCircle2 }, { value: 'maybe', label: 'Maybe', icon: CircleHelp }, { value: 'no', label: "Can't go", icon: XCircle }];
 
 /** Date block, place, who's going, RSVP, add to calendar; managers edit or cancel */
 export function EventCard({ post, onUpdate, onEdit, onPerson }) {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Copy, Download, ExternalLink, Mail, MessageCircleWarning, Phone } from 'lucide-react';
+import { Bug, CheckCircle2, Copy, Download, ExternalLink, Lightbulb, Mail, MessageCircleWarning, MessageSquare, Phone, Settings, Sparkles } from 'lucide-react';
 import { api, downloadText } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
@@ -28,16 +28,16 @@ export default function Platform() {
 
   // The tab switch, counters and inbox filters sit on one line, so the inbox starts high
   const s = list.data?.stats;
-  const chip = (label, n, tone, active, onClick) => (n > 0 || active) && <Chip label={label} value={n ?? 0} tone={tone} active={active} onClick={onClick} />;
-  const kindSwitch = <Segmented value={f.kind} onChange={set('kind')} options={[{ value: '', label: 'All' }, { value: 'problem', label: 'Problems' }, { value: 'idea', label: 'Ideas' }]} />;
+  const chip = (label, n, tone, icon, active, onClick) => (n > 0 || active) && <Chip label={label} value={n ?? 0} tone={tone} icon={icon} compact="phone" active={active} onClick={onClick} />;
+  const kindSwitch = <Segmented value={f.kind} onChange={set('kind')} options={[{ value: '', label: 'All' }, { value: 'problem', label: 'Problems', icon: Bug }, { value: 'idea', label: 'Ideas', icon: Lightbulb }]} />;
   const tools = <>
     <Segmented value={tab} onChange={(t) => setSp(t === 'feedback' ? {} : { tab: t }, { replace: true })}
-      options={[{ value: 'feedback', label: 'Feedback' }, { value: 'settings', label: 'Settings' }]} />
+      options={[{ value: 'feedback', label: 'Feedback', icon: MessageSquare }, { value: 'settings', label: 'Settings', icon: Settings }]} />
     {tab === 'feedback' && <>
-      {chip('New', s?.new, 'blue', f.status === 'new', () => set('status')(f.status === 'new' ? 'open' : 'new'))}
-      {chip('Problems this week', s?.problems_week, 'red', f.kind === 'problem', () => set('kind')(f.kind === 'problem' ? '' : 'problem'))}
-      {chip('Ideas this week', s?.ideas_week, 'amber', f.kind === 'idea', () => set('kind')(f.kind === 'idea' ? '' : 'idea'))}
-      {chip('Fixed this month', s?.fixed_month, 'green', f.status === 'fixed', () => set('status')(f.status === 'fixed' ? 'open' : 'fixed'))}
+      {chip('New', s?.new, 'blue', Sparkles, f.status === 'new', () => set('status')(f.status === 'new' ? 'open' : 'new'))}
+      {chip('Problems this week', s?.problems_week, 'red', Bug, f.kind === 'problem', () => set('kind')(f.kind === 'problem' ? '' : 'problem'))}
+      {chip('Ideas this week', s?.ideas_week, 'amber', Lightbulb, f.kind === 'idea', () => set('kind')(f.kind === 'idea' ? '' : 'idea'))}
+      {chip('Fixed this month', s?.fixed_month, 'green', CheckCircle2, f.status === 'fixed', () => set('status')(f.status === 'fixed' ? 'open' : 'fixed'))}
       <SearchInput className="w-full sm:w-56" value={f.search} onChange={(e) => set('search')(e.target.value)} placeholder="Search text, name or screen" />
       {wide && kindSwitch}
       <ToolMenu count={(f.status !== 'open') + !!f.role + (!wide && !!f.kind)} onClear={() => setF((x) => ({ ...x, status: 'open', role: '', ...(!wide && { kind: '' }) }))}>
@@ -50,7 +50,7 @@ export default function Platform() {
 
   return (
     <Page title="Platform" subtitle="Only you can see this — platform admin" wide tools={tools}
-      actions={tab === 'feedback' && <Button variant="secondary" size="sm" icon={Download} busy={busy} onClick={exportCsv}>Export CSV</Button>}>
+      actions={tab === 'feedback' && <Button variant="secondary" size="sm" icon={Download} iconOnly="phone" busy={busy} onClick={exportCsv}>Export CSV</Button>}>
       {tab === 'settings' ? <PlatformSettings /> : <Inbox list={list} />}
     </Page>
   );

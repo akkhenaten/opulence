@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { FilePen, FilePlus2, FileSignature, FileUp, ScrollText, Search, Trash2 } from 'lucide-react';
+import { FilePen, FilePlus2, FileSignature, FileUp, ScrollText, Search, Send, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
 import { dateTime, Select, Empty, IconButton, List, Load, Page, Pill, Progress, Row, SearchInput, Segmented, ToolField, ToolMenu, useAction, useApi, useConfirm, useMedia } from '../../ui/index.jsx';
 import { ContractRow } from './_profileTabs.jsx';
@@ -52,7 +52,7 @@ function PolicySummary({ rows }) {
   );
 }
 
-const VIEWS = [{ value: 'issued', label: 'Issued' }, { value: 'drafts', label: 'Drafts' }];
+const VIEWS = [{ value: 'issued', label: 'Issued', icon: Send }, { value: 'drafts', label: 'Drafts', icon: FilePen }];
 
 /** Contracts being drafted in the workspace, not sent yet */
 function Drafts() {
@@ -109,7 +109,7 @@ export default function StaffContracts() {
   const statusSwitch = <Segmented value={status} onChange={setStatus} options={FILTERS} />;
   const changed = !!category + !!source + (!wide && !!status);
   const tools = <>
-    <Segmented value={view} onChange={(x) => setParams(x === 'drafts' ? { view: x } : {}, { replace: true })} options={VIEWS} />
+    <Segmented value={view} onChange={(x) => setParams(x === 'drafts' ? { view: x } : {}, { replace: true })} options={VIEWS} iconOnly="phone" />
     {view === 'issued' && <>
       <SearchInput className="min-w-0 flex-1 sm:w-56 sm:flex-none" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search officers or contracts" />
       <div className="hidden sm:block">{statusSwitch}</div>

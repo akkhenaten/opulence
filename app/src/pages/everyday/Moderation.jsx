@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { EyeOff, ShieldCheck, Sparkles } from 'lucide-react';
+import { EyeOff, Flag, PauseCircle, ShieldCheck, Sparkles } from 'lucide-react';
 import { api } from '../../api.js';
 import { Button, Empty, Load, Pressable, relative, Section, Sheet, Spinner, Tile, useAction, useApi } from '../../ui/index.jsx';
 import PostCard from './PostCard.jsx';
@@ -27,7 +27,7 @@ export default function Moderation({ onChanged }) {
       <Load q={q} skeleton="rows">
         {({ reports, hidden, mutes }) => (
           <div className="space-y-6">
-            <Section title={`Reports to check (${reports.length})`}>
+            <Section title="Reports to check" icon={Flag} count={reports.length}>
               {!reports.length ? <Empty icon={ShieldCheck} title="Nothing to check" body="Reports from staff and posts Orb AI flags will appear here." /> : (
                 <div className="space-y-3">
                   {reports.map((r) => (
@@ -52,7 +52,7 @@ export default function Moderation({ onChanged }) {
               )}
             </Section>
 
-            <Section title="Hidden from staff">
+            <Section title="Hidden from staff" icon={EyeOff} count={hidden.length}>
               {!hidden.length ? <p className="px-1 text-subhead text-muted">Nothing hidden.</p> : (
                 <div className="space-y-2">
                   {hidden.map((h) => (
@@ -69,7 +69,7 @@ export default function Moderation({ onChanged }) {
               )}
             </Section>
 
-            <Section title="Paused from posting">
+            <Section title="Paused from posting" icon={PauseCircle} count={mutes.length}>
               {!mutes.length ? <p className="px-1 text-subhead text-muted">Nobody is paused.</p> : (
                 <div className="space-y-2">
                   {mutes.map((m) => (

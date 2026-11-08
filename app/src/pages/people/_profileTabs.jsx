@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Award, BadgeCheck, BellRing, CalendarClock, CalendarOff, Check, ClipboardList, Clock, Eye, FileSignature, FileText, MessageSquare, Pencil, Plus, ShieldCheck, ShieldOff, Smartphone, Star, Trash2, ScrollText, Upload, X,
+  AlertTriangle, Award, Ban, BadgeCheck, BellRing, CalendarClock, CalendarOff, Check, ClipboardList, Clock, Contact, Eye, FileSignature, FileText, Landmark, MessageSquare, Pencil, Plus, PoundSterling, ReceiptText, ShieldCheck, ShieldOff, Smartphone, Star, Target, Trash2, ScrollText, Upload, UserRound, Users, X,
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
@@ -39,7 +39,7 @@ export function OverviewTab({ o, reload, isCo }) {
   const hasBank = 'bank_account' in o;
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <Tile title="Personal details" className="lg:col-span-2">
+      <Tile title="Personal details" icon={UserRound} className="lg:col-span-2">
         <KV items={[
           ['Full name', o.name],
           ['Email', o.email],
@@ -53,7 +53,7 @@ export function OverviewTab({ o, reload, isCo }) {
         ]} />
         {o.notes && <div className="mt-4 rounded-2xl bg-bg p-3 text-subhead whitespace-pre-wrap"><span className="mb-1 block text-caption font-semibold uppercase tracking-wide text-faint">Notes</span>{o.notes}</div>}
       </Tile>
-      <Tile title="Emergency contacts" pad={false} action={isCo && <Button size="sm" variant="ghost" onClick={() => setEditContacts(true)}>Edit</Button>}>
+      <Tile title="Emergency contacts" icon={Contact} pad={false} action={isCo && <Button size="sm" variant="ghost" onClick={() => setEditContacts(true)}>Edit</Button>}>
         {o.emergency_contacts?.length ? (
           <div className="divide-y divide-line">
             {o.emergency_contacts.map((c) => (
@@ -64,12 +64,12 @@ export function OverviewTab({ o, reload, isCo }) {
       </Tile>
       <PhoneTile o={o} />
       {hasTax && (
-        <Tile title="Tax">
+        <Tile title="Tax" icon={ReceiptText}>
           <KV items={[['NI number', o.ni_number], ['UTR', o.utr]]} />
         </Tile>
       )}
       {hasBank && (
-        <Tile title="Bank details" className="lg:col-span-2">
+        <Tile title="Bank details" icon={Landmark} className="lg:col-span-2">
           <KV items={[['Bank', o.bank_name], ['Sort code', <span className="num">{o.bank_sort_code}</span>], ['Account number', <span className="num">{o.bank_account}</span>]]} />
         </Tile>
       )}
@@ -246,11 +246,11 @@ export function ComplianceTab({ o, reload, isCo, user }) {
         </Tile>
       </Bento>
       {c.issues?.length > 0 && (
-        <Tile title="Issues" className="bg-red-soft">
+        <Tile title="Issues" icon={AlertTriangle} className="bg-red-soft">
           <ul className="space-y-1 text-subhead font-semibold text-red">{c.issues.map((i) => <li key={i}>{i}</li>)}</ul>
         </Tile>
       )}
-      <Section title="Venue bans" action={isCo && <Button size="sm" variant="ghost" icon={Plus} onClick={() => setBan(true)}>Add ban</Button>}>
+      <Section title="Venue bans" icon={Ban} count={o.bans?.length} action={isCo && <Button size="sm" variant="ghost" icon={Plus} onClick={() => setBan(true)}>Add ban</Button>}>
         {o.bans?.length ? (
           <List>
             {o.bans.map((b) => (
@@ -432,7 +432,7 @@ function OfficerPacks({ officerId }) {
   const d = q.data;
   if (!d || (!d.venues.length && !d.signings.length)) return null;
   return (
-    <Section title="Site packs">
+    <Section title="Site packs" icon={FileSignature}>
       <List>
         {d.venues.map((v) => <Row key={v.venue_id} title={v.name} subtitle="Current status at this venue" right={<PackPill status={v.status} />} />)}
         {d.signings.map((g) => (
@@ -579,7 +579,7 @@ export function ShiftsTab({ o, onForbidden }) {
   const today = isoDate();
   return (
     <>
-      <Segmented className="mb-4" value={view} onChange={setView} options={[{ value: 'upcoming', label: 'Upcoming' }, { value: 'hours', label: 'Hours worked' }]} />
+      <Segmented className="mb-4" value={view} onChange={setView} options={[{ value: 'upcoming', label: 'Upcoming', icon: CalendarClock }, { value: 'hours', label: 'Hours worked', icon: Clock }]} />
       {view === 'upcoming' ? <Upcoming o={o} from={today} onForbidden={onForbidden} /> : <Worked o={o} from={addDays(today, -90)} onForbidden={onForbidden} />}
     </>
   );
@@ -1093,7 +1093,7 @@ export function AttendanceTab({ o, onForbidden }) {
             <Tile title="Venue rating"><Stat value={d.avg_rating == null ? '—' : `${d.avg_rating}/5`} label="Average" hint={`${d.ratings.length} rating${d.ratings.length === 1 ? '' : 's'}`} tone={d.avg_rating != null && d.avg_rating < 3 ? 'red' : undefined} /></Tile>
           </Bento>
 
-          <Section title="Lates and absences">
+          <Section title="Lates and absences" icon={Clock} count={d.events.length}>
             {d.events.length ? (
               <List>{d.events.map((e) => {
                 const [label, tone] = ATT_KIND[e.kind] || [titleCase(e.kind), 'grey'];
@@ -1117,7 +1117,7 @@ export function AttendanceTab({ o, onForbidden }) {
             ) : <Empty icon={Clock} title="No lates or absences" body="Orb records lates, no-shows and early finishes here automatically." />}
           </Section>
 
-          <Section title="Venue ratings">
+          <Section title="Venue ratings" icon={Star} count={d.ratings.length}>
             {d.ratings.length ? (
               <List>{d.ratings.map((r, i) => (
                 <div key={i} className="px-4 py-3">
@@ -1252,7 +1252,7 @@ export function GrowthTab({ o, isCo, roles, onForbidden }) {
           </div>
           <Goals goals={d.goals} onDone={q.reload} />
           {d.can_see_pay && <Agreements rows={d.agreements} isCo={isCo} onDone={q.reload} />}
-          <Section title="Meetings">
+          <Section title="Meetings" icon={Users} count={d.meetings.length}>
             {d.meetings.length ? (
               <List>
                 {d.meetings.map((m) => (
@@ -1278,7 +1278,7 @@ function Goals({ goals, onDone }) {
   const status = (g, s) => run(() => api('goals.setStatus', { id: g.id, status: s }), (r) => (r.applied ? 'Goal met · pay rise applied' : `Goal marked ${GOAL_LABEL[s].toLowerCase()}`)).then(onDone).catch(() => {});
   const add = (g) => run(() => api('goals.addNote', { goal_id: g.id, body: note[g.id] }), 'Note added').then(() => { setNote((n) => ({ ...n, [g.id]: '' })); onDone(); }).catch(() => {});
   return (
-    <Section title="Goals">
+    <Section title="Goals" icon={Target} count={goals.length}>
       {goals.length ? (
         <div className="space-y-2">
           {goals.map((g) => (
@@ -1329,7 +1329,7 @@ function Agreements({ rows, isCo, onDone }) {
   const pdf = (a) => run(() => downloadAction('payAgreements.pdf', { id: a.id })).catch(() => {});
   if (!rows.length) return null;
   return (
-    <Section title="Pay rises">
+    <Section title="Pay rises" icon={PoundSterling} count={rows.length}>
       <List>
         {rows.map((a) => (
           <div key={a.id} className="px-4 py-3">

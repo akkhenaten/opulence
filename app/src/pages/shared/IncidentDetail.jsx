@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Download, Eye, FilePlus, FileText, History, ImagePlus, MessageSquareReply, MessagesSquare, Pencil, RefreshCw, RotateCcw, Sparkles, Trash2, X,
+  AlertTriangle, CheckCircle2, Download, Eye, FilePlus, FileText, History, ImagePlus, Images, MessageSquareReply, MessagesSquare, Pencil, RefreshCw, RotateCcw, Siren, Sparkles, Trash2, Users, X,
 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -31,8 +31,8 @@ export default function IncidentDetail() {
   const [office, asking] = useOfficeChat(base);
   return (
     <Page title={q.data?.ref || 'Incident'} subtitle={q.data && `${typeLabel(q.data.type)} · ${q.data.venue_name}`} back={{ to: `${base}/incidents`, label: 'Incidents' }}
-      actions={q.data && <>{user.role === 'venue' && <Button variant="secondary" icon={MessagesSquare} busy={asking} onClick={() => office(q.data.venue_id, `About incident ${q.data.ref}: `)}>Ask the office</Button>}
-        <Button variant="secondary" icon={Download} busy={busy} onClick={pdf}>PDF</Button></>}>
+      actions={q.data && <>{user.role === 'venue' && <Button variant="secondary" icon={MessagesSquare} iconOnly="phone" busy={asking} onClick={() => office(q.data.venue_id, `About incident ${q.data.ref}: `)}>Ask the office</Button>}
+        <Button variant="secondary" icon={Download} iconOnly="phone" busy={busy} onClick={pdf}>PDF</Button></>}>
       <Load q={q}>{(inc) => <Detail inc={inc} reload={q.reload} base={base} />}</Load>
     </Page>
   );
@@ -78,15 +78,15 @@ function Detail({ inc, reload, base }) {
           ]} />
         </Tile>
 
-        <Section title="What happened" className="!mt-4"><Tile><p className="whitespace-pre-line text-body leading-relaxed">{inc.description}</p></Tile></Section>
+        <Section title="What happened" icon={FileText} className="!mt-4"><Tile><p className="whitespace-pre-line text-body leading-relaxed">{inc.description}</p></Tile></Section>
 
         {(inc.people_involved || inc.injuries) && (
-          <Section title="People" className="!mt-4">
+          <Section title="People" icon={Users} className="!mt-4">
             <Tile><KV items={[['People involved', inc.people_involved && <span className="whitespace-pre-line">{inc.people_involved}</span>], ['Injuries', inc.injuries ? <span className="whitespace-pre-line">{inc.injuries}</span> : 'None recorded']]} /></Tile>
           </Section>
         )}
 
-        <Section title="Actions and emergency services" className="!mt-4">
+        <Section title="Actions and emergency services" icon={Siren} className="!mt-4">
           <Tile>
             <KV items={[
               ['Actions taken', inc.actions_taken && <span className="whitespace-pre-line">{inc.actions_taken}</span>],
@@ -99,7 +99,7 @@ function Detail({ inc, reload, base }) {
         </Section>
 
         {inc.witnesses.length > 0 && (
-          <Section title={`Witnesses (${inc.witnesses.length})`} className="!mt-4">
+          <Section title="Witnesses" icon={Eye} count={inc.witnesses.length} className="!mt-4">
             <List>
               {inc.witnesses.map((w) => (
                 <div key={w.id} className="px-4 py-3">
@@ -123,7 +123,7 @@ function Detail({ inc, reload, base }) {
         {isMgr && <ReviewPanel inc={inc} reload={reload} prefill={prefill} clearPrefill={() => setPrefill(null)} />}
         {isMgr && inc.attachments.length > 0 && <EvidenceReview inc={inc} onRequest={(text) => setPrefill(text)} />}
         {inc.versions.length > 0 && (
-          <Section title="History" className="!mt-0 lg:!mt-0">
+          <Section title="History" icon={History} className="!mt-0 lg:!mt-0">
             <List>
               {[...inc.versions].reverse().map((v) => (
                 <Row key={v.id} left={<History size={18} className="text-muted" />} title={`Version ${v.version}${v.version === 1 ? ' (original)' : ''}`}
@@ -225,7 +225,7 @@ function Attachments({ inc, images, files, canAdd, reload, openImage }) {
   const meta = (a) => [fileSize(a.size_bytes), a.uploaded_by_name, dateTime(a.created_at)].filter(Boolean).join(' · ');
   const full = inc.attachments.length + uploads.items.length >= MAX_FILES;
   return (
-    <Section title={`Photos and files (${inc.attachments.length})`} className="!mt-4"
+    <Section title="Photos and files" icon={Images} count={inc.attachments.length} className="!mt-4"
       action={canAdd && !full && (
         <div className="flex gap-1">
           <Button size="sm" variant="ghost" icon={ImagePlus} onClick={() => lib.current?.click()}>Photo</Button>

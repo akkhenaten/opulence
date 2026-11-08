@@ -1,6 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Bell, Building2, ImageUp, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Newspaper, Percent, Plus, ReceiptText, ShieldCheck, Smartphone, Trash2, UserPlus, Users } from 'lucide-react';
+import {
+  BadgeCheck, Bell, Building2, Camera, FileSignature, ImageUp, Inbox, Library, Mail, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Newspaper, Percent, Plus,
+  PoundSterling, ReceiptText, Scale, ShieldCheck, Smartphone, Sparkles, Trash2, UserPlus, Users,
+} from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -19,16 +22,16 @@ import { OpsSettings } from '../manager/OpsAI.jsx';
 import { AccessFields, InviteSheet, inviteStatus, USER_ROLES } from './_access.jsx';
 
 const TABS = [
-  { value: 'company', label: 'Company' }, { value: 'users', label: 'Users & access' }, { value: 'rules', label: 'Workforce rules' },
-  { value: 'templates', label: 'Templates & contracts' }, { value: 'notifications', label: 'Notifications & email' }, { value: 'orb', label: 'Orb' },
-  { value: 'demos', label: 'Demo requests' },
+  { value: 'company', label: 'Company', icon: Building2 }, { value: 'users', label: 'Users & access', icon: KeyRound }, { value: 'rules', label: 'Workforce rules', icon: Scale },
+  { value: 'templates', label: 'Templates & contracts', icon: FileSignature }, { value: 'notifications', label: 'Notifications & email', icon: Bell }, { value: 'orb', label: 'Orb', icon: Sparkles },
+  { value: 'demos', label: 'Demo requests', icon: Inbox },
 ];
 // Older links used these tab names; library and email are now a part of a shared tab
 const OLD_TAB = { calendar: 'rules', contracts: 'templates', account: 'company', library: 'templates', email: 'notifications' };
 const OLD_PART = { library: 'library', email: 'email' };
 const PARTS = {
-  templates: [{ value: 'esign', label: 'Templates' }, { value: 'library', label: 'Contract library' }],
-  notifications: [{ value: 'alerts', label: 'Notifications' }, { value: 'email', label: 'Email' }],
+  templates: [{ value: 'esign', label: 'Templates', icon: FileSignature }, { value: 'library', label: 'Contract library', icon: Library }],
+  notifications: [{ value: 'alerts', label: 'Notifications', icon: Bell }, { value: 'email', label: 'Email', icon: Mail }],
 };
 
 // Forms with unsaved edits mark themselves here, so switching tab asks first
@@ -713,15 +716,15 @@ function RulesTab() {
   const settings = useApi('settings.get');
   return (
     <>
-    <Section title="Pay, timesheets and uplifts" className="mt-0">
+    <Section title="Pay, timesheets and uplifts" icon={PoundSterling} className="mt-0">
       <Load q={settings}>{(s) => <SettingsForm s={s} keys={RULE_KEYS} onSaved={(d) => settings.setData(d)}>{(b) => <RuleFields b={b} />}</SettingsForm>}</Load>
     </Section>
-    <Section title="Clock-in proof">
+    <Section title="Clock-in proof" icon={Camera}>
       <Load q={settings}>{(s) => <ClockProofTile s={s} onSaved={(d) => settings.setData(d)} />}</Load>
     </Section>
     <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-5">
       <div className="min-w-0 lg:col-span-2">
-        <Section title="Roles and requirements" className="mt-0">
+        <Section title="Roles and requirements" icon={BadgeCheck} className="mt-0">
           <Load q={roles}>
             {(rows) => (
               <List>
@@ -738,7 +741,7 @@ function RulesTab() {
         {editing && <RoleSheet role={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); roles.reload(); }} />}
       </div>
       <div className="min-w-0 lg:col-span-3">
-        <Section title="Bank holidays" className="mt-0" action={<Pressable press className="text-footnote font-semibold text-blue" onClick={() => setShowPast((x) => !x)}>{showPast ? 'Hide past' : 'Show past'}</Pressable>}>
+        <Section title="Bank holidays" icon={CalendarDays} className="mt-0" action={<Pressable press className="text-footnote font-semibold text-blue" onClick={() => setShowPast((x) => !x)}>{showPast ? 'Hide past' : 'Show past'}</Pressable>}>
           <Tile className="mb-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <Input label="Date" type="date" className="sm:w-44" {...bind('day')} />

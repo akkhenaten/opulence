@@ -6,7 +6,7 @@ import {
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Button, cx, date, dateShort, Input, List, Load, Page, Pill, Row, Section, Sheet, useAction, useApi, useConfirm,
+  AttentionDrawer, Avatar, Button, cx, date, dateShort, Input, List, Load, Page, Pill, Row, Section, Sheet, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { NotificationsSheet } from './_notify.jsx';
 import { InstallSheet, usePwa } from '../../ui/pwa.jsx';
@@ -101,8 +101,15 @@ export default function Me() {
                 <ul className="mt-2 space-y-0.5 px-1 text-footnote font-medium text-red">{c.issues.map((i) => <li key={i}>{i}</li>)}</ul>
               )}
 
+              {/* Phones: what needs doing folds into one glowing bar; from lg up it stays on the page */}
+              {toSign.length + toFix.length + openTasks.length > 0 && (
+                <AttentionDrawer id="attention" title="Needs your attention" className="mt-6 lg:hidden"
+                  count={toSign.length + toFix.length + openTasks.length} tone={toSign.length + toFix.length ? 'amber' : 'blue'}
+                  preview={[...(toSign.length ? [{ icon: FileSignature, tone: 'amber' }] : []), ...(toFix.length ? [{ icon: ShieldAlert, tone: 'amber' }] : []), ...(openTasks.length ? [{ icon: ListChecks, tone: 'blue' }] : [])]}
+                  lead={toSign[0] ? `Sign: ${toSign[0].title}` : toFix.length ? 'An incident report needs changes' : `${openTasks.length} set-up step${openTasks.length === 1 ? '' : 's'} left`}>
+                  <div className="[&>*:first-child]:!mt-0">
               {(toSign.length > 0 || toFix.length > 0) && (
-                <Section title="Needs your attention">
+                <Section title="Needs your attention" icon={ShieldAlert}>
                   <List>
                     {toSign.map((x) => (
                       <Row key={x.id} to={`/officer/contracts/${x.id}`} left={<Ico icon={FileSignature} tone="amber" />} title={x.title} subtitle={`Sent ${dateShort(x.created_at)} · Tap to read and sign`} />
@@ -115,7 +122,7 @@ export default function Me() {
               )}
 
               {openTasks.length > 0 && (
-                <Section title="Getting set up">
+                <Section title="Getting set up" icon={ListChecks}>
                   <List>
                     {(tasks.data || []).map((t) => (
                       <Row key={t.code} to={!t.done && !t.office ? t.to : undefined} left={t.done ? <CircleCheck size={24} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
@@ -126,6 +133,38 @@ export default function Me() {
                   <p className="mt-2 px-1 text-footnote text-muted"><ListChecks size={14} className="mr-1 inline" />Tap an item to finish it. Ticks appear as soon as it's done.</p>
                 </Section>
               )}
+
+                  </div>
+                </AttentionDrawer>
+              )}
+              <div className="hidden lg:block">
+              {(toSign.length > 0 || toFix.length > 0) && (
+                <Section title="Needs your attention" icon={ShieldAlert}>
+                  <List>
+                    {toSign.map((x) => (
+                      <Row key={x.id} to={`/officer/contracts/${x.id}`} left={<Ico icon={FileSignature} tone="amber" />} title={x.title} subtitle={`Sent ${dateShort(x.created_at)} · Tap to read and sign`} />
+                    ))}
+                    {toFix.map((x) => (
+                      <Row key={x.id} to={`/officer/incidents/${x.id}`} left={<Ico icon={ShieldAlert} tone="amber" />} title={`Incident ${x.ref || ''}`.trim()} subtitle={x.review_comment || 'Your manager asked for changes'} />
+                    ))}
+                  </List>
+                </Section>
+              )}
+
+              {openTasks.length > 0 && (
+                <Section title="Getting set up" icon={ListChecks}>
+                  <List>
+                    {(tasks.data || []).map((t) => (
+                      <Row key={t.code} to={!t.done && !t.office ? t.to : undefined} left={t.done ? <CircleCheck size={24} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
+                        title={<span className={cx(t.done && 'text-muted line-through')}>{t.title}</span>}
+                        subtitle={t.done ? null : t.office ? 'Waiting on the office' : 'Tap to finish'} />
+                    ))}
+                  </List>
+                  <p className="mt-2 px-1 text-footnote text-muted"><ListChecks size={14} className="mr-1 inline" />Tap an item to finish it. Ticks appear as soon as it's done.</p>
+                </Section>
+              )}
+
+              </div>
 
               {/* Training lives on the Learn tab */}
               {(contracts.data || []).length > 0 && (

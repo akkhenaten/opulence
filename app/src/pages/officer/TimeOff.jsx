@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CalendarOff, Plus } from 'lucide-react';
+import { CalendarClock, CalendarDays, CalendarOff, History, Plus } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -20,7 +20,7 @@ export default function TimeOff() {
   if (!user.officer_id) return <Page title="Time off" back={{ to: '/officer/me', label: 'Me' }}><NotLinked /></Page>;
   return (
     <Page title="Time off" back={{ to: '/officer/me', label: 'Me' }} actions={tab === 'timeoff' && <Button icon={Plus} onClick={() => setAsking(true)}>Request time off</Button>}>
-      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'timeoff', label: 'Time off' }, { value: 'availability', label: 'Weekly availability' }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'timeoff', label: 'Time off', icon: CalendarOff }, { value: 'availability', label: 'Weekly availability', icon: CalendarClock }]} />
       {tab === 'timeoff' ? <Requests open={asking} setOpen={setAsking} /> : <Availability />}
     </Page>
   );
@@ -57,10 +57,10 @@ function Requests({ open, setOpen }) {
           );
           return (
             <>
-              <Section title="Upcoming">
+              <Section title="Upcoming" icon={CalendarDays} count={upcoming.length}>
                 {upcoming.length ? <List>{upcoming.map(card)}</List> : <Empty icon={CalendarOff} title="No time off booked" body="Request holiday or mark days you can't work. Unavailable days are confirmed straight away." />}
               </Section>
-              {past.length > 0 && <Section title="Past and cancelled"><List className="opacity-90">{past.map(card)}</List></Section>}
+              {past.length > 0 && <Section title="Past and cancelled" icon={History} count={past.length}><List className="opacity-90">{past.map(card)}</List></Section>}
             </>
           );
         }}

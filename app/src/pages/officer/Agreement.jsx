@@ -25,7 +25,7 @@ export default function Agreement() {
     <Page title="Pay rise" back={{ to: '/officer/me/growth', label: 'Goals' }}
       actions={a && <>
         <Pill tone={STATUS[a.status]?.[1]}>{STATUS[a.status]?.[0]}</Pill>
-        {a.status !== 'sent' && <Button variant="secondary" icon={Download} busy={busy} onClick={() => run(() => downloadAction('payAgreements.pdf', { id })).catch(() => {})}>PDF</Button>}
+        {a.status !== 'sent' && <Button variant="secondary" icon={Download} iconOnly="phone" busy={busy} onClick={() => run(() => downloadAction('payAgreements.pdf', { id })).catch(() => {})}>PDF</Button>}
       </>}>
       <Load q={q}>
         {(x) => <SignFlow d={flow(x)} pdf={['payAgreements.pdf', { id }]} onSigned={q.reload}

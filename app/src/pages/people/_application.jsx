@@ -1,7 +1,7 @@
 // An online application (from the public Apply page): AI summary of the CV, SIA details read from the badge, flags,
 // the files, and the decision — invite to onboarding or reject.
 import { useEffect, useState } from 'react';
-import { AlertTriangle, FileText, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Contact, FileText, Paperclip, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
 import { api } from '../../api.js';
 import { Button, date, dateTime, KV, List, Load, Pill, Row, Section, Sheet, Spinner, Toggle, useAction, useApi } from '../../ui/index.jsx';
 import { CopyLink, openUrl } from './_parts.jsx';
@@ -76,7 +76,7 @@ export function ApplicationSheet({ id, onClose, onDone, onPrev, onNext }) {
               </div>
             )}
 
-            <Section title="Contact">
+            <Section title="Contact" icon={Contact}>
               <KV items={[
                 ['Email', a.email], ['Mobile', a.phone], ['Postcode', a.postcode],
                 ['Availability', [...(a.availability || []).map((x) => AVAIL[x] || x), a.availability_note].filter(Boolean).join(' · ')],
@@ -84,7 +84,7 @@ export function ApplicationSheet({ id, onClose, onDone, onPrev, onNext }) {
               ]} />
             </Section>
 
-            <Section title="AI summary" action={!pending && <Button variant="link" size="sm" icon={RefreshCw} onClick={() => act(() => api('apply.reread', { officer_id: id }), 'Documents read again')}>Read again</Button>}>
+            <Section title="AI summary" icon={Sparkles} action={!pending && <Button variant="link" size="sm" icon={RefreshCw} onClick={() => act(() => api('apply.reread', { officer_id: id }), 'Documents read again')}>Read again</Button>}>
               {pending ? (
                 <p className="flex items-center gap-2 text-body text-muted"><Sparkles size={18} className="animate-pulse text-blue" />Reading the CV and SIA badge…</p>
               ) : a.ai_status === 'failed' ? (
@@ -102,7 +102,7 @@ export function ApplicationSheet({ id, onClose, onDone, onPrev, onNext }) {
               )}
             </Section>
 
-            <Section title="SIA licence">
+            <Section title="SIA licence" icon={BadgeCheck}>
               <KV items={[
                 ['Number', siaFmt(a.ai?.badge?.number || a.sia_number)],
                 ['Licence', (a.ai?.badge?.licence_types || []).join(', ')],
@@ -115,7 +115,7 @@ export function ApplicationSheet({ id, onClose, onDone, onPrev, onNext }) {
               </div>}
             </Section>
 
-            <Section title="Files">
+            <Section title="Files" icon={Paperclip} count={(a.docs || []).length}>
               <List>
                 {(a.docs || []).map((d) => (
                   <Row key={d.id} title={d.title} subtitle={d.mime || ''} left={<FileText size={20} className="text-blue" />} chevron

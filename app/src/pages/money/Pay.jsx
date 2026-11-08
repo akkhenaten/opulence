@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Check as CheckIcon, Download, FileText, Lock, RefreshCw, Send } from 'lucide-react';
+import { AlertTriangle, Banknote, Check as CheckIcon, CheckCircle2, Clock, Download, FileText, Hourglass, Lock, PencilLine, RefreshCw, Send } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -51,9 +51,9 @@ function PayInner({ isCo }) {
   const tools = list.data && <>
     <Totals rows={rows} />
     <Segmented value={tab} onChange={(v) => setUrl({ tab: v })} options={[
-      { value: 'runs', label: 'Pay runs' },
+      { value: 'runs', label: 'Pay runs', icon: Banknote },
       // The count is what needs doing: drafts to issue for the company, statements awaiting payment otherwise
-      { value: 'statements', label: 'Statements', count: rows.filter((r) => r.status === (isCo ? 'draft' : 'issued')).length },
+      { value: 'statements', label: 'Statements', icon: FileText, count: rows.filter((r) => r.status === (isCo ? 'draft' : 'issued')).length },
     ]} />
     {tab === 'statements' && <>
       {statusSwitch}
@@ -83,10 +83,10 @@ function Totals({ rows }) {
   const paidMonth = rows.filter((r) => r.status === 'paid' && r.paid_at && isoDate(r.paid_at).slice(0, 7) === month);
   const draftHours = rows.filter((r) => r.status === 'draft').reduce((a, r) => a + Number(r.hours), 0);
   return <>
-    {cnt('draft') > 0 && <Chip value={money(sum('draft'))} label={`in ${cnt('draft')} draft${cnt('draft') === 1 ? '' : 's'}`} />}
-    {cnt('issued') > 0 && <Chip value={money(sum('issued'))} label={`to pay (${cnt('issued')})`} tone="blue" />}
-    {paidMonth.length > 0 && <Chip value={money(paidMonth.reduce((a, r) => a + Number(r.total), 0))} label="paid this month" tone="green" />}
-    {draftHours > 0 && <Chip value={hours(draftHours)} label="in drafts" />}
+    {cnt('draft') > 0 && <Chip value={money(sum('draft'))} label={`in ${cnt('draft')} draft${cnt('draft') === 1 ? '' : 's'}`} icon={PencilLine} compact="phone" />}
+    {cnt('issued') > 0 && <Chip value={money(sum('issued'))} label={`to pay (${cnt('issued')})`} tone="blue" icon={Hourglass} compact="phone" />}
+    {paidMonth.length > 0 && <Chip value={money(paidMonth.reduce((a, r) => a + Number(r.total), 0))} label="paid this month" tone="green" icon={CheckCircle2} compact="phone" />}
+    {draftHours > 0 && <Chip value={hours(draftHours)} label="in drafts" icon={Clock} compact="phone" />}
   </>;
 }
 
@@ -145,7 +145,7 @@ function Statements({ rows: inPeriod, isCo, status, period, reload }) {
   const exportCsv = () => csv(() => downloadAction('pay.exportCsv', exportable.length ? { ids: exportable.map((r) => r.id) } : { period_start: period }), 'Bank file downloaded').catch(() => {});
 
   return (
-    <Section title="Statements" action={isCo && (
+    <Section title="Statements" icon={FileText} action={isCo && (
       <Button size="sm" variant="soft" icon={Download} busy={csvBusy} disabled={!exportable.length && !period} onClick={exportCsv}
         title={!exportable.length && !period ? 'Select issued statements or a period' : undefined}>Bank CSV</Button>
     )}>

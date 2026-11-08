@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Check as CheckIcon, Clock, Download, Pencil, Plus, RefreshCw, Send, Trash2, Undo2 } from 'lucide-react';
+import { Check as CheckIcon, Clock, Download, Info, ListOrdered, Pencil, Plus, RefreshCw, Send, StickyNote, Trash2, Undo2 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -112,7 +112,7 @@ export default function InvoiceDetail() {
               </Tile>
             </Bento>
 
-            <Section title="Details">
+            <Section title="Details" icon={Info}>
               <Tile>
                 <KV items={[
                   ['Bill to', inv.client_name || inv.venue_name],
@@ -135,7 +135,7 @@ export default function InvoiceDetail() {
               </Callout>
             )}
 
-            <Section title={`Lines (${inv.lines.length})`} action={editable && <Button size="sm" variant="soft" icon={Plus} onClick={() => setLine({})}>Add line</Button>}>
+            <Section title="Lines" icon={ListOrdered} count={inv.lines.length} action={editable && <Button size="sm" variant="soft" icon={Plus} onClick={() => setLine({})}>Add line</Button>}>
               <DayLines lines={inv.lines} periodStart={draft ? inv.period_start : null} extra={extra} action={action} showState={draft && !credit}
                 onRow={editable ? (l) => !l.timesheet_id && setLine(l) : undefined} empty="No lines on this invoice" />
               {editable && hasTimesheets && <p className="mt-2 text-footnote text-muted">Shift lines follow their timesheet — change them on the Timesheets page.</p>}
@@ -155,7 +155,7 @@ export default function InvoiceDetail() {
             </div>
 
             {editable ? <NotesEditor inv={inv} onSaved={q.reload} /> : inv.notes ? (
-              <Section title={credit ? 'Reason' : 'Notes'}><Tile><p className="whitespace-pre-wrap text-body">{inv.notes}</p></Tile></Section>
+              <Section title={credit ? 'Reason' : 'Notes'} icon={StickyNote}><Tile><p className="whitespace-pre-wrap text-body">{inv.notes}</p></Tile></Section>
             ) : null}
 
             {line && <LineSheet invoiceId={inv.id} line={line} onClose={() => setLine(null)} onSaved={q.reload} />}
@@ -172,7 +172,7 @@ function NotesEditor({ inv, onSaved }) {
   const [notes, setNotes] = useState(inv.notes || '');
   const [run, busy] = useAction();
   return (
-    <Section title="Notes">
+    <Section title="Notes" icon={StickyNote}>
       <Tile>
         <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Printed on the invoice, e.g. purchase order number" />
         <div className="mt-3 flex justify-end">

@@ -1,16 +1,16 @@
 import { createContext, Fragment, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, AlertTriangle, CheckCircle2, Check as CheckIcon, ChevronDown, ChevronLeft, ChevronRight, Inbox, Info, Loader2, MoreHorizontal, Search, SlidersHorizontal, X, XCircle } from 'lucide-react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { AlertCircle, AlertTriangle, Bell, CheckCircle2, Check as CheckIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Inbox, Info, Loader2, MoreHorizontal, Search, SlidersHorizontal, X, XCircle } from 'lucide-react';
 import { api } from '../api.js';
 import { initials, titleCase } from './format.js';
-import { usePresence, useScrollLock } from './motion.js';
+import { useBump, useCountUp, usePresence, useScrollLock } from './motion.js';
 import { pageHeader, previousEntry, previousPath, setTrailTitle } from './nav.js';
 import { Photo } from './Photo.jsx';
 import { HubTabs, useHub } from './hub.jsx';
 
 export * from './format.js';
-export { usePresence, useScrollLock } from './motion.js';
+export { useBump, useCountUp, usePresence, useScrollLock } from './motion.js';
 export { usePageHeader, useScrollMemory, useUrlState } from './nav.js';
 export { usePullRefresh } from './usePullRefresh.js';
 export { Lightbox } from './Lightbox.jsx';
@@ -358,7 +358,8 @@ export function Tile({ title, icon: Icon, action, to, className, children, pad =
   return to ? <Link to={to} className={cx('block', cls)} {...t}>{body}</Link> : <section className={cls} {...t}>{body}</section>;
 }
 
-export function Stat({ value, label, hint, tone }) {
+export function Stat({ value: raw, label, hint, tone }) {
+  const value = useCountUp(raw);
   const color = { red: 'text-red', amber: 'text-amber', green: 'text-green', blue: 'text-blue' }[tone] || '';
   return (
     <div>
@@ -391,6 +392,13 @@ const BTN_S = {
 export function Button({ variant = 'primary', size = 'md', icon: Icon, iconRight: IconRight, iconOnly, busy, className, children, to, href, ...p }) {
   const [s, sq, is] = BTN_S[size];
   const link = variant.startsWith('link');
+  // iconOnly="phone": the label folds away on phones and stays as the button's name
+  const phone = useMedia('(max-width: 639.98px)');
+  if (iconOnly === 'phone') {
+    iconOnly = phone && Icon;
+    if (iconOnly && typeof children === 'string') { p = { 'aria-label': children, title: children, ...p }; children = null; }
+    else if (!iconOnly) iconOnly = false;
+  }
   const cls = cx('ui-btn pressable relative inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap font-semibold disabled:pointer-events-none disabled:opacity-50',
     `ui-btn-${variant}`, BTN_V[variant],
     link ? cx('-mx-1 rounded-md px-1', { sm: 'text-footnote', md: 'text-subhead', lg: 'text-callout' }[size], 'min-h-9 before:absolute before:inset-x-0 before:-inset-y-1') : s,
@@ -547,7 +555,10 @@ export function Toggle({ checked, onChange, label, hint }) {
 }
 
 // iOS segmented control: the white thumb slides to the chosen option
-export function Segmented({ value, onChange, options, className, full }) {
+// Options may carry an icon; iconOnly (true or "phone") shows just the icon, with the label as its name
+export function Segmented({ value, onChange, options, className, full, iconOnly }) {
+  const phone = useMedia('(max-width: 639.98px)');
+  const bare = iconOnly === 'phone' ? phone : !!iconOnly;
   const wrap = useRef(null);
   const [thumb, setThumb] = useState(null);
   useLayoutEffect(() => {
@@ -573,10 +584,12 @@ export function Segmented({ value, onChange, options, className, full }) {
       {options.map((o) => {
         const v = typeof o === 'string' ? o : o.value;
         const l = typeof o === 'string' ? titleCase(o) : o.label;
+        const I = typeof o === 'string' ? null : o.icon;
+        const only = bare && I;
         return (
-          <button key={v} type="button" role="tab" aria-selected={value === v} onClick={() => onChange(v)}
-            className={cx(full && 'flex-1', 'relative min-h-[44px] whitespace-nowrap rounded-lg before:absolute before:inset-x-0 before:-inset-y-[3px] px-3.5 py-1.5 text-footnote font-semibold transition-colors', value === v ? 'text-ink' : 'text-muted hover:text-ink', !thumb && value === v && 'ui-seg-thumb bg-raised shadow-sm')}>
-            {l}{o.count != null && o.count > 0 && <span className="ml-1.5 rounded-full bg-blue px-1.5 text-caption2 text-white">{o.count}</span>}
+          <button key={v} type="button" role="tab" aria-selected={value === v} onClick={() => onChange(v)} aria-label={only && typeof l === 'string' ? l : undefined} title={only && typeof l === 'string' ? l : undefined}
+            className={cx(full && 'flex-1', 'relative min-h-[44px] whitespace-nowrap rounded-lg before:absolute before:inset-x-0 before:-inset-y-[3px] py-1.5 text-footnote font-semibold transition-colors', only ? 'px-3' : 'px-3.5', value === v ? 'text-ink' : 'text-muted hover:text-ink', !thumb && value === v && 'ui-seg-thumb bg-raised shadow-sm')}>
+            {I ? <span className="inline-flex items-center gap-1.5"><I size={16} className="shrink-0" />{!only && l}</span> : l}{o.count != null && o.count > 0 && <span className="ml-1.5 rounded-full bg-blue px-1.5 text-caption2 text-white">{o.count}</span>}
           </button>
         );
       })}
@@ -606,9 +619,19 @@ export function Row({ title, subtitle, left, right, to, onClick, chevron, classN
   if (onClick) return <button type="button" onClick={onClick} className={cls}>{Inner}</button>;
   return <div className={cls}>{Inner}</div>;
 }
-export const Section = ({ title, action, children, className }) => (
+// icon: a small tinted mark before the heading; count: a number beside it (zero shows nothing)
+export const Section = ({ title, action, children, className, icon: Icon, count }) => (
   <div className={cx('mt-6', className)}>
-    {(title || action) && <div className="mb-2 flex items-center justify-between px-1"><h2 className="min-w-0 text-footnote font-semibold uppercase tracking-wide text-muted">{title}</h2>{action}</div>}
+    {(title || action) && (
+      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+        <h2 className="flex min-w-0 items-center gap-2 text-footnote font-semibold uppercase tracking-wide text-muted">
+          {Icon && <span className="ui-raised-icon grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-blue-soft text-blue"><Icon size={14} /></span>}
+          <span className="min-w-0 truncate">{title}</span>
+          {count > 0 && <span className="num rounded-full bg-fill-strong px-1.5 text-caption font-bold normal-case tracking-normal text-ink">{count}</span>}
+        </h2>
+        {action}
+      </div>
+    )}
     {children}
   </div>
 );
@@ -802,7 +825,7 @@ export function Empty({ title = 'Nothing here yet', body, icon: Icon = Inbox, ac
     <div className="ui-empty flex flex-col items-center rounded-tile border border-dashed border-line bg-surface/60 px-6 py-12 text-center">
       {photo
         ? <img src={`/app/brand/${photo}-800.webp`} alt="" loading="lazy" className="mb-4 h-24 w-36 rounded-tile object-cover" />
-        : <div className="ui-raised-icon mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-soft text-blue"><Icon size={24} /></div>}
+        : <div className="ui-raised-icon float-soft mb-3 grid h-14 w-14 place-items-center rounded-full bg-blue-soft text-blue ring-8 ring-blue-soft/40"><Icon size={24} /></div>}
       <div className="text-callout font-semibold">{title}</div>
       {body && <p className="mt-1 max-w-sm text-subhead text-muted">{body}</p>}
       {action && <div className="mt-4">{action}</div>}
@@ -990,11 +1013,11 @@ export function useForm(initial) {
 }
 
 // Section tabs: one sliding row at every width; on phones it scrolls sideways and fades at the edge
-export function Tabs({ tabs, value, onChange }) {
+export function Tabs({ tabs, value, onChange, iconOnly }) {
   const opts = tabs.filter(Boolean);
   return (
     <div className="-mx-4 mb-4 px-4 edge-fade sm:mx-0 sm:px-0">
-      <Segmented value={value} onChange={onChange} options={opts} />
+      <Segmented value={value} onChange={onChange} options={opts} iconOnly={iconOnly} />
     </div>
   );
 }
@@ -1029,15 +1052,20 @@ export function Progress({ value, max, done, total, count, className }) {
 
 // Summary chip with a count; tappable when onClick is set
 // quiet: a count of zero, kept in place but stepped back so the row doesn't shift as counts change
-export function Chip({ label, value, tone = 'grey', active, onClick, quiet }) {
+// icon: shown before the number; compact: icon and number only (true, or "phone"), the label stays as its name
+export function Chip({ label, value: raw, tone = 'grey', active, onClick, quiet, icon: Icon, compact }) {
+  const value = useCountUp(raw);
+  const bump = useBump(raw);
+  const phone = useMedia('(max-width: 639.98px)');
+  const short = Icon && (compact === 'phone' ? phone : !!compact) && typeof label === 'string';
   const tones = { grey: 'bg-surface text-ink', green: 'bg-green-soft text-green', amber: 'bg-amber-soft text-amber', red: 'bg-red-soft text-red', blue: 'bg-blue-soft text-blue' };
   const Tag = onClick ? 'button' : 'div';
   const hush = quiet && !active;
   return (
-    <Tag type={onClick ? 'button' : undefined} onClick={onClick} aria-pressed={onClick ? !!active : undefined}
+    <Tag type={onClick ? 'button' : undefined} onClick={onClick} aria-pressed={onClick ? !!active : undefined} aria-label={short ? `${raw} ${label}` : undefined} title={short ? label : undefined}
       className={cx('ui-chip relative inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-footnote font-semibold', !hush && 'shadow-tile', onClick && 'before:absolute before:inset-x-0 before:-inset-y-1',
         hush ? 'bg-transparent text-faint' : tones[tone], active ? 'border-blue ring-2 ring-blue/15' : 'border-hairline', onClick && 'pressable focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue')}>
-      <span className="num text-body font-bold">{value}</span>{label}
+      {Icon && <Icon size={16} className="shrink-0" />}<span className={cx('num text-body font-bold', bump && 'badge-bump')}>{value}</span>{!short && label}
     </Tag>
   );
 }
@@ -1077,4 +1105,69 @@ export function ActionBar({ show = true, children, className, tone = 'dark' }) {
     </div>,
     document.body,
   )}</>;
+}
+
+/* ---------- Attention drawer: what's waiting, folded into one bar on phones ---------- */
+
+const ATTN = { red: 'var(--color-red)', amber: 'var(--color-amber)', blue: 'var(--accent-fill, var(--color-blue))', green: 'var(--color-green)' };
+const ATTN_DOT = { red: 'bg-red-soft text-red', amber: 'bg-amber-soft text-amber', blue: 'bg-blue-soft text-blue', grey: 'bg-fill-strong text-muted', green: 'bg-green-soft text-green' };
+
+// Opens and closes the drawer through the address (?drawer=needs), so Back closes it and a chip elsewhere can open it
+export function useAttention(id = 'needs') {
+  const [params] = useSearchParams();
+  const nav = useNavigate();
+  const loc = useLocation();
+  const open = params.get('drawer') === id;
+  const set = (on) => {
+    const q = new URLSearchParams(loc.search);
+    if (on) {
+      if (open) return;
+      q.set('drawer', id);
+      nav({ search: `?${q}` }, { state: { ...(loc.state || {}), drawer: id } });
+    } else if (loc.state?.drawer === id) nav(-1);
+    else { q.delete('drawer'); nav({ search: q.toString() ? `?${q}` : '' }, { replace: true }); }
+  };
+  return { open, show: () => set(true), hide: () => set(false) };
+}
+
+/** One slim bar for everything waiting on someone. It glows in the colour of the most urgent thing and opens a tall
+ *  sheet with the full list, so the page under it doesn't turn into an endless scroll. Empty: a calm "All clear". */
+// preview: up to 4 { icon, tone } marks of what's inside; lead: the most urgent item in a line
+export function AttentionDrawer({ id = 'needs', title = 'Needs you', count = 0, tone = 'blue', preview = [], lead, empty = 'All clear, nothing needs you right now.', children, className }) {
+  const { open, show, hide } = useAttention(id);
+  const n = useCountUp(count);
+  const bump = useBump(count);
+  if (!count) {
+    return (
+      <div className={cx('ui-panel flex items-center gap-3 rounded-tile border border-hairline bg-surface px-4 py-3 shadow-tile', className)}>
+        <span className="ui-raised-icon grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-green-soft text-green"><CheckCircle2 size={20} /></span>
+        <p className="min-w-0 text-subhead font-semibold">{empty}</p>
+      </div>
+    );
+  }
+  const marks = preview.filter((x) => x?.icon).slice(0, 4);
+  return (
+    <>
+      <Pressable card onClick={show} aria-haspopup="dialog" aria-expanded={open} aria-label={`${title}: ${count}. Open the list`}
+        className={cx('ui-panel attn-glow flex items-center gap-3 rounded-tile border border-hairline bg-surface px-4 py-3 shadow-tile', className)} style={{ '--attn': ATTN[tone] || ATTN.blue }}>
+        <span className={cx('ui-raised-icon attn-bell relative grid h-10 w-10 shrink-0 place-items-center rounded-xl', ATTN_DOT[tone] || ATTN_DOT.blue)}>
+          <Bell size={20} />
+          <span className={cx('num absolute -right-1.5 -top-1.5 min-w-[20px] rounded-full px-1 text-center text-caption2 font-bold leading-5 text-white ring-2 ring-surface', tone === 'red' ? 'bg-red' : tone === 'amber' ? 'bg-amber' : 'bg-blue', bump && 'badge-bump')}>{n > 99 ? '99+' : n}</span>
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-callout font-bold">{title}</span>
+          {lead && <span className="block truncate text-footnote text-muted">{lead}</span>}
+        </span>
+        {marks.length > 0 && (
+          <span className="flex shrink-0 -space-x-1.5" aria-hidden="true">
+            {marks.map((m, i) => <span key={i} className={cx('grid h-7 w-7 place-items-center rounded-full ring-2 ring-surface', ATTN_DOT[m.tone] || ATTN_DOT.grey)}><m.icon size={14} /></span>)}
+          </span>
+        )}
+        <ChevronUp size={18} className="shrink-0 text-faint" />
+      </Pressable>
+      <Sheet open={open} onClose={hide} title={`${title} · ${count}`} size="lg">
+        {children}
+      </Sheet>
+    </>
+  );
 }

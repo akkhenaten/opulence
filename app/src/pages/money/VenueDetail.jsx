@@ -4,7 +4,7 @@ import RecentEmail from '../email/_recent.jsx';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
-  Building2, Crosshair, Download, Eye, FileText, Globe, MessageSquareHeart, UserMinus, UserPlus, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, Power, QrCode, RefreshCw, Search, Sparkles, Trash2, Upload, Users,
+  Ban, BookOpen, Building2, ClipboardList, Crosshair, Download, Eye, FileText, FolderOpen, Globe, Info, LineChart, MessageSquareHeart, UserMinus, UserPlus, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, PoundSterling, Power, QrCode, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, Upload, Users,
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
@@ -84,12 +84,12 @@ export default function VenueDetail() {
           {/* Records' own switch sits beside the tabs from sm up, so the list starts high */}
           <div className="sm:flex sm:flex-wrap sm:items-start sm:gap-x-3">
             <Tabs value={tab} onChange={(t) => go(t)} tabs={[
-              { value: 'setup', label: 'Setup' }, { value: 'people', label: 'People' }, { value: 'pack', label: 'Instructions' },
-              { value: 'feedback', label: 'Feedback', count: v.feedback_open || undefined }, { value: 'records', label: 'Records' },
-              ...(analytics ? [{ value: 'analytics', label: 'Analytics' }] : []),
+              { value: 'setup', label: 'Setup', icon: SlidersHorizontal }, { value: 'people', label: 'People', icon: Users }, { value: 'pack', label: 'Instructions', icon: BookOpen },
+              { value: 'feedback', label: 'Feedback', icon: MessageSquareHeart, count: v.feedback_open || undefined }, { value: 'records', label: 'Records', icon: FolderOpen },
+              ...(analytics ? [{ value: 'analytics', label: 'Analytics', icon: LineChart }] : []),
             ]} />
             {tab === 'records' && <Segmented className="mb-4" value={view} onChange={(x) => go('records', { view: x })} options={[
-              { value: 'docs', label: 'Documents', count: v.documents.length }, { value: 'logs', label: 'Shift logs' }, { value: 'bans', label: 'Ejections & bans' },
+              { value: 'docs', label: 'Documents', icon: FileText, count: v.documents.length }, { value: 'logs', label: 'Shift logs', icon: ClipboardList }, { value: 'bans', label: 'Ejections & bans', icon: Ban },
             ]} />}
           </div>
 
@@ -120,10 +120,10 @@ export default function VenueDetail() {
 // (company managers only) what the venue is charged per role, then the venue's details
 function SetupTab({ v, isCo, focus, onSaved, canPhoto, details }) {
   const parts = [
-    { id: 'location', label: 'Location' },
-    { id: 'codes', label: 'Venue codes' },
-    ...(isCo ? [{ id: 'rates', label: 'Charge rates' }] : []),
-    { id: 'details', label: 'Details' },
+    { id: 'location', label: 'Location', icon: MapPin },
+    { id: 'codes', label: 'Venue codes', icon: QrCode },
+    ...(isCo ? [{ id: 'rates', label: 'Charge rates', icon: PoundSterling }] : []),
+    { id: 'details', label: 'Details', icon: Info },
   ];
   const go = (id) => document.getElementById(`setup-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   useEffect(() => {
@@ -148,16 +148,16 @@ function SetupTab({ v, isCo, focus, onSaved, canPhoto, details }) {
       </Bento>
       <div className="mb-4 flex flex-wrap gap-1.5">
         {parts.map((p) => (
-          <Pressable key={p.id} press onClick={() => go(p.id)} className="min-h-9 rounded-full bg-fill px-3.5 py-1.5 text-footnote font-semibold text-muted hover:text-ink">{p.label}</Pressable>
+          <Pressable key={p.id} press onClick={() => go(p.id)} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-fill px-3.5 py-1.5 text-footnote font-semibold text-muted hover:text-ink"><p.icon size={14} className="shrink-0" />{p.label}</Pressable>
         ))}
       </div>
       <section id="setup-location" className="scroll-mt-20">
-        <Section title="Location" className="mt-0">
+        <Section title="Location" icon={MapPin} className="mt-0">
           <LocationTab key={`${v.lat},${v.lng}`} v={v} onSaved={onSaved} />
         </Section>
       </section>
       <section id="setup-codes" className="scroll-mt-20">
-        <Section title="Venue codes" className="mt-8"><QrTab v={v} /></Section>
+        <Section title="Venue codes" icon={QrCode} className="mt-8"><QrTab v={v} /></Section>
       </section>
       {isCo && (
         <section id="setup-rates" className="mt-8 scroll-mt-20">
@@ -165,7 +165,7 @@ function SetupTab({ v, isCo, focus, onSaved, canPhoto, details }) {
         </section>
       )}
       <section id="setup-details" className="scroll-mt-20">
-        <Section title="Details" className="mt-8">{details}</Section>
+        <Section title="Details" icon={Info} className="mt-8">{details}</Section>
       </section>
     </div>
   );
@@ -811,7 +811,7 @@ function RatesTab({ venueId }) {
 
   const tone = { current: 'green', scheduled: 'blue', superseded: 'grey' };
   return (
-    <Section title="Charge rates per hour" className="mt-0" action={<Button size="sm" variant="soft" onClick={() => setHistory((h) => !h)}>{history ? 'Hide history' : 'Rate history'}</Button>}>
+    <Section title="Charge rates per hour" icon={PoundSterling} className="mt-0" action={<Button size="sm" variant="soft" onClick={() => setHistory((h) => !h)}>{history ? 'Hide history' : 'Rate history'}</Button>}>
       <Load q={roles}>
         {() => (
           <List>
@@ -919,8 +919,8 @@ function PeopleTab({ v, isCo, onChanged }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <div>
-        <Section title="Venue managers" className="mt-0"
-          action={isCo && <Button size="sm" variant="soft" icon={UserPlus} onClick={() => setInviting(true)}>Invite venue manager</Button>}>
+        <Section title="Venue managers" icon={Users} count={v.contacts.length} className="mt-0"
+          action={isCo && <Button size="sm" variant="soft" icon={UserPlus} iconOnly="phone" onClick={() => setInviting(true)}>Invite venue manager</Button>}>
           {v.contacts.length ? (
             <List>
               {v.contacts.map((u) => (
@@ -932,7 +932,7 @@ function PeopleTab({ v, isCo, onChanged }) {
         </Section>
       </div>
       <div>
-        <Section title="Security managers" className="mt-0">
+        <Section title="Security managers" icon={ShieldCheck} count={v.security.length} className="mt-0">
           {v.security.length ? (
             <List>
               {v.security.map((u) => <Row key={u.id} left={<Avatar name={u.name} size={38} />} title={u.name} subtitle={[u.email, u.phone].filter(Boolean).join(' · ')} right={removeBtn(u)} />)}
@@ -975,7 +975,7 @@ export function DocumentsTab({ venueId, readOnly }) {
   };
 
   return (
-    <Section title="Venue documents" className="mt-0" action={!readOnly && <Button size="sm" icon={Upload} onClick={() => setOpen(true)}>Upload</Button>}>
+    <Section title="Venue documents" icon={FolderOpen} className="mt-0" action={!readOnly && <Button size="sm" icon={Upload} onClick={() => setOpen(true)}>Upload</Button>}>
       <Load q={docs}>
         {(rows) => (!rows.length
           ? <Empty icon={FileText} title="No documents" body={readOnly ? 'Documents Orb shares with you, such as assignment instructions and invoices, appear here.' : 'Upload assignment instructions, risk assessments and site plans.'} />

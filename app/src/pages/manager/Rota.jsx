@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Copy, Crown, Hand, LogOut, NotebookPen, Plus, Printer, Repeat, Rows2, Rows4, Send, Trash2, UserMinus, UserPlus, X,
+  Building2, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, Clock, Copy, Crown, FilePen, Hand, LogOut, NotebookPen, Plus, Printer, Repeat, Rows2, Rows4, Send, Trash2, UserMinus, UserPlus, UserRound, UserX, X,
 } from 'lucide-react';
 import {
   ActionBar, addDays, AssignPill, Avatar, Button, Chip, confirmState, cx, dateShort, dayLabel, Dot, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, MoreMenu, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Textarea, ToolField, ToolMenu, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useMedia, useToast, useUrlState, nameMatches, displayName,
@@ -13,14 +13,14 @@ import { ClockOutSheet } from '../shared/_clockOut.jsx';
 
 const dayOf = (iso) => londonParts(iso).date;
 const ACTIVE = ['assigned', 'accepted'];
-const VIEWS = [{ value: 'venues', label: 'By venue' }, { value: 'days', label: 'By day' }, { value: 'officers', label: 'By officer' }];
+const VIEWS = [{ value: 'venues', label: 'By venue', icon: Building2 }, { value: 'days', label: 'By day', icon: CalendarDays }, { value: 'officers', label: 'By officer', icon: UserRound }];
 
 // Quick filters above the grid; more than one shows shifts matching any of them
 const FILTERS = [
-  { key: 'unfilled', label: 'Unfilled', tone: 'red', test: (s) => places(s) > 0 },
-  { key: 'drafts', label: 'Drafts', tone: 'grey', test: (s) => s.status === 'draft' },
-  { key: 'unconfirmed', label: 'Unconfirmed', tone: 'amber', test: (s) => shiftState(s) === 'unconfirmed' },
-  { key: 'requests', label: 'Requests', tone: 'amber', test: (s) => s.assignments.some((a) => a.status === 'requested') },
+  { key: 'unfilled', label: 'Unfilled', tone: 'red', icon: UserX, test: (s) => places(s) > 0 },
+  { key: 'drafts', label: 'Drafts', tone: 'grey', icon: FilePen, test: (s) => s.status === 'draft' },
+  { key: 'unconfirmed', label: 'Unconfirmed', tone: 'amber', icon: CircleHelp, test: (s) => shiftState(s) === 'unconfirmed' },
+  { key: 'requests', label: 'Requests', tone: 'amber', icon: Hand, test: (s) => s.assignments.some((a) => a.status === 'requested') },
 ];
 
 // Comfortable or compact cards, remembered on this device
@@ -104,12 +104,12 @@ export default function Rota() {
     </span>
   );
   const venueOptions = [{ value: '', label: 'All venues' }, ...(venues.data || []).filter((v) => v.active).map((v) => ({ value: v.id, label: v.name }))];
-  const viewSwitch = <Segmented value={view} onChange={(v) => setUrl({ view: v })} options={VIEWS} />;
+  const viewSwitch = <Segmented value={view} onChange={(v) => setUrl({ view: v })} options={VIEWS} iconOnly="phone" />;
   const venuePick = <Select aria-label="Venue" value={venueId} onChange={(e) => setUrl({ venue: e.target.value })} options={venueOptions} />;
   const changed = (density === 'compact') + (view === 'venues' && !hideEmpty) + (!wide && !!venueId) + (!wide && view !== 'venues');
   const tools = tab === 'rota' && <>
     {FILTERS.filter((f) => counts[f.key] || on.includes(f.key)).map((f) => (
-      <Chip key={f.key} label={f.label} value={counts[f.key]} tone={f.tone} active={on.includes(f.key)} onClick={() => toggleFilter(f.key)} />
+      <Chip key={f.key} label={f.label} value={counts[f.key]} tone={f.tone} icon={f.icon} compact="phone" active={on.includes(f.key)} onClick={() => toggleFilter(f.key)} />
     ))}
     <div className="hidden sm:block">{viewSwitch}</div>
     <div className="hidden w-44 sm:block">{venuePick}</div>
@@ -118,8 +118,8 @@ export default function Rota() {
       {!wide && <ToolField label="Venue">{venuePick}</ToolField>}
       <ToolField label="Card size">
         <Segmented value={density} onChange={setDensity} options={[
-          { value: 'comfortable', label: <span className="flex items-center gap-1.5"><Rows2 size={16} aria-hidden />Comfortable</span> },
-          { value: 'compact', label: <span className="flex items-center gap-1.5"><Rows4 size={16} aria-hidden />Compact</span> },
+          { value: 'comfortable', label: 'Comfortable', icon: Rows2 },
+          { value: 'compact', label: 'Compact', icon: Rows4 },
         ]} />
       </ToolField>
       {view === 'venues' && <Toggle checked={hideEmpty} onChange={(v) => setUrl({ empty: v ? '1' : '0' })} label="Hide empty venues" />}

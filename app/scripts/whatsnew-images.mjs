@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'polish-motion': 'A sleek phone lying on a dark navy desk, its screen showing a calm app page with one softly glowing gold bar at the top with a small bell icon, faint motion trails of tiny gold icons gliding upward from the screen, a brass compass and a soft-focus lamp behind, warm light, premium and minimal, dark navy and gold.',
   'more-room-everywhere': 'A desktop monitor, a tablet and a phone arranged on a dark navy desk, each showing a clean app page where the list or table fills nearly the whole screen under one slim line of small gold controls, a brass spirit level lying in front of them, warm lamp light, minimal and spacious, dark navy and gold.',
   'more-room': 'A wide laptop on a dark navy desk showing a clean weekly rota grid filling almost the whole screen, a slim header line with small gold controls tucked neatly along the top edge, a brass ruler resting below the laptop, warm lamp light, minimal and spacious, dark navy and gold.',
   'email-footer': 'A crisp folded letter sliding out of a cream envelope on a dark navy desk, the bottom of the letter finished with a thin gold rule and a neat small block of fine grey lines beneath it, a gold wax seal and a brass pen beside the envelope, warm lamp light, dark navy and gold.',

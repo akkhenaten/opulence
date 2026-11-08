@@ -68,7 +68,7 @@ function ClientPeople({ id, onChanged }) {
     .then(() => { setPick(''); q.reload(); all.reload(); onChanged?.(); }).catch(() => {});
   return (
     <>
-      <Section title="Venues">
+      <Section title="Venues" icon={Building2} count={c.venues.length}>
         {c.venues.length ? (
           <List>
             {c.venues.map((v) => (
@@ -85,7 +85,7 @@ function ClientPeople({ id, onChanged }) {
           </div>
         )}
       </Section>
-      <Section title="Contacts" action={<Button size="sm" variant="soft" icon={UserPlus} onClick={() => setInviting(true)}>Invite contact</Button>}>
+      <Section title="Contacts" icon={Users} count={c.contacts.length} action={<Button size="sm" variant="soft" icon={UserPlus} onClick={() => setInviting(true)}>Invite contact</Button>}>
         {c.contacts.length ? (
           <List>
             {c.contacts.map((u) => (

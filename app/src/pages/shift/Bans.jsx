@@ -35,8 +35,8 @@ export function BanRegister({ venueId, all, onFilter, page }) {
   const key = JSON.stringify(body);
   useEffect(() => { onFilter?.(JSON.parse(key)); }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const add = (target || mine) && <>
-    <Button size="sm" variant="soft" icon={Plus} onClick={() => setAdding('ejection')}>Log ejection</Button>
-    <Button size="sm" variant="soft" icon={Ban} onClick={() => setAdding('ban')}>Ban someone</Button>
+    <Button size="sm" variant="soft" icon={Plus} iconOnly="phone" onClick={() => setAdding('ejection')}>Log ejection</Button>
+    <Button size="sm" variant="soft" icon={Ban} iconOnly="phone" onClick={() => setAdding('ban')}>Ban someone</Button>
   </>;
   const tabs = <Segmented value={tab} onChange={setTab} options={TABS} />;
   const venuePick = mine && many && (

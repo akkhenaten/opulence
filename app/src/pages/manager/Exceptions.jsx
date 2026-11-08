@@ -135,7 +135,7 @@ function NotRegistered() {
   const rows = (q.data || []).filter((o) => !o.has_phone);
   if (!rows.length) return null;
   return (
-    <Section title={`Not registered · ${rows.length}`} className="mt-6">
+    <Section title="Not registered" icon={Smartphone} count={rows.length} className="mt-6">
       <p className="mb-3 px-1 text-subhead text-muted">Active officers without a clock-in phone. Their clock-ins show "Phone not verified" until they register one.</p>
       <List>
         {rows.map((o) => (

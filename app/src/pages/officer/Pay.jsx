@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { AlertTriangle, Banknote, Check, ClipboardCheck, Download, FileText, Info, MessageSquare } from 'lucide-react';
+import { AlertTriangle, Banknote, Check, CircleMinus, ClipboardCheck, Clock3, Download, FileText, Gift, Info, MessageSquare, Receipt } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -14,6 +14,7 @@ const STATUS_LABEL = { issued: 'Issued', paid: 'Paid', draft: 'To check' };
 const toCheck = (r) => r.status === 'draft' && r.run_status === 'in_review' && ['pending', 'no_response'].includes(r.review_status);
 const REVIEW_TEXT = { pending: 'Please check', no_response: 'Please check', approved: 'You approved this', disputed: 'Query with the office', resolved: 'Query resolved' };
 const KIND_TITLE = { hours: 'Hours worked', bonus: 'Bonuses', expense: 'Expenses', deduction: 'Deductions' };
+const KIND_ICON = { hours: Clock3, bonus: Gift, expense: Receipt, deduction: CircleMinus };
 
 export default function Pay() {
   const { id } = useParams();
@@ -82,12 +83,12 @@ function Statements() {
 
               {ytd.length > 0 && <Bento className="!grid-cols-2">
                 <Tile title={`${year} so far`} icon={Banknote}><Stat value={money(ytdTotal)} label={`${ytd.length} statement${ytd.length === 1 ? '' : 's'}`} /></Tile>
-                <Tile title="Hours paid"><Stat value={hours(ytdHours)} label={`In ${year}`} /></Tile>
+                <Tile title="Hours paid" icon={Clock3}><Stat value={hours(ytdHours)} label={`In ${year}`} /></Tile>
               </Bento>}
 
               <SelfEmployedNote />
 
-              <Section title="All statements">
+              <Section title="All statements" icon={FileText} count={rows.length}>
                 <List>
                   {rows.map((r) => (
                     <Row key={r.id} to={`/officer/pay/${r.id}`}
@@ -114,7 +115,7 @@ function Statement({ id }) {
   const pdf = () => run(() => downloadAction('pay.pdf', { id })).catch(() => {});
   return (
     <Page title="Statement" back={{ to: '/officer/pay', label: 'Pay' }}
-      actions={q.data && <Button variant="secondary" icon={Download} busy={busy} onClick={pdf}>PDF</Button>}>
+      actions={q.data && <Button variant="secondary" icon={Download} iconOnly="phone" busy={busy} onClick={pdf}>PDF</Button>}>
       <Load q={q} skeleton="rows">
         {(st) => {
           const lines = st.lines || [];
@@ -151,7 +152,7 @@ function Statement({ id }) {
               )}
 
               {(st.disputes || []).length > 0 && (
-                <Section title="Your queries">
+                <Section title="Your queries" icon={MessageSquare} count={st.disputes.length}>
                   <List>
                     {st.disputes.map((d) => (
                       <div key={d.id} className="px-4 py-3">
@@ -182,7 +183,7 @@ function Statement({ id }) {
               <SelfEmployedNote />
 
               {groups.map((g) => (
-                <Section key={g.k} title={KIND_TITLE[g.k]}>
+                <Section key={g.k} title={KIND_TITLE[g.k]} icon={KIND_ICON[g.k]} count={g.items.length}>
                   <List>
                     {g.items.map((l) => (
                       <Row key={l.id} title={l.description}
@@ -198,7 +199,7 @@ function Statement({ id }) {
                 <span className="num text-title2 font-bold">{money(st.total)}</span>
               </div>
 
-              <Section title="Details">
+              <Section title="Details" icon={Info}>
                 <List>
                   <Row title="Statement number" right={<span className="font-semibold">{st.number || '—'}</span>} />
                   <Row title="UTR" right={<span className="num font-semibold">{st.utr || 'Not on file'}</span>} />

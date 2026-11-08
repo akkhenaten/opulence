@@ -1,7 +1,7 @@
 // Every compliance issue across the workforce in one place: what is wrong, how urgent, and what Orb advises
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ban, CalendarClock, Mail, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
+import { Ban, CalendarClock, Info, Mail, RefreshCw, ShieldAlert, ShieldCheck, Sparkles } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import GraceSheet, { GRACE_LABEL, GraceButton } from './_graceSheet.jsx';
@@ -10,9 +10,9 @@ import {
 } from '../../ui/index.jsx';
 
 const SEV = {
-  urgent: { label: 'Urgent', tone: 'red' },
-  soon: { label: 'Soon', tone: 'amber' },
-  advisory: { label: 'Advisory', tone: 'blue' },
+  urgent: { label: 'Urgent', tone: 'red', icon: ShieldAlert },
+  soon: { label: 'Soon', tone: 'amber', icon: CalendarClock },
+  advisory: { label: 'Advisory', tone: 'blue', icon: Info },
 };
 const AREAS = [
   { value: '', label: 'All areas' }, { value: 'licence', label: 'Licences' }, { value: 'rtw', label: 'Right to work' },
@@ -144,7 +144,7 @@ function Body({ d, gd, company, reloadGrace, view, sev, setSev, area, dismiss, b
       {/* One slim line: the severities with something in them (tap to filter) and when the last check ran */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {Object.entries(SEV).filter(([k]) => counts[k] || sev === k).map(([k, s]) => (
-          <Chip key={k} label={s.label} value={counts[k] || 0} tone={s.tone} active={sev === k} onClick={() => setSev(sev === k ? '' : k)} />
+          <Chip key={k} label={s.label} value={counts[k] || 0} tone={s.tone} icon={s.icon} compact="phone" active={sev === k} onClick={() => setSev(sev === k ? '' : k)} />
         ))}
         <span className="text-footnote text-muted">
           {d.checked} people checked{d.last_run ? ` · last full check ${date(d.last_run)} ${time(d.last_run)}` : ''}

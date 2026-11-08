@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, BookOpenCheck, ChevronRight, GraduationCap, Layers, Sparkles, Star, WifiOff } from 'lucide-react';
+import { Award, BookOpen, BookOpenCheck, ChevronRight, GraduationCap, Layers, Sparkles, Star, WifiOff } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { cx, date, dateShort, Empty, List, Load, Page, Pressable, Row, SearchInput, Section, Spinner, Tile, useApi, usePullRefresh } from '../../ui/index.jsx';
 import { NotLinked, Progress } from '../officer/_parts.jsx';
@@ -65,7 +65,7 @@ function ToolboxPart() {
       </div>
 
       {favs.length > 0 && (
-        <Section title="Saved guides">
+        <Section title="Saved guides" icon={Star} count={favs.length}>
           <List>
             {favs.map((c) => <Row key={c.id} to={`/officer/learn/toolbox/${c.id}`} left={<Star size={18} className="fill-amber text-amber" />} title={c.title} subtitle={c.summary} />)}
           </List>
@@ -90,7 +90,7 @@ function AcademyPart() {
         const other = courses.filter((c) => !mine.includes(c));
         return (
           <>
-            <Section title="Your training" action={<span className="text-footnote text-muted">{done.length} of {mine.length} complete</span>}>
+            <Section title="Your training" icon={GraduationCap} action={<span className="text-footnote text-muted">{done.length} of {mine.length} complete</span>}>
               {mine.length ? (
                 <List>
                   {[...todo, ...done].map((c) => <CourseRow key={c.id} c={c} />)}
@@ -98,12 +98,12 @@ function AcademyPart() {
               ) : <Empty icon={GraduationCap} title="No training assigned" body="When your manager assigns a course it shows up here. You can take any course below in the meantime." />}
             </Section>
             {other.length > 0 && (
-              <Section title="More courses">
+              <Section title="More courses" icon={BookOpen} count={other.length}>
                 <List>{other.map((c) => <CourseRow key={c.id} c={c} />)}</List>
               </Section>
             )}
             {certificates.length > 0 && (
-              <Section title="My certificates">
+              <Section title="My certificates" icon={Award} count={certificates.length}>
                 <List>
                   {certificates.map((x) => (
                     <Row key={x.id} to={`/officer/learn/certificates/${x.id}`} left={<span className="grid h-9 w-9 place-items-center rounded-xl bg-green-soft text-green"><Award size={18} /></span>}

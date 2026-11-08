@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, Download, History } from 'lucide-react';
+import { CalendarDays, ChevronDown, Download, History, Sparkles } from 'lucide-react';
 import { downloadAction } from '../../api.js';
 import { WhatsNew } from './_whatsnew.jsx';
 import { Avatar, cx, dateTime, dayLabel, Empty, isoDate, List, Load, MoreMenu, Page, Pill, Pressable, relative, SearchInput, Section, Segmented, Select, time, titleCase, ToolField, ToolMenu, useApi, useUrlState } from '../../ui/index.jsx';
@@ -37,7 +37,7 @@ export default function Audit() {
 
   // Activity · What's new and the search sit on the tab line; record type and how many under Filters
   const tools = <>
-    <Segmented value={tab} onChange={setTab} options={[{ value: 'activity', label: 'Activity' }, { value: 'new', label: 'What’s new' }]} />
+    <Segmented value={tab} onChange={setTab} options={[{ value: 'activity', label: 'Activity', icon: History }, { value: 'new', label: 'What’s new', icon: Sparkles }]} iconOnly="phone" />
     {tab === 'activity' && <>
       <SearchInput className="min-w-0 flex-1 sm:w-56 sm:flex-none" aria-label="Search" placeholder="Search action, person or detail" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
       <ToolMenu count={!!entity + (limit !== 200)} onClear={() => setUrl({ entity: '', limit: '200' })}>
@@ -53,7 +53,7 @@ export default function Audit() {
       {tab === 'new' ? <WhatsNew /> : <>
       <Load q={q}>
         {() => (days.length ? days.map((d) => (
-          <Section key={d.key} title={`${dayLabel(d.key)} · ${d.rows.length}`}>
+          <Section key={d.key} title={dayLabel(d.key)} icon={CalendarDays} count={d.rows.length}>
             <List>{d.rows.map((r) => <Entry key={r.id} r={r} />)}</List>
           </Section>
         )) : <Empty icon={History} title="No activity" body={search ? 'Nothing matches your search.' : 'Changes will appear here.'} />)}

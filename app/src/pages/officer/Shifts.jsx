@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { OffersList, useOps } from './_ops.jsx';
-import { CalendarDays, CalendarOff, Check, ChevronRight, Hand, History, Info, Megaphone, X } from 'lucide-react';
+import { CalendarDays, CalendarOff, Check, ChevronRight, Hand, History, Info, ListIcon, Megaphone, X } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -28,11 +28,11 @@ export default function Shifts() {
   const pull = usePullRefresh(() => Promise.all([open.reload(), ops.reload()]), !['mine', 'calendar'].includes(tab) && !!user.officer_id);
 
   return (
-    <Page title="Shifts" actions={<><Button size="sm" variant="secondary" icon={CalendarOff} to="/officer/time-off?tab=availability">Availability</Button><MoreMenu items={[{ label: 'Past shifts', icon: History, to: '/officer/shifts?tab=mine' }]} /></>}>
+    <Page title="Shifts" actions={<><Button size="sm" variant="secondary" icon={CalendarOff} iconOnly="phone" to="/officer/time-off?tab=availability">Availability</Button><MoreMenu items={[{ label: 'Past shifts', icon: History, to: '/officer/shifts?tab=mine' }]} /></>}>
       {pull}
       {!user.officer_id ? <NotLinked /> : (
         <>
-          <Tabs value={tab} onChange={setTab} tabs={[{ value: 'calendar', label: 'Calendar' }, { value: 'mine', label: 'List' }, { value: 'offers', label: 'Offers', count: offered }, { value: 'open', label: 'Open shifts', count: open.data?.length }]} />
+          <Tabs value={tab} onChange={setTab} iconOnly="phone" tabs={[{ value: 'calendar', label: 'Calendar', icon: CalendarDays }, { value: 'mine', label: 'List', icon: ListIcon }, { value: 'offers', label: 'Offers', count: offered }, { value: 'open', label: 'Open shifts', count: open.data?.length }]} />
           {waiting ? <Spinner /> : tab === 'calendar' ? <ShiftCalendar /> : tab === 'mine' ? <Mine /> : tab === 'offers' ? <OffersList ops={ops} /> : <Open q={open} />}
         </>
       )}
@@ -105,7 +105,7 @@ function Mine() {
             )}
 
             {past.length > 0 && (
-              <Section title="Recent">
+              <Section title="Recent" icon={History} count={past.length}>
                 <div className="space-y-2.5 opacity-90">
                   {past.map((s) => {
                     const ins = (s.clock || []).filter((e) => e.kind === 'in' && e.status !== 'rejected');

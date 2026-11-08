@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, CalendarDays, ClipboardCheck, Layers, LineChart, MapPin, Megaphone, MessageSquareHeart, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
+import { Bell, Building2, CalendarDays, ClipboardCheck, Layers, LineChart, MapPin, Megaphone, MessageSquareHeart, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import { FeedbackTile, GiveFeedbackSheet, RateStaffSheet } from '../venue/_feedback.jsx';
 import { useModuleOn } from './Analytics.jsx';
 import { presetRange } from './_parts.jsx';
 import {
-  assignTone, Bento, Button, Dot, List, Load, Page, Pill, Pressable, Row, Section, Stat, Tile, cx, dayLabel, money, range, relative, time, titleCase, useApi,
+  AttentionDrawer, assignTone, Bento, Button, Dot, List, Load, Page, Pill, Pressable, Row, Section, Stat, Tile, cx, dayLabel, money, range, relative, time, titleCase, useApi,
 } from '../../ui/index.jsx';
 import { InstallCard } from '../../ui/pwa.jsx';
 import { PushCard } from '../officer/_notify.jsx';
@@ -177,15 +177,23 @@ function NeedsYou({ d, toSign }) {
     d.invoices.count > 0 && { key: 'pay', to: '/venue/invoices', icon: ReceiptText, tone: 'bg-amber-soft text-amber', title: `${d.invoices.count} invoice${d.invoices.count === 1 ? '' : 's'} to pay`, sub: `${money(d.invoices.outstanding)} outstanding` },
   ].filter(Boolean);
   if (!items.length) return null;
+  const list = (
+    <List>
+      {items.map((i) => (
+        <Row key={i.key} to={i.to} title={i.title} subtitle={i.sub}
+          left={<span className={cx('grid h-9 w-9 place-items-center rounded-xl', i.tone)}><i.icon size={18} /></span>} />
+      ))}
+    </List>
+  );
+  // Phones: one glowing bar that opens the list; from lg up the list sits on the page
   return (
-    <Section title="Needs you" className="!mt-0 mb-4">
-      <List>
-        {items.map((i) => (
-          <Row key={i.key} to={i.to} title={i.title} subtitle={i.sub}
-            left={<span className={cx('grid h-9 w-9 place-items-center rounded-xl', i.tone)}><i.icon size={18} /></span>} />
-        ))}
-      </List>
-    </Section>
+    <>
+      <AttentionDrawer id="needs" title="Needs you" className="mb-4 lg:hidden" count={items.length} tone={late > 0 ? 'red' : toSign > 0 ? 'blue' : 'amber'}
+        preview={items.map((i) => ({ icon: i.icon, tone: i.key === 'late' ? 'red' : i.key === 'sign' ? 'blue' : 'amber' }))} lead={items[0].title}>
+        {list}
+      </AttentionDrawer>
+      <Section title="Needs you" icon={Bell} className="!mt-0 mb-4 hidden lg:block">{list}</Section>
+    </>
   );
 }
 

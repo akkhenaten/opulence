@@ -8,6 +8,7 @@ import Shell from './layouts/Shell.jsx';
 import { api } from './api.js';
 import { ConfirmProvider, Spinner, ToastProvider, useToast } from './ui/index.jsx';
 import { FileViewerHost } from './ui/FileViewer.jsx';
+import { startReveal } from './ui/motion.js';
 import { AcceptInvite, Forgot, Login, Reset, Verify } from './pages/auth/AuthPages.jsx';
 
 const P = (f) => lazy(f);
@@ -360,6 +361,7 @@ function App() {
   );
 }
 
+startReveal(document.getElementById('root'));
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter basename="/app" future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

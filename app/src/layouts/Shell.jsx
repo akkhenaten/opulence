@@ -5,7 +5,7 @@ import { api } from '../api.js';
 import { startRealtime, useRealtime, useRealtimeConnected } from '../realtime.js';
 import { HOME, portalLink, useAuth } from '../auth.jsx';
 import { VenueChip } from '../venue.jsx';
-import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, usePageHeader, useScrollMemory } from '../ui/index.jsx';
+import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, useBump, usePageHeader, useScrollMemory } from '../ui/index.jsx';
 import { NAV, ROLE_LABEL } from './nav.js';
 import { HubCtx, hubTabs } from '../ui/hub.jsx';
 import { OWN_CHROME, useAppStyle } from '../ui/style.js';
@@ -161,7 +161,11 @@ const MORE_ROW = 'pressable flex min-h-[52px] items-center gap-3 rounded-xl px-3
 const MORE_ICON = 'ui-raised-icon grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-bg text-blue';
 
 // Count badge for a nav item (Orb inbox)
-const Badge = ({ n, className }) => (n > 0 ? <span className={cx('rounded-full bg-blue px-1.5 text-caption2 font-bold leading-[18px] text-white', className)}>{n > 99 ? '99+' : n}</span> : null);
+// pops when the number changes
+function Badge({ n, className }) {
+  const bump = useBump(n);
+  return n > 0 ? <span className={cx('rounded-full bg-blue px-1.5 text-caption2 font-bold leading-[18px] text-white', bump && 'badge-bump', className)}>{n > 99 ? '99+' : n}</span> : null;
+}
 
 // A small label on a nav item (Platform: Admin)
 const Tag = ({ t }) => (t ? <span className="rounded-md bg-gold/15 px-1.5 text-caption2 font-bold uppercase leading-[18px] tracking-wide text-gold">{t}</span> : null);
@@ -479,7 +483,7 @@ export default function Shell() {
               className={cx('pressable flex min-h-[54px] flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-caption2 font-semibold', isActive(it) ? 'text-blue' : 'text-faint')}>
               {it.primary
                 ? <span className={cx('ui-tab-primary -mt-5 grid h-14 w-14 place-items-center rounded-full bg-blue text-white shadow-[0_8px_20px_-6px_color-mix(in_srgb,var(--accent-fill,var(--color-blue))_80%,transparent)] ring-4 ring-bg', isActive(it) && 'anim-pop')}><it.icon size={24} /></span>
-                : <span className={cx(isActive(it) && 'anim-pop')}><it.icon size={24} /></span>}
+                : <span className={cx('grid h-7 place-items-center rounded-full px-4 transition-colors duration-[var(--dur-2)]', isActive(it) && 'ui-tab-pill anim-pop bg-blue-soft')}><it.icon size={24} /></span>}
               <span className={cx(it.primary && 'mt-0.5')}>{it.short || it.label}</span>
             </Link>
           ))}

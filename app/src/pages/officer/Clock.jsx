@@ -1,13 +1,13 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, BookOpen, Camera, CameraOff, Check, CheckCircle2, Coffee, Crosshair, Info, LocateFixed, LogIn, LogOut, MapPin, Nfc, RotateCcw, ScanFace, ScanLine, Smartphone,
+  AlertTriangle, BookOpen, CalendarDays, Camera, CameraOff, Check, CheckCircle2, Coffee, Crosshair, History, Info, LocateFixed, LogIn, LogOut, MapPin, Nfc, RotateCcw, ScanFace, ScanLine, Smartphone,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { getPasskey } from '../../lib/passkey.js';
 import {
-  Button, cx, dayLabel, Empty, Load, Page, Pressable, range, Sheet, Spinner, Textarea, time, titleCase, useApi, useConfirm, useToast,
+  Button, cx, dayLabel, Empty, Load, Page, Pressable, range, Section, Sheet, Spinner, Textarea, time, titleCase, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
 import { CLOCK_EARLY_MIN, distanceM, NotLinked, until } from './_parts.jsx';
 import { RegisterStep } from './_phone.jsx';
@@ -233,25 +233,25 @@ function ClockScreen({ data, reload }) {
 
       {valid.length > 0 && (
         <div className="mt-2 rounded-tile bg-surface p-4 shadow-tile">
-          <div className="mb-2 text-footnote font-semibold uppercase tracking-wide text-muted">Today's punches</div>
-          <div className="divide-y divide-line">
-            {valid.map((e) => (
-              <div key={e.id} className="flex items-center justify-between py-2 text-body">
-                <span className="font-semibold">{KIND_LABEL[e.kind]}</span>
-                <span className="flex items-center gap-2">
-                  {e.status === 'exception' && <span className="text-caption font-semibold text-amber">Awaiting approval</span>}
-                  {e.status === 'approved' && <span className="text-caption font-semibold text-green">Approved</span>}
-                  <span className="num font-semibold">{time(e.ts)}</span>
-                </span>
-              </div>
-            ))}
-          </div>
+          <Section title="Today's punches" icon={History} count={valid.length} className="!mt-0">
+            <div className="divide-y divide-line">
+              {valid.map((e) => (
+                <div key={e.id} className="flex items-center justify-between py-2 text-body">
+                  <span className="font-semibold">{KIND_LABEL[e.kind]}</span>
+                  <span className="flex items-center gap-2">
+                    {e.status === 'exception' && <span className="text-caption font-semibold text-amber">Awaiting approval</span>}
+                    {e.status === 'approved' && <span className="text-caption font-semibold text-green">Approved</span>}
+                    <span className="num font-semibold">{time(e.ts)}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Section>
         </div>
       )}
 
       {list.length > 1 && (
-        <div className="pt-2">
-          <div className="mb-2 px-1 text-footnote font-semibold uppercase tracking-wide text-muted">Your shifts around now</div>
+        <Section title="Your shifts around now" icon={CalendarDays} className="!mt-0 pt-2">
           <div className="space-y-2">
             {list.map((x) => (
               <Pressable card key={x.assignment_id} onClick={() => setSelId(x.assignment_id)} aria-pressed={x.assignment_id === a.assignment_id}
@@ -261,7 +261,7 @@ function ClockScreen({ data, reload }) {
               </Pressable>
             ))}
           </div>
-        </div>
+        </Section>
       )}
     </div>
   );

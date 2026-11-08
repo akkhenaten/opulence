@@ -1,8 +1,16 @@
 import { useMemo, useState } from 'react';
-import { BookOpen, ChevronDown, Download } from 'lucide-react';
+import {
+  BookOpen, Building2, CalendarDays, ChevronDown, CircleHelp, Download, MessagesSquare, PoundSterling, Radio, Rocket, ShieldCheck, Smartphone, Sparkles, UserRound, Users,
+} from 'lucide-react';
 import { Button, Empty, List, Load, Page, Pressable, SearchInput, Section, cx, useAction, useApi } from '../../ui/index.jsx';
 import { InstallSheet } from '../../ui/pwa.jsx';
 import { downloadAction } from '../../api.js';
+
+// A small mark before each chapter heading
+const CHAPTER_ICON = {
+  install: Smartphone, start: Rocket, rota: CalendarDays, day: Radio, money: PoundSterling, people: Users, comms: MessagesSquare,
+  ai: Sparkles, security: ShieldCheck, venue: Building2, officer: UserRound, faq: CircleHelp,
+};
 
 // One paragraph of guide text: "- " lines become bullets, "1. " lines become numbered steps
 function Body({ text }) {
@@ -62,7 +70,7 @@ function Guide({ chapters, q }) {
     <>
       {!shown.length && <div className="mt-6"><Empty icon={BookOpen} title="No matches" body="Try another word, for example clock, invoice or password." /></div>}
       {shown.map((c) => (
-        <Section key={c.id} title={c.title}>
+        <Section key={c.id} title={c.title} icon={CHAPTER_ICON[c.id] || BookOpen} count={needle ? c.sections.length : 0}>
           <List>
             {c.sections.map((s) => (
               <HelpSection key={s.key} s={s} open={!!needle || !!open[s.key]} onToggle={() => setOpen((o) => ({ ...o, [s.key]: !o[s.key] }))} onInstall={() => setInstall(true)} />
@@ -83,7 +91,7 @@ export default function Help() {
   return (
     <Page title="Help & user guide" subtitle="How to use the app, step by step"
       tools={<SearchInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the guide" className="w-full sm:w-72" />}
-      actions={<Button variant="secondary" icon={Download} busy={busy} onClick={() => run(() => downloadAction('help.pdf'))}>Download as PDF</Button>}>
+      actions={<Button variant="secondary" icon={Download} iconOnly="phone" busy={busy} onClick={() => run(() => downloadAction('help.pdf'))}>Download as PDF</Button>}>
       <Load q={g} skeleton="rows">{(d) => <Guide chapters={d.chapters} q={q} />}</Load>
     </Page>
   );

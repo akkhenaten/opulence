@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { BadgeCheck, Camera, Clock3, ExternalLink, Eye, FileText, Paperclip, Plus, ShieldCheck, Trash2, Upload } from 'lucide-react';
+import { BadgeCheck, BookOpenCheck, Camera, Clock3, ExternalLink, Eye, FileText, Paperclip, Plus, ShieldCheck, Trash2, Upload } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { Button, cx, date, daysUntil, Empty, Input, List, Load, Page, Pill, Pressable, Row, Section, Select, Sheet, useAction, useApi, useConfirm, useToast } from '../../ui/index.jsx';
@@ -63,7 +63,7 @@ function SitePacks() {
   const venues = q.data?.venues || [];
   if (!venues.length) return null;
   return (
-    <Section title="Site packs">
+    <Section title="Site packs" icon={BookOpenCheck} count={venues.length}>
       <List>
         {venues.map((v) => (
           <Row key={v.venue_id} to={`/officer/venue-pack/${v.venue_id}`} title={v.name}

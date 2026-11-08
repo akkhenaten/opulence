@@ -147,7 +147,7 @@ function Drafts({ base, officer }) {
     run(() => api('incidents.draftDelete', { id: d.id }), 'Draft deleted').then(() => { clearLocal(d.id); q.reload(); }).catch(() => {});
   };
   return (
-    <Section title="Your drafts" className="!mt-0 mb-5">
+    <Section title="Your drafts" icon={FilePen} count={rows.length} className="!mt-0 mb-5">
       <List>
         {rows.map((d) => (
           <div key={d.id} className="flex items-center gap-1 pr-2">

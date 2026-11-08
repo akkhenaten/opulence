@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Plus, ShieldCheck, Users } from 'lucide-react';
+import { CalendarClock, Download, LayoutGrid, List, Plus, ShieldAlert, ShieldCheck, UserPlus, Users } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -66,7 +66,7 @@ export default function Staff() {
       <ToolField label="Role"><Select aria-label="Role" value={role} onChange={(e) => setUrl({ role: e.target.value })} options={[{ value: '', label: 'All roles' }, ...roles.map((r) => ({ value: r.code, label: r.name }))]} /></ToolField>
       <ToolField label="Compliance"><Select aria-label="Compliance" value={comp} onChange={(e) => setUrl({ compliance: e.target.value })} options={COMPLIANCE} /></ToolField>
       <ToolField label="App set-up"><Select aria-label="App set-up" value={app} onChange={(e) => setUrl({ app: e.target.value })} options={[{ value: '', label: 'Any app set-up' }, ...Object.entries(APP_SETUP).map(([value, a]) => ({ value, label: a.label }))]} /></ToolField>
-      <ToolField label="Show as"><Segmented value={view} onChange={(v) => setUrl({ view: v })} options={[{ value: 'grid', label: 'Grid' }, { value: 'list', label: 'List' }]} /></ToolField>
+      <ToolField label="Show as"><Segmented value={view} onChange={(v) => setUrl({ view: v })} options={[{ value: 'grid', label: 'Grid', icon: LayoutGrid }, { value: 'list', label: 'List', icon: List }]} iconOnly="phone" /></ToolField>
     </ToolMenu>
   </>;
   // Only what needs chasing among active officers; tap to filter the list
@@ -79,9 +79,9 @@ export default function Staff() {
           <>
             {(nRed > 0 || nAmber > 0 || pipeline > 0) && (
               <div className="mb-4 flex flex-wrap gap-2">
-                {nRed > 0 && <Chip label="Not compliant" value={nRed} tone="red" active={comp === 'red' && status === 'active'} onClick={() => pick('red')} />}
-                {nAmber > 0 && <Chip label="Expiring" value={nAmber} tone="amber" active={comp === 'amber' && status === 'active'} onClick={() => pick('amber')} />}
-                {pipeline > 0 && <Chip label="In the pipeline" value={pipeline} tone="blue" />}
+                {nRed > 0 && <Chip label="Not compliant" value={nRed} tone="red" icon={ShieldAlert} compact="phone" active={comp === 'red' && status === 'active'} onClick={() => pick('red')} />}
+                {nAmber > 0 && <Chip label="Expiring" value={nAmber} tone="amber" icon={CalendarClock} compact="phone" active={comp === 'amber' && status === 'active'} onClick={() => pick('amber')} />}
+                {pipeline > 0 && <Chip label="In the pipeline" value={pipeline} tone="blue" icon={UserPlus} compact="phone" />}
               </div>
             )}
 

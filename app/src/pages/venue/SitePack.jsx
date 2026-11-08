@@ -1,6 +1,6 @@
 // The client's view of their venue's site pack: what officers sign, who has signed, and a way to suggest changes
 import { useState } from 'react';
-import { ArrowLeft, BookText, MessageSquarePlus } from 'lucide-react';
+import { ArrowLeft, BookOpenCheck, BookText, CircleCheck, MessageSquarePlus, PenLine, UsersRound } from 'lucide-react';
 import { api } from '../../api.js';
 import { Button, Chip, date, Empty, Input, List, Load, Pill, Row, Section, Sheet, Textarea, useAction, useApi } from '../../ui/index.jsx';
 import { docKind, PackPaper } from '../shared/PackPaper.jsx';
@@ -16,7 +16,7 @@ export function ClientPack({ venueId }) {
         const doc = open && d.pack.find((x) => x.procedure_id === open);
         return (
           <div className="space-y-6">
-            <Section className="mt-0" title="Instructions and procedures officers sign">
+            <Section className="mt-0" title="Instructions and procedures officers sign" icon={BookOpenCheck} count={d.pack.length}>
               {doc ? (
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -28,9 +28,9 @@ export function ClientPack({ venueId }) {
               ) : d.pack.length ? (
                 <>
                   <div className="mb-3 flex flex-wrap gap-2">
-                    <Chip value={d.counts.booked} label="officers booked" />
-                    <Chip value={d.counts.ok} label="signed and up to date" tone={d.counts.ok ? 'green' : 'grey'} />
-                    {d.counts.action > 0 && <Chip value={d.counts.action} label="still to sign" tone="amber" />}
+                    <Chip value={d.counts.booked} label="officers booked" icon={UsersRound} compact="phone" />
+                    <Chip value={d.counts.ok} label="signed and up to date" tone={d.counts.ok ? 'green' : 'grey'} icon={CircleCheck} compact="phone" />
+                    {d.counts.action > 0 && <Chip value={d.counts.action} label="still to sign" tone="amber" icon={PenLine} compact="phone" />}
                   </div>
                   <List>
                     {d.pack.map((x) => (
@@ -75,7 +75,7 @@ function MySuggestions({ venueId }) {
   if (!rows.length) return null;
   const label = { open: 'With the company', accepted: 'Accepted', dismissed: 'Not taken forward' };
   return (
-    <Section title="Your suggestions">
+    <Section title="Your suggestions" icon={MessageSquarePlus} count={rows.length}>
       <List>
         {rows.map((s) => (
           <Row key={s.id} title={s.procedure_title} subtitle={`${date(s.created_at)} · ${s.body}${s.reply ? ` · Reply: ${s.reply}` : ''}`}
