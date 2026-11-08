@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, History } from 'lucide-react';
+import { ChevronDown, Download, History } from 'lucide-react';
+import { downloadAction } from '../../api.js';
 import { WhatsNew } from './_whatsnew.jsx';
-import { Avatar, cx, dateTime, dayLabel, Empty, isoDate, List, Load, Page, Pill, Pressable, relative, SearchInput, Section, Segmented, Select, Tabs, time, titleCase, useApi, useUrlState } from '../../ui/index.jsx';
+import { Avatar, cx, dateTime, dayLabel, Empty, isoDate, List, Load, MoreMenu, Page, Pill, Pressable, relative, SearchInput, Section, Segmented, Select, Tabs, time, titleCase, useApi, useUrlState } from '../../ui/index.jsx';
 
 const ENTITIES = ['officer', 'document', 'contract', 'hr_note', 'officer_rate', 'shift', 'assignment', 'cover_request', 'timesheet',
   'incident', 'venue', 'venue_rate', 'invoice', 'invoice_line', 'statement', 'statement_line', 'user', 'settings'];
@@ -35,7 +36,8 @@ export default function Audit() {
   }, [q.data, search]);
 
   return (
-    <Page title="Audit log" subtitle={tab === 'new' ? 'Every upgrade to your platform' : 'Who changed what, and when'}>
+    <Page title="Audit log" subtitle={tab === 'new' ? 'Every upgrade to your platform' : 'Who changed what, and when'}
+      actions={tab === 'activity' && <MoreMenu items={[{ icon: Download, label: 'Export to spreadsheet', hint: `The last ${limit}${entity ? ` ${entity.replace(/_/g, ' ')}` : ''} changes, as CSV`, onClick: () => downloadAction('audit.exportCsv', { entity: entity || undefined, limit }).catch(() => {}) }]} />}>
       <div className="mb-3"><Tabs value={tab} onChange={setTab} tabs={[{ value: 'activity', label: 'Activity' }, { value: 'new', label: 'What’s new' }]} /></div>
       {tab === 'new' ? <WhatsNew /> : <>
       <div className="mb-2 grid gap-3 sm:grid-cols-[1fr_220px_auto] sm:items-end">

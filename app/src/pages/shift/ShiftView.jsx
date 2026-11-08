@@ -5,7 +5,7 @@ import { useImperativeHandle, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowRightLeft, Ban, BookOpen, Camera, Check, Clock3, Crown, DoorOpen, EyeOff, FilePen, FileSignature, HeartPulse, Hammer, LockOpen, MapPin, Megaphone,
-  MessagesSquare, Pencil, Phone, Plus, MessageSquareHeart, Scale, ShieldAlert, ShoppingBag, Undo2, Users, X,
+  MessagesSquare, Navigation, Pencil, Phone, Plus, MessageSquareHeart, Scale, ShieldAlert, ShoppingBag, Undo2, Users, X,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -216,6 +216,7 @@ function Header({ s, me, officer, signed, live: onShift, phone, reload }) {
           </div>
         </div>
       </div>
+      {officer && s.status !== 'cancelled' && new Date(s.ends_at) > new Date() && <GetThere s={s} office={phone} />}
       {(s.instructions || s.notes) && (
         <div className="mt-3 space-y-1.5 rounded-2xl bg-bg/70 p-3 text-subhead">
           {s.instructions && <p className="whitespace-pre-line">{s.instructions}</p>}
@@ -244,6 +245,27 @@ function Header({ s, me, officer, signed, live: onShift, phone, reload }) {
       )}
       {officer && <DeclineSheet s={declining ? { ...s, assignment_id: me.assignment_id, assignment_status: me.assignment_status } : null} phone={phone}
         onClose={() => setDeclining(false)} onDone={() => { setDeclining(false); nav('/officer', { replace: true }); }} />}
+    </div>
+  );
+}
+
+/** Directions and the two numbers an officer may need on the way, in one row */
+function GetThere({ s, office }) {
+  const dest = s.lat != null && s.lng != null ? `${s.lat},${s.lng}` : [s.venue_name, s.venue_address, s.postcode].filter(Boolean).join(', ');
+  const links = [
+    dest && { href: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`, icon: Navigation, label: 'Directions', ext: true },
+    office && { href: `tel:${office.replace(/\s+/g, '')}`, icon: Phone, label: 'Call office' },
+    s.venue_phone && { href: `tel:${s.venue_phone}`, icon: Phone, label: 'Call venue' },
+  ].filter(Boolean);
+  if (!links.length) return null;
+  return (
+    <div className="mt-3 flex gap-2">
+      {links.map((l) => (
+        <a key={l.label} href={l.href} {...(l.ext ? { target: '_blank', rel: 'noreferrer' } : {})}
+          className="pressable flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-soft px-2 text-subhead font-semibold text-blue">
+          <l.icon size={16} className="shrink-0" />{l.label}
+        </a>
+      ))}
     </div>
   );
 }

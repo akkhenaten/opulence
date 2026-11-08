@@ -446,3 +446,24 @@ export function londonToUtc(dateStr, hhmm) {
   return new Date(guess.getTime() - offsetMin * 60000);
 }
 const addDay = (d) => new Date(new Date(`${d}T12:00:00Z`).getTime() + 86400000).toISOString().slice(0, 10);
+
+/** Where a swap request opens for the manager: the shift with Assign already open */
+export const swapLink = (shiftId) => `/company/rota?shift=${shiftId}&assign=1`;
+
+// "Ask to swap": the officer keeps the shift until a manager moves it; managers get a notice that opens Assign on it
+actions['shifts.swapAsk'] = def(['officer'], async (b, { user }) => {
+  required(b, 'assignment_id');
+  const a = need(await one(
+    `SELECT a.id, a.officer_id, a.status, s.id AS shift_id, s.venue_id, s.starts_at, s.ends_at, v.name AS venue_name
+       FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id WHERE a.id = $1`, [b.assignment_id]));
+  if (a.officer_id !== user.officer_id) fail(403, 'Forbidden');
+  if (!['assigned', 'accepted'].includes(a.status) || new Date(a.ends_at) < new Date()) fail(400, 'This shift can no longer be swapped');
+  const note = String(b.note || '').trim().slice(0, 500);
+  const o = await one(`SELECT ${officerName('o')} AS name FROM officers o WHERE o.id = $1`, [a.officer_id]);
+  await notify(await managersFor(a.venue_id), {
+    kind: 'shift', title: `${o.name} asks to swap a shift`, body: `${a.venue_name} · ${fmtDateTime(a.starts_at)} – ${fmtTime(a.ends_at)}${note ? ` · "${note}"` : ''}`,
+    link: swapLink(a.shift_id), ref: `swap:${a.id}`,
+  });
+  await audit(user, 'shift.swap_ask', 'assignment', a.id, { note });
+  return { ok: true };
+});

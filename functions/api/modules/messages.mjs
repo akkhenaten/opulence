@@ -4,7 +4,9 @@ import { one, q } from '../lib/db.mjs';
 import { fail, required, need, HttpError } from '../lib/http.mjs';
 import { downloadUrl, photoUrls } from '../lib/storage.mjs';
 import { cleanFiles } from '../lib/files.mjs';
-import { notify, companyManagers } from '../lib/notify.mjs';
+import { notify, companyManagers, managersFor, venueContacts } from '../lib/notify.mjs';
+import { assertVenue } from '../lib/scope.mjs';
+import { ensureThread } from '../lib/threads.mjs';
 import { audit } from '../lib/audit.mjs';
 import { extract, HAIKU, transcribe } from '../lib/ai.mjs';
 import { londonDate } from '../lib/time.mjs';
@@ -590,3 +592,12 @@ export const actions = {
   // For people who are not in Orb conversations (e.g. venue staff), confirm the system user exists
   'messages.opsId': def(ALL, async () => ({ id: await opsUser() })),
 };
+
+// A venue's own chat with the office: one per venue, its logins plus the managers who look after it
+actions['messages.office'] = def(['venue', 'company', 'security'], async (b, { user }) => {
+  required(b, 'venue_id');
+  await assertVenue(user, b.venue_id);
+  const v = need(await one('SELECT id, name FROM venues WHERE id = $1', [b.venue_id]), 'Venue not found');
+  const c = await ensureThread('group', v.id, [...(await venueContacts(v.id)), ...(await managersFor(v.id))], `${v.name} · office`);
+  return { id: c.id };
+});

@@ -19,6 +19,9 @@ export function DeclineSheet({ s, phone, onClose, onDone }) {
   const close = () => { setReason(''); onClose(); };
   const decline = () => run(() => api('shifts.respond', { assignment_id: s.assignment_id, accept: false, reason }), 'Shift declined')
     .then(() => { setReason(''); onDone(); }).catch(() => {});
+  // Keep the shift and let the office swap someone in: nothing changes until a manager moves it
+  const swap = () => run(() => api('shifts.swapAsk', { assignment_id: s.assignment_id, note: reason }), 'Asked. You keep the shift until the office swaps it')
+    .then(() => { setReason(''); onClose(); }).catch(() => {});
   return (
     <Sheet open={!!s} onClose={close} title={s?.assignment_status === 'accepted' ? "Can't work this shift" : 'Decline shift'} size="sm"
       footer={<><Button variant="secondary" onClick={close}>Keep it</Button><Button variant="danger" busy={busy} onClick={decline}>Decline shift</Button></>}>
@@ -30,6 +33,11 @@ export function DeclineSheet({ s, phone, onClose, onDone }) {
         </div>
       )}
       <Textarea label="Reason (optional)" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Unwell, family emergency" />
+      {s?.assignment_status === 'accepted' && !shortNotice(s.starts_at) && (
+        <button type="button" disabled={busy} onClick={swap} className="pressable mt-3 text-subhead font-semibold text-blue">
+          Ask to swap instead: keep it until someone takes it
+        </button>
+      )}
     </Sheet>
   );
 }

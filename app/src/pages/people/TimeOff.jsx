@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { CalendarOff, Plus } from 'lucide-react';
-import { Bento, Button, Empty, List, Load, Page, Section, Segmented, Stat, Tile, addDays, isoDate, useApi } from '../../ui/index.jsx';
+import { CalendarOff, Check, Download, Plus } from 'lucide-react';
+import { api, downloadAction } from '../../api.js';
+import { Bento, Button, Empty, List, Load, MoreMenu, Page, Section, Segmented, Stat, Tile, addDays, isoDate, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { TIMEOFF_KINDS } from './_parts.jsx';
 import { TimeOffRow, TimeOffSheet } from './_profileTabs.jsx';
 
@@ -10,6 +11,8 @@ export default function TimeOff() {
   const officers = useApi('officers.list');
   const [kind, setKind] = useState('all');
   const [adding, setAdding] = useState(false);
+  const [run, busy] = useAction();
+  const confirm = useConfirm();
 
   const groups = useMemo(() => {
     const all = (q.data || []).filter((t) => kind === 'all' || t.kind === kind);
@@ -25,9 +28,16 @@ export default function TimeOff() {
   const in14 = all.filter((t) => t.status === 'approved' && t.start_date > today && t.start_date <= addDays(today, 14)).length;
   const sickNow = all.filter((t) => t.status === 'approved' && t.kind === 'sick' && t.start_date <= today && t.end_date >= today).length;
 
+  const approveAll = async () => {
+    const n = groups.pending.length;
+    if (!(await confirm({ title: `Approve ${n} requests?`, body: 'Each officer is told their time off is approved.', confirm: 'Approve all' }))) return;
+    run(() => api('timeoff.decideMany', { ids: groups.pending.map((t) => t.id), status: 'approved' }).then(q.reload), `${n} approved`).catch(() => {});
+  };
+
   return (
     <Page title="Time off" subtitle="Holidays, sickness and unavailability"
-      actions={<Button icon={Plus} onClick={() => setAdding(true)}>Add for officer</Button>}>
+      actions={<><Button icon={Plus} onClick={() => setAdding(true)}>Add for officer</Button>
+        <MoreMenu items={[{ icon: Download, label: 'Export to spreadsheet', hint: 'The last 60 days and ahead, as CSV', onClick: () => downloadAction('timeoff.exportCsv', { from: addDays(today, -60) }).catch(() => {}) }]} /></>}>
       <Load q={q}>
         {() => (
           <>
@@ -38,7 +48,8 @@ export default function TimeOff() {
               <Tile><Stat value={in14} label="Starting soon" hint="Next 14 days" /></Tile>
             </Bento>
             <Segmented value={kind} onChange={setKind} options={[{ value: 'all', label: 'All' }, ...TIMEOFF_KINDS.map((k) => ({ value: k, label: k[0].toUpperCase() + k.slice(1) }))]} />
-            <Block title="Pending" rows={groups.pending} onDone={q.reload} empty="No requests waiting" />
+            <Block title="Pending" rows={groups.pending} onDone={q.reload} empty="No requests waiting"
+              action={groups.pending.length > 1 && <Button size="sm" variant="secondary" icon={Check} busy={busy} onClick={approveAll}>Approve all</Button>} />
             <Block title="Off now" rows={groups.now} onDone={q.reload} />
             <Block title="Upcoming" rows={groups.upcoming} onDone={q.reload} empty="Nothing approved ahead" />
             <Block title="Recent" rows={groups.past.slice(0, 30)} onDone={q.reload} />
@@ -50,10 +61,10 @@ export default function TimeOff() {
   );
 }
 
-function Block({ title, rows, onDone, empty }) {
+function Block({ title, rows, onDone, empty, action }) {
   if (!rows.length && !empty) return null;
   return (
-    <Section title={`${title} · ${rows.length}`}>
+    <Section title={`${title} · ${rows.length}`} action={action || undefined}>
       {rows.length ? <List>{rows.map((t) => <TimeOffRow key={t.id} t={t} onDone={onDone} showName />)}</List>
         : <Empty icon={CalendarOff} title={empty} />}
     </Section>

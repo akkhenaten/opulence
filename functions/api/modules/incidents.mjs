@@ -411,3 +411,14 @@ export const actions = {
     return { byType, bySeverity, byWeek, byVenue, byHour };
   }),
 };
+
+// Close several reviewed reports at once (the Incidents list's selection), each through the single review and its venue check
+actions['incidents.reviewMany'] = def(MGR, async (b, ctx) => {
+  required(b, 'ids');
+  let done = 0;
+  const skipped = [];
+  for (const id of [].concat(b.ids).slice(0, 200)) {
+    try { await actions['incidents.review'].fn({ id, decision: 'close' }, ctx); done++; } catch (e) { skipped.push({ id, error: e.message }); }
+  }
+  return { done, skipped };
+});

@@ -5,7 +5,7 @@ import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import {
-  Bento, Button, cx, dateShort, daysUntil, Empty, Input, isoDate, List, Load, money, MoreMenu, Page, Pill, SearchInput, Section, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useConfirm, useUrlState,
+  Bento, Button, cx, dateShort, daysUntil, Empty, Input, isoDate, KV, List, Load, money, MoreMenu, Page, Pill, SearchInput, Section, Segmented, Select, Sheet, Stat, Tile, useAction, useApi, useConfirm, useUrlState,
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 
@@ -166,6 +166,19 @@ function ExportSheet({ onClose }) {
 
 /* ---------- Venue manager ---------- */
 
+// Where to pay, shown only while something is outstanding; the invoice number is the reference
+function PayTo() {
+  const s = useApi('settings.get').data;
+  if (!s?.bank_account) return null;
+  return (
+    <Section title="How to pay">
+      <Tile>
+        <KV items={[['Account name', s.company_name], ['Bank', s.bank_name], ['Sort code', <span className="num">{s.bank_sort_code}</span>], ['Account', <span className="num">{s.bank_account}</span>], ['Reference', 'The invoice number']]} />
+      </Tile>
+    </Section>
+  );
+}
+
 function VenueInvoices() {
   const { venueId, venue } = useVenue();
   const list = useApi('invoices.list', { venue_id: venueId || undefined });
@@ -193,6 +206,7 @@ function VenueInvoices() {
                 ]} />
                 {!rows.length ? <Empty icon={ReceiptText} title="No invoices yet" body="Invoices appear here once they are issued." /> : <InvoiceList rows={shown} />}
               </Section>
+              {out.length > 0 && <PayTo />}
             </>
           );
         }}

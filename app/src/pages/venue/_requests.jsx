@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Megaphone, MessagesSquare, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Megaphone, MessagesSquare, Pencil, Plus, Repeat, Trash2 } from 'lucide-react';
 import {
-  Button, Callout, Empty, KV, List, Load, Pill, Row, Segmented, Sheet, dayLabel, range, relative,
+  Button, Callout, Empty, KV, List, Load, Pill, Row, Segmented, Sheet, addDays, dayLabel, isoDate, range, relative, time,
 } from '../../ui/index.jsx';
 import { ChangeSheet, describeChange, LABEL, RepeatTag, statusOf } from '../manager/_cover.jsx';
 
@@ -37,7 +37,14 @@ export function CoverList({ q, many, onOpen, onNew }) {
   );
 }
 
-export function Detail({ c, onClose, onDone }) {
+/** The same booking a week on (or the first same weekday from tomorrow), to check and send */
+export function againDraft(c, today = isoDate()) {
+  let date = isoDate(c.starts_at);
+  while (date <= today) date = addDays(date, 7);
+  return { venue_id: c.venue_id, role: c.role, kind: 'one_off', date, start: time(c.starts_at), end: time(c.ends_at), headcount: c.headcount, notes: c.notes || '', quiet: true };
+}
+
+export function Detail({ c, onClose, onDone, onAgain }) {
   const [change, setChange] = useState(null);
   const st = statusOf(c);
   const live = ['pending', 'accepted'].includes(c.status) && new Date(c.starts_at) > new Date();
@@ -61,6 +68,7 @@ export function Detail({ c, onClose, onDone }) {
         ]} />
         {c.status === 'accepted' && <p className="text-subhead text-muted">We are staffing this. Confirmed officers show under On site on the day. Changes to booked cover need Orb's approval.</p>}
         {c.conversation_id && <Button variant="soft" icon={MessagesSquare} to={`/venue/messages/${c.conversation_id}`}>Messages about this request</Button>}
+        {onAgain && c.kind !== 'recurring' && <Button variant="soft" icon={Repeat} onClick={() => onAgain(againDraft(c))}>Request again</Button>}
       </div>
     </Sheet>
   );

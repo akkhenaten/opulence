@@ -29,7 +29,9 @@ export const actions = {
     const emergency_visible = canSeeGuide(user, s.emergency_guide);
     const flow_visible = canSeeFlow(user, s.flow_live);
     if (user.role === 'company') return { ...forClient(s), emergency_visible, flow_visible };
-    return { company_name: s.company_name, grace_minutes: s.grace_minutes, pay_period: s.pay_period, modules: s.modules, logo_url: s.logo_url, brand_color: s.brand_color, ui_style: s.ui_style, everyday: s.everyday, emergency_visible, flow_visible };
+    // Venues pay invoices: the bank details printed on every invoice PDF
+    const payTo = user.role === 'venue' ? { bank_name: s.bank_name, bank_sort_code: s.bank_sort_code, bank_account: s.bank_account, payment_terms_days: s.payment_terms_days } : {};
+    return { ...payTo, company_name: s.company_name, grace_minutes: s.grace_minutes, pay_period: s.pay_period, modules: s.modules, logo_url: s.logo_url, brand_color: s.brand_color, ui_style: s.ui_style, everyday: s.everyday, emergency_visible, flow_visible };
   }),
 
   // Name, logo and colour for the sign-in page (no login needed)

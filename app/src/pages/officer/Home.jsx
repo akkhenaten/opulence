@@ -2,17 +2,17 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle, BookOpenCheck, CalendarClock, CalendarDays, Check, Clock3, Coffee, FilePen, FileSignature, GraduationCap, ListChecks, LogIn, LogOut, MapPin, Megaphone, NotebookPen, PencilLine,
-  ShieldAlert, ShieldCheck, X,
+  ShieldAlert, ShieldCheck, Wallet, X,
 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Button, cx, date, dayLabel, daysUntil, List, Load, Page, range, relative, Row, Section, Tile, time, useAction, useApi, usePullRefresh,
+  Avatar, Button, cx, date, dateShort, dayLabel, daysUntil, List, Load, money, Page, range, relative, Row, Section, Tile, time, useAction, useApi, usePullRefresh,
 } from '../../ui/index.jsx';
 import { useModules } from '../learn/_parts.jsx';
 import { ChaseBanner, useOps } from './_ops.jsx';
 import { clockOpensAt, DeclineSheet, expiryText, greeting, NotLinked, ShiftCard, typeLabel, until } from './_parts.jsx';
-import { docKindFor, packTodos } from './_todo.js';
+import { docKindFor, freshStatement, packTodos, weekendAsk } from './_todo.js';
 import { InstallCard } from '../../ui/pwa.jsx';
 import { PushCard } from './_notify.jsx';
 import { PhoneCard } from './_phone.jsx';
@@ -88,6 +88,7 @@ function Body({ d, clock, ops, reload }) {
   // Site packs to read before upcoming shifts: a To do row each, and a line on the next shift's card
   const packs = packTodos(useApi('venuePacks.myList', {}).data?.venues);
   const addFor = (kind) => `/officer/documents${kind ? `?add=${kind}` : ''}`;
+  const paid = freshStatement(d.lastStatement);
 
   // The next shift comes first; everything else waiting on the officer sits under it as one line each
   return (
@@ -100,7 +101,7 @@ function Body({ d, clock, ops, reload }) {
 
       <ChaseBanner ops={ops} />
       <PhoneCard soon={next.some((s) => new Date(s.starts_at) - Date.now() < 864e5)} />
-      {(offers.length > 0 || d.issues?.length > 0 || d.grace || (siaDays != null && siaDays <= 60)) && (
+      {(offers.length > 0 || paid || d.issues?.length > 0 || d.grace || (siaDays != null && siaDays <= 60)) && (
         <List>
           {d.issues?.length > 0 && (
             <Row to={addFor(docKindFor(d.issues[0]))} left={<Ico icon={ShieldAlert} tone="red" />} title="You can't work shifts right now" subtitle={d.issues.join(' · ')} />
@@ -115,6 +116,10 @@ function Body({ d, clock, ops, reload }) {
           )}
           {!d.issues?.length && siaDays != null && siaDays <= 60 && (
             <Row to={addFor('sia')} left={<Ico icon={AlertTriangle} tone="amber" />} title={`SIA licence: ${expiryText(siaDays).toLowerCase()}`} subtitle="Renew it and upload the new licence" />
+          )}
+          {paid && (
+            <Row to={`/officer/pay/${paid.id}`} left={<Ico icon={Wallet} tone="green" />} title={`Pay statement · ${money(paid.total)}`}
+              subtitle={`${dateShort(paid.period_start)} – ${date(paid.period_end)}`} />
           )}
         </List>
       )}
@@ -143,9 +148,34 @@ function Body({ d, clock, ops, reload }) {
       )}
 
       <OpenShifts />
+      <Weekend shifts={next} />
       <ToDo d={d} packs={packs} />
       <DeclineSheet s={declining} phone={d.office_phone} onClose={() => setDeclining(null)} onDone={() => { setDeclining(null); reload(); }} />
     </div>
+  );
+}
+
+// Wednesday to Friday with nothing booked for the weekend: one tap tells the office whether to count on them
+function Weekend({ shifts }) {
+  const ask = weekendAsk(shifts);
+  const key = ask && `weekend-asked:${ask.from}`;
+  const [done, setDone] = useState(() => !!key && !!localStorage.getItem(key));
+  const [run, busy] = useAction();
+  if (!ask || done) return null;
+  const answer = (free) => {
+    const finish = () => { localStorage.setItem(key, free ? 'free' : 'busy'); setDone(true); };
+    if (free) { finish(); return; }
+    run(() => api('timeoff.request', { kind: 'unavailable', start_date: ask.from, end_date: ask.to, reason: 'Not free this weekend' }).then(finish), 'Thanks, the office knows').catch(() => {});
+  };
+  return (
+    <Tile>
+      <div className="text-callout font-semibold">Free this weekend?</div>
+      <p className="mt-0.5 text-subhead text-muted">Friday to Sunday. It helps the office plan cover.</p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Button variant="secondary" busy={busy} onClick={() => answer(false)}>Not this time</Button>
+        <Button icon={Check} onClick={() => answer(true)}>Yes, I'm free</Button>
+      </div>
+    </Tile>
   );
 }
 

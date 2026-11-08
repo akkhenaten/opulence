@@ -195,3 +195,24 @@ export const actions = {
     return { ok: true, public: on };
   }),
 };
+
+// "Don't send them again": the venue asks, the company decides on an Orb card with the bar pre-ticked.
+// Only for officers who worked at one of this venue login's venues in the last 90 days; nothing about the officer comes back.
+actions['feedback.dontSend'] = def(['venue'], async (b, { user }) => {
+  required(b, 'officer_id', 'venue_id');
+  await assertVenue(user, b.venue_id);
+  const reason = String(b.reason || '').trim().slice(0, 1000);
+  const v = need(await one('SELECT id, name FROM venues WHERE id = $1', [b.venue_id]), 'Venue not found');
+  const worked = await one(
+    `SELECT s.id FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
+      WHERE a.officer_id = $1 AND s.venue_id = $2 AND a.status IN ${ACTIVE} AND s.starts_at < now() AND s.starts_at > now() - interval '90 days'
+      ORDER BY s.starts_at DESC LIMIT 1`, [b.officer_id, v.id]);
+  if (!worked) fail(400, 'That officer has not worked here recently');
+  const o = await one(`SELECT ${officerName('o')} AS name FROM officers o WHERE o.id = $1`, [b.officer_id]);
+  await createItem({ kind: 'feedback', venue_id: v.id, shift_id: worked.id, officer_id: b.officer_id, severity: 'warning',
+    title: `Feedback: ${v.name} asks not to have ${o.name} back`, reason: reason ? `"${reason}" — ${user.name}` : `Asked by ${user.name}.`,
+    payload: { ban_asked: true, note: reason || 'Asked not to have them back' }, dedupe: `dontsend:${v.id}:${b.officer_id}` });
+  await logActivity('feedback', `${v.name} asked not to have ${o.name} back`, { venue_id: v.id });
+  await audit(user, 'feedback.dont_send', 'officer', b.officer_id, { venue_id: v.id });
+  return { ok: true };
+});

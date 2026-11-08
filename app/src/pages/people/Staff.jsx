@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ShieldCheck, Users } from 'lucide-react';
-import { api } from '../../api.js';
+import { Download, Plus, ShieldCheck, Users } from 'lucide-react';
+import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Bento, Button, date, Empty, FilterBar, Load, Page, PhotoCard, Pill, SearchInput, Segmented, Sheet, Stat, Table, Tile, useAction, useApi, useForm, useUrlState, displayName,
+  Avatar, Bento, Button, date, Empty, FilterBar, Load, MoreMenu, Page, PhotoCard, Pill, SearchInput, Segmented, Sheet, Stat, Table, Tile, useAction, useApi, useForm, useUrlState, displayName,
 } from '../../ui/index.jsx';
 import {
   ComplianceBadge, CopyLink, OFFICER_STATUSES, OfficerCoreFields, cleanOfficer, complianceState, emptyOfficer, useBase, useRoles,
@@ -112,7 +112,8 @@ export default function Staff() {
 function Page2({ isCo, onAdd, children }) {
   return (
     <Page title={isCo ? 'Staff' : 'Officers'} subtitle={isCo ? 'Officers, licences and compliance' : 'Officers you can roster'}
-      actions={isCo && <Button icon={Plus} onClick={onAdd}>Add staff member</Button>}>
+      actions={<>{isCo && <Button icon={Plus} onClick={onAdd}>Add staff member</Button>}
+        <MoreMenu items={[{ icon: Download, label: 'Export to spreadsheet', hint: 'Everyone on the list, as CSV', onClick: () => downloadAction('staff.exportCsv', {}).catch(() => {}) }]} /></>}>
       {children}
     </Page>
   );

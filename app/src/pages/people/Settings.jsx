@@ -798,21 +798,36 @@ function NotificationsTab() {
 }
 
 // "Request a private demo" submissions from the public landing page
+const DEMO_STATUS = [{ value: 'new', label: 'New' }, { value: 'contacted', label: 'Contacted' }, { value: 'won', label: 'Won' }, { value: 'lost', label: 'Lost' }];
+
 function DemosTab() {
   const q = useApi('demo.list');
+  const [show, setShow] = useState('open');
+  const [run] = useAction();
+  const setStatus = (r, status) => run(() => api('demo.setStatus', { id: r.id, status }).then(q.reload)).catch(() => {});
   return (
     <Load q={q}>
-      {(rows) => (
-        <Table rows={rows} empty="No demo requests yet" columns={[
-          { key: 'created_at', mobile: 'value', label: 'Received', render: (r) => relative(r.created_at) },
-          { key: 'name', mobile: 'title', label: 'Name', render: (r) => <span className="font-semibold">{r.name}</span> },
-          { key: 'company', mobile: 'sub', label: 'Company' },
-          { key: 'email', mobile: 'sub', label: 'Email', render: (r) => <a href={`mailto:${r.email}`} className="font-semibold text-blue">{r.email}</a> },
-          { key: 'phone', mobile: 'sub', label: 'Phone', render: (r) => (r.phone ? <a href={`tel:${r.phone}`} className="text-blue">{r.phone}</a> : '—') },
-          { key: 'sites', mobile: false, label: 'Sites', render: (r) => r.sites || '—' },
-          { key: 'message', mobile: 'note', label: 'Message', render: (r) => <span className="whitespace-pre-line text-muted">{r.message || '—'}</span> },
-        ]} />
-      )}
+      {(all) => {
+        const open = all.filter((r) => ['new', 'contacted'].includes(r.status || 'new'));
+        const rows = show === 'open' ? open : all;
+        return (
+          <>
+            <Segmented className="mb-3" value={show} onChange={setShow} options={[{ value: 'open', label: 'Open', count: open.length }, { value: 'all', label: 'All' }]} />
+            <Table rows={rows} empty={show === 'open' ? 'Nothing open' : 'No demo requests yet'} columns={[
+              { key: 'created_at', mobile: 'value', label: 'Received', render: (r) => relative(r.created_at) },
+              { key: 'name', mobile: 'title', label: 'Name', render: (r) => <span className="font-semibold">{r.name}</span> },
+              { key: 'company', mobile: 'sub', label: 'Company' },
+              { key: 'email', mobile: 'sub', label: 'Email', render: (r) => <a href={`mailto:${r.email}`} className="font-semibold text-blue">{r.email}</a> },
+              { key: 'phone', mobile: 'sub', label: 'Phone', render: (r) => (r.phone ? <a href={`tel:${r.phone}`} className="text-blue">{r.phone}</a> : '—') },
+              { key: 'sites', mobile: false, label: 'Sites', render: (r) => r.sites || '—' },
+              { key: 'message', mobile: 'note', label: 'Message', render: (r) => <span className="whitespace-pre-line text-muted">{r.message || '—'}</span> },
+              { key: 'status', mobile: 'note', label: 'Status', render: (r) => (
+                <Select aria-label={`Status for ${r.company}`} value={r.status || 'new'} onChange={(e) => setStatus(r, e.target.value)} options={DEMO_STATUS} />
+              ) },
+            ]} />
+          </>
+        );
+      }}
     </Load>
   );
 }

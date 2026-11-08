@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, Clock3, FileSignature, Lock, LogOut, MapPin, Phone, QrCode, Radio, RefreshCw, TriangleAlert } from 'lucide-react';
+import { ClipboardList, Clock3, FileSignature, Lock, LogOut, UserX, MapPin, MessagesSquare, Phone, QrCode, Radio, RefreshCw, TriangleAlert } from 'lucide-react';
 import {
   Avatar, Button, Callout, Dot, Empty, IconButton, Input, KV, List, Load, MoreMenu, Page, Pill, Row, Sheet, Textarea, cx, range, time, titleCase, useAction, useApi, useForm, useToast, useUrlState,
 } from '../../ui/index.jsx';
@@ -9,6 +9,8 @@ import { useVenue } from '../../venue.jsx';
 import { Chip, fromLondonInput, toLondonInput, useBase } from '../manager/_parts.jsx';
 import { ProofFlags, SelfieCompare } from '../manager/_proof.jsx';
 import { ClockOutSheet } from './_clockOut.jsx';
+import { useOfficeChat } from './_office.js';
+import { DontSendSheet } from './DontSend.jsx';
 
 const ISSUE = ['late', 'no_show', 'left_early'];
 const ON = ['on_shift', 'on_break'];
@@ -199,7 +201,12 @@ function Detail({ row, venue, onClose, onDone, base, onPrev, onNext }) {
   const inEv = events.find((e) => e.kind === 'in' && e.status !== 'rejected');
   // Managers: while the officer is clocked in, Clock out is the main button and the shift card moves under …
   const canOut = !venue && ON.includes(row.state);
-  const more = venue ? [] : [
+  const [office] = useOfficeChat(base);
+  const [dontSend, setDontSend] = useState(false);
+  const more = venue ? [
+    { label: 'Message the office', hint: `About ${row.officer_name}`, icon: MessagesSquare, onClick: () => office(row.venue_id, `About ${row.officer_name} (${range(row.starts_at, row.ends_at)}): `) },
+    row.officer_id && { label: 'Don’t send them again', icon: UserX, danger: true, onClick: () => setDontSend(true) },
+  ] : [
     canOut && row.shift_id && { label: 'Open shift card', icon: ClipboardList, to: shiftCard(base, row.shift_id), state: { from: 'live' } },
     { label: 'Set times manually', icon: Clock3, onClick: () => setManual(true) },
     row.has_exception && { label: 'Review exception', icon: TriangleAlert, to: `${base}/exceptions` },
@@ -213,6 +220,7 @@ function Detail({ row, venue, onClose, onDone, base, onPrev, onNext }) {
         {canOut ? <Button icon={LogOut} onClick={() => setClockOut(true)}>Clock out</Button>
           : row.shift_id && <Button to={shiftCard(base, row.shift_id)} state={{ from: 'live' }} icon={ClipboardList}>Open shift card</Button>}
       </>}>
+      {dontSend && <DontSendSheet officer={row} onClose={() => setDontSend(false)} />}
       {manual ? <ManualForm row={row} onCancel={() => setManual(false)} onDone={onDone} /> : (
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2"><Pill status={row.state} />{!venue && pastEnd(row) && <Pill tone="amber">Past shift end</Pill>}<PackPill r={row} venue={venue} />{row.has_exception && <Pill tone="red">Exception</Pill>}</div>

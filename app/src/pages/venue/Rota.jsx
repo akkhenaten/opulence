@@ -70,7 +70,7 @@ export default function VenueRota() {
 
       {form && <RequestForm venues={list} roles={roles.data || []} draft={form.draft} onClose={() => setForm(null)}
         onDone={() => { setForm(null); cover.reload(); setTab('requests'); }} />}
-      {open && <Detail c={open} onClose={() => setOpen(null)} onDone={() => { setOpen(null); cover.reload(); }} />}
+      {open && <Detail c={open} onClose={() => setOpen(null)} onDone={() => { setOpen(null); cover.reload(); }} onAgain={(draft) => { setOpen(null); setForm({ draft }); }} />}
     </Page>
   );
 }

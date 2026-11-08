@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Camera, ChevronRight, FilePen, MapPin, Plus, ShieldAlert, Trash2 } from 'lucide-react';
-import { api } from '../../api.js';
+import { Camera, CheckCheck, ChevronRight, Download, FilePen, MapPin, Plus, ShieldAlert, Trash2 } from 'lucide-react';
+import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
-import { Button, cx, dateTime, dayLabel, Empty, IconButton, List, Load, Page, Pill, SearchInput, Section, Segmented, Select, Tabs, time, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { Button, cx, dateTime, dayLabel, Empty, IconButton, List, Load, MoreMenu, Page, Pill, SearchInput, Section, Segmented, Select, Tabs, time, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { BanList } from '../shift/_bans.jsx';
 import { clearLocal } from '../officer/_draft.js';
 import { INCIDENT_STATUS, INCIDENT_TYPES, LatePill, NotLinked, SEVERITIES, typeLabel } from '../officer/_parts.jsx';
@@ -16,6 +16,8 @@ export default function Incidents() {
   const base = `/${user.role}`;
   const officer = user.role === 'officer';
   const [sp, setSp] = useSearchParams();
+  const confirm = useConfirm();
+  const [run, busy] = useAction();
   // A venue manager's venue is the one chosen on their home tiles / top-bar chip
   const isVenue = user.role === 'venue';
   const shared = useVenue();
@@ -52,9 +54,19 @@ export default function Incidents() {
     );
   }
 
+  const closeAll = async () => {
+    const ids = (q.data || []).map((i) => i.id);
+    if (!(await confirm({ title: `Close ${ids.length} reports?`, body: 'Only do this once you have read them. You can reopen any report later.', confirm: 'Close all' }))) return;
+    run(() => api('incidents.reviewMany', { ids }).then(q.reload), `${ids.length} closed`).catch(() => {});
+  };
+
   return (
     <Page title={officer ? 'Reports' : 'Incidents'} subtitle={officer ? 'Your incident reports and ejections' : undefined} wide={!officer}
-      actions={['company', 'security'].includes(user.role) && <Button icon={Plus} to={`${base}/incidents/new`}>Report incident</Button>}>
+      actions={!officer && <>{!isVenue && <Button icon={Plus} to={`${base}/incidents/new`}>Report incident</Button>}
+        <MoreMenu items={[
+          { icon: Download, label: 'Export to spreadsheet', hint: 'The reports shown, as CSV', onClick: () => downloadAction('incidents.exportCsv', body).catch(() => {}) },
+          !isVenue && f.status === 'submitted' && (q.data || []).length > 1 && { icon: CheckCheck, label: `Close all ${(q.data || []).length} shown`, hint: 'Marks them reviewed, nothing more to do', busy, onClick: closeAll },
+        ]} /></>}>
       {tabs}
       {((officer && user.officer_id) || !officer) && <Drafts base={base} officer={officer} />}
       <div className="mb-3 space-y-2">

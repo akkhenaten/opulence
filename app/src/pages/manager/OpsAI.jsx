@@ -470,7 +470,8 @@ function IncidentBody({ it, pending, ask, setAsk }) {
 function FeedbackDecide({ it, busy, onClose, onSave }) {
   const { user } = useBase();
   const [hrNote, setHrNote] = useState(true);
-  const [ban, setBan] = useState(false);
+  // The venue asked not to have them back: the bar comes pre-ticked, the company still decides
+  const [ban, setBan] = useState(!!it.payload?.ban_asked);
   const [reply, setReply] = useState('');
   const officer = !!it.officer_id;
   return (

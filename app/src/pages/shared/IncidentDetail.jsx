@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Download, Eye, FilePlus, FileText, History, ImagePlus, MessageSquareReply, Pencil, RefreshCw, RotateCcw, Sparkles, Trash2, X,
+  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Download, Eye, FilePlus, FileText, History, ImagePlus, MessageSquareReply, MessagesSquare, Pencil, RefreshCw, RotateCcw, Sparkles, Trash2, X,
 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -11,6 +11,7 @@ import {
 import { INCIDENT_STATUS, LatePill, typeLabel } from '../officer/_parts.jsx';
 import { DOC_ACCEPT, fileSize, MAX_FILES, useUploads } from './evidence.jsx';
 import { viewFiles } from '../../ui/FileViewer.jsx';
+import { useOfficeChat } from './_office.js';
 
 const yn = (b, ref) => (b ? `Yes${ref ? ` (ref ${ref})` : ''}` : 'No');
 const LABELS = {
@@ -26,9 +27,12 @@ export default function IncidentDetail() {
   const q = useApi('incidents.get', { id });
   const [run, busy] = useAction();
   const pdf = () => run(() => downloadAction('incidents.pdf', { id })).catch(() => {});
+  // Venues follow a report up with the office in their chat, the reference already typed
+  const [office, asking] = useOfficeChat(base);
   return (
     <Page title={q.data?.ref || 'Incident'} subtitle={q.data && `${typeLabel(q.data.type)} · ${q.data.venue_name}`} back={{ to: `${base}/incidents`, label: 'Incidents' }}
-      actions={q.data && <Button variant="secondary" icon={Download} busy={busy} onClick={pdf}>PDF</Button>}>
+      actions={q.data && <>{user.role === 'venue' && <Button variant="secondary" icon={MessagesSquare} busy={asking} onClick={() => office(q.data.venue_id, `About incident ${q.data.ref}: `)}>Ask the office</Button>}
+        <Button variant="secondary" icon={Download} busy={busy} onClick={pdf}>PDF</Button></>}>
       <Load q={q}>{(inc) => <Detail inc={inc} reload={q.reload} base={base} />}</Load>
     </Page>
   );

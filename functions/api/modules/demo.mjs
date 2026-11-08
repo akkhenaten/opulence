@@ -1,9 +1,11 @@
 import { one, q } from '../lib/db.mjs';
-import { fail } from '../lib/http.mjs';
+import { fail, required, need } from '../lib/http.mjs';
+import { audit } from '../lib/audit.mjs';
 import { notify, platformAdmins } from '../lib/notify.mjs';
 import { CO, def, pub } from './_def.mjs';
 
 // "Request a private demo" form on the public landing page
+export const DEMO_STATUSES = ['new', 'contacted', 'won', 'lost'];
 const cap = (v, n = 200) => String(v ?? '').trim().slice(0, n) || null;
 
 export const actions = {
@@ -22,5 +24,13 @@ export const actions = {
     return { ok: true };
   }),
 
-  'demo.list': def(CO, async () => q('SELECT id, name, company, email, phone, sites, message, created_at FROM demo_requests ORDER BY created_at DESC LIMIT 200')),
+  'demo.list': def(CO, async () => q('SELECT id, name, company, email, phone, sites, message, status, status_note, created_at FROM demo_requests ORDER BY created_at DESC LIMIT 200')),
+
+  'demo.setStatus': def(CO, async (b, { user }) => {
+    required(b, 'id', 'status');
+    if (!DEMO_STATUSES.includes(b.status)) fail(400, 'Invalid status');
+    const r = need(await one('UPDATE demo_requests SET status = $2, status_note = COALESCE($3, status_note) WHERE id = $1 RETURNING id, status, status_note', [b.id, b.status, b.note == null ? null : String(b.note).slice(0, 500)]));
+    await audit(user, `demo.${b.status}`, 'demo_request', String(r.id));
+    return r;
+  }),
 };

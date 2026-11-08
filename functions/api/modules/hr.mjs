@@ -373,3 +373,14 @@ export const actions = {
     return { ok: true };
   }),
 };
+
+// Approve or turn down several requests at once (the Time off list's selection), each through the single decide
+actions['timeoff.decideMany'] = def(MGR, async (b, ctx) => {
+  required(b, 'ids', 'status');
+  let done = 0;
+  const skipped = [];
+  for (const id of [].concat(b.ids).slice(0, 200)) {
+    try { await actions['timeoff.decide'].fn({ id, status: b.status }, ctx); done++; } catch (e) { skipped.push({ id, error: e.message }); }
+  }
+  return { done, skipped };
+});

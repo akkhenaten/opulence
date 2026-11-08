@@ -150,7 +150,7 @@ async function officerDash({ user }) {
              AND NOT EXISTS (SELECT 1 FROM shift_assignments a WHERE a.shift_id = s.id AND a.officer_id = $1)`, [oid]),
     one(`SELECT COALESCE(sum(t.hours),0) AS n FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
           WHERE a.officer_id = $1 AND s.starts_at > now() - interval '7 days' AND t.status <> 'declined'`, [oid]).then((r) => Number(r.n)),
-    one("SELECT id, number, total, period_start, period_end, status FROM statements WHERE officer_id = $1 AND status <> 'draft' ORDER BY period_end DESC LIMIT 1", [oid]),
+    one("SELECT id, number, total, period_start, period_end, status, issued_at FROM statements WHERE officer_id = $1 AND status <> 'draft' ORDER BY period_end DESC LIMIT 1", [oid]),
     count("SELECT count(*)::int AS n FROM incidents WHERE officer_id = $1 AND status = 'changes_requested'", [oid]),
     q(`SELECT kind, title, expiry FROM documents WHERE owner_type = 'officer' AND owner_id = $1 AND expiry IS NOT NULL AND expiry < $2::date + 60 ORDER BY expiry`, [oid, today]),
   ]);

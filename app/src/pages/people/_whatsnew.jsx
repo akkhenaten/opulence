@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Nfc, Palette, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
+  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Nfc, Palette, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, SlidersHorizontal, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-08', icon: SlidersHorizontal, title: 'More options, kept out of the way', image: 'streamline-options',
+    lede: 'The last part of tidying up the app: new things you can do, each tucked into the ⋯ menu or shown only when it is useful, so screens stay clean.',
+    points: ["Spreadsheets: Staff, Timesheets, Incidents, Time off and the Audit log can be exported from their ⋯ menu. Pay columns only go to people who can see pay, and venues never get officer pay or contact details", "Managers: Approve all on pending time off, and Close all when the Incidents list is filtered to Submitted. Officers can ask to swap a shift instead of dropping it, and the request opens Assign on that shift", "Officers: the shift page has Directions, Call office and Call venue. From Wednesday to Friday, Home asks if you are free this weekend when nothing is booked, and a new pay statement shows on Home for a week", "Venues: Request again on a past cover request, Message the office from On site and Ask the office on an incident, Don't send them again (the office decides), and bank details on Invoices while something is to pay", "Platform: demo requests have a status (new, contacted, won, lost) and open ones are listed first"],
+  },
   {
     month: 'November 2026', date: '2026-11-08', icon: Zap, title: 'Fewer steps for everyday jobs', image: 'streamline-fewer-steps',
     lede: 'The third part of tidying up the app: the things you do most now take fewer taps, and the next step is waiting where you finish the last one.',

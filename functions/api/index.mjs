@@ -16,6 +16,7 @@ import * as clock from './modules/clock.mjs';
 import * as clockProof from './modules/clockProof.mjs';
 import * as timesheets from './modules/timesheets.mjs';
 import * as money from './modules/money.mjs';
+import * as exportsCsv from './modules/exports.mjs';
 import * as incidents from './modules/incidents.mjs';
 import * as dashboard from './modules/dashboard.mjs';
 import * as notifications from './modules/notifications.mjs';
@@ -51,7 +52,7 @@ import * as analytics from './modules/analytics.mjs';
 import * as appFeedback from './modules/appFeedback.mjs';
 import * as staffSetup from './modules/staffSetup.mjs';
 
-export const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, clockProof, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, grace, venueSetup, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign, contractsPack, contractsUpload, signLinks, venuePacks, email, apply, sia, reviews, comments, analytics, appFeedback, staffSetup].map((m) => m.actions));
+export const ACTIONS = Object.assign({}, ...[auth, users, settings, venues, documents, officers, hr, rota, clock, clockProof, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, grace, venueSetup, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign, contractsPack, contractsUpload, signLinks, venuePacks, email, apply, sia, reviews, comments, analytics, appFeedback, staffSetup, exportsCsv].map((m) => m.actions));
 // Orb runs real actions on confirm, through the same table and role checks
 assistant.useActions(ACTIONS);
 

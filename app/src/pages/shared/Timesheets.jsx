@@ -1,12 +1,12 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Clock, History, HandCoins, Lock, LogOut, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
+  AlertTriangle, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Clock, Download, History, HandCoins, Lock, LogOut, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
 } from 'lucide-react';
 import {
   ActionBar, addDays, Avatar, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, MoreMenu, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, useAction, useApi, useConfirm, useForm, useUrlState,
 } from '../../ui/index.jsx';
-import { api } from '../../api.js';
+import { api, downloadAction } from '../../api.js';
 import { useVenue } from '../../venue.jsx';
 import { ClockOutSheet } from './_clockOut.jsx';
 import { Check as Tick, fromLondonInput, londonIso, SELF_HINT, SelfPills, toLondonInput, useBase } from '../manager/_parts.jsx';
@@ -144,8 +144,9 @@ export default function Timesheets() {
 
   return (
     <Page title="Timesheets" subtitle={`Week of ${dayLabel(week)}`} wide
-      actions={isVenue ? (toSignWeek.length > 0 && <Button icon={Signature} busy={busy} onClick={signWeek}>Sign off week · {toSignWeek.length}</Button>)
-        : readyToPay && <Button variant="secondary" icon={HandCoins} busy={busy} onClick={sendToPay}>Send to pay run</Button>}>
+      actions={<>{isVenue ? (toSignWeek.length > 0 && <Button icon={Signature} busy={busy} onClick={signWeek}>Sign off week · {toSignWeek.length}</Button>)
+        : readyToPay && <Button variant="secondary" icon={HandCoins} busy={busy} onClick={sendToPay}>Send to pay run</Button>}
+        <MoreMenu items={[{ icon: Download, label: 'Export this week', hint: 'Every row shown, as CSV', onClick: () => downloadAction('timesheets.exportCsv', body).catch(() => {}) }]} /></>}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1 rounded-xl bg-surface p-1 shadow-tile">
           <IconButton icon={ChevronLeft} label="Previous week" onClick={() => setWeek(addDays(week, -7))} />
