@@ -126,3 +126,14 @@ test('the latest pay statement shows on Home for 7 days after it is issued', () 
   assert.equal(freshStatement({ status: 'draft', issued_at: '2026-11-07T09:00:00Z' }, now), null);
   assert.equal(freshStatement(null, now), null);
 });
+
+test('the ejections register is a tab of Incidents for managers only', () => {
+  for (const role of ['company', 'security']) assert.ok(hubTabs('incidents', { role }).some((t) => t.to === `/${role}/ejections`), role);
+  assert.deepEqual(hubTabs('incidents', { role: 'venue' }), []);
+  assert.deepEqual(hubTabs('incidents', { role: 'officer' }), []);
+  assert.deepEqual(ACTIONS['bans.exportCsv'].roles, ['company', 'security']);
+  assert.ok(COLUMNS.bans.every((c) => !c.pay && !c.officer));
+  const csv = toCsv([{ occurred_at: '2026-11-07T23:40:00Z', venue_name: 'The Vault', outcome: 'refused_entry', name: 'Tall man, "red cap"', reason: 'Drunk', kind: 'ejection' }], COLUMNS.bans);
+  assert.match(csv, /"Refused entry"/);
+  assert.match(csv, /"Tall man, ""red cap"""/);
+});

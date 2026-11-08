@@ -74,6 +74,7 @@ const IncidentForm = P(() => import('./pages/officer/IncidentForm.jsx'));
 const ShiftView = P(() => import('./pages/shift/ShiftView.jsx'));
 const ShiftLogs = P(() => import('./pages/shift/ShiftLogs.jsx'));
 const Bans = P(() => import('./pages/shift/Bans.jsx'));
+const Ejections = P(() => import('./pages/shift/Bans.jsx').then((m) => ({ default: m.Ejections })));
 // Learn (officers; managers reuse Course and Certificate as previews)
 const Learn = P(() => import('./pages/learn/Learn.jsx'));
 const LearnToolbox = P(() => import('./pages/learn/Toolbox.jsx'));
@@ -187,6 +188,7 @@ const managerRoutes = (
     <Route path="incidents" element={<Incidents />} />
     <Route path="incidents/new" element={<IncidentForm />} />
     <Route path="incidents/:id" element={<IncidentDetail />} />
+    <Route path="ejections" element={<Ejections />} />
     <Route path="staff" element={<Staff />} />
     <Route path="staff/phones" element={<Phones />} />
     <Route path="staff/:id" element={<StaffProfile />} />

@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'ejections-register': 'An open leather-bound register book on a dark navy desk, neat handwritten rows down the page with a few lines marked by a small gold stamp, a brass pen resting in the spine, a door-staff lanyard with a gold clip lying beside it, warm lamp light, dark navy and gold.',
   'streamline-options': 'A neat dark navy desk with a closed leather organiser and a small gold three-dot tab on its edge, a few slim gold-edged cards fanned just behind it, a small brass slider control beside them, warm lamp light, minimal and uncluttered, dark navy and gold.',
   'streamline-fewer-steps': 'A short flight of three wide stone steps on a dark navy background, each step edged with a thin line of gold light, a small gold arrow resting on the top step, soft warm lamp light, minimal and calm, dark navy and gold.',
   'streamline-one-place': 'A tidy dark navy desk with a single neat row of labelled folder tabs in gold standing in a wooden tray, a few loose papers gathered and squared into it, a small brass label holder on the front, warm lamp light, dark navy and gold.',

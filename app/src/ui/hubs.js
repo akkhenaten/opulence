@@ -12,6 +12,10 @@ export const HUBS = {
       { to: 'cover', label: 'Cover' },
       { to: 'exceptions', label: 'Exceptions' },
     ] },
+    incidents: { title: 'Incidents', tabs: [
+      { to: 'incidents', label: 'Reports' },
+      { to: 'ejections', label: 'Ejections register' },
+    ] },
     staff: { title: 'Staff', tabs: [
       { to: 'staff', label: 'Officers' },
       { to: 'recruitment', label: 'Recruitment', roles: ['company'] },

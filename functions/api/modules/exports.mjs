@@ -9,6 +9,7 @@ import { actions as timesheets } from './timesheets.mjs';
 import { actions as incidents } from './incidents.mjs';
 import { actions as hr } from './hr.mjs';
 import { actions as users } from './users.mjs';
+import { actions as bans } from './bans.mjs';
 
 const day = (d) => (d ? londonDate(new Date(d)) : '');
 const stamp = (d) => (d ? new Date(d).toISOString().replace('T', ' ').slice(0, 16) : '');
@@ -40,6 +41,14 @@ export const COLUMNS = {
     { h: 'When', v: (a) => stamp(a.created_at) }, { h: 'Who', v: (a) => a.user_name }, { h: 'Action', v: (a) => a.action },
     { h: 'Record', v: (a) => a.entity }, { h: 'Record id', v: (a) => a.entity_id }, { h: 'Details', v: (a) => (a.detail ? JSON.stringify(a.detail) : '') },
   ],
+  // People ejected, refused or banned (customers, not staff); "Logged by" is the officer or manager who wrote it up
+  bans: [
+    { h: 'When', v: (b) => stamp(b.occurred_at || b.created_at) }, { h: 'Venue', v: (b) => b.venue_name },
+    { h: 'Outcome', v: (b) => (b.outcome === 'refused_entry' ? 'Refused entry' : b.outcome ? 'Ejected' : '') }, { h: 'Name', v: (b) => b.name },
+    { h: 'Description', v: (b) => b.description }, { h: 'Category', v: (b) => b.category }, { h: 'Reason', v: (b) => b.reason },
+    { h: 'Ban', v: (b) => (b.kind === 'ban' ? `${b.status}, ${b.ends_on ? `until ${day(b.ends_on)}` : 'permanent'}${b.scope && b.scope !== 'venue' ? `, ${b.scope}` : ''}` : '') },
+    { h: 'Logged by', v: (b) => b.proposed_by_name },
+  ],
 };
 
 export const actions = {
@@ -50,5 +59,6 @@ export const actions = {
   }),
   'incidents.exportCsv': def(ALL.filter((r) => r !== 'officer'), async (b, ctx) => out('incidents', await incidents['incidents.list'].fn({ ...b, limit: 500 }, ctx), COLUMNS.incidents, ctx.user)),
   'timeoff.exportCsv': def(MGR, async (b, ctx) => out('time-off', await hr['timeoff.list'].fn(b, ctx), COLUMNS.timeoff, ctx.user)),
+  'bans.exportCsv': def(MGR, async (b, ctx) => out(b.kind === 'ejection' ? 'ejections' : 'bans', await bans['bans.list'].fn(b, ctx), COLUMNS.bans, ctx.user)),
   'audit.exportCsv': def(CO, async (b, ctx) => out('audit-log', await users['audit.list'].fn({ ...b, limit: 500 }, ctx), COLUMNS.audit, ctx.user)),
 };

@@ -1,6 +1,6 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  ArrowRightLeft, BadgeCheck, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
+  ArrowRightLeft, BadgeCheck, Ban, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
   Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Nfc, Palette, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, SlidersHorizontal, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-08', icon: Ban, title: 'Every ejection in one register', image: 'ejections-register',
+    lede: 'Incidents now has a second tab, the Ejections register: everyone ejected or refused entry at your venues, newest first, in one list instead of venue by venue.',
+    points: ["Managers: Incidents → Ejections register lists every ejection and refusal across your venues, with who logged it and whether it became a ban. Pick a venue to narrow it down", "Log an ejection or ban someone from the register: it asks which venue when you are looking at all of them", "The current, ended and lifted bans are tabs of the same register, and the ⋯ menu exports the list to a spreadsheet for the licensing authority or the police", "Security managers see only their own venues. Each venue's own register is still on the venue page, and venues keep their Ejections tab under Logs"],
+  },
   {
     month: 'November 2026', date: '2026-11-08', icon: SlidersHorizontal, title: 'More options, kept out of the way', image: 'streamline-options',
     lede: 'The last part of tidying up the app: new things you can do, each tucked into the ⋯ menu or shown only when it is useful, so screens stay clean.',
