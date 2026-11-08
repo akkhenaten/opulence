@@ -65,8 +65,10 @@ const READ_TOOL = {
 };
 
 /** Read uploaded licence/ID scans not read yet, then let Orb apply what agrees (lib/docAuto.mjs).
- *  limit: how many; id: just this document (straight after an upload). Returns the number read. */
-export async function readDocuments(limit = 4, { id = null } = {}) {
+ *  limit: how many; id: just this document (straight after an upload); refresh: update the Compliance cards of the
+ *  people read. Stops starting new files after 75 s so the 5-minute job ends well inside its time limit. Returns the number read. */
+export async function readDocuments(limit = 4, { id = null, refresh = false } = {}) {
+  const until = Date.now() + 75e3;
   const docs = await q(
     `SELECT d.*, o.photo_key AS profile_photo FROM documents d JOIN officers o ON o.id = d.owner_id
       WHERE d.owner_type = 'officer' AND d.kind = ANY($1) AND d.s3_key IS NOT NULL AND d.ai_read_key IS DISTINCT FROM d.s3_key
@@ -76,7 +78,9 @@ export async function readDocuments(limit = 4, { id = null } = {}) {
       ORDER BY (d.ai_read_key IS NULL AND d.ai_read IS NOT NULL), d.created_at DESC LIMIT $2`, [READ_KINDS, limit, id]);
   let n = 0;
   let credits = 0;
+  const owners = new Set();
   for (const d of docs) {
+    if (Date.now() > until) break;
     let read;
     try {
       const head = await headObject(d.s3_key);
@@ -108,6 +112,7 @@ export async function readDocuments(limit = 4, { id = null } = {}) {
     const code = d.kind === 'rtw' && !d.number && cleanShareCode(read?.share_code);
     if (code) await q('UPDATE documents SET number = $2 WHERE id = $1', [d.id, code]);
     n++;
+    owners.add(d.owner_id);
     try {
       await autoApply(d.id);
     } catch (e) {
@@ -115,6 +120,8 @@ export async function readDocuments(limit = 4, { id = null } = {}) {
     }
   }
   if (n && !id) await logActivity('compliance', `Read ${plural(n, 'uploaded document')} for compliance checks`, { credits });
+  // A fresh read can clear or change a card without Orb applying anything (a name it now accepts, a softer expiry)
+  if (refresh && owners.size) await runCompliance({ officerIds: [...owners] });
   return n;
 }
 
@@ -123,7 +130,8 @@ export async function unreadDocCount() {
   const r = await one(
     `SELECT count(*)::int AS n FROM documents d JOIN officers o ON o.id = d.owner_id
       WHERE d.owner_type = 'officer' AND d.kind = ANY($1) AND d.s3_key IS NOT NULL AND d.ai_read_key IS DISTINCT FROM d.s3_key
-        AND o.status IN ('active','onboarding','applicant')`, [READ_KINDS]);
+        AND o.status IN ('active','onboarding','applicant')
+        AND NOT (o.status = 'applicant' AND EXISTS (SELECT 1 FROM applications ap WHERE ap.officer_id = o.id))`, [READ_KINDS]);
   return r?.n || 0;
 }
 

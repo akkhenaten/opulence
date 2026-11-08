@@ -637,8 +637,14 @@ const JOBS = {
 
   async docRead(s) {
     if (!jobOn(s, 'compliance')) return 'off';
-    // Bigger batches while there's a backlog (everyone's uploads read again after a rule change)
-    return readDocuments((await unreadDocCount()) > 12 ? 12 : 4);
+    // Bigger batches while there's a backlog (everyone's uploads read again after a rule change); the cards of the
+    // people read update straight away instead of waiting for the weekly check
+    const waiting = await unreadDocCount();
+    if (waiting) return readDocuments(waiting > 6 ? 6 : 4, { refresh: true });
+    // Backlog cleared: one full check, so every card reflects the new reads (once per re-read migration)
+    if (await one("SELECT 1 FROM ops_activity WHERE kind = 'compliance_reread_done' AND text = '056'")) return 'idle';
+    await logActivity('compliance_reread_done', '056');
+    return runCompliance();
   },
 
   evidenceScan,
