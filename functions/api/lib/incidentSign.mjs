@@ -28,6 +28,8 @@ export function nextStage(inc, action, role) {
     if (stage === 'venue' && who === 'venue') return { sign_stage: 'complete', status: 'closed' };
     throw bad(stage === 'officer' ? 'Waiting for the officer to sign' : stage === 'manager' ? 'Waiting for a manager to sign' : 'Waiting for the venue to sign');
   }
+  // A manager can also keep editing while the report is back with the officer to sign again
+  if (action === 'edit' && who === 'manager' && stage === 'officer') return { sign_stage: 'officer', status: inc.status, resign_reason: 'edited' };
   if (who !== 'manager' || stage !== 'manager') throw bad('Only a manager can do this before they sign');
   if (action === 'send_back') return { sign_stage: 'officer', status: 'changes_requested', resign_reason: 'sent_back' };
   if (action === 'edit') return { sign_stage: 'officer', status: 'submitted', resign_reason: 'edited' };

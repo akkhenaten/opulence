@@ -351,6 +351,7 @@ export const actions = {
     // Signed reports: the officer can change theirs until a manager signs; a manager only while it waits for them
     const staged = !!cur.sign_stage;
     if (staged && ['venue', 'complete'].includes(cur.sign_stage)) fail(400, 'A manager has signed this report, so it can no longer be changed');
+    if (b.version != null && Number(b.version) !== cur.version) fail(409, 'This report was changed by someone else while you were editing. Reload to see the latest version.');
     const turn = staged && user.role !== 'officer' ? nextStage(cur, 'edit', user.role) : staged ? { sign_stage: 'officer', status: cur.status } : null;
     if (user.role === 'officer' && b.occurred_at && new Date(b.occurred_at).getTime() !== new Date(cur.occurred_at).getTime()) {
       await officerShift(user.officer_id, cur.shift_id, cur.venue_id, b.occurred_at);
@@ -468,8 +469,15 @@ export const actions = {
       if (inc.officer_id) await notify(await officerUser(inc.officer_id), { kind: 'incident', title: `${inc.ref} signed by your manager`, body: 'It has gone to the venue to sign.', link: `/officer/incidents/${inc.id}` });
     } else {
       await sealIncident(inc.id, user.id).catch((e) => console.error('[incidents] seal failed, sealed on download', inc.id, e));
-      const to = [...await managersFor(inc.venue_id), ...(inc.officer_id ? await officerUser(inc.officer_id) : [])];
-      await notify(others(to), { kind: 'incident', title: `${inc.ref} is complete`, body: `Signed by ${v.name}${inc.venue_comment ? `: "${inc.venue_comment.slice(0, 140)}"` : ''}.`, link: `/company/incidents/${inc.id}` });
+      // The venue's contacts and the manager who signed get it by email too, with a button to open the sealed report
+      const mgr = await one("SELECT s.user_id, u.role FROM incident_signatures s JOIN users u ON u.id = s.user_id WHERE s.incident_id = $1 AND s.role = 'manager' AND s.void_at IS NULL ORDER BY s.at DESC LIMIT 1", [inc.id]);
+      const to = [...await managersFor(inc.venue_id), ...(inc.officer_id ? await officerUser(inc.officer_id) : [])].filter((id) => id !== mgr?.user_id);
+      const done = { kind: 'incident', title: `Incident report ${inc.ref} is complete`, body: 'Signed by the officer, the manager and the venue. The sealed PDF with its signing certificate is filed with the report. Open the report and tap PDF to download it.' };
+      await Promise.allSettled([
+        notify(others(to), { kind: 'incident', title: `${inc.ref} is complete`, body: `Signed by ${v.name}${inc.venue_comment ? `: "${inc.venue_comment.slice(0, 140)}"` : ''}.`, link: `/company/incidents/${inc.id}` }),
+        mgr && notify([mgr.user_id], { ...done, link: `/${mgr.role === 'security' ? 'security' : 'company'}/incidents/${inc.id}`, email: true }),
+        venueContacts(inc.venue_id).then((ids) => notify(ids, { ...done, link: `/venue/incidents/${inc.id}`, email: true })),
+      ].filter(Boolean));
     }
     await audit(user, `incident.sign_${role}`, 'incident', inc.id, { ref: inc.ref, version: inc.version, stage: inc.sign_stage });
     return inc;

@@ -11,6 +11,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-11', icon: Mail, title: 'Signed incident reports land in your inbox', image: 'incident-complete-email',
+    lede: "When the venue signs an incident report, the venue's contacts and the manager who approved it get an email saying it is complete, with a button to open it.",
+    points: ["The email has your company footer and an Open report button. Sign in and tap PDF for the sealed copy with its signing certificate", "The PDF is not attached, so the report never leaves the app", "Managers can now keep editing a report while it is back with the officer. The officer is told and signs the new version", "If two people save the same report at once, the second is asked to reload instead of overwriting the other's changes"],
+  },
+  {
     month: 'November 2026', date: '2026-11-11', icon: ScanSearch, title: 'Crop and blur photos in incident reports', image: 'incident-photo-edit',
     lede: 'Photos in an incident report can now be cropped, turned and have faces or details blurred before the report is signed, right from the writing page.',
     points: ["Tap a photo's pencil, then Crop or blur faces. Drag the box to crop, turn it with Rotate, or paint over faces, number plates or anything private with Blur", "The edited photo takes the place of the original in the same spot, keeping its caption and the section of the report it sits under", "Only the edited photo goes in the report and the signed PDF. Orb reads the edited version too", "Works on new reports and when an officer checks and signs a report again"],

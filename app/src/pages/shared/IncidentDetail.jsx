@@ -225,6 +225,9 @@ function SignBar({ inc, reload, base, pdf, pdfBusy, prefill, clearPrefill }) {
       <Button variant="secondary" icon={Pencil} iconOnly="phone" to={`${base}/incidents/${inc.id}/edit`}>Edit</Button>
       <Button icon={FileSignature} onClick={() => setSigning(true)}>Sign</Button>
     </>;
+  } else if (isMgr && s === 'officer') {
+    label = inc.resign_reason === 'sent_back' ? 'Sent back to the officer' : 'With the officer to sign';
+    acts = <Button variant="secondary" icon={Pencil} to={`${base}/incidents/${inc.id}/edit`}>Edit</Button>;
   } else if (user.role === 'officer' && s === 'officer') {
     label = inc.resign_reason === 'edited' ? 'Edited by your manager' : 'Sent back to you';
     acts = <Button icon={FileSignature} to={`${base}/incidents/${inc.id}/edit`}>Check & sign</Button>;

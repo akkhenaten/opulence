@@ -95,7 +95,6 @@ function EditLoader({ id, manager }) {
       {(inc) => {
         const s = inc.sign_stage;
         const why = ['venue', 'complete'].includes(s) ? 'A manager has signed this report, so it can no longer be changed.'
-          : manager && s === 'officer' ? 'This report is with the officer to check and sign. You can edit it again once they have.'
             : !s && inc.status === 'closed' ? 'This report is closed and can no longer be edited.' : null;
         return why
           ? <Page title="Edit report" back={{ to: `${base}/incidents/${id}`, label: inc.reference || inc.ref }}><div className="rounded-2xl bg-bg p-4 text-body text-muted">{why}</div></Page>

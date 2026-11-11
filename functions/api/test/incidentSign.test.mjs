@@ -84,3 +84,12 @@ test('the report renders with three signatures and a certificate', async () => {
   assert.equal(Buffer.from(bytes.slice(0, 4)).toString(), '%PDF');
   assert.equal(fingerprint, fingerprintOf(inc, signatures));
 });
+
+test('a manager can keep editing while the report is back with the officer', () => {
+  assert.deepEqual(nextStage({ sign_stage: 'officer', status: 'changes_requested' }, 'edit', 'company'), { sign_stage: 'officer', status: 'changes_requested', resign_reason: 'edited' });
+  assert.deepEqual(nextStage({ sign_stage: 'officer', status: 'submitted' }, 'edit', 'security'), { sign_stage: 'officer', status: 'submitted', resign_reason: 'edited' });
+  for (const [stage, role] of [['officer', 'officer'], ['manager', 'officer'], ['officer', 'venue'], ['manager', 'venue'], ['venue', 'company']]) {
+    assert.throws(() => nextStage({ sign_stage: stage }, 'edit', role), (e) => e.status === 400);
+  }
+  assert.throws(() => nextStage({ sign_stage: 'officer' }, 'send_back', 'company'), (e) => e.status === 400);
+});

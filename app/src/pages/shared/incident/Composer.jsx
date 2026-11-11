@@ -288,12 +288,15 @@ export default function Composer({ existing, manager, initial, draftId, onCreate
     force_justification: v.force_used ? v.force_justification : '', police_ref: v.police_called ? v.police_ref : '', ambulance_ref: v.ambulance_called ? v.ambulance_ref : '',
     witnesses,
   });
-  // Edits send only the files added since; ones taken off are removed first
+  // Edits send only the files added since, and the version they started from, so a manager and the officer
+  // editing at once can't overwrite each other; files taken off are removed once the save goes through
   const saveEdit = async () => {
-    for (const a of removed) await api('incidents.removeAttachment', { id: a.id });
     const added = ready.filter((f) => !known[f.key]).map(({ key, mime, name }) => ({ key, mime, name }));
-    return api('incidents.update', { id: existing.id, ...payload(), attachments: added });
+    const r = await api('incidents.update', { id: existing.id, ...payload(), attachments: added, version: existing.version });
+    for (const a of removed) await api('incidents.removeAttachment', { id: a.id });
+    return r;
   };
+  const stale = (e) => { if (e?.status === 409) toast('Reload to see the latest version', 'info', { action: { label: 'Reload', onClick: () => window.location.reload() } }); };
   const done = (id, msg) => { toast(msg); nav(`${base}/incidents/${id}`, { replace: true }); };
 
   // Who does what when the report is finished
@@ -305,10 +308,10 @@ export default function Composer({ existing, manager, initial, draftId, onCreate
   const finish = async () => {
     if (problems.length) { toast(problems[0].text, 'error'); problems[0].fix(); return; }
     if (mode === 'officer_new' || mode === 'officer_sign' || mode === 'manager_new') { setSigning(true); return; }
-    if (mode === 'manager_edit' && stage && !(await confirm({ title: 'Save your changes?', body: 'The officer signed the report as it was, so they are asked to check your changes and sign again.', confirm: 'Save changes' }))) return;
+    if (mode === 'manager_edit' && stage && !(await confirm({ title: 'Save your changes?', body: stage === 'officer' ? 'The officer is told about your changes and signs the new version.' : 'The officer signed the report as it was, so they are asked to check your changes and sign again.', confirm: 'Save changes' }))) return;
     run(async () => { await saveEdit(); return existing; }, mode === 'legacy' ? 'Report updated and resubmitted' : undefined)
       .then(() => (mode === 'legacy' ? nav(`${base}/incidents/${existing.id}`, { replace: true }) : done(existing.id, stage ? 'Changes saved. The officer is asked to sign again' : 'Changes saved')))
-      .catch(() => {});
+      .catch(stale);
   };
   const sign = ({ png, use_saved, statement }) => run(async () => {
     if (mode === 'officer_sign') {
@@ -324,7 +327,7 @@ export default function Composer({ existing, manager, initial, draftId, onCreate
       : await api('incidents.create', { ...body, shift_id: w.shift.id, venue_id: w.shift.venue_id, log_entry_id: entryId || undefined });
     draft.stop();
     return inc;
-  }).then((inc) => { setSigning(false); done(inc.id, manager ? 'Signed and sent to the venue' : 'Signed and sent to your manager'); }).catch(() => {});
+  }).then((inc) => { setSigning(false); done(inc.id, manager ? 'Signed and sent to the venue' : 'Signed and sent to your manager'); }).catch(stale);
 
   // Crop and blur: the photo is fetched, edited on the device, and uploaded again in the same spot
   const editPhoto = async (p) => {
@@ -377,7 +380,9 @@ export default function Composer({ existing, manager, initial, draftId, onCreate
           <Callout tone="warning" className="mb-4" title={`${existing.reviewed_by_name || 'Your manager'} asked for changes`}><span className="whitespace-pre-line">{existing.review_comment}</span></Callout>
         )}
         {mode === 'manager_edit' && stage && (
-          <Callout tone="info" className="mb-4" title="Editing the officer's report">When you save, their signature no longer applies and they are asked to check your changes and sign again.</Callout>
+          <Callout tone="info" className="mb-4" title="Editing the officer's report">{stage === 'officer'
+            ? 'The report is with the officer to check and sign. When you save, they are told about your changes and sign the new version.'
+            : 'When you save, their signature no longer applies and they are asked to check your changes and sign again.'}</Callout>
         )}
 
         <div className="mb-2 flex min-h-9 items-center justify-between gap-3">
