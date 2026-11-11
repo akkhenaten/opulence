@@ -1,0 +1,1 @@
+import{aK as c,c as r,k as u}from"./index-BmRjT_-N.js";function f(a="/venue"){const o=c(),[n,t]=r();return[(i,e="")=>n(async()=>{const{id:s}=await u("messages.office",{venue_id:i});e&&!sessionStorage.getItem(`orb:msg:${s}`)&&sessionStorage.setItem(`orb:msg:${s}`,e),o(`${a}/messages/${s}`)}).catch(()=>{}),t]}export{f as u};
