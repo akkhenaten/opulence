@@ -231,7 +231,7 @@ export function MediaBlock({ b, resolve, captions, onOpen, onEdit, onRemove, onA
                 {x.status === 'error' && <div className="pointer-events-none absolute inset-0 grid place-items-center bg-red/80 p-2 text-center text-caption2 font-semibold text-white">Upload failed</div>}
                 {!readOnly && (
                   <div className="absolute right-1.5 top-1.5 flex gap-1.5">
-                    {x.key && <Pressable press aria-label="Caption" onClick={() => onEdit(x)} className="relative grid h-8 w-8 place-items-center rounded-full bg-ink/70 text-white before:absolute before:-inset-1.5"><Pencil size={14} /></Pressable>}
+                    {x.key && <Pressable press aria-label="Caption, crop or blur" onClick={() => onEdit(x)} className="relative grid h-8 w-8 place-items-center rounded-full bg-ink/70 text-white before:absolute before:-inset-1.5"><Pencil size={14} /></Pressable>}
                     {x.can_remove !== false && <Pressable press aria-label={`Remove ${x.name}`} onClick={() => onRemove(x.ref)} className="relative grid h-8 w-8 place-items-center rounded-full bg-ink/70 text-white before:absolute before:-inset-1.5"><Trash2 size={14} /></Pressable>}
                   </div>
                 )}

@@ -20,7 +20,8 @@ export function useUploads({ existingCount = 0, toast }) {
   const [items, setItems] = useState([]);
   const patch = (uid, p) => setItems((xs) => xs.map((x) => (x.uid === uid ? { ...x, ...p } : x)));
 
-  const add = useCallback(async (fileList) => {
+  // opts.uid names the upload ahead of time, so a caller can tell which item a replacement photo became
+  const add = useCallback(async (fileList, opts = {}) => {
     let room = MAX_FILES - existingCount - items.filter((x) => x.status !== 'error').length;
     for (const raw of fileList) {
       if (room <= 0) { toast(`A report can hold up to ${MAX_FILES} photos and files`, 'error'); break; }
@@ -29,7 +30,7 @@ export function useUploads({ existingCount = 0, toast }) {
       const file = type.startsWith('image/') ? await compressImage(raw) : raw;
       if (file.size > MAX_BYTES) { toast(`${raw.name} is over 15 MB`, 'error'); continue; }
       room--;
-      const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const uid = opts.uid || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const item = { uid, name: file.name, mime: file.type, size: file.size, url: isImage(file.type) ? URL.createObjectURL(file) : null, status: 'uploading' };
       setItems((xs) => [...xs, item]);
       upload(file, 'incident')

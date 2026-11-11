@@ -1,7 +1,7 @@
 // The report as Orb wrote it: plain sections the writer can change word for word, each with its photos, and a ✦ to have
 // Orb redo just that part. Orb's questions sit on top; what still blocks signing sits at the bottom.
 import { useState } from 'react';
-import { AlertTriangle, ArrowLeft, ChevronRight, MessageCircleQuestion, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronRight, Crop, MessageCircleQuestion, Sparkles } from 'lucide-react';
 import { Button, cx, Input, Pressable, Select, Sheet, Textarea } from '../../../ui/index.jsx';
 import { Prose } from './Blocks.jsx';
 
@@ -136,7 +136,7 @@ function PhotoStrip({ photos, captions, onPhoto, onOpen, readOnly }) {
 }
 
 /** Caption a photo and choose the section of the report it sits under */
-export function PhotoSheet({ photo, captions, setCaptions, onClose, onOpen, sections = true }) {
+export function PhotoSheet({ photo, captions, setCaptions, onClose, onOpen, onEdit, sections = true }) {
   const c = (photo && captions[photo.key]) || {};
   const set = (p) => setCaptions((m) => ({ ...m, [photo.key]: { caption: '', section: '', ...m[photo.key], ...p } }));
   return (
@@ -148,6 +148,7 @@ export function PhotoSheet({ photo, captions, setCaptions, onClose, onOpen, sect
               <img src={photo.url} alt="" className="max-h-64 w-full object-contain" />
             </Pressable>
           )}
+          {onEdit && photo.url && <Button variant="secondary" icon={Crop} className="w-full" onClick={() => onEdit(photo)}>Crop or blur faces</Button>}
           <Textarea label="Caption" autoGrow minRows={2} maxLength={300} value={c.caption || ''} onChange={(e) => set({ caption: e.target.value })} placeholder="What the photo shows, e.g. Broken glass by the main bar, 23:45" />
           {sections && <Select label="Shown under" value={c.section || ''} onChange={(e) => set({ section: e.target.value })} options={PHOTO_SECTIONS} />}
           <p className="text-footnote text-muted">Never photograph children. Captions go in the report as written, so keep them factual.</p>

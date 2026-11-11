@@ -8,6 +8,7 @@ import { api } from '../../../api.js';
 import { useAuth } from '../../../auth.jsx';
 import { Button, Callout, cx, Page, Segmented, time, toLocalInput, useAction, useConfirm, useKeyboardOpen, useToast } from '../../../ui/index.jsx';
 import { Lightbox } from '../../../ui/Lightbox.jsx';
+import { PhotoEditor } from '../../../ui/PhotoEditor.jsx';
 import { INCIDENT_TYPES, typeLabel } from '../../officer/_parts.jsx';
 import { useIncidentDraft } from '../../officer/_draft.js';
 import { DOC_ACCEPT, isImage, MAX_FILES, useUploads } from '../evidence.jsx';
@@ -93,6 +94,7 @@ export default function Composer({ existing, manager, initial, draftId, onCreate
   const [orbError, setOrbError] = useState(null);
   const [sheet, setSheet] = useState(null);
   const [photo, setPhoto] = useState(null);
+  const [editing, setEditing] = useState(null); // { photo, file } in the crop and blur editor
   const [lightbox, setLightbox] = useState(null);
   const [signing, setSigning] = useState(false);
   const [removed, setRemoved] = useState([]); // the report's own files taken off, removed when it is saved
@@ -126,14 +128,24 @@ export default function Composer({ existing, manager, initial, draftId, onCreate
   const cam = useRef(null);
   const lib = useRef(null);
   const doc = useRef(null);
+  const swap = useRef({}); // upload uid -> { ref it replaces, caption and section to carry over }
   const pick = (e) => { const fl = [...(e.target.files || [])]; e.target.value = ''; if (fl.length) uploads.add(fl); };
   // New uploads land in the block they were added from, or a new one where the cursor is
   useEffect(() => {
     const placed = new Set(refsIn(blocks));
-    const fresh = uploads.items.filter((x) => !placed.has(x.uid));
-    if (!fresh.length) return;
+    // An edited photo takes the place of the one it was made from
+    const swaps = uploads.items.filter((x) => !placed.has(x.uid) && swap.current[x.uid]);
+    const fresh = uploads.items.filter((x) => !placed.has(x.uid) && !swap.current[x.uid]);
+    let out = swaps.length ? blocks.map((b) => (b.items ? { ...b, items: b.items.map((r) => swaps.find((x) => swap.current[x.uid].ref === r)?.uid || r) } : b)) : blocks;
+    for (const x of swaps) removeRef(swap.current[x.uid].ref);
+    // Its caption and place in the report follow it once it has a storage key
+    const landed = uploads.items.filter((x) => x.key && swap.current[x.uid]);
+    if (landed.length) {
+      setCaptions((m) => ({ ...m, ...Object.fromEntries(landed.map((x) => [x.key, swap.current[x.uid].meta])) }));
+      for (const x of landed) delete swap.current[x.uid];
+    }
+    if (!fresh.length) { if (swaps.length) setBlocks(out); return; }
     const t = target.current || { at: cursor.current };
-    let out = blocks;
     for (const kind of ['photo', 'file']) {
       const refs = fresh.filter((x) => (kind === 'photo') === isImage(x.mime)).map((x) => x.uid);
       if (!refs.length) continue;
@@ -314,6 +326,26 @@ export default function Composer({ existing, manager, initial, draftId, onCreate
     return inc;
   }).then((inc) => { setSigning(false); done(inc.id, manager ? 'Signed and sent to the venue' : 'Signed and sent to your manager'); }).catch(() => {});
 
+  // Crop and blur: the photo is fetched, edited on the device, and uploaded again in the same spot
+  const editPhoto = async (p) => {
+    setPhoto(null);
+    try {
+      const blob = await (await fetch(p.url)).blob();
+      setEditing({ photo: p, file: new File([blob], p.name || 'photo.jpg', { type: blob.type || p.mime }) });
+    } catch {
+      toast('This photo could not be opened for editing. Try again in a moment.', 'error');
+    }
+  };
+  const edited = ({ file, caption }) => {
+    const p = editing.photo;
+    setEditing(null);
+    const meta = { caption: '', section: '', ...captions[p.key], caption: caption ?? captions[p.key]?.caption ?? '' };
+    if (!file) { setCaptions((m) => ({ ...m, [p.key]: meta })); return; }
+    const uid = `edit-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    swap.current[uid] = { ref: p.ref, meta };
+    uploads.add([file], { uid });
+  };
+
   const photos = files.filter((f) => isImage(f.mime) && f.url);
   const open = (x) => {
     const i = photos.findIndex((p) => p.ref === x.ref || (x.key && p.key === x.key));
@@ -402,7 +434,9 @@ export default function Composer({ existing, manager, initial, draftId, onCreate
         )}
       </div>
 
-      <PhotoSheet photo={photo} captions={captions} setCaptions={setCaptions} onClose={() => setPhoto(null)} onOpen={(p) => { setPhoto(null); open(p); }} sections={view === 'final'} />
+      <PhotoSheet photo={photo} captions={captions} setCaptions={setCaptions} onClose={() => setPhoto(null)} onOpen={(p) => { setPhoto(null); open(p); }} onEdit={editPhoto} sections={view === 'final'} />
+      <PhotoEditor open={!!editing} file={editing?.file || null} url={editing?.photo.url} caption={editing ? captions[editing.photo.key]?.caption || '' : ''}
+        onClose={() => setEditing(null)} onDone={edited} />
       <Lightbox photos={photos.map((p) => ({ url: p.url, name: p.name, caption: captions[p.key]?.caption }))} index={lightbox} onClose={() => setLightbox(null)} />
       <SignSheet open={signing} onClose={() => !busy && setSigning(false)} role={mode === 'manager_new' ? 'manager' : 'officer'} busy={busy} onSign={sign}
         note={mode === 'manager_new' ? <p className="text-subhead text-muted">You are filing and signing this as the manager, so it goes straight to the venue to sign.</p> : null} />
