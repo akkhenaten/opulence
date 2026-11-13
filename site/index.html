@@ -96,14 +96,99 @@
     /* Platform */
     .platform { display: grid; grid-template-columns: 1.05fr .95fr; gap: clamp(40px, 6vw, 88px); align-items: start; margin-top: 64px; }
     .pillars { display: grid; gap: 14px; }
-    .pillar { padding: 28px 28px 26px; border: 1px solid var(--line); border-radius: 22px; background: linear-gradient(180deg, var(--ink-2), var(--ink)); }
-    .pillar header { display: flex; align-items: baseline; gap: 16px; }
+    .pillar { position: relative; overflow: hidden; padding: 28px 28px 26px; border: 1px solid var(--line); border-radius: 22px; background: linear-gradient(180deg, var(--ink-2), var(--ink)); transition: border-color .4s, box-shadow .5s, opacity .4s, transform .5s var(--spring); }
+    .pillar header { display: flex; align-items: center; gap: 16px; }
     .pillar .n { font: italic 500 22px var(--serif); color: var(--gold); }
     .pillar h3 { font-size: 26px; }
     .pillar > p { margin-top: 8px; color: var(--muted); }
-    .pillar ul { list-style: none; margin-top: 16px; display: grid; gap: 10px; }
+    .pillar ul { list-style: none; padding-top: 16px; display: grid; gap: 10px; }
     .pillar li { position: relative; padding-left: 26px; font-size: 16px; color: rgba(244,241,234,.9); }
     .pillar li::before { content: ""; position: absolute; left: 0; top: .62em; width: 12px; height: 1px; background: var(--gold); }
+    .pillar .ic { flex: none; width: 40px; height: 40px; fill: none; stroke: var(--gold-2); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .pillar .ic .pupil { fill: var(--gold-2); stroke: none; }
+    .pillar .ic .hand { transform-origin: 20px 20px; }
+    .pillar .ic .tick { stroke: var(--gold); stroke-width: 2.2; }
+    .pillar:has(.hand) .ic .tick { opacity: 0; }
+    .prog, .pdots { display: none; }
+    /* With the script running the cards are tabs: one lit card drives the portal example beside them */
+    .pillars[data-tabs] .pillar { cursor: pointer; outline: none; }
+    .pillars[data-tabs] .pillar::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .4s; background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), rgba(226,200,142,.13), transparent 60%); }
+    .pillars[data-tabs] .pillar:hover::before, .pillars[data-tabs] .pillar[aria-selected="true"]::before { opacity: 1; }
+    .pillars[data-tabs] .pillar[aria-selected="true"] { border-color: rgba(201,164,92,.55); box-shadow: 0 30px 60px -36px rgba(201,164,92,.45), inset 0 1px 0 rgba(226,200,142,.18); background: linear-gradient(160deg, rgba(201,164,92,.12), var(--ink-2) 45%, var(--ink)); }
+    .pillars[data-tabs] .pillar:focus-visible { box-shadow: 0 0 0 2px var(--gold-2); }
+    .pillars[data-tabs] .prog { display: block; position: absolute; left: 28px; right: 28px; bottom: 0; height: 2px; background: rgba(201,164,92,.14); opacity: 0; transition: opacity .3s; }
+    .prog i { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-2)); transform: scaleX(0); transform-origin: left; }
+    .pillars.auto .pillar[aria-selected="true"] .prog { opacity: 1; }
+    .pillars.auto .pillar[aria-selected="true"] .prog i { animation: prog var(--dwell, 7s) linear forwards; }
+    .pillars.auto.hold .prog i { animation-play-state: paused !important; }
+    @keyframes prog { to { transform: scaleX(1); } }
+    @media (min-width: 921px) {
+      .pillars[data-tabs] .pillar:not([aria-selected="true"]) { opacity: .62; }
+      .pillars[data-tabs] .pillar:not([aria-selected="true"]):hover { opacity: .9; }
+      .pillars[data-tabs] .pillar[aria-selected="true"] { transform: translateX(6px); }
+      .pillars[data-tabs] .pts { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .55s var(--spring); }
+      .pillars[data-tabs] .pts > ul { overflow: hidden; min-height: 0; }
+      .pillars[data-tabs] .pillar[aria-selected="true"] .pts { grid-template-rows: 1fr; }
+    }
+    html.anim .pillars[data-tabs] .pillar[aria-selected="true"] li { animation: pt .6s var(--spring) both; animation-delay: calc(.12s + var(--i) * .09s); }
+    @keyframes pt { from { opacity: 0; transform: translateX(-12px); } }
+    /* Each icon draws itself as its card lights up, then keeps one small motion going */
+    html.anim .pillar[aria-selected="true"] .ic .draw { stroke-dasharray: 120; animation: draw 1.1s var(--spring) both; }
+    html.anim .pillar[aria-selected="true"] .ic .pupil { animation: pupil 2.4s ease-in-out .6s infinite; }
+    html.anim .pillar[aria-selected="true"] .ic .hand { animation: hand 1.4s var(--spring) .2s both; }
+    html.anim .pillar[aria-selected="true"] .ic .tick { stroke-dasharray: 30; animation: draw .7s var(--spring) both; }
+    html.anim .pillar[aria-selected="true"]:has(.hand) .ic .tick { animation: draw .7s var(--spring) 1.4s both, show 0s 1.4s both; }
+    html.anim .pillar[aria-selected="true"] .ic .hand { animation: hand 1.4s var(--spring) .2s both, hide .2s 1.4s both; }
+    html.anim .pillar[aria-selected="true"]:has(.draw + .tick) .ic .tick { animation-delay: .6s; }
+    @keyframes draw { from { stroke-dashoffset: 120; } to { stroke-dashoffset: 0; } }
+    @keyframes pupil { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-2px); } 70% { transform: translateX(2px); } }
+    @keyframes hand { from { transform: rotate(-360deg); } }
+    @keyframes show { to { opacity: 1; } }
+    @keyframes hide { to { opacity: 0; } }
+    .pillar .ic .pupil { transform-box: fill-box; }
+    /* The portal example: one screen per card, stacked in one place so the device never changes height */
+    .panes { display: grid; }
+    .pane { grid-area: 1 / 1; }
+    .pane[hidden] { display: none; }
+    .panes[data-tabs] .pane { display: block; transition: opacity .45s ease-out, transform .6s var(--spring), visibility 0s .45s; }
+    .panes[data-tabs] .pane:not(.on) { opacity: 0; visibility: hidden; transform: translateY(8px); pointer-events: none; }
+    .panes[data-tabs] .pane.on { transition-delay: 0s; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: 15px; }
+    .officer .chip + .chip { margin-left: -6px; }
+    .new { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--gold); color: var(--ink); font-size: 10px; letter-spacing: .12em; vertical-align: 1px; }
+    .rota { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 12px; }
+    .rota span { display: grid; gap: 4px; justify-items: center; padding: 8px 0; border-radius: 10px; background: rgba(255,255,255,.04); font-size: 11px; color: var(--muted); }
+    .rota b { font: 600 12px var(--sans); color: var(--text); }
+    .note { display: block; margin-top: 10px; font-size: 12px; color: var(--muted); }
+    /* Two-state details: the first shows by default, the second once the screen has "happened" */
+    :is(.arrive, .signbtn) em { font-style: normal; }
+    :is(.arrive, .signbtn) em + em { display: none; }
+    .pane.go :is(.arrive, .signbtn) em:first-child { display: none; }
+    .pane.go :is(.arrive, .signbtn) em + em { display: inline; }
+    .pane.go .arrive small em + em { display: block; }
+    .pane.go .arrive .chip.warn { border-color: rgba(123,197,154,.4); color: var(--ok); }
+    .signbtn { transition: background .3s; }
+    .pane.go .signbtn { background: rgba(123,197,154,.16); color: var(--ok); }
+    .panes[data-tabs] .rota .gap b { opacity: 0; }
+    .panes[data-tabs] .rota .gap { outline: 1px dashed rgba(230,179,90,.6); outline-offset: -1px; }
+    .panes[data-tabs] .pane:not(.go) .note { opacity: 0; }
+    .pane.go .rota .gap { outline-color: transparent; background: rgba(201,164,92,.18); }
+    .pane.go .rota .gap b { opacity: 1; }
+    html.anim .pane.go .rota .gap b, html.anim .pane.go .note { animation: rise .5s var(--spring) both; }
+    html.anim .pane.on .fresh { animation: pop .7s var(--spring) .5s both; }
+    @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.97); } }
+    html.anim .pane.go .arrive .avatar { animation: arrive .8s var(--spring); }
+    @keyframes arrive { 40% { transform: scale(1.18); box-shadow: 0 0 0 6px rgba(123,197,154,.25); } }
+    @media (max-width: 920px) {
+      .pillars-wrap { min-width: 0; }
+      .pillars[data-tabs] { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin-inline: -24px; padding: 4px 24px 8px; scroll-padding-inline: 24px; }
+      .pillars[data-tabs]::-webkit-scrollbar { display: none; }
+      .pillars[data-tabs] .pillar { flex: 0 0 86%; scroll-snap-align: start; }
+      .pillars[data-tabs] + .pdots { display: flex; justify-content: center; gap: 10px; margin-top: 14px; }
+      .pdots button { width: 28px; height: 28px; border: 0; background: none; cursor: pointer; display: grid; place-items: center; }
+      .pdots button::after { content: ""; width: 8px; height: 8px; border-radius: 999px; background: rgba(226,200,142,.3); transition: width .4s var(--spring), background .3s; }
+      .pdots button[aria-current="true"]::after { width: 24px; background: var(--gold-2); }
+    }
     .portal { position: sticky; top: 100px; }
     .device { border-radius: 28px; padding: 22px; background: var(--ink-3); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 40px 80px -40px rgba(0,0,0,.9), 0 0 0 8px rgba(255,255,255,.02); }
     .device .bar { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); }
@@ -370,53 +455,97 @@
           <p>Every Opulence shift runs on our own platform. It keeps you and us up to date, takes the admin out of security, and keeps your venue compliant and secure.</p>
         </div>
         <div class="platform">
+          <div class="pillars-wrap">
           <div class="pillars">
-            <article class="pillar">
-              <header><span class="n">i.</span><h3>Up to date, you and us</h3></header>
+            <article class="pillar" data-pane="live">
+              <header><svg class="ic" viewBox="0 0 40 40" aria-hidden="true"><path class="draw" d="M4 20c4.5-7.5 10-11 16-11s11.5 3.5 16 11c-4.5 7.5-10 11-16 11S8.5 27.5 4 20z"/><circle class="draw" cx="20" cy="20" r="5.5"/><circle class="pupil" cx="20" cy="20" r="2"/></svg><span class="n">i.</span><h3>Up to date, you and us</h3></header>
               <p>See what’s happening on your door as it happens.</p>
-              <ul>
-                <li>Your venue portal shows who is on your door right now, with name, photo and SIA badge.</li>
-                <li>Incident reports reach you the same night, with photos, timeline and witness details.</li>
-                <li>Request extra cover or a new event from your phone, and see who’s booked.</li>
-              </ul>
+              <div class="pts"><ul>
+                <li style="--i:0">Your venue portal shows who is on your door right now, with name, photo and SIA badge.</li>
+                <li style="--i:1">Incident reports reach you the same night, with photos, timeline and witness details.</li>
+                <li style="--i:2">Request extra cover or a new event from your phone, and see who’s booked.</li>
+              </ul></div>
+              <span class="prog" aria-hidden="true"><i></i></span>
             </article>
-            <article class="pillar">
-              <header><span class="n">ii.</span><h3>More efficient</h3></header>
+            <article class="pillar" data-pane="admin">
+              <header><svg class="ic" viewBox="0 0 40 40" aria-hidden="true"><circle class="draw" cx="20" cy="20" r="15"/><path class="hand" d="M20 20V11"/><path class="tick" d="M13.5 20.5l4.5 4.5 9-10"/></svg><span class="n">ii.</span><h3>More efficient</h3></header>
               <p>Less admin and fewer surprises, for both of us.</p>
-              <ul>
-                <li>Hours are proven by on-site clock-in. Sign off timesheets in one tap, and invoices match exactly.</li>
-                <li>Rota, cover gaps and officer documents run in one system, not in WhatsApp chains.</li>
-                <li>Contracts and assignment instructions are signed electronically, so every officer arrives briefed on your venue.</li>
-              </ul>
+              <div class="pts"><ul>
+                <li style="--i:0">Hours are proven by on-site clock-in. Sign off timesheets in one tap, and invoices match exactly.</li>
+                <li style="--i:1">Rota, cover gaps and officer documents run in one system, not in WhatsApp chains.</li>
+                <li style="--i:2">Contracts and assignment instructions are signed electronically, so every officer arrives briefed on your venue.</li>
+              </ul></div>
+              <span class="prog" aria-hidden="true"><i></i></span>
             </article>
-            <article class="pillar">
-              <header><span class="n">iii.</span><h3>Compliant &amp; secure</h3></header>
+            <article class="pillar" data-pane="comply">
+              <header><svg class="ic" viewBox="0 0 40 40" aria-hidden="true"><path class="draw" d="M20 4l13 5v10c0 8.5-5.5 14.5-13 17C12.5 33.5 7 27.5 7 19V9z"/><path class="tick" d="M14 20l4.5 4.5L27 16"/></svg><span class="n">iii.</span><h3>Compliant &amp; secure</h3></header>
               <p>Ready for your licensing board, every night.</p>
-              <ul>
-                <li>Every officer’s SIA licence and right to work is checked, with alerts before anything expires.</li>
-                <li>Shift logs, refusals and ban lists are kept as evidence for licensing reviews and the police.</li>
-                <li>Your venue’s procedures are written down, kept up to date and acknowledged by every officer.</li>
-              </ul>
+              <div class="pts"><ul>
+                <li style="--i:0">Every officer’s SIA licence and right to work is checked, with alerts before anything expires.</li>
+                <li style="--i:1">Shift logs, refusals and ban lists are kept as evidence for licensing reviews and the police.</li>
+                <li style="--i:2">Your venue’s procedures are written down, kept up to date and acknowledged by every officer.</li>
+              </ul></div>
+              <span class="prog" aria-hidden="true"><i></i></span>
             </article>
           </div>
+          <div class="pdots" hidden><button type="button" aria-label="Up to date, you and us"></button><button type="button" aria-label="More efficient"></button><button type="button" aria-label="Compliant and secure"></button></div>
+          </div>
           <figure class="portal" data-reveal style="--d:.1s">
-            <div class="device" role="img" aria-label="Example of the venue portal: officers on site now, a same-night incident report and a timesheet ready to sign">
+            <div class="device" id="portal-screen" role="img" aria-label="Example of the venue portal: officers on your door now, a same-night incident report and a booked cover request">
               <div class="bar"><b>Your venue · Tonight</b><span class="live"><i></i>Live</span></div>
-              <div class="tile">
-                <h4>On your door now</h4>
-                <div class="officer"><span class="avatar">JM</span><div>J. McLeod<small>Door supervisor · clocked in 21:58</small></div><span class="chip">SIA ✓</span></div>
-                <div class="officer"><span class="avatar">AR</span><div>A. Reid<small>Door supervisor · clocked in 22:01</small></div><span class="chip">SIA ✓</span></div>
-                <div class="officer"><span class="avatar">SK</span><div>S. Khan<small>Supervisor · due 23:00</small></div><span class="chip warn">Due</span></div>
-              </div>
-              <div class="tile">
-                <h4>Incident report · 23:41</h4>
-                <p class="incident">Refusal of entry at the main door. Guest escorted from the queue, no injuries.<small>2 photos · timeline · witness details</small></p>
-              </div>
-              <div class="tile">
-                <h4>Last night</h4>
-                <div class="sign">Timesheet · 3 officers · 21 hrs <span>Sign off</span></div>
+              <div class="panes">
+                <div class="pane on" id="pane-live" data-pane="live">
+                  <div class="tile">
+                    <h4>On your door now</h4>
+                    <div class="officer"><span class="avatar">JM</span><div>J. McLeod<small>Door supervisor · clocked in 21:58</small></div><span class="chip">SIA ✓</span></div>
+                    <div class="officer"><span class="avatar">AR</span><div>A. Reid<small>Door supervisor · clocked in 22:01</small></div><span class="chip">SIA ✓</span></div>
+                    <div class="officer arrive"><span class="avatar">SK</span><div>S. Khan<small><em>Supervisor · due 23:00</em><em>Supervisor · clocked in 22:57</em></small></div><span class="chip warn"><em>Due</em><em>SIA ✓</em></span></div>
+                  </div>
+                  <div class="tile fresh">
+                    <h4>Incident report · 23:41 <span class="new">New</span></h4>
+                    <p class="incident">Refusal of entry at the main door. Guest escorted from the queue, no injuries.<small>2 photos · timeline · witness details</small></p>
+                  </div>
+                  <div class="tile">
+                    <h4>Cover request · Sat 22:00</h4>
+                    <div class="row">2 extra officers for your event <span class="chip">Booked</span></div>
+                  </div>
+                </div>
+                <div class="pane" id="pane-admin" data-pane="admin" hidden>
+                  <div class="tile">
+                    <h4>Last night</h4>
+                    <div class="sign">Timesheet · 3 officers · 21 hrs <span class="signbtn"><em>Sign off</em><em>Signed ✓</em></span></div>
+                  </div>
+                  <div class="tile">
+                    <h4>Proven on site</h4>
+                    <div class="row">Clock-in verified at your door <span class="chip">GPS ✓</span></div>
+                    <div class="row">Invoice · 21 hrs <span class="chip">Matches</span></div>
+                  </div>
+                  <div class="tile">
+                    <h4>This week’s rota</h4>
+                    <div class="rota"><span>Mon<b>JM</b></span><span>Tue<b>JM</b></span><span>Wed<b>AR</b></span><span>Thu<b>SK</b></span><span>Fri<b>JM</b></span><span class="gap">Sat<b>AR</b></span><span>Sun<b>SK</b></span></div>
+                    <small class="note">Saturday gap filled · A. Reid confirmed</small>
+                  </div>
+                </div>
+                <div class="pane" id="pane-comply" data-pane="comply" hidden>
+                  <div class="tile">
+                    <h4>Licences &amp; right to work</h4>
+                    <div class="officer"><span class="avatar">JM</span><div>J. McLeod<small>SIA door supervisor · right to work</small></div><span class="chip">SIA ✓</span><span class="chip">RTW ✓</span></div>
+                    <div class="officer"><span class="avatar">AR</span><div>A. Reid<small>SIA door supervisor · right to work</small></div><span class="chip">SIA ✓</span><span class="chip">RTW ✓</span></div>
+                    <div class="officer"><span class="avatar">SK</span><div>S. Khan<small>Licence renews in 28 days · alert sent</small></div><span class="chip warn">28 days</span></div>
+                  </div>
+                  <div class="tile">
+                    <h4>Evidence for licensing</h4>
+                    <div class="row">Shift log · 3 refusals recorded <span class="chip">Kept</span></div>
+                    <div class="row">Venue procedures · acknowledged <span class="chip">3 / 3</span></div>
+                  </div>
+                  <div class="tile">
+                    <h4>Ban list</h4>
+                    <div class="row">12 names · shared with tonight’s team <span class="chip">Up to date</span></div>
+                  </div>
+                </div>
               </div>
             </div>
+            <span class="vh" aria-live="polite" data-say></span>
             <figcaption>An example of the venue portal every client receives.</figcaption>
           </figure>
         </div>
@@ -664,10 +793,99 @@
         el.style.setProperty('--d', ((i % 4) * 0.08) + 's');
         so.observe(el);
       }
-      ['.pillars', '.services', '.awards'].concat([].slice.call(document.querySelectorAll('#clients .tiles'))).forEach(function (g) {
+      ['.services', '.awards'].concat([].slice.call(document.querySelectorAll('#clients .tiles'))).forEach(function (g) {
         g = typeof g === 'string' ? document.querySelector(g) : g;
         if (g) [].forEach.call(g.children, slide);
       });
+      // The platform cards: choosing one lights it up and switches the portal example to match; they take turns on their own
+      var tabs = document.querySelector('.pillars'), screen = document.getElementById('portal-screen');
+      if (tabs && screen) (function () {
+        var cards = [].slice.call(tabs.querySelectorAll('.pillar')), box = screen.querySelector('.panes');
+        var panes = [].slice.call(box.querySelectorAll('.pane')), dots = [].slice.call(document.querySelectorAll('.pdots button'));
+        var say = document.querySelector('[data-say]'), wide = matchMedia('(min-width: 921px)');
+        var SHOW = {
+          live: 'officers on your door now, a same-night incident report and a booked cover request',
+          admin: 'last night’s timesheet signed off, clock-ins verified on site, an invoice that matches and this week’s rota with the gap filled',
+          comply: 'every officer’s SIA licence and right to work checked, a renewal alert, refusals logged and venue procedures acknowledged'
+        };
+        var cur = -1, stopped = !motion, inView = false, hold = false, timer = 0, goT = 0, DWELL = 7000;
+        tabs.setAttribute('data-tabs', ''); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', 'What the platform does for your venue');
+        box.setAttribute('data-tabs', '');
+        panes.forEach(function (p) { p.hidden = false; });
+        tabs.style.setProperty('--dwell', DWELL + 'ms');
+        if (dots.length) dots[0].parentNode.hidden = false;
+        cards.forEach(function (c, i) {
+          c.setAttribute('role', 'tab'); c.setAttribute('aria-controls', 'portal-screen'); c.id = 'tab-' + c.dataset.pane;
+          // A tab reads as its title, then its subtitle and points
+          var h = c.querySelector('h3'), sub = c.querySelector('header + p'), pts = c.querySelector('.pts');
+          h.id = c.id + '-t'; sub.id = c.id + '-s'; pts.id = c.id + '-p';
+          c.setAttribute('aria-labelledby', h.id); c.setAttribute('aria-describedby', sub.id + ' ' + pts.id);
+          c.addEventListener('click', function () { select(i, true); });
+          c.addEventListener('pointermove', function (e) {
+            if (e.pointerType !== 'mouse') return;
+            var r = c.getBoundingClientRect();
+            c.style.setProperty('--mx', (e.clientX - r.left) + 'px'); c.style.setProperty('--my', (e.clientY - r.top) + 'px');
+          });
+        });
+        dots.forEach(function (d, i) { d.addEventListener('click', function () { select(i, true, true); }); });
+        tabs.addEventListener('keydown', function (e) {
+          var n = { ArrowRight: cur + 1, ArrowDown: cur + 1, ArrowLeft: cur - 1, ArrowUp: cur - 1, Home: 0, End: cards.length - 1 }[e.key];
+          if (n === undefined) return;
+          e.preventDefault();
+          select((n + cards.length) % cards.length, true, true);
+          cards[cur].focus();
+        });
+        function select(i, user, bring) {
+          if (user) { stopped = true; tabs.classList.remove('auto'); clearTimeout(timer); }
+          if (i === cur) return;
+          cur = i;
+          var key = cards[i].dataset.pane;
+          cards.forEach(function (c, j) {
+            var on = j === i;
+            c.setAttribute('aria-selected', on); c.tabIndex = on ? 0 : -1;
+            // Closed cards keep their points out of the reading order on wide screens, where they are collapsed
+            c.querySelector('.pts').inert = !on && wide.matches;
+          });
+          dots.forEach(function (d, j) { d.setAttribute('aria-current', j === i); });
+          clearTimeout(goT);
+          panes.forEach(function (p) { p.classList.toggle('on', p.dataset.pane === key); p.classList.remove('go'); });
+          var pane = panes.filter(function (p) { return p.dataset.pane === key; })[0];
+          // The screen "happens" a beat after it appears: an officer clocks in, the timesheet signs, the rota gap fills
+          goT = setTimeout(function () { pane.classList.add('go'); }, motion ? 1100 : 0);
+          screen.setAttribute('aria-label', 'Example of the venue portal: ' + SHOW[key]);
+          if (user && say) say.textContent = 'Showing: ' + cards[i].querySelector('h3').textContent;
+          if (bring && !wide.matches) tabs.scrollTo({ left: cards[i].offsetLeft - cards[0].offsetLeft, behavior: motion ? 'smooth' : 'auto' });
+          if (!stopped) restart();
+        }
+        // Taking turns: only on wide screens, only while the section is on screen, paused under the pointer or focus
+        function restart() {
+          clearTimeout(timer);
+          var run = !stopped && inView && !hold && wide.matches;
+          // Pausing freezes the progress line; resuming gives the card a fresh turn, so the line starts again with it
+          tabs.classList.remove('auto');
+          if (run) void tabs.offsetWidth;
+          tabs.classList.toggle('auto', !stopped && wide.matches);
+          tabs.classList.toggle('hold', !run);
+          if (run) timer = setTimeout(function () { select((cur + 1) % cards.length); }, DWELL);
+        }
+        if (motion) {
+          new IntersectionObserver(function (es) { inView = es[0].isIntersecting; if (!inView) hold = false; restart(); }, { threshold: .35 }).observe(document.querySelector('.platform'));
+          var plat = document.querySelector('.platform');
+          plat.addEventListener('mouseenter', function () { hold = true; restart(); });
+          plat.addEventListener('mouseleave', function () { hold = false; restart(); });
+          plat.addEventListener('focusin', function () { hold = true; restart(); });
+          wide.addEventListener('change', restart);
+        }
+        // On phones the cards swipe; whichever card settles in view drives the screen
+        if ('IntersectionObserver' in window) {
+          var swipe = new IntersectionObserver(function (es) {
+            if (wide.matches) return;
+            es.forEach(function (e) { if (e.isIntersecting) select(cards.indexOf(e.target)); });
+          }, { root: tabs, threshold: .6 });
+          cards.forEach(function (c) { swipe.observe(c); });
+        }
+        select(0);
+      })();
       // A number eases from one value to another; a newer tween on the same element takes over
       function tween(el, from, to, ms, fmt, delay) {
         var id = (el._tw = (el._tw || 0) + 1), t0 = 0;

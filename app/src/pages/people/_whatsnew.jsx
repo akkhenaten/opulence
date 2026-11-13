@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Ban, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, SlidersHorizontal, ShieldAlert, Store, Timer, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
+  Megaphone, MessageCircleWarning, MousePointerClick, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, SlidersHorizontal, ShieldAlert, Store, Timer, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-13', icon: MousePointerClick, title: "Your website's platform cards come alive", image: 'landing-platform-cards',
+    lede: "On the public website, the three promises beside the venue portal (Up to date, More efficient, Compliant & secure) are now cards a visitor can pick, and the portal example switches to show each one in action.",
+    points: ["Picking a card lights it up in gold, opens its three points and switches the portal example to match: who is on the door and a same-night report, a timesheet signing itself with the rota gap filling, or licence and right-to-work checks with a renewal alert", "On a computer the cards take turns on their own every few seconds while the section is on screen, with a gold line showing the time, and stop as soon as the visitor chooses one", "On phones the cards swipe side by side with gold dots beneath, and the portal example follows the card in view", "Keyboard arrows move between cards and screen readers hear each card's title, points and what the portal now shows", "Visitors who turn off motion get the same cards and screens without the animation. The wording is unchanged"],
+  },
   {
     month: 'November 2026', date: '2026-11-13', icon: Timer, title: 'Your website shows what you save venues', image: 'landing-figures',
     lede: "The public website now shows how many venues Opulence protects and how many officers are on its books, live from the app, with the hours and money that saves venue teams each year.",
