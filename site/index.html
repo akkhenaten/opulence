@@ -126,6 +126,47 @@
     .portal figcaption { margin-top: 14px; font-size: 13px; color: var(--muted); text-align: center; }
     @media (max-width: 920px) { .platform { grid-template-columns: 1fr; } .portal { position: static; } }
 
+    /* Time saved: visitors pick their sites and staff and see the hours their managers get back */
+    .vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    .calc { display: grid; grid-template-columns: 1fr 1.1fr; gap: clamp(28px, 5vw, 64px); align-items: center; margin-top: 56px; padding: clamp(24px, 4vw, 44px); border: 1px solid var(--line); border-radius: 22px; background: linear-gradient(180deg, var(--ink-2), var(--ink)); }
+    .pick { display: grid; gap: 34px; }
+    .pick-row { display: grid; gap: 14px; }
+    .pick-row label { font: 600 12px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+    .stepper { display: flex; align-items: center; gap: 12px; }
+    .stepper button { width: 44px; height: 44px; flex: none; border-radius: 50%; border: 1px solid rgba(201,164,92,.55); background: transparent; color: var(--gold-2); font: 400 22px/1 var(--sans); cursor: pointer; transition: background .2s, transform .3s var(--spring); }
+    .stepper button:hover { background: rgba(201,164,92,.12); }
+    .stepper button:active { transform: scale(.92); }
+    .stepper input { width: 96px; height: 52px; padding: 0 6px; text-align: center; font: 500 28px var(--serif); font-variant-numeric: lining-nums tabular-nums; -moz-appearance: textfield; appearance: textfield; }
+    .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .pick input[type=range] { width: 100%; height: 28px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; accent-color: var(--gold); cursor: pointer; -webkit-appearance: none; appearance: none; }
+    .pick input[type=range]::-webkit-slider-runnable-track { height: 2px; background: linear-gradient(90deg, var(--gold) var(--p, 50%), rgba(255,255,255,.14) var(--p, 50%)); }
+    .pick input[type=range]::-moz-range-track { height: 2px; background: rgba(255,255,255,.14); }
+    .pick input[type=range]::-moz-range-progress { height: 2px; background: var(--gold); }
+    .pick input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--gold-2); border: 0; box-shadow: 0 0 0 6px rgba(201,164,92,.18); }
+    .pick input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--gold-2); border: 0; box-shadow: 0 0 0 6px rgba(201,164,92,.18); }
+    .pick input[type=range]:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+    .result .lbl { font: 600 12px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+    .result .big { margin-top: 8px; font: 500 clamp(22px, 2.4vw, 30px) var(--serif); color: var(--text); }
+    .result .big b { font: 500 clamp(56px, 9vw, 104px)/1 var(--serif); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
+    .result .sub { margin-top: 10px; color: var(--muted); font-size: 15px; }
+    .result .sub b { color: var(--text); font-weight: 600; font-variant-numeric: lining-nums tabular-nums; }
+    .parts { list-style: none; margin: 26px 0 28px; }
+    .parts li { display: grid; grid-template-columns: 1fr auto 72px; gap: 14px; align-items: baseline; padding: 12px 0; border-top: 1px solid var(--line); font-size: 15px; color: rgba(244,241,234,.9); }
+    .parts b { font: 600 18px var(--sans); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
+    .parts i { font-style: normal; text-align: right; color: var(--muted); font-size: 14px; font-variant-numeric: lining-nums tabular-nums; }
+    .how-est { margin-top: 22px; max-width: 820px; color: var(--muted); font-size: 15px; }
+    .how-est summary { display: inline-flex; align-items: center; gap: 10px; list-style: none; cursor: pointer; color: var(--gold-2); font-size: 14px; letter-spacing: .12em; text-transform: uppercase; }
+    .how-est summary::-webkit-details-marker { display: none; }
+    .how-est summary::after { content: ""; width: 7px; height: 7px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .3s var(--spring); }
+    .how-est[open] summary::after { transform: translateY(2px) rotate(-135deg); }
+    .how-est summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
+    .how-est > div { display: grid; gap: 12px; margin-top: 16px; }
+    .how-est ul { list-style: none; display: grid; gap: 8px; }
+    .how-est li { position: relative; padding-left: 26px; }
+    .how-est li::before { content: ""; position: absolute; left: 0; top: .72em; width: 12px; height: 1px; background: var(--gold); }
+    .how-est blockquote { padding-left: 16px; border-left: 1px solid var(--gold); font-style: italic; color: rgba(244,241,234,.86); }
+    @media (max-width: 760px) { .calc { grid-template-columns: 1fr; } .result .btn { width: 100%; height: auto; min-height: 52px; padding: 12px 20px; text-align: center; } .parts li { grid-template-columns: 1fr auto 64px; gap: 10px; font-size: 14px; } }
+
     /* Steps */
     .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 56px; counter-reset: s; }
     .step { position: relative; padding: 30px 26px 0 0; border-top: 1px solid var(--line); }
@@ -400,6 +441,64 @@
       </div>
     </section>
 
+    <section class="block" id="savings">
+      <div class="wrap">
+        <div class="lead" data-reveal>
+          <div class="k">For venue managers</div>
+          <h2>Less time chasing last night’s shift.</h2>
+          <p>A guest asks about something that happened on Saturday night. The officer who dealt with it has finished their shift, but your duty manager can already see the report. At the end of the week, the same manager can check who worked, review a late finish and sign off the hours without searching through messages.</p>
+        </div>
+        <div class="calc" data-reveal style="--d:.1s">
+          <form class="pick" onsubmit="return false">
+            <div class="pick-row">
+              <label for="c-sites">Sites you run</label>
+              <div class="stepper">
+                <button type="button" data-step="-1" data-for="c-sites" aria-label="One site fewer">−</button>
+                <input id="c-sites" type="number" inputmode="numeric" min="1" max="30" step="1" value="3">
+                <button type="button" data-step="1" data-for="c-sites" aria-label="One site more">+</button>
+              </div>
+              <input type="range" min="1" max="30" step="1" value="3" data-for="c-sites" aria-label="Sites you run">
+            </div>
+            <div class="pick-row">
+              <label for="c-staff">Security staff on a typical week</label>
+              <div class="stepper">
+                <button type="button" data-step="-1" data-for="c-staff" aria-label="One fewer member of staff">−</button>
+                <input id="c-staff" type="number" inputmode="numeric" min="1" max="200" step="1" value="20">
+                <button type="button" data-step="1" data-for="c-staff" aria-label="One more member of staff">+</button>
+              </div>
+              <input type="range" min="1" max="200" step="1" value="20" data-for="c-staff" aria-label="Security staff on a typical week">
+            </div>
+          </form>
+          <div class="result">
+            <div class="lbl">Estimated hours saved for venue teams</div>
+            <div class="big" aria-hidden="true">≈ <b data-out="hours">1.7</b> hours a month</div>
+            <p class="sub" aria-hidden="true">≈ <b data-out="year">21</b> hours a year · for your <span data-out="sitesTxt">3 sites</span> and <span data-out="staff">20</span> staff</p>
+            <p class="vh" aria-live="polite" data-out="say">Estimated 1.7 hours a month saved for venue teams, for 3 sites and 20 staff.</p>
+            <ul class="parts">
+              <li><span>Weekly timesheets signed off</span><b data-out="ts">12</b><i data-out="tsMin">60 min</i></li>
+              <li><span>Incident reports opened, not chased</span><b data-out="inc">4</b><i data-out="incMin">20 min</i></li>
+              <li><span>Cover requests answered in the portal</span><b data-out="cov">12</b><i data-out="covMin">24 min</i></li>
+            </ul>
+            <button class="btn" type="button" data-cover data-calc><span>Request cover for your <span data-out="sitesTxt">3 sites</span></span></button>
+          </div>
+        </div>
+        <details class="how-est">
+          <summary>How we estimate this</summary>
+          <div>
+            <p>A rough figure for the time venue teams spend checking records, retrieving reports and chasing updates, using these allowances:</p>
+            <ul>
+              <li>5 minutes for each weekly site timesheet you approve. Each site-week counts once, including any later amendments.</li>
+              <li>5 minutes for each incident report you open. Repeat views of the same report count once.</li>
+              <li>2 minutes for each cover request answered through the portal.</li>
+            </ul>
+            <p>To turn your sites and staff into a month, we assume a four-week month, one incident report for every five staff each month, and one cover request per site each week.</p>
+            <blockquote>Example for one venue: four weekly timesheet approvals, six incident reports retrieved and four cover enquiries resolved represent an estimated 58 minutes of management time saved.</blockquote>
+            <p>Opulence’s own payroll checks, staff chasing and internal administration are not counted. This is an illustrative estimate, not a measurement or a guarantee.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
     <section class="block alt-bg" id="how">
       <div class="wrap">
         <div class="lead" data-reveal>
@@ -611,20 +710,79 @@
         g = typeof g === 'string' ? document.querySelector(g) : g;
         if (g) [].forEach.call(g.children, slide);
       });
+      // A number eases from one value to another; a newer tween on the same element takes over
+      function tween(el, from, to, ms, fmt, delay) {
+        var id = (el._tw = (el._tw || 0) + 1), t0 = 0;
+        var step = function (ts) {
+          if (el._tw !== id) return;
+          t0 = t0 || ts;
+          var k = Math.min(1, (ts - t0) / ms);
+          el.textContent = fmt(from + (to - from) * (1 - Math.pow(1 - k, 3)), k === 1);
+          if (k < 1) requestAnimationFrame(step);
+        };
+        setTimeout(function () { requestAnimationFrame(step); }, delay || 0);
+      }
       // The hero's numbers count up from nought
       var counts = motion ? [].filter.call(document.querySelectorAll('.proof b'), function (b) { return /^\d+\+?$/.test(b.textContent.trim()); }) : [];
       counts.forEach(function (b) { b.dataset.to = b.textContent.trim(); b.textContent = '0'; });
       function countUp() {
         counts.forEach(function (b) {
-          var to = parseInt(b.dataset.to, 10), plus = /\+$/.test(b.dataset.to), t0 = 0;
-          var step = function (ts) {
-            t0 = t0 || ts;
-            var k = Math.min(1, (ts - t0) / 1200), n = Math.round(to * (1 - Math.pow(1 - k, 3)));
-            b.textContent = n + (plus && k === 1 ? '+' : '');
-            if (k < 1) requestAnimationFrame(step);
-          };
-          setTimeout(function () { requestAnimationFrame(step); }, 350);
+          var plus = /\+$/.test(b.dataset.to);
+          tween(b, 0, parseInt(b.dataset.to, 10), 1200, function (n, end) { return Math.round(n) + (plus && end ? '+' : ''); }, 350);
         });
+      }
+      // Time saved: the visitor's sites and staff become an estimate of hours their managers get back each month
+      var calc = document.querySelector('.calc');
+      if (calc) {
+        var W = 4, TS = 5, INC = 5, COV = 2, PER_INC = 5;
+        var out = function (k) { return calc.querySelectorAll('[data-out="' + k + '"]'); };
+        var put = function (k, v) { out(k).forEach(function (el) { el.textContent = v; }); };
+        var hrs = function (min) { var h = min / 60; return h < 10 ? Math.round(h * 10) / 10 : Math.round(h); };
+        var fmtH = function (h) { return h.toLocaleString('en-GB', { maximumFractionDigits: 1 }); };
+        var shown = { hours: 0, year: 0 }, seen = !motion, sayT;
+        var field = function (id) { return document.getElementById(id); };
+        var clamp = function (inp, v) { var lo = +inp.min, hi = +inp.max; v = Math.round(+v); return isNaN(v) ? lo : Math.min(hi, Math.max(lo, v)); };
+        var sync = function (id, v) {
+          var num = field(id), rng = calc.querySelector('input[type=range][data-for="' + id + '"]');
+          v = clamp(num, v); num.value = v; rng.value = v;
+          rng.style.setProperty('--p', ((v - rng.min) / (rng.max - rng.min) * 100) + '%');
+          return v;
+        };
+        var render = function (animate) {
+          var s = +field('c-sites').value, p = +field('c-staff').value;
+          var ts = s * W, inc = Math.ceil(p / PER_INC), cov = s * W;
+          var min = ts * TS + inc * INC + cov * COV, h = hrs(min), y = Math.round(min * 12 / 60);
+          var sitesTxt = s + (s === 1 ? ' site' : ' sites');
+          put('ts', ts); put('inc', inc); put('cov', cov);
+          put('tsMin', ts * TS + ' min'); put('incMin', inc * INC + ' min'); put('covMin', cov * COV + ' min');
+          put('sitesTxt', sitesTxt); put('staff', p);
+          [['hours', h, fmtH], ['year', y, function (n) { return Math.round(n).toLocaleString('en-GB'); }]].forEach(function (o) {
+            var el = out(o[0])[0], from = shown[o[0]];
+            shown[o[0]] = o[1];
+            if (!seen) return; // held at nought until the section scrolls into view
+            if (motion && animate) tween(el, from, o[1], animate, function (n, end) { return end ? o[2](o[1]) : o[2](o[0] === 'hours' && o[1] < 10 ? Math.round(n * 10) / 10 : Math.round(n)); });
+            else el.textContent = o[2](o[1]);
+          });
+          // Screen readers hear the settled figure once, not every step
+          clearTimeout(sayT);
+          sayT = setTimeout(function () { put('say', 'Estimated ' + fmtH(h) + ' hours a month saved for venue teams, about ' + y.toLocaleString('en-GB') + ' hours a year, for ' + sitesTxt + ' and ' + p + ' staff.'); }, 500);
+        };
+        ['c-sites', 'c-staff'].forEach(function (id) { sync(id, field(id).value); });
+        calc.addEventListener('input', function (e) {
+          var t = e.target, id = t.type === 'range' ? t.dataset.for : t.id;
+          if (!id) return;
+          if (t.type === 'range' || t.value !== '') { sync(id, t.value); render(400); }
+        });
+        calc.addEventListener('change', function (e) { if (e.target.type === 'number') { sync(e.target.id, e.target.value); render(400); } });
+        calc.querySelectorAll('[data-step]').forEach(function (b) {
+          b.addEventListener('click', function () { var id = b.dataset.for; sync(id, +field(id).value + +b.dataset.step); render(400); });
+        });
+        if (motion) {
+          out('hours')[0].textContent = '0'; out('year')[0].textContent = '0';
+          var co = once(function () { seen = true; shown.hours = 0; shown.year = 0; render(1200); });
+          co.observe(calc);
+        }
+        render(0);
       }
       // How it works lights up step by step
       var steps = document.querySelector('.steps');
@@ -865,6 +1023,12 @@
       document.querySelectorAll('[data-cover]').forEach(function (b) {
         b.addEventListener('click', function () {
           if (b.dataset.cover) form.elements.service.value = b.dataset.cover;
+          // From the time-saved picker: carry the visitor's numbers into the request
+          if (b.hasAttribute('data-calc')) {
+            var s = +document.getElementById('c-sites').value, p = +document.getElementById('c-staff').value;
+            form.elements.sites.value = p <= 2 ? '1–2' : p <= 5 ? '3–5' : p <= 10 ? '6–10' : '10+';
+            if (!form.elements.details.value.trim()) form.elements.details.value = s + (s === 1 ? ' site' : ' sites') + ', about ' + p + ' security staff a week.';
+          }
           form.hidden = false; done.hidden = true;
           dlg.showModal(); form.elements.name.focus();
         });

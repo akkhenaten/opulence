@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Ban, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, SlidersHorizontal, ShieldAlert, Store, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
+  Megaphone, MessageCircleWarning, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, SlidersHorizontal, ShieldAlert, Store, Timer, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-13', icon: Timer, title: 'Your website shows venues the time they get back', image: 'landing-time-saved',
+    lede: "The public website now lets a venue owner or duty manager pick how many sites and staff they have, and shows an estimate of the hours Opulence saves their team each month.",
+    points: ["A new section after the venue portal example, Less time chasing last night's shift, tells the Saturday-night story and puts a large gold hours-a-month figure beside two simple pickers", "The figure breaks down into weekly timesheets signed off, incident reports opened instead of chased and cover requests answered in the portal, and updates as the visitor changes their numbers", "How we estimate this lists every allowance and assumption, and makes clear it is an illustration, not a promise. Opulence's own admin is never counted", "Request cover for your sites opens the usual enquiry form with their numbers already filled in, so the enquiry reaches you with the size of the job", "The number counts up once as it comes into view, stays still for visitors who turn off motion, and reads out in full to screen readers"],
+  },
   {
     month: 'November 2026', date: '2026-11-11', icon: Mail, title: 'Signed incident reports land in your inbox', image: 'incident-complete-email',
     lede: "When the venue signs an incident report, the venue's contacts and the manager who approved it get an email saying it is complete, with a button to open it.",

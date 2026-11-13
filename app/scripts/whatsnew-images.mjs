@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'landing-time-saved': 'A laptop on a dark navy desk showing a calm web page with one large glowing gold number and two slim gold slider controls beneath it, a small brass desk clock beside the laptop, a folded venue rota sheet and a fountain pen, warm lamp light, dark navy and gold.',
   'incident-complete-email': 'A laptop on a dark navy desk showing a calm email with a single gold button, beside it a printed report bearing three neat ink signatures and a small gold wax seal, a brass letter opener resting across a cream envelope, warm lamp light, dark navy and gold.',
   'incident-photo-edit': 'A phone on a dark navy desk showing a photo of a venue doorway at night inside a crisp white crop frame with small corner handles, one area of the photo softly pixelated, a thin gold slider beneath it, a brass loupe resting beside the phone, warm lamp light, dark navy and gold.',
   'incident-notes-sign': 'A phone on a dark navy desk showing a clean notes-style page with a few lines of text and two small photo thumbnails, a row of tiny gold icons along the bottom, beside it a printed report with three neat signature lines at the foot, one signed in ink, a brass fountain pen resting across it, warm lamp light, dark navy and gold.',
