@@ -110,6 +110,16 @@ export async function setLogo(user, id, logo, meta) {
   return { id: v.id, logo_url: v.logo_url };
 }
 
+// The landing page's "what we save venues" figures: live venue and staff counts, then a yearly estimate from rough
+// allowances per 4-week month (5 min a weekly timesheet, 5 min an incident report per 5 staff, 2 min a weekly cover
+// request) and £15 an hour plus 15% employer NI. Totals only; the page lists the same allowances
+const SAVE = { WEEKS: 4, TS_MIN: 5, INC_MIN: 5, PER_INC: 5, COV_MIN: 2, RATE: 15, NI: 0.15 };
+function venueStats({ venues, staff }) {
+  const month = venues * SAVE.WEEKS * SAVE.TS_MIN + Math.ceil(staff / SAVE.PER_INC) * SAVE.INC_MIN + venues * SAVE.WEEKS * SAVE.COV_MIN;
+  const hoursYear = Math.round(month * 12 / 60);
+  return { venues, staff, hoursYear, moneyYear: Math.round(hoursYear * SAVE.RATE * (1 + SAVE.NI) / 10) * 10, rate: SAVE.RATE, ni: SAVE.NI };
+}
+
 export const actions = {
   'venues.list': def(['company', 'security', 'venue'], async (b, { user }) => {
     const scope = await venueScope(user);
@@ -270,10 +280,11 @@ export const actions = {
   // The landing page: a tile for every venue shown on the website, with the reviews filed under its old card's slug
   // and the praise the office ticked. photos and hide stay empty for pages still cached from before.
   'venues.public': pub(async () => {
-    const [published, praise, venues] = await Promise.all([
+    const [published, praise, venues, counts] = await Promise.all([
       q("SELECT * FROM reviews WHERE status = 'published'"),
       tickedPraise(),
       q('SELECT id, name, city, address, postcode, photo_key, site_client, active, on_website, website_blurb, website_url, website_photo_url FROM venues ORDER BY name'),
+      one("SELECT (SELECT count(*) FROM venues WHERE active)::int AS venues, (SELECT count(*) FROM officers o JOIN users u ON u.id = o.user_id WHERE o.status = 'active' AND u.status <> 'disabled' AND NOT u.system)::int AS staff"),
     ]);
     const shown = venues.filter((v) => v.active && v.on_website);
     await Promise.all(shown.map(async (v) => { v.website_photo_url = await websitePhoto(v); }));
@@ -282,6 +293,7 @@ export const actions = {
       reviews: {},
       photos: {},
       hide: [],
+      stats: venueStats(counts),
       tiles: shown.map((v) => publicTile(v, [
         ...((v.site_client && pubBy[v.site_client]) || []),
         ...praise.filter((c) => c.venue_id === v.id).map(feedbackShape),
