@@ -561,9 +561,9 @@
         </div>
         <div class="figs" data-reveal style="--d:.1s">
           <article class="fig" aria-label="24 venues we protect"><b aria-hidden="true" data-stat="venues">24</b><h3 aria-hidden="true">Venues we protect</h3><p aria-hidden="true">Live from our rota</p></article>
-          <article class="fig" aria-label="17 security staff"><b aria-hidden="true" data-stat="staff">17</b><h3 aria-hidden="true">Security staff</h3><p aria-hidden="true">Active officers on our books</p></article>
-          <article class="fig" aria-label="About 138 hours saved for venue teams a year"><b aria-hidden="true" data-stat="hoursYear">138</b><h3 aria-hidden="true">Hours saved for venue teams a year</h3><p aria-hidden="true">Timesheets, reports and cover, without the chasing</p></article>
-          <article class="fig" aria-label="About £2,380 saved for venues a year"><b aria-hidden="true" data-stat="moneyYear">£2,380</b><h3 aria-hidden="true">Saved for venues a year</h3><p aria-hidden="true">At <span data-stat-rate>£15</span> an hour plus employer NI</p></article>
+          <article class="fig" aria-label="35 security staff"><b aria-hidden="true" data-stat="staff">35</b><h3 aria-hidden="true">Security staff</h3><p aria-hidden="true">Officers on our books</p></article>
+          <article class="fig" aria-label="About 615 hours saved for venue teams a year"><b aria-hidden="true" data-stat="hoursYear">615</b><h3 aria-hidden="true">Hours saved for venue teams a year</h3><p aria-hidden="true">Admin, reports and chasing, done for them</p></article>
+          <article class="fig" aria-label="About £11,320 saved for venues a year"><b aria-hidden="true" data-stat="moneyYear">£11,320</b><h3 aria-hidden="true">Saved for venues a year</h3><p aria-hidden="true">In venue admin time</p></article>
         </div>
         <div class="figs-foot">
           <span class="live" hidden><i></i><span>Live figures · updated <span data-stat-at></span></span></span>
@@ -572,14 +572,13 @@
         <details class="how-est">
           <summary>How we estimate this</summary>
           <div>
-            <p>Venue and staff numbers are live from our system. Hours and savings are estimates: a rough figure for the time venue teams spend checking records, retrieving reports and chasing updates, using these allowances:</p>
+            <p>The number of venues is live from our system. Staff is our current team of about 35 officers until everyone is onboarded, then the live count. Hours and savings are estimates, using these planning figures:</p>
             <ul>
-              <li>5 minutes for each weekly site timesheet a venue approves. Each site-week counts once, including any later amendments.</li>
-              <li>5 minutes for each incident report a venue opens. Repeat views of the same report count once.</li>
-              <li>2 minutes for each cover request answered through the portal.</li>
+              <li>A typical venue runs 3 shifts a week with 3 officers on each, at around 5 hours per officer. Across our venues that is about 216 officer shifts and 1,080 hours of cover every week.</li>
+              <li>Each officer saves the venue about 10 minutes of admin a week: incident reports, timesheets, finding records and compliance files.</li>
+              <li>Each shift saves about 5 minutes of chasing a security manager who may be in a meeting or at another site.</li>
             </ul>
-            <p>To turn venues and staff into a year, we assume twelve four-week months, one incident report for every five staff each month, and one cover request per venue each week. Money saved values those hours at <span data-stat-rate>£15</span> an hour, a typical venue manager’s rate, plus 15% employer National Insurance.</p>
-            <blockquote>Example for one venue: four weekly timesheet approvals, six incident reports retrieved and four cover enquiries resolved represent an estimated 58 minutes of management time saved.</blockquote>
+            <p>We add those up over 52 weeks, and value the time at a typical venue admin wage plus employer costs.</p>
             <p>Opulence’s own payroll checks, staff chasing and internal administration are not counted. These are illustrative estimates, not a measurement or a guarantee.</p>
           </div>
         </details>
@@ -928,7 +927,6 @@
           b.closest('.fig').setAttribute('aria-label', SAYS[k][0] + fmtStat(k, v) + SAYS[k][1]);
           b.textContent = motion && !played ? fmtStat(k, 0) : fmtStat(k, v);
         });
-        if (isFinite(Number(s.rate))) document.querySelectorAll('[data-stat-rate]').forEach(function (r) { r.textContent = money(s.rate); });
         var at = document.querySelector('[data-stat-at]');
         if (at) at.textContent = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
         var live = document.querySelector('.figs-foot .live');

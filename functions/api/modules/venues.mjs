@@ -110,14 +110,16 @@ export async function setLogo(user, id, logo, meta) {
   return { id: v.id, logo_url: v.logo_url };
 }
 
-// The landing page's "what we save venues" figures: live venue and staff counts, then a yearly estimate from rough
-// allowances per 4-week month (5 min a weekly timesheet, 5 min an incident report per 5 staff, 2 min a weekly cover
-// request) and £15 an hour plus 15% employer NI. Totals only; the page lists the same allowances
-const SAVE = { WEEKS: 4, TS_MIN: 5, INC_MIN: 5, PER_INC: 5, COV_MIN: 2, RATE: 15, NI: 0.15 };
-function venueStats({ venues, staff }) {
-  const month = venues * SAVE.WEEKS * SAVE.TS_MIN + Math.ceil(staff / SAVE.PER_INC) * SAVE.INC_MIN + venues * SAVE.WEEKS * SAVE.COV_MIN;
-  const hoursYear = Math.round(month * 12 / 60);
-  return { venues, staff, hoursYear, moneyYear: Math.round(hoursYear * SAVE.RATE * (1 + SAVE.NI) / 10) * 10, rate: SAVE.RATE, ni: SAVE.NI };
+// The landing page's "what we save venues" figures. Venues are live; staff is the live officer count but never below our
+// current team of about 35 until everyone is onboarded. A venue averages 3 shifts a week with 3 officers; each officer
+// saves the venue about 10 minutes of admin a week and each shift about 5 minutes chasing a busy security manager.
+// Valued at £16 an hour of venue admin time plus 15% employer NI. Totals only; the rate is not shown on the page
+const SAVE = { STAFF_MIN: 35, SHIFTS: 3, OFFICER_MIN: 10, CHASE_MIN: 5, WEEKS: 52, RATE: 16, NI: 0.15 };
+function venueStats(counts) {
+  const venues = counts.venues, staff = Math.max(counts.staff, SAVE.STAFF_MIN);
+  const week = staff * SAVE.OFFICER_MIN + venues * SAVE.SHIFTS * SAVE.CHASE_MIN;
+  const hoursYear = Math.round(week * SAVE.WEEKS / 60);
+  return { venues, staff, hoursYear, moneyYear: Math.round(hoursYear * SAVE.RATE * (1 + SAVE.NI) / 10) * 10 };
 }
 
 export const actions = {

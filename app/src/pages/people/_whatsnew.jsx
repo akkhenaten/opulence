@@ -1,6 +1,6 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  ArrowRightLeft, BadgeCheck, Ban, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
+  ArrowRightLeft, BadgeCheck, Calculator, Ban, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
   Megaphone, MessageCircleWarning, MousePointerClick, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, SlidersHorizontal, ShieldAlert, Store, Timer, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-13', icon: Calculator, title: 'Your website shows the full value you save venues', image: 'landing-savings-model',
+    lede: "The figures on the public website now use your real working pattern, so venues see about 615 hours and £11,320 of admin time saved a year instead of the earlier cautious 138 hours.",
+    points: ["Security staff shows your team of about 35 until everyone is onboarded, then switches to the live count by itself", "Hours saved come from your planning figures: a venue runs about 3 shifts a week with 3 officers, each officer saves the venue about 10 minutes of admin a week, and each shift saves about 5 minutes chasing a busy security manager", "The money figure values that time as venue admin staff time plus employer costs, and no hourly rate is shown on the page", "How we estimate this explains the shifts, officers and hours of cover behind the numbers, and that they are estimates", "Venue numbers stay live, so every new venue adds to the hours and savings shown"],
+  },
   {
     month: 'November 2026', date: '2026-11-13', icon: MousePointerClick, title: "Your website's platform cards come alive", image: 'landing-platform-cards',
     lede: "On the public website, the three promises beside the venue portal (Up to date, More efficient, Compliant & secure) are now cards a visitor can pick, and the portal example switches to show each one in action.",
