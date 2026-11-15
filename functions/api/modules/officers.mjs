@@ -130,7 +130,7 @@ export function linkableManager(db, email) {
 }
 
 // Create an app login for a staff record and link it (used by "Invite to app" and when hiring)
-export const inviteOfficerLogin = async (id) => sendInvite(await createOfficerLogin(id));
+export const inviteOfficerLogin = async (id, actor = null) => sendInvite(await createOfficerLogin(id), actor);
 
 /** The invited login for a staff record, linked to it; the caller sends the invite */
 export async function createOfficerLogin(id) {
@@ -241,11 +241,11 @@ export const actions = {
       return { o, invite };
     });
     await audit(user, 'officer.create', 'officer', res.o.id, manager ? { linked_user: manager.id } : undefined);
-    return { id: res.o.id, invite_link: res.invite ? await sendInvite(res.invite) : null };
+    return { id: res.o.id, invite_link: res.invite ? await sendInvite(res.invite, user) : null };
   }),
 
   // Give an existing officer record a login
-  'officers.inviteLogin': def(CO, async (b) => ({ invite_link: await inviteOfficerLogin(b.id) })),
+  'officers.inviteLogin': def(CO, async (b, { user }) => ({ invite_link: await inviteOfficerLogin(b.id, user) })),
 
   // Link a staff record to the manager login with the same email: one login, "Manager" and "My shifts"
   'officers.linkLogin': def(CO, async (b, { user }) => {

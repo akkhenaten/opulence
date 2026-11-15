@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import RecentEmail from '../email/_recent.jsx';
-import { Ban, Briefcase, CalendarDays, Mail, Pencil, Phone, PoundSterling, Send, ShieldCheck, UserCheck, UserRound } from 'lucide-react';
+import { Ban, Briefcase, CalendarDays, ChevronRight, Mail, Pencil, Phone, PoundSterling, Send, ShieldCheck, UserCheck, UserRound } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Button, Input, Load, Page, Pill, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle, date, useAction, useApi, useConfirm, useForm, useUrlState,
+  Avatar, Button, Input, Load, Page, Pill, Segmented, Select, Sheet, Tabs, Textarea, Tile, Toggle, date, dateShort, relative, useAction, useApi, useConfirm, useForm, useUrlState,
 } from '../../ui/index.jsx';
 import { uploadPhoto } from '../officer/_parts.jsx';
 import { inviteStatus } from './_access.jsx';
-import { ComplianceBadge, CopyLink, ExpiryPill, graceLine, LoginPill, OFFICER_STATUSES, SIA_TYPES, Chips, canPay, useBase, useRoles } from './_parts.jsx';
+import { ROLE_LABEL } from '../../layouts/nav.js';
+import { ComplianceBadge, CopyLink, ExpiryPill, graceLine, OFFICER_STATUSES, SIA_TYPES, Chips, canPay, useBase, useRoles } from './_parts.jsx';
 import {
   AttendanceTab, AvailabilityTab, ComplianceTab, ContractsTab, DocumentsTab, GrowthTab, HrTab, OffboardingTab, OnboardingTab, OverviewTab, RatesTab, ShiftsTab, TimeOffTab, TrainingTab,
 } from './_profileTabs.jsx';
@@ -107,9 +108,6 @@ function Profile({ o, reload, user, base }) {
             <div className="flex flex-wrap items-center gap-2">
               <Pill status={o.status} />
               <ComplianceBadge c={o.compliance} />
-              {user.role === 'company' && o.user_id
-                ? <Link to={`/company/settings?tab=users&user=${o.user_id}`} aria-label="Sign-in access in Settings" className="pressable"><LoginPill o={o} /></Link>
-                : <LoginPill o={o} />}
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {(o.roles || []).length ? o.roles.map((r) => <span key={r} className="rounded-lg bg-bg px-2 py-0.5 text-footnote font-semibold">{roleName(r)}</span>)
@@ -133,6 +131,7 @@ function Profile({ o, reload, user, base }) {
             </div>
           </div>
         </div>
+        <AppAccess o={o} manage={user.role === 'company'} />
         {(o.compliance?.issues?.length > 0 || o.compliance?.graced?.length > 0) && (
           <div className="mt-4 flex flex-wrap gap-1.5 border-t border-line pt-3">
             {o.compliance.issues.map((i) => <span key={i} className="rounded-lg bg-red-soft px-2 py-0.5 text-caption font-semibold text-red">{i}</span>)}
@@ -270,5 +269,22 @@ function StatusSheet({ open, onClose, o, onDone }) {
         <p className="text-footnote text-muted">To record a leaver, use the Offboarding tab.</p>
       </div>
     </Sheet>
+  );
+}
+
+// Whether they can use the app, and where their sign-in access is managed (no pay detail here)
+function AppAccess({ o, manage }) {
+  const line = !o.user_id ? 'Not invited'
+    : o.login_status === 'disabled' ? 'Login deactivated'
+      : o.login_status === 'invited' ? (o.invite_sent_at ? `Invited · sent ${dateShort(o.invite_sent_at)}` : 'Invited · not emailed yet')
+        : o.last_login ? `Active · seen ${relative(o.last_login)}` : 'Active · not signed in yet';
+  const manager = o.login_role && o.login_role !== 'officer' ? ROLE_LABEL[o.login_role] : null;
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line pt-3 text-subhead">
+      <span className="text-caption2 font-semibold uppercase tracking-wide text-faint">App access</span>
+      <span className="font-semibold">{line}</span>
+      {manager && <span className="text-muted">Also a {manager.toLowerCase()}</span>}
+      {manage && o.user_id && <Link to={`/company/settings?tab=users&user=${o.user_id}`} className="ml-auto inline-flex items-center gap-1 font-semibold text-blue">Manage access<ChevronRight size={16} /></Link>}
+    </div>
   );
 }

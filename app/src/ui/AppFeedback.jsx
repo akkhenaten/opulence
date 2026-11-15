@@ -43,7 +43,7 @@ export function FeedbackChip() {
 }
 /** Phones: just the icon, so the top bar stays tidy */
 export function FeedbackIcon() {
-  return <span className="sm:hidden"><span className="fb-glow"><IconButton icon={MessageCircleWarning} tone="solid" onClick={() => openFeedback()} label="Send feedback" /></span></span>;
+  return <span className="sm:hidden"><span className="fb-glow"><IconButton icon={MessageCircleWarning} tone="solid" onClick={() => openFeedback()} label="Report an app problem or idea" /></span></span>;
 }
 
 /** Mounted once in the app frame; listens for openFeedback() and ?feedback=mine (from a reply notification) */
@@ -64,7 +64,7 @@ export function AppFeedbackSheet() {
   }, [sp, setSp]);
   const close = () => setView(null);
   return (
-    <Sheet open={!!view} onClose={close} title={view === 'mine' ? 'My feedback' : 'Send feedback'} size="sm">
+    <Sheet open={!!view} onClose={close} title={view === 'mine' ? 'My feedback' : 'Report an app problem or idea'} size="sm">
       {view === 'mine' ? <Mine onSend={() => setView('send')} /> : view ? <SendForm onMine={() => setView('mine')} onClose={close} /> : null}
     </Sheet>
   );
@@ -158,7 +158,7 @@ function Mine({ onSend }) {
   return (
     <Load q={q} n={3}>
       {(d) => !d.items.length ? (
-        <Empty icon={MessageCircleWarning} title="Nothing sent yet" body="Tell us about anything that's wrong or could be better." action={d.on && <Button onClick={onSend}>Send feedback</Button>} />
+        <Empty icon={MessageCircleWarning} title="Nothing sent yet" body="Tell us about anything that's wrong or could be better." action={d.on && <Button onClick={onSend}>Report a problem or idea</Button>} />
       ) : (
         <div className="space-y-3">
           {d.on && <Button variant="secondary" className="w-full" icon={MessageCircleWarning} onClick={onSend}>Send more feedback</Button>}

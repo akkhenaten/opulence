@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { AlertTriangle, Banknote, Check, CircleMinus, ClipboardCheck, Clock3, Download, FileText, Gift, Info, MessageSquare, Receipt } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -36,7 +36,8 @@ function SelfEmployedNote() {
 function Statements() {
   const q = useApi('pay.list');
   return (
-    <Page title="Pay" subtitle="Your remittance statements" back={ME}>
+    <Page title="Pay" subtitle="Your pay statements and year to date" back={ME}>
+      <p className="mb-3 text-footnote text-muted">Your rates are in <Link to="/officer/profile" className="font-semibold text-blue">Profile and bank</Link></p>
       <Load q={q} skeleton="rows">
         {(rows) => {
           if (!rows.length) {

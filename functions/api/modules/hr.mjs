@@ -8,6 +8,7 @@ import { parse, fill, unknownPlaceholders } from '../lib/docmarkup.mjs';
 import { nextReference, event, events, markOpened, companySigner, signerColumns, uaOf, sealQuietly, pdfFor } from '../lib/esign.mjs';
 import { CATEGORIES, officerValues, typedValues, contractInput, companyOf, uploadSignaturePage } from './esign.mjs';
 import { audit } from '../lib/audit.mjs';
+import { unavailableClashNotice } from '../lib/access.mjs';
 import { getSettings } from './settings.mjs';
 import { recordEngagement } from './contractsPack.mjs';
 import { ALL, CO, MGR, def } from './_def.mjs';
@@ -115,7 +116,7 @@ export const actions = {
   // ---- Time off & absence ----
   'timeoff.list': def(['company', 'security', 'officer'], async (b, { user }) => q(
     `SELECT t.*, o.first_name || ' ' || o.last_name AS officer_name, u.name AS decided_by_name,
-            CASE WHEN t.status = 'pending' THEN (SELECT COALESCE(json_agg(x), '[]') FROM (${BOOKED.replace(/\$1/g, 't.officer_id').replace(/\$2/g, 't.start_date').replace(/\$3/g, 't.end_date')}) x) END AS booked
+            CASE WHEN t.status = 'pending' OR (t.status = 'approved' AND t.end_date >= current_date) THEN (SELECT COALESCE(json_agg(x), '[]') FROM (${BOOKED.replace(/\$1/g, 't.officer_id').replace(/\$2/g, 't.start_date').replace(/\$3/g, 't.end_date')}) x) END AS booked
        FROM time_off t JOIN officers o ON o.id = t.officer_id LEFT JOIN users u ON u.id = t.decided_by
       WHERE ($1::uuid IS NULL OR t.officer_id = $1) AND ($2::text IS NULL OR t.status = $2)
         AND ($3::date IS NULL OR t.end_date >= $3) AND ($4::date IS NULL OR t.start_date <= $4)
@@ -142,6 +143,15 @@ export const actions = {
     if (status === 'pending') {
       const o = await one('SELECT first_name, last_name FROM officers WHERE id = $1', [officerId]);
       await notify(await companyManagers(), { kind: 'timeoff', title: 'Time off request', body: `${o.first_name} ${o.last_name}: ${b.kind} ${fmtDate(b.start_date)} – ${fmtDate(b.end_date)}`, link: '/company/hr/time-off' });
+    }
+    // Unavailable is confirmed straight away, so the office hears when it lands on shifts the officer already accepted (nothing is cancelled)
+    if (user.role === 'officer' && b.kind === 'unavailable') {
+      const booked = await q(BOOKED, [officerId, b.start_date, b.end_date]);
+      if (booked.length) {
+        const o = await one('SELECT first_name, last_name FROM officers WHERE id = $1', [officerId]);
+        const n = unavailableClashNotice(`${o.first_name} ${o.last_name}`, b.start_date, b.end_date, booked);
+        await notify(await companyManagers(), { kind: 'timeoff', ...n, link: `/company/shifts/${booked[0].shift_id}` });
+      }
     }
     return t;
   }),

@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Award, BookOpen, Check, ChevronLeft, ChevronRight, CircleHelp, ClipboardCheck, MessageCircleQuestion } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
-import { Button, cx, date, dateTime, Load, Page, Pill, Pressable, Sheet, Tile, useApi } from '../../ui/index.jsx';
+import { Button, cx, date, dateTime, Empty, Load, Page, Pill, Pressable, Sheet, Tile, useApi } from '../../ui/index.jsx';
 import Chat from '../../ui/Chat.jsx';
 import { Progress } from '../officer/_parts.jsx';
 import { Lesson, Options, requiredLabel, TOPICS } from './_parts.jsx';
@@ -15,6 +15,15 @@ export default function Course() {
   const q = useApi('academy.course', { id });
   const officer = user.role === 'officer';
   const back = officer ? { to: '/officer/learn', label: 'Learn' } : { to: `/${user.role}/team/academy/${id}`, label: 'Editor' };
+  // Taken down or unpublished since it was linked: say so, and that what they earned still counts
+  if (officer && q.error?.status === 404) {
+    return (
+      <Page title="Course" back={back}>
+        <Empty icon={BookOpen} title="This course is no longer available" body="Certificates you earned stay valid."
+          action={<Button variant="secondary" icon={ChevronLeft} to="/officer/learn">Back to Learn</Button>} />
+      </Page>
+    );
+  }
   return (
     <Load q={q}>
       {(d) => (

@@ -1,8 +1,8 @@
 // Helpers shared by the officer screens and the incident screens
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, Clock3, Hourglass, MapPin, Phone, UserX } from 'lucide-react';
-import { Button, cx, dayLabel, Empty, List, Pill, range, Row, Section, Sheet, Textarea, time, titleCase, useAction } from '../../ui/index.jsx';
+import { Button, cx, dayLabel, Empty, List, Pill, range, Row, Section, Sheet, Textarea, time, titleCase, useAction, useNow as useTick } from '../../ui/index.jsx';
 import { api, upload } from '../../api.js';
 
 // Clock-in opens this many minutes before a shift (the API enforces the same, clock.mjs EARLY_MIN)
@@ -10,11 +10,7 @@ export const CLOCK_EARLY_MIN = 15;
 export const clockOpensAt = (startsAt) => new Date(new Date(startsAt).getTime() - CLOCK_EARLY_MIN * 60000);
 
 // The time now, refreshed every ms milliseconds, for countdowns and time on shift
-export function useNow(ms = 15000) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), ms); return () => clearInterval(t); }, [ms]);
-  return now;
-}
+export const useNow = (ms = 15000) => useTick(ms);
 // "2h 05m" since a time
 export const sinceText = (from, now = Date.now()) => {
   const m = Math.max(0, Math.floor((now - new Date(from)) / 60000));

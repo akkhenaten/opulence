@@ -182,7 +182,7 @@ const plusMonths = (date, n) => {
 
 async function getCourse(id, user) {
   const c = need(await one('SELECT * FROM courses WHERE id = $1', [id]), 'Course not found');
-  if (!isManager(user) && c.status !== 'published') fail(404, 'Course not found');
+  if (!isManager(user) && c.status !== 'published') fail(404, 'This course is no longer available');
   return c;
 }
 

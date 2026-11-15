@@ -113,3 +113,13 @@ export function useBump(value) {
   }, [value]);
   return on;
 }
+
+// The time now, refreshed every `ms` (a minute by default), so "Starts at" turns into "Started" without a reload
+export function useNow(ms = 60000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), ms);
+    return () => clearInterval(t);
+  }, [ms]);
+  return now;
+}

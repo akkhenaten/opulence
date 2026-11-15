@@ -10,7 +10,7 @@ import { Photo } from './Photo.jsx';
 import { HubTabs, useHub } from './hub.jsx';
 
 export * from './format.js';
-export { useBump, useCountUp, usePresence, useScrollLock } from './motion.js';
+export { useBump, useCountUp, useNow, usePresence, useScrollLock } from './motion.js';
 export { usePageHeader, useScrollMemory, useUrlState } from './nav.js';
 export { usePullRefresh } from './usePullRefresh.js';
 export { Lightbox } from './Lightbox.jsx';
@@ -653,7 +653,8 @@ const mobileRoles = (columns) => {
   if (columns.some((c) => c.mobile !== undefined)) return columns.map((c) => c.mobile ?? false);
   return columns.map((c, i) => (i === 0 ? 'title' : columns.length > 1 && i === columns.length - 1 ? 'value' : i <= 2 ? 'sub' : false));
 };
-export function Table({ columns, rows, onRow, empty = 'Nothing here yet', rowKey = 'id' }) {
+// selected: the key of the row open beside the table, so it stays marked
+export function Table({ columns, rows, onRow, empty = 'Nothing here yet', rowKey = 'id', selected }) {
   if (!rows?.length) return <Empty title={empty} />;
   const roles = mobileRoles(columns);
   const cell = (c, r) => (c.render ? c.render(r) : r[c.key]);
@@ -666,7 +667,8 @@ export function Table({ columns, rows, onRow, empty = 'Nothing here yet', rowKey
         </tr></thead>
         <tbody className="divide-y divide-line">
           {rows.map((r, i) => (
-            <tr key={r[rowKey] ?? i} onClick={onRow ? () => onRow(r) : undefined} className={cx(onRow && 'cursor-pointer hover:bg-bg')}>
+            <tr key={r[rowKey] ?? i} onClick={onRow ? () => onRow(r) : undefined} aria-selected={selected != null ? r[rowKey] === selected : undefined}
+              className={cx(onRow && 'cursor-pointer hover:bg-bg', selected != null && r[rowKey] === selected && 'bg-blue-soft hover:bg-blue-soft')}>
               {columns.map((c) => <td key={c.key || c.label} className={cx('px-4 py-3 align-middle', c.align === 'right' && 'text-right num', c.className)}>{cell(c, r)}</td>)}
             </tr>
           ))}

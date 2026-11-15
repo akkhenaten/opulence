@@ -45,19 +45,19 @@ export default function Reviews() {
   </>;
 
   return (
-    <Page title="Reviews" subtitle={user.role === 'venue' ? `Reviews of ${co}'s service, shown on ${co}'s website after the office approves them` : 'What clients say about you, shown on the venue tiles of your website'} tools={tools}
+    <Page title="Reviews" subtitle={user.role === 'venue' ? `Add a review someone gave your venue about ${co}'s service, such as a guest or your own team. The office checks it before it shows on ${co}'s website.` : 'What clients say about you, shown on the venue tiles of your website'} tools={tools}
       actions={canAdd && <Button icon={Plus} onClick={() => setEdit({})}>Add review</Button>}>
       {user.role === 'venue' && meta.data && (canAdd
-        ? <p className="mb-4 text-subhead text-muted">Reviews you add are checked by the office before they appear on the website.</p>
-        : <Empty icon={Globe} title="Your venue isn't on the website yet" body="Ask the office to link your venue to the website, then you can add the reviews you receive." />)}
+        ? null
+        : <Empty icon={Globe} title="Your venue isn't on the website yet" body={`Ask the office to link your venue to the website, then you can add reviews of ${co}'s service from your guests or team.`} />)}
       {(user.role !== 'venue' || canAdd) && (
         <Load q={list}>{(rows) => (rows.length
           ? <ReviewGroups rows={rows} names={names} user={user} onEdit={setEdit} onChange={reload} />
           : <Empty icon={Quote} title={status || client || search ? 'No matching reviews' : 'No reviews yet'}
-              body={canAdd ? 'Add a review a client gave you and it will appear when visitors flip their venue tile on the website.' : undefined} />)}
+              body={canAdd ? `Add something a guest or your team said about ${co}'s service. Once the office checks it, it shows when visitors flip your venue tile on the website.` : undefined} />)}
         </Load>
       )}
-      {edit && <ReviewForm review={edit} clients={(meta.data?.clients || []).filter((c) => mine.includes(c.slug))} isCo={isCo}
+      {edit && <ReviewForm review={edit} clients={(meta.data?.clients || []).filter((c) => mine.includes(c.slug))} isCo={isCo} venueSide={user.role === 'venue'}
         onClose={() => setEdit(null)} onSaved={reload} />}
     </Page>
   );
@@ -136,7 +136,7 @@ function ReviewRow({ r, items, i, user, onEdit, onChange }) {
   );
 }
 
-function ReviewForm({ review, clients, isCo, onClose, onSaved }) {
+function ReviewForm({ review, clients, isCo, venueSide, onClose, onSaved }) {
   const [run, busy] = useAction();
   // A venue manager's chosen venue says which of their venues the review is for, when it is on that website client
   const { venue } = useVenue();
@@ -159,7 +159,8 @@ function ReviewForm({ review, clients, isCo, onClose, onSaved }) {
           options={clients.map((c) => ({ value: c.slug, label: c.name }))} {...f.bind('client')} />
         <Textarea label="What they said" rows={5} maxLength={600} hint={`${f.v.quote.length}/600`} autoFocus {...f.bind('quote')} />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Input label="Their name" placeholder="Sarah M." maxLength={80} {...f.bind('reviewer')} />
+          <Input label={venueSide ? 'Who said it' : 'Their name'} placeholder="Sarah M." maxLength={80} {...f.bind('reviewer')}
+            hint={venueSide ? 'Only add a name if that person is happy for it to be shown.' : undefined} />
           <Input label="Their role" placeholder="General Manager" maxLength={80} {...f.bind('reviewer_role')} />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

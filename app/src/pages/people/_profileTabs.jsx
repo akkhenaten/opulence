@@ -749,7 +749,7 @@ export function TimeOffRow({ t, onDone, showName }) {
           {t.reason && ` · ${t.reason}`}
           {t.decided_by_name && t.status !== 'pending' && ` · ${titleCase(t.status)} by ${t.decided_by_name}`}
         </div>
-        {booked.length > 0 && <div className="num text-footnote font-semibold text-amber">Booked: {bookedText}</div>}
+        {booked.length > 0 && <div className="num text-footnote font-semibold text-amber">Booked: {bookedText}{t.status === 'approved' && ' · still on the rota, needs cover'}</div>}
       </div>
       <div className="flex items-center gap-1.5">
         {t.status === 'pending' ? (

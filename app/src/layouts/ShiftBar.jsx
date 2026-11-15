@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Coffee, FilePen, LogIn, LogOut, Siren } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
-import { Button, cx, IconButton, time, useApi } from '../ui/index.jsx';
+import { Button, cx, IconButton, time, useApi, useNow } from '../ui/index.jsx';
 import { clockOpensAt } from '../pages/officer/_parts.jsx';
 import QuickIncident from '../pages/shared/QuickIncident.jsx';
 
@@ -20,7 +20,7 @@ export default function ShiftBar() {
   const settings = useApi('settings.get', {});
   const [reporting, setReporting] = useState(false);
   const cur = clock.data?.current;
-  const now = Date.now();
+  const now = useNow();
   const onShift = cur && (cur.state === 'on_shift' || cur.state === 'on_break');
   const due = cur && cur.state === 'not_started' && now >= clockOpensAt(cur.starts_at).getTime() && new Date(cur.ends_at).getTime() > now;
   const show = !!(onShift || due) && !HIDE.some((r) => r.test(loc.pathname));
@@ -33,6 +33,7 @@ export default function ShiftBar() {
   if (!show) return null;
 
   const brk = cur.state === 'on_break';
+  const started = now >= new Date(cur.starts_at).getTime();
   const inAt = (cur.events || []).find((e) => e.kind === 'in' && e.status !== 'rejected')?.ts;
   const canReport = new Date(cur.starts_at).getTime() - 3600000 <= now;
   const s = settings.data || {};
@@ -47,9 +48,9 @@ export default function ShiftBar() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap text-caption font-semibold uppercase tracking-wide text-muted">
             {onShift && <span className={cx('live-dot h-2 w-2 rounded-full', brk ? 'bg-amber' : 'bg-green')} />}
-            {brk ? 'On break' : onShift ? 'On shift' : 'Starts'}
+            {brk ? 'On break' : onShift ? 'On shift' : started ? 'Started' : 'Starts'}
             {onShift && inAt ? <span className="num normal-case">· since {time(inAt)}</span>
-              : !onShift ? <span className="num">{time(cur.starts_at)}</span> : null}
+              : !onShift ? <span className="num">{time(cur.starts_at)}{started && <span className="normal-case"> · not clocked in</span>}</span> : null}
           </div>
           <div className="truncate text-subhead font-semibold">{cur.venue_name}</div>
         </div>

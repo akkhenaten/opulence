@@ -64,7 +64,7 @@ export function AccountSheet({ open, onClose, feedback, emergency }) {
             )}
             <List>
               <Row left={<BookOpen size={20} className="text-blue" />} title="Help & user guide" subtitle="How to use the app, step by step" chevron onClick={() => { close(); nav(`/${user.role}/help`); }} />
-              {feedback && <Row left={<MessageCircleWarning size={20} className="text-blue" />} title="Send feedback" subtitle="Tell us what's wrong or what would be better" chevron onClick={() => { close(); openFeedback(); }} />}
+              {feedback && <Row left={<MessageCircleWarning size={20} className="text-blue" />} title="Report an app problem or idea" subtitle="Tell us what's wrong in the app or what would be better" chevron onClick={() => { close(); openFeedback(); }} />}
               {feedback && <Row left={<MessageCircleWarning size={20} className="text-faint" />} title="My feedback" subtitle="What you've sent, and our replies" chevron onClick={() => { close(); openFeedback('mine'); }} />}
               <Row left={<Globe size={20} className="text-blue" />} title="Our website" subtitle="Opens in a new tab" onClick={() => window.open('/', '_blank', 'noopener')} />
               {!pwa.installed && <Row left={<Download size={20} className="text-blue" />} title="Install the app" subtitle="Open Orb from your home screen or desktop" chevron onClick={() => setView('install')} />}

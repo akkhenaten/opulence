@@ -66,6 +66,7 @@ export function CardView({ c, officer }) {
         </Tile>
       )}
       {officer && c.course_title && c.course_id && <Button variant="secondary" icon={BookOpen} to={`/officer/learn/academy/${c.course_id}`}>Course: {c.course_title}</Button>}
+      {officer && c.course_id && !c.course_title && <p className="px-1 text-footnote text-muted">Course no longer available</p>}
       <div className="px-1 text-caption text-faint">
         {(c.sources || []).length > 0 && <div>Sources: {c.sources.join('; ')}</div>}
         <div>Approved by your company{c.updated_at ? ` · updated ${date(c.updated_at)}` : ''}. Guidance only — follow your training, your supervisor and the 999 call handler.</div>

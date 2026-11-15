@@ -10,6 +10,7 @@ import { seedOnboarding } from './hr.mjs';
 import { disconnectUser } from './email.mjs';
 import { officerName, userName } from '../lib/names.mjs';
 import { guardPlatformAccount, inviteRole, isPlatformEmail } from '../lib/platform.mjs';
+import { accessChanges, blocksLastCompanyManager } from '../lib/access.mjs';
 
 const ROLE_LABEL = { company: 'Company Manager', security: 'Security Manager', venue: 'Venue Manager', officer: 'Security Officer' };
 
@@ -25,15 +26,15 @@ export async function createInvite(t, { email, name, role, phone = '', can_see_p
 
 /** Emails the invite; `emailed` is false when the mail service didn't take it, so the screen says to share the link.
  *  The time and result are kept on the login, so its screens can say later whether the invite went out. */
-export async function sendInviteMail(u) {
+export async function sendInviteMail(u, actor = null) {
   const { name } = await getBrand();
   const emailed = await sendRawEmail(u.email, `You're invited to ${name}`,
     await emailHtml(`Welcome, ${u.name}`, `You've been invited to ${name} as a ${ROLE_LABEL[u.role]}. Set your password to get started.`, `/invite/${u.invite_token}`));
   const sent = await one('UPDATE users SET invite_sent_at = now(), invite_emailed = $2 WHERE id = $1 RETURNING invite_sent_at', [u.id, emailed]);
-  await audit(null, 'user.invite_sent', 'user', u.id, { emailed });
+  await audit(actor, 'user.invite_sent', 'user', u.id, { emailed });
   return { link: `/app/invite/${u.invite_token}`, emailed, sent_at: sent?.invite_sent_at || null };
 }
-export const sendInvite = async (u) => (await sendInviteMail(u)).link;
+export const sendInvite = async (u, actor = null) => (await sendInviteMail(u, actor)).link;
 
 // A pending invite link works once, so anyone may share it; an active platform admin account is never reset by others
 export const resetGuardNeeded = (status) => status !== 'invited';
@@ -44,6 +45,11 @@ export async function setVenues(t, userId, role, venueIds) {
   if (!table) return;
   await t.q(`DELETE FROM ${table} WHERE user_id = $1`, [userId]);
   for (const v of venueIds) await t.q(`INSERT INTO ${table} (venue_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [v, userId]);
+}
+
+// The names of the venues a venue or security manager can see, for the audit of what they gained or lost
+async function venueNames(t, userId) {
+  return (await t.q(`SELECT v.name FROM venues v WHERE v.id IN (SELECT venue_id FROM venue_contacts WHERE user_id = $1 UNION SELECT venue_id FROM security_venues WHERE user_id = $1) ORDER BY v.name`, [userId])).map((r) => r.name);
 }
 
 // Venue and security managers can be a client's contact; anyone else carries no client
@@ -104,9 +110,15 @@ export const actions = {
   'users.update': def(CO, async (b, { user }) => {
     required(b, 'id');
     if (b.id === user.id && b.status === 'disabled') fail(400, "You can't disable yourself");
-    const target = await one('SELECT email FROM users WHERE id = $1', [b.id]);
+    const target = await one('SELECT * FROM users WHERE id = $1', [b.id]);
     // Only the platform admin changes their own account (access, venues, pay, status); nobody gives another account their email
     guardPlatformAccount(user, target?.email, b.email);
+    // Someone must stay able to run the company: the last active company manager can't be disabled
+    if (target && b.status === 'disabled' && target.role === 'company') {
+      const others = await q("SELECT email FROM users WHERE role = 'company' AND status = 'active' AND NOT system AND id <> $1", [b.id]);
+      const otherActive = others.filter((x) => !isPlatformEmail(x.email)).length;
+      if (blocksLastCompanyManager({ target: { ...target, platform: isPlatformEmail(target.email) }, status: b.status, otherActive })) fail(400, 'There must be at least one active company manager.');
+    }
     const fields = pick(b, ['name', 'goes_by', 'phone', 'can_see_pay', 'email']);
     if (fields.goes_by !== undefined) fields.goes_by = goesBy(fields.goes_by);
     if (b.status === 'disabled' || b.status === 'active') fields.status = b.status;
@@ -118,7 +130,10 @@ export const actions = {
       if (cur?.role === 'officer' && cur.email !== fields.email) fail(400, "Change an officer's email on their staff profile");
       if (await one('SELECT 1 FROM users WHERE email = $1 AND id <> $2', [fields.email, b.id])) fail(409, 'A user with this email already exists');
     }
+    let venuesBefore = [];
+    let venuesAfter = [];
     const u = await tx(async (t) => {
+      venuesBefore = await venueNames(t, b.id);
       if ('client_id' in b) {
         const cur = await t.one('SELECT role FROM users WHERE id = $1', [b.id]);
         if (!cur) fail(404, 'User not found');
@@ -141,11 +156,13 @@ export const actions = {
         if (o) await audit(user, 'user.works_shifts', 'user', row.id, { on: false, officer_id: o.id, reason: 'disabled' });
       }
       await setVenues(t, row.id, row.role, b.venue_ids);
+      venuesAfter = await venueNames(t, row.id);
       return row;
     });
     // Their own mailboxes go with them; shared ones stay with the people they are shared with
     if (fields.status === 'disabled') await disconnectUser(u.id);
-    await audit(user, 'user.update', 'user', u.id, fields);
+    // The new values as before, plus what each changed field was and the venues gained or lost by name
+    await audit(user, 'user.update', 'user', u.id, { ...fields, ...accessChanges(target || {}, fields, venuesBefore, venuesAfter) });
     return { ok: true };
   }),
 
@@ -160,10 +177,10 @@ export const actions = {
     return { link: `/app/reset/${token}` };
   }),
 
-  'users.resendInvite': def(CO, async (b) => {
+  'users.resendInvite': def(CO, async (b, { user }) => {
     const u = await one("SELECT * FROM users WHERE id = $1 AND status = 'invited'", [b.id]);
     if (!u) fail(404, 'No pending invite');
-    const { link, emailed, sent_at } = await sendInviteMail(u);
+    const { link, emailed, sent_at } = await sendInviteMail(u, user);
     return { invite_link: link, emailed, sent_at };
   }),
 

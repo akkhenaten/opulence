@@ -241,9 +241,10 @@ function Nothing() {
 
 // The next confirmed shift; it turns into Clock in 15 minutes before the start
 function Hero({ s, clockable, clockedIn, blocked, pack, onDecline }) {
+  const now = useNow();
   const opens = clockOpensAt(s.starts_at);
-  const open = Date.now() >= opens.getTime() && (clockable || new Date(s.ends_at) > new Date());
-  const started = new Date(s.starts_at) <= new Date();
+  const open = now >= opens.getTime() && (clockable || new Date(s.ends_at).getTime() > now);
+  const started = new Date(s.starts_at).getTime() <= now;
   return (
     <Tile tone="blue" className="!p-6">
       {/* The top of the card opens the shift page, the buttons below do their own thing */}

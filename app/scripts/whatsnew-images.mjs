@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'people-and-access': 'A dark navy desk at night with a neat row of brass-edged access cards fanned beside a laptop showing a calm table of names with one row softly highlighted in gold and a slim side panel open beside it, a small brass key on a gold ring and a phone showing a short shift card with one gold button, warm lamp light, dark navy and gold.',
   'requests-and-way-back': 'A dark navy desk at night with a small brass-edged request card reading as one neat line beside two tiny gold figures of door staff, a phone showing a calm chart with a soft gold return arrow curving from one bar back to the top of the screen, a folded venue map, warm lamp light, dark navy and gold.',
   'setup-and-proof': 'A dark navy desk at night with a short brass-edged checklist card, most lines ticked in gold and one left open, beside it a phone showing a timesheet with three small round check badges in a row, a slim brass clock face and a soft gold progress bar, warm lamp light, dark navy and gold.',
   'fix-and-return': 'A gold thread looping out from an elegant ledger page on a dark desk to a small timesheet card and back again, a phone and a venue doorway glowing softly nearby, a return arrow of light.',

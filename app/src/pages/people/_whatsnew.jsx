@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Calculator, Ban, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, Compass, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, ListChecks, LogOut, Mail, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MousePointerClick, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Scale, Send, SlidersHorizontal, ShieldAlert, Store, Timer, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
+  Megaphone, MessageCircleWarning, MousePointerClick, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Scale, Send, SlidersHorizontal, ShieldAlert, Store, Timer, UserRound, Siren, Smartphone, Sparkles, Users, UsersRound, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,19 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-15', icon: UsersRound, title: 'Who can do what, in one place', image: 'people-and-access',
+    lede: "The eighth round of fixes from the three-portal review. Settings → Users & access now answers who can see what without opening each person, and an officer's shift page shows the shift once, with one way to report.",
+    points: [
+      "Users & access has a search for name, email or venue and a status filter. On a computer it is a table with access type, venues, whether they work shifts, pay, status and last seen. Opening someone keeps the list beside them, and the arrows step through it",
+      "Each person opens with their access in one line, for example \"Venue manager for Club One and The Vaults · can't see pay · last seen 12 Nov\". Ticking or unticking venues says what they will gain or lose before you save, and Access history shows who changed what, including venues added and removed",
+      "The last active company manager can't be deactivated, so the company is never left without one. To change someone's access type, deactivate the login and invite them again with the new type. Resending an invite now records who sent it",
+      "A staff profile shows App access: active and last seen, invited, or not invited, and whether the person is also a manager. Manage access opens their login in Settings",
+      "When an officer marks themselves unavailable on a day they are already booked, the office is told straight away, and the shift stays on the rota. Approved time off that clashes with a booked shift says so in Time off",
+      "An officer's shift page shows the venue once, with the time, the role and the address under it. There is one Report incident button (the type is picked in the report), Log ejection or ban sits under Ejections & bans, and the Toolbox is one row. After the start time the bar says Started and Not clocked in",
+      "Clearer words: venues add reviews of the company's service from their guests or team, Give feedback says your name is never shown, Report an app problem or idea replaces Send feedback, and Pay shows statements and year to date with a link to your rates. A course that has been taken down says so, and certificates earned stay valid",
+    ],
+  },
   {
     month: 'November 2026', date: '2026-11-15', icon: Megaphone, title: 'Staff requests in plain words, and a way back from every figure', image: 'requests-and-way-back',
     lede: "The seventh round of fixes from the three-portal review. Venues see exactly what they are asking for before they send it, billing screens say when there is nothing yet, and every figure in Analytics opens the list behind it with a way back.",

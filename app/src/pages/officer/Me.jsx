@@ -49,7 +49,7 @@ export default function Me() {
         <Row left={<Ico icon={KeyRound} tone="grey" />} title="Change password" onClick={() => setPw(true)} chevron />
         {!pwa.installed && <Row left={<Ico icon={Download} />} title="Install the app" subtitle="Open Orb from your home screen" onClick={() => setInst(true)} chevron />}
         <Row to="/officer/help" left={<Ico icon={BookOpen} tone="green" />} title="Help & user guide" />
-        {fb.data?.on && <Row left={<Ico icon={MessageCircleWarning} />} title="Send feedback" subtitle="Something wrong, or an idea? Tell us" onClick={() => openFeedback()} chevron />}
+        {fb.data?.on && <Row left={<Ico icon={MessageCircleWarning} />} title="Report an app problem or idea" subtitle="Something wrong in the app, or an idea? Tell us" onClick={() => openFeedback()} chevron />}
         {fb.data?.on && <Row left={<Ico icon={MessageCircleWarning} tone="grey" />} title="My feedback" subtitle="What you've sent, and our replies" onClick={() => openFeedback('mine')} chevron />}
         <Row left={<Ico icon={Globe} tone="grey" />} title="Our website" subtitle="Opens in a new tab" onClick={() => window.open('/', '_blank', 'noopener')} />
         <Row left={<Ico icon={LogOut} tone="red" />} title={<span className="text-red">Sign out</span>} subtitle={user.email} onClick={out} />
@@ -215,7 +215,7 @@ export default function Me() {
                   <Row to="/officer/documents" left={<Ico icon={BadgeCheck} tone="green" />} title="Documents and licence" subtitle="SIA licence, right to work, certificates" />
                   <Row to="/officer/profile" left={<Ico icon={UserRound} />} title="Profile and bank" subtitle="Contact details, bank and your rates" />
                   <PhoneRow />
-                  <Row to="/officer/pay" left={<Ico icon={FileText} />} title="Pay" subtitle="Your pay statements" />
+                  <Row to="/officer/pay" left={<Ico icon={FileText} />} title="Pay" subtitle="Your pay statements and year to date" />
                   <Row to="/officer/incidents" left={<Ico icon={ShieldAlert} tone="red" />} title="Reports" subtitle="Incident reports and ejections you logged" right={toFix.length ? <Pill tone="amber">{toFix.length} to fix</Pill> : null} />
                   <Row to="/officer/time-off" left={<Ico icon={CalendarOff} tone="ink" />} title="Time off and availability" />
                 </List>

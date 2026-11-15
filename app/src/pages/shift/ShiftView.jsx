@@ -4,14 +4,14 @@
 import { useImperativeHandle, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowRightLeft, Ban, BookOpen, Camera, Check, Clock3, Crown, DoorOpen, EyeOff, FilePen, FileSignature, HeartPulse, Hammer, LockOpen, MapPin, Megaphone,
-  MessagesSquare, Navigation, NotebookPen, Pencil, Phone, Plus, MessageSquareHeart, Scale, ShieldAlert, ShoppingBag, Undo2, Users, X,
+  ArrowRightLeft, Ban, BookOpen, Camera, Check, Clock3, Crown, EyeOff, FilePen, FileSignature, LockOpen, Megaphone,
+  MessagesSquare, Navigation, NotebookPen, Pencil, Phone, Plus, MessageSquareHeart, ShieldAlert, Undo2, Users, X,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { clockOpensAt, compressImage, DeclineSheet } from '../officer/_parts.jsx';
 import {
-  Avatar, Button, cx, dateTime, dayLabel, Empty, IconButton, Input, Lightbox, Load, Page, Pill, range, relative, Section, Segmented, Select, Sheet, Textarea, time,
+  Avatar, Button, cx, dateTime, dayLabel, Empty, IconButton, Input, isoDate, Lightbox, List, Load, Page, Pill, range, relative, Row, Section, Segmented, Select, Sheet, Textarea, time,
   useAction, useApi, useConfirm, Pressable,
 } from '../../ui/index.jsx';
 import { BanList, BanSheet, isEjection } from './_bans.jsx';
@@ -34,19 +34,8 @@ const KIND = {
 const VIEWS = [{ value: 'mgr', label: 'Manager view' }, { value: 'officer', label: "Officer's view" }];
 // Instructions sent to this person (or to everyone) that are still waiting for Got it
 const unreadFor = (d) => d.entries.filter((e) => e.kind === 'instruction' && e.state === 'kept' && !e.read_by_me && new Date(d.shift.ends_at) > new Date()).reverse();
-// One tap starts a report of that type (IncidentForm reads ?type=)
-const REPORTS = [
-  { type: 'ejection', label: 'Ejection / refused entry', icon: DoorOpen, tone: 'bg-amber-soft text-amber', hint: 'Full incident report. Use it when there was force, an injury or police.' },
-  { type: 'medical', label: 'Injury / first aid', icon: HeartPulse, tone: 'bg-red-soft text-red' },
-  { type: 'damage', label: 'Damage', icon: Hammer, tone: 'bg-blue-soft text-blue' },
-  { type: 'theft', label: 'Theft', icon: ShoppingBag, tone: 'bg-blue-soft text-blue' },
-  { type: 'other', label: 'Other', icon: ShieldAlert, tone: 'bg-fill text-ink' },
-];
-const TOOLBOX = [
-  { cat: 'first_aid', label: 'First aid', icon: HeartPulse, tone: 'bg-red-soft text-red' },
-  { cat: 'situations', label: 'Situations', icon: BookOpen, tone: 'bg-amber-soft text-amber' },
-  { cat: 'law', label: 'Law at a glance', icon: Scale, tone: 'bg-blue-soft text-blue' },
-];
+// A draft's type in words
+const REPORT_TYPE = { ejection: 'Ejection / refused entry', medical: 'Injury / first aid', damage: 'Damage', theft: 'Theft', other: 'Other' };
 
 export default function ShiftView() {
   const { id } = useParams();
@@ -141,16 +130,15 @@ function Body({ d, reload, role, live, preview }) {
     <div className="@container"><div className="grid grid-cols-1 gap-5 @4xl:grid-cols-[minmax(0,1fr)_380px] @4xl:items-start">
       <div className="space-y-5">
         <Header s={s} me={me} officer={officer && !preview} signed={signed} live={live} phone={d.office_phone} reload={reload} />
+        {/* One Report incident, then the log; a quick ejection or ban is logged under Ejections & bans */}
+        {officer && live && !preview && (
+          <LiveActions s={s} d={d} onNote={writable ? () => composer.current?.note() : null} onHandover={writable ? () => composer.current?.handover() : null} />
+        )}
+        {officer && !(live && !preview) && <QuickActions s={s} d={d} onNote={writable && !preview ? () => composer.current?.note() : null} />}
+        {officer && !preview && <ReportDrafts s={s} />}
         {/* The Emergency flowchart on every shift card, for everyone who can open it; Leave comes back here */}
         <FlowEntry shift from={loc.pathname + loc.search} />
         {officer && <PinnedInstructions d={d} reload={reload} />}
-        {officer && live && !preview && (
-          <LiveActions s={s} d={d} onBan={canEject ? () => setBanning(true) : null}
-            onNote={writable ? () => composer.current?.note() : null} onHandover={writable ? () => composer.current?.handover() : null} />
-        )}
-        {officer && <ReportTiles s={s} preview={preview} />}
-        {officer && !(live && !preview) && <QuickActions s={s} d={d} onBan={canEject ? () => setBanning(true) : null}
-          onNote={writable && !preview ? () => composer.current?.note() : null} />}
         {manager && <ManagerActions s={s} d={d} role={role} />}
         {manager && <InstructionsCard d={d} reload={reload} />}
         {venue && started && <VenueActions s={s} />}
@@ -178,16 +166,10 @@ function Body({ d, reload, role, live, preview }) {
           </Section>
         ) : null}
         {officer && started && (
-          <Section title="Toolbox" icon={BookOpen}>
-            <div className="grid grid-cols-3 gap-2">
-              {TOOLBOX.map((t) => (
-                <Button key={t.cat} variant="plain" to={`/officer/learn/toolbox?cat=${t.cat}`} className="!h-auto flex-col !gap-1.5 rounded-tile bg-surface !py-3 shadow-tile">
-                  <span className={cx('grid h-9 w-9 place-items-center rounded-xl', t.tone)}><t.icon size={18} /></span>
-                  <span className="text-caption font-semibold">{t.label}</span>
-                </Button>
-              ))}
-            </div>
-          </Section>
+          <List>
+            <Row to="/officer/learn/toolbox" chevron title="Toolbox" subtitle="Guides for tonight: first aid, situations, the law"
+              left={<span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-soft text-amber"><BookOpen size={18} /></span>} />
+          </List>
         )}
       </div>
       {banning && canEject && <BanSheet open shiftId={s.id} direct={me.can_curate} late={late} lateAt={s.ends_at} onClose={() => setBanning(false)} onDone={() => { setBanning(false); reload(); }} />}
@@ -209,24 +191,22 @@ function Header({ s, me, officer, signed, live: onShift, phone, reload }) {
   const ins = me.clock.filter((e) => e.kind === 'in' && e.status !== 'rejected');
   const outs = me.clock.filter((e) => e.kind === 'out' && e.status !== 'rejected');
   const live = new Date(s.starts_at) <= new Date() && new Date(s.ends_at) > new Date();
+  const clockedIn = ins.length > 0 && !outs.length;
+  const where = [s.venue_address, s.postcode].filter(Boolean).join(', ');
   return (
     <div className="rounded-tile bg-surface p-4 shadow-tile">
       <div className="flex flex-wrap items-center gap-2">
-        {s.status === 'cancelled' ? <Pill tone="grey">Cancelled</Pill> : live ? <Pill tone="green">On now</Pill> : null}
+        {s.status === 'cancelled' ? <Pill tone="grey">Cancelled</Pill> : live ? <Pill tone="green">{officer ? (clockedIn ? "You're on shift" : 'Shift on now') : 'On now'}</Pill> : null}
         <Pill tone={signed ? 'green' : 'grey'}>{signed ? 'Log signed off' : 'Log open'}</Pill>
         {me.is_lead && <Pill tone="ink"><Crown size={14} className="-ml-0.5 mr-1 inline" />You lead this shift</Pill>}
       </div>
-      <div className="mt-3 flex items-start gap-3">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-blue-soft text-blue"><MapPin size={20} /></div>
-        <div className="min-w-0 flex-1">
-          <div className="text-headline font-bold">{s.venue_name}</div>
-          <div className="text-footnote text-muted">{[s.venue_address, s.postcode].filter(Boolean).join(', ')}</div>
-          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-subhead text-muted">
-            <span className="num inline-flex items-center gap-1.5 font-semibold text-ink"><Clock3 size={16} />{range(s.starts_at, s.ends_at)}</span>
-            <span>{s.role_name}</span>
-            {s.break_minutes ? <span>{s.break_minutes} min break</span> : null}
-          </div>
+      {/* The page title is already the venue: here the time, the job and where to go */}
+      <div className="mt-3">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-subhead text-muted">
+          <span className="num inline-flex items-center gap-1.5 font-semibold text-ink"><Clock3 size={16} />{range(s.starts_at, s.ends_at)}{isoDate(s.starts_at) !== isoDate(s.ends_at) && <span className="font-normal text-muted">(overnight)</span>}</span>
+          {[s.role_name, s.break_minutes ? `${s.break_minutes} min break` : null].filter(Boolean).map((x) => <span key={x}><span aria-hidden>· </span>{x}</span>)}
         </div>
+        {where && <div className="mt-1 text-footnote text-muted">{where}</div>}
       </div>
       {officer && s.status !== 'cancelled' && new Date(s.ends_at) > new Date() && <GetThere s={s} office={phone} />}
       {(s.instructions || s.notes) && (
@@ -236,13 +216,15 @@ function Header({ s, me, officer, signed, live: onShift, phone, reload }) {
           {s.notes && s.notes_updated_at && <p className="text-footnote font-semibold text-amber">Notes updated <span className="num">{time(s.notes_updated_at)}</span></p>}
         </div>
       )}
-      {officer && !onShift && me.assignment_status === 'accepted' && (
-        <div className="mt-3 flex items-center justify-between gap-2 border-t border-sep pt-3">
+      {/* Where they are with clocking; while on shift Clock out sits in the bar at the bottom */}
+      {officer && me.assignment_status === 'accepted' && (
+        <div className="mt-3 flex min-h-9 items-center justify-between gap-2 border-t border-sep pt-3">
           <span className="text-subhead text-muted">
-            {ins.length ? <>Clocked in <span className="num font-semibold text-ink">{time(ins[0].ts)}</span>{outs.length ? <> · out <span className="num font-semibold text-ink">{time(outs.at(-1).ts)}</span></> : null}</> : 'Not clocked in yet'}
+            {clockedIn ? <>On shift since <span className="num font-semibold text-ink">{time(ins[0].ts)}</span></>
+              : ins.length ? <>Clocked out · <span className="num font-semibold text-ink">{time(ins[0].ts)}–{time(outs.at(-1).ts)}</span></> : 'Not clocked in yet'}
           </span>
-          {!outs.length && (ins.length || canClock
-            ? <Button size="sm" variant={ins.length ? 'secondary' : 'primary'} to="/officer/clock">{ins.length ? 'Clock out' : 'Clock in'}</Button>
+          {!ins.length && (canClock
+            ? !onShift && <Button size="sm" to="/officer/clock">Clock in</Button>
             : <span className="text-footnote font-semibold text-muted">Clock-in opens at <span className="num">{time(opens)}</span>{dayLabel(opens) !== dayLabel(new Date()) && ` ${dayLabel(opens)}`}</span>)}
         </div>
       )}
@@ -289,60 +271,53 @@ const reportWindow = (s) => {
   return 'open';
 };
 
-// The live shift card's four jobs, on top where the thumb is; the shift chat sits with them
-function LiveActions({ s, d, onBan, onNote, onHandover }) {
+const WINDOW_HINT = { early: 'Opens 1 hour before your shift', closed: 'Reporting closed after 30 days' };
+
+// The live shift card's jobs, on top where the thumb is; the shift chat sits with them
+function LiveActions({ s, d, onNote, onHandover }) {
   const open = reportWindow(s) === 'open';
   return (
-    <div className="grid grid-cols-2 gap-2 @lg:grid-cols-4">
-      <Button variant="soft" icon={ShieldAlert} disabled={!open} to={open ? `/officer/incidents/new?shift=${s.id}` : undefined}>Report incident</Button>
-      <Button variant="soft" icon={Ban} disabled={!onBan} onClick={onBan || undefined}>Log ejection or ban</Button>
+    <div className="grid grid-cols-2 gap-2 @lg:grid-cols-3">
+      <Button className="col-span-2 @lg:col-span-1" icon={ShieldAlert} disabled={!open} to={open ? `/officer/incidents/new?shift=${s.id}` : undefined}>Report incident</Button>
       <Button variant="secondary" icon={NotebookPen} disabled={!onNote} onClick={onNote || undefined}>Add log entry</Button>
       <Button variant="secondary" icon={ArrowRightLeft} disabled={!onHandover} onClick={onHandover || undefined}>Handover</Button>
-      {d.thread_id && <Button variant="plain" className="col-span-2 @lg:col-span-4" icon={MessagesSquare} to={`/officer/messages/${d.thread_id}`}>Shift chat</Button>}
+      {d.thread_id && <Button variant="plain" className="col-span-2 @lg:col-span-3" icon={MessagesSquare} to={`/officer/messages/${d.thread_id}`}>Shift chat</Button>}
     </div>
   );
 }
 
-// The note box sits low on the page, so "Add note" goes near the top and moves to it
-function QuickActions({ s, d, onBan, onNote }) {
-  const open = reportWindow(s) === 'open';
-  if (!(open && onBan) && !d.thread_id && !onNote) return null;
-  return (
-    <div className="flex flex-wrap gap-2">
-      {onNote && <Button variant="secondary" icon={NotebookPen} onClick={onNote}>Add note</Button>}
-      {open && onBan && <Button variant="soft" icon={Ban} onClick={onBan}>Log ejection or ban</Button>}
-      {d.thread_id && <Button variant="secondary" icon={MessagesSquare} to={`/officer/messages/${d.thread_id}`}>Shift chat</Button>}
-    </div>
-  );
-}
-
-// Report types as tiles, always visible; they open an hour before the shift. A draft for this shift shows on top.
-function ReportTiles({ s, preview }) {
+// Before or after the shift: Report incident (it opens an hour before), a note and the chat. The type is picked in the report.
+function QuickActions({ s, d, onNote }) {
   const w = reportWindow(s);
-  const drafts = useApi('incidents.drafts', {}, { skip: preview });
-  const mine = (drafts.data || []).filter((x) => x.shift_id === s.id);
   return (
-    <Section title="Report an incident" icon={ShieldAlert} action={w !== 'open' && <span className="text-footnote text-muted">{w === 'early' ? 'Opens 1 hour before your shift' : 'Reporting closed after 30 days'}</span>}>
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap gap-2">
+        <Button variant="soft" icon={ShieldAlert} disabled={w !== 'open'} to={w === 'open' ? `/officer/incidents/new?shift=${s.id}` : undefined}>Report incident</Button>
+        {onNote && <Button variant="secondary" icon={NotebookPen} onClick={onNote}>Add note</Button>}
+        {d.thread_id && <Button variant="secondary" icon={MessagesSquare} to={`/officer/messages/${d.thread_id}`}>Shift chat</Button>}
+      </div>
+      {w !== 'open' && <p className="text-footnote text-muted">{WINDOW_HINT[w]}</p>}
+    </div>
+  );
+}
+
+// A report started for this shift and not sent yet: carry on where they left it
+function ReportDrafts({ s }) {
+  const drafts = useApi('incidents.drafts', {});
+  const mine = (drafts.data || []).filter((x) => x.shift_id === s.id);
+  if (!mine.length) return null;
+  return (
+    <div className="space-y-2">
       {mine.map((x) => (
-        <Pressable key={x.id} press to={`/officer/incidents/new?draft=${x.id}`} className="mb-2 flex items-center gap-3 rounded-tile bg-amber-soft p-3 text-left">
+        <Pressable key={x.id} press to={`/officer/incidents/new?draft=${x.id}`} className="flex items-center gap-3 rounded-tile bg-amber-soft p-3 text-left">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber text-white"><FilePen size={18} /></span>
           <span className="min-w-0 flex-1">
             <span className="block font-semibold">Draft report: carry on</span>
-            <span className="block text-footnote text-muted">{x.type ? REPORTS.find((r) => r.type === x.type)?.label || 'Incident' : 'Incident'} · saved <span className="num">{time(x.updated_at)}</span>{dayLabel(x.updated_at) !== dayLabel(new Date()) && ` ${dayLabel(x.updated_at)}`}</span>
+            <span className="block text-footnote text-muted">{REPORT_TYPE[x.type] || 'Incident'} · saved <span className="num">{time(x.updated_at)}</span>{dayLabel(x.updated_at) !== dayLabel(new Date()) && ` ${dayLabel(x.updated_at)}`}</span>
           </span>
         </Pressable>
       ))}
-      <div className={cx('grid grid-cols-3 gap-2 @lg:grid-cols-5', w !== 'open' && 'pointer-events-none opacity-60 grayscale')} aria-disabled={w !== 'open'}>
-        {REPORTS.map((r) => (
-          <Button key={r.type} variant="plain" title={r.hint} tabIndex={w !== 'open' ? -1 : undefined} to={w === 'open' ? `/officer/incidents/new?shift=${s.id}&type=${r.type}` : undefined}
-            className="!h-auto flex-col !gap-1.5 rounded-tile bg-surface !px-1 !py-3 text-center shadow-tile">
-            <span className={cx('grid h-9 w-9 place-items-center rounded-xl', r.tone)}><r.icon size={18} /></span>
-            <span className="whitespace-normal text-caption font-semibold leading-tight">{r.label}</span>
-          </Button>
-        ))}
-      </div>
-      <p className="mt-2 text-footnote text-muted">Ejection / refused entry is a {REPORTS[0].hint[0].toLowerCase()}{REPORTS[0].hint.slice(1)} A quick door log is under Log ejection or ban.</p>
-    </Section>
+    </div>
   );
 }
 
