@@ -3,6 +3,10 @@ import { ALL, def } from './_def.mjs';
 import { OPTIONAL_KINDS } from '../lib/notify.mjs';
 import { pushToSubs, vapidKeys } from '../lib/webpush.mjs';
 import { fail } from '../lib/http.mjs';
+import { venueScope } from '../lib/scope.mjs';
+import { waitingItems } from '../lib/waiting.mjs';
+import { actions as incidents } from './incidents.mjs';
+import { actions as ops } from './ops.mjs';
 
 export const actions = {
   'notifications.list': def(ALL, async (b, { user }) => {
@@ -12,6 +16,36 @@ export const actions = {
       one('SELECT count(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL', [user.id]),
     ]);
     return { items, unread: unread.n };
+  }),
+
+  // To-dos for the bell's "Waiting for you", counted from the work itself; a count that can't be read is left out
+  'notifications.waiting': def(ALL, async (_b, ctx) => {
+    const { user } = ctx;
+    const safe = (p) => Promise.resolve().then(p).catch(() => null);
+    const reports = safe(async () => (await incidents['incidents.list'].fn({ to_sign: true, limit: 500 }, ctx)).length);
+    if (user.role === 'officer') {
+      if (!user.officer_id) return waitingItems('officer', { answer: 0, reports: 0 });
+      const [answer, r] = await Promise.all([safe(async () => {
+        const [booked, offers] = await Promise.all([
+          one(`SELECT count(*)::int AS n FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id
+                WHERE a.officer_id = $1 AND a.status = 'assigned' AND s.status = 'published' AND s.ends_at > now()`, [user.officer_id]),
+          ops['ops.myOffers'].fn({}, ctx),
+        ]);
+        return booked.n + offers.offers.filter((o) => o.status === 'offered').length;
+      }), reports]);
+      return waitingItems('officer', { answer, reports: r });
+    }
+    if (user.role === 'venue') {
+      const scope = await venueScope(user);
+      const [timesheets, invoices, r] = await Promise.all([
+        safe(async () => (await one(`SELECT count(*)::int AS n FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
+                                      WHERE t.status = 'approved' AND s.venue_id = ANY($1)`, [scope])).n),
+        safe(async () => (await one(`SELECT count(*)::int AS n FROM invoices WHERE kind = 'invoice' AND venue_id = ANY($1) AND status IN ('issued','overdue')`, [scope])).n),
+        reports]);
+      return waitingItems('venue', { timesheets, invoices, reports: r });
+    }
+    const [decisions, r] = await Promise.all([safe(async () => (await ops['ops.count'].fn({}, ctx)).n), reports]);
+    return waitingItems(user.role, { decisions, reports: r });
   }),
 
   'notifications.unreadCount': def(ALL, async (_b, { user }) => {

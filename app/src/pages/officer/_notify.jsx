@@ -62,7 +62,16 @@ const PUSH_LATER_DAYS = 7;
 
 /** Home card on every side until this device gets phone notifications. "Not now" hides it for a week on this device.
  *  On iPhone, push needs the home-screen app: while the install card is up, that card covers it. */
+// What each role gets on the phone, in its own words
+const PUSH_WHAT = {
+  officer: 'shift offers, changes and safety alerts',
+  venue: 'replies to staff requests, incidents at your venue and messages from the office',
+  company: 'cover gaps, late officers, incidents and messages',
+  security: 'cover gaps, late officers, incidents and messages',
+};
+
 export function PushCard({ className, later }) {
+  const { user } = useAuth();
   const toast = useToast();
   const [run, busy] = useAction();
   const [state, setState] = useState('checking');
@@ -85,7 +94,7 @@ export function PushCard({ className, later }) {
         <p className="text-subhead text-muted">Notifications are blocked for Orb on this device. Allow them in your phone or browser settings (Site settings → Notifications), then come back here.</p>
       ) : (
         <>
-          <p className="mb-3 text-subhead text-muted">Get shift offers, changes and safety alerts on this device straight away, even when Orb is closed.</p>
+          <p className="mb-3 text-subhead text-muted">Get {PUSH_WHAT[user?.role] || PUSH_WHAT.officer} on this device straight away, even when Orb is closed.</p>
           <Button icon={BellRing} busy={busy} onClick={turnOn}>Turn on notifications</Button>
         </>
       )}
@@ -158,7 +167,7 @@ export function NotificationsSheet({ open, onClose }) {
           </div>
         )}
       </div>
-      {venue ? <p className="text-footnote text-muted">Shift updates, timesheets to sign, invoices and messages always reach you.</p> : <Load q={q} skeleton="rows">
+      {venue ? <p className="text-footnote text-muted">Replies to staff requests, incidents, timesheets to sign, invoices and messages from the office always reach you.</p> : <Load q={q} skeleton="rows">
         {() => prefs && (
           <div className="space-y-4">
             <div className="text-footnote font-semibold uppercase tracking-wide text-muted">On Everyday, tell me about</div>

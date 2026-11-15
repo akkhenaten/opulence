@@ -10,13 +10,13 @@ import {
   Button, cx, dayLabel, Empty, Load, Page, Pressable, range, Section, Sheet, Spinner, Textarea, time, titleCase, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
 import { CLOCK_EARLY_MIN, distanceM, NotLinked, until, useNow } from './_parts.jsx';
-import { RegisterStep } from './_phone.jsx';
+import { PHONE_NOTE, RegisterStep } from './_phone.jsx';
 
 const STATE_LABEL = { not_started: 'Not clocked in', on_shift: 'On shift', on_break: 'On break', finished: 'Shift complete' };
 const NEED = { any_one: 1, two_of_three: 2, all_three: 3 };
 const FLAG_NOTE = {
   phone_not_verified: 'Your phone was not checked',
-  new_phone: 'Your new phone is waiting for a manager to approve it',
+  new_phone: 'Your new phone is waiting for approval. You can still clock in',
   rule_not_met: 'Not enough clock-in checks',
   face_check: 'Your selfie will be checked by a manager',
 };
@@ -519,7 +519,7 @@ function ProofList({ f, need }) {
   return (
     <div className="rounded-tile bg-surface px-4 py-3 shadow-tile">
       <div className="flex flex-wrap gap-1.5">
-        {item('Phone', false, Smartphone, f.skipPhone ? 'skipped' : f.pendingPhone ? 'awaiting approval' : 'at the end')}
+        {item('Phone', false, Smartphone, f.skipPhone ? 'skipped' : f.pendingPhone ? 'waiting for approval' : 'at the end')}
         {item('Location', have.location, LocateFixed)}
         {item(f.tap ? 'NFC tag' : 'Venue code', have.venue_code, f.tap ? Nfc : ScanLine)}
         {item('Selfie', have.selfie, Camera)}
@@ -527,6 +527,7 @@ function ProofList({ f, need }) {
       <div className="mt-2 text-footnote text-muted">
         {left ? `${left} more ${left === 1 ? 'check' : 'checks'} needed (${need === 3 ? 'all 3' : `${need} of 3`} for this venue)` : 'Enough checks. Your phone confirms it at the end.'}
       </div>
+      {(f.pendingPhone || f.skipPhone) && <div className="mt-1 text-caption text-faint">{PHONE_NOTE}</div>}
     </div>
   );
 }

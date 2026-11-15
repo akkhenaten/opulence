@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowDown, BadgeCheck, CalendarClock, Bell, BellOff, Check, CheckCheck, ChevronLeft, Copy, Eye, FileText, Flag, Megaphone, Mic, Newspaper, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Reply, Search, Trash2, UserPlus, Users, X, LogOut } from 'lucide-react';
+import { ArrowDown, BadgeCheck, CalendarClock, Bell, BellOff, Check, CheckCheck, ChevronLeft, Copy, Eye, FileText, Flag, Megaphone, MessagesSquare, Mic, Newspaper, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Reply, Search, Trash2, UserPlus, Users, X, LogOut } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { Composer } from '../../ui/Chat.jsx';
 import { RecordingBar, useRecorder, VoiceNote } from '../../ui/VoiceRecorder.jsx';
@@ -174,6 +174,13 @@ export default function Thread({ id, onChanged }) {
   );
 }
 
+// "3 on shift · lead Sam": who is on the shift and who leads it (the title already names the venue and date)
+function shiftLine(sh, members) {
+  const n = sh.team_user_ids?.length || 0;
+  const lead = members.find((p) => p.id === sh.lead_user_id);
+  return [`${n} on shift`, lead ? `lead ${lead.name.split(' ')[0]}` : 'no lead'].join(' · ');
+}
+
 function ThreadHeader({ conv, members, base, onChanged, onSearch }) {
   const [info, setInfo] = useState(false);
   const [run] = useAction();
@@ -181,7 +188,7 @@ function ThreadHeader({ conv, members, base, onChanged, onSearch }) {
   const others = members.filter((p) => p.id !== user.id && !p.system);
   // A shift chat says which shift it is and links to it (only when this person can open the shift)
   const sh = conv.shift;
-  const sub = sh ? `${conv.label} · ${sh.venue_name} · ${dayLabel(sh.starts_at)}`
+  const sub = sh ? shiftLine(sh, members)
     : conv.label || (conv.kind === 'group' ? `${members.length} people` : ROLE_LABEL[others[0]?.role]);
   const portal = base.replace(/\/messages$/, '');
   const shiftTo = sh && `${portal}/${user.role === 'venue' ? 'logs' : 'shifts'}/${sh.id}`;
@@ -202,6 +209,52 @@ function ThreadHeader({ conv, members, base, onChanged, onSearch }) {
       <IconButton icon={Users} label="People in this conversation" onClick={() => setInfo(true)} />
       <InfoSheet open={info} onClose={() => setInfo(false)} conv={conv} members={members} base={base} onChanged={onChanged} />
     </div>
+  );
+}
+
+function Member({ p, sub }) {
+  return (
+    <div className="flex items-center gap-3 px-1 py-2">
+      {p.system ? <ConvAvatar c={{ kind: 'ops' }} size={40} /> : <Avatar name={p.name} src={[p.photo_thumb_url, p.photo_url]} size={40} />}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-body font-semibold">{p.name}</div>
+        <div className="truncate text-footnote text-muted">{sub || (p.system ? 'Automatic assistant' : ROLE_LABEL[p.role])}</div>
+      </div>
+    </div>
+  );
+}
+
+// A shift chat in three groups: the team on the shift (lead first), the office, the assistant. The venue is never in it.
+function ShiftMembers({ sh, members, base, onClose }) {
+  const { user } = useAuth();
+  const nav = useNavigate();
+  const [run, busy] = useAction();
+  const team = new Set(sh.team_user_ids || []);
+  const crew = members.filter((p) => team.has(p.id)).sort((a, b) => (b.id === sh.lead_user_id) - (a.id === sh.lead_user_id));
+  const office = members.filter((p) => !p.system && !team.has(p.id));
+  const bots = members.filter((p) => p.system);
+  const manager = user.role === 'company' || user.role === 'security';
+  const venueChat = () => run(async () => {
+    const { id } = await api('messages.office', { venue_id: sh.venue_id });
+    onClose();
+    nav(`${base}/${id}`);
+  });
+  const group = (title, list, sub) => list.length > 0 && (
+    <div className="mb-3">
+      <h4 className="mb-1 px-1 text-caption font-semibold uppercase tracking-wide text-faint">{title}</h4>
+      <div className="-mx-1">{list.map((p) => <Member key={p.id} p={p} sub={sub(p)} />)}</div>
+    </div>
+  );
+  return (
+    <>
+      {group('Shift team', crew, (p) => (p.id === sh.lead_user_id ? `${ROLE_LABEL[p.role]} · Shift lead` : ROLE_LABEL[p.role]))}
+      {group('Office', office, (p) => `${ROLE_LABEL[p.role]} · office contact`)}
+      {group('Automatic assistant', bots, () => 'Sends shift reminders and asks')}
+      <div className="mt-2 rounded-xl bg-bg px-3 py-2.5 text-footnote text-muted">
+        {sh.venue_name} isn't in this chat. To reach the venue, use its office chat.
+        {manager && sh.venue_id && <Button className="mt-2" size="sm" variant="secondary" icon={MessagesSquare} busy={busy} onClick={venueChat}>Open venue chat</Button>}
+      </div>
+    </>
   );
 }
 
@@ -231,17 +284,8 @@ function InfoSheet({ open, onClose, conv, members, base, onChanged }) {
         <h3 className="text-footnote font-semibold uppercase tracking-wide text-muted">{members.length} {members.length === 1 ? 'person' : 'people'}</h3>
         {conv.can_add && <Button variant="ghost" size="sm" icon={UserPlus} onClick={() => setAdding(true)}>Add people</Button>}
       </div>
-      <div className="-mx-1">
-        {members.map((p) => (
-          <div key={p.id} className="flex items-center gap-3 px-1 py-2">
-            {p.system ? <ConvAvatar c={{ kind: 'ops' }} size={40} /> : <Avatar name={p.name} src={[p.photo_thumb_url, p.photo_url]} size={40} />}
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-body font-semibold">{p.name}</div>
-              <div className="truncate text-footnote text-muted">{p.system ? 'Automatic assistant' : conv.shift?.lead_user_id === p.id ? `${ROLE_LABEL[p.role]} · Shift lead` : ROLE_LABEL[p.role]}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {conv.shift ? <ShiftMembers sh={conv.shift} members={members} base={base} onClose={onClose} />
+        : <div className="-mx-1">{members.map((p) => <Member key={p.id} p={p} />)}</div>}
       {conv.can_leave && <Button className="mt-4 w-full" variant="secondary" icon={LogOut} onClick={leave}>Leave group</Button>}
       <NewMessage open={adding} onClose={() => setAdding(false)} addTo={conv.id} exclude={members.map((m) => m.id)} onAdded={onChanged} />
     </Sheet>

@@ -54,19 +54,51 @@ function useNarrow() {
   return narrow;
 }
 
-// Polls the unread count; opens the notification sheet
+// Where each portal keeps its full to-do list
+const TODO_LINK = { company: ['/company#needs', 'See all in Needs you'], security: ['/company#needs', 'See all in Needs you'],
+  officer: ['/officer#todo', 'See your To do'], venue: ['/venue#needs', 'See Needs you'] };
+
+// Top of the bell: what still needs this person. Hidden when nothing does.
+function Waiting({ q, role, go }) {
+  const items = q.data?.items || [];
+  if (q.error && !q.data) return <p className="mb-3 text-footnote text-muted">Couldn't check what's waiting for you.</p>;
+  if (!items.length) return q.data?.failed ? <p className="mb-3 text-footnote text-muted">Some of what's waiting couldn't be checked.</p> : null;
+  const [to, label] = TODO_LINK[role] || TODO_LINK.company;
+  return (
+    <section aria-label="Waiting for you">
+      <div className="mb-1 flex items-center justify-between">
+        <h3 className="text-footnote font-semibold uppercase tracking-wide text-muted">Waiting for you</h3>
+        <Button variant="ghost" size="sm" onClick={() => go(to)}>{label}</Button>
+      </div>
+      <div className="-mx-2 divide-y divide-line">
+        {items.map((i) => (
+          <Pressable key={i.key} onClick={() => go(i.link)} className="flex items-center gap-3 rounded-xl px-2 py-3">
+            <span className="grid h-7 min-w-7 place-items-center rounded-full bg-blue-soft px-2 text-footnote font-bold text-blue num">{i.count}</span>
+            <span className="min-w-0 flex-1 text-body font-semibold">{i.title}</span>
+            <ChevronRight size={18} className="shrink-0 text-faint" />
+          </Pressable>
+        ))}
+      </div>
+      {q.data.failed && <p className="mt-1 text-caption text-faint">Some of what's waiting couldn't be checked.</p>}
+    </section>
+  );
+}
+
+// Polls the unread count; opens the notification sheet: what's waiting first, then recent alerts
 function NotificationBell() {
   const { user, brand } = useAuth();
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const count = useApi('notifications.unreadCount', {}, { poll: 30000 });
   const list = useApi('notifications.list', {}, { skip: !open });
+  // To-dos counted from the work itself: Mark all as read never clears them, doing the work does
+  const waiting = useApi('notifications.waiting', {}, { skip: !open });
   const last = useRef(null);
   const unread = count.data?.unread || 0;
 
   // A shift change takes back alerts that no longer hold
   useEffect(() => {
-    const h = () => { count.reload(); if (open) list.reload(); };
+    const h = () => { count.reload(); if (open) { list.reload(); waiting.reload(); } };
     window.addEventListener('orb:notify', h);
     return () => window.removeEventListener('orb:notify', h);
   });
@@ -85,6 +117,7 @@ function NotificationBell() {
     try { (unread ? navigator.setAppBadge?.(unread) : navigator.clearAppBadge?.())?.catch?.(() => {}); } catch { /* no badge support */ }
   }, [count.data, unread]);
 
+  const go = (link) => { setOpen(false); nav(portalLink(link, user.role).replace(/^\/app/, '')); };
   const openItem = async (n) => {
     setOpen(false);
     if (!n.read_at) await api('notifications.markRead', { ids: [n.id] }).catch(() => {});
@@ -97,7 +130,10 @@ function NotificationBell() {
         badge={unread} badgeTone={count.data?.critical ? 'red' : 'blue'} />
       <Sheet open={open} onClose={() => setOpen(false)} title="Notifications"
         footer={unread > 0 && <Button variant="ghost" onClick={async () => { await api('notifications.markRead', {}); count.reload(); list.reload(); }}>Mark all as read</Button>}>
-        {list.loading && !list.data ? <SkeletonRows n={4} className="-mx-1 border-0 shadow-none" /> : !list.data?.items.length ? <Empty icon={BellOff} title="You are all caught up" /> : (
+        <Waiting q={waiting} role={user.role} go={go} />
+        {waiting.data?.items?.length > 0 && <h3 className="mb-1 mt-5 text-footnote font-semibold uppercase tracking-wide text-muted">Recent</h3>}
+        {list.loading && !list.data ? <SkeletonRows n={4} className="-mx-1 border-0 shadow-none" />
+          : !list.data?.items?.length ? (waiting.data?.items?.length ? <p className="py-2 text-subhead text-muted">No alerts yet</p> : <Empty icon={BellOff} title="You are all caught up" />) : (
           <div className="-mx-2 divide-y divide-line">
             {list.data.items.map((n) => (
               <Pressable key={n.id} onClick={() => openItem(n)} className="flex gap-3 rounded-xl px-2 py-3">

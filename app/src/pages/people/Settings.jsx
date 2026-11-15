@@ -57,7 +57,7 @@ export default function Settings() {
     setSp(next, { replace: true });
   };
   return (
-    <Page title="Settings" subtitle="Company details, access, workforce rules, templates and Orb">
+    <Page title="Settings" subtitle="Company details, access, workforce rules, notifications, email, templates and Orb">
       <DirtyCtx.Provider value={mark}>
         {/* A tab's parts sit beside the tabs when there is room, so the form starts high */}
         <div className="sm:flex sm:flex-wrap sm:items-start sm:gap-x-3">
@@ -345,7 +345,7 @@ function AppStyleTile({ s, onSaved }) {
   };
   return (
     <Tile title="App style" icon={MonitorSmartphone} className="mb-4">
-      <p className="mb-4 text-subhead text-muted">How the app looks for everyone in your company — managers, officers and venue staff. Printouts, PDFs and emails always stay in the classic light look.</p>
+      <p className="mb-4 text-subhead text-muted">How the app looks for everyone in your company — managers, officers and venue users. Printouts, PDFs and emails always stay in the classic light look.</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" role="radiogroup" aria-label="App style">
         {APP_STYLES.map((o) => (
           <Pressable key={o.value} press role="radio" aria-checked={pick === o.value} onClick={() => choose(o.value)}
@@ -936,10 +936,11 @@ const PHONE_TIERS = [
   { label: 'Bell only', text: 'A note to managers that someone signed a contract, policy or venue pack.' },
 ];
 
-// What everyone gets unless they change it under My account → Notifications
+// Company defaults (what managers and officers get unless they choose) kept apart from this manager's own choices
 function NotificationsTab() {
   const q = useApi('settings.get');
   const [mine, setMine] = useState(false);
+  const [tiers, setTiers] = useState(false);
   const [run] = useAction();
   const flip = (k) => async (on) => {
     const d = await run(() => api('settings.update', { notify_defaults: { [k]: on } }), 'Default saved').catch(() => null);
@@ -949,24 +950,32 @@ function NotificationsTab() {
     <Load q={q}>
       {(s) => (
         <>
-        <Tile title="Optional alerts — company defaults" icon={Bell} className="max-w-2xl">
+        <Tile title="Company defaults" icon={Bell} className="max-w-2xl">
+          <p className="mb-3 text-subhead text-muted">The Everyday alerts managers and officers get unless they choose for themselves.</p>
           <div className="space-y-2">
             {NOTIFY_KINDS.map((k) => <Toggle key={k.key} checked={s.notify_defaults?.[k.key] !== false} onChange={flip(k.key)} label={k.label} hint={k.hint} />)}
           </div>
-          <p className="mt-3 text-caption text-faint">Applies to managers and officers who haven't chosen for themselves. Shifts, cover, pay and safety alerts always come through.</p>
-          <Button size="sm" variant="soft" icon={Bell} className="mt-3" onClick={() => setMine(true)}>Change my own notifications</Button>
-          <p className="mt-1 text-caption text-faint">Anyone can change their own under My account.</p>
+          <p className="mt-3 text-caption text-faint">Venue users aren't on Everyday, so these don't reach them. Shifts, cover, pay and safety alerts always come through for everyone.</p>
+          <div className="mt-3 border-t border-line pt-3">
+            <Button size="sm" variant="link" icon={Smartphone} aria-expanded={tiers} onClick={() => setTiers((x) => !x)}>{tiers ? 'Hide' : 'Show'} what reaches the phone</Button>
+            {tiers && (
+              <>
+                <dl className="mt-3 space-y-3 text-subhead">
+                  {PHONE_TIERS.map((t) => (
+                    <div key={t.label}>
+                      <dt className="font-semibold">{t.label}</dt>
+                      <dd className="text-muted">{t.text}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="mt-3 text-caption text-faint">Fixed for everyone, so the phone only buzzes when it matters. Everything is always under the bell.</p>
+              </>
+            )}
+          </div>
         </Tile>
-        <Tile title="What reaches the phone" icon={Smartphone} className="mt-4 max-w-2xl">
-          <dl className="space-y-3 text-subhead">
-            {PHONE_TIERS.map((t) => (
-              <div key={t.label}>
-                <dt className="font-semibold">{t.label}</dt>
-                <dd className="text-muted">{t.text}</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="mt-3 text-caption text-faint">Fixed for everyone, so the phone only buzzes when it matters. Everything is always under the bell.</p>
+        <Tile title="Your own notifications" icon={Bell} className="mt-4 max-w-2xl">
+          <p className="mb-3 text-subhead text-muted">Only changes what reaches you, on this account. Everyone can change their own under My account (officers: Me).</p>
+          <Button size="sm" variant="soft" icon={Bell} onClick={() => setMine(true)}>Change my own notifications</Button>
         </Tile>
         <NotificationsSheet open={mine} onClose={() => setMine(false)} />
         </>

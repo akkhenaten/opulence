@@ -11,6 +11,19 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-15', icon: SlidersHorizontal, title: 'Settings that say whose they are, and chats that say who is listening', image: 'settings-and-chats',
+    lede: "The ninth round of fixes from the three-portal review. The bell keeps what still needs you apart from past alerts, Settings separates company rules from personal choices, and a shift chat shows who is in it.",
+    points: [
+      "The bell opens with Waiting for you: decisions, reports to sign, shifts to answer, timesheets or invoices, counted from the work itself. They only go once the work is done, so Mark all as read clears past alerts without hiding anything still to do. Recent alerts sit below",
+      "Settings → Notifications has two parts: Company defaults, the Everyday alerts managers and officers get unless they choose for themselves, and Your own notifications, which only changes what reaches you. What reaches the phone folds away under the defaults",
+      "Settings → Email starts with your own mailbox, then shared mailboxes and who can use them. The Google and Microsoft keys move to Connection setup (admin) at the bottom, folded away once it is done",
+      "A clock-in phone waiting for a manager says Waiting for approval everywhere. Officers see it on Home with a line that they can still clock in, and every screen says the phone only proves where someone clocked in and doesn't affect whether they can work. Staff → Phones links each request to the person's profile",
+      "Help speaks to the person reading it: officers are sent to Me and everyone else to My account, Report an app problem or idea has its real name, the notification help lists the switches that exist, and the clock-in help explains registering a phone",
+      "A shift chat says how many are on the shift and who leads it. Its people list shows the shift team with the lead first, the office contacts and the automatic assistant, and says the venue isn't in the chat. Managers can open the venue's own chat from there",
+      "Turn on notifications says what each person will get: shift offers for officers, replies to staff requests and incidents for venues, cover gaps and incidents for managers",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-15', icon: UsersRound, title: 'Who can do what, in one place', image: 'people-and-access',
     lede: "The eighth round of fixes from the three-portal review. Settings → Users & access now answers who can see what without opening each person, and an officer's shift page shows the shift once, with one way to report.",
     points: [

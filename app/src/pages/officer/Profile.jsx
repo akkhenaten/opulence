@@ -5,7 +5,7 @@ import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { ActionBar, Avatar, Button, date, Input, KV, List, Load, Page, Pill, Pressable, Row, Section, Tile, titleCase, Toggle, useAction, useApi, useDirtyGuard } from '../../ui/index.jsx';
 import { NotLinked, uploadPhoto } from './_parts.jsx';
-import { RegisterPhoneSheet } from './_phone.jsx';
+import { PHONE_NOTE, PHONE_PENDING, RegisterPhoneSheet } from './_phone.jsx';
 
 const FIELDS = ['goes_by', 'phone', 'address', 'postcode', 'dob', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account'];
 
@@ -222,12 +222,13 @@ function MyPhone() {
                       <div className="truncate font-semibold">{x.label}</div>
                       <div className="text-footnote text-muted">Registered {date(x.created_at)}{x.last_used_at ? ` · last used ${date(x.last_used_at)}` : ''}</div>
                     </div>
-                    {x.status === 'pending' ? <Pill tone="amber">Waiting for approval</Pill> : <Pill tone="green">Active</Pill>}
+                    {x.status === 'pending' ? <Pill tone="amber">{PHONE_PENDING}</Pill> : <Pill tone="green">Active</Pill>}
                   </div>
                 ))}
               </div>
             )}
             {d.devices.length > 0 && <p className="mt-3 text-caption text-muted">Changed phone? Clock in on the new one and tap <b>Use this phone instead</b>. A manager approves it before it replaces this one.</p>}
+            <p className="mt-3 text-caption text-muted">{PHONE_NOTE}</p>
             {d.face_match_enabled && (
               <div className="mt-3 rounded-xl bg-bg px-4 py-2">
                 <Toggle label="Compare my clock-in selfies with my profile photo" hint="Only flags a selfie for a manager to look at; it never stops you clocking in. Selfies are deleted after 90 days."

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { Check, ListChecks, ShieldCheck, Smartphone, X } from 'lucide-react';
 import {
   ActionBar, Avatar, Button, Check as Tick, cx, dayLabel, Empty, List, Load, Page, Pill, range, relative, Row, Section, Segmented, Sheet, time, useAction, useApi, useConfirm,
@@ -121,7 +121,7 @@ export default function Exceptions() {
 export function PhonesPage() {
   const phones = useApi('device.list', { pending: true });
   return (
-    <Page title="Phones" subtitle="The phone each officer clocks in with">
+    <Page title="Phones" subtitle="The phone each officer clocks in with. It proves where they clocked in and doesn't affect whether they can work.">
       <Phones q={phones} />
       <NotRegistered />
     </Page>
@@ -149,6 +149,7 @@ function NotRegistered() {
 
 // Officers asking to clock in on a different phone
 function Phones({ q }) {
+  const { base } = useBase();
   const [run] = useAction();
   const confirm = useConfirm();
   const [busyId, setBusyId] = useState(null);
@@ -166,7 +167,7 @@ function Phones({ q }) {
             <div className="flex items-start gap-3">
               <Avatar name={d.officer_name} size={42} />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-callout font-semibold">{d.officer_name}</div>
+                {d.officer_id ? <Link to={`${base}/staff/${d.officer_id}`} className="block truncate text-callout font-semibold hover:underline">{d.officer_name}</Link> : <div className="truncate text-callout font-semibold">{d.officer_name}</div>}
                 <div className="text-footnote text-muted">New phone: <b className="text-ink">{d.label}</b>{d.current_label ? ` · replaces ${d.current_label}` : ''}</div>
               </div>
               <span className="shrink-0 text-caption text-faint">{relative(d.created_at)}</span>

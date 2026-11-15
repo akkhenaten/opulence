@@ -7,6 +7,10 @@ import { isIOS } from '../../ui/pwa.jsx';
 
 // The officer's clock-in phone: registering it (a passkey unlocked by face, fingerprint or PIN), from clock-in, Home or Profile
 
+// One wording everywhere a phone waits for a manager, and one line on what the phone is for
+export const PHONE_PENDING = 'Waiting for approval';
+export const PHONE_NOTE = "Your clock-in phone only proves where you clocked in. It doesn't affect whether you can work.";
+
 /** A phone or tablet: a laptop must not become the clock-in device */
 export const isPhone = () => isIOS() || /android|iphone|ipod|mobile/i.test(navigator.userAgent) || !!navigator.userAgentData?.mobile;
 
@@ -93,7 +97,23 @@ export function RegisterPhoneSheet({ open, onClose, onDone }) {
 export function PhoneCard({ soon, className }) {
   const q = useApi('device.mine', {});
   const [open, setOpen] = useState(false);
-  if (!q.data || q.data.devices.length) return null;
+  if (!q.data) return null;
+  const list = q.data.devices;
+  // Registered but not approved yet: say so, and that clock-in still works; gone once a manager approves it
+  if (list.length && !list.some((d) => d.status === 'active')) {
+    return (
+      <Tile to="/officer/profile#phone" className={cx(className, 'border-amber/25 !bg-amber-soft')}>
+        <div className="flex gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber text-white"><Smartphone size={20} /></span>
+          <div className="min-w-0">
+            <div className="text-headline font-bold">Clock-in phone {PHONE_PENDING.toLowerCase()}</div>
+            <div className="text-subhead text-muted">The office approves it. You can still clock in meanwhile.</div>
+          </div>
+        </div>
+      </Tile>
+    );
+  }
+  if (list.length) return null;
   return (
     <>
       <Tile className={cx(className, soon && 'border-amber/25 !bg-amber-soft')}>

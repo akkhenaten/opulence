@@ -114,15 +114,18 @@ const oneMessage = (id) => one(`SELECT ${MSG_COLS} FROM messages m JOIN users u 
 
 const titleOf = (c, others) => c.title || (c.kind === 'direct' ? others[0]?.name : others.map((p) => p.name.split(' ')[0]).join(', ')) || KIND_LABEL[c.kind];
 
-/** The shift behind a shift chat, only when this person can open it; the lead's user id marks them in the member list. */
+/** The shift behind a shift chat, only when this person can open it; the lead and the team mark them in the member list. */
 async function threadShift(user, shiftId) {
   if (!shiftId) return null;
   const ax = await shiftAccess(user, shiftId).catch(() => null);
   if (!ax) return null;
-  const lead = await one(
-    `SELECT o.user_id FROM shift_assignments a JOIN officers o ON o.id = a.officer_id
-      WHERE a.shift_id = $1 AND a.is_lead AND a.status IN ('assigned','accepted') LIMIT 1`, [shiftId]).catch(() => null);
-  return { id: ax.sh.id, venue_name: ax.sh.venue_name, starts_at: ax.sh.starts_at, ends_at: ax.sh.ends_at, lead_user_id: lead?.user_id || null };
+  // The team on the shift (lead first) so the chat can say who is on it and who is the office
+  const team = await q(
+    `SELECT o.user_id, a.is_lead FROM shift_assignments a JOIN officers o ON o.id = a.officer_id
+      WHERE a.shift_id = $1 AND a.status IN ('assigned','accepted') ORDER BY a.is_lead DESC`, [shiftId]).catch(() => []);
+  const lead = team.find((t) => t.is_lead);
+  return { id: ax.sh.id, venue_id: ax.sh.venue_id, venue_name: ax.sh.venue_name, starts_at: ax.sh.starts_at, ends_at: ax.sh.ends_at,
+    lead_user_id: lead?.user_id || null, team_user_ids: team.map((t) => t.user_id).filter(Boolean) };
 }
 
 /** A message the person can act on (member of its conversation, not deleted). */

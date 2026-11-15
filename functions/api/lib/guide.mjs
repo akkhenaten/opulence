@@ -22,7 +22,7 @@ Closed the Get the Orb app card on your Dashboard? Company managers find it in S
       {
         id: 'android', title: 'Android phones and computers (Chrome or Edge)', image: 'install-card.png',
         body: `1. Sign in to the app in Chrome or Edge.
-2. On your home page, tap Install the app on the "Get the Orb app" card. If you closed the card, open My account (managers) or Me (officers) and tap Install the app.
+2. On your home page, tap Install the app on the "Get the Orb app" card. If you closed the card, open {account} and tap Install the app.
 3. Confirm Install. The Orb icon appears on your home screen or desktop.
 
 If there is no Install button, open the browser menu (three dots) and choose Install app or Add to Home screen.`,
@@ -38,9 +38,9 @@ Phone notifications on iPhone only work from the installed app, so do this befor
       },
       {
         id: 'notifications', title: 'Turn on phone notifications',
-        body: `Open My account (managers) or Me (officers), tap Notifications, then Turn on. Allow notifications when your phone asks.
+        body: `Open {account}, tap Notifications, then Turn on. Allow notifications when your phone asks.
 
-Shift and safety alerts always come through. You can switch the others (mentions, comments, announcements, training reminders) on or off.`,
+Alerts about your own work, safety and anything you must confirm always come through.{everyday}`,
       },
       {
         id: 'updates', title: 'Updates and working offline',
@@ -276,7 +276,7 @@ Use the filters for Announcements, Shout-outs, Events, Polls, My venues and Save
       },
       {
         id: 'alerts', title: 'Notifications',
-        body: `The bell shows alerts such as late officers, new incidents, cover requests and expiring licences. Choose which alerts you get under My account, then Notifications. Critical alerts always come through.`,
+        body: `The bell shows alerts such as late officers, new incidents, cover requests and expiring licences. Choose which Everyday alerts you get under {account}, then Notifications. Critical alerts always come through.`,
       },
     ],
   },
@@ -374,7 +374,9 @@ Back always takes you to where you came from.`,
 2. Allow location when asked, then Scan QR code (the venue poster).
 3. Use Start break and End break during the shift (on Home or here), and Clock out at the end.
 
-If the app can't confirm you're on site, tap Continue anyway, add a note and Submit as exception. It goes to your supervisor to approve.`,
+If the app can't confirm you're on site, tap Continue anyway, add a note and Submit as exception. It goes to your supervisor to approve.
+
+First time? Register your clock-in phone under Me, Clock-in phone. A new phone shows Waiting for approval until the office approves it. You can still clock in meanwhile: your clock-in is just marked for a manager to check. Your clock-in phone only proves where you clocked in; it doesn't affect whether you can work.`,
       },
       {
         id: 'report', title: 'Report an incident',
@@ -393,8 +395,8 @@ If the app can't confirm you're on site, tap Continue anyway, add a note and Sub
     id: 'faq', title: 'FAQ and troubleshooting', roles: ALL,
     sections: [
       {
-        id: 'appfeedback', title: 'Send feedback: a problem with the app, or an idea',
-        body: `While the app is being fine-tuned, anyone can tell the Orb team what's wrong or what would make it better. Tap the glowing App feedback button next to the bell (the rainbow ring around a speech bubble on phones), or Send feedback in My account (officers: Me). It isn't the Feedback page in the side menu, which is where venues comment on officers.
+        id: 'appfeedback', title: 'Report an app problem or idea',
+        body: `While the app is being fine-tuned, anyone can tell the Orb team what's wrong or what would make it better. Tap the glowing App feedback button next to the bell (the rainbow ring around a speech bubble on phones), or Report an app problem or idea in {account}. It isn't the Feedback page in the side menu, which is where venues comment on officers.
 
 Choose Something's wrong or I have an idea, write what happened, and add up to 3 screenshots or photos if they help. The screen you were on, your device and the app version are added for you, so you don't need to explain where you were.
 
@@ -402,7 +404,9 @@ Only the Orb team reads feedback; your company managers don't see it. The platfo
       },
       {
         id: 'clockfail', title: 'Clock-in is refused', roles: ['officer', 'security'],
-        body: `Clock-in opens 15 minutes before the shift. Make sure location is allowed for the app (phone Settings, then the browser or Orb) and that you are inside the venue. If the QR code won't scan, tap I can't scan the code. You can always submit the clock-in as an exception with a note.`,
+        body: `Clock-in opens 15 minutes before the shift. Make sure location is allowed for the app (phone Settings, then the browser or Orb) and that you are inside the venue. If the QR code won't scan, tap I can't scan the code. You can always submit the clock-in as an exception with a note.
+
+A clock-in phone that shows Waiting for approval never stops you clocking in. No phone yet? Register one under Me, Clock-in phone.`,
       },
       {
         id: 'password', title: 'I forgot my password', roles: ['company', 'security', 'officer'],
@@ -432,7 +436,11 @@ Only the Orb team reads feedback; your company managers don't see it. The platfo
 /** The chapters a role sees (company sees everything), with the company name filled in */
 export function guideFor(role, companyName) {
   const name = companyName || 'Orb Security';
-  const fill = (s) => s.replace(/\{company\}/g, name);
+  // Each role is sent to the screen it has: officers keep their account under Me, everyone else under My account
+  const account = role === 'officer' ? 'Me' : 'My account';
+  const everyday = role === 'venue' ? ' Venue logins are not on Everyday, so there is nothing else to switch.'
+    : ' On Everyday you can switch off comments, reactions, shout-outs, tags, events and celebrations.';
+  const fill = (s) => s.replace(/\{company\}/g, name).replace(/\{account\}/g, account).replace(/\{everyday\}/g, everyday);
   const own = { company: 'start', security: 'security', venue: 'venue', officer: 'officer' }[role];
   const list = CHAPTERS.filter((c) => role === 'company' || c.roles.includes(role));
   // The person's own role chapter comes first, then install, then the rest in order

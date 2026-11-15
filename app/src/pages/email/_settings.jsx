@@ -6,7 +6,7 @@ import { CopyLink } from '../people/_parts.jsx';
 import { BASE, connect, emailChanged, PROVIDER_NAME, PROVIDER_SHORT } from './_parts.jsx';
 
 /** Connect Gmail / Outlook buttons. A provider whose keys are not set up yet is shown but disabled. */
-export function ConnectButtons({ providers = {}, ready, shared, variant = 'primary' }) {
+export function ConnectButtons({ providers = {}, ready, shared, variant = 'primary', inSettings }) {
   const [run, busy] = useAction();
   const [which, setWhich] = useState(null);
   const go = (p) => { setWhich(p); run(() => connect(p, { shared })).catch(() => setWhich(null)); };
@@ -20,9 +20,9 @@ export function ConnectButtons({ providers = {}, ready, shared, variant = 'prima
           </Button>
         ))}
       </div>
-      {off && (
+      {off && !inSettings && (
         <p className="max-w-sm text-center text-footnote text-faint">
-          Email sign-in is not switched on yet. Add the Google or Microsoft keys under <Pressable press to="/company/settings?tab=email" className="inline font-semibold text-blue">Email sign-in setup</Pressable>.
+          Email sign-in is not switched on yet. Add the Google or Microsoft keys under <Pressable press to="/company/settings?tab=email" className="inline font-semibold text-blue">Settings → Email → Connection setup</Pressable>.
         </p>
       )}
     </div>
@@ -67,12 +67,15 @@ const GUIDE = {
 };
 
 /** Settings → Email → the Google / Microsoft app keys that let people sign in. */
-function SetupSection({ onChanged }) {
-  const q = useApi('email.setup.get', { origin: window.location.origin });
+// Last and folded away: it is done once by an admin, and opens by itself until it is
+function SetupSection({ ready, onChanged }) {
+  const [open, setOpen] = useState(!ready);
+  const q = useApi('email.setup.get', { origin: window.location.origin }, { skip: !open });
   const changed = () => { q.reload(); onChanged(); emailChanged(); };
   return (
-    <Section title="Email sign-in setup" icon={KeyRound} className="mt-0">
-      <Load q={q}>
+    <Section title="Connection setup (admin)" icon={KeyRound}
+      action={<Button size="sm" variant="link" aria-expanded={open} onClick={() => setOpen((x) => !x)}>{open ? 'Hide' : 'Show'}</Button>}>
+      {!open ? <p className="px-1 text-subhead text-muted">{ready ? 'Done. Only change these keys if signing in with Google or Microsoft stops working.' : 'Not finished yet.'}</p> : <Load q={q}>
         {(d) => (
           <div className="space-y-3">
             <p className="text-subhead text-muted">
@@ -84,7 +87,7 @@ function SetupSection({ onChanged }) {
             {['google', 'microsoft'].map((p) => <ProviderSetup key={p} provider={p} s={d.providers[p]} onChanged={changed} />)}
           </div>
         )}
-      </Load>
+      </Load>}
     </Section>
   );
 }
@@ -160,27 +163,30 @@ export function EmailTab() {
       {(d) => {
         const personal = d.accounts.filter((a) => !a.shared);
         const shared = d.accounts.filter((a) => a.shared);
+        // Set up once at least one provider has its keys
+        const configured = Object.values(d.providers || {}).some(Boolean);
         return (
           <div className="max-w-3xl">
             <p className="mb-4 text-subhead text-muted">
-              Connect Gmail, Google Workspace, Outlook or Microsoft 365 to read and answer email inside Orb. Mail stays with Google or Microsoft; Orb keeps only a short list of recent subjects so it can show email on staff, venue and client pages.
+              Connect Gmail, Google Workspace, Outlook or Microsoft 365 to read and answer email inside Orb. Mail stays with Google or Microsoft; Orb keeps only a short list of recent subjects, so managers see recent email on a staff member's, venue's or client's page.
             </p>
-            <SetupSection onChanged={q.reload} />
             <Section title="Your mailbox" icon={Mail} count={personal.length}>
               {personal.length
                 ? <div className="space-y-3">{personal.map((a) => <AccountCard key={a.id} a={a} onChanged={q.reload} />)}</div>
-                : <Empty icon={Mail} title="No mailbox connected" body="Sign in with Google or Microsoft. Only you will see this mailbox." action={<ConnectButtons providers={d.providers} ready={d.ready} />} />}
+                : <Empty icon={Mail} title="No mailbox connected" body={configured ? 'Sign in with Google or Microsoft. Only you will see this mailbox.' : 'Connection setup below has to be finished once before anyone can connect a mailbox.'}
+                    action={<ConnectButtons providers={d.providers} ready={d.ready} inSettings />} />}
             </Section>
-            <Section title="Shared mailboxes" icon={Users} count={shared.length}>
+            <Section title="Shared mailboxes and who can use them" icon={Users} count={shared.length}>
               {shared.length > 0 && <div className="mb-3 space-y-3">{shared.map((a) => <AccountCard key={a.id} a={a} onChanged={q.reload} />)}</div>}
               <Tile>
                 <div className="mb-3 flex items-start gap-3">
                   <Inbox size={20} className="mt-0.5 shrink-0 text-blue" />
                   <div className="text-subhead text-muted">A mailbox like ops@ or bookings@ that several managers answer. Sign in as that mailbox, then choose who can use it. Emails sent from a shared mailbox are recorded in the audit log.</div>
                 </div>
-                <ConnectButtons providers={d.providers} ready={d.ready} shared variant="secondary" />
+                <ConnectButtons providers={d.providers} ready={d.ready} shared variant="secondary" inSettings />
               </Tile>
             </Section>
+            <SetupSection ready={configured} onChanged={q.reload} />
           </div>
         );
       }}

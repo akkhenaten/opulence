@@ -9,6 +9,7 @@ import {
   AttentionDrawer, Avatar, Button, cx, date, dateShort, Input, List, Load, LoadFail, Page, Pill, Row, Section, Sheet, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { NotificationsSheet } from './_notify.jsx';
+import { PHONE_PENDING } from './_phone.jsx';
 import { InstallSheet, usePwa } from '../../ui/pwa.jsx';
 import { expiryText, expiryTone, NotLinked, OfficeWaiting } from './_parts.jsx';
 import { SideSwitch } from '../../layouts/SideSwitch.jsx';
@@ -275,7 +276,7 @@ function PhoneRow() {
   const list = q.data?.devices || [];
   const active = list.some((d) => d.status === 'active');
   const pending = list.some((d) => d.status === 'pending');
-  const [label, tone] = !q.data ? [q.error ? "Couldn't check" : 'Checking…', 'grey'] : active ? ['Ready', 'green'] : pending ? ['Awaiting approval', 'amber'] : ['Not registered', 'amber'];
+  const [label, tone] = !q.data ? [q.error ? "Couldn't check" : 'Checking…', 'grey'] : active ? ['Ready', 'green'] : pending ? [PHONE_PENDING, 'amber'] : ['Not registered', 'amber'];
   return (
     <Row to="/officer/profile#phone" left={<Ico icon={Smartphone} tone={tone} />} title="Clock-in phone"
       subtitle={active && pending ? 'A new phone is waiting for approval' : 'The phone you clock in with'} right={<Pill tone={tone}>{label}</Pill>} />

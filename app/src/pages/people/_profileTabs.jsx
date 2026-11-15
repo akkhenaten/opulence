@@ -106,7 +106,7 @@ function PhoneTile({ o }) {
           {q.data.map((d) => (
             <div key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5 first:pt-0 last:pb-0">
               <div className="min-w-0 flex-1 basis-48">
-                <div className="flex items-center gap-2"><span className="truncate font-semibold">{d.label}</span>{d.status === 'pending' ? <Pill tone="amber">Awaiting approval</Pill> : <Pill tone="green">Active</Pill>}</div>
+                <div className="flex items-center gap-2"><span className="truncate font-semibold">{d.label}</span>{d.status === 'pending' ? <Pill tone="amber">Waiting for approval</Pill> : <Pill tone="green">Active</Pill>}</div>
                 <div className="text-footnote text-muted">Since {date(d.created_at)}{d.last_used_at ? ` · last used ${relative(d.last_used_at)}` : ''}</div>
               </div>
               {d.status === 'pending' ? (
@@ -119,7 +119,7 @@ function PhoneTile({ o }) {
           ))}
         </div>
       )}
-      <p className="mt-3 text-footnote text-muted">Phone status doesn't affect whether they can work: it is checked at clock-in.</p>
+      <p className="mt-3 text-footnote text-muted">Phone status doesn't affect whether they can work. It only shows where they clocked in.</p>
       {o.user_id && (
         <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-footnote text-muted">
           <BellRing size={16} className={o.has_push ? 'text-green' : 'text-faint'} />
