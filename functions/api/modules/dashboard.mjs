@@ -88,7 +88,7 @@ async function managerDash(ctx) {
   if (canSeePay(user)) {
     const [outstanding, overdue, revenueMonth] = await Promise.all([
       one("SELECT COALESCE(sum(gross),0) AS n, count(*)::int AS c FROM invoices WHERE status IN ('issued','overdue') AND kind = 'invoice'"),
-      one("SELECT COALESCE(sum(gross),0) AS n, count(*)::int AS c FROM invoices WHERE status = 'overdue'"),
+      one("SELECT COALESCE(sum(gross),0) AS n, count(*)::int AS c FROM invoices WHERE status = 'overdue' AND kind = 'invoice'"),
       one("SELECT COALESCE(sum(net),0) AS n FROM invoices WHERE status <> 'void' AND status <> 'draft' AND issue_date >= date_trunc('month', now())::date"),
     ]);
     out.money = { outstanding: Number(outstanding.n), outstandingCount: outstanding.c, overdue: Number(overdue.n), overdueCount: overdue.c, revenueMonth: Number(revenueMonth.n) };
@@ -119,7 +119,9 @@ async function venueDash(b, ctx) {
     recentIncidents(scope),
     count(`SELECT count(*)::int AS n FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id WHERE t.status = 'approved' AND s.venue_id = ANY($1)`, [scope]),
     q("SELECT c.*, v.name AS venue_name, r.name AS role_name FROM cover_requests c JOIN venues v ON v.id = c.venue_id JOIN roles r ON r.code = c.role WHERE c.venue_id = ANY($1) AND c.ends_at > now() AND c.status <> 'cancelled' ORDER BY c.starts_at LIMIT 8", [scope]),
-    one("SELECT COALESCE(sum(gross),0) AS n, count(*)::int AS c FROM invoices WHERE venue_id = ANY($1) AND status IN ('issued','overdue')", [scope]),
+    // Invoices only: credit notes are issued too, but they are not something to pay
+    one(`SELECT COALESCE(sum(gross) FILTER (WHERE kind = 'invoice'),0) AS n, (count(*) FILTER (WHERE kind = 'invoice'))::int AS c,
+      (count(*) FILTER (WHERE kind = 'credit'))::int AS credits FROM invoices WHERE venue_id = ANY($1) AND status IN ('issued','overdue')`, [scope]),
     q('SELECT id, name, address, postcode, logo_url FROM venues WHERE id = ANY($1) ORDER BY name', [all]),
   ]);
   const live = summarise(board.filter((r) => scope.includes(r.venue_id)));
@@ -133,7 +135,7 @@ async function venueDash(b, ctx) {
     ]);
     tiles = venueTiles(venues, board, { next, toSign: signs, cover: covers, incidents: incs });
   }
-  return { role: 'venue', venue_id: b.venue_id || null, venues, tiles, live, shifts, incidents, cover, counts: { toSign }, invoices: { outstanding: Number(invoices.n), count: invoices.c } };
+  return { role: 'venue', venue_id: b.venue_id || null, venues, tiles, live, shifts, incidents, cover, counts: { toSign }, invoices: { outstanding: Number(invoices.n), count: invoices.c, credits: invoices.credits } };
 }
 
 async function officerDash({ user }) {

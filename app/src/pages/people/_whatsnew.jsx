@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Calculator, Ban, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, Compass, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MousePointerClick, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, SlidersHorizontal, ShieldAlert, Store, Timer, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
+  Megaphone, MessageCircleWarning, MousePointerClick, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Scale, Send, SlidersHorizontal, ShieldAlert, Store, Timer, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-15', icon: Scale, title: 'Honest money totals, clearer shift logs and plain wording', image: 'plain-words',
+    lede: "The third round of fixes from the three-portal review. Money totals count only what is owed, shift screens say who signs off the log, and set-up, training, feedback and audit screens say what they mean.",
+    points: ["A venue's Outstanding figure and its invoices to pay now count invoices only. Before, an issued credit note was subtracted from the total and counted as one more invoice, so the figure could look lower than what was owed. The company overdue total works the same way. No venue's figure changed on the day this went live, because none had an issued credit note", "When a venue has credit notes, the Outstanding tile says Credit notes are shown on Invoices", "The shift log says who signs it off: the shift lead by name, You lead this shift for the lead, or No lead on this shift: the office signs off the log", "An officer who has clocked out sees that they can still add notes until the log is signed off", "Shift chats name the venue and date, link to the shift with View shift, and mark the shift lead in the member list", "Set-up steps only the office can finish, such as checking documents, move out of the officer's To do list into a Waiting on the office group and no longer count as things for the officer to do", "Required shows only on courses assigned to that officer. Other mandatory courses say Usually required for door work, and empty training and certificate lists no longer suggest anything has been checked", "Feedback screens say how far back they go: 7 days to rate staff, 30 days of staff and shifts for feedback, 90 days for Don't send", "The audit log reads in plain words, such as Credit note issued, Timesheet approved or Contract sent, and shows the invoice number, person or venue instead of a short code. Show detail still has the full record"],
+  },
   {
     month: 'November 2026', date: '2026-11-15', icon: Timer, title: 'Your shift, all in one place', image: 'shift-card-live',
     lede: "Once an officer clocks in, Home is the shift card and everything for that shift is on it. Officers can also report on finished shifts straight from their past shift cards.",

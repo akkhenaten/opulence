@@ -1,8 +1,8 @@
 // Helpers shared by the officer screens and the incident screens
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarDays, Clock3, MapPin, Phone, UserX } from 'lucide-react';
-import { Button, cx, dayLabel, Empty, Pill, range, Sheet, Textarea, time, titleCase, useAction } from '../../ui/index.jsx';
+import { CalendarDays, Clock3, Hourglass, MapPin, Phone, UserX } from 'lucide-react';
+import { Button, cx, dayLabel, Empty, List, Pill, range, Row, Section, Sheet, Textarea, time, titleCase, useAction } from '../../ui/index.jsx';
 import { api, upload } from '../../api.js';
 
 // Clock-in opens this many minutes before a shift (the API enforces the same, clock.mjs EARLY_MIN)
@@ -217,3 +217,18 @@ export const LatePill = ({ inc }) => {
   const n = lateDays(inc);
   return n ? <Pill tone="amber">Reported {n} day{n > 1 ? 's' : ''} later</Pill> : null;
 };
+
+// Set-up steps only the office can finish: shown apart from the officer's own to-dos and not counted with them
+export function OfficeWaiting({ tasks, className }) {
+  if (!tasks.length) return null;
+  return (
+    <Section title="Waiting on the office" icon={Hourglass} className={className}>
+      <List>
+        {tasks.map((t) => (
+          <Row key={t.code} left={<span className="grid h-8 w-8 place-items-center rounded-lg bg-fill text-muted"><Hourglass size={18} /></span>}
+            title={t.action || t.title} subtitle={t.waiting || 'Nothing for you to do. The office will finish this.'} />
+        ))}
+      </List>
+    </Section>
+  );
+}

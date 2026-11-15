@@ -10,7 +10,7 @@ import {
 } from '../../ui/index.jsx';
 import { NotificationsSheet } from './_notify.jsx';
 import { InstallSheet, usePwa } from '../../ui/pwa.jsx';
-import { expiryText, expiryTone, NotLinked } from './_parts.jsx';
+import { expiryText, expiryTone, NotLinked, OfficeWaiting } from './_parts.jsx';
 import { SideSwitch } from '../../layouts/SideSwitch.jsx';
 import { openFeedback } from '../../ui/AppFeedback.jsx';
 import { useModules } from '../learn/_parts.jsx';
@@ -77,7 +77,9 @@ export default function Me() {
           const c = o.compliance || {};
           const siaTone = expiryTone(c.sia_days);
           const toSign = (contracts.data || []).filter((x) => x.status === 'sent');
-          const openTasks = (tasks.data || []).filter((t) => !t.done);
+          // The officer's own open steps; steps only the office can finish are listed apart and not counted
+          const openTasks = (tasks.data || []).filter((t) => !t.done && !t.office);
+          const officeTasks = (tasks.data || []).filter((t) => !t.done && t.office);
           const toFix = fix.data || [];
           return (
             <>
@@ -133,10 +135,10 @@ export default function Me() {
               {openTasks.length > 0 && (
                 <Section title="Getting set up" icon={ListChecks}>
                   <List>
-                    {(tasks.data || []).map((t) => (
-                      <Row key={t.code} to={!t.done && !t.office ? t.to : undefined} left={t.done ? <CircleCheck size={24} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
+                    {(tasks.data || []).filter((t) => t.done || !t.office).map((t) => (
+                      <Row key={t.code} to={!t.done ? t.to : undefined} left={t.done ? <CircleCheck size={24} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
                         title={<span className={cx(t.done && 'text-muted line-through')}>{t.done ? t.title : t.action || t.title}</span>}
-                        subtitle={t.done ? null : t.office ? t.waiting || 'Waiting on the office' : 'Tap to finish'} />
+                        subtitle={t.done ? null : 'Tap to finish'} />
                     ))}
                   </List>
                   <p className="mt-2 px-1 text-footnote text-muted"><ListChecks size={14} className="mr-1 inline" />Tap an item to finish it. Ticks appear as soon as it's done.</p>
@@ -163,10 +165,10 @@ export default function Me() {
               {openTasks.length > 0 && (
                 <Section title="Getting set up" icon={ListChecks}>
                   <List>
-                    {(tasks.data || []).map((t) => (
-                      <Row key={t.code} to={!t.done && !t.office ? t.to : undefined} left={t.done ? <CircleCheck size={24} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
+                    {(tasks.data || []).filter((t) => t.done || !t.office).map((t) => (
+                      <Row key={t.code} to={!t.done ? t.to : undefined} left={t.done ? <CircleCheck size={24} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
                         title={<span className={cx(t.done && 'text-muted line-through')}>{t.done ? t.title : t.action || t.title}</span>}
-                        subtitle={t.done ? null : t.office ? t.waiting || 'Waiting on the office' : 'Tap to finish'} />
+                        subtitle={t.done ? null : 'Tap to finish'} />
                     ))}
                   </List>
                   <p className="mt-2 px-1 text-footnote text-muted"><ListChecks size={14} className="mr-1 inline" />Tap an item to finish it. Ticks appear as soon as it's done.</p>
@@ -174,6 +176,7 @@ export default function Me() {
               )}
 
               </div>
+              <OfficeWaiting tasks={officeTasks} className="mt-6" />
 
               {/* The hub, in order: shifts, training, contracts, documents, profile and bank, pay, reports, time off */}
               <Section title="Work">

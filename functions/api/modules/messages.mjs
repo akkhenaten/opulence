@@ -16,6 +16,7 @@ import { REACTION_KINDS, PIN_MAX, MANAGER_ROLES, mentionable, cleanMentions, can
 import { officerReply, offerRespond, packReply } from './ops.mjs';
 import { ALL, def } from './_def.mjs';
 import { userName } from '../lib/names.mjs';
+import { shiftAccess } from './shiftlog.mjs';
 
 const PAGE = 40;
 const EDIT_MINUTES = 15;
@@ -112,6 +113,17 @@ const MSG_COLS = `m.id, m.conversation_id, m.body, m.attachments, m.quick, m.qui
 const oneMessage = (id) => one(`SELECT ${MSG_COLS} FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = $1`, [id]);
 
 const titleOf = (c, others) => c.title || (c.kind === 'direct' ? others[0]?.name : others.map((p) => p.name.split(' ')[0]).join(', ')) || KIND_LABEL[c.kind];
+
+/** The shift behind a shift chat, only when this person can open it; the lead's user id marks them in the member list. */
+async function threadShift(user, shiftId) {
+  if (!shiftId) return null;
+  const ax = await shiftAccess(user, shiftId).catch(() => null);
+  if (!ax) return null;
+  const lead = await one(
+    `SELECT o.user_id FROM shift_assignments a JOIN officers o ON o.id = a.officer_id
+      WHERE a.shift_id = $1 AND a.is_lead AND a.status IN ('assigned','accepted') LIMIT 1`, [shiftId]).catch(() => null);
+  return { id: ax.sh.id, venue_name: ax.sh.venue_name, starts_at: ax.sh.starts_at, ends_at: ax.sh.ends_at, lead_user_id: lead?.user_id || null };
+}
 
 /** A message the person can act on (member of its conversation, not deleted). */
 async function liveMessage(user, id) {
@@ -294,7 +306,7 @@ export const actions = {
     const brief = (r, extra) => ({ id: r.id, name: r.name, text: snippet(r), at: r.created_at, ...extra });
     return {
       conversation: {
-        ...c, title: titleOf(c, others), label: KIND_LABEL[c.kind] || null, muted: !!m?.muted, member: !!m, oversight: !!oversight,
+        ...c, title: titleOf(c, others), label: KIND_LABEL[c.kind] || null, shift: c.kind === 'shift' ? await threadShift(user, c.ref_id) : null, muted: !!m?.muted, member: !!m, oversight: !!oversight,
         can_add: c.kind === 'group' && !!m, can_leave: c.kind === 'group' && !!m,
         can_pin: canPin(user, c, !!m), can_confirm: !!m && canRequireConfirm(user, c), can_mention: mentionable(c.kind),
       },

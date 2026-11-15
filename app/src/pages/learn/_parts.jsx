@@ -124,3 +124,6 @@ export function useModules() {
   useEffect(() => { api('settings.get', {}).then((s) => setM(s.modules || {})).catch(() => setM({})); }, []);
   return m && { academy: m.academy !== false, toolbox: m.toolbox !== false, everyday: m.everyday !== false };
 }
+
+// "Required" only on a course assigned to this officer; a mandatory course nobody assigned says what it usually is
+export const requiredLabel = (mandatory, assigned) => (mandatory ? (assigned ? 'Required' : 'Usually required for door work') : null);

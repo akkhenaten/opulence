@@ -4,7 +4,7 @@ import { Award, BookOpen, BookOpenCheck, ChevronRight, GraduationCap, Layers, Sp
 import { useAuth } from '../../auth.jsx';
 import { cx, date, dateShort, Empty, List, Load, Page, Pressable, Row, SearchInput, Section, Spinner, Tile, useApi, usePullRefresh } from '../../ui/index.jsx';
 import { NotLinked, Progress } from '../officer/_parts.jsx';
-import { CATEGORIES, StatePill, TOPICS, useModules, useToolbox } from './_parts.jsx';
+import { CATEGORIES, requiredLabel, StatePill, TOPICS, useModules, useToolbox } from './_parts.jsx';
 import Suggest from './Suggest.jsx';
 import EmergencyEntry from '../guide/emergency/Entry.jsx';
 import FlowEntry from '../guide/flow/Entry.jsx';
@@ -129,7 +129,7 @@ function CourseRow({ c }) {
       title={c.title}
       subtitle={(
         <span className="flex items-center gap-2">
-          <span>{[TOPICS[c.topic], c.mandatory && 'Required', due].filter(Boolean).join(' · ')}</span>
+          <span>{[TOPICS[c.topic], requiredLabel(c.mandatory, !!c.assignment_id), due].filter(Boolean).join(' · ')}</span>
           {c.state === 'in_progress' && <Progress value={pct} max={1} className="!w-16" />}
         </span>
       )}

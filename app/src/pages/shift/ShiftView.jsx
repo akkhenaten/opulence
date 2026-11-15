@@ -149,7 +149,8 @@ function Body({ d, reload, role, live, preview }) {
             onNote={writable ? () => composer.current?.note() : null} onHandover={writable ? () => composer.current?.handover() : null} />
         )}
         {officer && <ReportTiles s={s} preview={preview} />}
-        {officer && !(live && !preview) && <QuickActions s={s} d={d} onBan={canEject ? () => setBanning(true) : null} />}
+        {officer && !(live && !preview) && <QuickActions s={s} d={d} onBan={canEject ? () => setBanning(true) : null}
+          onNote={writable && !preview ? () => composer.current?.note() : null} />}
         {manager && <ManagerActions s={s} d={d} role={role} />}
         {manager && <InstructionsCard d={d} reload={reload} />}
         {venue && started && <VenueActions s={s} />}
@@ -302,11 +303,13 @@ function LiveActions({ s, d, onBan, onNote, onHandover }) {
   );
 }
 
-function QuickActions({ s, d, onBan }) {
+// The note box sits low on the page, so "Add note" goes near the top and moves to it
+function QuickActions({ s, d, onBan, onNote }) {
   const open = reportWindow(s) === 'open';
-  if (!(open && onBan) && !d.thread_id) return null;
+  if (!(open && onBan) && !d.thread_id && !onNote) return null;
   return (
     <div className="flex flex-wrap gap-2">
+      {onNote && <Button variant="secondary" icon={NotebookPen} onClick={onNote}>Add note</Button>}
       {open && onBan && <Button variant="soft" icon={Ban} onClick={onBan}>Log ejection or ban</Button>}
       {d.thread_id && <Button variant="secondary" icon={MessagesSquare} to={`/officer/messages/${d.thread_id}`}>Shift chat</Button>}
     </div>
@@ -552,6 +555,14 @@ function Team({ team, venue }) {
   );
 }
 
+// Who signs off the log: the lead when there is one, else the office (managers can sign any log)
+export function signOffLine({ me, team = [] }) {
+  if (me.is_lead) return 'You lead this shift: you decide what stays in the log and sign it off at the end.';
+  const lead = team.find((m) => m.is_lead);
+  if (lead) return `${lead.name} leads this shift and signs off the log at the end.`;
+  return 'No lead on this shift: the office signs off the log.';
+}
+
 function LogSection({ d, reload, composer }) {
   const { me, log, entries } = d;
   const venue = me.access === 'venue';
@@ -561,6 +572,8 @@ function LogSection({ d, reload, composer }) {
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const removed = entries.filter((e) => e.state === 'removed').length;
+  const owner = signOffLine(d);
+  const clockedOut = (me.clock || []).some((c) => c.kind === 'out');
   const shown = entries.filter((e) => (showRemoved || e.state === 'kept') && (e.kind !== 'instruction' || me.access === 'mgr' || e.read_by_me || new Date(d.shift.ends_at) <= new Date()));
   const reopen = async () => {
     if (!(await confirm({ title: 'Reopen this log?', body: 'The lead can add and tidy entries again, then sign it off.', confirm: 'Reopen' }))) return;
@@ -581,9 +594,13 @@ function LogSection({ d, reload, composer }) {
         </div>
       )}
       {venue && !signed ? (
-        <Empty icon={FileSignature} title="Not signed off yet" body="You can read the log once the shift lead signs it off." />
+        <Empty icon={FileSignature} title="Not signed off yet" body={`You can read the log once it's signed off. ${owner}`} />
       ) : (
         <>
+          {!signed && <p className="mb-3 text-footnote text-muted">{owner}</p>}
+          {me.can_write && !signed && me.access !== 'mgr' && clockedOut && (
+            <p className="mb-3 rounded-xl bg-blue-soft px-3 py-2 text-footnote font-semibold text-blue">You've clocked out. You can still add notes until the log is signed off.</p>
+          )}
           {me.can_write && !signed && <Composer handle={composer} shiftId={d.shift.id} onAdded={reload} />}
           {!shown.length ? (
             <p className="py-4 text-center text-subhead text-muted">{signed ? 'Nothing was logged.' : 'Nothing logged yet. Notes, photos and anything the next team should know go here.'}</p>
@@ -594,9 +611,6 @@ function LogSection({ d, reload, composer }) {
           )}
           {me.can_curate && !signed && new Date(d.shift.starts_at) <= new Date() && (
             <Button className="mt-4 w-full" size="lg" icon={FileSignature} onClick={() => setSigning(true)}>Sign off and hand over</Button>
-          )}
-          {!me.can_curate && !signed && me.access !== 'venue' && (
-            <p className="mt-3 text-footnote text-muted">The shift lead decides what stays in the log and signs it off at the end.</p>
           )}
         </>
       )}

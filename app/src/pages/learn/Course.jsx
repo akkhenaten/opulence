@@ -6,7 +6,7 @@ import { useAuth } from '../../auth.jsx';
 import { Button, cx, date, dateTime, Load, Page, Pill, Pressable, Sheet, Tile, useApi } from '../../ui/index.jsx';
 import Chat from '../../ui/Chat.jsx';
 import { Progress } from '../officer/_parts.jsx';
-import { Lesson, Options, TOPICS } from './_parts.jsx';
+import { Lesson, Options, requiredLabel, TOPICS } from './_parts.jsx';
 import { Blocks, HeroImage } from './_blocks.jsx';
 
 export default function Course() {
@@ -18,7 +18,7 @@ export default function Course() {
   return (
     <Load q={q}>
       {(d) => (
-        <Page title={d.course.title} subtitle={[TOPICS[d.course.topic], d.course.mandatory && 'Required', d.due_date && `Due ${date(d.due_date)}`].filter(Boolean).join(' · ')} back={back}>
+        <Page title={d.course.title} subtitle={[TOPICS[d.course.topic], officer ? requiredLabel(d.course.mandatory, d.assigned) : d.course.mandatory && 'Required', d.due_date && `Due ${date(d.due_date)}`].filter(Boolean).join(' · ')} back={back}>
           {!officer && <div className="mb-3 rounded-2xl bg-amber-soft px-4 py-2.5 text-subhead font-semibold text-amber">Preview — this is what officers see{d.course.status !== 'published' && ' once it is published'}.</div>}
           <Body d={d} officer={officer} reload={q.reload} />
         </Page>

@@ -55,6 +55,19 @@ async function checkClient(t, role, clientId) {
 
 const withPhotos = (rows) => Promise.all(rows.map(async ({ photo_key, ...u }) => ({ ...u, ...(await photoUrls(photo_key)) })));
 
+// The audited record's name, looked up only when the id is a uuid (some entries carry other keys)
+const AUDIT_RECORD_NAME = `CASE WHEN a.entity_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN CASE a.entity
+    WHEN 'officer' THEN (SELECT ${officerName('o')} FROM officers o WHERE o.id = a.entity_id::uuid)
+    WHEN 'user' THEN (SELECT ${userName('x')} FROM users x WHERE x.id = a.entity_id::uuid)
+    WHEN 'venue' THEN (SELECT v.name FROM venues v WHERE v.id = a.entity_id::uuid)
+    WHEN 'invoice' THEN (SELECT COALESCE(NULLIF(i.number, ''), 'draft') || ' · ' || v.name FROM invoices i JOIN venues v ON v.id = i.venue_id WHERE i.id = a.entity_id::uuid)
+    WHEN 'statement' THEN (SELECT COALESCE(NULLIF(st.number, ''), 'draft') || ' · ' || ${officerName('o')} FROM statements st JOIN officers o ON o.id = st.officer_id WHERE st.id = a.entity_id::uuid)
+    WHEN 'incident' THEN (SELECT i.ref FROM incidents i WHERE i.id = a.entity_id::uuid)
+    WHEN 'document' THEN (SELECT d.title FROM documents d WHERE d.id = a.entity_id::uuid)
+    WHEN 'contract' THEN (SELECT c.title FROM contracts c WHERE c.id = a.entity_id::uuid)
+    WHEN 'shift' THEN (SELECT v.name || ' · ' || to_char(s.starts_at AT TIME ZONE 'Europe/London', 'Dy DD Mon') FROM shifts s JOIN venues v ON v.id = s.venue_id WHERE s.id = a.entity_id::uuid)
+  END END`;
+
 export const actions = {
   'users.list': def(CO, async (b) => withPhotos(await q(
     `SELECT u.id, u.email, u.name, u.goes_by, u.phone, u.role, COALESCE((SELECT o.photo_key FROM officers o WHERE o.user_id = u.id LIMIT 1), u.photo_key) AS photo_key, u.status, u.can_see_pay, u.last_login, u.created_at,
@@ -222,8 +235,9 @@ export const actions = {
 
   'users.managers': def(ALL, async () => q("SELECT id, name, role FROM users WHERE role IN ('company','security') AND status = 'active' ORDER BY name")),
 
+  // record_name: the name or number of the record (an invoice number, a person, a venue), when it still exists
   'audit.list': def(CO, async (b) => q(
-    `SELECT a.*, ${userName('u')} AS user_name FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
+    `SELECT a.*, ${userName('u')} AS user_name, ${AUDIT_RECORD_NAME} AS record_name FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
       WHERE ($1::text IS NULL OR a.entity = $1) AND ($2::text IS NULL OR a.entity_id = $2)
       ORDER BY a.created_at DESC LIMIT $3`, [b.entity || null, b.entity_id || null, Math.min(b.limit || 200, 500)])),
 };

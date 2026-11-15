@@ -11,7 +11,7 @@ import {
 } from '../../ui/index.jsx';
 import { useModules } from '../learn/_parts.jsx';
 import { ChaseBanner, OfferCard, useOps } from './_ops.jsx';
-import { clockOpensAt, DeclineSheet, expiryText, greeting, NotLinked, ShiftCard, sinceText, typeLabel, until, useNow } from './_parts.jsx';
+import { clockOpensAt, DeclineSheet, expiryText, greeting, NotLinked, OfficeWaiting, ShiftCard, sinceText, typeLabel, until, useNow } from './_parts.jsx';
 import { docKindFor, freshStatement, packTodos, weekendAsk } from './_todo.js';
 import { InstallCard } from '../../ui/pwa.jsx';
 import { PushCard } from './_notify.jsx';
@@ -106,7 +106,7 @@ function Body({ d, clock, ops, reload }) {
   const packs = packTodos(packsQ.data?.venues);
   const addFor = (kind) => `/officer/documents${kind ? `?add=${kind}` : ''}`;
   const paid = freshStatement(d.lastStatement);
-  const [todo, todoFails] = useToDo(d, packs);
+  const [todo, todoFails, waiting] = useToDo(d, packs);
   // A list that couldn't load says so here, so an empty To do doesn't read as "nothing to do"
   const fails = [[clock, 'your clock-in'], [packsQ, 'site packs to read'], ...todoFails];
   // Phones: the shifts to answer and the to-do list fold into one glowing bar, so the page stays short
@@ -178,6 +178,7 @@ function Body({ d, clock, ops, reload }) {
           </div>
         </AttentionDrawer>
       ))}
+      <OfficeWaiting tasks={waiting} />
 
       {confirmed.length > 1 && (
         <Section title="Also confirmed">
@@ -329,12 +330,13 @@ function useToDo(d, packs) {
     rows.push({ k: `d${i}`, to: `/officer/documents?add=${x.kind}`, icon: ShieldCheck, tone: n < 0 ? 'red' : 'amber', title: x.title, sub: n < 0 ? 'Expired: upload a new one' : `Expires ${date(x.expiry)}` });
   });
   const signing = rows.some((r) => r.icon === FileSignature);
-  (tasks.data || []).filter((t) => !t.done && !(signing && t.code === 'contract')).forEach((t) => rows.push(t.office
-    ? { k: `o${t.code}`, icon: ListChecks, tone: 'grey', title: t.action || t.title, sub: t.waiting || 'Waiting on the office' }
-    : { k: `o${t.code}`, to: t.to, icon: ListChecks, tone: 'blue', title: t.action || t.title, sub: 'Getting set up' }));
+  const open = (tasks.data || []).filter((t) => !t.done && !(signing && t.code === 'contract'));
+  open.filter((t) => !t.office).forEach((t) => rows.push({ k: `o${t.code}`, to: t.to, icon: ListChecks, tone: 'blue', title: t.action || t.title, sub: 'Getting set up' }));
+  // Office steps sit in their own group below, not in To do
+  const waiting = open.filter((t) => t.office);
   const fails = [[tasks, 'your set-up steps'], [contracts, 'your contracts'], [drafts, 'your draft reports'], [resign, 'reports to sign']];
   if (m?.academy) fails.push([learn, 'your training']);
-  return [rows, fails];
+  return [rows, fails, waiting];
 }
 
 function ToDo({ rows }) {

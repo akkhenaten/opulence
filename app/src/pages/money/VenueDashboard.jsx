@@ -122,7 +122,7 @@ function Body({ d, name }) {
           <Stat value={toSign} label={toSign === 1 ? 'Timesheet to sign' : 'Timesheets to sign'} tone="blue" hint="Please check and sign" />
         </Tile>}
         {Number(d.invoices.outstanding) > 0 && <Tile title="Invoices" icon={ReceiptText} to="/venue/invoices">
-          <Stat value={money(d.invoices.outstanding)} label="Outstanding" hint={`${d.invoices.count} invoice${d.invoices.count === 1 ? '' : 's'} · incl. VAT`} />
+          <Stat value={money(d.invoices.outstanding)} label="Outstanding" hint={`${d.invoices.count} invoice${d.invoices.count === 1 ? '' : 's'} · incl. VAT${d.invoices.credits ? ' · Credit notes are shown on Invoices' : ''}`} />
         </Tile>}
         {pendingCover > 0 && <Tile title="Cover" icon={Megaphone} to="/venue/rota?tab=requests">
           <Stat value={pendingCover} label="Requests awaiting reply" hint={`${d.cover.length} upcoming`} />

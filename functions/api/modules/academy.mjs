@@ -321,7 +321,7 @@ export const actions = {
     const retryAt = lastFail ? new Date(new Date(lastFail.submitted_at).getTime() + course.cooldown_hours * 3600000) : null;
     return {
       course, sections, questions, done_sections: progress?.done_sections || [],
-      certificate: extra?.certificate || null, last_attempt: extra?.last_attempt || null, due_date: extra?.due_date || null,
+      certificate: extra?.certificate || null, last_attempt: extra?.last_attempt || null, due_date: extra?.due_date || null, assigned: !!extra?.assignment_id,
       retry_at: retryAt && retryAt > new Date() ? retryAt : null,
     };
   }),

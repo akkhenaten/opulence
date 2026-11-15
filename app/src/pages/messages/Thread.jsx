@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowDown, BadgeCheck, Bell, BellOff, Check, CheckCheck, ChevronLeft, Copy, Eye, FileText, Flag, Megaphone, Mic, Newspaper, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Reply, Search, Trash2, UserPlus, Users, X, LogOut } from 'lucide-react';
+import { ArrowDown, BadgeCheck, CalendarClock, Bell, BellOff, Check, CheckCheck, ChevronLeft, Copy, Eye, FileText, Flag, Megaphone, Mic, Newspaper, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Reply, Search, Trash2, UserPlus, Users, X, LogOut } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { Composer } from '../../ui/Chat.jsx';
 import { RecordingBar, useRecorder, VoiceNote } from '../../ui/VoiceRecorder.jsx';
@@ -179,7 +179,12 @@ function ThreadHeader({ conv, members, base, onChanged, onSearch }) {
   const [run] = useAction();
   const { user } = useAuth();
   const others = members.filter((p) => p.id !== user.id && !p.system);
-  const sub = conv.label || (conv.kind === 'group' ? `${members.length} people` : ROLE_LABEL[others[0]?.role]);
+  // A shift chat says which shift it is and links to it (only when this person can open the shift)
+  const sh = conv.shift;
+  const sub = sh ? `${conv.label} · ${sh.venue_name} · ${dayLabel(sh.starts_at)}`
+    : conv.label || (conv.kind === 'group' ? `${members.length} people` : ROLE_LABEL[others[0]?.role]);
+  const portal = base.replace(/\/messages$/, '');
+  const shiftTo = sh && `${portal}/${user.role === 'venue' ? 'logs' : 'shifts'}/${sh.id}`;
   return (
     <div className="flex items-center gap-2 border-b border-line bg-surface/80 px-2 py-2 backdrop-blur sm:px-3">
       <IconButton icon={ChevronLeft} label="All messages" to={base} className="lg:hidden" />
@@ -190,6 +195,7 @@ function ThreadHeader({ conv, members, base, onChanged, onSearch }) {
           {sub && <div className="truncate text-caption text-muted">{sub}</div>}
         </div>
       </Pressable>
+      {shiftTo && <Button variant="ghost" size="sm" icon={CalendarClock} iconOnly="phone" to={shiftTo}>View shift</Button>}
       <IconButton icon={Search} label="Search in this conversation" onClick={onSearch} />
       {conv.member && <IconButton icon={conv.muted ? BellOff : Bell} label={conv.muted ? 'Turn notifications on' : 'Mute notifications'}
         onClick={() => run(async () => { await api('messages.mute', { id: conv.id, muted: !conv.muted }); onChanged(); }, conv.muted ? 'Notifications on' : 'Muted')} />}
@@ -231,7 +237,7 @@ function InfoSheet({ open, onClose, conv, members, base, onChanged }) {
             {p.system ? <ConvAvatar c={{ kind: 'ops' }} size={40} /> : <Avatar name={p.name} src={[p.photo_thumb_url, p.photo_url]} size={40} />}
             <div className="min-w-0 flex-1">
               <div className="truncate text-body font-semibold">{p.name}</div>
-              <div className="truncate text-footnote text-muted">{p.system ? 'Automatic assistant' : ROLE_LABEL[p.role]}</div>
+              <div className="truncate text-footnote text-muted">{p.system ? 'Automatic assistant' : conv.shift?.lead_user_id === p.id ? `${ROLE_LABEL[p.role]} · Shift lead` : ROLE_LABEL[p.role]}</div>
             </div>
           </div>
         ))}

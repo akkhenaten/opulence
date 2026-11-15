@@ -51,13 +51,13 @@ export function FeedbackTile({ multi, className = 'mb-4' }) {
   if (!list.length) return null;
   return (
     <Tile title="Rate your recent officers" icon={Star} className={className}>
-      <p className="-mt-1 mb-3 text-subhead text-muted">How did they do? It takes a few seconds and helps us send the right people.</p>
+      <p className="-mt-1 mb-3 text-subhead text-muted">How did they do? It takes a few seconds and helps us send the right people. You can rate staff for 7 days after a shift.</p>
       <div className="space-y-3">{list.slice(0, 3).map((s) => <ShiftRating key={s.shift_id} s={s} multi={multi} onDone={q.reload} />)}</div>
     </Tile>
   );
 }
 
-// Rate anyone who worked at your venue in the last week, without waiting to be asked
+// Rate anyone who worked at your venue in the last 7 days, without waiting to be asked
 export function RateStaffSheet({ open, onClose }) {
   const { venueId } = useVenue();
   const q = useApi('feedback.recentOfficers', { venue_id: venueId || undefined }, { skip: !open });
@@ -146,13 +146,13 @@ export function GiveFeedbackSheet({ open, onClose, venueId, shift, officerId, on
           </div>
           {v.about === 'staff' && (
             officers.length
-              ? <Select label="Who" value={v.officer_id} onChange={(e) => set('officer_id', e.target.value)} placeholder="Choose an officer"
+              ? <Select label="Who" hint="Staff from the last 30 days" value={v.officer_id} onChange={(e) => set('officer_id', e.target.value)} placeholder="Choose an officer"
                   options={officers.map((o) => ({ value: o.officer_id, label: `${o.name} · last here ${dayLabel(o.last_shift_at)}` }))} />
               : <p className="text-subhead text-muted">Nobody has worked here in the last 30 days.</p>
           )}
           {v.about === 'shift' && (
             shifts.length
-              ? <Select label="Which shift" value={v.shift_id} onChange={(e) => set('shift_id', e.target.value)} placeholder="Choose a shift"
+              ? <Select label="Which shift" hint="Shifts from the last 30 days" value={v.shift_id} onChange={(e) => set('shift_id', e.target.value)} placeholder="Choose a shift"
                   options={shifts.map((s) => ({ value: s.id, label: `${dayLabel(s.starts_at)} · ${range(s.starts_at, s.ends_at)} · ${s.role_name}` }))} />
               : <p className="text-subhead text-muted">No shifts here in the last 30 days.</p>
           )}

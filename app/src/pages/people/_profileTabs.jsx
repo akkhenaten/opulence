@@ -1186,7 +1186,7 @@ export function TrainingTab({ o, user, onForbidden }) {
                     </span>} />
                 ))}
               </List>
-            ) : <Empty title="No training yet" body="Assign courses from Training › Courses." />}
+            ) : <Empty title="No courses assigned or started" body="Nothing is checked until a course is passed. Assign one from Training › Courses." />}
           </Tile>
           <Tile title="Certificates" pad={false}>
             {certificates.length ? (
@@ -1197,7 +1197,7 @@ export function TrainingTab({ o, user, onForbidden }) {
                     right={c.expires_at ? <ExpiryPill date={c.expires_at} /> : <Pill tone="green">No expiry</Pill>} />
                 ))}
               </List>
-            ) : <Empty title="No certificates yet" />}
+            ) : <Empty title="No academy certificates" body="None passed here yet, so no training is shown as met. Certificates appear when they pass a course quiz." />}
           </Tile>
           <Tile title="Outside certificates" pad={false} className="lg:col-span-2"
             action={<Button size="sm" variant="soft" icon={Plus} onClick={() => setAdding(true)}>Add</Button>}>
