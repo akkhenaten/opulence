@@ -208,7 +208,7 @@ export default function Timesheets() {
         </Callout>
       )}
 
-      {wk && <WeekStrip wk={wk} health={health} see={see} filter={filter} setFilter={setFilter} isVenue={isVenue} />}
+      {wk && <WeekStrip wk={wk} health={health} see={see} filter={filter} setFilter={setFilter} isVenue={isVenue} toReview={toReview} />}
 
       {selectable.length > 0 && (
         <div className="mb-2 flex justify-end">
@@ -251,7 +251,7 @@ export default function Timesheets() {
 
 /* ---------- Week strip: totals and what still needs doing ---------- */
 
-function WeekStrip({ wk, health, see, filter, setFilter, isVenue }) {
+function WeekStrip({ wk, health, see, filter, setFilter, isVenue, toReview }) {
   const chips = [
     !isVenue && ['review', toReview, 'to review', 'amber', ClipboardCheck],
     ['queried', health.queried, 'queried', 'red', MessageSquareReply],
