@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, BookOpen, CalendarDays, Camera, CameraOff, Check, CheckCircle2, Coffee, Crosshair, History, Info, LocateFixed, LogIn, LogOut, MapPin, Nfc, RotateCcw, ScanFace, ScanLine, Smartphone,
+  AlertTriangle, BookOpen, CalendarDays, Camera, CameraOff, Check, CheckCircle2, Coffee, Crosshair, History, Home, Info, LocateFixed, LogIn, LogOut, MapPin, Nfc, RotateCcw, ScanFace, ScanLine, Smartphone,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -9,7 +9,7 @@ import { getPasskey } from '../../lib/passkey.js';
 import {
   Button, cx, dayLabel, Empty, Load, Page, Pressable, range, Section, Sheet, Spinner, Textarea, time, titleCase, useApi, useConfirm, useToast,
 } from '../../ui/index.jsx';
-import { CLOCK_EARLY_MIN, distanceM, NotLinked, until } from './_parts.jsx';
+import { CLOCK_EARLY_MIN, distanceM, NotLinked, until, useNow } from './_parts.jsx';
 import { RegisterStep } from './_phone.jsx';
 
 const STATE_LABEL = { not_started: 'Not clocked in', on_shift: 'On shift', on_break: 'On break', finished: 'Shift complete' };
@@ -21,12 +21,6 @@ const FLAG_NOTE = {
   face_check: 'Your selfie will be checked by a manager',
 };
 const KIND_LABEL = { in: 'Clocked in', out: 'Clocked out', break_start: 'Break started', break_end: 'Break ended' };
-
-function useNow(ms = 15000) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), ms); return () => clearInterval(t); }, [ms]);
-  return now;
-}
 
 function getPosition() {
   return new Promise((resolve, reject) => {
@@ -219,14 +213,20 @@ function ClockScreen({ data, reload }) {
             <p className="text-center text-footnote text-muted">{tooEarly ? `You can clock in from ${time(opensAt)}.` : `Your phone, plus ${need === 3 ? 'all 3' : need === 1 ? 'any 1' : '2 of 3'}: location, venue code (QR or NFC tag), selfie.`}</p>
           </>
         )}
+        {a.cancelled && state !== 'finished' && (
+          <div className="flex gap-2.5 rounded-2xl bg-amber-soft px-4 py-3 text-subhead text-ink"><AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber" /><p className="min-w-0">This shift was cancelled by the office. Clock out when you leave.</p></div>
+        )}
         {state === 'on_shift' && (
           <>
             <Button size="lg" variant="dark" icon={LogOut} className="h-16 w-full text-headline" onClick={startOut}>Clock out</Button>
-            <Button size="lg" variant="secondary" icon={Coffee} className="w-full" busy={busy} onClick={() => punch('break_start')}>Start break</Button>
+            {!a.cancelled && <Button size="lg" variant="secondary" icon={Coffee} className="w-full" busy={busy} onClick={() => punch('break_start')}>Start break</Button>}
           </>
         )}
         {state === 'on_break' && (
           <Button size="lg" icon={Coffee} className="h-16 w-full text-headline" busy={busy} onClick={() => punch('break_end')}>End break</Button>
+        )}
+        {(state === 'on_shift' || state === 'on_break') && (
+          <Button size="lg" variant="plain" icon={Home} className="w-full" to="/officer">You're on shift · open your shift card</Button>
         )}
         {state === 'finished' && <Button size="lg" variant="secondary" className="w-full" to="/officer">Back to home</Button>}
       </div>

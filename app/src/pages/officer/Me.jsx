@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  BadgeCheck, Bell, BookOpen, Download, MessageCircleWarning, Globe, Target, CalendarOff, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
+  BadgeCheck, Bell, BookOpen, CalendarDays, Download, GraduationCap, MessageCircleWarning, Globe, Target, CalendarOff, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -13,6 +13,7 @@ import { InstallSheet, usePwa } from '../../ui/pwa.jsx';
 import { expiryText, expiryTone, NotLinked } from './_parts.jsx';
 import { SideSwitch } from '../../layouts/SideSwitch.jsx';
 import { openFeedback } from '../../ui/AppFeedback.jsx';
+import { useModules } from '../learn/_parts.jsx';
 
 const ICON_TONE = { blue: 'bg-blue text-white', green: 'bg-green text-white', amber: 'bg-amber text-white', red: 'bg-red text-white', grey: 'bg-faint text-white', ink: 'bg-ink text-white' };
 const Ico = ({ icon: I, tone = 'blue' }) => <span className={cx('grid h-8 w-8 place-items-center rounded-lg', ICON_TONE[tone])}><I size={18} /></span>;
@@ -30,6 +31,7 @@ export default function Me() {
   const tasks = useApi('onboarding.tasks', {}, { skip: !linked });
   const fix = useApi('incidents.list', { status: 'changes_requested' }, { skip: !linked });
   const fb = useApi('appFeedback.status', {});
+  const m = useModules();
 
   // Set-up links can point at a section (e.g. #contracts) once its data is in
   const { hash } = useLocation();
@@ -173,7 +175,14 @@ export default function Me() {
 
               </div>
 
-              {/* Training lives on the Learn tab */}
+              {/* The hub, in order: shifts, training, contracts, documents, profile and bank, pay, reports, time off */}
+              <Section title="Work">
+                <List>
+                  <Row to="/officer/shifts" left={<Ico icon={CalendarDays} />} title="My shifts" subtitle="Coming up, offers, open shifts and past shifts" />
+                  {m && (m.academy || m.toolbox) && <Row to="/officer/learn" left={<Ico icon={GraduationCap} tone="green" />} title="Training" subtitle="Courses and certificates" />}
+                </List>
+              </Section>
+
               {(contracts.data || []).length > 0 && (
                 <Section title="Contracts">
                   <span id="contracts" className="block scroll-mt-24" />
@@ -197,12 +206,12 @@ export default function Me() {
               <Section title="Me">
                 <List>
                   <Row to="/officer/documents" left={<Ico icon={BadgeCheck} tone="green" />} title="Documents and licence" subtitle="SIA licence, right to work, certificates" />
+                  <Row to="/officer/profile" left={<Ico icon={UserRound} />} title="Profile and bank" subtitle="Contact details, bank and your rates" />
                   <Row to="/officer/pay" left={<Ico icon={FileText} />} title="Pay" subtitle="Your pay statements" />
-                  <Row to="/officer/profile" left={<Ico icon={UserRound} />} title="My details" subtitle="Contact details, bank and your rates" />
+                  <Row to="/officer/incidents" left={<Ico icon={ShieldAlert} tone="red" />} title="Reports" subtitle="Incident reports and ejections you logged" right={toFix.length ? <Pill tone="amber">{toFix.length} to fix</Pill> : null} />
                   <Row to="/officer/time-off" left={<Ico icon={CalendarOff} tone="ink" />} title="Time off and availability" />
                 </List>
                 <List className="mt-3">
-                  <Row to="/officer/incidents" left={<Ico icon={ShieldAlert} tone="red" />} title="My reports" subtitle="Incident reports and ejections you logged" right={toFix.length ? <Pill tone="amber">{toFix.length} to fix</Pill> : null} />
                   <Row to="/officer/me/growth" left={<Ico icon={Target} tone="green" />} title="Goals and one-to-ones" subtitle="What you're working on, notes and pay rises" />
                 </List>
               </Section>

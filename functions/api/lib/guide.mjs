@@ -360,7 +360,7 @@ AI features use credits from your plan. The usage is shown in Settings.`,
         id: 'home', title: 'Your home screen', image: 'officer-home.png',
         body: `The app has four tabs at the bottom: Home, Shifts, Learn and Me.
 
-Home shows what you need to answer first (offers, shifts to confirm and your To do list), then what's booked, open shifts you can pick up, and any warnings (for example a licence about to expire). From 15 minutes before your shift, Home becomes your shift card: clock in there, then use the log, the report tiles and Log ejection or ban.
+Home shows what you need to answer first (offers, shifts to confirm and your To do list), then what's booked, open shifts you can pick up, and any warnings (for example a licence about to expire). Cover offers sit under Needs your answer with Accept and Decline. From 15 minutes before your shift, Home becomes your shift card: clock in there. Once you're in, the top of Home shows how long you've been on shift with Start break, End break and Clock out, and under it four buttons: Report incident, Log ejection, Add log entry and Handover. If the office cancels a shift you are clocked into, Home says so and you can still clock out.
 
 Back always takes you to where you came from.`,
       },
@@ -372,13 +372,13 @@ Back always takes you to where you came from.`,
         id: 'clock', title: 'Clock in and out', image: 'officer-clock.png',
         body: `1. Clock in from the shift card on Home (or on the shift page). Clock-in opens 15 minutes before your shift.
 2. Allow location when asked, then Scan QR code (the venue poster).
-3. Use Start break and End break during the shift, and Clock out at the end.
+3. Use Start break and End break during the shift (on Home or here), and Clock out at the end.
 
 If the app can't confirm you're on site, tap Continue anyway, add a note and Submit as exception. It goes to your supervisor to approve.`,
       },
       {
         id: 'report', title: 'Report an incident',
-        body: `Reports start from the shift. While you are clocked in, Home is your shift card: tap a report tile (Ejection / refused entry, Injury / first aid, Damage, Theft or Other) or Log ejection or ban there. A report you start saves itself as a draft and waits on the shift page until you finish it. For a shift that has finished, open it from Shifts, then List (up to 30 days back). Follow the steps: what happened, people, injuries, police or ambulance, force, witnesses and photos. Managers and the venue are alerted straight away. If your manager asks for changes, the report appears in your To do list on Home. Me, then Reports, lists every incident report and ejection you have logged.`,
+        body: `Reports start from the shift. While you are clocked in, Home is your shift card: tap a report tile (Ejection / refused entry, Injury / first aid, Damage, Theft or Other) or Log ejection or ban there. A report you start saves itself as a draft and waits on the shift page until you finish it. For a shift that has finished, go to Shifts, then Past: shifts from the last 30 days have Report incident and Log ejection buttons. An ejection logged after the shift is marked as logged late. If it should be a ban too, ask the office. Follow the steps: what happened, people, injuries, police or ambulance, force, witnesses and photos. Managers and the venue are alerted straight away. If your manager asks for changes, the report appears in your To do list on Home. Me, then Reports, lists every incident report and ejection you have logged.`,
       },
       {
         id: 'me', title: 'Pay, time off, training and documents',

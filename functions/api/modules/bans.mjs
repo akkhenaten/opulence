@@ -10,7 +10,7 @@ import { cleanFiles } from '../lib/files.mjs';
 import { addDays, fmtDate, londonDate } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { def } from './_def.mjs';
-import { shiftAccess } from './shiftlog.mjs';
+import { shiftAccess, lateEjectionOk, LATE_EJECTION_DAYS } from './shiftlog.mjs';
 import { userName } from '../lib/names.mjs';
 
 const PURGE_DAYS = 90;
@@ -91,6 +91,14 @@ export function fields(b, today, now = new Date()) {
   return { ...shared, starts_on: starts, ends_on: ends, scope };
 }
 
+// After the shift only the ejection itself can be logged; a ban on top goes through the office
+export function lateCheck(late, f) {
+  if (late && f.kind === 'ban') fail(403, 'After the shift you can log the ejection. Ask the office if they should be banned too.');
+}
+
+// The officer's own ejections, refusals and bans: the ones they logged
+export const MINE_SQL = `SELECT ${COLS} FROM ${FROM} WHERE b.proposed_by = $1 ORDER BY COALESCE(b.occurred_at, b.created_at) DESC LIMIT 200`;
+
 // A venue client can ban across its own venues, not across other clients'
 function checkScope(user, f) {
   if (f.scope === 'all' && user.role === 'venue') fail(403, 'Only the security company can ban someone from every venue');
@@ -132,28 +140,30 @@ export const actions = {
   }),
 
   /** An officer's own ejections, refusals and bans, newest first: the look-back list on their Reports page */
-  'bans.mine': def(['officer'], async (b, { user }) => q(
-    `SELECT ${COLS} FROM ${FROM} WHERE b.proposed_by = $1 ORDER BY COALESCE(b.occurred_at, b.created_at) DESC LIMIT 200`, [user.id]).then((rows) => Promise.all(rows.map(shape)))),
+  'bans.mine': def(['officer'], async (b, { user }) => q(MINE_SQL, [user.id]).then((rows) => Promise.all(rows.map(shape)))),
 
   /** From the shift page: someone on the shift proposes; if they lead the shift it is active straight away. */
   'bans.propose': def(['officer', 'company', 'security'], async (b, { user }) => {
     required(b, 'shift_id');
     const ax = await shiftAccess(user, b.shift_id);
-    if (!ax.canWrite) fail(403, 'You can add bans while the shift is on');
+    const late = !ax.canWrite && lateEjectionOk(ax);
+    if (!ax.canWrite && !late) fail(403, `You can log an ejection up to ${LATE_EJECTION_DAYS} days after your shift`);
     const today = londonDate(new Date());
     const f = fields(b, today);
+    lateCheck(late, f);
     checkScope(user, f);
     const isBan = f.kind === 'ban';
     // An ejection is a record, so it is never waiting on anyone; a ban from someone not leading the shift is proposed
     const direct = !isBan || ax.access === 'lead' || ax.access === 'mgr';
     const key = await photoKey(user, b);
     const ban = await one(INSERT, insertVals(ax.sh.venue_id, f, key, direct ? 'active' : 'proposed', user, direct, b.shift_id));
-    // It also goes in the shift log so the night's record is complete
+    // It also goes in the shift log so the night's record is complete; a log already signed off stays as signed
     await q('INSERT INTO shift_logs (shift_id) VALUES ($1) ON CONFLICT DO NOTHING', [b.shift_id]);
+    const signed = late && (await one('SELECT status FROM shift_logs WHERE shift_id = $1', [b.shift_id]))?.status === 'signed';
     const kind = f.outcome ? 'ejection' : 'ban';
     const banText = isBan ? `Ban ${direct ? 'added' : 'proposed'}: ${label(f)} (${length(f)}).` : '';
-    const body = f.outcome ? `${what(f)}: ${label(f)}. ${f.reason}${banText ? ` ${banText}` : ''}` : `${banText} ${f.reason}`;
-    const entry = b.entry_id
+    const body = f.outcome ? `${late ? 'Logged after the shift. ' : ''}${what(f)}: ${label(f)}. ${f.reason}${banText ? ` ${banText}` : ''}` : `${banText} ${f.reason}`;
+    const entry = signed ? null : b.entry_id
       ? await one('UPDATE shift_log_entries SET ban_id = $2, kind = $4 WHERE id = $1 AND shift_id = $3 RETURNING id', [b.entry_id, ban.id, b.shift_id, kind])
       : await one('INSERT INTO shift_log_entries (shift_id, author_user_id, kind, body) VALUES ($1,$2,$3,$4) RETURNING id',
         [b.shift_id, user.id, kind, body]);

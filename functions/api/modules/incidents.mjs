@@ -40,6 +40,11 @@ export function lateDays(inc) {
 }
 export const withinBackdate = (at, now = Date.now()) => now - new Date(at) <= OFFICER_BACKDATE_DAYS * DAY;
 
+// Officers' reports start from the shift card, so they always carry the shift
+export function requireShift(user, shiftId) {
+  if (user.role === 'officer' && !shiftId) fail(400, 'Open the shift and report from there');
+}
+
 // The officer's shift around the incident time (2 hours either side), within the last 30 days
 async function officerShift(officerId, shiftId, venueId, at) {
   if (!withinBackdate(at)) fail(400, `You can only report incidents from the last ${OFFICER_BACKDATE_DAYS} days. Ask the office to file anything older.`);
@@ -279,8 +284,7 @@ export const actions = {
     let shiftId = b.shift_id || null;
     if (user.role === 'officer') {
       if (!officerId) fail(403, 'Officer profile not linked');
-      // Reports start from the shift card
-      if (!shiftId) fail(400, 'Open the shift and report from there');
+      requireShift(user, shiftId);
       // Officer must be (or have been) rostered at the venue around the incident time
       const a = await officerShift(officerId, shiftId, venueId, b.occurred_at);
       venueId = a.venue_id;

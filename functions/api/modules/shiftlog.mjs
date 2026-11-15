@@ -42,6 +42,14 @@ export async function shiftAccess(user, shiftId) {
   return { sh, a: null, access: 'mgr', canWrite: true };
 }
 
+// After the log closes, an officer can still log an ejection on their own shift for 30 days, like an incident report
+export const LATE_EJECTION_DAYS = 30;
+export const lateEjectionOk = (ax, now = Date.now()) => {
+  if (!ax.a) return false;
+  const gap = now - new Date(ax.sh.ends_at);
+  return gap > 0 && gap <= LATE_EJECTION_DAYS * 86400e3;
+};
+
 const canCurate = (ax) => ax.access === 'mgr' || (ax.access === 'lead' && ax.canWrite);
 
 /**
@@ -152,7 +160,8 @@ export const actions = {
         venue_phone: sh.venue_phone, instructions: sh.instructions, role: sh.role, role_name: sh.role_name, starts_at: sh.starts_at, ends_at: sh.ends_at,
         break_minutes: sh.break_minutes, headcount: sh.headcount, notes: sh.notes, notes_updated_at: sh.notes_updated_at, status: sh.status,
       },
-      me: { access: ax.access, can_write: ax.canWrite && log.status === 'open' || ax.access === 'mgr', can_curate: canCurate(ax), assignment_id: ax.a?.id || null, assignment_status: ax.a?.status || null, is_lead: !!ax.a?.is_lead, clock,
+      me: { access: ax.access, can_write: ax.canWrite && log.status === 'open' || ax.access === 'mgr', can_curate: canCurate(ax),
+        can_eject_late: !(ax.canWrite && log.status === 'open') && lateEjectionOk(ax), assignment_id: ax.a?.id || null, assignment_status: ax.a?.status || null, is_lead: !!ax.a?.is_lead, clock,
         can_instruct: ax.access === 'mgr' && canSendInstruction(sh),
         can_count: canCount({ access: ax.access, endsAt: sh.ends_at, clockedIn: clock.some((c) => c.kind === 'in' && ['ok', 'approved', 'manual'].includes(c.status)) }) },
       team: await Promise.all(team.map(async ({ photo_key, phone, roles, user_id, ...m }) => ({

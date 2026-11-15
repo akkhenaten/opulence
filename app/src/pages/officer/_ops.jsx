@@ -52,7 +52,7 @@ export function ChaseBanner({ ops }) {
   );
 }
 
-function OfferCard({ o, onDone }) {
+export function OfferCard({ o, onDone }) {
   const [run, busy] = useAction();
   const respond = (accept) => run(() => api('ops.offerRespond', { offer_id: o.id, accept }), accept ? 'Shift is yours' : 'Declined').then(onDone).catch(onDone);
   const open = o.status === 'offered';

@@ -102,7 +102,8 @@ const OUTCOMES = [{ value: 'ejected', label: 'Ejected' }, { value: 'refused_entr
 // edit (ban → bans.update); or upgrade a logged ejection to a ban (escalate → bans.escalate).
 // banOnly: the office adding a ban straight to the register, without an ejection behind it
 // venues: a manager looking at "All venues" picks which one this is for
-export function BanSheet({ open, onClose, onDone, shiftId, venueId: fixedVenue, venues, ban, escalate, direct, banOnly }) {
+// late: an officer logging after their shift (up to 30 days): the ejection only, timed during the shift by default
+export function BanSheet({ open, onClose, onDone, shiftId, venueId: fixedVenue, venues, ban, escalate, direct, banOnly, late, lateAt }) {
   const { user } = useAuth();
   const [where, setWhere] = useState('');
   const askVenue = !fixedVenue && !shiftId && !ban && !escalate && venues?.length > 1;
@@ -110,7 +111,7 @@ export function BanSheet({ open, onClose, onDone, shiftId, venueId: fixedVenue, 
   const today = isoDate();
   const src = ban || escalate;
   const [f, setF] = useState(() => ({
-    outcome: src?.outcome || 'ejected', occurred_at: toLocalInput(src?.occurred_at || new Date()), category: src?.category || '',
+    outcome: src?.outcome || 'ejected', occurred_at: toLocalInput(src?.occurred_at || (late && lateAt ? new Date(lateAt) : new Date())), category: src?.category || '',
     name: src?.name || '', description: src?.description || '', reason: src?.reason || '',
     ban: !!escalate || banOnly || (ban ? !isEjection(ban) : false), scope: src?.scope || 'venue',
     starts_on: ban?.starts_on?.slice(0, 10) || today, length: ban && !isEjection(ban) ? (ban.ends_on ? 'custom' : 'perm') : '30', ends_on: ban?.ends_on?.slice(0, 10) || '',
@@ -200,7 +201,8 @@ export function BanSheet({ open, onClose, onDone, shiftId, venueId: fixedVenue, 
           <Input label="Name" placeholder="If known" value={f.name} onChange={set('name')} />
           <Textarea label="What they look like" rows={2} placeholder="e.g. Tall, shaved head, red puffer jacket" value={f.description} onChange={set('description')} />
           <Textarea label="What happened" rows={3} placeholder="e.g. Aggressive to door staff, refused to leave" value={f.reason} onChange={set('reason')} />
-          {ejection && !ban && <Toggle checked={f.ban} onChange={(v) => setF((x) => ({ ...x, ban: v }))} label="Also ban this person" hint="Stop them coming back for a while, here or across venues" />}
+          {late && <p className="text-footnote text-muted">Logged after the shift. If they should be banned too, ask the office.</p>}
+          {ejection && !ban && !late && <Toggle checked={f.ban} onChange={(v) => setF((x) => ({ ...x, ban: v }))} label="Also ban this person" hint="Stop them coming back for a while, here or across venues" />}
           {f.ban && banSection}
         </div>
       )}

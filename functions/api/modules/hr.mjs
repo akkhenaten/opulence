@@ -42,10 +42,14 @@ export const profileDone = (o) => [
   filled(o.bank_sort_code, o.bank_account, o.utr) && 'bank',
   filled(o.sia_number, o.sia_expiry) && 'sia',
 ].filter(Boolean);
+// Document items tick from what is on file too, so uploads from before the checklist ticked count
+const DOC_ITEMS = ['rtw', 'id', 'poa'];
+export const docsDone = (kinds) => DOC_ITEMS.filter((k) => kinds.includes(k));
 export async function syncOnboarding(officerId) {
   const o = await one('SELECT * FROM officers WHERE id = $1', [officerId]);
   if (!o) return;
-  for (const code of profileDone(o)) await tickOnboarding(officerId, code);
+  const docs = await q("SELECT DISTINCT kind FROM documents WHERE owner_type = 'officer' AND owner_id = $1 AND kind = ANY($2)", [officerId, DOC_ITEMS]);
+  for (const code of [...profileDone(o), ...docsDone(docs.map((d) => d.kind))]) await tickOnboarding(officerId, code);
 }
 
 // What an open step asks for (the stored title says what it looks like once done)

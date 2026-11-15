@@ -118,8 +118,9 @@ export function ShiftPanel({ id }) {
 
 function Body({ d, reload, role, live, preview }) {
   const { shift: s, me, team, log } = d;
-  const [banning, setBanning] = useState(false);
   const loc = useLocation();
+  // A past shift card's "Log ejection" lands here with ?eject=1 and opens the sheet straight away
+  const [banning, setBanning] = useState(() => new URLSearchParams(loc.search).get('eject') === '1');
   // "Add handover note" sets the composer to handover and moves to it
   const composer = useRef(null);
   const venue = me.access === 'venue';
@@ -130,6 +131,10 @@ function Body({ d, reload, role, live, preview }) {
   const proposed = d.bans.filter((b) => b.status === 'proposed');
   // Tonight's ejections that are not bans (those show under "Banned here")
   const tonight = (d.ejections || []).filter(isEjection);
+  // While the log is open anyone on it logs ejections; after it, the officer's own shift takes them for 30 days
+  const canEject = (me.can_write && !signed) || !!me.can_eject_late;
+  const late = !(me.can_write && !signed) && !!me.can_eject_late;
+  const writable = me.can_write && !signed;
 
   return (
     // Two columns only when the page itself is wide enough (the officer app stays one column on a desktop)
@@ -139,8 +144,12 @@ function Body({ d, reload, role, live, preview }) {
         {/* The Emergency flowchart on every shift card, for everyone who can open it; Leave comes back here */}
         <FlowEntry shift from={loc.pathname + loc.search} />
         {officer && <PinnedInstructions d={d} reload={reload} />}
+        {officer && live && !preview && (
+          <LiveActions s={s} d={d} onBan={canEject ? () => setBanning(true) : null}
+            onNote={writable ? () => composer.current?.note() : null} onHandover={writable ? () => composer.current?.handover() : null} />
+        )}
         {officer && <ReportTiles s={s} preview={preview} />}
-        {officer && <QuickActions s={s} d={d} onBan={me.can_write && !signed ? () => setBanning(true) : null} />}
+        {officer && !(live && !preview) && <QuickActions s={s} d={d} onBan={canEject ? () => setBanning(true) : null} />}
         {manager && <ManagerActions s={s} d={d} role={role} />}
         {manager && <InstructionsCard d={d} reload={reload} />}
         {venue && started && <VenueActions s={s} />}
@@ -155,7 +164,7 @@ function Body({ d, reload, role, live, preview }) {
       <div className="space-y-5">
         <Team team={team} venue={venue} />
         {!venue || d.bans.length || tonight.length ? (
-          <Section title="Ejections & bans" icon={Ban} action={me.can_write && !signed && <Button size="sm" variant="soft" icon={Plus} onClick={() => setBanning(true)}>Log ejection</Button>}>
+          <Section title="Ejections & bans" icon={Ban} action={canEject && <Button size="sm" variant="soft" icon={Plus} onClick={() => setBanning(true)}>Log ejection</Button>}>
             {proposed.length > 0 && me.can_curate && <p className="mb-2 text-footnote font-semibold text-amber">{proposed.length} waiting for you to confirm</p>}
             {tonight.length > 0 && (
               <div className="mb-4">
@@ -180,7 +189,7 @@ function Body({ d, reload, role, live, preview }) {
           </Section>
         )}
       </div>
-      {banning && <BanSheet open shiftId={s.id} direct={me.can_curate} onClose={() => setBanning(false)} onDone={() => { setBanning(false); reload(); }} />}
+      {banning && canEject && <BanSheet open shiftId={s.id} direct={me.can_curate} late={late} lateAt={s.ends_at} onClose={() => setBanning(false)} onDone={() => { setBanning(false); reload(); }} />}
     </div></div>
   );
 }
@@ -278,6 +287,20 @@ const reportWindow = (s) => {
   if (Date.now() - new Date(s.ends_at).getTime() >= 30 * 86400000) return 'closed';
   return 'open';
 };
+
+// The live shift card's four jobs, on top where the thumb is; the shift chat sits with them
+function LiveActions({ s, d, onBan, onNote, onHandover }) {
+  const open = reportWindow(s) === 'open';
+  return (
+    <div className="grid grid-cols-2 gap-2 @lg:grid-cols-4">
+      <Button variant="soft" icon={ShieldAlert} disabled={!open} to={open ? `/officer/incidents/new?shift=${s.id}` : undefined}>Report incident</Button>
+      <Button variant="soft" icon={Ban} disabled={!onBan} onClick={onBan || undefined}>Log ejection</Button>
+      <Button variant="secondary" icon={NotebookPen} disabled={!onNote} onClick={onNote || undefined}>Add log entry</Button>
+      <Button variant="secondary" icon={ArrowRightLeft} disabled={!onHandover} onClick={onHandover || undefined}>Handover</Button>
+      {d.thread_id && <Button variant="plain" className="col-span-2 @lg:col-span-4" icon={MessagesSquare} to={`/officer/messages/${d.thread_id}`}>Shift chat</Button>}
+    </div>
+  );
+}
 
 function QuickActions({ s, d, onBan }) {
   const open = reportWindow(s) === 'open';
@@ -608,6 +631,11 @@ function Composer({ handle, shiftId, onAdded }) {
   const [kind, setKind] = useState('note');
   const box = useRef(null);
   useImperativeHandle(handle, () => ({
+    note: () => {
+      setKind('note');
+      box.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => box.current?.querySelector('textarea')?.focus({ preventScroll: true }), 300);
+    },
     handover: () => {
       setKind('handover');
       box.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });

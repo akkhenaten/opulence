@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { OffersList, useOps } from './_ops.jsx';
-import { CalendarDays, CalendarOff, Check, ChevronRight, Hand, History, Info, ListIcon, Megaphone, X } from 'lucide-react';
+import { Ban, CalendarDays, CalendarOff, Check, ChevronRight, FileWarning, Hand, History, Info, ListIcon, Megaphone, X } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  addDays, Button, Empty, isoDate, Load, MoreMenu, Page, Section, Spinner, Tabs, time, useAction, useApi, useConfirm, usePullRefresh, useUrlState,
+  addDays, Button, cx, Empty, isoDate, Load, MoreMenu, Page, Section, Spinner, Tabs, time, useAction, useApi, useConfirm, usePullRefresh, useUrlState,
 } from '../../ui/index.jsx';
 import { ASSIGN_LABEL, assignTone, DeclineSheet, NotLinked, ShiftCard } from './_parts.jsx';
 import ShiftCalendar from './ShiftCalendar.jsx';
+import { BACKDATE_DAYS } from '../shared/incident/Props.jsx';
 
 export default function Shifts() {
   const { user } = useAuth();
@@ -130,13 +131,23 @@ function Mine() {
   );
 }
 
-// A shift that has ended: when the officer clocked in and out, and a way to report on it while that's still allowed
+// A shift that has ended: when the officer clocked in and out, and Report incident / Log ejection while that's still allowed
 function PastCard({ s, now }) {
   const ins = (s.clock || []).filter((e) => e.kind === 'in' && e.status !== 'rejected');
   const outs = (s.clock || []).filter((e) => e.kind === 'out' && e.status !== 'rejected');
   const worked = ins.length ? `Worked ${time(ins[0].ts)}${outs.length ? `–${time(outs.at(-1).ts)}` : ''}` : 'No clock-in recorded';
-  const canReport = now - new Date(s.ends_at).getTime() < 30 * 86400000;
-  return <ShiftCard s={s} to={`/officer/shifts/${s.id}`} status={ins.length ? 'Worked' : 'Not clocked'} statusTone={ins.length ? 'grey' : 'amber'}><p className="mt-2 text-footnote text-muted">{worked}{canReport && <span className="font-semibold text-blue"> · Report or log an ejection ›</span>}</p></ShiftCard>;
+  const canReport = now - new Date(s.ends_at).getTime() < BACKDATE_DAYS * 86400000;
+  const card = <ShiftCard s={s} to={`/officer/shifts/${s.id}`} status={ins.length ? 'Worked' : 'Not clocked'} statusTone={ins.length ? 'grey' : 'amber'} className={cx(canReport && '!rounded-b-none !border-b-0 !shadow-none')}><p className="mt-2 text-footnote text-muted">{worked}</p></ShiftCard>;
+  if (!canReport) return card;
+  return (
+    <div className="rounded-tile shadow-tile">
+      {card}
+      <div className="grid grid-cols-2 gap-2 rounded-b-tile border border-t-0 border-hairline bg-surface px-4 pb-4">
+        <Button size="sm" variant="soft" icon={FileWarning} to={`/officer/incidents/new?shift=${s.id}`}>Report incident</Button>
+        <Button size="sm" variant="soft" icon={Ban} to={`/officer/shifts/${s.id}?eject=1`}>Log ejection</Button>
+      </div>
+    </div>
+  );
 }
 
 // Past shifts, newest first: the last 6 weeks, and older ones 6 weeks at a time

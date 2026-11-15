@@ -77,10 +77,14 @@ async function myAssignments(officerId) {
   return q(
     `SELECT a.id AS assignment_id, a.status AS assignment_status, s.id AS shift_id, s.starts_at, s.ends_at, s.role, s.break_minutes,
             v.id AS venue_id, v.name AS venue_name, v.address, v.postcode, v.lat, v.lng, v.radius_m, v.instructions, v.proof_rule, r.name AS role_name,
-            COALESCE((SELECT json_agg(json_build_object('id', id, 'kind', kind, 'ts', ts, 'status', status) ORDER BY ts) FROM clock_events ce WHERE ce.assignment_id = a.id), '[]') AS events
+            COALESCE((SELECT json_agg(json_build_object('id', id, 'kind', kind, 'ts', ts, 'status', status) ORDER BY ts) FROM clock_events ce WHERE ce.assignment_id = a.id), '[]') AS events,
+            NOT (a.status IN ('assigned','accepted') AND s.status = 'published') AS cancelled
        FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role
-      WHERE a.officer_id = $1 AND a.status IN ('assigned','accepted') AND s.status = 'published'
-        AND s.starts_at < now() + interval '18 hours' AND s.ends_at > now() - interval '6 hours'
+      WHERE a.officer_id = $1 AND s.starts_at < now() + interval '18 hours' AND s.ends_at > now() - interval '6 hours'
+        -- A shift cancelled while they are clocked in stays, so they can still clock out
+        AND ((a.status IN ('assigned','accepted') AND s.status = 'published')
+          OR (EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')
+            AND NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'out' AND ce.status <> 'rejected')))
       ORDER BY s.starts_at`, [officerId]);
 }
 
@@ -112,6 +116,7 @@ export const actions = {
     const state = stateOf(a.events);
     const allowed = { not_started: ['in'], on_shift: ['out', 'break_start'], on_break: ['break_end'], finished: [] }[state];
     if (!allowed.includes(b.kind)) fail(400, state === 'finished' ? 'You have already clocked out' : `You can't do that now (${state.replace('_', ' ')})`);
+    if (a.cancelled && (b.kind === 'in' || b.kind === 'break_start')) fail(400, 'This shift was cancelled. You can only clock out.');
     // Clock-in waits for the venue pack; clock-out and breaks never do, so a change mid-shift interrupts nothing
     if (b.kind === 'in') {
       const st = await statusFor(user.officer_id, a.venue_id);

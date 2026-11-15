@@ -10,8 +10,8 @@ import {
   AttentionDrawer, Avatar, Button, cx, date, dateShort, dayLabel, daysUntil, List, Load, LoadFail, money, Page, range, relative, Row, Section, Tile, time, useAction, useApi, useMedia, usePullRefresh,
 } from '../../ui/index.jsx';
 import { useModules } from '../learn/_parts.jsx';
-import { ChaseBanner, useOps } from './_ops.jsx';
-import { clockOpensAt, DeclineSheet, expiryText, greeting, NotLinked, ShiftCard, typeLabel, until } from './_parts.jsx';
+import { ChaseBanner, OfferCard, useOps } from './_ops.jsx';
+import { clockOpensAt, DeclineSheet, expiryText, greeting, NotLinked, ShiftCard, sinceText, typeLabel, until, useNow } from './_parts.jsx';
 import { docKindFor, freshStatement, packTodos, weekendAsk } from './_todo.js';
 import { InstallCard } from '../../ui/pwa.jsx';
 import { PushCard } from './_notify.jsx';
@@ -35,8 +35,9 @@ export default function Home() {
     return (
       <Page key="live" backLabel="Home" title={cur.venue_name} subtitle={<>{dayLabel(cur.starts_at)} · <span className="num">{range(cur.starts_at, cur.ends_at)}</span></>}>
         {pull}
-        <LiveBar cur={cur} />
-        <div className="mt-4"><ShiftPanel id={cur.shift_id} /></div>
+        <LiveBar cur={cur} reload={clock.reload} />
+        {/* A cancelled shift has no card left to open; the bar above still clocks them out */}
+        {!cur.cancelled && <div className="mt-4"><ShiftPanel id={cur.shift_id} /></div>}
       </Page>
     );
   }
@@ -53,21 +54,34 @@ export default function Home() {
   );
 }
 
-// On shift: the state, time on shift and the one button that matters next
-function LiveBar({ cur }) {
+// On shift: the state, time on shift, breaks and clock-out. A shift the office cancelled keeps only Clock out.
+function LiveBar({ cur, reload }) {
+  const now = useNow(30000);
+  const [run, busy] = useAction();
   const valid = (cur.events || []).filter((e) => e.status !== 'rejected');
   const inAt = valid.find((e) => e.kind === 'in')?.ts;
   const brk = cur.state === 'on_break';
+  const breakAt = brk ? valid[valid.length - 1]?.ts : null;
+  const punch = (kind) => run(() => api('clock.punch', { assignment_id: cur.assignment_id, kind }), kind === 'break_start' ? 'Break started' : 'Break ended').then(reload).catch(() => {});
   return (
     <Tile tone="blue" className="!p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-footnote font-semibold uppercase tracking-wide opacity-80">
-            <span className="live-dot h-2.5 w-2.5 rounded-full bg-white" />{brk ? 'On break' : 'On shift now'}
-          </div>
-          <div className="mt-1 truncate text-subhead opacity-85">{cur.role_name}{inAt ? <> · in at <span className="num font-semibold">{time(inAt)}</span></> : null}</div>
-        </div>
-        <Button className="shrink-0 !bg-on-accent !text-[var(--accent-fill,var(--color-blue))] !shadow-none" icon={brk ? Coffee : LogOut} to="/officer/clock">{brk ? 'End break' : 'Clock out'}</Button>
+      <div className="flex items-center gap-2 text-footnote font-semibold uppercase tracking-wide opacity-80">
+        <span className="live-dot h-2.5 w-2.5 rounded-full bg-white" />{brk ? 'On break' : 'On shift now'}
+      </div>
+      <div className="mt-1 truncate text-subhead opacity-85">
+        {cur.role_name}{inAt ? <> · in at <span className="num font-semibold">{time(inAt)}</span> · <span className="num font-semibold">{sinceText(inAt, now)}</span> on shift</> : null}
+        {breakAt ? <> · break <span className="num font-semibold">{sinceText(breakAt, now)}</span></> : null}
+      </div>
+      {cur.cancelled && <p className="mt-3 rounded-2xl bg-white/15 p-3 text-subhead font-semibold">This shift was cancelled by the office. Clock out when you leave.</p>}
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        {brk ? (
+          <Button className="col-span-2 !bg-on-accent !text-[var(--accent-fill,var(--color-blue))] !shadow-none" icon={Coffee} busy={busy} onClick={() => punch('break_end')}>End break</Button>
+        ) : (
+          <>
+            <Button className={cx('!bg-on-accent !text-[var(--accent-fill,var(--color-blue))] !shadow-none', cur.cancelled && 'col-span-2')} icon={LogOut} to="/officer/clock">Clock out</Button>
+            {!cur.cancelled && <Button className="!bg-white/15 !text-white !shadow-none" icon={Coffee} busy={busy} onClick={() => punch('break_start')}>Start break</Button>}
+          </>
+        )}
       </div>
     </Tile>
   );
@@ -85,6 +99,8 @@ function Body({ d, clock, ops, reload }) {
   const accept = (a) => run(() => api('shifts.respond', { assignment_id: a.assignment_id, accept: true }), 'Shift confirmed').then(reload).catch(() => {});
 
   const offers = (ops.data?.offers || []).filter((o) => o.status === 'offered');
+  // Shifts the office booked them on and cover offers: both wait on a yes or no
+  const asks = ask.length + offers.length;
   // Site packs to read before upcoming shifts: a To do row each, and a line on the next shift's card
   const packsQ = useApi('venuePacks.myList', {});
   const packs = packTodos(packsQ.data?.venues);
@@ -95,11 +111,12 @@ function Body({ d, clock, ops, reload }) {
   const fails = [[clock, 'your clock-in'], [packsQ, 'site packs to read'], ...todoFails];
   // Phones: the shifts to answer and the to-do list fold into one glowing bar, so the page stays short
   const lg = useMedia('(min-width: 1024px)');
-  const tone = todo.some((r) => r.tone === 'red') ? 'red' : ask.length ? 'amber' : todo.some((r) => r.tone === 'amber') ? 'amber' : 'blue';
+  const tone = todo.some((r) => r.tone === 'red') ? 'red' : asks ? 'amber' : todo.some((r) => r.tone === 'amber') ? 'amber' : 'blue';
 
-  const answer = ask.length > 0 && (
-    <Section title="Needs your answer" icon={CalendarClock} count={ask.length}>
+  const answer = asks > 0 && (
+    <Section title="Needs your answer" icon={CalendarClock} count={asks}>
       <div className="space-y-2.5">
+        {offers.map((o) => <OfferCard key={o.id} o={o} onDone={reload} />)}
         {ask.map((s) => (
           <ShiftCard key={s.assignment_id} s={s} status="Please respond" statusTone="amber" className="border-amber/30">
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -127,7 +144,7 @@ function Body({ d, clock, ops, reload }) {
 
       <ChaseBanner ops={ops} />
       <PhoneCard soon={next.some((s) => new Date(s.starts_at) - Date.now() < 864e5)} />
-      {(offers.length > 0 || paid || d.issues?.length > 0 || d.grace || (siaDays != null && siaDays <= 60)) && (
+      {(paid || d.issues?.length > 0 || d.grace || (siaDays != null && siaDays <= 60)) && (
         <List>
           {d.issues?.length > 0 && (
             <Row to={addFor(docKindFor(d.issues[0]))} left={<Ico icon={ShieldAlert} tone="red" />} title="You can't work shifts right now" subtitle={d.issues.join(' · ')} />
@@ -135,10 +152,6 @@ function Body({ d, clock, ops, reload }) {
           {!d.issues?.length && d.grace && (
             <Row to={addFor(docKindFor((d.graced || [])[0]))} left={<Ico icon={CalendarClock} tone={d.grace.days_left <= 3 ? 'red' : 'amber'} />}
               title={`You can work until ${date(d.grace.ends_on)}`} subtitle={`Send by then: ${(d.graced || []).join(' · ')}`} chevron />
-          )}
-          {offers.length > 0 && (
-            <Row to="/officer/shifts?tab=offers" left={<Ico icon={Megaphone} tone="blue" />}
-              title={`${offers.length} cover offer${offers.length === 1 ? '' : 's'}`} subtitle="First to accept gets the shift" />
           )}
           {!d.issues?.length && siaDays != null && siaDays <= 60 && (
             <Row to={addFor('sia')} left={<Ico icon={AlertTriangle} tone="amber" />} title={`SIA licence: ${expiryText(siaDays).toLowerCase()}`} subtitle="Renew it and upload the new licence" />
@@ -155,10 +168,10 @@ function Body({ d, clock, ops, reload }) {
           {answer}
           <ToDo rows={todo} />
         </>
-      ) : (ask.length + todo.length > 0 && (
-        <AttentionDrawer id="todo" title="To do" count={ask.length + todo.length} tone={tone}
-          preview={[...(ask.length ? [{ icon: CalendarClock, tone: 'amber' }] : []), ...todo]}
-          lead={ask.length ? `${ask.length} shift${ask.length === 1 ? '' : 's'} waiting for your answer` : todo[0]?.title}>
+      ) : (asks + todo.length > 0 && (
+        <AttentionDrawer id="todo" title="To do" count={asks + todo.length} tone={tone}
+          preview={[...(asks ? [{ icon: CalendarClock, tone: 'amber' }] : []), ...todo]}
+          lead={asks ? `${asks} shift${asks === 1 ? '' : 's'} waiting for your answer` : todo[0]?.title}>
           <div className="space-y-5 [&>*]:!mt-0">
             {answer}
             <ToDo rows={todo} />

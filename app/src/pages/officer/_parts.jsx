@@ -1,5 +1,5 @@
 // Helpers shared by the officer screens and the incident screens
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, Clock3, MapPin, Phone, UserX } from 'lucide-react';
 import { Button, cx, dayLabel, Empty, Pill, range, Sheet, Textarea, time, titleCase, useAction } from '../../ui/index.jsx';
@@ -8,6 +8,18 @@ import { api, upload } from '../../api.js';
 // Clock-in opens this many minutes before a shift (the API enforces the same, clock.mjs EARLY_MIN)
 export const CLOCK_EARLY_MIN = 15;
 export const clockOpensAt = (startsAt) => new Date(new Date(startsAt).getTime() - CLOCK_EARLY_MIN * 60000);
+
+// The time now, refreshed every ms milliseconds, for countdowns and time on shift
+export function useNow(ms = 15000) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), ms); return () => clearInterval(t); }, [ms]);
+  return now;
+}
+// "2h 05m" since a time
+export const sinceText = (from, now = Date.now()) => {
+  const m = Math.max(0, Math.floor((now - new Date(from)) / 60000));
+  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+};
 
 // Decline an offered shift, or give back a confirmed one, with an optional reason for the office
 // Under a day's notice the office also needs a call, not just an alert
