@@ -88,13 +88,15 @@ export default function Me() {
 
               {/* SIA badge */}
               <div className={cx('mt-3 flex items-center gap-4 rounded-tile p-4 shadow-tile', c.ok ? 'bg-surface' : '!bg-red-soft')}>
-                <div className={cx('grid h-14 w-14 shrink-0 place-items-center rounded-2xl', c.ok ? 'bg-green-soft text-green' : 'bg-red text-white')}>
+                <div className={cx('grid h-14 w-14 shrink-0 place-items-center rounded-2xl', !c.ok ? 'bg-red text-white' : c.grace ? 'bg-amber-soft text-amber' : 'bg-green-soft text-green')}>
                   {c.ok ? <ShieldCheck size={28} /> : <ShieldAlert size={28} />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-caption font-semibold uppercase tracking-wide text-muted">SIA licence{o.sia_type ? ` · ${o.sia_type}` : ''}</div>
                   <div className="num truncate text-title3 font-bold tracking-wide">{o.sia_number || 'Not recorded'}</div>
-                  {o.sia_expiry ? (
+                  {c.grace ? (
+                    <div className="text-footnote font-semibold text-amber">On grace until {date(c.grace.ends_on)}{c.graced?.length ? `. Send by then: ${c.graced.join(', ')}` : ''}</div>
+                  ) : o.sia_expiry ? (
                     <div className={cx('text-footnote font-semibold', siaTone === 'red' ? 'text-red' : siaTone === 'amber' ? 'text-amber' : 'text-muted')}>
                       {c.sia_days < 0 ? expiryText(c.sia_days) : `Valid until ${date(o.sia_expiry)}`}{c.sia_days >= 0 && c.sia_days <= 60 ? ` (${c.sia_days} days)` : ''}
                     </div>

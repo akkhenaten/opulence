@@ -144,7 +144,7 @@ function PastCard({ s, now }) {
       {card}
       <div className="grid grid-cols-2 gap-2 rounded-b-tile border border-t-0 border-hairline bg-surface px-4 pb-4">
         <Button size="sm" variant="soft" icon={FileWarning} to={`/officer/incidents/new?shift=${s.id}`}>Report incident</Button>
-        <Button size="sm" variant="soft" icon={Ban} to={`/officer/shifts/${s.id}?eject=1`}>Log ejection</Button>
+        <Button size="sm" variant="soft" icon={Ban} to={`/officer/shifts/${s.id}?eject=1`}>Log ejection or ban</Button>
       </div>
     </div>
   );

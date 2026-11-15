@@ -31,7 +31,8 @@ export const actions = {
                                 (SELECT count(*)::int FROM push_subscriptions WHERE user_id = $1) AS devices FROM users WHERE id = $1`, [user.id]);
     // A person's own choice wins, then the company default, then on
     const defaults = Object.fromEntries(OPTIONAL_KINDS.map((k) => [k, r.defaults?.[k] !== false]));
-    return { prefs: Object.fromEntries(OPTIONAL_KINDS.map((k) => [k, r.notify_prefs?.[k] ?? defaults[k]])), defaults, devices: r.devices };
+    // own: the kinds the person chose themselves; the rest follow the company default
+    return { prefs: Object.fromEntries(OPTIONAL_KINDS.map((k) => [k, r.notify_prefs?.[k] ?? defaults[k]])), defaults, own: OPTIONAL_KINDS.filter((k) => r.notify_prefs?.[k] != null), devices: r.devices };
   }),
 
   'notifications.prefs.save': def(ALL, async (b, { user }) => {

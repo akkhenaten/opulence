@@ -36,11 +36,12 @@ export const GRACE_MAX_RENEWALS = 2;
 /** The grace on the officer row, while it lasts (to the end of grace_until, London time) */
 export const graceOn = (o, today = londonDate(new Date())) => (o.grace_until && o.grace_until >= today ? { ends_on: o.grace_until, covers: o.grace_covers || [], days_left: daysUntil(o.grace_until, today) } : null);
 
+const needsSia = (o) => (o.roles || []).some((r) => !NON_SIA.has(r)) || !(o.roles || []).length;
+
 /** Every reason someone can't work, with its key (graced or not) */
 export function blockers(o, today = londonDate(new Date())) {
   const out = [];
-  const needsSia = (o.roles || []).some((r) => !NON_SIA.has(r)) || !(o.roles || []).length;
-  if (needsSia) {
+  if (needsSia(o)) {
     if (!o.sia_number || !o.sia_expiry) out.push({ key: 'sia_missing', text: 'No SIA licence on file' });
     else if (o.sia_expiry < today) out.push({ key: 'sia_expired', text: 'SIA licence expired' });
     if (siaCheckOn() && NOT_CLEARED.includes(o.sia_status)) out.push({ key: 'sia_register', text: `SIA register shows the licence as ${STATUS_LABEL[o.sia_status]}` });
@@ -61,8 +62,14 @@ export function compliance(o, today = londonDate(new Date())) {
   return {
     ok: !issues.length, issues, graced: graced.map((b) => b.text), grace: graced.length ? grace : null,
     sia_days: daysUntil(o.sia_expiry, today), rtw_days: daysUntil(o.rtw_expiry, today),
+    // Only known when the row was read with SIA_CHECKED; null where no licence is needed or none is on file
+    sia_checked: o.sia_checked === undefined || !needsSia(o) || !o.sia_number || !o.sia_expiry ? null : !!o.sia_checked,
   };
 }
+
+// Whether anyone checked the SIA licence: the register check ran, or the latest SIA card upload was verified by a manager or Orb
+const SIA_CHECKED = `(o.sia_last_verified_at IS NOT NULL OR COALESCE((SELECT d.verified_at IS NOT NULL OR d.auto_applied_at IS NOT NULL FROM documents d
+  WHERE d.owner_type = 'officer' AND d.owner_id = o.id AND d.kind = 'sia' AND d.s3_key IS NOT NULL ORDER BY d.created_at DESC LIMIT 1), false)) AS sia_checked`;
 
 // App set-up managers can chase: a registered clock-in phone, and push notifications on at least one device
 const APP_SETUP = `EXISTS (SELECT 1 FROM officer_devices d WHERE d.officer_id = o.id AND d.status IN ('active','pending')) AS has_phone,
@@ -143,7 +150,7 @@ export async function createOfficerLogin(id) {
 export const actions = {
   'officers.list': def(MGR, async (b, { user }) => {
     const rows = await q(
-      `SELECT o.*, u.status AS login_status, u.last_login, u.invite_sent_at, u.invite_emailed, u.role AS login_role, ${APP_SETUP} FROM officers o LEFT JOIN users u ON u.id = o.user_id
+      `SELECT o.*, u.status AS login_status, u.last_login, u.invite_sent_at, u.invite_emailed, u.role AS login_role, ${APP_SETUP}, ${SIA_CHECKED} FROM officers o LEFT JOIN users u ON u.id = o.user_id
         WHERE (($1::text IS NULL AND o.status <> 'rejected') OR o.status = $1) AND ($2::text IS NULL OR $2 = ANY(o.roles))
           AND ($3::text IS NULL OR (o.first_name || ' ' || o.last_name || ' ' || o.goes_by || ' ' || o.email || ' ' || o.sia_number) ILIKE '%' || $3 || '%')
           AND ($4::uuid[] IS NULL OR o.status = 'active' OR EXISTS (SELECT 1 FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id WHERE a.officer_id = o.id AND s.venue_id = ANY($4)))
@@ -155,7 +162,7 @@ export const actions = {
     const id = b.id || user.officer_id;
     if (user.role === 'venue') fail(403, 'Forbidden');
     await assertOfficerAccess(user, id);
-    const o = need(await one(`SELECT o.*, u.status AS login_status, u.last_login, u.invite_sent_at, u.invite_emailed, u.role AS login_role, ${APP_SETUP}, ${userName('vu')} AS sia_last_verified_by_name, ${userName('rc')} AS rtw_checked_by_name,
+    const o = need(await one(`SELECT o.*, u.status AS login_status, u.last_login, u.invite_sent_at, u.invite_emailed, u.role AS login_role, ${APP_SETUP}, ${SIA_CHECKED}, ${userName('vu')} AS sia_last_verified_by_name, ${userName('rc')} AS rtw_checked_by_name,
         (SELECT d.number FROM documents d WHERE d.owner_type = 'officer' AND d.owner_id = o.id AND d.kind = 'rtw' AND d.number <> '' ORDER BY d.created_at DESC LIMIT 1) AS rtw_share_code
       FROM officers o LEFT JOIN users u ON u.id = o.user_id LEFT JOIN users vu ON vu.id = o.sia_last_verified_by LEFT JOIN users rc ON rc.id = o.rtw_checked_by WHERE o.id = $1`, [id]));
     const [contacts, rates, bans, availability, offboarding] = await Promise.all([

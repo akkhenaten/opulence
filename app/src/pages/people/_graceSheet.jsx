@@ -71,7 +71,7 @@ export default function GraceSheet({ officer, mode = 'grant', keys = [], grace, 
 
   const save = () => run(() => api(renew ? 'compliance.grace.renew' : 'compliance.grace.grant', {
     officer_id: officer.id, ends_on: ends, reason: reason.trim(), risk_ack: ack, ...(renew ? { add: covers } : { covers }),
-  }), `${name} can work until ${date(ends)}`).then(() => { onDone?.(); onClose(); }).catch(() => {});
+  }), `${name} is on grace until ${date(ends)}: can work while they send ${all.map((k) => GRACE_LABEL[k] || k).join(', ').toLowerCase()}`).then(() => { onDone?.(); onClose(); }).catch(() => {});
 
   return (
     <Sheet open onClose={onClose} title={renew ? `Extend ${name}'s grace period` : `Give ${name} a grace period`} dirty={!!reason}

@@ -43,7 +43,9 @@ export function complianceState(c) {
   if (!c) return { tone: 'grey', label: 'Unknown' };
   const hard = (c.issues || []).filter((i) => !i.startsWith('Status:'));
   if (hard.length) return { tone: 'red', label: hard.some((i) => i.startsWith('SIA register')) ? 'SIA not active' : hard.some((i) => /expired/i.test(i)) ? 'Expired' : 'Missing checks', detail: hard.join(' · ') };
-  if (c.grace) return { tone: 'amber', label: `On grace until ${date(c.grace.ends_on)}`, detail: `Can work while they send: ${(c.graced || []).join(' · ')}` };
+  if (c.grace) return { tone: 'amber', label: `On grace until ${date(c.grace.ends_on)}`, detail: graceDetail(c) };
+  // In date but nobody has checked it: they can still be rostered, so this is a label, not a block
+  if (c.sia_checked === false) return { tone: 'amber', label: 'SIA in date · not checked', detail: 'The licence date is in date, but nobody has checked the licence yet. They can still be rostered.' };
   const soon = [c.sia_days, c.rtw_days].filter((d) => d != null && d <= 30);
   if (soon.length) {
     const d = Math.min(...soon);
@@ -51,16 +53,22 @@ export function complianceState(c) {
   }
   return { tone: 'green', label: 'Compliant' };
 }
+// One grace wording for managers everywhere
+export const graceDetail = (c) => `Can work while they send ${(c.graced || []).join(', ')}`;
+export const graceLine = (c) => `On grace until ${date(c.grace.ends_on)}: can work while they send ${(c.graced || []).join(', ')}`;
+
 export function ComplianceBadge({ c, className }) {
   const s = complianceState(c);
   return <Pill tone={s.tone} className={className}>{s.label}</Pill>;
 }
 
 // Days-to-expiry pill for a date
-export function ExpiryPill({ date: d, missing = 'Not set' }) {
+// checked={false}: the date is fine but nobody has checked the document, so it never reads as Valid
+export function ExpiryPill({ date: d, missing = 'Not set', checked }) {
   if (!d) return <Pill tone="grey">{missing}</Pill>;
   const n = daysUntil(d);
   if (n < 0) return <Pill tone="red">Expired</Pill>;
+  if (checked === false) return <Pill tone="amber">{n <= 30 ? `${n}d left` : 'In date'} · not checked</Pill>;
   if (n <= 30) return <Pill tone="amber">{n}d left</Pill>;
   return <Pill tone="green">Valid</Pill>;
 }

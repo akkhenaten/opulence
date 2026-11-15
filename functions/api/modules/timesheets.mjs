@@ -72,7 +72,10 @@ export const actions = {
               t.statement_id, t.invoice_id, timesheet_billed(t.statement_id, t.invoice_id) AS locked, ${CANCELLED} AS cancelled,
               inv.status AS invoice_status, inv.number AS invoice_number, timesheet_billed(t.statement_id, NULL) AS pay_billed,
               ${userName('ua')} AS approved_by_name, ${userName('us')} AS signed_by_name, ${userName('ud')} AS declined_by_name, ${userName('uq')} AS queried_by_name,
-              ci.ts AS clock_in, ci.venue_code AS in_code, ci.status AS in_status, co.ts AS clock_out
+              ci.ts AS clock_in, ci.venue_code AS in_code, ci.status AS in_status, co.ts AS clock_out,
+              -- Hours or rates changed after the venue signed: who signed stays, and the venue signs again
+              CASE WHEN t.signed_at IS NOT NULL AND t.status <> 'signed' THEN (SELECT max(al.created_at) FROM audit_log al
+                WHERE al.entity = 'timesheet' AND al.entity_id = t.id::text AND al.action IN ('timesheet.edit', 'timesheet.rate') AND al.created_at > t.signed_at) END AS changed_after_sign_at
          FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id
          JOIN roles r ON r.code = s.role JOIN officers o ON o.id = a.officer_id
          LEFT JOIN timesheets t ON t.assignment_id = a.id LEFT JOIN invoices inv ON inv.id = t.invoice_id

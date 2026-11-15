@@ -30,7 +30,8 @@ export default function TimeOff() {
 
   const approveAll = async () => {
     const n = groups.pending.length;
-    if (!(await confirm({ title: `Approve ${n} requests?`, body: 'Each officer is told their time off is approved.', confirm: 'Approve all' }))) return;
+    const clashing = groups.pending.filter((t) => t.booked?.length).length;
+    if (!(await confirm({ title: `Approve ${n} requests?`, body: `Each officer is told their time off is approved.${clashing ? ` ${clashing} ${clashing === 1 ? 'clashes' : 'clash'} with shifts already booked: approving doesn't cancel them.` : ''}`, confirm: 'Approve all' }))) return;
     run(() => api('timeoff.decideMany', { ids: groups.pending.map((t) => t.id), status: 'approved' }).then(q.reload), `${n} approved`).catch(() => {});
   };
 

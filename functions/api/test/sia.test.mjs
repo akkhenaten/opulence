@@ -90,3 +90,14 @@ test('automatic register check: SIA Checker answers mapped for the form', async 
   assert.equal(mapResult(500, null).outcome, 'error');
   assert.ok(mapResult(503, null).message);
 });
+
+test('an in-date licence nobody checked is labelled, never blocked', () => {
+  const unchecked = compliance({ ...base, sia_checked: false }, today);
+  assert.equal(unchecked.ok, true);
+  assert.equal(unchecked.sia_checked, false);
+  assert.equal(compliance({ ...base, sia_checked: true }, today).sia_checked, true);
+  // Not loaded, not needed for the role, or no licence on file: no check state to show
+  assert.equal(compliance(base, today).sia_checked, null);
+  assert.equal(compliance({ ...base, roles: ['steward'], sia_checked: false }, today).sia_checked, null);
+  assert.equal(compliance({ ...base, sia_number: null, sia_checked: false }, today).sia_checked, null);
+});

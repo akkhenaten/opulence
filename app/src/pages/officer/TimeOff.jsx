@@ -3,7 +3,7 @@ import { CalendarClock, CalendarDays, CalendarOff, History, Plus } from 'lucide-
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  ActionBar, addDays, Button, cx, date, dateShort, Empty, Input, isoDate, List, Load, Page, Pill, Row, Section, Segmented, Sheet, Tabs, Textarea, Toggle, useAction, useApi, useConfirm, useDirtyGuard, useUrlState,
+  ActionBar, addDays, Button, cx, date, dateShort, Empty, Input, isoDate, List, Load, Page, Pill, Row, Section, Segmented, Sheet, Tabs, Textarea, Toggle, useAction, useApi, useConfirm, useDirtyGuard, useUrlState, weekday,
 } from '../../ui/index.jsx';
 import { NotLinked, TIMEOFF_KINDS } from './_parts.jsx';
 
@@ -19,9 +19,10 @@ export default function TimeOff() {
   const [asking, setAsking] = useState(false);
   // Opened fresh (a notification, a reload): availability belongs with Shifts, time off with Me
   const back = tab === 'availability' ? { to: '/officer/shifts', label: 'Shifts' } : { to: '/officer/me', label: 'Me' };
-  if (!user.officer_id) return <Page title="Time off" back={back}><NotLinked /></Page>;
+  const title = tab === 'availability' ? 'Availability' : 'Time off';
+  if (!user.officer_id) return <Page title={title} back={back}><NotLinked /></Page>;
   return (
-    <Page title="Time off" back={back} actions={tab === 'timeoff' && <Button icon={Plus} onClick={() => setAsking(true)}>Request time off</Button>}>
+    <Page title={title} back={back} actions={tab === 'timeoff' && <Button icon={Plus} onClick={() => setAsking(true)}>Request time off</Button>}>
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'timeoff', label: 'Time off', icon: CalendarOff }, { value: 'availability', label: 'Weekly availability', icon: CalendarClock }]} />
       {tab === 'timeoff' ? <Requests open={asking} setOpen={setAsking} /> : <Availability />}
     </Page>
@@ -83,6 +84,9 @@ function RequestSheet({ open, onClose, onDone }) {
     return n;
   });
   const bad = !v.start_date || !v.end_date || v.end_date < v.start_date;
+  // Shifts they already accepted on these dates: shown before saving, never cancelled
+  const clash = useApi('timeoff.clashes', { start_date: v.start_date, end_date: v.end_date }, { skip: !open || bad });
+  const booked = (!bad && clash.data) || [];
   const save = () => run(() => api('timeoff.request', v), v.kind === 'unavailable' ? 'Marked as unavailable' : 'Request sent to the office').then(onDone).catch(() => {});
   return (
     <Sheet open={open} onClose={onClose} title="Request time off" size="sm"
@@ -94,6 +98,12 @@ function RequestSheet({ open, onClose, onDone }) {
           <Input label="To" type="date" min={v.start_date} value={v.end_date} onChange={set('end_date')} />
         </div>
         {!bad && <div className="text-footnote font-semibold text-muted">{days(v.start_date, v.end_date)} day{days(v.start_date, v.end_date) === 1 ? '' : 's'}</div>}
+        {booked.length > 0 && (
+          <div className="rounded-2xl bg-amber-soft p-3 text-footnote">
+            {booked.map((x) => <div key={x.shift_id} className="font-semibold">You're booked on {weekday(x.starts_at)} {dateShort(x.starts_at)} at {x.venue_name}.</div>)}
+            <div className="mt-1 text-muted">Saving doesn't cancel {booked.length === 1 ? 'it' : 'them'}. Tell the office or use I can't work this.</div>
+          </div>
+        )}
         <Textarea label="Note (optional)" rows={2} value={v.reason} onChange={set('reason')} placeholder={v.kind === 'holiday' ? 'e.g. Family holiday' : ''} />
         <p className="text-footnote text-muted">
           {v.kind === 'unavailable' ? 'Unavailable days are confirmed straight away. The office will not book you on these dates.' : 'The office will approve or decline your request. You will get a notification.'}

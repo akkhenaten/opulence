@@ -50,3 +50,13 @@ test('stewards need no SIA licence, so nothing about it is graceable', () => {
 test('the officer is asked for each missing thing once', () => {
   assert.equal(graceAsk(['sia_expired', 'sia_expiry_shift', 'rtw_unverified']), 'your renewed SIA licence and your passport or a right to work share code');
 });
+
+test('help: venue managers get their own password answer and no officer or company-only answers', async () => {
+  const { guideFor } = await import('../lib/guide.mjs');
+  const ids = (role) => guideFor(role).flatMap((c) => c.sections.map((s) => s.id));
+  const venue = ids('venue');
+  assert.ok(venue.includes('password_venue') && !venue.includes('password'));
+  for (const id of ['clockfail', 'logo', 'email']) assert.ok(!venue.includes(id), id);
+  assert.ok(ids('officer').includes('clockfail') && !ids('officer').includes('logo'));
+  assert.ok(ids('company').includes('logo') && !ids('company').includes('password_venue'));
+});

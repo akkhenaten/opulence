@@ -58,7 +58,7 @@ export async function checkOfficerForShift(officerId, shift, { ignoreAssignment 
   const notes = [];
   const pk = await statusFor(o.id, shift.venue_id);
   if (pk && !OK.has(pk.status)) notes.push(pk.status === 'unsigned' ? 'Not worked here before: they will read and sign the site pack before clock-in' : `Site pack: ${STATUS_LABEL[pk.status].toLowerCase()} before clock-in`);
-  return { blocking, warnings, notes, grace_until: c.grace?.ends_on || null, officer: { id: o.id, name: officerDisplay(o), full_name: `${o.first_name} ${o.last_name}`, goes_by: o.goes_by || '' } };
+  return { blocking, warnings, notes, grace_until: c.grace?.ends_on || null, graced: c.grace ? c.graced : [], officer: { id: o.id, name: officerDisplay(o), full_name: `${o.first_name} ${o.last_name}`, goes_by: o.goes_by || '' } };
 }
 
 export async function getShift(id) {
@@ -275,7 +275,7 @@ export const actions = {
     for (const o of officers) {
       if (assigned.has(o.id)) continue;
       const c = await checkOfficerForShift(o.id, s);
-      results.push({ ...c.officer, blocking: c.blocking, warnings: c.warnings, notes: c.notes, grace_until: c.grace_until });
+      results.push({ ...c.officer, blocking: c.blocking, warnings: c.warnings, notes: c.notes, grace_until: c.grace_until, graced: c.graced });
     }
     return results.sort((a, b2) => a.blocking.length - b2.blocking.length || a.warnings.length - b2.warnings.length || a.name.localeCompare(b2.name));
   }),

@@ -9,7 +9,7 @@ import {
 } from '../../ui/index.jsx';
 import { uploadPhoto } from '../officer/_parts.jsx';
 import { inviteStatus } from './_access.jsx';
-import { ComplianceBadge, CopyLink, ExpiryPill, LoginPill, OFFICER_STATUSES, SIA_TYPES, Chips, canPay, useBase, useRoles } from './_parts.jsx';
+import { ComplianceBadge, CopyLink, ExpiryPill, graceLine, LoginPill, OFFICER_STATUSES, SIA_TYPES, Chips, canPay, useBase, useRoles } from './_parts.jsx';
 import {
   AttendanceTab, AvailabilityTab, ComplianceTab, ContractsTab, DocumentsTab, GrowthTab, HrTab, OffboardingTab, OnboardingTab, OverviewTab, RatesTab, ShiftsTab, TimeOffTab, TrainingTab,
 } from './_profileTabs.jsx';
@@ -123,7 +123,7 @@ function Profile({ o, reload, user, base }) {
           <div className="grid grid-cols-2 gap-2 sm:w-64">
             <div className="rounded-2xl bg-bg p-3">
               <div className="text-caption2 font-semibold uppercase tracking-wide text-faint">SIA</div>
-              <div className="mt-1"><ExpiryPill date={o.sia_expiry} missing="None" /></div>
+              <div className="mt-1"><ExpiryPill date={o.sia_expiry} missing="None" checked={o.compliance?.sia_checked} /></div>
               {o.sia_expiry && <div className="mt-1 text-caption text-muted num">{date(o.sia_expiry)}</div>}
             </div>
             <div className="rounded-2xl bg-bg p-3">
@@ -136,7 +136,8 @@ function Profile({ o, reload, user, base }) {
         {(o.compliance?.issues?.length > 0 || o.compliance?.graced?.length > 0) && (
           <div className="mt-4 flex flex-wrap gap-1.5 border-t border-line pt-3">
             {o.compliance.issues.map((i) => <span key={i} className="rounded-lg bg-red-soft px-2 py-0.5 text-caption font-semibold text-red">{i}</span>)}
-            {(o.compliance.graced || []).map((i) => <span key={i} className="rounded-lg bg-amber-soft px-2 py-0.5 text-caption font-semibold text-amber">{i} · grace</span>)}
+            {o.compliance.grace ? <span className="rounded-lg bg-amber-soft px-2 py-0.5 text-caption font-semibold text-amber">{graceLine(o.compliance)}</span>
+              : (o.compliance.graced || []).map((i) => <span key={i} className="rounded-lg bg-amber-soft px-2 py-0.5 text-caption font-semibold text-amber">{i} · grace</span>)}
           </div>
         )}
         {invited && <p className={`mt-3 text-footnote ${invited.tone === 'amber' ? 'text-amber' : 'text-muted'}`}>{invited.short}</p>}

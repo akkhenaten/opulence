@@ -15,7 +15,8 @@ const STATUS = { published: { tone: 'green', label: 'On the website' }, pending:
 const VIEWS = [{ value: '', label: 'All' }, { value: 'published', label: 'Published' }, { value: 'pending', label: 'Pending' }, { value: 'hidden', label: 'Hidden' }];
 
 export default function Reviews() {
-  const { user } = useAuth();
+  const { user, company } = useAuth();
+  const co = company || 'the security company';
   const isCo = user.role === 'company';
   const [sp, setSp] = useSearchParams();
   const status = VIEWS.some((v) => v.value === sp.get('status')) ? sp.get('status') : '';
@@ -44,7 +45,7 @@ export default function Reviews() {
   </>;
 
   return (
-    <Page title="Reviews" subtitle="What clients say about you, shown on the venue tiles of your website" tools={tools}
+    <Page title="Reviews" subtitle={user.role === 'venue' ? `Reviews of ${co}'s service, shown on ${co}'s website after the office approves them` : 'What clients say about you, shown on the venue tiles of your website'} tools={tools}
       actions={canAdd && <Button icon={Plus} onClick={() => setEdit({})}>Add review</Button>}>
       {user.role === 'venue' && meta.data && (canAdd
         ? <p className="mb-4 text-subhead text-muted">Reviews you add are checked by the office before they appear on the website.</p>

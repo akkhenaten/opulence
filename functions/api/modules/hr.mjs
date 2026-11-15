@@ -106,15 +106,28 @@ async function resignPolicy(tpl, user, signer) {
   return n;
 }
 
+// Accepted shifts on the officer's dates ($1 officer, $2 from, $3 to), London days: shown as a clash, never cancelled
+const BOOKED = `SELECT s.id AS shift_id, s.starts_at, v.name AS venue_name FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id
+  WHERE a.officer_id = $1 AND a.status = 'accepted' AND s.status <> 'cancelled'
+    AND (s.starts_at AT TIME ZONE 'Europe/London')::date BETWEEN $2::date AND $3::date ORDER BY s.starts_at LIMIT 20`;
+
 export const actions = {
   // ---- Time off & absence ----
   'timeoff.list': def(['company', 'security', 'officer'], async (b, { user }) => q(
-    `SELECT t.*, o.first_name || ' ' || o.last_name AS officer_name, u.name AS decided_by_name
+    `SELECT t.*, o.first_name || ' ' || o.last_name AS officer_name, u.name AS decided_by_name,
+            CASE WHEN t.status = 'pending' THEN (SELECT COALESCE(json_agg(x), '[]') FROM (${BOOKED.replace(/\$1/g, 't.officer_id').replace(/\$2/g, 't.start_date').replace(/\$3/g, 't.end_date')}) x) END AS booked
        FROM time_off t JOIN officers o ON o.id = t.officer_id LEFT JOIN users u ON u.id = t.decided_by
       WHERE ($1::uuid IS NULL OR t.officer_id = $1) AND ($2::text IS NULL OR t.status = $2)
         AND ($3::date IS NULL OR t.end_date >= $3) AND ($4::date IS NULL OR t.start_date <= $4)
       ORDER BY t.start_date DESC LIMIT 300`,
     [user.role === 'officer' ? user.officer_id : b.officer_id || null, b.status || null, b.from || null, b.to || null])),
+
+  // Before saving: the accepted shifts the chosen dates would clash with
+  'timeoff.clashes': def(['company', 'security', 'officer'], async (b, { user }) => {
+    required(b, 'start_date', 'end_date');
+    if (b.end_date < b.start_date) return [];
+    return q(BOOKED, [ownOrManager(user, b.officer_id), b.start_date, b.end_date]);
+  }),
 
   'timeoff.request': def(['company', 'security', 'officer'], async (b, { user }) => {
     required(b, 'kind', 'start_date', 'end_date');

@@ -17,7 +17,11 @@ export const BAN_STATUS = {
   rejected: { label: 'Not confirmed', tone: 'grey' },
 };
 
-export const banLength = (b) => (b.ends_on ? `${date(b.starts_on)} – ${date(b.ends_on)}` : `Permanent from ${date(b.starts_on)}`);
+// "Tonight" is stored as one day from the start
+export const banLength = (b) => (!b.ends_on ? `Permanent from ${date(b.starts_on)}`
+  : addDays(b.starts_on.slice(0, 10), 1) === b.ends_on.slice(0, 10) ? `Tonight only (${date(b.starts_on)})` : `${date(b.starts_on)} – ${date(b.ends_on)}`);
+// One line on every register: what each record is for
+export const REGISTER_NOTE = 'Ejections are quick door logs. Bans stop someone coming back in. Incident reports are separate, for force, injuries or police.';
 
 export const OUTCOME = { ejected: { label: 'Ejected', tone: 'red' }, refused_entry: { label: 'Refused entry', tone: 'amber' } };
 export const CATEGORIES = [
@@ -25,7 +29,7 @@ export const CATEGORIES = [
   { value: 'abusive', label: 'Abusive' }, { value: 'underage_id', label: 'Underage / fake ID' }, { value: 'other', label: 'Other' },
 ];
 const CATEGORY = Object.fromEntries(CATEGORIES.map((c) => [c.value, c.label]));
-const SCOPE = { venue: '', client: "All this client's venues", all: 'Every venue' };
+const SCOPE = { venue: 'This venue only', client: "All this client's venues", all: 'Every venue' };
 export const isEjection = (b) => b.kind === 'ejection';
 
 // canConfirm: may approve proposals; canManage: may edit and lift active bans; canEscalate: may turn an ejection into a ban
@@ -151,7 +155,7 @@ export function BanSheet({ open, onClose, onDone, shiftId, venueId: fixedVenue, 
     run(() => call, done).then(onDone).catch(() => {});
   };
 
-  const title = escalate ? `Ban ${escalate.name || 'this person'}` : ban ? 'Edit' : ejection ? 'Log ejection' : 'Ban someone';
+  const title = escalate ? `Ban ${escalate.name || 'this person'}` : ban ? 'Edit' : ejection ? 'Log ejection or ban' : 'Ban someone';
   const action = ban ? 'Save' : escalate ? (user.role === 'officer' && !direct ? 'Propose ban' : 'Ban them') : f.ban ? (proposing ? 'Log and propose ban' : ejection ? 'Log and ban' : 'Add ban') : 'Log ejection';
   const scopes = [{ value: 'venue', label: 'This venue' }, { value: 'client', label: "Client's venues" }, ...(user.role === 'venue' ? [] : [{ value: 'all', label: 'Every venue' }])];
   const banSection = (
@@ -179,6 +183,7 @@ export function BanSheet({ open, onClose, onDone, shiftId, venueId: fixedVenue, 
             options={venues.map((v) => ({ value: v.id, label: v.name }))} />}
           {ejection && (
             <>
+              {!ban && <p className="text-subhead text-muted">A quick door log. Add a ban if they shouldn't come back.</p>}
               <Segmented full value={f.outcome} onChange={set('outcome')} options={OUTCOMES} />
               <Input label="When" type="datetime-local" max={toLocalInput(new Date())} value={f.occurred_at} onChange={set('occurred_at')} />
             </>

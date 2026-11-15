@@ -85,7 +85,7 @@ function WorkLine({ r, d, company, reload, listed }) {
       <div className="mb-3 rounded-2xl bg-amber-soft p-3">
         <div className="flex items-center gap-2">
           <CalendarClock size={16} className="shrink-0 text-amber" aria-hidden />
-          <div className="min-w-0 flex-1 text-subhead font-semibold">On grace until {date(g.ends_on)}</div>
+          <div className="min-w-0 flex-1 text-subhead font-semibold">On grace until {date(g.ends_on)}: can work while they send {g.covers.map((k) => GRACE_LABEL[k] || k).join(', ').toLowerCase()}</div>
           <Pill tone={g.days_left <= 3 ? 'red' : 'amber'}>{g.days_left <= 0 ? 'Last day' : `${g.days_left} day${g.days_left === 1 ? '' : 's'} left`}</Pill>
           {company && (
             <MoreMenu size="sm" items={[
@@ -95,7 +95,7 @@ function WorkLine({ r, d, company, reload, listed }) {
           )}
         </div>
         <p className="mt-1 text-footnote text-muted">
-          Covers {g.covers.map((k) => GRACE_LABEL[k] || k).join(', ').toLowerCase()}{g.renewals ? ` · extended ${g.renewals} of ${d.max_renewals}` : ''} · "{g.reason}"{g.granted_by ? `, ${g.granted_by}` : ''}{next}
+          {g.renewals ? `Extended ${g.renewals} of ${d.max_renewals} · ` : ''}"{g.reason}"{g.granted_by ? `, ${g.granted_by}` : ''}{next}
         </p>
         {r.issues.length > 0 && <p className="mt-1 text-footnote font-semibold text-red">Still can't work: {r.issues.join(', ')}</p>}
         {sheet && <GraceSheet officer={r.officer} mode="renew" keys={r.keys} grace={g} maxDays={d.max_days} maxRenewals={d.max_renewals} onClose={() => setSheet(false)} onDone={reload} />}

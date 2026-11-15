@@ -741,6 +741,7 @@ function AssignSheet({ shift, replace, onClose, onDone }) {
                     {blocked ? <div className="text-caption text-red">{c.blocking.join(' · ')}</div>
                       : c.warnings.length ? <div className="text-caption text-amber">{c.warnings.join(' · ')}</div>
                         : <div className="text-caption text-green">Available</div>}
+                    {!blocked && c.grace_until && c.graced?.length > 0 && <div className="text-caption text-amber">Can work while they send {c.graced.join(', ')}</div>}
                     {!blocked && c.notes?.length > 0 && <div className="text-caption text-muted">{c.notes.join(' · ')}</div>}
                   </div>
                   {busyId === c.id ? <span className="text-footnote text-muted">{replace ? 'Replacing…' : 'Assigning…'}</span> : !blocked && <Plus size={18} className="text-blue" />}

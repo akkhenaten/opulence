@@ -521,6 +521,15 @@ const TRAIL = {
   'timesheet.approve': 'Approved', 'timesheet.sign': 'Venue signed', 'timesheet.dispute': 'Queried', 'timesheet.answer': 'Query answered',
   'timesheet.decline': 'Declined', 'timesheet.reopen': 'Reopened', 'timesheet.rate': 'Rate changed', 'timesheet.edit': 'Times corrected', 'clock.manual': 'Times set by hand', 'clock.managerOut': 'Clocked out by a manager',
 };
+// Times corrected: 22:00–03:00 → 22:15–03:00 (5h → 4h45), from what the audit stored
+const trailChange = (a) => {
+  const f = a.detail?.from;
+  const n = a.detail?.to;
+  if (a.action !== 'timesheet.edit' || !f || !n) return '';
+  const span = (x) => (x.start && x.end ? range(x.start, x.end) : '—');
+  const h = f.hours != null && n.hours != null && Number(f.hours) !== Number(n.hours) ? ` (${hours(f.hours)} → ${hours(n.hours)})` : '';
+  return `${span(f)} → ${span(n)}${h}`;
+};
 const trailNote = (a) => a.detail?.reason || a.detail?.comment || a.detail?.reply || '';
 
 function Detail({ t, can, isManager, see, act, busy, onClose, onDone, onPrev, onNext }) {
@@ -564,13 +573,14 @@ function Detail({ t, can, isManager, see, act, busy, onClose, onDone, onPrev, on
         <div className="flex flex-wrap items-center gap-2">
           <Pill tone={st.tone}>{t.state === 'locked' && <Lock size={14} />}{st.label}</Pill>
           {t.state === 'signed' && <Pill tone="green"><Check size={14} />Venue signed</Pill>}
+          {t.changed_after_sign_at && <Pill tone="amber">Changed after signing</Pill>}
           <SelfPills row={t} />
           {(t.flags || []).map((f) => <Pill key={f} tone={FLAG_TONE[f] || 'grey'}>{titleCase(f)}</Pill>)}
         </div>
         <div className="grid grid-cols-3 gap-3 rounded-2xl bg-bg/70 p-4">
           <div><div className="text-caption font-semibold uppercase text-faint">Scheduled</div><div className="num mt-0.5 font-semibold">{range(t.starts_at, t.ends_at)}</div></div>
-          <div><div className="text-caption font-semibold uppercase text-faint">Actual</div><div className="mt-0.5 font-semibold"><Actual r={t} /></div></div>
-          <div><div className="text-caption font-semibold uppercase text-faint">Hours</div><div className={cx('num mt-0.5 font-bold', t.state === 'declined' && 'line-through')}>{t.id ? hours(t.hours) : '—'}</div></div>
+          <div><div className="text-caption font-semibold uppercase text-faint">Clock proof</div><div className="mt-0.5 font-semibold"><Actual r={t} /></div></div>
+          <div><div className="text-caption font-semibold uppercase text-faint">Hours to pay and bill</div><div className={cx('num mt-0.5 font-bold', t.state === 'declined' && 'line-through')}>{t.id ? hours(t.hours) : '—'}</div></div>
         </div>
         <KV items={[
           ['Date', dayLabel(t.starts_at)], ['Venue', t.venue_name], ['Role', t.role_name],
@@ -579,7 +589,9 @@ function Detail({ t, can, isManager, see, act, busy, onClose, onDone, onPrev, on
           see.pay && t.id && ['Officer rate', <Rate r={t} k="pay" inline />],
           t.rate_note && ['Rate note', t.rate_note],
           t.approved_by_name && ['Approved by', `${t.approved_by_name}${t.approved_at ? `, ${relative(t.approved_at)}` : ''}`],
-          (t.signed_by_name || t.auto_signed) && ['Signed', t.auto_signed ? 'Automatically' : `${t.signed_by_name}${t.signed_at ? `, ${relative(t.signed_at)}` : ''}`],
+          (t.signed_by_name || t.auto_signed) && ['Signed', t.changed_after_sign_at
+            ? <span>Venue signed {t.auto_signed ? 'automatically' : t.signed_by_name}{t.signed_at ? `, ${relative(t.signed_at)}` : ''}, before the hours were changed on {dateShort(t.changed_after_sign_at)}<span className="block font-semibold text-amber">Needs the venue to sign again</span></span>
+            : t.auto_signed ? 'Automatically' : `${t.signed_by_name}${t.signed_at ? `, ${relative(t.signed_at)}` : ''}`],
           t.dispute_comment && ['Query', `${t.dispute_comment}${t.queried_by_name ? ` — ${t.queried_by_name}` : ''}`],
           t.resolution && ['Resolution', t.resolution],
           t.state === 'declined' && ['Declined', `${t.decline_reason || 'Not worked'}${t.declined_by_name ? ` — ${t.declined_by_name}` : ''}`],
@@ -597,7 +609,7 @@ function Detail({ t, can, isManager, see, act, busy, onClose, onDone, onPrev, on
               <ol className="space-y-2">
                 {list.map((a, i) => (
                   <li key={i} className="text-footnote">
-                    <span className="font-semibold">{TRAIL[a.action] || titleCase(a.action.split('.').pop())}</span>
+                    <span className="font-semibold">{TRAIL[a.action] || titleCase(a.action.split('.').pop())}{trailChange(a) && <span className="num">: {trailChange(a)}</span>}</span>
                     <span className="text-muted"> · {a.user_name || 'System'} · {relative(a.created_at)}</span>
                     {trailNote(a) && <div className="text-muted">{trailNote(a)}</div>}
                   </li>

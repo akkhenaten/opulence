@@ -166,7 +166,7 @@ export function GiveFeedbackSheet({ open, onClose, venueId, shift, officerId, on
           </div>
           <Textarea label="Comment" rows={4} value={v.comment} maxLength={2000} onChange={(e) => set('comment', e.target.value)}
             placeholder={v.tone === 'complaint' ? 'What happened? We will look into it and reply.' : 'What went well, or what should change?'} />
-          <p className="text-caption text-muted">Only our office team sees this. Complaints are followed up and you will see our reply under Feedback.</p>
+          <p className="text-caption text-muted">Our office team reads this. Complaints are followed up and you will see our reply under Feedback.{v.tone !== 'complaint' && ' The office may show your comment on its website, with your venue\'s name.'}</p>
         </div>
       )}
     </Sheet>

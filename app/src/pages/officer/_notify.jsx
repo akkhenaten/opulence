@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BellRing, Smartphone, X } from 'lucide-react';
 import { api } from '../../api.js';
+import { useAuth } from '../../auth.jsx';
 import { Button, IconButton, Load, Sheet, Tile, Toggle, useAction, useApi, useToast } from '../../ui/index.jsx';
 import { installCardShowing, isIOS, standalone } from '../../ui/pwa.jsx';
 
@@ -96,14 +97,18 @@ export function PushCard({ className, later }) {
 export function NotificationsSheet({ open, onClose }) {
   const q = useApi('notifications.prefs.get', {}, { skip: !open });
   const toast = useToast();
+  // Venue managers aren't on Everyday: no Everyday toggles for them
+  const venue = useAuth().user?.role === 'venue';
   const [prefs, setPrefs] = useState(null);
+  const [own, setOwn] = useState([]);
   const [sub, setSub] = useState(null);
   const [run, busy] = useAction();
-  useEffect(() => { if (q.data) setPrefs(q.data.prefs); }, [q.data]);
+  useEffect(() => { if (q.data) { setPrefs(q.data.prefs); setOwn(q.data.own || []); } }, [q.data]);
   useEffect(() => { if (open) currentSub().then(setSub).catch(() => setSub(null)); }, [open]);
 
   const flip = (k) => (v) => {
     setPrefs((p) => ({ ...p, [k]: v }));
+    setOwn((o) => (o.includes(k) ? o : [...o, k]));
     api('notifications.prefs.save', { prefs: { [k]: v } }).catch((e) => { setPrefs((p) => ({ ...p, [k]: !v })); toast(e.message, 'error'); });
   };
   const turnOn = () => run(async () => setSub(await enablePush()), 'Phone notifications are on').catch(() => {});
@@ -153,16 +158,16 @@ export function NotificationsSheet({ open, onClose }) {
           </div>
         )}
       </div>
-      <Load q={q} skeleton="rows">
+      {venue ? <p className="text-footnote text-muted">Shift updates, timesheets to sign, invoices and messages always reach you.</p> : <Load q={q} skeleton="rows">
         {() => prefs && (
           <div className="space-y-4">
             <div className="text-footnote font-semibold uppercase tracking-wide text-muted">On Everyday, tell me about</div>
-            {NOTIFY_KINDS.map((k) => <Toggle key={k.key} checked={prefs[k.key] !== false} onChange={flip(k.key)} label={k.label} hint={k.hint} />)}
+            {NOTIFY_KINDS.map((k) => <Toggle key={k.key} checked={prefs[k.key] !== false} onChange={flip(k.key)} label={k.label} hint={[k.hint, !own.includes(k.key) && 'Company default'].filter(Boolean).join(' · ')} />)}
             <p className="text-footnote text-muted">Everything about your shifts, timesheets, pay and work, important notices and mentions always come to your phone. You can switch off the Everyday ones above.</p>
           </div>
         )}
-      </Load>
-      {open && <EverydayPrefs />}
+      </Load>}
+      {open && !venue && <EverydayPrefs />}
     </Sheet>
   );
 }

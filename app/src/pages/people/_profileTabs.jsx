@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
-  ActionBar, addDays, AssignPill, Bento, Button, cx, date, dateShort, dateTime, dayLabel, Empty, ErrorBox, hours, IconButton, Input, isoDate, KV, List, money, Pill, Pressable, range, relative, Row, Section, Segmented, Select, Sheet, Spinner, Stat, Table, Textarea, Tile, titleCase, Toggle, useAction, useApi, useConfirm, useDirtyGuard, useForm,
+  ActionBar, addDays, AssignPill, Bento, Button, cx, date, dateShort, dateTime, dayLabel, Empty, ErrorBox, hours, IconButton, Input, isoDate, KV, List, money, Pill, Pressable, range, relative, Row, Section, Segmented, Select, Sheet, Spinner, Stat, Table, Textarea, Tile, titleCase, Toggle, useAction, useApi, useConfirm, useDirtyGuard, useForm, weekday,
 } from '../../ui/index.jsx';
 import { DOC_KINDS, ExpiryPill, Progress, RTW_TYPES, SIA_TYPES, TIMEOFF_KINDS, WEEKDAYS, docKindLabel, DocThumbs, openUrl } from './_parts.jsx';
 import { CertificateSheet } from '../team/_training.jsx';
@@ -213,7 +213,7 @@ export function ComplianceTab({ o, reload, isCo, user }) {
       {isMgr && <GraceTile o={o} q={gq} isCo={isCo} reload={reload} />}
       <Bento className="lg:grid-cols-2">
         <Tile title="SIA licence" icon={BadgeCheck} className="col-span-2 lg:col-span-1" action={isCo && <Button size="sm" variant="ghost" onClick={() => setEdit('sia')}>Edit</Button>}>
-          <div className="mb-3"><ExpiryPill date={o.sia_expiry} missing="No licence" /></div>
+          <div className="mb-3"><ExpiryPill date={o.sia_expiry} missing="No licence" checked={o.compliance?.sia_checked} /></div>
           {SIA_CHECK_ON && <SiaCheckPill status={o.sia_status} at={o.sia_last_verified_at} by={o.sia_last_verified_by_name} className="mb-3" />}
           <KV items={[
             ['Licence number', <span className="num">{o.sia_number}</span>],
@@ -403,8 +403,9 @@ export function DocumentsTab({ o, isCo, user, reload, onForbidden }) {
                     {d.misfiled_as && <div className="mt-0.5 text-caption font-semibold text-amber">Looks like {d.misfiled_as === 'sia' ? 'an SIA licence card' : 'a passport'}, not {docKindLabel(d.kind).toLowerCase()}{isCo ? ': tap Edit to move it' : ''}</div>}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {d.system ? <Pill tone="blue">Saved copy</Pill> : d.verified_at ? <Pill tone="green" className="max-w-[160px] truncate">Verified{d.verified_by_name ? ` · ${d.verified_by_name}` : ''}</Pill> : <Pill tone="amber">Unverified</Pill>}
-                    {d.expiry && <ExpiryPill date={d.expiry} />}
+                    {/* Same order as the officer's own screen: Orb's check counts as checked. Unchecked with a date: the expiry pill says "· not checked" */}
+                    {d.system ? <Pill tone="blue">Saved copy</Pill> : d.verified_at ? <Pill tone="green" className="max-w-[160px] truncate">Verified{d.verified_by_name ? ` · ${d.verified_by_name}` : ''}</Pill> : d.auto_applied_at ? <Pill tone="green">Checked by Orb</Pill> : !d.expiry && <Pill tone="amber">Not checked</Pill>}
+                    {d.expiry && <ExpiryPill date={d.expiry} checked={d.system || d.verified_at || d.auto_applied_at ? undefined : false} />}
                     {d.s3_key && <IconButton icon={Eye} label="Open" onClick={() => open(d)} />}
                     {SIA_CHECK_ON && isMgr && d.kind === 'sia' && <IconButton icon={ShieldCheck} label="Verify on SIA register" onClick={() => verifySia({ id: o.id, sia_number: o.sia_number || d.number })} className="text-blue" />}
                     {isCo && !d.system && !d.verified_at && <IconButton icon={Check} label="Verify" onClick={() => verify(d)} className="text-green" />}
@@ -706,7 +707,11 @@ const daysBetween = (a, b) => Math.round((new Date(`${b}T12:00:00Z`) - new Date(
 export function TimeOffRow({ t, onDone, showName }) {
   const confirm = useConfirm();
   const [run, busy] = useAction();
+  // Accepted shifts on these dates: listed, never cancelled by approving
+  const booked = t.booked || [];
+  const bookedText = booked.map((x) => `${weekday(x.starts_at)} ${dateShort(x.starts_at)}, ${x.venue_name}`).join(' · ');
   const decide = async (status) => {
+    if (status === 'approved' && booked.length && !(await confirm({ title: 'Approve this time off?', body: `Booked: ${bookedText}. Approving doesn't cancel ${booked.length === 1 ? 'that shift' : 'those shifts'}; the rota shows the gap to cover.`, confirm: 'Approve' }))) return;
     if (status === 'rejected' && !(await confirm({ title: 'Decline this request?', body: `${t.officer_name}: ${titleCase(t.kind)} ${dateShort(t.start_date)} – ${dateShort(t.end_date)}`, confirm: 'Decline', danger: true }))) return;
     await run(() => api('timeoff.decide', { id: t.id, status }), status === 'approved' ? 'Approved' : 'Declined');
     onDone();
@@ -729,6 +734,7 @@ export function TimeOffRow({ t, onDone, showName }) {
           {t.reason && ` · ${t.reason}`}
           {t.decided_by_name && t.status !== 'pending' && ` · ${titleCase(t.status)} by ${t.decided_by_name}`}
         </div>
+        {booked.length > 0 && <div className="num text-footnote font-semibold text-amber">Booked: {bookedText}</div>}
       </div>
       <div className="flex items-center gap-1.5">
         {t.status === 'pending' ? (
@@ -751,6 +757,8 @@ export function TimeOffSheet({ officerId, officers, onClose, onDone }) {
   const today = isoDate();
   const { v, bind, set } = useForm({ officer_id: officerId || '', kind: 'holiday', start_date: today, end_date: today, reason: '' });
   const [run, busy] = useAction();
+  const clash = useApi('timeoff.clashes', { officer_id: v.officer_id, start_date: v.start_date, end_date: v.end_date }, { skip: !v.officer_id || !v.start_date || !v.end_date || v.end_date < v.start_date });
+  const booked = clash.data || [];
   const save = async () => {
     await run(() => api('timeoff.request', v), 'Time off added');
     onDone();
@@ -766,6 +774,10 @@ export function TimeOffSheet({ officerId, officers, onClose, onDone }) {
           <Input label="From" type="date" {...bind('start_date')} onChange={(e) => { set('start_date', e.target.value); if (e.target.value > v.end_date) set('end_date', e.target.value); }} />
           <Input label="To" type="date" min={v.start_date} {...bind('end_date')} />
         </div>
+        {booked.length > 0 && (
+          <p className="num rounded-2xl bg-amber-soft p-3 text-footnote"><b>Booked: {booked.map((x) => `${weekday(x.starts_at)} ${dateShort(x.starts_at)}, ${x.venue_name}`).join(' · ')}</b>
+            <span className="block text-muted">Saving doesn't cancel {booked.length === 1 ? 'that shift' : 'those shifts'}; the rota shows the gap to cover.</span></p>
+        )}
         <Textarea label="Reason" rows={2} {...bind('reason')} />
         <p className="text-caption text-faint">Time off entered by a manager is approved straight away.</p>
       </div>

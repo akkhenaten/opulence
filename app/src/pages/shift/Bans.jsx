@@ -5,7 +5,7 @@ import { downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import { Button, Load, MoreMenu, Page, Segmented, Select, Tabs, ToolField, ToolMenu, useApi, useMedia } from '../../ui/index.jsx';
-import { BanList, BanSheet } from './_bans.jsx';
+import { BanList, BanSheet, REGISTER_NOTE } from './_bans.jsx';
 
 const TABS = [
   { value: 'ejection', label: 'Ejections' }, { value: 'current', label: 'Current bans' }, { value: 'lapsed', label: 'Ended' },
@@ -81,7 +81,7 @@ export function Ejections() {
   const [body, setBody] = useState({});
   return (
     <BanRegister all onFilter={setBody} page={{
-      title: 'Ejections register', subtitle: 'Everyone ejected or refused entry at your venues, newest first, and who is banned.',
+      title: 'Ejections register', subtitle: `Everyone ejected or refused entry at your venues, newest first, and who is banned. ${REGISTER_NOTE}`,
       actions: <MoreMenu items={[{ icon: Download, label: 'Export to spreadsheet', hint: 'This list, as CSV', onClick: () => downloadAction('bans.exportCsv', body).catch(() => {}) }]} />,
     }} />
   );
@@ -89,6 +89,6 @@ export function Ejections() {
 
 export default function Bans() {
   return (
-    <BanRegister page={{ title: 'Ejection log', subtitle: 'Everyone ejected or refused entry, and who is banned. The door team sees bans on every shift.' }} />
+    <BanRegister page={{ title: 'Ejection log', subtitle: `Everyone ejected or refused entry, and who is banned. The door team sees bans on every shift. ${REGISTER_NOTE}` }} />
   );
 }

@@ -18,7 +18,7 @@ const APP_SETUP = {
 const AppSetup = ({ o }) => (o.has_phone && o.has_push ? <span className="text-footnote text-faint">Set up</span> : (
   <span className="flex flex-wrap gap-1">{!o.has_phone && <Pill tone="amber">No phone</Pill>}{!o.has_push && <Pill tone="grey">No notifications</Pill>}</span>
 ));
-const COMPLIANCE = [{ value: 'all', label: 'Any compliance' }, { value: 'green', label: 'Compliant' }, { value: 'amber', label: 'Expiring soon' }, { value: 'grace', label: 'On grace' }, { value: 'red', label: 'Not compliant' }];
+const COMPLIANCE = [{ value: 'all', label: 'Any compliance' }, { value: 'green', label: 'Compliant' }, { value: 'amber', label: 'Expiring or not checked' }, { value: 'grace', label: 'On grace' }, { value: 'red', label: 'Not compliant' }];
 
 export default function Staff() {
   const { user } = useAuth();
@@ -80,7 +80,7 @@ export default function Staff() {
             {(nRed > 0 || nAmber > 0 || pipeline > 0) && (
               <div className="mb-4 flex flex-wrap gap-2">
                 {nRed > 0 && <Chip label="Not compliant" value={nRed} tone="red" icon={ShieldAlert} compact="phone" active={comp === 'red' && status === 'active'} onClick={() => pick('red')} />}
-                {nAmber > 0 && <Chip label="Expiring" value={nAmber} tone="amber" icon={CalendarClock} compact="phone" active={comp === 'amber' && status === 'active'} onClick={() => pick('amber')} />}
+                {nAmber > 0 && <Chip label="Expiring or not checked" value={nAmber} tone="amber" icon={CalendarClock} compact="phone" active={comp === 'amber' && status === 'active'} onClick={() => pick('amber')} />}
                 {pipeline > 0 && <Chip label="In the pipeline" value={pipeline} tone="blue" icon={UserPlus} compact="phone" />}
               </div>
             )}
@@ -104,7 +104,7 @@ export default function Staff() {
                   const c = complianceState(o.compliance);
                   return (
                     <PhotoCard key={o.id} to={`${base}/staff/${o.id}`} srcs={[o.photo_url]} name={displayName(o)}
-                      dot={{ tone: c.tone, label: c.detail ? `${c.label}: ${c.detail}` : c.label }} />
+                      dot={{ tone: c.tone, label: c.detail ? `${c.label}: ${/^[A-Z][a-z]/.test(c.detail) ? c.detail[0].toLowerCase() + c.detail.slice(1) : c.detail}` : c.label }} />
                   );
                 })}
               </div>

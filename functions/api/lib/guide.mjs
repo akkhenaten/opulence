@@ -248,7 +248,7 @@ They then switch between Manager and My shifts at the top of the menu or in My a
       },
       {
         id: 'bans', title: 'Ejection log and bans',
-        body: `Every ejection or refusal is logged from the shift page with Log ejection: ejected or refused entry, the time, a reason category, a photo, name or description, and the reason. That is a record only and needs no approval. To also ban the person, switch on Also ban this person and choose a length (tonight, 1 week, 1 month, 6 months, 12 months, a date or permanent) and where it applies: this venue, all the client's venues, or every venue. A ban from an officer who is not leading the shift waits for the lead, a manager or the venue to confirm. Anyone in the Ejection log can be upgraded to a ban later with Upgrade to ban. Current bans are shown on the shift page, including ones from the client's other venues, so the team on the door can check them.`,
+        body: `Every ejection or refusal is logged from the shift page with Log ejection or ban: ejected or refused entry, the time, a reason category, a photo, name or description, and the reason. That is a record only and needs no approval. To also ban the person, switch on Also ban this person and choose a length (tonight, 1 week, 1 month, 6 months, 12 months, a date or permanent) and where it applies: this venue, all the client's venues, or every venue. A ban from an officer who is not leading the shift waits for the lead, a manager or the venue to confirm. Anyone in the Ejection log can be upgraded to a ban later with Upgrade to ban. Current bans are shown on the shift page, including ones from the client's other venues, so the team on the door can check them.`,
       },
       {
         id: 'training', title: 'Academy, Toolbox and compliance', image: 'training.png',
@@ -360,7 +360,7 @@ AI features use credits from your plan. The usage is shown in Settings.`,
         id: 'home', title: 'Your home screen', image: 'officer-home.png',
         body: `The app has four tabs at the bottom: Home, Shifts, Learn and Me.
 
-Home shows what you need to answer first (offers, shifts to confirm and your To do list), then what's booked, open shifts you can pick up, and any warnings (for example a licence about to expire). Cover offers sit under Needs your answer with Accept and Decline. From 15 minutes before your shift, Home becomes your shift card: clock in there. Once you're in, the top of Home shows how long you've been on shift with Start break, End break and Clock out, and under it four buttons: Report incident, Log ejection, Add log entry and Handover. If the office cancels a shift you are clocked into, Home says so and you can still clock out.
+Home shows what you need to answer first (offers, shifts to confirm and your To do list), then what's booked, open shifts you can pick up, and any warnings (for example a licence about to expire). Cover offers sit under Needs your answer with Accept and Decline. From 15 minutes before your shift, Home becomes your shift card: clock in there. Once you're in, the top of Home shows how long you've been on shift with Start break, End break and Clock out, and under it four buttons: Report incident, Log ejection or ban, Add log entry and Handover. If the office cancels a shift you are clocked into, Home says so and you can still clock out.
 
 Back always takes you to where you came from.`,
       },
@@ -401,19 +401,24 @@ Choose Something's wrong or I have an idea, write what happened, and add up to 3
 Only the Orb team reads feedback; your company managers don't see it. The platform admin's own account can only be changed by the platform admin. Open My feedback to see what you've sent, its status (New, Looking at it, Planned, Fixed or Not now) and any reply. You get a notification when we reply or fix it.`,
       },
       {
-        id: 'clockfail', title: 'Clock-in is refused',
+        id: 'clockfail', title: 'Clock-in is refused', roles: ['officer', 'security'],
         body: `Clock-in opens 15 minutes before the shift. Make sure location is allowed for the app (phone Settings, then the browser or Orb) and that you are inside the venue. If the QR code won't scan, tap I can't scan the code. You can always submit the clock-in as an exception with a note.`,
       },
       {
-        id: 'password', title: 'I forgot my password',
+        id: 'password', title: 'I forgot my password', roles: ['company', 'security', 'officer'],
         body: `On the sign-in page tap Forgot password? and enter your email. If the email doesn't arrive, ask a company manager: they can copy a password reset link for you from Settings, then Users & access.`,
       },
       {
-        id: 'email', title: 'Emails are not arriving',
+        // Venue managers only: the company already has its own answer above
+        id: 'password_venue', title: 'I forgot my password', roles: ['venue'], only: true,
+        body: `On the sign-in page tap Forgot password? and enter your email. If the email doesn't arrive, ask the security company's office: they can send you a password reset link.`,
+      },
+      {
+        id: 'email', title: 'Emails are not arriving', roles: ['company'],
         body: `Check your spam folder. Until the company's sending domain is set up, some emails may not be delivered. Everything important is also in the app: invites and reset links can be copied from Settings, and statements and invoices can be downloaded.`,
       },
       {
-        id: 'logo', title: 'Our logo looks small',
+        id: 'logo', title: 'Our logo looks small', roles: ['company'],
         body: `Upload the logo again in Settings, then Company details, Branding. Empty borders are trimmed on upload. A wide logo with little empty space around it looks best.`,
       },
       {
@@ -432,5 +437,5 @@ export function guideFor(role, companyName) {
   const list = CHAPTERS.filter((c) => role === 'company' || c.roles.includes(role));
   // The person's own role chapter comes first, then install, then the rest in order
   list.sort((a, b) => (b.id === own) - (a.id === own));
-  return list.map((c) => ({ ...c, sections: c.sections.filter((s) => !OFF().includes(s.id) && (!s.roles || role === 'company' || s.roles.includes(role))).map((s) => ({ ...s, title: fill(s.title), body: fill(s.body) })) }));
+  return list.map((c) => ({ ...c, sections: c.sections.filter((s) => !OFF().includes(s.id) && (!s.roles || (role === 'company' && !s.only) || s.roles.includes(role))).map((s) => ({ ...s, title: fill(s.title), body: fill(s.body) })) }));
 }

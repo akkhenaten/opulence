@@ -128,6 +128,18 @@ function Detail({ isCo }) {
               <Tile title="Queries"><Stat value={open.length} label={open.length ? 'Need an answer' : `${r.disputes.length} in total`} tone={open.length ? 'red' : undefined} /></Tile>
             </Bento>
 
+            {/* What Finalise needs, before it is pressed: the same blocks and choices as the button and its sheet */}
+            {isCo && ['draft', 'in_review'].includes(r.status) && (
+              <p className="mb-4 flex items-start gap-2 px-1 text-footnote text-muted">
+                <ShieldCheck size={16} className="mt-0.5 shrink-0" aria-hidden />
+                <span>{[
+                  open.length ? `Finalise needs ${plural(open.length, 'open query', 'open queries')} resolved first.` : 'Finalise needs open queries resolved; there are none.',
+                  waiting ? `${plural(waiting, 'officer hasn\'t', 'officers haven\'t')} checked their statement: you'll choose to approve for them or hold them back.` : '',
+                  split.awaiting ? `${plural(split.awaiting, 'shift')} the venue hasn't signed ${split.awaiting === 1 ? 'moves' : 'move'} to the next run.` : 'Shifts the venue hasn\'t signed move to the next run.',
+                ].filter(Boolean).join(' ')}</span>
+              </p>
+            )}
+
             {r.status === 'in_review' && r.review_deadline && (
               <div className="mb-4 flex items-start gap-2.5 rounded-2xl bg-amber-soft px-4 py-3 text-subhead">
                 <CircleDot size={18} className="mt-0.5 shrink-0 text-amber" />

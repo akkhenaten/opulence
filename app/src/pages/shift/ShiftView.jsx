@@ -36,7 +36,7 @@ const VIEWS = [{ value: 'mgr', label: 'Manager view' }, { value: 'officer', labe
 const unreadFor = (d) => d.entries.filter((e) => e.kind === 'instruction' && e.state === 'kept' && !e.read_by_me && new Date(d.shift.ends_at) > new Date()).reverse();
 // One tap starts a report of that type (IncidentForm reads ?type=)
 const REPORTS = [
-  { type: 'ejection', label: 'Ejection / refused entry', icon: DoorOpen, tone: 'bg-amber-soft text-amber' },
+  { type: 'ejection', label: 'Ejection / refused entry', icon: DoorOpen, tone: 'bg-amber-soft text-amber', hint: 'Full incident report. Use it when there was force, an injury or police.' },
   { type: 'medical', label: 'Injury / first aid', icon: HeartPulse, tone: 'bg-red-soft text-red' },
   { type: 'damage', label: 'Damage', icon: Hammer, tone: 'bg-blue-soft text-blue' },
   { type: 'theft', label: 'Theft', icon: ShoppingBag, tone: 'bg-blue-soft text-blue' },
@@ -129,7 +129,7 @@ function Body({ d, reload, role, live, preview }) {
   const signed = log.status === 'signed';
   const started = new Date(s.starts_at) <= new Date();
   const proposed = d.bans.filter((b) => b.status === 'proposed');
-  // Tonight's ejections that are not bans (those show under "Banned here")
+  // Tonight's ejections that are not bans (those show under "Bans that apply here")
   const tonight = (d.ejections || []).filter(isEjection);
   // While the log is open anyone on it logs ejections; after it, the officer's own shift takes them for 30 days
   const canEject = (me.can_write && !signed) || !!me.can_eject_late;
@@ -165,7 +165,7 @@ function Body({ d, reload, role, live, preview }) {
       <div className="space-y-5">
         <Team team={team} venue={venue} />
         {!venue || d.bans.length || tonight.length ? (
-          <Section title="Ejections & bans" icon={Ban} action={canEject && <Button size="sm" variant="soft" icon={Plus} onClick={() => setBanning(true)}>Log ejection</Button>}>
+          <Section title="Ejections & bans" icon={Ban} action={canEject && <Button size="sm" variant="soft" icon={Plus} onClick={() => setBanning(true)}>Log ejection or ban</Button>}>
             {proposed.length > 0 && me.can_curate && <p className="mb-2 text-footnote font-semibold text-amber">{proposed.length} waiting for you to confirm</p>}
             {tonight.length > 0 && (
               <div className="mb-4">
@@ -173,7 +173,7 @@ function Body({ d, reload, role, live, preview }) {
                 <BanList bans={tonight} canManage={!officer && !venue} canEscalate={!venue && (me.can_write || !officer)} directBan={me.can_curate} venueId={s.venue_id} onChanged={reload} />
               </div>
             )}
-            <div className="mb-2 text-footnote font-semibold text-muted">Banned here{d.bans.length ? ` · ${d.bans.length}` : ''}</div>
+            <div className="mb-2 text-footnote font-semibold text-muted">Bans that apply here{d.bans.length ? ` · ${d.bans.length}` : ''}</div>
             <BanList bans={d.bans} canConfirm={me.can_curate || venue} canManage={!officer} venueId={s.venue_id} onChanged={reload} empty="No bans at this venue" />
           </Section>
         ) : null}
@@ -295,7 +295,7 @@ function LiveActions({ s, d, onBan, onNote, onHandover }) {
   return (
     <div className="grid grid-cols-2 gap-2 @lg:grid-cols-4">
       <Button variant="soft" icon={ShieldAlert} disabled={!open} to={open ? `/officer/incidents/new?shift=${s.id}` : undefined}>Report incident</Button>
-      <Button variant="soft" icon={Ban} disabled={!onBan} onClick={onBan || undefined}>Log ejection</Button>
+      <Button variant="soft" icon={Ban} disabled={!onBan} onClick={onBan || undefined}>Log ejection or ban</Button>
       <Button variant="secondary" icon={NotebookPen} disabled={!onNote} onClick={onNote || undefined}>Add log entry</Button>
       <Button variant="secondary" icon={ArrowRightLeft} disabled={!onHandover} onClick={onHandover || undefined}>Handover</Button>
       {d.thread_id && <Button variant="plain" className="col-span-2 @lg:col-span-4" icon={MessagesSquare} to={`/officer/messages/${d.thread_id}`}>Shift chat</Button>}
@@ -334,13 +334,14 @@ function ReportTiles({ s, preview }) {
       ))}
       <div className={cx('grid grid-cols-3 gap-2 @lg:grid-cols-5', w !== 'open' && 'pointer-events-none opacity-60 grayscale')} aria-disabled={w !== 'open'}>
         {REPORTS.map((r) => (
-          <Button key={r.type} variant="plain" tabIndex={w !== 'open' ? -1 : undefined} to={w === 'open' ? `/officer/incidents/new?shift=${s.id}&type=${r.type}` : undefined}
+          <Button key={r.type} variant="plain" title={r.hint} tabIndex={w !== 'open' ? -1 : undefined} to={w === 'open' ? `/officer/incidents/new?shift=${s.id}&type=${r.type}` : undefined}
             className="!h-auto flex-col !gap-1.5 rounded-tile bg-surface !px-1 !py-3 text-center shadow-tile">
             <span className={cx('grid h-9 w-9 place-items-center rounded-xl', r.tone)}><r.icon size={18} /></span>
             <span className="whitespace-normal text-caption font-semibold leading-tight">{r.label}</span>
           </Button>
         ))}
       </div>
+      <p className="mt-2 text-footnote text-muted">Ejection / refused entry is a {REPORTS[0].hint[0].toLowerCase()}{REPORTS[0].hint.slice(1)} A quick door log is under Log ejection or ban.</p>
     </Section>
   );
 }

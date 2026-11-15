@@ -5,7 +5,7 @@ import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import { addDays, Button, cx, dateTime, dayLabel, Empty, FilterChip, IconButton, List, Load, MoreMenu, Page, periodLabel, Pill, SearchInput, Section, Segmented, Select, time, ToolField, ToolMenu, useAction, useApi, useConfirm } from '../../ui/index.jsx';
-import { BanList } from '../shift/_bans.jsx';
+import { BanList, REGISTER_NOTE } from '../shift/_bans.jsx';
 import { clearLocal } from '../officer/_draft.js';
 import { StagePill } from './incident/SignStrip.jsx';
 import { INCIDENT_STATUS, INCIDENT_TYPES, LatePill, NotLinked, SEVERITIES, typeLabel } from '../officer/_parts.jsx';
@@ -147,7 +147,7 @@ export default function Incidents() {
 
 function MyEjections() {
   const q = useApi('bans.mine', {});
-  return <Load q={q}>{(bans) => <BanList bans={bans} onChanged={q.reload} empty="No ejections logged yet. Log one from the shift card while you're on shift." />}</Load>;
+  return <Load q={q}>{(bans) => <><p className="mb-3 text-footnote text-muted">{REGISTER_NOTE}</p><BanList bans={bans} onChanged={q.reload} empty="No ejections logged yet. Log one from the shift card while you're on shift." /></>}</Load>;
 }
 
 // Reports the writer started and has not sent yet; only they see them

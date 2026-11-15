@@ -151,7 +151,7 @@ function Body({ d, clock, ops, reload }) {
           )}
           {!d.issues?.length && d.grace && (
             <Row to={addFor(docKindFor((d.graced || [])[0]))} left={<Ico icon={CalendarClock} tone={d.grace.days_left <= 3 ? 'red' : 'amber'} />}
-              title={`You can work until ${date(d.grace.ends_on)}`} subtitle={`Send by then: ${(d.graced || []).join(' · ')}`} chevron />
+              title={`You can work until ${date(d.grace.ends_on)}`} subtitle={`Send by then: ${(d.graced || []).join(', ')}`} chevron />
           )}
           {!d.issues?.length && siaDays != null && siaDays <= 60 && (
             <Row to={addFor('sia')} left={<Ico icon={AlertTriangle} tone="amber" />} title={`SIA licence: ${expiryText(siaDays).toLowerCase()}`} subtitle="Renew it and upload the new licence" />
