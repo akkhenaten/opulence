@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { Award, Camera, Contact, HeartPulse, Landmark, MessageSquareText, Plus, Receipt, ShieldCheck, Smartphone, Trash2, Wallet } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -198,9 +198,13 @@ function MyPhone() {
   const [sp, setSp] = useSearchParams();
   const [registering, setRegistering] = useState(sp.get('phone') === 'register');
   const closeRegister = () => { setRegistering(false); if (sp.get('phone')) setSp({}, { replace: true }); };
+  // Opened from Me's "Clock-in phone" row: bring the phone into view once it has loaded
+  const { hash } = useLocation();
+  useEffect(() => { if (hash === '#phone' && q.data) document.getElementById('phone')?.scrollIntoView({ block: 'start' }); }, [hash, q.data]);
   const setConsent = (on) => run(() => api('officers.faceConsent', { consent: on }), on ? 'Face check allowed' : 'Face check turned off').then(q.reload).catch(() => {});
   return (
     <Section title="Clock-in phone" icon={Smartphone}>
+      <span id="phone" className="block scroll-mt-24" />
       <Load q={q}>
         {(d) => (
           <Tile>

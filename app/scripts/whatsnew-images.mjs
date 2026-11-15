@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'fix-and-return': 'A gold thread looping out from an elegant ledger page on a dark desk to a small timesheet card and back again, a phone and a venue doorway glowing softly nearby, a return arrow of light.',
   'checked-and-changed': 'A dark navy desk at night with a security licence card beside a brass magnifying glass, a printed timesheet with one neatly crossed-out time and a fresh gold time written beside it, and a phone showing a calm list with one small amber label, a gold pen resting across the page, warm lamp light, dark navy and gold.',
   'plain-words': 'A dark navy desk at night with a neat paper ledger whose columns line up under a small brass balance scale in perfect level, beside it a phone showing a calm list with one soft gold highlighted row, a gold fountain pen resting across the page, warm lamp light, dark navy and gold.',
   'shift-card-live': 'A phone held in a gloved hand at a venue door at night, its screen showing a calm shift card with a slim gold timer bar at the top and four neat rounded gold buttons in a row beneath it, a door-staff lanyard with a gold clip and a small brass clipboard soft in the background, warm door light, dark navy and gold.',

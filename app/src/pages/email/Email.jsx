@@ -118,7 +118,7 @@ function Inbox({ acc, accounts, folder, current, onAccount, onFolder, onOpen, on
             {accounts.length === 1 && <div className="truncate text-footnote text-muted">{acc.address}{acc.shared ? ' · shared' : ''}</div>}
           </div>
           <IconButton icon={RefreshCw} label="Check for new email" onClick={refresh} disabled={busy} />
-          <IconButton icon={Settings} label="Email settings" to="/company/settings?tab=notifications&part=email" />
+          <IconButton icon={Settings} label="Email settings" to="/company/settings?tab=email" />
           <IconButton icon={SquarePen} tone="solid" label="New email" onClick={onCompose} disabled={!!reconnect} />
         </div>
         <HubTabs hub={hub} className="mb-3" />

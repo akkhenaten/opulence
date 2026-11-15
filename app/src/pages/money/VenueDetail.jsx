@@ -4,7 +4,7 @@ import RecentEmail from '../email/_recent.jsx';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
-  Ban, BookOpen, Building2, ClipboardList, Crosshair, Download, Eye, FileText, FolderOpen, Globe, Info, LineChart, MessageSquareHeart, UserMinus, UserPlus, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, PoundSterling, Power, QrCode, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, Upload, Users,
+  Ban, BookOpen, Building2, ClipboardList, Crosshair, Download, Eye, FileText, FolderOpen, Globe, Info, LayoutDashboard, LineChart, MessageSquareHeart, UserMinus, UserPlus, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, PoundSterling, Power, QrCode, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, Upload, Users,
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
@@ -17,6 +17,7 @@ import { useAuth } from '../../auth.jsx';
 import { ShiftLogList } from '../shift/ShiftLogs.jsx';
 import { BanRegister } from '../shift/Bans.jsx';
 import VenuePackTab from './VenuePackTab.jsx';
+import VenueOverview from './VenueOverview.jsx';
 import { AnalyticsView, useModuleOn } from './Analytics.jsx';
 import { GiveFeedbackSheet } from '../venue/_feedback.jsx';
 import { FeedbackList } from './Feedback.jsx';
@@ -33,7 +34,8 @@ export default function VenueDetail() {
   const { id } = useParams();
   const base = useBase();
   const [params, setParams] = useSearchParams();
-  const raw = params.get('tab') || 'setup';
+  // An existing venue opens on what's happening there; a new one on Setup, to finish setting it up
+  const raw = params.get('tab') || (params.get('new') === '1' ? 'setup' : 'overview');
   const tab = OLD_SETUP[raw] ? 'setup' : OLD_RECORDS[raw] ? 'records' : raw;
   const view = params.get('view') || OLD_RECORDS[raw] || 'docs';
   const { user } = useAuth();
@@ -84,7 +86,7 @@ export default function VenueDetail() {
           {/* Records' own switch sits beside the tabs from sm up, so the list starts high */}
           <div className="sm:flex sm:flex-wrap sm:items-start sm:gap-x-3">
             <Tabs value={tab} onChange={(t) => go(t)} tabs={[
-              { value: 'setup', label: 'Setup', icon: SlidersHorizontal }, { value: 'people', label: 'People', icon: Users }, { value: 'pack', label: 'Instructions', icon: BookOpen },
+              { value: 'overview', label: 'Overview', icon: LayoutDashboard }, { value: 'setup', label: 'Setup', icon: SlidersHorizontal }, { value: 'people', label: 'People', icon: Users }, { value: 'pack', label: 'Instructions', icon: BookOpen },
               { value: 'feedback', label: 'Feedback', icon: MessageSquareHeart, count: v.feedback_open || undefined }, { value: 'records', label: 'Records', icon: FolderOpen },
               ...(analytics ? [{ value: 'analytics', label: 'Analytics', icon: LineChart }] : []),
             ]} />
@@ -93,6 +95,7 @@ export default function VenueDetail() {
             ]} />}
           </div>
 
+          {tab === 'overview' && <VenueOverview v={v} base={base} isCo={isCo} openTab={(t) => go(t)} />}
           {tab === 'setup' && <SetupTab v={v} isCo={isCo} focus={OLD_SETUP[raw]} onSaved={q.reload} canPhoto={isCo || user.role === 'security'}
             details={<DetailsTab key={[v.address, v.postcode, v.website_url, v.active].join('|')} v={v} clients={clients.data || []} onClientCreated={clients.reload} isCo={isCo} onSaved={q.reload}
               onDirty={(x) => { dirty.current = x; }} />} />}

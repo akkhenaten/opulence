@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  BadgeCheck, Bell, BookOpen, CalendarDays, Download, GraduationCap, MessageCircleWarning, Globe, Target, CalendarOff, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
+  BadgeCheck, Bell, Smartphone, BookOpen, CalendarDays, Download, GraduationCap, MessageCircleWarning, Globe, Target, CalendarOff, CircleCheck, FileSignature, FileText, KeyRound, ListChecks, LogOut, ShieldAlert, ShieldCheck, UserRound,
 } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -212,6 +212,7 @@ export default function Me() {
                 <List>
                   <Row to="/officer/documents" left={<Ico icon={BadgeCheck} tone="green" />} title="Documents and licence" subtitle="SIA licence, right to work, certificates" />
                   <Row to="/officer/profile" left={<Ico icon={UserRound} />} title="Profile and bank" subtitle="Contact details, bank and your rates" />
+                  <PhoneRow />
                   <Row to="/officer/pay" left={<Ico icon={FileText} />} title="Pay" subtitle="Your pay statements" />
                   <Row to="/officer/incidents" left={<Ico icon={ShieldAlert} tone="red" />} title="Reports" subtitle="Incident reports and ejections you logged" right={toFix.length ? <Pill tone="amber">{toFix.length} to fix</Pill> : null} />
                   <Row to="/officer/time-off" left={<Ico icon={CalendarOff} tone="ink" />} title="Time off and availability" />
@@ -263,5 +264,18 @@ function PasswordSheet({ open, onClose }) {
         <Input label="Confirm new password" type="password" autoComplete="new-password" value={v.confirm} onChange={set('confirm')} hint={mismatch ? 'Passwords do not match' : undefined} />
       </div>
     </Sheet>
+  );
+}
+
+// Whether the phone they clock in with is ready; the phone itself is managed on Profile
+function PhoneRow() {
+  const q = useApi('device.mine');
+  const list = q.data?.devices || [];
+  const active = list.some((d) => d.status === 'active');
+  const pending = list.some((d) => d.status === 'pending');
+  const [label, tone] = !q.data ? [q.error ? "Couldn't check" : 'Checking…', 'grey'] : active ? ['Ready', 'green'] : pending ? ['Awaiting approval', 'amber'] : ['Not registered', 'amber'];
+  return (
+    <Row to="/officer/profile#phone" left={<Ico icon={Smartphone} tone={tone} />} title="Clock-in phone"
+      subtitle={active && pending ? 'A new phone is waiting for approval' : 'The phone you clock in with'} right={<Pill tone={tone}>{label}</Pill>} />
   );
 }

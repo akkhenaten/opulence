@@ -2,7 +2,7 @@
 // rows tinted by where the timesheet stands (venue signed, awaiting sign-off) and lines added by hand at the end.
 import { Fragment, useMemo } from 'react';
 import { Check, Clock, History, PenLine } from 'lucide-react';
-import { cx, dayLabel, hours, money, Pill } from '../../ui/index.jsx';
+import { cx, dayLabel, hours, money, mondayOf, Pill } from '../../ui/index.jsx';
 
 const LOOK = {
   signed: { label: 'Venue signed', row: 'bg-green-soft/40', edge: 'border-l-green', tone: 'green', icon: Check },
@@ -13,6 +13,10 @@ const LOOK = {
 const iso = (d) => (d ? String(d).slice(0, 10) : null);
 export const lineLook = (l) => (!l.timesheet_id ? 'manual' : l.ts_status === 'signed' ? 'signed' : 'awaiting');
 // A late line missed its own (already billed) period and rides on this draft, marked with its real shift date
+// A shift line's timesheet, opened in its own week, with a way back to the page it was opened from
+export const timesheetHref = (base, l, from, label) => `${base}/timesheets?${new URLSearchParams({
+  ...(iso(l.work_date) && { week: mondayOf(iso(l.work_date)) }), ts: l.timesheet_id, from, from_label: label,
+})}`;
 export const isLateLine = (l, periodStart) => !!(l.timesheet_id && periodStart && iso(l.work_date) && iso(l.work_date) < iso(periodStart));
 
 /**

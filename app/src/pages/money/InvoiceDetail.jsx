@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Check as CheckIcon, Clock, Download, Info, ListOrdered, Pencil, Plus, RefreshCw, Send, StickyNote, Trash2, Undo2 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -8,7 +8,7 @@ import {
   isoDate, money, useAction, useApi, useConfirm, useForm, useMedia,
 } from '../../ui/index.jsx';
 import { pct, useBase } from './_parts.jsx';
-import { DayLines, signedSplit } from './_lines.jsx';
+import { DayLines, signedSplit, timesheetHref } from './_lines.jsx';
 
 export default function InvoiceDetail() {
   const { id } = useParams();
@@ -16,6 +16,7 @@ export default function InvoiceDetail() {
   const isCo = user.role === 'company';
   const base = useBase();
   const nav = useNavigate();
+  const loc = useLocation();
   const q = useApi('invoices.get', { id });
   const confirm = useConfirm();
   const [run, busy] = useAction();
@@ -137,8 +138,8 @@ export default function InvoiceDetail() {
 
             <Section title="Lines" icon={ListOrdered} count={inv.lines.length} action={editable && <Button size="sm" variant="soft" icon={Plus} onClick={() => setLine({})}>Add line</Button>}>
               <DayLines lines={inv.lines} periodStart={draft ? inv.period_start : null} extra={extra} action={action} showState={draft && !credit}
-                onRow={editable ? (l) => !l.timesheet_id && setLine(l) : undefined} empty="No lines on this invoice" />
-              {editable && hasTimesheets && <p className="mt-2 text-footnote text-muted">Shift lines follow their timesheet — change them on the Timesheets page.</p>}
+                onRow={isCo ? (l) => (l.timesheet_id ? nav(timesheetHref(base, l, loc.pathname, title)) : editable && setLine(l)) : undefined} empty="No lines on this invoice" />
+              {isCo && !credit && hasTimesheets && <p className="mt-2 text-footnote text-muted">{editable ? 'Tap a shift line to correct its hours.' : 'Tap a shift line to see its timesheet.'}</p>}
             </Section>
 
             <div className="mt-4 flex justify-end">

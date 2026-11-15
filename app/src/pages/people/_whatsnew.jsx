@@ -11,6 +11,18 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-15', icon: ArrowRightLeft, title: 'From where you see a problem to where you fix it, and back', image: 'fix-and-return',
+    lede: "The fifth round of fixes from the three-portal review. Wrong hours, a shift, a licence, a venue, a phone or a setting are now one tap from where you notice them, with a clear way back.",
+    points: [
+      "On a pay statement or invoice, tap a shift line to open that timesheet in its own week. After correcting the hours, \"Back to …\" returns you to the statement or invoice",
+      "The rota preview has Open shift page at the top. On a computer, a published shift card has its own open button, so the shift page is one click away. Draft shifts open their page once published, so notes and instructions never reach officers early. Back returns to the same week, and on a phone to the same day",
+      "Compliance groups a person's findings by document, for example \"SIA licence: 4 findings\", worst first. On the Today card, Mark verified and Mark for re-check (or a correction) can't both be ticked for one document, and the app refuses it too. Remove from shifts is offered once per person",
+      "A venue now opens on Overview: the next 7 days with cover, who is on site now, hours to sign or queried, invoices to pay, open feedback and the site contact, each linking to its page. Setup is one tab away, and a new venue still opens on Setup",
+      "A staff profile can approve or reject a new clock-in phone, the same way as Staff → Phones, and links to All phones. Phone status doesn't affect whether someone can work: it is checked at clock-in. Officers see Clock-in phone (Ready, Awaiting approval or Not registered) on their Me screen",
+      "Settings → Orb links to what Orb did, Email set-up has its own Email tab, and Notifications has a button to change your own alerts",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-15', icon: BadgeCheck, title: 'Screens that say what was checked, changed or booked', image: 'checked-and-changed',
     lede: "The fourth round of fixes from the three-portal review. Licences say whether anyone has checked them, signed hours say when they changed, ejections and bans have one clear name, and time off shows the shifts it clashes with.",
     points: [

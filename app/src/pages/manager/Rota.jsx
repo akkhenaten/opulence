@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  Building2, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, Clock, Copy, Crown, FilePen, Hand, LogOut, NotebookPen, Plus, Printer, Repeat, Rows2, Rows4, Send, Trash2, UserMinus, UserPlus, UserRound, UserX, X,
+  ArrowUpRight, Building2, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, Clock, Copy, Crown, FilePen, Hand, LogOut, NotebookPen, Plus, Printer, Repeat, Rows2, Rows4, Send, Trash2, UserMinus, UserPlus, UserRound, UserX, X,
 } from 'lucide-react';
 import {
   ActionBar, addDays, AssignPill, Avatar, Button, Chip, confirmState, cx, dateShort, dayLabel, Dot, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, MoreMenu, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Textarea, ToolField, ToolMenu, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useMedia, useToast, useUrlState, nameMatches, displayName,
@@ -34,12 +35,12 @@ function useDensity() {
 export default function Rota() {
   // Tab, open shift, week, venue, view and filters live in the address, so Back and shared links land on the same view
   const thisWeek = mondayOf(isoDate());
-  const [url, setUrl] = useUrlState({ tab: 'rota', shift: '', assign: '', week: thisWeek, venue: '', view: 'venues', f: '', empty: '1' });
+  const [url, setUrl] = useUrlState({ tab: 'rota', shift: '', assign: '', week: thisWeek, day: '', venue: '', view: 'venues', f: '', empty: '1' });
   const tab = url.tab === 'requests' ? 'requests' : 'rota';
   const openId = url.shift || null;
   const setOpenId = (id) => setUrl({ shift: id || '', assign: '' });
   const week = /^\d{4}-\d{2}-\d{2}$/.test(url.week) ? mondayOf(url.week) : thisWeek;
-  const setWeek = (w) => setUrl({ week: w });
+  const setWeek = (w) => setUrl({ week: w, day: '' });
   const venueId = url.venue;
   const view = VIEWS.some((v) => v.value === url.view) ? url.view : 'venues';
   const on = (url.f || '').split(',').filter((k) => FILTERS.some((f) => f.key === k));
@@ -143,7 +144,7 @@ export default function Rota() {
             const none = on.length
               ? <Empty icon={CalendarDays} title="No shifts match these filters" action={<Button variant="secondary" onClick={() => setUrl({ f: '' })}>Clear filters</Button>} />
               : <Empty photo="kit" icon={CalendarDays} title="No shifts this week" action={<Button icon={Plus} onClick={() => setForm({})}>New shift</Button>} />;
-            const phone = <PhoneDay {...props} venues={activeVenues} />;
+            const phone = <PhoneDay {...props} venues={activeVenues} day={url.day} setDay={(d) => setUrl({ day: d })} />;
             if (view === 'officers') {
               if (!shown.length) return none;
               return <><OfficerGrid {...props} /><OfficerAgenda {...props} /></>;
@@ -255,7 +256,16 @@ function ShiftCard({ s, onOpen, showVenue = true, density = 'comfortable', flat 
       <span className={cx('num text-caption font-bold', tone)}>{s.filled}/{s.headcount}</span>
     </span>
   );
+  const { base } = useBase();
+  // Desktop: a published shift's page is one click away from the card (the preview stays the default tap)
+  const direct = !compact && !draft && (
+    <Link to={`${base}/shifts/${s.id}`} aria-label={`Open shift page: ${s.venue_name}, ${range(s.starts_at, s.ends_at)}`} title="Open shift page"
+      className="absolute bottom-1.5 right-1.5 hidden h-7 w-7 items-center justify-center rounded-lg bg-fill text-muted opacity-0 transition hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 md:flex">
+      <ArrowUpRight size={16} aria-hidden />
+    </Link>
+  );
   return (
+    <div className="group relative">
     <Pressable press onClick={() => onOpen(s)} title={whoTitle(s)}
       className={cx('@container relative block w-full overflow-hidden rounded-xl border bg-surface text-left transition hover:border-faint active:scale-[0.99]',
         compact ? 'min-h-8 py-1.5 pl-2.5 pr-2' : 'min-h-14 py-2 pl-2.5 pr-2', draft ? 'border-dashed border-faint/70' : 'border-hairline', !flat && 'shadow-tile')}>
@@ -284,6 +294,8 @@ function ShiftCard({ s, onOpen, showVenue = true, density = 'comfortable', flat 
         </>
       )}
     </Pressable>
+    {direct}
+    </div>
   );
 }
 
@@ -436,12 +448,11 @@ function OfficerGrid({ rows, all, week, density, onOpen, onUnfilled }) {
 
 /* A day at a time: a strip of the week's days (a red dot where places are open), then that day's shifts by venue,
    venues with open places first and short shifts at the top of each. */
-function PhoneDay({ rows, week, venues, onOpen, onAdd }) {
+function PhoneDay({ rows, week, venues, onOpen, onAdd, day: picked, setDay }) {
   const today = isoDate();
   const days = DAYS(week);
-  const first = days.includes(today) ? today : week;
-  const [day, setDay] = useState(first);
-  useEffect(() => { setDay(first); }, [week]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The chosen day lives in the address, so Back from a shift returns to it; a new week starts on today or its Monday
+  const day = days.includes(picked) ? picked : days.includes(today) ? today : week;
   const list = cellShifts(rows, day);
   const groups = [...new Set(list.map((s) => s.venue_id))].map((id) => {
     const mine = list.filter((s) => s.venue_id === id).sort((a, b) => (places(b) > 0) - (places(a) > 0) || byTime(a, b));
@@ -632,13 +643,15 @@ function ShiftDetail({ id, startAssign, roleName, onClose, onChanged, onEdit, on
     <Sheet open side onClose={onClose} title={s ? s.venue_name : 'Shift'} footer={footer} size="md" onPrev={onPrev} onNext={onNext}>
       {q.loading && !s ? <Spinner /> : q.error && !s ? <ErrorBox error={q.error} retry={q.reload} /> : !s ? null : (
         <div className="space-y-5">
+          {s.status === 'draft'
+            ? <p className="text-footnote text-muted">The shift page opens once it's published.</p>
+            : <Button variant="soft" icon={NotebookPen} to={`${base}/shifts/${s.id}`}>Open shift page</Button>}
           <div className="flex flex-wrap items-center gap-2">
             <Pill status={s.status} />{s.open && <Pill tone="blue">Open shift</Pill>}
             <Pill tone={shiftState(s) === 'short' ? 'red' : shiftState(s) === 'unconfirmed' ? 'amber' : 'green'} className="num">{s.filled}/{s.headcount} filled</Pill>
             {shiftState(s) === 'unconfirmed' && <Pill tone="amber">{s.assignments.filter((a) => a.status === 'assigned').length} unconfirmed</Pill>}
             {s.cover_request_id && <Pill tone="grey">From cover request</Pill>}
           </div>
-          {s.status === 'published' && <Button variant="soft" icon={NotebookPen} to={`${base}/shifts/${s.id}`}>Shift page, log and ejections</Button>}
           <KV items={[
             ['When', <>{dayLabel(s.starts_at)}, <span className="num">{range(s.starts_at, s.ends_at)}</span></>],
             ['Role', s.role_name || roleName(s.role)],

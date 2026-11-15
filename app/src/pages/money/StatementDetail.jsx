@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Banknote, CalendarDays, Check as CheckIcon, ClipboardCheck, Clock, Contact, Download, MessageSquare, Plus, RefreshCw, Send, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -9,7 +9,7 @@ import {
 } from '../../ui/index.jsx';
 import { useBase } from './_parts.jsx';
 import { REVIEW_LABEL, RUN_LABEL } from './PayRuns.jsx';
-import { DayLines, signedSplit } from './_lines.jsx';
+import { DayLines, signedSplit, timesheetHref } from './_lines.jsx';
 import { SELF_HINT, SelfPills } from '../manager/_parts.jsx';
 
 const KIND = { bonus: 'Bonus', expense: 'Expense', deduction: 'Deduction' };
@@ -19,6 +19,7 @@ export default function StatementDetail() {
   const { user } = useAuth();
   const base = useBase();
   const nav = useNavigate();
+  const loc = useLocation();
   const isCo = user.role === 'company';
   const q = useApi('pay.get', { id });
   const confirm = useConfirm();
@@ -129,8 +130,9 @@ export default function StatementDetail() {
                   {split.awaiting ? ` ${split.signed} of ${split.signed + split.awaiting} shifts are signed off by the venue; only those are paid in this run, the rest move to the next one.` : ' Every shift on it is signed off by the venue.'}
                 </Callout>
               )}
-              <DayLines lines={shiftLines} periodStart={draft ? st.period_start : null} showState={draft} empty="No shifts on this statement" />
-              <p className="mt-2 px-1 text-caption text-faint">Rate shown is the average hourly rate for the shift, including any night, weekend or bank holiday uplift.{editable && shiftLines.length ? ' Shift lines follow their timesheet — change them on the Timesheets page.' : ''}</p>
+              <DayLines lines={shiftLines} periodStart={draft ? st.period_start : null} showState={draft} empty="No shifts on this statement"
+                onRow={isCo ? (l) => l.timesheet_id && nav(timesheetHref(base, l, loc.pathname, `${st.officer_name}'s statement`)) : undefined} />
+              <p className="mt-2 px-1 text-caption text-faint">Rate shown is the average hourly rate for the shift, including any night, weekend or bank holiday uplift.{isCo && shiftLines.length ? (editable ? ' Tap a shift line to correct its hours.' : ' Tap a shift line to see its timesheet.') : ''}</p>
             </Section>
 
             <Section title="Bonuses, expenses and deductions" icon={SlidersHorizontal} action={editable && <Button size="sm" variant="soft" icon={Plus} onClick={() => setAdding(true)}>Add line</Button>}>

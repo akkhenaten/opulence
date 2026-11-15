@@ -9,6 +9,7 @@ import {
 import { api, downloadAction } from '../../api.js';
 import { useVenue } from '../../venue.jsx';
 import { ClockOutSheet } from './_clockOut.jsx';
+import { previousEntry } from '../../ui/nav.js';
 import { Check as Tick, fromLondonInput, londonIso, SELF_HINT, SelfPills, toLondonInput, useBase } from '../manager/_parts.jsx';
 
 const FLAG_TONE = { late: 'amber', left_early: 'amber', exception: 'red', no_clock_out: 'red', manual: 'blue', edited: 'blue', cancelled_after_billing: 'red' };
@@ -54,7 +55,7 @@ export default function Timesheets() {
   const canSign = isCo || isVenue;
   // Week, venue, officer and view live in the address, so Back and shared links land on the same view
   const thisWeek = mondayOf(isoDate());
-  const [url, setUrl] = useUrlState({ week: thisWeek, venue: '', officer: '', show: 'all', status: '' });
+  const [url, setUrl] = useUrlState({ week: thisWeek, venue: '', officer: '', show: 'all', status: '', ts: '', from: '', from_label: '' });
   // Venues open on the whole week: who worked, who is on site now, and what is waiting for their signature
   const filter = FROM_STATUS[url.status] || url.show || 'all';
   const setFilter = (f) => { setUrl({ show: f, status: '' }); setSel(new Set()); };
@@ -114,6 +115,15 @@ export default function Timesheets() {
   const at = order.findIndex((r) => r.assignment_id === openId);
   const open = at >= 0 ? order[at] : all.find((r) => r.assignment_id === openId);
   const onOpen = (r) => setOpenId(r.assignment_id);
+  // A link from a statement or invoice line (?ts=) opens that timesheet once the week has loaded
+  useEffect(() => {
+    if (!url.ts || !q.data) return;
+    const r = all.find((x) => String(x.id) === String(url.ts));
+    if (r) setOpenId(r.assignment_id);
+    setUrl({ ts: '' });
+  }, [url.ts, q.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  // …and keeps a way back to that page, also after an edit (in-app paths only)
+  const from = /^\/[a-z]/.test(url.from) ? url.from : '';
 
   const approve = (list) => run(() => api('timesheets.approve', { ids: list.map((r) => r.id) }),
     (r) => `${r.approved} approved${r.message ? ` · ${r.message}` : ''}`).then(done).catch(() => {});
@@ -182,6 +192,11 @@ export default function Timesheets() {
       actions={<>{isVenue ? (toSignWeek.length > 0 && <Button icon={Signature} busy={busy} onClick={signWeek}>Sign off week · {toSignWeek.length}</Button>)
         : readyToPay && <Button variant="secondary" icon={HandCoins} busy={busy} onClick={sendToPay}>Send to pay run</Button>}
         <MoreMenu items={[{ icon: Download, label: 'Export this week', hint: 'Every row shown, as CSV', onClick: () => downloadAction('timesheets.exportCsv', body).catch(() => {}) }]} /></>}>
+      {from && (
+        <div className="mb-3">
+          <Button variant="soft" size="sm" icon={ChevronLeft} onClick={() => (previousEntry()?.path?.split('?')[0] === from ? nav(-1) : nav(from))}>Back to {url.from_label || 'where you were'}</Button>
+        </div>
+      )}
       {earlier.length > 0 && (
         <Callout tone="warning" icon={Clock} className="mb-3" title={`${earlier.length} earlier shift${earlier.length > 1 ? 's' : ''} with no clock-in`}
           action={<Button size="sm" variant="secondary" onClick={() => { setUrl({ week: mondayOf(isoDate(earlier[earlier.length - 1].starts_at)), show: 'no_clock_in', status: '' }); setSel(new Set()); }}>Show oldest</Button>}>

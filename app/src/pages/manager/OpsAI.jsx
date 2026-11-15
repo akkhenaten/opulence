@@ -19,6 +19,8 @@ const KIND = {
 };
 const RADIUS_CHOICES = [50, 75, 100, 150, 200, 300, 500];
 const ISSUE_CARDS = ['compliance', 'venue_setup'];
+// The scan an action changes (verify and re-check name it; a correction comes from the scan its finding read)
+const actionDoc = (a, i) => a.params?.doc_id || (a.kind === 'correct' ? /^doc_[a-z_]+:([0-9a-f-]{36})/.exec(i.key)?.[1] : null) || null;
 const SEVERITY = { urgent: { label: 'Urgent', tone: 'red' }, soon: { label: 'Soon', tone: 'amber' }, advisory: { label: 'Advisory', tone: 'grey' } };
 const ITEM_STATUS = { approved: 'Offers sent', done: 'Done', rejected: 'Rejected', expired: 'Expired', pending: 'Waiting' };
 
@@ -375,7 +377,22 @@ function ComplianceBody({ it, pending, manual, picked, setPicked, allowed, onCha
   const [dismiss, setDismiss] = useState(null);
   const [reason, setReason] = useState('');
   const [run, busy] = useAction();
-  const toggle = (id, on) => setPicked((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n; });
+  // Every action on the card, with the scan it changes; ticking "verified" unticks a re-check or correction of the same scan, and the other way round
+  const all = (p.issues || []).flatMap((i) => i.actions.map((a) => ({ ...a, doc: actionDoc(a, i) })));
+  const toggle = (id, on) => setPicked((s) => {
+    const n = new Set(s);
+    if (!on) { n.delete(id); return n; }
+    n.add(id);
+    const a = all.find((x) => x.id === id);
+    if (a?.doc) {
+      const clash = a.kind === 'verify_doc' ? ['recheck', 'correct'] : ['recheck', 'correct'].includes(a.kind) ? ['verify_doc'] : [];
+      for (const x of all) if (x.doc === a.doc && clash.includes(x.kind)) n.delete(x.id);
+    }
+    return n;
+  });
+  // "Take them off shifts" once per person: the one covering the most shifts stands for all
+  const offShifts = all.filter((a) => a.kind === 'unassign').sort((a, b) => b.params.assignment_ids.length - a.params.assignment_ids.length)[0]?.id;
+  const shownAct = (a) => allowed(a) && (a.kind !== 'unassign' || a.id === offShifts);
   const venue = it.kind === 'venue_setup';
   // Venue setup cards list several issues: each shows its title, the detail and choices open on Show details
   const [shown, setShown] = useState(() => new Set());
@@ -393,7 +410,7 @@ function ComplianceBody({ it, pending, manual, picked, setPicked, allowed, onCha
       {!(pending && manual) && venue && it.venue_id && <Button size="sm" variant="soft" icon={MapPin} to={`${base}/venues/${it.venue_id}?tab=setup`}>Open Setup</Button>}
       {(p.issues || []).map((i) => {
         const folded = venue && !shown.has(i.key);
-        const acts = i.actions.filter(allowed);
+        const acts = i.actions.filter(shownAct);
         const on = acts.filter((a) => picked.has(a.id)).length;
         return (
         <div key={i.key} className="rounded-2xl border border-line p-3">
@@ -412,7 +429,7 @@ function ComplianceBody({ it, pending, manual, picked, setPicked, allowed, onCha
           </div>
           {pending && !folded && acts.length > 0 && (
             <div className="mt-2 space-y-1 pl-4">
-              {i.actions.filter(allowed).map((a) => (
+              {acts.map((a) => (
                 <div key={a.id}>
                   <label className="flex cursor-pointer items-start gap-2 text-footnote">
                     <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-blue)]" checked={picked.has(a.id)} onChange={(e) => toggle(a.id, e.target.checked)} />
@@ -603,7 +620,7 @@ export function OpsSettings() {
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <Tile title="What Orb does">
+      <Tile title="What Orb does" action={<Button size="sm" variant="link" to="/company/orb">See what Orb did →</Button>}>
         <div className="divide-y divide-line">
           {JOBS.map((j) => <div key={j.k} className="py-2"><Toggle label={j.label} hint={j.hint} checked={v.ops_jobs?.[j.k] !== false} onChange={(c) => set('ops_jobs', { ...v.ops_jobs, [j.k]: c })} /></div>)}
         </div>

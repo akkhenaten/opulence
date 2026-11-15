@@ -13,6 +13,7 @@ import { ContractView, DocPill, RemindButton, SendDocSheet } from './_esign.jsx'
 import StartSheet from './contracts/StartSheet.jsx';
 import { AMEND_KIND, ENGAGEMENT, JUR_SHORT } from './contracts/_shared.jsx';
 import { PackPill } from '../shared/PackPaper.jsx';
+import { useBase as useManagerBase } from '../manager/_parts.jsx';
 import { SiaCheckPill, SiaVerifyButton, useSiaVerify } from './SiaVerify.jsx';
 import { SIA_CHECK_ON } from '../../ui/sia.js';
 import RtwCheckSheet from './RtwCheckSheet.jsx';
@@ -81,6 +82,7 @@ export function OverviewTab({ o, reload, isCo }) {
 // The officer's clock-in phone. Removing it makes them register a phone again, which a manager then approves.
 function PhoneTile({ o }) {
   const q = useApi('device.list', { officer_id: o.id });
+  const { base } = useManagerBase();
   const confirm = useConfirm();
   const [run, busy] = useAction();
   if (q.error || !q.data) return null;
@@ -88,23 +90,36 @@ function PhoneTile({ o }) {
     if (!(await confirm({ title: `Remove ${d.label}?`, body: `${o.name} can't use it to clock in any more. Their next clock-in asks them to register a phone, and a manager must approve it.`, confirm: 'Remove phone', danger: true }))) return;
     run(() => api('device.revoke', { id: d.id }), 'Phone removed').then(q.reload).catch(() => {});
   };
+  // The same approval as Staff → Phones: one action, one audit entry, the officer is told
+  const current = q.data.find((d) => d.status === 'active');
+  const decide = async (d, approve) => {
+    if (approve && !(await confirm({ title: `Approve ${o.name}'s new phone?`, body: `${d.label} becomes their clock-in phone${current ? ` and ${current.label} stops working` : ''}. Only approve it if you know they changed phone.`, confirm: 'Approve' }))) return;
+    if (!approve && !(await confirm({ title: 'Reject this phone?', body: 'Clock-ins from it stay flagged for review.', confirm: 'Reject', danger: true }))) return;
+    run(() => api('device.decide', { id: d.id, approve }), approve ? 'Phone approved' : 'Phone rejected').then(q.reload).catch(() => {});
+  };
   return (
-    <Tile title="Clock-in phone" icon={Smartphone}>
+    <Tile title="Clock-in phone" icon={Smartphone} action={<Button size="sm" variant="link" to={`${base}/staff/phones`}>All phones →</Button>}>
       {!q.data.length ? (
         <div className="flex items-start gap-2"><Pill tone="amber">No phone</Pill><p className="text-subhead text-muted">Not registered yet. They're asked to on their Home page and at their first clock-in.</p></div>
       ) : (
         <div className="divide-y divide-line">
           {q.data.map((d) => (
-            <div key={d.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-              <div className="min-w-0 flex-1">
+            <div key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5 first:pt-0 last:pb-0">
+              <div className="min-w-0 flex-1 basis-48">
                 <div className="flex items-center gap-2"><span className="truncate font-semibold">{d.label}</span>{d.status === 'pending' ? <Pill tone="amber">Awaiting approval</Pill> : <Pill tone="green">Active</Pill>}</div>
                 <div className="text-footnote text-muted">Since {date(d.created_at)}{d.last_used_at ? ` · last used ${relative(d.last_used_at)}` : ''}</div>
               </div>
-              <Button size="sm" variant="secondary" disabled={busy} onClick={() => revoke(d)}>Remove</Button>
+              {d.status === 'pending' ? (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="secondary" disabled={busy} onClick={() => decide(d, false)}>Reject</Button>
+                  <Button size="sm" disabled={busy} onClick={() => decide(d, true)}>Approve</Button>
+                </div>
+              ) : <Button size="sm" variant="secondary" disabled={busy} onClick={() => revoke(d)}>Remove</Button>}
             </div>
           ))}
         </div>
       )}
+      <p className="mt-3 text-footnote text-muted">Phone status doesn't affect whether they can work: it is checked at clock-in.</p>
       {o.user_id && (
         <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-footnote text-muted">
           <BellRing size={16} className={o.has_push ? 'text-green' : 'text-faint'} />

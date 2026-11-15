@@ -117,6 +117,17 @@ function WorkLine({ r, d, company, reload, listed }) {
   );
 }
 
+// A person's findings, one block per document (worst first, as the rows come); person-level items stay on their own
+function byDoc(rows) {
+  const m = new Map();
+  for (const r of rows) {
+    const k = r.doc || `item:${r.key}`;
+    if (!m.has(k)) m.set(k, { doc: k, label: r.doc_label ? r.doc_label[0].toUpperCase() + r.doc_label.slice(1) : '', rows: [] });
+    m.get(k).rows.push(r);
+  }
+  return [...m.values()];
+}
+
 function Body({ d, gd, company, reloadGrace, view, sev, setSev, area, dismiss, busy, openCard, openStaff, openRtw }) {
   const counts = useMemo(() => d.rows.reduce((m, r) => ({ ...m, [r.severity]: (m[r.severity] || 0) + 1 }), {}), [d.rows]);
   // officer id → their can't work / on grace row
@@ -158,34 +169,41 @@ function Body({ d, gd, company, reloadGrace, view, sev, setSev, area, dismiss, b
           {groups.map((g) => {
             const name = `${g.officer.first_name} ${g.officer.last_name}`;
             const w = work.get(g.officer.id);
+            // In a document block, the right to work check button shows once, on its first finding
+            const finding = (r, n) => (
+              <div key={r.key} className="rounded-2xl bg-bg p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 text-subhead font-semibold">{r.title}</div>
+                  <Pill tone={SEV[r.severity]?.tone || 'grey'}>{SEV[r.severity]?.label || r.severity}</Pill>
+                </div>
+                {r.detail && <p className="mt-0.5 text-footnote text-muted">{r.detail}</p>}
+                {r.shift && <p className="num mt-0.5 text-footnote text-muted">Next shift: {r.shift.venue_name} · {date(r.shift.starts_at)} {time(r.shift.starts_at)}</p>}
+                {(r.card_id || (openRtw && r.area === 'rtw' && !n)) && (
+                  <div className="mt-1.5 flex justify-end gap-2">
+                    {openRtw && r.area === 'rtw' && !n && <Button size="sm" variant="soft" onClick={() => openRtw(g.officer.id)}>Check right to work</Button>}
+                    {r.card_id && <Button size="sm" variant="ghost" disabled={busy} onClick={() => dismiss(r)}>Dismiss</Button>}
+                  </div>
+                )}
+              </div>
+            );
             return (
               <Tile key={g.officer.id}>
                 <div className="mb-3 flex items-center gap-3">
                   <Avatar name={name} src={[g.officer.photo_thumb_url, g.officer.photo_url]} size={40} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-headline font-bold">{name}</div>
-                    <div className="text-footnote text-muted">{g.rows.length ? `${g.rows.length} issue${g.rows.length === 1 ? '' : 's'}` : 'Not on the issues list'}{g.officer.status === 'onboarding' ? ' · onboarding' : ''}</div>
+                    <div className="text-footnote text-muted">{g.rows.length ? `${g.rows.length} finding${g.rows.length === 1 ? '' : 's'}` : 'Not on the issues list'}{g.officer.status === 'onboarding' ? ' · onboarding' : ''}</div>
                   </div>
                   <Button size="sm" variant="link" onClick={() => openStaff(g.officer.id)}>Profile</Button>
                 </div>
                 {w && <WorkLine r={w} d={gd} company={company} reload={reloadGrace} listed={g.rows.length > 0} />}
                 <div className="space-y-2">
-                  {g.rows.map((r) => (
-                    <div key={r.key} className="rounded-2xl bg-bg p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 text-subhead font-semibold">{r.title}</div>
-                        <Pill tone={SEV[r.severity]?.tone || 'grey'}>{SEV[r.severity]?.label || r.severity}</Pill>
-                      </div>
-                      {r.detail && <p className="mt-0.5 text-footnote text-muted">{r.detail}</p>}
-                      {r.shift && <p className="num mt-0.5 text-footnote text-muted">Next shift: {r.shift.venue_name} · {date(r.shift.starts_at)} {time(r.shift.starts_at)}</p>}
-                      {(r.card_id || (openRtw && r.area === 'rtw')) && (
-                        <div className="mt-1.5 flex justify-end gap-2">
-                          {openRtw && r.area === 'rtw' && <Button size="sm" variant="soft" onClick={() => openRtw(g.officer.id)}>Check right to work</Button>}
-                          {r.card_id && <Button size="sm" variant="ghost" disabled={busy} onClick={() => dismiss(r)}>Dismiss</Button>}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  {byDoc(g.rows).map((b) => (b.rows.length > 1 ? (
+                    <section key={b.doc} aria-label={`${b.label}: ${b.rows.length} findings`} className="rounded-2xl border border-line p-2">
+                      <h3 className="px-1 pb-1.5 pt-0.5 text-footnote font-bold">{b.label}: {b.rows.length} findings</h3>
+                      <div className="space-y-1.5">{b.rows.map(finding)}</div>
+                    </section>
+                  ) : finding(b.rows[0])))}
                 </div>
                 {g.advice && (
                   <div className="mt-3 flex gap-2 rounded-2xl bg-blue-soft p-3 text-footnote text-blue">

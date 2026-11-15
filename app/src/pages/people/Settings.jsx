@@ -11,7 +11,7 @@ import {
 } from '../../ui/index.jsx';
 import { Chips, CopyLink, DOC_KINDS, docKindLabel, SIA_TYPES } from './_parts.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
-import { NOTIFY_KINDS } from '../officer/_notify.jsx';
+import { NOTIFY_KINDS, NotificationsSheet } from '../officer/_notify.jsx';
 import { resetEverydaySettings } from '../everyday/_parts.jsx';
 import { loadStyleFonts, previewStyle, restoreStyle, styleVars } from '../../ui/style.js';
 import { TemplatesTab } from './_esign.jsx';
@@ -23,15 +23,15 @@ import { AccessFields, InviteSheet, inviteStatus, USER_ROLES } from './_access.j
 
 const TABS = [
   { value: 'company', label: 'Company', icon: Building2 }, { value: 'users', label: 'Users & access', icon: KeyRound }, { value: 'rules', label: 'Workforce rules', icon: Scale },
-  { value: 'templates', label: 'Templates & contracts', icon: FileSignature }, { value: 'notifications', label: 'Notifications & email', icon: Bell }, { value: 'orb', label: 'Orb', icon: Sparkles },
+  { value: 'templates', label: 'Templates & contracts', icon: FileSignature }, { value: 'notifications', label: 'Notifications', icon: Bell }, { value: 'email', label: 'Email', icon: Mail },
+  { value: 'orb', label: 'Orb', icon: Sparkles },
   { value: 'demos', label: 'Demo requests', icon: Inbox },
 ];
-// Older links used these tab names; library and email are now a part of a shared tab
-const OLD_TAB = { calendar: 'rules', contracts: 'templates', account: 'company', library: 'templates', email: 'notifications' };
-const OLD_PART = { library: 'library', email: 'email' };
+// Older links used these tab names; the library is now a part of a shared tab
+const OLD_TAB = { calendar: 'rules', contracts: 'templates', account: 'company', library: 'templates' };
+const OLD_PART = { library: 'library' };
 const PARTS = {
   templates: [{ value: 'esign', label: 'Templates', icon: FileSignature }, { value: 'library', label: 'Contract library', icon: Library }],
-  notifications: [{ value: 'alerts', label: 'Notifications', icon: Bell }, { value: 'email', label: 'Email', icon: Mail }],
 };
 
 // Forms with unsaved edits mark themselves here, so switching tab asks first
@@ -45,7 +45,8 @@ function useMarkDirty(on) {
 export default function Settings() {
   const [sp, setSp] = useSearchParams();
   const confirm = useConfirm();
-  const raw = sp.get('tab') || 'company';
+  // Email had been a part of Notifications (?tab=notifications&part=email): it is its own tab now
+  const raw = sp.get('tab') === 'notifications' && sp.get('part') === 'email' ? 'email' : sp.get('tab') || 'company';
   const tab = OLD_TAB[raw] || (TABS.some((t) => t.value === raw) ? raw : 'company');
   const part = sp.get('part') || OLD_PART[raw] || PARTS[tab]?.[0].value;
   const dirty = useRef(new Set());
@@ -66,7 +67,8 @@ export default function Settings() {
         {tab === 'users' && <UsersTab openId={sp.get('user')} />}
         {tab === 'rules' && <RulesTab />}
         {tab === 'templates' && (part === 'library' ? <LibraryTab /> : <TemplatesTab />)}
-        {tab === 'notifications' && (part === 'email' ? <EmailTab /> : <NotificationsTab />)}
+        {tab === 'notifications' && <NotificationsTab />}
+        {tab === 'email' && <EmailTab />}
         {tab === 'orb' && <OpsSettings />}
         {tab === 'demos' && <DemosTab />}
       </DirtyCtx.Provider>
@@ -779,6 +781,7 @@ const PHONE_TIERS = [
 // What everyone gets unless they change it under My account → Notifications
 function NotificationsTab() {
   const q = useApi('settings.get');
+  const [mine, setMine] = useState(false);
   const [run] = useAction();
   const flip = (k) => async (on) => {
     const d = await run(() => api('settings.update', { notify_defaults: { [k]: on } }), 'Default saved').catch(() => null);
@@ -792,7 +795,9 @@ function NotificationsTab() {
           <div className="space-y-2">
             {NOTIFY_KINDS.map((k) => <Toggle key={k.key} checked={s.notify_defaults?.[k.key] !== false} onChange={flip(k.key)} label={k.label} hint={k.hint} />)}
           </div>
-          <p className="mt-3 text-caption text-faint">Applies to managers and officers who haven't chosen for themselves. Anyone can change their own under My account. Shifts, cover, pay and safety alerts always come through.</p>
+          <p className="mt-3 text-caption text-faint">Applies to managers and officers who haven't chosen for themselves. Shifts, cover, pay and safety alerts always come through.</p>
+          <Button size="sm" variant="soft" icon={Bell} className="mt-3" onClick={() => setMine(true)}>Change my own notifications</Button>
+          <p className="mt-1 text-caption text-faint">Anyone can change their own under My account.</p>
         </Tile>
         <Tile title="What reaches the phone" icon={Smartphone} className="mt-4 max-w-2xl">
           <dl className="space-y-3 text-subhead">
@@ -805,6 +810,7 @@ function NotificationsTab() {
           </dl>
           <p className="mt-3 text-caption text-faint">Fixed for everyone, so the phone only buzzes when it matters. Everything is always under the bell.</p>
         </Tile>
+        <NotificationsSheet open={mine} onClose={() => setMine(false)} />
         </>
       )}
     </Load>

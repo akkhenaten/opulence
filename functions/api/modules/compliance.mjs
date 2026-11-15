@@ -194,10 +194,25 @@ function rtwWhy(r, d) {
   return '';
 }
 
+// The document a finding is about: a scan's id when the key carries one, and its kind ('sia', 'rtw', a document kind) or null for person-level items
+const DOC_ID = /^(?:doc_[a-z_]+|unverified):([0-9a-f-]{36})/;
+export const keyDoc = (key) => DOC_ID.exec(key || '')?.[1] || null;
+export function docOf(key, docs = []) {
+  const id = keyDoc(key);
+  if (id) return docs.find((d) => d.id === id)?.kind || null;
+  const m = /^(?:renewal|expiry_shift|expiry_soon|missing|register|recheck|unverified):([a-z_]+)$/.exec(key);
+  if (m) return m[1];
+  if (/^rtw:/.test(key)) return 'rtw';
+  if (/^licence_role:/.test(key)) return 'sia';
+  return null;
+}
+// The scan an action changes: verify and re-check name it, a correction comes from the scan its finding read
+export const actionDoc = (a) => a.params?.doc_id || (a.kind === 'correct' ? keyDoc(a.issue?.key) : null);
+
 // Every issue for one officer. ctx: { today, roles: {code: role}, docs, shifts, openTasks }
 export function officerIssues(o, { today, roles, docs = [], shifts = [], openTasks = 0, training = [], certs = [], packs = [] }) {
   const issues = [];
-  const add = (i) => issues.push({ ...i, actions: (i.actions || []).map((a) => ({ ...a, id: `${i.key}|${a.kind}` })) });
+  const add = (i) => issues.push({ ...i, doc: docOf(i.key, docs), actions: (i.actions || []).map((a) => ({ ...a, id: `${i.key}|${a.kind}` })) });
   const near = (list) => (list.length && days(today, londonDate(list[0].starts_at)) <= 7 ? 'urgent' : 'soon');
   const latest = (kind) => docs.filter((d) => d.kind === kind).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const needsSia = (code) => roles[code]?.requires_sia !== false;
@@ -623,6 +638,12 @@ export async function decideCompliance(it, b, user) {
   const actions = (it.payload.issues || []).flatMap((i) => i.actions.map((a) => ({ ...a, issue: i })));
   const picked = actions.filter((a) => chosen.has(a.id));
   if (!picked.length) fail(400, 'Tick at least one action, or dismiss the issues instead');
+  // Verified and sent back for a re-check (or corrected) at once contradict each other: one choice per document
+  for (const v of picked.filter((x) => x.kind === 'verify_doc')) {
+    if (picked.some((y) => ['recheck', 'correct'].includes(y.kind) && actionDoc(y) === v.params.doc_id)) {
+      fail(400, 'A document can be marked verified or sent for a re-check, not both. Untick one and try again.');
+    }
+  }
   const o = need(await one('SELECT * FROM officers WHERE id = $1', [it.officer_id]), 'Officer not found');
   const done = [];
   const reminders = [...new Set(picked.filter((a) => a.kind === 'remind' && !a.params.course_id && !a.params.venue_id).map((a) => a.params.what))];
@@ -838,7 +859,7 @@ export const actions = {
       for (const i of issues) {
         rows.push({
           officer: { id: o.id, first_name: o.first_name, last_name: o.last_name, photo_url: photo, status: o.status },
-          key: i.key, severity: i.severity, title: i.title, detail: i.detail, area: area(i.key),
+          key: i.key, severity: i.severity, title: i.title, detail: i.detail, area: area(i.key), doc: i.doc || null, doc_label: i.doc ? docLabel(i.doc) : '',
           shift: i.shift ? { venue_name: i.shift.venue_name, starts_at: i.shift.starts_at } : null,
           card_id: card?.id || null, advice: card?.reason || '',
         });
