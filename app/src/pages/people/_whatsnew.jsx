@@ -11,6 +11,20 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-15', icon: ListChecks, title: 'Compliance you can work through, and a history on every record', image: 'compliance-and-history',
+    lede: "The tenth round of fixes from the three-portal review. Compliance becomes a queue of what needs doing and who does it, the main records show what changed and who changed it, contracts follow their steps, and training says plainly what is required.",
+    points: [
+      "Compliance opens as a queue: one line per document, people who can't work first, then those on a grace period, then the rest. Each line says who acts next, for example Officer to renew or Office to check, and By person still shows the old view",
+      "Opening a line shows what is on the profile, what was uploaded and what Orb read, side by side, with anything that doesn't match marked. It says whether a person or Orb checked it, why it matters, and which booked shifts in the next two weeks it would stop",
+      "The steps Orb suggests are ticked in the panel and done with one Apply. A finding that has been acted on stays in the queue with a note of what was done, until its date or urgency changes. Security managers see what only a company manager can decide",
+      "Staff profiles, venues, shifts, invoices, pay statements and contracts have a History section: who changed what and when, ten at a time. A staff profile's history includes their documents, contracts and HR notes, and a shift's includes its bookings",
+      "Staff contracts start with four steps: who signs for the company, templates ready, send, and what is waiting to be signed. Each contract says which template and version it came from, or that it was an uploaded file, and a replaced one says when and by which version",
+      "Settings → Templates & contracts has three parts: who signs for the company, the templates, and the clause library and legal reviews, folded away until you need them",
+      "Training records say No training assigned, Requirements met, or how many outside certificates nobody has checked. Required courses show how many people are assigned, archived courses fold under the list, and two courses that look the same are flagged to compare",
+      "Each published version of a course is kept, with how many passed on it. A course that is no longer offered tells officers their certificate stays valid",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-15', icon: SlidersHorizontal, title: 'Settings that say whose they are, and chats that say who is listening', image: 'settings-and-chats',
     lede: "The ninth round of fixes from the three-portal review. The bell keeps what still needs you apart from past alerts, Settings separates company rules from personal choices, and a shift chat shows who is in it.",
     points: [

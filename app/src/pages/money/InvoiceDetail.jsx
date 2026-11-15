@@ -9,6 +9,7 @@ import {
 } from '../../ui/index.jsx';
 import { pct, useBase } from './_parts.jsx';
 import { DayLines, signedSplit, timesheetHref } from './_lines.jsx';
+import RecordHistory from '../people/_history.jsx';
 
 export default function InvoiceDetail() {
   const { id } = useParams();
@@ -158,6 +159,8 @@ export default function InvoiceDetail() {
             {editable ? <NotesEditor inv={inv} onSaved={q.reload} /> : inv.notes ? (
               <Section title={credit ? 'Reason' : 'Notes'} icon={StickyNote}><Tile><p className="whitespace-pre-wrap text-body">{inv.notes}</p></Tile></Section>
             ) : null}
+
+            <RecordHistory entity="invoice" id={inv.id} />
 
             {line && <LineSheet invoiceId={inv.id} line={line} onClose={() => setLine(null)} onSaved={q.reload} />}
             {paying && <PaidSheet inv={inv} onClose={() => setPaying(false)} onSaved={q.reload} />}

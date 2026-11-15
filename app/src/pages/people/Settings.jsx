@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  BadgeCheck, Bell, Building2, Camera, FileSignature, ImageUp, Inbox, Library, ListChecks, Mail, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Newspaper, Percent, Plus,
+  BadgeCheck, Bell, Building2, Camera, FileSignature, ImageUp, Inbox, ListChecks, Mail, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Newspaper, Percent, Plus,
   PoundSterling, ReceiptText, Scale, ShieldCheck, Smartphone, Sparkles, Trash2, UserPlus, Users,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
@@ -15,7 +15,6 @@ import { NOTIFY_KINDS, NotificationsSheet } from '../officer/_notify.jsx';
 import { resetEverydaySettings } from '../everyday/_parts.jsx';
 import { loadStyleFonts, previewStyle, restoreStyle, styleVars } from '../../ui/style.js';
 import { TemplatesTab } from './_esign.jsx';
-import LibraryTab from './contracts/Library.jsx';
 import { EmailTab } from '../email/_settings.jsx';
 import { InstallTile } from '../../ui/pwa.jsx';
 import { OpsSettings } from '../manager/OpsAI.jsx';
@@ -31,9 +30,8 @@ const TABS = [
 // Older links used these tab names; the library is now a part of a shared tab
 const OLD_TAB = { calendar: 'rules', contracts: 'templates', account: 'company', library: 'templates' };
 const OLD_PART = { library: 'library' };
-const PARTS = {
-  templates: [{ value: 'esign', label: 'Templates', icon: FileSignature }, { value: 'library', label: 'Contract library', icon: Library }],
-};
+// Tabs split into parts beside the tab line (none at the moment: the contract library is a folded section of Templates & contracts)
+const PARTS = {};
 
 // Forms with unsaved edits mark themselves here, so switching tab asks first
 const DirtyCtx = createContext(null);
@@ -67,7 +65,7 @@ export default function Settings() {
         {tab === 'company' && <CompanyTab />}
         {tab === 'users' && <UsersTab />}
         {tab === 'rules' && <RulesTab />}
-        {tab === 'templates' && (part === 'library' ? <LibraryTab /> : <TemplatesTab />)}
+        {tab === 'templates' && <TemplatesTab library={part === 'library' || sp.has('library') || window.location.hash === '#library'} />}
         {tab === 'notifications' && <NotificationsTab />}
         {tab === 'email' && <EmailTab />}
         {tab === 'orb' && <OpsSettings />}

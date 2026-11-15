@@ -123,7 +123,7 @@ export function StaffRecords() {
                             c.days_left == null || c.days_left > 60 ? 'bg-green-soft text-green' : c.days_left < 0 ? 'bg-red-soft text-red' : c.days_left <= 30 ? 'bg-amber-soft text-amber' : 'bg-blue-soft text-blue')}>
                             {c.source === 'academy' ? c.title : KIND_LABEL[c.kind] === 'Training' ? c.title : KIND_LABEL[c.kind]}
                           </span>
-                        )) : <span className="text-caption text-muted">No certificates yet</span>}
+                        )) : <span className="text-caption text-muted">{r.todo.length ? 'No certificates yet' : 'Nothing on record'}</span>}
                         {r.certificates.length > 5 && <span className="text-caption2 text-muted">+{r.certificates.length - 5}</span>}
                       </span>
                     )}
@@ -132,7 +132,9 @@ export function StaffRecords() {
                         {r.expired > 0 && <Pill tone="red">{r.expired} expired</Pill>}
                         {r.expiring > 0 && <Pill tone="amber">{r.expiring} ending soon</Pill>}
                         {r.overdue > 0 && <Pill tone="red">{r.overdue} overdue</Pill>}
-                        {!r.expired && !r.expiring && !r.overdue && (r.todo.length ? <Pill tone="blue">{r.todo.length} to do</Pill> : <Pill tone="green">Up to date</Pill>)}
+                        {!r.expired && !r.expiring && !r.overdue && (r.todo.length ? <Pill tone="blue">{r.todo.length} to do</Pill>
+                          : r.certificates.length ? <Pill tone="green">Requirements met</Pill> : <Pill tone="grey">No training assigned</Pill>)}
+                        {unchecked(r) > 0 && <Pill tone="blue">{unchecked(r)} not checked</Pill>}
                       </div>
                     )} />
                 );
@@ -145,6 +147,9 @@ export function StaffRecords() {
     </>
   );
 }
+
+// Outside certificates nobody has checked yet, or with no file to check
+const unchecked = (r) => r.certificates.filter((c) => c.source === 'outside' && (!c.verified || !c.has_file)).length;
 
 // Everything that has run out or runs out soon, from the Academy and outside providers
 export function Refreshers() {

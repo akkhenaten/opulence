@@ -72,7 +72,35 @@ const AUDIT_RECORD_NAME = `CASE WHEN a.entity_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0
     WHEN 'document' THEN (SELECT d.title FROM documents d WHERE d.id = a.entity_id::uuid)
     WHEN 'contract' THEN (SELECT c.title FROM contracts c WHERE c.id = a.entity_id::uuid)
     WHEN 'shift' THEN (SELECT v.name || ' · ' || to_char(s.starts_at AT TIME ZONE 'Europe/London', 'Dy DD Mon') FROM shifts s JOIN venues v ON v.id = s.venue_id WHERE s.id = a.entity_id::uuid)
+    WHEN 'timesheet' THEN (SELECT ${officerName('o')} || ' · ' || v.name || ' · ' || to_char(s.starts_at AT TIME ZONE 'Europe/London', 'Dy DD Mon') FROM timesheets t JOIN shift_assignments sa ON sa.id = t.assignment_id
+      JOIN shifts s ON s.id = sa.shift_id JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = sa.officer_id WHERE t.id = a.entity_id::uuid)
+    WHEN 'assignment' THEN (SELECT ${officerName('o')} || ' · ' || v.name || ' · ' || to_char(s.starts_at AT TIME ZONE 'Europe/London', 'Dy DD Mon') FROM shift_assignments sa
+      JOIN shifts s ON s.id = sa.shift_id JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = sa.officer_id WHERE sa.id = a.entity_id::uuid)
   END END`;
+
+// With related: the records that belong to the one asked for, so a page's History shows its parts too
+// (an officer's documents, contracts, statements and HR notes; a shift's assignments and timesheets). Ids stay as $2.
+export const RELATED = {
+  officer: [
+    ['document', "SELECT id::text FROM documents WHERE owner_type = 'officer' AND owner_id = $2::uuid"],
+    ['contract', 'SELECT id::text FROM contracts WHERE officer_id = $2::uuid'],
+    ['statement', 'SELECT id::text FROM statements WHERE officer_id = $2::uuid'],
+    ['hr_note', 'SELECT id::text FROM hr_notes WHERE officer_id = $2::uuid'],
+  ],
+  shift: [
+    ['assignment', 'SELECT id::text FROM shift_assignments WHERE shift_id = $2::uuid'],
+    ['timesheet', 'SELECT t.id::text FROM timesheets t JOIN shift_assignments sa ON sa.id = t.assignment_id WHERE sa.shift_id = $2::uuid'],
+  ],
+};
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The WHERE clause for audit.list: one record ($1 entity, $2 id), and with related its child records. */
+export function auditWhere(b) {
+  const parts = b.related && RELATED[b.entity] && UUID.test(String(b.entity_id || '')) ? RELATED[b.entity] : [];
+  const own = '($1::text IS NULL OR a.entity = $1) AND ($2::text IS NULL OR a.entity_id = $2)';
+  if (!parts.length) return own;
+  return `((${own}) OR ${parts.map(([e, sql]) => `(a.entity = '${e}' AND a.entity_id IN (${sql}))`).join(' OR ')})`;
+}
 
 export const actions = {
   'users.list': def(CO, async (b) => withPhotos(await q(
@@ -253,8 +281,15 @@ export const actions = {
   'users.managers': def(ALL, async () => q("SELECT id, name, role FROM users WHERE role IN ('company','security') AND status = 'active' ORDER BY name")),
 
   // record_name: the name or number of the record (an invoice number, a person, a venue), when it still exists
+  // related: true adds the record's parts (see RELATED); offset pages through a record's History
   'audit.list': def(CO, async (b) => q(
     `SELECT a.*, ${userName('u')} AS user_name, ${AUDIT_RECORD_NAME} AS record_name FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
-      WHERE ($1::text IS NULL OR a.entity = $1) AND ($2::text IS NULL OR a.entity_id = $2)
-      ORDER BY a.created_at DESC LIMIT $3`, [b.entity || null, b.entity_id || null, Math.min(b.limit || 200, 500)])),
+      WHERE ${auditWhere(b)}
+      ORDER BY a.created_at DESC LIMIT $3 OFFSET $4`, [b.entity || null, b.entity_id || null, Math.min(b.limit || 200, 500), Math.max(Number(b.offset) || 0, 0)])),
+
+  // How many entries a record's History has (with its parts), for the collapsed "History · N changes" line
+  'audit.count': def(CO, async (b) => {
+    required(b, 'entity', 'entity_id');
+    return one(`SELECT count(*)::int AS n FROM audit_log a WHERE ${auditWhere(b)}`, [b.entity, String(b.entity_id)]);
+  }),
 };

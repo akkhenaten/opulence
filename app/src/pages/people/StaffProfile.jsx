@@ -14,6 +14,7 @@ import { ComplianceBadge, CopyLink, ExpiryPill, graceLine, OFFICER_STATUSES, SIA
 import {
   AttendanceTab, AvailabilityTab, ComplianceTab, ContractsTab, DocumentsTab, GrowthTab, HrTab, OffboardingTab, OnboardingTab, OverviewTab, RatesTab, ShiftsTab, TimeOffTab, TrainingTab,
 } from './_profileTabs.jsx';
+import RecordHistory from './_history.jsx';
 
 // Five groups, each a set of sub-views; the sub keys are the old tab keys so access rules and old links carry over
 const GROUP_ICON = { overview: UserRound, compliance: ShieldCheck, work: CalendarDays, pay: PoundSterling, hr: Briefcase };
@@ -148,6 +149,7 @@ function Profile({ o, reload, user, base }) {
 
       {current === 'overview' && <OverviewTab {...props} />}
       {current === 'overview' && isCo && <RecentEmail type="officer" id={o.id} />}
+      {current === 'overview' && <RecordHistory entity="officer" id={o.id} related />}
       {current === 'compliance' && <ComplianceTab {...props} />}
       {current === 'documents' && <DocumentsTab {...props} onForbidden={() => forbid('documents')} />}
       {current === 'rates' && <RatesTab {...props} />}

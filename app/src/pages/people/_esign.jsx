@@ -9,11 +9,12 @@ import {
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Button, Check, cx, date, dateTime, Empty, IconButton, Input, List, Load, Pill, Row, SearchInput, Section, Segmented, Select, Sheet, Spinner, Tile, Toggle,
+  Button, Check, cx, date, dateTime, Empty, IconButton, Input, List, Load, Pill, Pressable, Row, SearchInput, Section, Segmented, Select, Sheet, Spinner, Tile, Toggle,
   useAction, useApi, useConfirm, useScrollLock, useToast,
 } from '../../ui/index.jsx';
 import { SignaturePad } from '../../ui/SignaturePad.jsx';
 import { DocPaper } from '../../ui/DocPaper.jsx';
+import RecordHistory from './_history.jsx';
 
 const PdfPages = lazy(() => import('../../ui/PdfPages.jsx'));
 
@@ -125,7 +126,11 @@ function SignatureForm({ sig, onCancel, onSaved }) {
 
 /* ---------------- Templates ---------------- */
 
-export function TemplatesTab() {
+// Shown on Settings → Templates & contracts: who signs, the templates, then the clause library folded away
+const LibraryTab = lazy(() => import('./contracts/Library.jsx'));
+
+export function TemplatesTab({ library = false }) {
+  const [lib, setLib] = useState(library);
   const q = useApi('contracts.templates');
   const [editing, setEditing] = useState(null);
   // Set-up and the send sheet link here with focus=signatory
@@ -137,10 +142,11 @@ export function TemplatesTab() {
   }, [focus]);
   return (
     <>
-      <SigningTile />
+      <Section title="Who signs for the company" icon={PenLine}><SigningTile /></Section>
       <Load q={q}>
         {(rows) => (
           <>
+            <h2 className="mb-2 px-1 text-title3 font-bold">Templates</h2>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div className="max-w-xl">
                 <p className="text-subhead text-muted">Wording for contracts, policies and pay rises sent for e-signature. Signed documents always keep the version they were signed on.</p>
@@ -170,6 +176,17 @@ export function TemplatesTab() {
           </>
         )}
       </Load>
+      <section id="library" className="mt-8 scroll-mt-20">
+        <Pressable press onClick={() => setLib((x) => !x)} aria-expanded={lib}
+          className="flex w-full items-center gap-2 rounded-tile bg-surface p-4 text-left shadow-tile">
+          <span className="min-w-0 flex-1">
+            <span className="block text-subhead font-semibold">Clause library and legal review</span>
+            <span className="block text-footnote text-muted">Advanced: the wording behind built contracts, approvals and solicitor reviews</span>
+          </span>
+          <span className="text-footnote font-semibold text-blue">{lib ? 'Hide' : 'Show'}</span>
+        </Pressable>
+        {lib && <div className="mt-4"><Suspense fallback={<Spinner />}><LibraryTab /></Suspense></div>}
+      </section>
     </>
   );
 }
@@ -616,7 +633,8 @@ export function ContractView({ id, onClose }) {
       <Load q={q}>
         {(x) => (
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2"><DocPill r={x} />{x.template_version && <span className="text-footnote text-muted">Version {x.template_version}</span>}
+            <div className="flex flex-wrap items-center gap-2"><DocPill r={x} />{x.template_version && <span className="text-footnote text-muted">Version {x.template_version}{x.source === 'upload' ? ' · uploaded file' : ''}</span>}
+              {x.status === 'superseded' && x.superseded_at && <span className="text-footnote text-muted">Replaced on {date(x.superseded_at)}</span>}
               {x.party && <span className="text-footnote text-muted">{x.party.name}{x.party.signatory_name ? ` · signs: ${x.party.signatory_name}` : ''}</span>}</div>
             {x.signer_kind === 'outside' && <LinkPanel x={x} onDone={q.reload} />}
             {x.pdf_url && <Suspense fallback={<Spinner />}><PdfPages src={x.pdf_url} /></Suspense>}
@@ -628,6 +646,7 @@ export function ContractView({ id, onClose }) {
               <div className="mb-2 text-footnote font-semibold uppercase tracking-wide text-muted">Signing timeline</div>
               <Timeline events={x.events} />
             </div>
+            <RecordHistory entity="contract" id={x.id} className="mt-0" />
           </div>
         )}
       </Load>

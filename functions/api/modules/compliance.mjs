@@ -11,7 +11,8 @@ import { downloadUrl, photoUrls } from '../lib/storage.mjs';
 import { fmtDate, fmtTime, londonDate } from '../lib/time.mjs';
 import { SIA_TYPES, DOC_LABEL, TRAINING_KINDS } from '../lib/licences.mjs';
 import { audit } from '../lib/audit.mjs';
-import { venueScope } from '../lib/scope.mjs';
+import { assertOfficerAccess, venueScope } from '../lib/scope.mjs';
+import { affectedShifts, checkedBy, compareRows, handledSig, ownerLabel, ownerOf, whyItMatters } from '../lib/complianceQueue.mjs';
 import { getShift } from './rota.mjs';
 import { createItem, logActivity, proposeCover } from './ops.mjs';
 import { afterShiftChange } from './shiftSync.mjs';
@@ -40,6 +41,7 @@ const READ_KINDS = ['sia', 'rtw', 'id'];
 const SCAN_KINDS = [...READ_KINDS, 'poa', 'other'];
 const sig = (...parts) => createHash('sha1').update(JSON.stringify(parts)).digest('hex').slice(0, 12);
 const days = (from, to) => Math.round((new Date(to) - new Date(from)) / 86400000);
+const norm10 = (v) => String(v instanceof Date ? v.toISOString() : v).slice(0, 10);
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const shiftLine = (sh) => `${sh.venue_name} ${fmtDate(sh.starts_at)} ${fmtTime(sh.starts_at)} (${sh.role_name})`;
 const digits = (s) => String(s || '').replace(/\D/g, '');
@@ -515,8 +517,9 @@ export const latestCertificates = (officerId = null) => q(
      FROM certificates c JOIN courses co ON co.id = c.course_id AND co.status = 'published'
     WHERE ($1::uuid IS NULL OR c.officer_id = $1) ORDER BY c.officer_id, c.course_id, c.issued_at DESC`, [officerId]);
 
-// Live issues for every active/onboarding officer (or one), without dismissed ones
-export async function computeIssues({ officerId = null } = {}) {
+// Live issues for every active/onboarding officer (or one), without dismissed ones. An issue handled from the
+// Compliance queue stays on that screen with a note (hideHandled: off Today's cards) until its data or urgency changes.
+export async function computeIssues({ officerId = null, hideHandled = false, withShifts = false } = {}) {
   const today = londonDate(new Date());
   const [officers, roleRows, docs, shifts, tasks, dismissed, training, certs] = await Promise.all([
     q("SELECT * FROM officers WHERE status IN ('active','onboarding') AND ($1::uuid IS NULL OR id = $1)", [officerId]),
@@ -537,8 +540,12 @@ export async function computeIssues({ officerId = null } = {}) {
     const issues = officerIssues(o, {
       today, roles, docs: docs.filter((d) => d.owner_id === o.id), shifts: shifts.filter((s) => s.officer_id === o.id), packs: packs.filter((p) => p.officer_id === o.id),
       openTasks: tasks.find((t) => t.officer_id === o.id)?.n || 0, training: training.filter((t) => t.officer_id === o.id), certs: certs.filter((c) => c.officer_id === o.id),
-    }).filter((i) => !dismissed.some((d) => d.officer_id === o.id && d.issue_key === i.key && d.sig === i.sig));
-    return { officer: o, issues };
+    }).filter((i) => !dismissed.some((d) => d.officer_id === o.id && d.issue_key === i.key && d.sig === i.sig)).flatMap((i) => {
+      const h = dismissed.find((d) => d.officer_id === o.id && d.issue_key === i.key && d.sig === handledSig(i));
+      if (!h) return [i];
+      return hideHandled ? [] : [{ ...i, handled: { at: h.created_at, note: h.reason } }];
+    });
+    return withShifts ? { officer: o, issues, shifts: shifts.filter((s) => s.officer_id === o.id) } : { officer: o, issues };
   }).filter((r) => r.issues.length);
 }
 
@@ -594,7 +601,7 @@ export const clearedCards = (open, results, officerIds = null) =>
 /** officerIds: re-check just these people straight after a rota change (no document reading, nothing logged). */
 export async function runCompliance({ manual = false, officerIds = null } = {}) {
   const read = officerIds ? 0 : await readDocuments(8);
-  const results = officerIds ? (await Promise.all(officerIds.map((officerId) => computeIssues({ officerId })))).flat() : await computeIssues();
+  const results = officerIds ? (await Promise.all(officerIds.map((officerId) => computeIssues({ officerId, hideHandled: true })))).flat() : await computeIssues({ hideHandled: true });
   const open = await q("SELECT * FROM ops_items WHERE kind = 'compliance' AND status = 'pending' AND ($1::uuid[] IS NULL OR officer_id = ANY($1))", [officerIds]);
   let created = 0;
   let updated = 0;
@@ -846,22 +853,34 @@ export const actions = {
     return { ok: true };
   }),
 
-  // Every open issue as one row, worst first, with the Orb card that carries the actions
-  'compliance.overview': def(MGR, async () => {
-    const [results, cards] = await Promise.all([
-      computeIssues(),
+  // Every open issue as one row, worst first, with the Orb card that carries the actions. Each row also says which scan it is
+  // about, how it was checked, who acts next, the booked shifts it would stop and the actions the card offers.
+  'compliance.overview': def(MGR, async (b, { user }) => {
+    const [results, cards, docs] = await Promise.all([
+      computeIssues({ withShifts: true }),
       q("SELECT id, officer_id, reason FROM ops_items WHERE kind = 'compliance' AND status = 'pending'"),
+      q("SELECT id, owner_id, kind, expiry, verified_at, verified_by, auto_applied_at, created_at FROM documents WHERE owner_type = 'officer' ORDER BY created_at DESC"),
     ]);
+    const today = londonDate(new Date());
+    const company = user?.role === 'company';
     const rows = [];
-    for (const { officer: o, issues } of results) {
+    for (const { officer: o, issues, shifts } of results) {
       const card = cards.find((c) => c.officer_id === o.id);
       const photo = await downloadUrl(o.photo_key);
       for (const i of issues) {
+        const docId = keyDoc(i.key);
+        const scan = docId ? docs.find((d) => d.id === docId) : i.doc ? docs.find((d) => d.owner_id === o.id && d.kind === i.doc) : null;
+        const expiry = (docId ? scan?.expiry : i.doc === 'sia' ? o.sia_expiry : i.doc === 'rtw' ? o.rtw_expiry : scan?.expiry) || null;
+        const day = expiry ? norm10(expiry) : null;
         rows.push({
           officer: { id: o.id, first_name: o.first_name, last_name: o.last_name, photo_url: photo, status: o.status },
           key: i.key, severity: i.severity, title: i.title, detail: i.detail, area: area(i.key), doc: i.doc || null, doc_label: i.doc ? docLabel(i.doc) : '',
           shift: i.shift ? { venue_name: i.shift.venue_name, starts_at: i.shift.starts_at } : null,
           card_id: card?.id || null, advice: card?.reason || '',
+          doc_id: scan?.id || null, expiry: day, days_left: day ? days(today, day) : null, checked: checkedBy(scan),
+          owner: ownerOf(i.key), owner_label: ownerLabel(i), affected: affectedShifts(i, shifts),
+          actions: (i.actions || []).filter((a) => company || !a.company_only).map(({ id, kind, label, default: on }) => ({ id, kind, label, default: !!on })),
+          handled: i.handled || null, group: `${o.id}:${scan?.id || i.doc || i.key}`,
         });
       }
     }
@@ -870,6 +889,73 @@ export const actions = {
     const { n: checked } = await one("SELECT count(*)::int AS n FROM officers WHERE status IN ('active','onboarding')");
     const last = await one("SELECT created_at FROM ops_activity WHERE kind = 'compliance' ORDER BY created_at DESC LIMIT 1");
     return { rows, checked, people: results.length, last_run: last?.created_at || null };
+  }),
+
+  // One document for the queue's panel: what the profile says, what was typed with the upload and what Orb read, side by side
+  'compliance.document': def(MGR, async (b, { user }) => {
+    required(b, 'officer_id');
+    await assertOfficerAccess(user, b.officer_id);
+    const o = need(await one('SELECT * FROM officers WHERE id = $1', [b.officer_id]), 'Officer not found');
+    const d = b.doc_id
+      ? need(await one("SELECT * FROM documents WHERE id = $1 AND owner_type = 'officer' AND owner_id = $2", [b.doc_id, o.id]), 'Document not found')
+      : b.doc ? await one("SELECT * FROM documents WHERE owner_type = 'officer' AND owner_id = $1 AND kind = $2 ORDER BY created_at DESC LIMIT 1", [o.id, b.doc]) : null;
+    const kind = d?.kind || b.doc || null;
+    const by = d?.verified_by ? await one('SELECT name FROM users WHERE id = $1', [d.verified_by]) : null;
+    const read = d?.ai_read || null;
+    return {
+      officer: { id: o.id, first_name: o.first_name, last_name: o.last_name },
+      kind, label: kind ? docLabel(kind) : '',
+      profile: kind === 'sia' ? { number: o.sia_number || null, expiry: o.sia_expiry || null, status: o.sia_status || null, last_checked: o.sia_last_verified_at || null }
+        : kind === 'rtw' ? { expiry: o.rtw_expiry || null, type: o.rtw_type || null, verified: !!o.rtw_verified } : null,
+      upload: d ? {
+        doc_id: d.id, title: d.title, uploaded_at: d.created_at, number: d.number || null, expiry: d.expiry ? norm10(d.expiry) : null,
+        has_file: !!d.s3_key, checked: checkedBy(d), checked_at: d.verified_at || null, checked_by: by?.name || null,
+      } : null,
+      orb: read ? { read_at: d.ai_read_at || null, readable: read.readable !== false, number: read.number || null, expiry: read.expiry || null, name: read.name || null, has_photo: read.has_photo ?? null, concerns: read.concerns || [] } : null,
+      rows: kind ? compareRows(kind, o, d) : [],
+      why: whyItMatters(kind === 'sia' ? 'licence' : kind === 'rtw' ? 'rtw' : 'documents', kind === 'sia' ? o.sia_expiry : kind === 'rtw' ? o.rtw_expiry : d?.expiry, fmtDate),
+    };
+  }),
+
+  // One finding's actions from the queue, with the card's rules. Only that finding leaves the Orb card; the rest stay on it.
+  'compliance.act': def(MGR, async (b, { user }) => {
+    required(b, 'officer_id', 'key');
+    await assertOfficerAccess(user, b.officer_id);
+    const ids = (Array.isArray(b.action_ids) ? b.action_ids : []).filter((x) => typeof x === 'string' && x.startsWith(`${b.key}|`));
+    if (!ids.length) fail(400, 'Pick at least one action');
+    let it = null;
+    if (b.card_id) {
+      it = need(await one("SELECT * FROM ops_items WHERE id = $1 AND kind = 'compliance' AND officer_id = $2", [b.card_id, b.officer_id]), 'Item not found');
+      const scope = await venueScope(user);
+      if (scope && (!it.venue_id || !scope.includes(it.venue_id))) fail(403, 'No access to this item');
+      if (it.status !== 'pending') it = null;
+    }
+    const live = (await computeIssues({ officerId: b.officer_id }))[0]?.issues || [];
+    const issue = need(it?.payload.issues?.find((i) => i.key === b.key) || live.find((i) => i.key === b.key), 'This finding has already been dealt with');
+    const card = { ...(it || {}), officer_id: b.officer_id, payload: { ...(it?.payload || {}), officer_id: b.officer_id, issues: [issue] } };
+    const { done } = await decideCompliance(card, { edits: { actions: ids } }, user);
+    // A plain dismissal written by the action (say, verified) already hides it; otherwise it is marked handled
+    const kept = await one('SELECT sig FROM compliance_dismissals WHERE officer_id = $1 AND issue_key = $2', [b.officer_id, issue.key]);
+    if (kept?.sig !== issue.sig) {
+      await q(`INSERT INTO compliance_dismissals (officer_id, issue_key, sig, reason, dismissed_by) VALUES ($1,$2,$3,$4,$5)
+               ON CONFLICT (officer_id, issue_key) DO UPDATE SET sig = EXCLUDED.sig, reason = EXCLUDED.reason, dismissed_by = EXCLUDED.dismissed_by, created_at = now()`,
+      [b.officer_id, issue.key, handledSig(issue), `${done.join('; ')}${done.length ? ' · ' : ''}${user.name || 'A manager'}`.slice(0, 300), user.id]);
+    }
+    let remaining = null;
+    if (it) {
+      const rest = it.payload.issues.filter((i) => i.key !== issue.key);
+      remaining = rest.length;
+      const o = { first_name: it.payload.officer_name.split(' ')[0], last_name: it.payload.officer_name.split(' ').slice(1).join(' ') };
+      if (rest.length) {
+        await q('UPDATE ops_items SET payload = $2, title = $3 WHERE id = $1', [it.id, { ...it.payload, issues: rest, severity: rest[0].severity, sig: null }, cardTitle(o, rest)]);
+      } else {
+        await q("UPDATE ops_items SET status = 'done', decided_by = $2, decided_at = now(), result = $3 WHERE id = $1", [it.id, user.id, { done, via: 'compliance' }]);
+        await withdraw({ items: [it.id] });
+      }
+    }
+    await audit(user, 'compliance.act', 'officer', b.officer_id, { key: issue.key, actions: ids, done });
+    await logActivity('decision', `${user.name}: ${done.join('; ') || issue.title}`, { ref_type: it ? 'ops_item' : 'officer', ref_id: it?.id || b.officer_id, venue_id: it?.venue_id || null });
+    return { ok: true, done, remaining };
   }),
 
   // The weekly email, for checking what managers will receive

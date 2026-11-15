@@ -18,6 +18,7 @@ import { BanList, BanSheet, isEjection } from './_bans.jsx';
 import { SitePackCard } from '../officer/VenuePack.jsx';
 import { GiveFeedbackSheet } from '../venue/_feedback.jsx';
 import FlowEntry from '../guide/flow/Entry.jsx';
+import RecordHistory from '../people/_history.jsx';
 
 const KINDS = [
   { value: 'note', label: 'Note' },
@@ -148,6 +149,7 @@ function Body({ d, reload, role, live, preview }) {
           : <SitePackCard venueId={s.venue_id} />)}
         {started && (me.can_count || log.customers != null) && <CustomersCard d={d} reload={reload} />}
         <LogSection d={d} reload={reload} composer={composer} />
+        {manager && !preview && <RecordHistory entity="shift" id={s.id} related />}
       </div>
 
       <div className="space-y-5">

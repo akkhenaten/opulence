@@ -321,7 +321,9 @@ export const actions = {
 
   'contracts.list': def(['company', 'officer'], async (b, { user }) => {
     const cols = `c.id, c.title, c.status, c.category, c.source, c.reference, c.template_id, c.template_version, c.signed_name, c.signed_at, c.created_at, c.sent_at,
-                  c.opened_at, c.last_reminded_at, c.company_name_signed, c.officer_id`;
+                  c.opened_at, c.last_reminded_at, c.company_name_signed, c.officer_id, c.superseded_at,
+                  (SELECT t.title FROM contract_templates t WHERE t.id = c.template_id) AS template_title,
+                  (SELECT n.template_version FROM contracts n WHERE n.id = c.superseded_by) AS superseded_version`;
     // Company-wide register when a manager asks without an officer
     if (user.role === 'company' && !b.officer_id) {
       return q(

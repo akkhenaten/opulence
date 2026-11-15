@@ -4,7 +4,7 @@ import { Archive, ArrowDown, ArrowUp, Eye, Images, Plus, Save, Send, Sparkles, T
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Button, cx, date, ErrorBox, IconButton, Input, Page, Pill, Pressable, Select, Sheet, Spinner, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
+  Button, cx, date, ErrorBox, IconButton, Input, Load, Page, Pill, Pressable, Select, Sheet, Spinner, Textarea, Tile, Toggle, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { Lesson, TOPICS } from '../learn/_parts.jsx';
 import { Blocks, BlocksEditor, HeroImage } from '../learn/_blocks.jsx';
@@ -239,11 +239,12 @@ export default function CourseEditor() {
                 <Input label="Retake after (hours)" type="number" min={0} max={720} value={c.cooldown_hours} onChange={(e) => setC('cooldown_hours', e.target.value)} />
                 <Input label="Renew every (months)" type="number" min={1} max={60} value={c.renew_months} placeholder="Never" onChange={(e) => setC('renew_months', e.target.value)} />
               </div>
-              {co ? <Toggle checked={c.mandatory} onChange={(v) => setC('mandatory', v)} label="Required training" hint="Overdue required courses show on the compliance check." />
+              {co ? <Toggle checked={c.mandatory} onChange={(v) => setC('mandatory', v)} label="Required training" hint="Required for the officers you assign it to: overdue ones show on the compliance check. Nobody is assigned automatically." />
                 : <p className="text-subhead">{c.mandatory ? 'Required training' : 'Optional training'} · {TOPICS[c.topic]}</p>}
               <Textarea label="Sources (one per line)" rows={4} value={c.sources} onChange={(e) => setC('sources', e.target.value)} />
             </fieldset>
           </Tile>
+          {c.id && c.version > 0 && <Versions courseId={c.id} />}
           <Tile title="Quiz">
             <p className="text-subhead text-muted">{activeQs} active questions. Each attempt picks {Math.min(Number(c.quiz_size) || 0, activeQs)} at random; officers need {c.pass_mark}% to pass.</p>
           </Tile>
@@ -267,6 +268,65 @@ export default function CourseEditor() {
         onRemove={(key) => { removeQ(key); setEditQ(null); }} />
       {assign && <AssignSheet open courseId={c.id} onClose={() => setAssign(false)} />}
     </Page>
+  );
+}
+
+// Each version the course was published at, who passed on it, and the content as it was then
+function Versions({ courseId }) {
+  const q = useApi('academy.versions', { course_id: courseId });
+  const [open, setOpen] = useState(null);
+  return (
+    <Tile title="Versions">
+      <Load q={q} n={2}>
+        {(list) => (
+          <ol className="space-y-2">
+            {list.map((v) => (
+              <li key={v.version} className="flex items-start gap-2 text-footnote">
+                <span className="num w-8 shrink-0 font-semibold">v{v.version}</span>
+                <span className="min-w-0 flex-1">
+                  {v.kept ? <>{date(v.published_at)}{v.published_by_name ? ` · ${v.published_by_name}` : ''}</> : <span className="text-muted">Published before versions were kept</span>}
+                  <span className="text-muted"> · {v.passed} passed{v.current ? ' · current' : ''}</span>
+                </span>
+                {v.kept && <Button size="sm" variant="link" onClick={() => setOpen(v.version)}>View</Button>}
+              </li>
+            ))}
+          </ol>
+        )}
+      </Load>
+      {open && <VersionSheet courseId={courseId} version={open} onClose={() => setOpen(null)} />}
+    </Tile>
+  );
+}
+
+function VersionSheet({ courseId, version, onClose }) {
+  const q = useApi('academy.version', { course_id: courseId, version });
+  return (
+    <Sheet open onClose={onClose} title={`Version ${version}`} size="lg">
+      <Load q={q}>
+        {(v) => (
+          <div className="space-y-4">
+            <div>
+              <div className="text-title3 font-bold">{v.title}</div>
+              <div className="text-footnote text-muted">Published {date(v.published_at)}{v.published_by_name ? ` by ${v.published_by_name}` : ''} · read only</div>
+            </div>
+            {(v.content.sections || []).map((s, i) => (
+              <section key={i}>
+                <h3 className="text-subhead font-semibold">{s.title}</h3>
+                <p className="mt-1 whitespace-pre-wrap text-footnote">{s.body}</p>
+              </section>
+            ))}
+            {(v.content.questions || []).length > 0 && (
+              <section>
+                <h3 className="text-subhead font-semibold">Quiz · {v.content.questions.length} questions</h3>
+                <ol className="mt-1 list-decimal space-y-1 pl-5 text-footnote">
+                  {v.content.questions.map((x, i) => <li key={i}>{x.prompt}</li>)}
+                </ol>
+              </section>
+            )}
+          </div>
+        )}
+      </Load>
+    </Sheet>
   );
 }
 

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { FilePen, FilePlus2, FileSignature, FileUp, ScrollText, Search, Send, Settings2, Trash2 } from 'lucide-react';
+import { useAuth } from '../../auth.jsx';
+import { Check, FilePen, FilePlus2, FileSignature, FileUp, ScrollText, Search, Send, Settings2, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
-import { dateTime, Select, Empty, IconButton, List, Load, Page, Pill, Progress, Row, SearchInput, Segmented, ToolField, ToolMenu, useAction, useApi, useConfirm, useMedia } from '../../ui/index.jsx';
+import { cx, dateTime, Pressable, Select, Empty, IconButton, List, Load, Page, Pill, Progress, Row, SearchInput, Segmented, ToolField, ToolMenu, useAction, useApi, useConfirm, useMedia } from '../../ui/index.jsx';
 import { ContractRow } from './_profileTabs.jsx';
 import { ContractView, SendDocSheet } from './_esign.jsx';
 import StartSheet from './contracts/StartSheet.jsx';
@@ -52,6 +53,43 @@ function PolicySummary({ rows }) {
   );
 }
 
+/** The four steps of sending contracts, each with where it stands: who signs for the company, templates, send, track */
+function StepStrip({ waiting, onSend, onTrack }) {
+  const { user } = useAuth();
+  const sig = useApi('esign.signatories');
+  const tpl = useApi('contracts.templates');
+  const list = sig.data?.signatories || [];
+  const def0 = list.find((x) => x.id === sig.data?.default_signatory_id);
+  const mine = list.some((x) => x.id === user?.id);
+  // Sending needs a saved signature: the default signatory's, else the sender's own
+  const signer = !sig.data ? null : def0 ? { ok: true, line: `${def0.name} signs` } : mine ? { ok: true, line: 'You sign (no default set)' } : { ok: false, line: 'Not set · needed to send' };
+  const ready = tpl.data?.filter((t) => t.active !== false).length;
+  const steps = [
+    { n: 1, title: 'Signatory', line: signer?.line, ok: signer?.ok, to: '/company/settings?tab=templates&focus=signatory' },
+    { n: 2, title: 'Templates', line: ready == null ? null : ready ? `${ready} ready` : 'None yet', ok: ready > 0, to: '/company/settings?tab=templates' },
+    { n: 3, title: 'Send', line: signer && !signer.ok ? 'Add a signature first' : 'Template, upload or new', ok: null, onClick: onSend },
+    { n: 4, title: 'Track', line: waiting ? `${waiting} waiting to sign` : 'Nothing waiting', ok: !waiting, onClick: onTrack },
+  ];
+  return (
+    <ol className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0" aria-label="Steps">
+      {steps.map((st) => {
+        const inner = (
+          <>
+            <span className={cx('grid h-7 w-7 shrink-0 place-items-center rounded-full text-caption font-bold',
+              st.ok ? 'bg-green-soft text-green' : st.ok === false ? 'bg-amber-soft text-amber' : 'bg-blue-soft text-blue')}>{st.ok ? <Check size={14} /> : st.n}</span>
+            <span className="min-w-0">
+              <span className="block text-subhead font-semibold">{st.title}</span>
+              <span className="block truncate text-footnote text-muted">{st.line || '…'}</span>
+            </span>
+          </>
+        );
+        const cls = 'flex w-full items-center gap-2.5 rounded-tile bg-surface p-3 text-left shadow-tile';
+        return <li key={st.n} className="w-44 shrink-0 lg:w-auto lg:min-w-0"><Pressable press to={st.to} onClick={st.onClick} className={cls}>{inner}</Pressable></li>;
+      })}
+    </ol>
+  );
+}
+
 const VIEWS = [{ value: 'issued', label: 'Issued', icon: Send }, { value: 'drafts', label: 'Drafts', icon: FilePen }];
 
 /** Contracts being drafted in the workspace, not sent yet */
@@ -96,7 +134,10 @@ export default function StaffContracts() {
   const [uploading, setUploading] = useState(false);
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'drafts' ? 'drafts' : 'issued';
-  const [viewing, setViewing] = useState(null);
+  const [picked, setViewing] = useState(null);
+  // ?contract= (a link from the audit log or a record's History) opens that contract
+  const viewing = picked || params.get('contract');
+  const closeView = () => { setViewing(null); if (params.get('contract')) { const p = new URLSearchParams(params); p.delete('contract'); setParams(p, { replace: true }); } };
   const wide = useMedia('(min-width: 640px)');
   const confirm = useConfirm();
   const [run] = useAction();
@@ -129,6 +170,7 @@ export default function StaffContracts() {
         { label: 'Create contract', icon: FilePlus2, variant: 'primary', main: true, onClick: () => setCreating(true) },
       ]}>
       {view === 'drafts' ? <Drafts /> : <>
+      {!status && !search && !category && !source && <StepStrip waiting={q.data?.filter((c) => c.status === 'sent').length || 0} onSend={() => setSending(true)} onTrack={() => setStatus('sent')} />}
       <Load q={q} skeleton="rows">
         {(all) => { const rows = category === 'org' ? all.filter((c) => c.organisation_id) : all; return rows.length ? (
           <>
@@ -150,7 +192,7 @@ export default function StaffContracts() {
       {creating && <StartSheet onClose={() => setCreating(false)} />}
       {uploading && <UploadSheet onClose={() => setUploading(false)} onDone={q.reload} />}
       {sending && <SendDocSheet onClose={() => setSending(false)} onDone={q.reload} />}
-      {viewing && <ContractView id={viewing} onClose={() => setViewing(null)} />}
+      {viewing && <ContractView id={viewing} onClose={closeView} />}
     </Page>
   );
 }

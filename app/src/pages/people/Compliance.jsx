@@ -5,6 +5,7 @@ import { Ban, CalendarClock, Info, Mail, RefreshCw, ShieldAlert, ShieldCheck, Sp
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import GraceSheet, { GRACE_LABEL, GraceButton } from './_graceSheet.jsx';
+import Queue from './_complianceQueue.jsx';
 import {
   Avatar, Button, Chip, date, Empty, Load, MoreMenu, Page, Pill, Segmented, Select, Sheet, Spinner, Tile, time, ToolField, ToolMenu, useAction, useApi, useConfirm, useMedia, useUrlState,
 } from '../../ui/index.jsx';
@@ -26,7 +27,9 @@ export default function Compliance() {
   // Who can't work right now and who is on a grace period: one line on each officer's card, and the Who filter
   const gq = useApi('compliance.blocked');
   // Severity, area and who stay in the address so Back returns to the same view (?view=cantwork from Today and Orb's reminders)
-  const [url, setUrl] = useUrlState({ severity: '', area: '', view: '' });
+  // by: one row per document (the queue, default) or today's card per person
+  const [url, setUrl] = useUrlState({ severity: '', area: '', view: '', by: '' });
+  const person = url.by === 'person';
   const view = ['cantwork', 'grace'].includes(url.view) ? url.view : '';
   const sev = SEV[url.severity] ? url.severity : '';
   const area = AREAS.some((a) => a.value === url.area) ? url.area : '';
@@ -40,6 +43,7 @@ export default function Compliance() {
   const onGrace = gq.data?.onGrace.length || 0;
   const areaPick = <Select aria-label="Area" value={area} onChange={(e) => setUrl({ area: e.target.value })} options={AREAS} />;
   const tools = <>
+    <Segmented value={person ? 'person' : ''} onChange={(v) => setUrl({ by: v, doc: '' })} options={[{ value: '', label: 'Queue' }, { value: 'person', label: 'By person' }]} />
     {(blocked > 0 || onGrace > 0 || view) && (
       <Segmented value={view} onChange={(v) => setUrl({ view: v })} options={[{ value: '', label: 'Everyone' }, { value: 'cantwork', label: `Can't work (${blocked})` }, { value: 'grace', label: `On grace (${onGrace})` }]} />
     )}
@@ -59,7 +63,7 @@ export default function Compliance() {
         </>
       )}>
       <Load q={q} skeleton="rows">
-        {(d) => <Body d={d} gd={gq.data} company={company} reloadGrace={() => { gq.reload(); q.reload(); }} view={view} sev={sev} setSev={(v) => setUrl({ severity: v })} area={area} dismiss={dismiss} busy={busy}
+        {(d) => <Body d={d} gd={gq.data} person={person} company={company} reloadGrace={() => { gq.reload(); q.reload(); }} view={view} sev={sev} setSev={(v) => setUrl({ severity: v })} area={area} dismiss={dismiss} busy={busy}
           openCard={(id) => nav(id ? `/${user.role}?card=${id}` : `/${user.role}`)} openStaff={(id) => nav(`/${user.role}/staff/${id}?tab=documents`)}
           openRtw={company ? (id) => nav(`/${user.role}/staff/${id}?tab=compliance&rtw=check`) : null} />}
       </Load>
@@ -128,15 +132,15 @@ function byDoc(rows) {
   return [...m.values()];
 }
 
-function Body({ d, gd, company, reloadGrace, view, sev, setSev, area, dismiss, busy, openCard, openStaff, openRtw }) {
+function Body({ d, gd, person, company, reloadGrace, view, sev, setSev, area, dismiss, busy, openCard, openStaff, openRtw }) {
   const counts = useMemo(() => d.rows.reduce((m, r) => ({ ...m, [r.severity]: (m[r.severity] || 0) + 1 }), {}), [d.rows]);
   // officer id → their can't work / on grace row
   const work = useMemo(() => new Map([...(gd?.blocked || []), ...(gd?.onGrace || [])].map((r) => [r.officer.id, r])), [gd]);
+  const inView = (id) => !view || (view === 'grace' ? !!work.get(id)?.grace : work.has(id) && !work.get(id).grace);
+  const shown = d.rows.filter((r) => !(sev && r.severity !== sev) && !(area && r.area !== area) && inView(r.officer.id));
   const groups = useMemo(() => {
     const m = new Map();
-    const inView = (id) => !view || (view === 'grace' ? !!work.get(id)?.grace : work.has(id) && !work.get(id).grace);
-    for (const r of d.rows) {
-      if ((sev && r.severity !== sev) || (area && r.area !== area) || !inView(r.officer.id)) continue;
+    for (const r of shown) {
       if (!m.has(r.officer.id)) m.set(r.officer.id, { officer: r.officer, advice: r.advice, card_id: r.card_id, rows: [] });
       m.get(r.officer.id).rows.push(r);
     }
@@ -149,7 +153,9 @@ function Body({ d, gd, company, reloadGrace, view, sev, setSev, area, dismiss, b
     // Can't work first, then on grace, then everyone else
     const rank = (id) => (work.has(id) ? (work.get(id).grace ? 1 : 0) : 2);
     return [...m.values()].sort((a, b) => rank(a.officer.id) - rank(b.officer.id));
-  }, [d.rows, sev, area, view, work]);
+  }, [d.rows, sev, area, view, work]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tiles = person ? groups : groups.filter((g) => !g.rows.length);
+  const workLine = (id, listed) => work.get(id) && <WorkLine r={work.get(id)} d={gd} company={company} reload={reloadGrace} listed={listed} />;
   return (
     <>
       {/* One slim line: the severities with something in them (tap to filter) and when the last check ran */}
@@ -161,12 +167,14 @@ function Body({ d, gd, company, reloadGrace, view, sev, setSev, area, dismiss, b
           {d.checked} people checked{d.last_run ? ` · last full check ${date(d.last_run)} ${time(d.last_run)}` : ''}
         </span>
       </div>
-      {!groups.length ? (
+      {!person && shown.length > 0 && <Queue rows={shown} work={work} company={company} reload={reloadGrace} workLine={workLine} openRtw={openRtw} />}
+      {/* In the queue, people who can't work or are on grace with nothing listed still get their card, below it */}
+      {!person && shown.length > 0 && !tiles.length ? null : !tiles.length ? (
         <Empty icon={ShieldCheck} title={d.rows.length || view ? 'Nothing matches these filters' : 'Everyone is compliant'}
           body={d.rows.length || view ? undefined : 'No expired, missing or unverified documents and no overdue training.'} />
       ) : (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {groups.map((g) => {
+        <div className={`grid grid-cols-1 gap-3 lg:grid-cols-2${person ? '' : ' mt-4'}`}>
+          {tiles.map((g) => {
             const name = `${g.officer.first_name} ${g.officer.last_name}`;
             const w = work.get(g.officer.id);
             // In a document block, the right to work check button shows once, on its first finding

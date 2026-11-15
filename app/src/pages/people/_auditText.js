@@ -34,7 +34,7 @@ export const ACTION_TEXT = {
   'user.invite': 'Login invited', 'user.invite_sent': 'Login invite sent', 'user.update': 'Login changed', 'user.self_update': 'Person changed their own login',
   'user.reset_link': 'Password reset link sent', 'user.platform_role': 'Access level changed',
   'settings.update': 'Settings changed', 'academy.assign': 'Course assigned', 'academy.unassign': 'Course unassigned', 'training.remind': 'Training reminder sent',
-  'compliance.grace_grant': 'Grace period given', 'compliance.grace_renew': 'Grace period extended', 'compliance.dismiss': 'Compliance alert dismissed',
+  'compliance.grace_grant': 'Grace period given', 'compliance.grace_renew': 'Grace period extended', 'compliance.dismiss': 'Compliance alert dismissed', 'compliance.act': 'Compliance action taken',
   'clock.manual': 'Clock time entered by hand', 'device.register': 'Phone registered', 'device.revoke': 'Phone removed',
   'messages.safeguarding_view': 'Conversation opened for safeguarding', 'messages.delete': 'Message deleted', 'messages.report': 'Message reported',
   'review.create': 'Review published', 'review.update': 'Review changed', 'review.delete': 'Review removed',

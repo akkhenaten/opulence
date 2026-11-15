@@ -4,11 +4,11 @@ import { CalendarDays, ChevronDown, Download, History, Sparkles } from 'lucide-r
 import { downloadAction } from '../../api.js';
 import { WhatsNew } from './_whatsnew.jsx';
 import { actionLabel, actionTone, changeLine } from './_auditText.js';
+import { DetailView, recordLink } from './_history.jsx';
 import { Avatar, cx, dateTime, dayLabel, Empty, isoDate, List, Load, MoreMenu, Page, Pill, Pressable, relative, SearchInput, Section, Segmented, Select, time, titleCase, ToolField, ToolMenu, useApi, useUrlState } from '../../ui/index.jsx';
 
 const ENTITIES = ['officer', 'document', 'contract', 'hr_note', 'officer_rate', 'shift', 'assignment', 'cover_request', 'timesheet',
-  'incident', 'venue', 'venue_rate', 'invoice', 'invoice_line', 'statement', 'statement_line', 'user', 'settings'];
-const LINK = { officer: 'staff', venue: 'venues', invoice: 'invoices', statement: 'pay', incident: 'incidents' };
+  'incident', 'venue', 'venue_rate', 'invoice', 'invoice_line', 'statement', 'statement_line', 'pay_run', 'course', 'user', 'settings'];
 
 export default function Audit() {
   // Tab, search, record type and how many to load all live in the address
@@ -63,7 +63,7 @@ export default function Audit() {
 function Entry({ r }) {
   const [open, setOpen] = useState(false);
   const detail = r.detail && typeof r.detail === 'object' && Object.keys(r.detail).length ? r.detail : null;
-  const to = LINK[r.entity] && r.entity_id ? `/company/${LINK[r.entity]}/${r.entity_id}` : null;
+  const to = recordLink(r);
   return (
     <div className="px-4 py-3">
       <div className="flex items-start gap-3">
@@ -96,19 +96,6 @@ function Entry({ r }) {
         </>
       )}
     </div>
-  );
-}
-
-function DetailView({ detail }) {
-  return (
-    <dl className="ml-12 mt-2 grid gap-x-4 gap-y-1 rounded-xl bg-bg p-3 text-caption sm:grid-cols-[auto_1fr]">
-      {Object.entries(detail).map(([k, v]) => (
-        <div key={k} className="contents">
-          <dt className="font-semibold text-muted">{titleCase(k.replace(/_/g, ' '))}</dt>
-          <dd className="min-w-0 break-words font-mono text-ink">{typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 

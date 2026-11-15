@@ -1027,6 +1027,14 @@ export function ContractsTab({ o, onForbidden }) {
 }
 
 /** One issued contract or policy; `who` adds the officer line in the company-wide register */
+// Where a contract came from (template and version, or an uploaded file) and what replaced it
+export function contractOrigin(c) {
+  const from = c.source === 'upload' && !c.template_id ? 'Uploaded file'
+    : c.template_id ? `From ${c.template_title || 'a template'}${c.template_version ? ` v${c.template_version}` : ''}` : null;
+  const replaced = c.status === 'superseded' && c.superseded_at ? `Replaced by ${c.superseded_version ? `v${c.superseded_version}` : 'a newer version'} on ${date(c.superseded_at)}` : null;
+  return [from, replaced].filter(Boolean).join(' · ');
+}
+
 export function ContractRow({ c, who, onView, onVoid, onDone }) {
   const [run] = useAction();
   const Icon = c.category === 'policy' ? ScrollText : FileSignature;
@@ -1043,6 +1051,7 @@ export function ContractRow({ c, who, onView, onVoid, onDone }) {
         </Pressable>
         {who}
         <div className="truncate text-footnote text-muted"><span className="num">{c.reference}</span> · {when}</div>
+        {contractOrigin(c) && <div className="truncate text-caption text-faint">{contractOrigin(c)}</div>}
       </div>
       <div className="flex items-center gap-1.5">
         <DocPill r={c} />

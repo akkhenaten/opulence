@@ -14,6 +14,7 @@ import { CONTENT_RULES, reviewDate, venueTeam } from '../lib/learn.mjs';
 import { addDays, fmtDate, londonDate } from '../lib/time.mjs';
 import { CO, MGR, def } from './_def.mjs';
 import { TRAINING_KINDS } from '../lib/licences.mjs';
+import { similarPairs, snapshotCourse } from '../lib/courseVersions.mjs';
 
 const STAFF = ['company', 'security', 'officer'];
 const TOPICS = ['law', 'operations', 'first_aid'];
@@ -278,6 +279,7 @@ async function saveCourse(b, user) {
       }
       await db.q('DELETE FROM course_questions WHERE course_id = $1 AND NOT (id = ANY($2::uuid[]))', [course.id, keep]);
     }
+    await snapshotCourse(db, course.id, user);
     return db.one('SELECT * FROM courses WHERE id = $1', [course.id]);
   });
 }
@@ -434,6 +436,41 @@ ${await courseText(course)}`,
       FROM courses c WHERE c.status <> 'archived' OR $1::boolean ORDER BY c.status = 'published' DESC, c.topic, c.title`, [!!b.archived]);
   }),
 
+  // Each version a course was published at, who published it and how many passed on it; older versions have no snapshot
+  'academy.versions': def(MGR, async (b) => {
+    required(b, 'course_id');
+    const c = need(await one('SELECT id, version, status FROM courses WHERE id = $1', [b.course_id]), 'Course not found');
+    const [kept, passed] = await Promise.all([
+      q('SELECT v.version, v.title, v.published_at, u.name AS published_by_name FROM course_versions v LEFT JOIN users u ON u.id = v.published_by WHERE v.course_id = $1', [c.id]),
+      q(`SELECT course_version AS version, count(DISTINCT officer_id)::int AS n FROM quiz_attempts
+          WHERE course_id = $1 AND passed AND submitted_at IS NOT NULL GROUP BY course_version`, [c.id]),
+    ]);
+    const byV = new Map(kept.map((v) => [v.version, v]));
+    const n = new Map(passed.map((p) => [p.version, p.n]));
+    const out = [];
+    for (let v = c.version; v >= 1; v--) {
+      const k = byV.get(v);
+      out.push({ version: v, kept: !!k, title: k?.title || null, published_at: k?.published_at || null, published_by_name: k?.published_by_name || null, passed: n.get(v) || 0, current: v === c.version });
+    }
+    return out;
+  }),
+
+  'academy.version': def(MGR, async (b) => {
+    required(b, 'course_id', 'version');
+    return need(await one(`SELECT v.version, v.title, v.content, v.published_at, u.name AS published_by_name FROM course_versions v
+        LEFT JOIN users u ON u.id = v.published_by WHERE v.course_id = $1 AND v.version = $2`, [b.course_id, Number(b.version)]), 'Published before versions were kept');
+  }),
+
+  // Courses that look like the same course twice, to compare and keep one
+  'academy.similar': def(MGR, async () => {
+    await requireModule('academy');
+    const rows = await q(`SELECT c.id, c.title, c.status, c.topic, (SELECT count(*)::int FROM course_sections s WHERE s.course_id = c.id) AS sections,
+        (SELECT count(*)::int FROM course_assignments a WHERE a.course_id = c.id) AS assigned,
+        (SELECT count(DISTINCT officer_id)::int FROM certificates x WHERE x.course_id = c.id) AS passed
+      FROM courses c WHERE c.status <> 'archived'`);
+    return similarPairs(rows);
+  }),
+
   'academy.edit': def(MGR, async (b) => {
     required(b, 'id');
     const course = need(await one('SELECT * FROM courses WHERE id = $1', [b.id]), 'Course not found');
@@ -464,6 +501,7 @@ ${await courseText(course)}`,
         published_at = CASE WHEN $2 = 'published' THEN now() ELSE published_at END,
         review_by = CASE WHEN $2 = 'published' THEN $4::date ELSE review_by END
       WHERE id = $1 RETURNING *`, [b.id, b.status, user.id, reviewDate()]), 'Course not found');
+    await snapshotCourse({ one, q }, c.id, user);
     await audit(user, `academy.${b.status}`, 'course', c.id, { title: c.title });
     return c;
   }),
@@ -518,6 +556,7 @@ ${await courseText(course)}`,
           [course.id, s.id, x.kind, x.prompt, JSON.stringify(x.options), x.answer, x.explain]);
       }
       await db.q("UPDATE courses SET updated_at = now(), version = version + CASE WHEN status = 'published' THEN 1 ELSE 0 END WHERE id = $1", [course.id]);
+      await snapshotCourse(db, course.id, user);
     });
     await audit(user, 'academy.draftSection', 'course', course.id, { section: s.title, via: 'ai' });
     return { section: await one('SELECT * FROM course_sections WHERE id = $1', [s.id]), questions: qs.length };
@@ -539,6 +578,7 @@ ${await courseText(course)}`,
     if (blocks.length < 3) fail(502, 'The AI could not add visuals to this section — try again');
     await q('UPDATE course_sections SET blocks = $2 WHERE id = $1', [s.id, JSON.stringify(blocks)]);
     await q("UPDATE courses SET updated_at = now(), version = version + CASE WHEN status = 'published' THEN 1 ELSE 0 END WHERE id = $1", [course.id]);
+    await snapshotCourse({ one, q }, course.id, user);
     await audit(user, 'academy.enrichSection', 'course', course.id, { section: s.title, via: 'ai' });
     return { blocks: await viewBlocks(blocks), credits };
   }),

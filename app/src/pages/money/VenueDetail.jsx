@@ -24,6 +24,7 @@ import { FeedbackList } from './Feedback.jsx';
 import { ClientSelect } from './_client.jsx';
 import { InviteSheet } from '../people/_access.jsx';
 import { viewFiles } from '../../ui/FileViewer.jsx';
+import RecordHistory from '../people/_history.jsx';
 
 const UK = [54.3, -2.6];
 // Old tab names and where each opens now: Site setup parts (and Details) live in Setup, documents, logs and bans in Records
@@ -102,6 +103,7 @@ export default function VenueDetail() {
           {tab === 'people' && <PeopleTab v={v} isCo={isCo} onChanged={q.reload} />}
           {tab === 'feedback' && <FeedbackList key={fbKey} venueId={v.id} fixedVenue onChanged={q.reload} />}
           {tab === 'people' && isCo && <RecentEmail type="venue" id={v.id} />}
+          {tab === 'overview' && <RecordHistory entity="venue" id={v.id} />}
           {tab === 'pack' && <VenuePackTab venueId={v.id} />}
           {tab === 'records' && (
             <>

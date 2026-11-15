@@ -11,6 +11,7 @@ import { useBase } from './_parts.jsx';
 import { REVIEW_LABEL, RUN_LABEL } from './PayRuns.jsx';
 import { DayLines, signedSplit, timesheetHref } from './_lines.jsx';
 import { SELF_HINT, SelfPills } from '../manager/_parts.jsx';
+import RecordHistory from '../people/_history.jsx';
 
 const KIND = { bonus: 'Bonus', expense: 'Expense', deduction: 'Deduction' };
 
@@ -167,6 +168,8 @@ export default function StatementDetail() {
                 <Button variant="danger" icon={Trash2} busy={busy} onClick={del}>Delete draft</Button>
               </div>
             )}
+
+            <RecordHistory entity="statement" id={st.id} />
 
             {adding && <AddLineSheet statementId={st.id} onClose={() => setAdding(false)} onSaved={q.reload} />}
           </Page>
