@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
-import { Check, ListChecks, ShieldCheck, Smartphone, X } from 'lucide-react';
+import { Check, History, Inbox, ListChecks, ShieldCheck, Smartphone, X } from 'lucide-react';
 import {
   ActionBar, Avatar, Button, Check as Tick, cx, dayLabel, Empty, List, Load, Page, Pill, range, relative, Row, Section, Segmented, Sheet, time, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
@@ -53,7 +53,7 @@ export default function Exceptions() {
         ? <Button variant="secondary" onClick={stopPicking}>Done</Button>
         : <Button variant="secondary" icon={ListChecks} onClick={() => setPicking(true)}>Select</Button>)}
       tools={<Segmented value={tab} onChange={changeTab} options={[
-        { value: 'open', label: 'To review', count: tab === 'open' ? q.data?.length : undefined }, { value: 'decided', label: 'History' },
+        { value: 'open', label: 'To review', icon: Inbox, count: tab === 'open' ? q.data?.length : undefined }, { value: 'decided', label: 'History', icon: History },
       ]} />}>
       <Load q={q}>{(rows) => {
         const list = tab === 'decided' ? rows.filter((r) => r.status !== 'exception') : rows;

@@ -28,7 +28,7 @@ export default function PlacePicker({ open, onClose, onPick }) {
   );
   return (
     <Sheet open={open} onClose={onClose} title="Where are you?">
-      <SearchInput value={text} onChange={(e) => setText(e.target.value)} placeholder="Search a venue or place" autoFocus />
+      <SearchInput collapse={false} value={text} onChange={(e) => setText(e.target.value)} placeholder="Search a venue or place" autoFocus />
       <div className="mt-3 min-h-[200px]">
         {!res ? <Spinner /> : (
           <>

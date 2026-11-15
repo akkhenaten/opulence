@@ -1,11 +1,13 @@
 // Settings → Contract library: what state each pack's wording is in, approvals, company wording, recorded legal reviews and the law watch
 import { useMemo, useState } from 'react';
-import { ExternalLink, FileUp, Gavel, Plus } from 'lucide-react';
+import { BadgeCheck, ExternalLink, FilePen, FileUp, Gavel, Landmark, Layers, MapPin, Mountain, Plus, RefreshCw } from 'lucide-react';
 import { api, upload } from '../../../api.js';
 import {
   Button, cx, date, Empty, Input, List, Load, Pill, Row, SearchInput, Section, Segmented, Sheet, Textarea, useAction, useApi, useConfirm,
 } from '../../../ui/index.jsx';
 import { JURISDICTIONS, JUR_SHORT, STATE, StatePill } from './_shared.jsx';
+
+const JUR_ICON = { all: Layers, ew: Landmark, sc: Mountain, ni: MapPin };
 
 const LAW_STATUS = { in_force: ['In force', 'green'], announced: ['Announced', 'amber'], not_commenced: ['Not in force yet', 'amber'] };
 const soon = (d) => d && new Date(d) > new Date() && new Date(d) - new Date() < 90 * 864e5;
@@ -82,7 +84,7 @@ function ClauseSheet({ clause, onClose, onDone }) {
           <span className="num">{clause.id}</span>
           {clause.packs.length > 0 && <span>· used in {clause.packs.length} pack{clause.packs.length === 1 ? '' : 's'}</span>}
         </div>
-        {js.length > 1 && <Segmented value={j} onChange={(v) => { setJ(v); setEditing(null); }} options={js.map((v) => ({ value: v, label: v === 'all' ? 'All of the UK' : JUR_SHORT[v] }))} />}
+        {js.length > 1 && <Segmented value={j} onChange={(v) => { setJ(v); setEditing(null); }} options={js.map((v) => ({ value: v, label: v === 'all' ? 'All of the UK' : JUR_SHORT[v], icon: JUR_ICON[v] }))} />}
         <div className="flex flex-wrap items-center gap-2">
           <StatePill state={cur.state} /><span className="text-footnote text-muted">Version {cur.version} · {cur.origin === 'seed' ? 'from the research library' : 'company wording'}{cur.approved_by_name ? ` · approved by ${cur.approved_by_name} ${date(cur.approved_at)}` : ''}</span>
         </div>
@@ -207,7 +209,7 @@ export default function LibraryTab() {
       <Section title="Clauses">
         <div className="mb-3 flex flex-wrap items-center gap-3">
           <SearchInput className="min-w-0 flex-1 basis-60" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search clauses" />
-          <Segmented value={state} onChange={setState} options={[{ value: '', label: 'All' }, { value: 'draft', label: 'Drafts' }, { value: 'company', label: 'Approved' }, { value: 'legal', label: 'Reviewed' }, { value: 'update', label: 'Updates' }]} />
+          <Segmented value={state} onChange={setState} options={[{ value: '', label: 'All', icon: Layers }, { value: 'draft', label: 'Drafts', icon: FilePen }, { value: 'company', label: 'Approved', icon: BadgeCheck }, { value: 'legal', label: 'Reviewed', icon: Gavel }, { value: 'update', label: 'Updates', icon: RefreshCw }]} />
         </div>
         <Load q={lib} skeleton="rows">
           {() => clauses.length ? (

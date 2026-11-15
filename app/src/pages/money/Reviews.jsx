@@ -2,7 +2,7 @@
 // a venue manager's review waits here as Pending until a company manager publishes it.
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowDown, ArrowUp, Globe, Pencil, Plus, Quote, Star, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, EyeOff, Globe, Hourglass, Layers, Pencil, Plus, Quote, Star, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
 import {
   Button, cx, Empty, Input, Load, MoreMenu, Page, Pill, Pressable, SearchInput, Segmented, Select, Sheet, Textarea, Tile, Toggle, ToolField, ToolMenu,
@@ -12,7 +12,7 @@ import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 
 const STATUS = { published: { tone: 'green', label: 'On the website' }, pending: { tone: 'amber', label: 'Waiting for approval' }, hidden: { tone: 'grey', label: 'Hidden' } };
-const VIEWS = [{ value: '', label: 'All' }, { value: 'published', label: 'Published' }, { value: 'pending', label: 'Pending' }, { value: 'hidden', label: 'Hidden' }];
+const VIEWS = [{ value: '', label: 'All', icon: Layers }, { value: 'published', label: 'Published', icon: Globe }, { value: 'pending', label: 'Pending', icon: Hourglass }, { value: 'hidden', label: 'Hidden', icon: EyeOff }];
 
 export default function Reviews() {
   const { user, company } = useAuth();

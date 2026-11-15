@@ -41,7 +41,7 @@ function ProofSection({ q }) {
   const [by, setBy] = useState('officers');
   const share = (n, d) => (d ? `${Math.round((n / d) * 100)}%` : '–');
   return (
-    <Part id="r-proof" title="Clock-in proof" icon={Fingerprint} action={<Segmented value={by} onChange={setBy} iconOnly="phone" options={[{ value: 'officers', label: 'Officers', icon: Users }, { value: 'venues', label: 'Venues', icon: Building2 }]} />}>
+    <Part id="r-proof" title="Clock-in proof" icon={Fingerprint} action={<Segmented value={by} onChange={setBy} options={[{ value: 'officers', label: 'Officers', icon: Users }, { value: 'venues', label: 'Venues', icon: Building2 }]} />}>
       <Wait q={q}>
         {(d) => {
           const rows = d[by];

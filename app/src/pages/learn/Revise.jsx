@@ -33,7 +33,7 @@ export default function Revise() {
   return (
     <Page title="Revise" subtitle={`${learnt} of ${deck.length} known`} back={back}>
       <div className="no-scrollbar -mx-4 mb-3 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <Segmented value={cat} onChange={(v) => { setCat(v); setI(0); setFlip(false); }} options={[{ value: 'all', label: 'All' }, ...CATEGORIES.filter((x) => x.value !== 'venue')]} />
+        <Segmented value={cat} onChange={(v) => { setCat(v); setI(0); setFlip(false); }} options={[{ value: 'all', label: 'All', icon: Layers }, ...CATEGORIES.filter((x) => x.value !== 'venue')]} />
       </div>
       {!deck.length ? <Empty icon={Layers} title="No guides to revise yet" /> : !c ? (
         <div className="rounded-tile bg-surface p-8 text-center shadow-tile">

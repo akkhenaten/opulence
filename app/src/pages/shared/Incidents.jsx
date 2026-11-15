@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Camera, CheckCheck, ChevronRight, Download, FilePen, FileSignature, MapPin, Plus, ShieldAlert, Trash2 } from 'lucide-react';
+import { Camera, CheckCheck, ChevronRight, DoorOpen, Download, FilePen, FileSignature, Inbox, Layers, MapPin, Plus, ShieldAlert, Trash2 } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
@@ -55,7 +55,7 @@ export default function Incidents() {
   const tab = officer && sp.get('tab') === 'ejections' ? 'ejections' : 'reports';
   const setTab = (t) => { const n = new URLSearchParams(); if (t === 'ejections') n.set('tab', t); setSp(n, { replace: true }); };
   const tabs = officer && user.officer_id && (
-    <Segmented value={tab} onChange={setTab} options={[{ value: 'reports', label: 'Incident reports', count: toFix + toSign }, { value: 'ejections', label: 'Ejections' }]} />
+    <Segmented value={tab} onChange={setTab} options={[{ value: 'reports', label: 'Incident reports', icon: ShieldAlert, count: toFix + toSign }, { value: 'ejections', label: 'Ejections', icon: DoorOpen }]} />
   );
   if (tab === 'ejections') {
     return (
@@ -77,7 +77,7 @@ export default function Incidents() {
   const tools = <>
     {tabs}
     <Segmented value={f.status} onChange={(val) => setF('status', val)}
-      options={[{ value: '', label: 'All' }, (toSign > 0 || f.status === 'to_sign') && { value: 'to_sign', label: 'To sign', icon: FileSignature, count: toSign }, { value: 'submitted', label: officer ? 'Submitted' : 'To review' }, { value: 'changes_requested', label: 'Changes requested', count: toFix }, { value: 'closed', label: 'Closed' }].filter(Boolean)} />
+      options={[{ value: '', label: 'All', icon: Layers }, (toSign > 0 || f.status === 'to_sign') && { value: 'to_sign', label: 'To sign', icon: FileSignature, count: toSign }, { value: 'submitted', label: officer ? 'Submitted' : 'To review', icon: Inbox }, { value: 'changes_requested', label: 'Changes requested', icon: FilePen, count: toFix }, { value: 'closed', label: 'Closed', icon: CheckCheck }].filter(Boolean)} />
     <SearchInput className="min-w-0 flex-1 sm:w-64 sm:flex-none" value={text} onChange={(e) => { setText(e.target.value); const n = new URLSearchParams(sp); if (e.target.value) n.set('q', e.target.value); else n.delete('q'); setSp(n, { replace: true }); }}
       placeholder="Search ref, description, police ref" aria-label="Search incidents" />
     <ToolMenu count={changed} onClear={() => { const n = new URLSearchParams(sp); ['severity', 'type', ...(isVenue ? [] : ['venue'])].forEach((k) => n.delete(k)); setSp(n, { replace: true }); }}>

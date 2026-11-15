@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Plus, ShieldCheck, UserCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Inbox, ListChecks, Plus, ShieldCheck, UserCheck } from 'lucide-react';
 import { api } from '../../api.js';
 import {
   Avatar, Button, Chip, cx, date, IconButton, Load, Page, Pill, Pressable, relative, Segmented, Sheet, Toggle, useAction, useApi, useConfirm, useMedia, useUrlState,
@@ -10,9 +10,9 @@ import { AddOfficerSheet } from './Staff.jsx';
 import { ApplicationSheet } from './_application.jsx';
 
 const STAGES = [
-  { key: 'applicant', label: 'Applicants', short: 'Applicants', hint: 'Interested, not yet started' },
-  { key: 'onboarding', label: 'Onboarding', short: 'Onboarding', hint: 'Collecting documents and checks' },
-  { key: 'active', label: 'Recently active', short: 'Started', hint: 'Started in the last 60 days' },
+  { key: 'applicant', label: 'Applicants', short: 'Applicants', icon: Inbox, hint: 'Interested, not yet started' },
+  { key: 'onboarding', label: 'Onboarding', short: 'Onboarding', icon: ListChecks, hint: 'Collecting documents and checks' },
+  { key: 'active', label: 'Recently active', short: 'Started', icon: UserCheck, hint: 'Started in the last 60 days' },
 ];
 const NEXT = { applicant: 'onboarding', onboarding: 'active' };
 const PREV = { onboarding: 'applicant' };
@@ -66,7 +66,7 @@ export default function Recruitment() {
     <Page title="Recruitment" subtitle="From applicant to first shift" wide actions={<Button icon={Plus} onClick={() => setAdding(true)}>Add applicant</Button>}
       tools={(pipeline.data && (ready > 0 || !lg)) && <>
         {ready > 0 && <Chip label="Ready to activate" value={ready} tone="green" icon={UserCheck} compact="phone" onClick={lg ? undefined : () => setUrl({ stage: 'onboarding' })} />}
-        {!lg && <Segmented value={stage} onChange={(v) => setUrl({ stage: v })} options={STAGES.map((s) => ({ value: s.key, label: `${s.short} (${cols[s.key].length})` }))} />}
+        {!lg && <Segmented value={stage} onChange={(v) => setUrl({ stage: v })} options={STAGES.map((s) => ({ value: s.key, label: `${s.short} (${cols[s.key].length})`, icon: s.icon }))} />}
       </>}>
       <Load q={pipeline}>
         {() => (

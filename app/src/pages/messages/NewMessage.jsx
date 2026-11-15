@@ -43,7 +43,7 @@ export default function NewMessage({ open, onClose, addTo, exclude = [], onAdded
   return (
     <Sheet open={open} onClose={close} title={addTo ? 'Add people' : 'New message'}
       footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button onClick={go} busy={busy} disabled={!picked.length}>{label}</Button></>}>
-      <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people, roles or venues" />
+      <SearchInput collapse={false} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people, roles or venues" />
       {!addTo && picked.length > 1 && <Input className="mt-3" label="Group name (optional)" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Friday door team" maxLength={80} />}
       <div className="mt-3 -mx-1">
         <Load q={people} skeleton="rows">

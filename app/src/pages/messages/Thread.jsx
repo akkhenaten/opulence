@@ -324,7 +324,7 @@ function ChatSearch({ conv, onPick, onClose }) {
   return (
     <div className="border-b border-line bg-surface px-3 py-2">
       <div className="flex items-center gap-2">
-        <SearchInput className="flex-1" value={text} onChange={(e) => setText(e.target.value)} placeholder={`Search in ${conv.title}`} autoFocus />
+        <SearchInput collapse={false} className="flex-1" value={text} onChange={(e) => setText(e.target.value)} placeholder={`Search in ${conv.title}`} autoFocus />
         <Button variant="ghost" size="sm" onClick={onClose}>Done</Button>
       </div>
       {res && (

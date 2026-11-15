@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, Award, Ban, BadgeCheck, BellRing, CalendarClock, CalendarOff, Check, ClipboardList, Clock, Contact, Eye, FileSignature, FileText, Landmark, MessageSquare, Pencil, Plus, PoundSterling, ReceiptText, ShieldCheck, ShieldOff, Smartphone, Star, Target, Trash2, ScrollText, Upload, UserRound, Users, X,
+  AlertTriangle, Award, Ban, BadgeCheck, BellRing, CalendarClock, CalendarOff, Check, ClipboardList, Clock, Contact, Eye, FileSignature, FileText, GraduationCap, Landmark, Layers, MessageSquare, Pencil, Plus, PoundSterling, ReceiptText, ShieldCheck, ShieldOff, Smartphone, Star, Target, Trash2, ScrollText, Upload, UserRound, Users, X,
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
@@ -807,6 +807,7 @@ const HR_KINDS = [
   { value: 'review', label: 'Review' }, { value: 'training', label: 'Training' }, { value: 'venue_feedback', label: 'Venue feedback' },
 ];
 const SECURITY_HR = ['note', 'commendation', 'training', 'venue_feedback'];
+const HR_ICON = { note: FileText, commendation: Award, warning: AlertTriangle, review: ClipboardList, training: GraduationCap, venue_feedback: MessageSquare };
 const HR_TONE = { commendation: 'green', warning: 'red', review: 'blue', training: 'blue', venue_feedback: 'amber', note: 'grey' };
 
 export function HrTab({ o, isCo, onForbidden }) {
@@ -827,7 +828,7 @@ export function HrTab({ o, isCo, onForbidden }) {
         return (
           <>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <Segmented value={kind} onChange={setKind} options={[{ value: 'all', label: 'All' }, ...HR_KINDS.map((k) => ({ ...k, count: all.filter((n) => n.kind === k.value).length }))]} />
+              <Segmented value={kind} onChange={setKind} options={[{ value: 'all', label: 'All', icon: Layers }, ...HR_KINDS.map((k) => ({ ...k, icon: HR_ICON[k.value], count: all.filter((n) => n.kind === k.value).length }))]} />
               <Button icon={Plus} onClick={() => setAdding(true)}>Add record</Button>
             </div>
             {rows.length ? (

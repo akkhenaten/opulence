@@ -105,7 +105,7 @@ export default function Rota() {
     </span>
   );
   const venueOptions = [{ value: '', label: 'All venues' }, ...(venues.data || []).filter((v) => v.active).map((v) => ({ value: v.id, label: v.name }))];
-  const viewSwitch = <Segmented value={view} onChange={(v) => setUrl({ view: v })} options={VIEWS} iconOnly="phone" />;
+  const viewSwitch = <Segmented value={view} onChange={(v) => setUrl({ view: v })} options={VIEWS} />;
   const venuePick = <Select aria-label="Venue" value={venueId} onChange={(e) => setUrl({ venue: e.target.value })} options={venueOptions} />;
   const changed = (density === 'compact') + (view === 'venues' && !hideEmpty) + (!wide && !!venueId) + (!wide && view !== 'venues');
   const tools = tab === 'rota' && <>

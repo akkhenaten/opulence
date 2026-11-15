@@ -96,7 +96,7 @@ function Editor({ p, reload, remount }) {
       {p.status === 'archived' && <p className="rounded-2xl bg-bg p-3 text-footnote text-muted">Archived: it is in no venue pack. Signed versions are kept for the record.</p>}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Segmented className="lg:hidden" value={view} onChange={setView} options={[{ value: 'write', label: 'Write', icon: PenLine }, { value: 'preview', label: 'Preview', icon: Eye }]} iconOnly="phone" />
+        <Segmented className="lg:hidden" value={view} onChange={setView} options={[{ value: 'write', label: 'Write', icon: PenLine }, { value: 'preview', label: 'Preview', icon: Eye }]} />
         <span className="text-footnote text-muted">{ro ? '' : { dirty: 'Unsaved changes…', saving: 'Saving…', saved: unpublished ? 'Draft saved' : 'Up to date', error: 'Not saved' }[state]}</span>
         <span className="flex-1" />
         {gaps > 0 && <Pill tone="amber">{gaps} to confirm</Pill>}

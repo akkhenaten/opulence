@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth.jsx';
-import { Check, FilePen, FilePlus2, FileSignature, FileUp, ScrollText, Search, Send, Settings2, Trash2 } from 'lucide-react';
+import { Ban, Check, FilePen, FilePlus2, FileSignature, FileUp, ScrollText, Search, Send, Settings2, Trash2, Hourglass, Layers } from 'lucide-react';
 import { api } from '../../api.js';
 import { cx, dateTime, Pressable, Select, Empty, IconButton, List, Load, Page, Pill, Progress, Row, SearchInput, Segmented, ToolField, ToolMenu, useAction, useApi, useConfirm, useMedia } from '../../ui/index.jsx';
 import { ContractRow } from './_profileTabs.jsx';
@@ -10,7 +10,7 @@ import StartSheet from './contracts/StartSheet.jsx';
 import UploadSheet from './contracts/UploadSheet.jsx';
 import { AMEND_KIND, JUR_SHORT } from './contracts/_shared.jsx';
 
-const FILTERS = [{ value: '', label: 'All' }, { value: 'sent', label: 'Awaiting' }, { value: 'signed', label: 'Signed' }, { value: 'void', label: 'Void' }];
+const FILTERS = [{ value: '', label: 'All', icon: Layers }, { value: 'sent', label: 'Awaiting', icon: Hourglass }, { value: 'signed', label: 'Signed', icon: Check }, { value: 'void', label: 'Void', icon: Ban }];
 const KINDS = [{ value: '', label: 'Everything' }, { value: 'contract', label: 'Contracts' }, { value: 'org', label: 'Businesses' }, { value: 'policy', label: 'Policies' }];
 const SOURCES = [{ value: '', label: 'Any source' }, { value: 'pack', label: 'Built here' }, { value: 'upload', label: 'Uploaded' }, { value: 'template', label: 'From a template' }];
 
@@ -150,7 +150,7 @@ export default function StaffContracts() {
   const statusSwitch = <Segmented value={status} onChange={setStatus} options={FILTERS} />;
   const changed = !!category + !!source + (!wide && !!status);
   const tools = <>
-    <Segmented value={view} onChange={(x) => setParams(x === 'drafts' ? { view: x } : {}, { replace: true })} options={VIEWS} iconOnly="phone" />
+    <Segmented value={view} onChange={(x) => setParams(x === 'drafts' ? { view: x } : {}, { replace: true })} options={VIEWS} />
     {view === 'issued' && <>
       <SearchInput className="min-w-0 flex-1 sm:w-56 sm:flex-none" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search officers or contracts" />
       <div className="hidden sm:block">{statusSwitch}</div>

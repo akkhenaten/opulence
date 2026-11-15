@@ -125,7 +125,7 @@ export function PartyPicker({ pack, value, onChange }) {
   }
   return (
     <div className="space-y-2">
-      <SearchInput value={text} onChange={(e) => setText(e.target.value)} placeholder="Search staff and applicants" />
+      <SearchInput collapse={false} value={text} onChange={(e) => setText(e.target.value)} placeholder="Search staff and applicants" />
       <Load q={people} skeleton="rows">
         {(rows) => (
           <List className="max-h-72 overflow-y-auto">

@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  BadgeCheck, Bell, Building2, Camera, FileSignature, ImageUp, Inbox, ListChecks, Mail, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Newspaper, Percent, Plus,
-  PoundSterling, ReceiptText, Scale, ShieldCheck, Smartphone, Sparkles, Trash2, UserPlus, Users,
+  BadgeCheck, Bell, Building2, Camera, FileSignature, ImageUp, Inbox, ListChecks, Mail, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Layers, MapPin, Newspaper, Percent, Plus,
+  PoundSterling, ReceiptText, Scale, ShieldCheck, Smartphone, Sparkles, Trash2, UserPlus, Users, UserRound,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -27,6 +27,7 @@ const TABS = [
   { value: 'orb', label: 'Orb', icon: Sparkles },
   { value: 'demos', label: 'Demo requests', icon: Inbox },
 ];
+const ROLE_ICON = { company: Building2, security: ShieldCheck, venue: MapPin };
 // Older links used these tab names; the library is now a part of a shared tab
 const OLD_TAB = { calendar: 'rules', contracts: 'templates', account: 'company', library: 'templates' };
 const OLD_PART = { library: 'library' };
@@ -648,7 +649,7 @@ function UsersTab() {
         return (
           <>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <Segmented value={role} onChange={(x) => setUrl({ role: x })} options={[{ value: 'all', label: 'Managers' }, ...USER_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r].replace(' manager', '') })), { value: 'officer', label: 'Officers' }]} />
+              <Segmented value={role} onChange={(x) => setUrl({ role: x })} options={[{ value: 'all', label: 'Managers', icon: Layers }, ...USER_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r].replace(' manager', ''), icon: ROLE_ICON[r] })), { value: 'officer', label: 'Officers', icon: UserRound }]} />
               <Button icon={UserPlus} onClick={() => setInviting(true)}>Invite manager or venue user</Button>
             </div>
             <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -997,7 +998,7 @@ function DemosTab() {
         const rows = show === 'open' ? open : all;
         return (
           <>
-            <Segmented className="mb-3" value={show} onChange={setShow} options={[{ value: 'open', label: 'Open', count: open.length }, { value: 'all', label: 'All' }]} />
+            <Segmented className="mb-3" value={show} onChange={setShow} options={[{ value: 'open', label: 'Open', count: open.length, icon: Inbox }, { value: 'all', label: 'All', icon: Layers }]} />
             <Table rows={rows} empty={show === 'open' ? 'Nothing open' : 'No demo requests yet'} columns={[
               { key: 'created_at', mobile: 'value', label: 'Received', render: (r) => relative(r.created_at) },
               { key: 'name', mobile: 'title', label: 'Name', render: (r) => <span className="font-semibold">{r.name}</span> },

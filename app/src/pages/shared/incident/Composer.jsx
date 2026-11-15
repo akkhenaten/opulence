@@ -388,7 +388,7 @@ export default function Composer({ existing, manager, initial, draftId, onCreate
         <div className="mb-2 flex min-h-9 items-center justify-between gap-3">
           {!edit ? <SaveStatus draft={draft} meaningful={meaningful} /> : <span className="text-footnote text-muted">{existing.venue_name}</span>}
           {(hasSections || writing || view === 'final') && (
-            <Segmented value={view} onChange={setView} iconOnly="phone"
+            <Segmented value={view} onChange={setView}
               options={[{ value: 'notes', label: 'Notes', icon: NotebookPen }, { value: 'final', label: 'Report', icon: FilePen }]} />
           )}
         </div>

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { Building2, Plus, Search, Users } from 'lucide-react';
+import { Building2, Layers, Plus, Power, PowerOff, Search, Users } from 'lucide-react';
 import { api } from '../../api.js';
 import {
   Avatar, Button, Empty, Input, List, Load, Page, PhotoCard, Pill, Row, SearchInput, Segmented, Sheet, Textarea, useAction, useApi, useForm, useUrlState,
@@ -24,7 +24,7 @@ export default function Venues() {
   if (params.get('tab') === 'clients') return <Navigate to="../clients" replace />;
   const tools = venues.data?.length > 0 && <>
     <SearchInput className="w-full sm:w-64" value={url.q} onChange={(e) => setUrl({ q: e.target.value })} placeholder="Search venues, clients, postcodes" />
-    {inactive > 0 && <Segmented value={show} onChange={(v) => setUrl({ show: v })} options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive', count: inactive }, { value: 'all', label: 'All' }]} />}
+    {inactive > 0 && <Segmented value={show} onChange={(v) => setUrl({ show: v })} options={[{ value: 'active', label: 'Active', icon: Power }, { value: 'inactive', label: 'Inactive', icon: PowerOff, count: inactive }, { value: 'all', label: 'All', icon: Layers }]} />}
   </>;
   return (
     <Page title="Venues" subtitle="Sites you guard" tools={tools} actions={<Button icon={Plus} onClick={() => setAddVenue(true)}>Add venue</Button>}>

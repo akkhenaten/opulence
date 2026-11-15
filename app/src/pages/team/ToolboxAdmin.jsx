@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpenCheck, PencilLine, Plus, Sparkles } from 'lucide-react';
+import { BookOpenCheck, Layers, PencilLine, Plus, Sparkles } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { Button, cx, date, Empty, Input, Load, Page, Pill, Pressable, SearchInput, Segmented, Select, Sheet, Table, Textarea, Toggle, useAction, useApi } from '../../ui/index.jsx';
@@ -36,7 +36,7 @@ export default function ToolboxAdmin() {
     <Page title="Toolbox" subtitle="Quick guides officers can open on shift, even offline" wide
       tools={<>
         <SearchInput className="w-full sm:w-56" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search cards" />
-        <Segmented value={cat} onChange={setCat} options={[{ value: 'all', label: 'All' }, { value: 'draft', label: 'Drafts', icon: PencilLine }, ...CATEGORIES]} />
+        <Segmented value={cat} onChange={setCat} options={[{ value: 'all', label: 'All', icon: Layers }, { value: 'draft', label: 'Drafts', icon: PencilLine }, ...CATEGORIES]} />
       </>}
       actions={co && <><Button variant="secondary" icon={Plus} iconOnly="phone" to={`${base}/new`}>Blank card</Button><Button icon={Sparkles} onClick={() => setAdd(true)}>Draft with AI</Button></>}>
       <EmergencyEntry from={base} />

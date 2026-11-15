@@ -5,7 +5,7 @@ import { useImperativeHandle, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowRightLeft, Ban, BookOpen, Camera, Check, Clock3, Crown, EyeOff, FilePen, FileSignature, LockOpen, Megaphone,
-  MessagesSquare, Navigation, NotebookPen, Pencil, Phone, Plus, MessageSquareHeart, ShieldAlert, Undo2, Users, X,
+  MessagesSquare, Navigation, NotebookPen, Pencil, Phone, Plus, MessageSquareHeart, ShieldAlert, Smartphone, Undo2, UserCog, Users, X,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -32,7 +32,7 @@ const KIND = {
   ejection: { label: 'Ejection', tone: 'amber' },
   instruction: { label: 'Instruction', tone: 'amber' },
 };
-const VIEWS = [{ value: 'mgr', label: 'Manager view' }, { value: 'officer', label: "Officer's view" }];
+const VIEWS = [{ value: 'mgr', label: 'Manager view', icon: UserCog }, { value: 'officer', label: "Officer's view", icon: Smartphone }];
 // Instructions sent to this person (or to everyone) that are still waiting for Got it
 const unreadFor = (d) => d.entries.filter((e) => e.kind === 'instruction' && e.state === 'kept' && !e.read_by_me && new Date(d.shift.ends_at) > new Date()).reverse();
 // A draft's type in words

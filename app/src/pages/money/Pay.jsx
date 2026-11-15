@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Banknote, Check as CheckIcon, CheckCircle2, Clock, Download, FileText, Hourglass, Lock, PencilLine, RefreshCw, Send } from 'lucide-react';
+import { AlertTriangle, Banknote, Check as CheckIcon, CheckCircle2, Clock, Download, FilePen, FileText, Hourglass, Layers, Lock, PencilLine, RefreshCw, Send } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -43,8 +43,8 @@ function PayInner({ isCo }) {
 
   // Totals, the runs/statements switch and the statement filters sit on the tab line, so the list starts high
   const statusSwitch = <Segmented value={status} onChange={setStatus} options={[
-    { value: 'draft', label: 'Draft', count: count('draft') }, { value: 'issued', label: 'Issued', count: count('issued') },
-    { value: 'paid', label: 'Paid' }, { value: 'all', label: 'All' },
+    { value: 'draft', label: 'Draft', icon: FilePen, count: count('draft') }, { value: 'issued', label: 'Issued', icon: Send, count: count('issued') },
+    { value: 'paid', label: 'Paid', icon: CheckCircle2 }, { value: 'all', label: 'All', icon: Layers },
   ].filter((o) => isCo || o.value !== 'draft')} />;
   const periodPick = periods.length > 0 && <Select aria-label="Pay period" className="min-w-[200px]" value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="All periods"
     options={periods.map((p) => ({ value: p.period_start, label: periodLabel(p) }))} />;

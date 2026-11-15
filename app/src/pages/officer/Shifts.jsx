@@ -42,7 +42,7 @@ export default function Shifts() {
       {pull}
       {!user.officer_id ? <NotLinked /> : (
         <>
-          <Tabs value={tab} onChange={setTab} iconOnly="phone" tabs={[{ value: 'calendar', label: 'Calendar', icon: CalendarDays }, { value: 'mine', label: 'List', icon: ListIcon }, { value: 'offers', label: 'Offers', count: offered }, { value: 'open', label: 'Open shifts', count: open.data?.length }]} />
+          <Tabs value={tab} onChange={setTab} tabs={[{ value: 'calendar', label: 'Calendar', icon: CalendarDays }, { value: 'mine', label: 'List', icon: ListIcon }, { value: 'offers', label: 'Offers', icon: Hand, count: offered }, { value: 'open', label: 'Open shifts', icon: Megaphone, count: open.data?.length }]} />
           {waiting ? <Spinner /> : tab === 'calendar' ? <ShiftCalendar /> : tab === 'mine' ? <Mine /> : tab === 'offers' ? <OffersList ops={ops} /> : <Open q={open} />}
         </>
       )}

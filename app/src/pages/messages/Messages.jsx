@@ -59,7 +59,7 @@ function Inbox({ q, current }) {
           <IconButton icon={SquarePen} tone="solid" label="New message" onClick={() => setCompose(true)} />
         </div>
         <HubTabs hub={hub} className="mb-3" />
-        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search messages" />
+        <SearchInput collapse={false} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search messages" />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(16px+var(--fab-room))]">
         <Load q={q} skeleton="rows">

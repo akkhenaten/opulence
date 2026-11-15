@@ -34,7 +34,7 @@ export default function Audit() {
 
   // Activity · What's new and the search sit on the tab line; record type and how many under Filters
   const tools = <>
-    <Segmented value={tab} onChange={setTab} options={[{ value: 'activity', label: 'Activity', icon: History }, { value: 'new', label: 'What’s new', icon: Sparkles }]} iconOnly="phone" />
+    <Segmented value={tab} onChange={setTab} options={[{ value: 'activity', label: 'Activity', icon: History }, { value: 'new', label: 'What’s new', icon: Sparkles }]} />
     {tab === 'activity' && <>
       <SearchInput className="min-w-0 flex-1 sm:w-56 sm:flex-none" aria-label="Search" placeholder="Search action, person or detail" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
       <ToolMenu count={!!entity + (limit !== 200)} onClear={() => setUrl({ entity: '', limit: '200' })}>

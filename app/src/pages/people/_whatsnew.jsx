@@ -11,6 +11,17 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-15', icon: MousePointerClick, title: 'Tab rows and search boxes that make room', image: 'compact-tabs-and-search',
+    lede: "Rows of tabs and filters used to fill the width of the page and push buttons off the edge. In every portal they now take only the room they need, so the page shows more of the work.",
+    points: [
+      "Tab and filter rows show the one you're on with its name and the others as icons. Point at an icon and its name slides open, then click it to switch",
+      "On a phone, a tap switches tab as before. Press and hold an icon to see its name without switching",
+      "Search boxes start as a magnifying-glass button. Tap it and the box opens with the cursor in it, and it folds away again when you leave it empty. A search you've typed, or one that comes in a link, stays on show",
+      "Choices inside forms keep their words, for example One date or Repeating and 5 or 10 minutes, and so do searches where finding something is the whole point: new messages, pickers and the Toolbox",
+      "Screen readers and keyboards still get every name: Tab onto an icon and its name opens",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-15', icon: ListChecks, title: 'Compliance you can work through, and a history on every record', image: 'compliance-and-history',
     lede: "The tenth round of fixes from the three-portal review. Compliance becomes a queue of what needs doing and who does it, the main records show what changed and who changed it, contracts follow their steps, and training says plainly what is required.",
     points: [

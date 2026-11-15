@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Clock, Download, History, HandCoins, Lock, LogOut, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
+  AlertTriangle, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Clock, ClockAlert, Download, History, HandCoins, Layers, Lock, LogOut, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
 } from 'lucide-react';
 import {
   ActionBar, addDays, Avatar, BackTo, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, MoreMenu, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, ToolField, ToolMenu, useAction, useApi, useConfirm, useForm, useMedia, useUrlState,
@@ -152,9 +152,9 @@ export default function Timesheets() {
   const isThisWeek = week === thisWeek;
   const wk = q.data?.week;
   const segs = isVenue
-    ? [{ value: 'all', label: 'All' }, { value: 'live', label: 'On site', count: all.filter((r) => r.state === 'live').length || undefined },
-      { value: 'review', label: 'To sign', count: all.filter((r) => r.state === 'approved').length }, { value: 'queried', label: 'Queried' }]
-    : [{ value: 'all', label: 'All' }, { value: 'review', label: 'Needs review', count: toReview }, { value: 'queried', label: 'Queried' }, { value: 'no_clock_in', label: 'No clock-in' }];
+    ? [{ value: 'all', label: 'All', icon: Layers }, { value: 'live', label: 'On site', icon: MapPin, count: all.filter((r) => r.state === 'live').length || undefined },
+      { value: 'review', label: 'To sign', icon: Signature, count: all.filter((r) => r.state === 'approved').length }, { value: 'queried', label: 'Queried', icon: MessageSquareReply }]
+    : [{ value: 'all', label: 'All', icon: Layers }, { value: 'review', label: 'Needs review', icon: ClipboardCheck, count: toReview }, { value: 'queried', label: 'Queried', icon: MessageSquareReply }, { value: 'no_clock_in', label: 'No clock-in', icon: ClockAlert }];
 
   // Each view says what is empty, so an empty tab never reads like a filter problem
   const EMPTY = {

@@ -1,6 +1,6 @@
 // The ejection log and ban register for a venue: the venue's own screen, and a tab on the manager's venue page
 import { useEffect, useState } from 'react';
-import { Ban, Download, Plus } from 'lucide-react';
+import { Ban, CalendarX2, DoorOpen, Download, Layers, Plus, Undo2 } from 'lucide-react';
 import { downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
@@ -8,8 +8,8 @@ import { Button, Load, MoreMenu, Page, Segmented, Select, Tabs, ToolField, ToolM
 import { BanList, BanSheet, REGISTER_NOTE } from './_bans.jsx';
 
 const TABS = [
-  { value: 'ejection', label: 'Ejections' }, { value: 'current', label: 'Current bans' }, { value: 'lapsed', label: 'Ended' },
-  { value: 'revoked', label: 'Lifted' }, { value: 'all', label: 'All bans' },
+  { value: 'ejection', label: 'Ejections', icon: DoorOpen }, { value: 'current', label: 'Current bans', icon: Ban }, { value: 'lapsed', label: 'Ended', icon: CalendarX2 },
+  { value: 'revoked', label: 'Lifted', icon: Undo2 }, { value: 'all', label: 'All bans', icon: Layers },
 ];
 
 // `all`: a manager's register across every venue they cover, with a venue filter (Incidents → Ejections register)

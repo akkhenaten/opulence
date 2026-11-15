@@ -298,14 +298,14 @@ function TemplateEditor({ t, onClose, onDone }) {
           <div className="truncate text-headline font-bold">{isNew ? `New ${CAT[category].one.toLowerCase()}` : t.title}</div>
           <div className="text-caption text-muted">{isNew ? 'Version 1' : `Version ${t.version}${wording ? ` → saving makes v${t.version + 1}` : ''}`}</div>
         </div>
-        {!wide && <Segmented value={view} onChange={setView} options={[{ value: 'write', label: 'Write', icon: PenLine }, { value: 'preview', label: 'Preview', icon: Eye }]} iconOnly="phone" />}
+        {!wide && <Segmented value={view} onChange={setView} options={[{ value: 'write', label: 'Write', icon: PenLine }, { value: 'preview', label: 'Preview', icon: Eye }]} />}
         <Button busy={busy} disabled={!title.trim() || !body.trim() || !changed || pv.unknown?.length > 0} onClick={save}>Save</Button>
       </header>
 
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className={cx('min-h-0 flex-col overflow-y-auto px-4 py-4 safe-x sm:px-6', showPreview && !wide ? 'hidden' : 'flex')}>
           {isNew && (
-            <Segmented className="mb-3" value={category} onChange={setCategory} options={CATS.filter((c) => c.value !== 'pay_rise').map((c) => ({ value: c.value, label: c.one, icon: c.icon }))} />
+            <Segmented className="mb-3" value={category} onChange={setCategory} options={CATS.filter((c) => c.value !== 'pay_rise').map((c) => ({ value: c.value, label: c.one, icon: c.icon }))} collapse={false} />
           )}
           <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={category === 'policy' ? 'e.g. Health and safety policy' : 'e.g. Contractor agreement'} maxLength={200} />
 
@@ -488,7 +488,7 @@ export function SendDocSheet({ o: given, onClose, onDone }) {
                       <Load q={officers}>
                         {() => (
                           <>
-                            <SearchInput value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find an officer" />
+                            <SearchInput collapse={false} value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find an officer" />
                             <List className="mt-2 max-h-72 overflow-y-auto">
                               {shown.map((x) => {
                                 const on = picked.includes(x.id);

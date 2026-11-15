@@ -189,7 +189,7 @@ function Searchable({ docs, onOpen, done }) {
   const rows = t ? docs.filter((d) => text(d).includes(t)) : docs;
   return (
     <div className="space-y-2">
-      {docs.length > 2 && <SearchInput value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Search the pack, e.g. fire, keys, refusal" />}
+      {docs.length > 2 && <SearchInput collapse={false} value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Search the pack, e.g. fire, keys, refusal" />}
       {rows.length ? <DocList docs={rows} onOpen={onOpen} done={done} /> : <p className="px-1 text-footnote text-muted">Nothing in the pack mentions “{term}”.</p>}
     </div>
   );

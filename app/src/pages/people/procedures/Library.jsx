@@ -42,7 +42,7 @@ export default function Procedures() {
         <Segmented value={tab} onChange={setTab} options={[
           { value: 'venues', label: 'Venues', icon: Building2 }, { value: 'general', label: 'Company-wide', icon: Globe }, { value: 'all', label: 'All documents', icon: Layers },
           { value: 'archived', label: 'Archived', icon: Archive },
-        ]} iconOnly="phone" />
+        ]} />
         {tab !== 'venues' && <SearchInput className="min-w-0 flex-1 sm:w-56 sm:flex-none" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Search documents" />}
       </>}>
       {tab === 'venues' ? (

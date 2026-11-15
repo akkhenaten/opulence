@@ -1,7 +1,7 @@
 // Venue → Instructions & procedures: the venue's pack in order, AI drafting from the site's facts and the client's documents, and the signing register
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowDown, ArrowUp, BookText, CalendarCheck, CheckCircle2, Download, EyeOff, FileText, ListOrdered, MessageSquare, PenLine, Plus, Sparkles, Upload } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookText, CalendarCheck, CheckCircle2, Download, EyeOff, FileText, History, ListOrdered, MessageSquare, PenLine, Plus, Sparkles, Upload, Users } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { HOME, useAuth } from '../../auth.jsx';
 import {
@@ -233,7 +233,7 @@ export function Register({ venueId }) {
     </div>}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Segmented value={filter} onChange={setFilter} options={[
-          { value: 'booked', label: 'Booked' }, { value: 'action', label: 'To sign' }, { value: 'current', label: 'Up to date' }, { value: 'all', label: 'Everyone' }, { value: 'history', label: 'All signings' },
+          { value: 'booked', label: 'Booked', icon: CalendarCheck }, { value: 'action', label: 'To sign', icon: PenLine }, { value: 'current', label: 'Up to date', icon: CheckCircle2 }, { value: 'all', label: 'Everyone', icon: Users }, { value: 'history', label: 'All signings', icon: History },
         ]} />
         <SearchInput className="min-w-0 flex-1 sm:max-w-xs" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Search name or reference" />
       </div>

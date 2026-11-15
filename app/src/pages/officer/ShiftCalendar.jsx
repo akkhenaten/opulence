@@ -47,7 +47,7 @@ export default function ShiftCalendar() {
           <Pressable press onClick={() => setAnchor(today)} className="pressable min-w-0 px-1 text-headline font-bold">{title}</Pressable>
           <IconButton icon={ChevronRight} label="Next" onClick={() => step(1)} />
         </div>
-        <Segmented value={view} onChange={setView} iconOnly="phone" options={[{ value: 'month', label: 'Month', icon: CalendarDays }, { value: 'week', label: 'Week', icon: CalendarRange }]} />
+        <Segmented value={view} onChange={setView} options={[{ value: 'month', label: 'Month', icon: CalendarDays }, { value: 'week', label: 'Week', icon: CalendarRange }]} />
       </div>
       {q.error && !q.data ? <ErrorBox error={q.error} retry={q.reload} /> : !q.data ? <Spinner /> : view === 'month' ? (
         <div className="overflow-hidden rounded-tile bg-surface shadow-tile">

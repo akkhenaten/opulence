@@ -38,7 +38,7 @@ function ToolboxPart() {
     <>
       <form onSubmit={(e) => { e.preventDefault(); nav(`/officer/learn/toolbox${text.trim() ? `?q=${encodeURIComponent(text.trim())}` : ''}`); }}
         role="search">
-        <SearchInput value={text} onChange={(e) => setText(e.target.value)} placeholder="Search the Toolbox — CPR, ejection, spiking…" />
+        <SearchInput collapse={false} value={text} onChange={(e) => setText(e.target.value)} placeholder="Search the Toolbox — CPR, ejection, spiking…" />
       </form>
       {tb.offline && <div className="mt-2 flex items-center gap-2 px-1 text-footnote font-semibold text-amber"><WifiOff size={14} /> Offline — showing your saved copy</div>}
 

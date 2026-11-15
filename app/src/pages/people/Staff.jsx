@@ -66,7 +66,7 @@ export default function Staff() {
       <ToolField label="Role"><Select aria-label="Role" value={role} onChange={(e) => setUrl({ role: e.target.value })} options={[{ value: '', label: 'All roles' }, ...roles.map((r) => ({ value: r.code, label: r.name }))]} /></ToolField>
       <ToolField label="Compliance"><Select aria-label="Compliance" value={comp} onChange={(e) => setUrl({ compliance: e.target.value })} options={COMPLIANCE} /></ToolField>
       <ToolField label="App set-up"><Select aria-label="App set-up" value={app} onChange={(e) => setUrl({ app: e.target.value })} options={[{ value: '', label: 'Any app set-up' }, ...Object.entries(APP_SETUP).map(([value, a]) => ({ value, label: a.label }))]} /></ToolField>
-      <ToolField label="Show as"><Segmented value={view} onChange={(v) => setUrl({ view: v })} options={[{ value: 'grid', label: 'Grid', icon: LayoutGrid }, { value: 'list', label: 'List', icon: List }]} iconOnly="phone" /></ToolField>
+      <ToolField label="Show as"><Segmented value={view} onChange={(v) => setUrl({ view: v })} options={[{ value: 'grid', label: 'Grid', icon: LayoutGrid }, { value: 'list', label: 'List', icon: List }]} /></ToolField>
     </ToolMenu>
   </>;
   // Only what needs chasing among active officers; tap to filter the list

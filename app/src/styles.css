@@ -356,6 +356,19 @@ html:not(.has-tabbar) body:has(.action-bar) .orb-fab { bottom: calc(env(safe-are
 /* The sliding underline under a section's tabs */
 .hub-ink { transition: left var(--dur-2) var(--ease-ios), width var(--dur-2) var(--ease-ios); }
 
+/* Folding tab rows: names slide open on the chosen tab, on hover and on keyboard focus */
+.seg-fold [role="tab"] { -webkit-touch-callout: none; user-select: none; }
+.seg-fold [role="tab"] > span { gap: 0; }
+.seg-name { display: grid; grid-template-columns: 0fr; opacity: 0; transition: grid-template-columns var(--dur-2) var(--ease-ios), opacity var(--dur-2) var(--ease-ios); }
+.seg-name > span { overflow: hidden; min-width: 0; }
+.seg-name > span > span { display: block; padding-left: 6px; }
+.seg-fold [aria-selected="true"] .seg-name, .seg-fold [role="tab"]:focus-visible .seg-name,
+.seg-fold [role="tab"]:hover .seg-name { grid-template-columns: 1fr; opacity: 1; }
+
+/* A folded search button opening into its box */
+@keyframes search-open { from { clip-path: inset(0 calc(100% - 44px) 0 0 round 22px); } to { clip-path: inset(0 0 0 0 round 12px); } }
+.anim-search-open { animation: search-open var(--dur-2) var(--ease-ios); }
+
 /* Reduced motion: keep fades, drop movement; spinners still turn so loading stays visible */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; scroll-behavior: auto !important; }

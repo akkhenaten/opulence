@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { BookOpenCheck, Sparkles, Star, WifiOff } from 'lucide-react';
+import { BookOpenCheck, Layers, Sparkles, Star, WifiOff } from 'lucide-react';
 import { Button, cx, Empty, ErrorBox, List, Page, Row, SearchInput, Segmented, Spinner } from '../../ui/index.jsx';
 import { CATEGORIES, category, searchCards, useToolbox } from './_parts.jsx';
 import Suggest from './Suggest.jsx';
@@ -17,7 +17,7 @@ export default function Toolbox() {
 
   const all = tb.cards || [];
   const shown = searchCards(cat === 'all' ? all : cat === 'saved' ? all.filter((c) => c.favourite) : all.filter((c) => c.category === cat), text);
-  const opts = [{ value: 'all', label: 'All' }, { value: 'saved', label: 'Saved', icon: Star }, ...CATEGORIES.filter((c) => c.value !== 'venue' || all.some((x) => x.category === 'venue'))];
+  const opts = [{ value: 'all', label: 'All', icon: Layers }, { value: 'saved', label: 'Saved', icon: Star }, ...CATEGORIES.filter((c) => c.value !== 'venue' || all.some((x) => x.category === 'venue'))];
 
   return (
     <Page title="Toolbox" subtitle="Quick guides for first aid and common situations" back={{ to: '/officer/learn', label: 'Learn' }}

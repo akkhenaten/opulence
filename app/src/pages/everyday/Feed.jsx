@@ -27,7 +27,7 @@ function ExpandSearch({ value, onChange, onOpenChange }) {
   useEffect(() => onOpenChange(open), [open]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!open) return <IconButton icon={Search} label="Search" size="sm" onClick={() => setOpen(true)} />;
   return (
-    <SearchInput autoFocus className="min-w-0 flex-1 anim-pop" value={value} onChange={onChange}
+    <SearchInput collapse={false} autoFocus className="min-w-0 flex-1 anim-pop" value={value} onChange={onChange}
       onBlur={() => !value && setOpen(false)} placeholder="Search posts, comments and people" />
   );
 }

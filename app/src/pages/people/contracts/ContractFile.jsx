@@ -1,6 +1,6 @@
 // Contract file: the agreement plus the report of what went into it, on screen and as one PDF
 import { useState } from 'react';
-import { Download } from 'lucide-react';
+import { ClipboardList, Download, FileText, GitCompare, Hourglass, Paperclip, ScrollText, SearchCheck } from 'lucide-react';
 import { downloadAction } from '../../../api.js';
 import { Button, Empty, List, Pill, Row, Sheet, Tabs, useAction } from '../../../ui/index.jsx';
 import { DocPaper } from '../../../ui/DocPaper.jsx';
@@ -8,8 +8,9 @@ import ReviewList from './ReviewList.jsx';
 import { JUR_SHORT, ORIGIN, StatePill } from './_shared.jsx';
 
 const TABS = [
-  { value: 'agreement', label: 'Agreement' }, { value: 'particulars', label: 'Particulars' }, { value: 'clauses', label: 'Clauses' },
-  { value: 'outstanding', label: 'Outstanding' }, { value: 'findings', label: 'Findings' }, { value: 'changes', label: 'Changes' }, { value: 'supporting', label: 'Supporting' },
+  { value: 'agreement', label: 'Agreement', icon: FileText }, { value: 'particulars', label: 'Particulars', icon: ClipboardList }, { value: 'clauses', label: 'Clauses', icon: ScrollText },
+  { value: 'outstanding', label: 'Outstanding', icon: Hourglass }, { value: 'findings', label: 'Findings', icon: SearchCheck }, { value: 'changes', label: 'Changes', icon: GitCompare },
+  { value: 'supporting', label: 'Supporting', icon: Paperclip },
 ];
 
 export default function ContractFile({ v, onClose }) {

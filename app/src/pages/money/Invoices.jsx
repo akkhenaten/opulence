@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, Download, FileText, Hourglass, Landmark, ReceiptText, RefreshCw, Send } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, FilePen, FileText, Hourglass, Landmark, Layers, ReceiptText, RefreshCw, Send } from 'lucide-react';
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
@@ -52,8 +52,8 @@ function CompanyInvoices() {
     {overdue.length > 0 && <Chip label="overdue" value={money(sum(overdue))} tone="red" icon={AlertTriangle} compact="phone" active={status === 'overdue'} onClick={() => setF({ status: status === 'overdue' ? 'all' : 'overdue' })} />}
     {paidMonth.length > 0 && <Chip label="paid this month" value={money(sum(paidMonth))} tone="green" icon={CheckCircle2} compact="phone" />}
     <Segmented value={status} onChange={(v) => setF({ status: v })} options={[
-      { value: 'all', label: 'All' }, { value: 'draft', label: 'Draft', count: c('draft') }, { value: 'issued', label: 'Issued' },
-      { value: 'overdue', label: 'Overdue', count: c('overdue') }, { value: 'paid', label: 'Paid' },
+      { value: 'all', label: 'All', icon: Layers }, { value: 'draft', label: 'Draft', icon: FilePen, count: c('draft') }, { value: 'issued', label: 'Issued', icon: Send },
+      { value: 'overdue', label: 'Overdue', icon: AlertTriangle, count: c('overdue') }, { value: 'paid', label: 'Paid', icon: CheckCircle2 },
     ]} />
     {wide ? more : <ToolMenu count={MAIN.includes(status) ? 0 : 1} onClear={() => setF({ status: 'all' })}><ToolField label="More statuses">{more}</ToolField></ToolMenu>}
     <SearchInput className="w-full sm:w-56" value={f.q} onChange={(e) => setF({ q: e.target.value })} placeholder="Number, venue or client" />
@@ -193,8 +193,8 @@ function VenueInvoices() {
     {overdue.length > 0 && <Chip label="overdue" value={money(sum(overdue))} tone="red" icon={AlertTriangle} compact="phone" />}
     {/* Nothing to filter until the first invoice; Credit notes only once there is one */}
     {rows.length > 0 && <Segmented value={show} onChange={setShow} options={[
-      { value: 'all', label: 'All' }, { value: 'outstanding', label: 'To pay', count: out.length }, { value: 'paid', label: 'Paid' },
-      rows.some((i) => i.kind === 'credit') && { value: 'credit', label: 'Credit notes' },
+      { value: 'all', label: 'All', icon: Layers }, { value: 'outstanding', label: 'To pay', icon: Hourglass, count: out.length }, { value: 'paid', label: 'Paid', icon: CheckCircle2 },
+      rows.some((i) => i.kind === 'credit') && { value: 'credit', label: 'Credit notes', icon: ReceiptText },
     ].filter(Boolean)} />}
   </>;
   return (

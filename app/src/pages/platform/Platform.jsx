@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Bug, CheckCircle2, Copy, Download, ExternalLink, Lightbulb, Mail, MessageCircleWarning, MessageSquare, Phone, Settings, Sparkles } from 'lucide-react';
+import { Bug, CheckCircle2, Copy, Download, ExternalLink, Layers, Lightbulb, Mail, MessageCircleWarning, MessageSquare, Phone, Settings, Sparkles } from 'lucide-react';
 import { api, downloadText } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
@@ -29,7 +29,7 @@ export default function Platform() {
   // The tab switch, counters and inbox filters sit on one line, so the inbox starts high
   const s = list.data?.stats;
   const chip = (label, n, tone, icon, active, onClick) => (n > 0 || active) && <Chip label={label} value={n ?? 0} tone={tone} icon={icon} compact="phone" active={active} onClick={onClick} />;
-  const kindSwitch = <Segmented value={f.kind} onChange={set('kind')} options={[{ value: '', label: 'All' }, { value: 'problem', label: 'Problems', icon: Bug }, { value: 'idea', label: 'Ideas', icon: Lightbulb }]} />;
+  const kindSwitch = <Segmented value={f.kind} onChange={set('kind')} options={[{ value: '', label: 'All', icon: Layers }, { value: 'problem', label: 'Problems', icon: Bug }, { value: 'idea', label: 'Ideas', icon: Lightbulb }]} />;
   const tools = <>
     <Segmented value={tab} onChange={(t) => setSp(t === 'feedback' ? {} : { tab: t }, { replace: true })}
       options={[{ value: 'feedback', label: 'Feedback', icon: MessageSquare }, { value: 'settings', label: 'Settings', icon: Settings }]} />

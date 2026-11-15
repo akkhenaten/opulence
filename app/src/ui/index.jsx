@@ -529,14 +529,33 @@ export function Select({ label, hint, error, options, className, placeholder, ..
   );
 }
 // Search box with a clear button. onChange gets an event-like { target: { value } }
-export function SearchInput({ value, onChange, placeholder = 'Search', className, inputClassName, ...p }) {
+// collapse (default): a round magnifying-glass button that opens into the box; it folds back when left empty.
+// collapse={false} where searching is the whole point (pickers, sheets, a list pane's own search)
+export function SearchInput({ value, onChange, placeholder = 'Search', className, inputClassName, collapse = true, ...p }) {
+  const [open, setOpen] = useState(!collapse || !!value || !!p.autoFocus);
+  const [opened, setOpened] = useState(false);
+  const input = useRef(null);
+  useEffect(() => { if (value) setOpen(true); }, [value]);
+  useEffect(() => { if (opened) input.current?.focus(); }, [opened]);
+  const name = p['aria-label'] || placeholder;
+  if (collapse && !open) {
+    return (
+      <button type="button" aria-label={name} title={name} onClick={() => { setOpen(true); setOpened(true); }}
+        className="pressable grid h-11 w-11 shrink-0 place-items-center rounded-full bg-fill-strong text-muted hover:text-ink">
+        <Search size={18} />
+      </button>
+    );
+  }
+  const fold = () => { if (collapse && !value) { setOpen(false); setOpened(false); } };
   return (
-    <div className={cx('relative', className)}>
+    <div className={cx('relative', opened && 'anim-search-open', className)}
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) fold(); }}
+      onKeyDown={(e) => { if (e.key === 'Escape' && !value) fold(); }}>
       <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
-      <input type="search" enterKeyHint="search" value={value} onChange={onChange} placeholder={placeholder} aria-label={p['aria-label'] || placeholder}
+      <input ref={input} type="search" enterKeyHint="search" value={value} onChange={onChange} placeholder={placeholder} aria-label={name}
         className={cx(inputCls, 'pl-10 pr-10 [&::-webkit-search-cancel-button]:hidden', inputClassName)} {...p} />
       {value ? (
-        <button type="button" aria-label="Clear search" onClick={() => onChange({ target: { value: '' } })}
+        <button type="button" aria-label="Clear search" onClick={() => { onChange({ target: { value: '' } }); input.current?.focus(); }}
           className="pressable absolute right-1 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full text-faint hover:text-ink"><XCircle size={18} /></button>
       ) : null}
     </div>
@@ -556,45 +575,93 @@ export function Toggle({ checked, onChange, label, hint }) {
 
 // iOS segmented control: the white thumb slides to the chosen option
 // Options may carry an icon; iconOnly (true or "phone") shows just the icon, with the label as its name
-export function Segmented({ value, onChange, options, className, full, iconOnly }) {
+// collapse: when every option has an icon (and the row isn't full width), the chosen tab shows its icon and name,
+// the others just the icon; pointing at one (or keyboard focus) slides its name open, a long press on a phone shows it.
+// collapse={false} keeps every name on show
+export function Segmented({ value, onChange, options, className, full, iconOnly, collapse }) {
   const phone = useMedia('(max-width: 639.98px)');
-  const bare = iconOnly === 'phone' ? phone : !!iconOnly;
+  const folds = collapse ?? (!full && iconOnly !== true && options.length > 1 && options.every((o) => typeof o === 'object' && o.icon));
+  const bare = !folds && (iconOnly === 'phone' ? phone : !!iconOnly);
   const wrap = useRef(null);
+  const shown = useRef(value);
   const [thumb, setThumb] = useState(null);
+  const press = useLongPress();
   useLayoutEffect(() => {
     const el = wrap.current;
     if (!el) return undefined;
     const measure = () => {
       const b = el.querySelector('[aria-selected="true"]');
       setThumb(b ? { left: b.offsetLeft, width: b.offsetWidth } : null);
-      // Keep the chosen tab in view when the control scrolls sideways
+      // Keep the chosen tab in view when the control scrolls sideways (only when the choice changes, not while a name slides open)
+      if (shown.current === value) return;
+      shown.current = value;
       if (b && el.scrollWidth > el.clientWidth && (b.offsetLeft < el.scrollLeft || b.offsetLeft + b.offsetWidth > el.scrollLeft + el.clientWidth)) {
         el.scrollTo({ left: b.offsetLeft - 24, behavior: 'smooth' });
       }
     };
+    shown.current = undefined;
     measure();
     if (typeof ResizeObserver === 'undefined') return undefined;
+    // Each tab is watched too, so the thumb follows a name as it slides open or shut
     const ro = new ResizeObserver(measure);
     ro.observe(el);
+    el.querySelectorAll('[role="tab"]').forEach((b) => ro.observe(b));
     return () => ro.disconnect();
-  }, [value, options.length]);
+  }, [value, options.length, folds]);
   return (
-    <div ref={wrap} className={cx(full ? 'flex w-full' : 'inline-flex', 'ui-seg relative max-w-full overflow-x-auto rounded-xl bg-fill-strong p-[3px] no-scrollbar', className)} role="tablist">
+    <div ref={wrap} className={cx(full ? 'flex w-full' : 'inline-flex', 'ui-seg relative max-w-full overflow-x-auto rounded-xl bg-fill-strong p-[3px] no-scrollbar', folds && 'seg-fold', className)} role="tablist">
       {thumb && <span aria-hidden="true" className="ui-seg-thumb absolute bottom-[3px] top-[3px] rounded-lg bg-raised shadow-sm transition-[left,width] duration-[var(--dur-2)] ease-ios" style={{ left: thumb.left, width: thumb.width }} />}
       {options.map((o) => {
         const v = typeof o === 'string' ? o : o.value;
         const l = typeof o === 'string' ? titleCase(o) : o.label;
         const I = typeof o === 'string' ? null : o.icon;
         const only = bare && I;
+        const name = typeof l === 'string' ? l : undefined;
         return (
-          <button key={v} type="button" role="tab" aria-selected={value === v} onClick={() => onChange(v)} aria-label={only && typeof l === 'string' ? l : undefined} title={only && typeof l === 'string' ? l : undefined}
-            className={cx(full && 'flex-1', 'relative min-h-[44px] whitespace-nowrap rounded-lg before:absolute before:inset-x-0 before:-inset-y-[3px] py-1.5 text-footnote font-semibold transition-colors', only ? 'px-3' : 'px-3.5', value === v ? 'text-ink' : 'text-muted hover:text-ink', !thumb && value === v && 'ui-seg-thumb bg-raised shadow-sm')}>
-            {I ? <span className="inline-flex items-center gap-1.5"><I size={16} className="shrink-0" />{!only && l}</span> : l}{o.count != null && o.count > 0 && <span className="ml-1.5 rounded-full bg-blue px-1.5 text-caption2 text-white">{o.count}</span>}
+          <button key={v} type="button" role="tab" aria-selected={value === v} aria-label={(only || folds) ? name : undefined} title={only ? name : undefined}
+            onClick={() => { if (!press.fired()) onChange(v); }} {...(folds ? press.bind(name) : {})}
+            className={cx(full && 'flex-1', 'relative min-h-[44px] whitespace-nowrap rounded-lg before:absolute before:inset-x-0 before:-inset-y-[3px] py-1.5 text-footnote font-semibold transition-colors', only || folds ? 'px-3' : 'px-3.5', value === v ? 'text-ink' : 'text-muted hover:text-ink', !thumb && value === v && 'ui-seg-thumb bg-raised shadow-sm')}>
+            {I ? <span className="inline-flex items-center gap-1.5"><I size={16} className="shrink-0" />{folds ? <span className="seg-name"><span><span>{l}</span></span></span> : !only && l}</span> : l}{o.count != null && o.count > 0 && <span className="ml-1.5 rounded-full bg-blue px-1.5 text-caption2 text-white">{o.count}</span>}
           </button>
         );
       })}
+      {press.tip}
     </div>
   );
+}
+
+// Long press on a touch screen: after ~450 ms a name bubble shows above the finger and the tap that follows is dropped.
+// bind(name) gives the pointer handlers for one control; fired() is true once, right after a long press
+export function useLongPress(ms = 450) {
+  const timer = useRef(0);
+  const start = useRef(null);
+  const long = useRef(false);
+  const [tip, setTip] = useState(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const cancel = () => { clearTimeout(timer.current); timer.current = 0; };
+  const bind = (name) => ({
+    onPointerDown: (e) => {
+      if (e.pointerType === 'mouse' || !name) return;
+      cancel();
+      long.current = false;
+      start.current = { x: e.clientX, y: e.clientY };
+      const r = e.currentTarget.getBoundingClientRect();
+      timer.current = setTimeout(() => {
+        long.current = true;
+        navigator.vibrate?.(8);
+        setTip({ name, x: r.left + r.width / 2, y: r.top });
+      }, ms);
+    },
+    onPointerMove: (e) => { if (start.current && Math.hypot(e.clientX - start.current.x, e.clientY - start.current.y) > 10) cancel(); },
+    onPointerUp: () => { cancel(); start.current = null; if (long.current) setTimeout(() => setTip(null), 1200); },
+    onPointerCancel: () => { cancel(); start.current = null; setTip(null); },
+    onContextMenu: (e) => { if (start.current) e.preventDefault(); },
+  });
+  const fired = () => { const f = long.current; long.current = false; return f; };
+  const bubble = tip && typeof document !== 'undefined' && createPortal(
+    <div role="tooltip" className="anim-pop pointer-events-none fixed z-[95] -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-xl bg-ink px-3 py-1.5 text-footnote font-semibold text-bg shadow-lg"
+      style={{ left: tip.x, top: tip.y - 8 }}>{tip.name}</div>, document.body);
+  return { bind, fired, tip: bubble };
 }
 
 /* ---------- Lists ---------- */
@@ -1062,11 +1129,11 @@ export function useForm(initial) {
 }
 
 // Section tabs: one sliding row at every width; on phones it scrolls sideways and fades at the edge
-export function Tabs({ tabs, value, onChange, iconOnly }) {
+export function Tabs({ tabs, value, onChange, iconOnly, collapse }) {
   const opts = tabs.filter(Boolean);
   return (
     <div className="-mx-4 mb-4 px-4 edge-fade sm:mx-0 sm:px-0">
-      <Segmented value={value} onChange={onChange} options={opts} iconOnly={iconOnly} />
+      <Segmented value={value} onChange={onChange} options={opts} iconOnly={iconOnly} collapse={collapse} />
     </div>
   );
 }

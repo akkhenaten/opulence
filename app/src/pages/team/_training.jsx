@@ -1,7 +1,7 @@
 // Training hub parts: staff training records, refreshers due and the outside-certificate upload sheet
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, Bell, Camera, FileText, GraduationCap, Paperclip, Plus, RotateCcw } from 'lucide-react';
+import { Award, Bell, Camera, CircleAlert, FileText, GraduationCap, Paperclip, Plus, RotateCcw, Users } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { compressImage } from '../officer/_parts.jsx';
@@ -100,7 +100,7 @@ export function StaffRecords() {
     <>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <SearchInput value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find someone" className="min-w-[200px] flex-1" />
-        <Segmented value={show} onChange={setShow} options={[{ value: 'all', label: 'Everyone' }, { value: 'action', label: 'Needs action' }]} />
+        <Segmented value={show} onChange={setShow} options={[{ value: 'all', label: 'Everyone', icon: Users }, { value: 'action', label: 'Needs action', icon: CircleAlert }]} />
         <Button icon={Plus} onClick={() => setAdding(true)}>Add certificate</Button>
       </div>
       <Load q={q} skeleton="rows">

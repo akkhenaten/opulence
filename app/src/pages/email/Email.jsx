@@ -126,7 +126,7 @@ function Inbox({ acc, accounts, folder, current, onAccount, onFolder, onOpen, on
           <Select className="mb-2" aria-label="Mailbox" value={acc.id} onChange={(e) => onAccount(e.target.value)}
             options={accounts.map((a) => ({ value: a.id, label: `${a.address}${a.shared ? ' (shared)' : ''}${a.unread ? ` · ${a.unread}` : ''}` }))} />
         )}
-        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${acc.address.split('@')[0]}`} />
+        <SearchInput collapse={false} value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${acc.address.split('@')[0]}`} />
         <div className="no-scrollbar -mx-4 mt-3 overflow-x-auto px-4"><Segmented value={folder} onChange={onFolder} options={FOLDERS} /></div>
       </div>
       {reconnect && <div className="px-4 pb-2"><ReconnectBanner acc={acc} /></div>}

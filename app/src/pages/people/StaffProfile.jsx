@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import RecentEmail from '../email/_recent.jsx';
-import { Ban, Briefcase, CalendarDays, ChevronRight, Mail, Pencil, Phone, PoundSterling, Send, ShieldCheck, UserCheck, UserRound } from 'lucide-react';
+import {
+  Ban, Briefcase, CalendarCheck, CalendarDays, CalendarOff, ChevronRight, Clock, FileSignature, FileText, GraduationCap, Mail, MessagesSquare, NotebookPen, Pencil, Phone, PoundSterling, Send, ShieldCheck,
+  UserCheck, UserMinus, UserPlus, UserRound,
+} from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
@@ -18,6 +21,10 @@ import RecordHistory from './_history.jsx';
 
 // Five groups, each a set of sub-views; the sub keys are the old tab keys so access rules and old links carry over
 const GROUP_ICON = { overview: UserRound, compliance: ShieldCheck, work: CalendarDays, pay: PoundSterling, hr: Briefcase };
+const SUB_ICON = {
+  overview: UserRound, compliance: ShieldCheck, documents: FileText, training: GraduationCap, shifts: CalendarDays, attendance: Clock, availability: CalendarCheck, timeoff: CalendarOff,
+  rates: PoundSterling, growth: MessagesSquare, hr: NotebookPen, contracts: FileSignature, onboarding: UserPlus, offboarding: UserMinus,
+};
 const GROUPS = [
   ['overview', 'Overview', [['overview', 'Overview']]],
   ['compliance', 'Compliance', [['compliance', 'Compliance'], ['documents', 'Documents'], ['training', 'Training']]],
@@ -54,7 +61,7 @@ function Profile({ o, reload, user, base }) {
   // Every section, in its group; a sub-view goes when access rules or a 403 hide it, a group goes when it has none left
   const groups = useMemo(() => GROUPS.map(([value, label, subs]) => ({
     value, label, icon: GROUP_ICON[value],
-    subs: subs.filter(([k]) => (k !== 'rates' || canPay(user)) && (isCo || !CO_ONLY.includes(k)) && !hidden.includes(k)).map(([v, l]) => ({ value: v, label: l })),
+    subs: subs.filter(([k]) => (k !== 'rates' || canPay(user)) && (isCo || !CO_ONLY.includes(k)) && !hidden.includes(k)).map(([v, l]) => ({ value: v, label: l, icon: SUB_ICON[v] })),
   })).filter((g) => g.subs.length), [user, isCo, hidden]);
   // Old links name a section (?tab=documents); ?tab=hr alone meant HR notes
   const legacy = !url.sub && (url.tab === 'hr' ? 'hr' : GROUP_OF[url.tab] && url.tab !== GROUP_OF[url.tab] ? url.tab : null);

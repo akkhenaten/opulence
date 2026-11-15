@@ -1,7 +1,7 @@
 // Every compliance issue across the workforce in one place: what is wrong, how urgent, and what Orb advises
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ban, CalendarClock, Info, Mail, RefreshCw, ShieldAlert, ShieldCheck, Sparkles } from 'lucide-react';
+import { Ban, CalendarClock, Hourglass, Info, Layers, ListTodo, Mail, RefreshCw, ShieldAlert, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import GraceSheet, { GRACE_LABEL, GraceButton } from './_graceSheet.jsx';
@@ -43,9 +43,9 @@ export default function Compliance() {
   const onGrace = gq.data?.onGrace.length || 0;
   const areaPick = <Select aria-label="Area" value={area} onChange={(e) => setUrl({ area: e.target.value })} options={AREAS} />;
   const tools = <>
-    <Segmented value={person ? 'person' : ''} onChange={(v) => setUrl({ by: v, doc: '' })} options={[{ value: '', label: 'Queue' }, { value: 'person', label: 'By person' }]} />
+    <Segmented value={person ? 'person' : ''} onChange={(v) => setUrl({ by: v, doc: '' })} options={[{ value: '', label: 'Queue', icon: ListTodo }, { value: 'person', label: 'By person', icon: Users }]} />
     {(blocked > 0 || onGrace > 0 || view) && (
-      <Segmented value={view} onChange={(v) => setUrl({ view: v })} options={[{ value: '', label: 'Everyone' }, { value: 'cantwork', label: `Can't work (${blocked})` }, { value: 'grace', label: `On grace (${onGrace})` }]} />
+      <Segmented value={view} onChange={(v) => setUrl({ view: v })} options={[{ value: '', label: 'Everyone', icon: Layers }, { value: 'cantwork', label: `Can't work (${blocked})`, icon: Ban }, { value: 'grace', label: `On grace (${onGrace})`, icon: Hourglass }]} />
     )}
     <div className="hidden w-44 sm:block">{areaPick}</div>
     {!wide && <ToolMenu count={area ? 1 : 0} onClear={() => setUrl({ area: '' })}><ToolField label="Area">{areaPick}</ToolField></ToolMenu>}
