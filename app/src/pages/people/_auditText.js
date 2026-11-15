@@ -23,7 +23,7 @@ export const ACTION_TEXT = {
   'officer.rtw_check': 'Right to work checked', 'officer.ban': 'Officer barred', 'officer.face_consent': 'Face check consent recorded',
   'applicant.invite': 'Applicant invited', 'applicant.reject': 'Applicant turned down', 'applicant.purge': 'Applicant data deleted', 'applicant.sia_checked': 'Applicant SIA licence checked',
   'doc.create': 'Document added', 'doc.update': 'Document changed', 'doc.delete': 'Document deleted', 'doc.verify': 'Document checked', 'doc.request': 'Document asked for',
-  'contract.send': 'Contract sent', 'contract.sign': 'Contract signed', 'contract.amend': 'Contract amended', 'contract.void': 'Contract voided', 'link.sign': 'Contract signed by link',
+  'contract.send': 'Contract sent', 'contract.sign': 'Contract signed', 'contract.amend': 'Contract amended', 'contract.void': 'Contract voided', 'link.sign': 'Contract signed by link', 'contract.upload_check': 'Uploaded contract checked by Orb',
   'agreement.send': 'Pay agreement sent', 'agreement.sign': 'Pay agreement signed', 'agreement.void': 'Pay agreement voided',
   'incident.create': 'Incident reported', 'incident.update': 'Incident report changed', 'incident.attach': 'File added to an incident', 'incident.attachment_remove': 'File removed from an incident',
   'incident.remind_venue': 'Venue reminded to sign an incident',

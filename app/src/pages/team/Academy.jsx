@@ -67,28 +67,29 @@ function Courses({ co }) {
         {(all) => {
           const live = all.filter((c) => c.status !== 'archived');
           const archived = all.filter((c) => c.status === 'archived');
-          const rows = showArchived ? [...live, ...archived] : live;
+          const columns = [
+            { key: 'title', mobile: 'title', label: 'Course', render: (c) => (
+              <div className="min-w-0">
+                <div className="font-semibold">{c.title}</div>
+                <div className="text-caption text-muted">{TOPICS[c.topic]}{required(c)}{c.renew_months ? ` · Renew every ${c.renew_months} months` : ''}</div>
+                {twin.has(c.id) && <Pressable press className="inline text-caption font-semibold text-amber" onClick={(e) => { e.stopPropagation(); setCompare(twin.get(c.id)); }}>Looks similar to {twin.get(c.id)[1].title}</Pressable>}
+              </div>
+            ) },
+            { key: 'status', mobile: 'value', label: 'Status', render: courseStatus },
+            { key: 'content', mobile: 'sub', label: 'Content', render: (c) => <span className={cx('text-footnote', (c.empty_sections || c.questions < 5) && 'text-amber')}>{c.sections} sections · {c.questions} questions{c.empty_sections ? ` · ${c.empty_sections} empty` : ''}</span> },
+            { key: 'people', mobile: 'sub', label: 'Officers', render: (c) => <span className="num text-footnote">{c.passed} passed / {c.assigned} assigned</span> },
+            { key: 'go', mobile: false, label: '', align: 'right', render: (c) => c.status === 'published' ? <Button size="sm" variant="soft" icon={UserPlus} onClick={(e) => { e.stopPropagation(); setAssign(c.id); }}>Assign</Button> : null },
+          ];
           return all.length ? (
             <>
-              {rows.length > 0 && <Table rows={rows} onRow={open} columns={[
-                { key: 'title', mobile: 'title', label: 'Course', render: (c) => (
-                  <div className="min-w-0">
-                    <div className="font-semibold">{c.title}</div>
-                    <div className="text-caption text-muted">{TOPICS[c.topic]}{required(c)}{c.renew_months ? ` · Renew every ${c.renew_months} months` : ''}</div>
-                    {twin.has(c.id) && <Pressable press className="inline text-caption font-semibold text-amber" onClick={(e) => { e.stopPropagation(); setCompare(twin.get(c.id)); }}>Looks similar to {twin.get(c.id)[1].title}</Pressable>}
-                  </div>
-                ) },
-                { key: 'status', mobile: 'value', label: 'Status', render: courseStatus },
-                { key: 'content', mobile: 'sub', label: 'Content', render: (c) => <span className={cx('text-footnote', (c.empty_sections || c.questions < 5) && 'text-amber')}>{c.sections} sections · {c.questions} questions{c.empty_sections ? ` · ${c.empty_sections} empty` : ''}</span> },
-                { key: 'people', mobile: 'sub', label: 'Officers', render: (c) => <span className="num text-footnote">{c.passed} passed / {c.assigned} assigned</span> },
-                { key: 'go', mobile: false, label: '', align: 'right', render: (c) => c.status === 'published' ? <Button size="sm" variant="soft" icon={UserPlus} onClick={(e) => { e.stopPropagation(); setAssign(c.id); }}>Assign</Button> : null },
-              ]} />}
+              {live.length > 0 && <Table rows={live} onRow={open} columns={columns} />}
               {archived.length > 0 && (
                 <Pressable press onClick={() => setShowArchived((x) => !x)} className="mt-3 flex w-full items-center justify-between rounded-tile bg-surface px-4 py-3 text-subhead shadow-tile">
                   <span className="text-muted">{archived.length} archived</span>
                   <span className="font-semibold text-blue">{showArchived ? 'Hide' : 'Show'}</span>
                 </Pressable>
               )}
+              {showArchived && archived.length > 0 && <div className="mt-3"><Table rows={archived} onRow={open} columns={columns} /></div>}
             </>
           ) : (
             <Empty icon={GraduationCap} title="No courses yet" body={co ? 'Create one, or draft the whole starter library with AI.' : 'Your company has not added any courses yet.'}

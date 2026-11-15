@@ -317,7 +317,7 @@ function VersionSheet({ courseId, version, onClose }) {
             ))}
             {(v.content.questions || []).length > 0 && (
               <section>
-                <h3 className="text-subhead font-semibold">Quiz · {v.content.questions.length} questions</h3>
+                <h3 className="text-subhead font-semibold">Quiz · {v.content.questions.length} question{v.content.questions.length === 1 ? '' : 's'}</h3>
                 <ol className="mt-1 list-decimal space-y-1 pl-5 text-footnote">
                   {v.content.questions.map((x, i) => <li key={i}>{x.prompt}</li>)}
                 </ol>

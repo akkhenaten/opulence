@@ -79,7 +79,7 @@ function StepStrip({ waiting, onSend, onTrack }) {
               st.ok ? 'bg-green-soft text-green' : st.ok === false ? 'bg-amber-soft text-amber' : 'bg-blue-soft text-blue')}>{st.ok ? <Check size={14} /> : st.n}</span>
             <span className="min-w-0">
               <span className="block text-subhead font-semibold">{st.title}</span>
-              <span className="block truncate text-footnote text-muted">{st.line || '…'}</span>
+              <span className="line-clamp-2 text-footnote text-muted">{st.line || '…'}</span>
             </span>
           </>
         );
