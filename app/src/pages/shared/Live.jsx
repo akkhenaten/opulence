@@ -67,7 +67,7 @@ export default function Live() {
   const toast = useToast();
   const refresh = () => { board.q.reload(); toast('Updated'); };
   return (
-    <Page title={board.venue ? 'On site' : 'Live'} wide
+    <Page title={user.role === 'venue' || board.venue ? 'On site' : 'Live'} wide
       subtitle={board.updated ? <>Updated <span className="num">{time(board.updated)}</span></> : 'Updates every 15 seconds'}
       actions={<IconButton icon={RefreshCw} label="Refresh" onClick={refresh} className="bg-surface shadow-tile" />}>
       {board.q.data && <StatusChips {...board} />}

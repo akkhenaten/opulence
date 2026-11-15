@@ -359,7 +359,7 @@ export function Tile({ title, icon: Icon, action, to, className, children, pad =
 }
 
 export function Stat({ value: raw, label, hint, tone }) {
-  const value = useCountUp(raw);
+  const value = useCountUp(raw, undefined, typeof label === 'string' ? label : undefined);
   const color = { red: 'text-red', amber: 'text-amber', green: 'text-green', blue: 'text-blue' }[tone] || '';
   return (
     <div>
@@ -863,6 +863,19 @@ export function LoadFail({ q, what, className }) {
   );
 }
 /* The filter a list was opened with from Analytics (venue and period): shown, and cleared with one tap */
+// "Back to Analytics": a page opened from another keeps a way back to it (in-app paths only).
+// History when the previous page is that one, so it keeps its scroll; otherwise straight there
+export function BackTo({ to, label, className }) {
+  const nav = useNavigate();
+  if (!/^\/[a-z]/.test(to || '')) return null;
+  const go = () => (previousEntry()?.path?.split('?')[0] === to.split('?')[0] ? nav(-1) : nav(to));
+  return (
+    <div className={cx('mb-3', className)}>
+      <Button variant="soft" size="sm" icon={ChevronLeft} onClick={go}>Back to {label || 'where you were'}</Button>
+    </div>
+  );
+}
+
 export function FilterChip({ label, onClear, className }) {
   return (
     <div className={cx('mb-3 flex', className)}>
@@ -1088,7 +1101,7 @@ export function Progress({ value, max, done, total, count, className }) {
 // quiet: a count of zero, kept in place but stepped back so the row doesn't shift as counts change
 // icon: shown before the number; compact: icon and number only (true, or "phone"), the label stays as its name
 export function Chip({ label, value: raw, tone = 'grey', active, onClick, quiet, icon: Icon, compact }) {
-  const value = useCountUp(raw);
+  const value = useCountUp(raw, undefined, typeof label === 'string' ? label : undefined);
   const bump = useBump(raw);
   const phone = useMedia('(max-width: 639.98px)');
   const short = Icon && (compact === 'phone' ? phone : !!compact) && typeof label === 'string';
@@ -1170,7 +1183,7 @@ export function useAttention(id = 'needs') {
 // failed: something feeding the count couldn't load, so "All clear" would be a guess; onRetry reloads it
 export function AttentionDrawer({ id = 'needs', title = 'Needs you', count = 0, tone = 'blue', preview = [], lead, empty = 'All clear, nothing needs you right now.', failed, onRetry, children, className }) {
   const { open, show, hide } = useAttention(id);
-  const n = useCountUp(count);
+  const n = useCountUp(count, undefined, `drawer:${id}`);
   const bump = useBump(count);
   if (!count && failed) {
     return (

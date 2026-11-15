@@ -39,22 +39,23 @@ function Body({ d, name }) {
   const toSign = d.counts?.toSign || 0;
   const pendingCover = d.cover.filter((c) => c.status === 'pending').length;
   const openInc = d.incidents.filter((i) => i.status !== 'closed').length;
-  const quiet = [!toSign && 'timesheets', !(Number(d.invoices.outstanding) > 0) && 'invoices', !pendingCover && 'cover', !openInc && 'incidents'].filter(Boolean);
+  const quiet = [!toSign && 'timesheets', !(Number(d.invoices.outstanding) > 0) && 'invoices', !pendingCover && 'staff requests', !openInc && 'incidents'].filter(Boolean);
   const [rate, setRate] = useState(false);
   const [give, setGive] = useState(false);
   const analytics = useModuleOn('analytics');
 
   if (!d.venues.length) {
     return (
-      <Page backLabel="Home" title={`${greeting()}${name ? `, ${name}` : ''}`}>
+      <Page backLabel="Overview" title={`${greeting()}${name ? `, ${name}` : ''}`}>
         <Tile><p className="text-body text-muted">Your account is not linked to a venue yet. Ask your security provider to give you access.</p></Tile>
       </Page>
     );
   }
 
   return (
-    <Page backLabel="Home" title={`${greeting()}${name ? `, ${name}` : ''}`} subtitle={chosen?.name || (multi ? `All ${d.venues.length} venues` : d.venues[0].name)}
+    <Page backLabel="Overview" title={`${greeting()}${name ? `, ${name}` : ''}`} subtitle={chosen?.name || (multi ? `All ${d.venues.length} venues` : d.venues[0].name)}
       actions={[
+        { label: 'Venue info', icon: Building2, to: '/venue/site' },
         { label: 'Rate staff', icon: Star, onClick: () => setRate(true) },
         { label: 'Give feedback', icon: MessageSquareHeart, onClick: () => setGive(true) },
         { label: 'Request staff', icon: Plus, variant: 'primary', main: true, to: '/venue/rota?new=1' },
@@ -131,7 +132,7 @@ function Body({ d, name }) {
         {Number(d.invoices.outstanding) > 0 && <Tile title="Invoices" icon={ReceiptText} to="/venue/invoices">
           <Stat value={money(d.invoices.outstanding)} label="Outstanding" hint={`${d.invoices.count} invoice${d.invoices.count === 1 ? '' : 's'} · incl. VAT${d.invoices.credits ? ' · Credit notes are shown on Invoices' : ''}`} />
         </Tile>}
-        {pendingCover > 0 && <Tile title="Cover" icon={Megaphone} to="/venue/rota?tab=requests">
+        {pendingCover > 0 && <Tile title="Staff requests" icon={Megaphone} to="/venue/rota?tab=requests">
           <Stat value={pendingCover} label="Requests awaiting reply" hint={`${d.cover.length} upcoming`} />
         </Tile>}
         {openInc > 0 && <Tile title="Incidents" icon={ShieldAlert} to="/venue/incidents">
@@ -144,7 +145,7 @@ function Body({ d, name }) {
       {analytics && <MonthTile venueId={venueId} />}
 
       <div className="grid grid-cols-1 gap-x-4 lg:grid-cols-2">
-        {/* Cover requests are on the Cover tile and Rota → Requests; incidents show only when there are some */}
+        {/* Staff requests are on the Staff requests tile and Rota → Requests; incidents show only when there are some */}
         {d.incidents.length > 0 && (
           <Section title="Recent incidents" action={<Link to="/venue/incidents" className="-my-2.5 inline-block py-2.5 text-subhead font-semibold text-blue">See all</Link>}>
             <List>
@@ -253,7 +254,7 @@ function VenueCard({ venue, name, sub, t, on, onClick }) {
       {(t.to_sign > 0 || t.cover > 0 || t.incidents > 0) && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {t.to_sign > 0 && <Pill tone="blue"><span className="num">{t.to_sign}</span> to sign</Pill>}
-          {t.cover > 0 && <Pill tone="amber"><span className="num">{t.cover}</span> cover waiting</Pill>}
+          {t.cover > 0 && <Pill tone="amber"><span className="num">{t.cover}</span> request{t.cover === 1 ? '' : 's'} waiting</Pill>}
           {t.incidents > 0 && <Pill tone="red"><span className="num">{t.incidents}</span> incident{t.incidents === 1 ? '' : 's'} this week</Pill>}
         </div>
       )}
@@ -268,7 +269,7 @@ function MonthTile({ venueId }) {
   if (!q.data) return null;
   const { attendance: a, incidents: i, satisfaction: s, customers: c } = q.data;
   return (
-    <Tile title="This month" icon={LineChart} to="/venue/analytics" className="mt-4">
+    <Tile title="This month" icon={LineChart} to="/venue/analytics?range=this" className="mt-4">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat value={s.avg == null ? '–' : `${s.avg}★`} label="Average rating" />
         {i.total ? <Stat value={i.total} label={i.total === 1 ? 'Incident' : 'Incidents'} /> : <div className="self-center text-subhead font-semibold text-green">No incidents this month</div>}

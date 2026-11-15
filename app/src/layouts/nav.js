@@ -51,7 +51,7 @@ export const NAV = {
       { hub: 'feedback', label: 'Feedback', icon: MessageSquareHeart },
       { hub: 'billing', label: 'Billing', icon: ReceiptText },
       { to: '/venue/messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
-      { to: '/venue/site', label: 'Venue info', icon: Building2, phoneOnly: true },
+      { to: '/venue/site', label: 'Venue info', icon: Building2 },
     ] },
   ],
   officer: [

@@ -1,10 +1,11 @@
 // Analytics: lateness and absence, incidents, satisfaction and customers, with the change against the period before
 import { useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { CalendarClock, LineChart, MessageSquareHeart, ShieldAlert, Users } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import {
-  Bento, Button, Empty, ErrorBox, Input, Page, Section, Segmented, Select, SkeletonTiles, Stat, Tile, ToolField, ToolMenu, date, useApi, useMedia, useUrlState,
+  Bento, Button, Empty, ErrorBox, Input, Page, Section, Segmented, Select, SkeletonTiles, Stat, Tile, ToolField, ToolMenu, date, mondayOf, useApi, useMedia, useUrlState,
 } from '../../ui/index.jsx';
 import { Columns, HBars, HourStrip, PRESETS_4W, presetRange, useBase } from './_parts.jsx';
 
@@ -142,15 +143,20 @@ function Sections({ d, base, office, range, venueFilter }) {
   const { attendance: a, incidents: i, satisfaction: s, customers: c } = d;
   const many = !venueFilter;
   // Drill-throughs carry the period and venue being looked at
-  const ctx = `from=${range.from}&to=${range.to}${venueFilter ? `&venue=${venueFilter}` : ''}`;
+  // and the way back to this view (?back=), since from/to already mean the period there
+  const loc = useLocation();
+  const here = loc.pathname + loc.search;
+  const ctx = `from=${range.from}&to=${range.to}${venueFilter ? `&venue=${venueFilter}` : ''}&back=${encodeURIComponent(here)}`;
+  // Late and absent open the period's last week of timesheets
+  const sheets = `${base}/timesheets?week=${mondayOf(range.to)}${venueFilter ? `&venue=${venueFilter}` : ''}&from=${encodeURIComponent(here)}&from_label=Analytics`;
   const fb = (tone) => `${base}/feedback?status=${tone === 'complaint' ? 'open' : 'all'}${tone ? `&tone=${tone}` : ''}&${ctx}`;
   return (
     <div className="space-y-2">
       <Part id="a-attendance" title="Lateness and absence" icon={CalendarClock}>
         <Bento>
           <Tile icon={CalendarClock} title="On time"><Stat value={fig(a.on_time_pct, '%')} label={`${a.shifts} shift${a.shifts === 1 ? '' : 's'} worked`} hint={change(a, 'on_time_pct', { unit: '%' })} tone={toneOf(a, 'on_time_pct', 'up')} /></Tile>
-          <Tile title="Late"><Stat value={a.late} label={a.avg_late ? `${a.avg_late} min late on average` : 'Late arrivals'} hint={change(a, 'late')} tone={toneOf(a, 'late')} /></Tile>
-          <Tile title="Absent"><Stat value={a.no_show + a.cant_make_it} label={`${a.no_show} no-show · ${a.cant_make_it} couldn't make it`} hint={change(a, 'no_show')} tone={toneOf(a, 'no_show')} /></Tile>
+          <Tile title="Late" to={sheets}><Stat value={a.late} label={a.avg_late ? `${a.avg_late} min late on average` : 'Late arrivals'} hint={change(a, 'late')} tone={toneOf(a, 'late')} /></Tile>
+          <Tile title="Absent" to={sheets}><Stat value={a.no_show + a.cant_make_it} label={`${a.no_show} no-show · ${a.cant_make_it} couldn't make it`} hint={change(a, 'no_show')} tone={toneOf(a, 'no_show')} /></Tile>
           <Tile title="Cover and early leavers"><Stat value={a.cover} label={`Cover needed · ${a.left_early} left early`} hint={a.excused ? `${a.excused} excused` : change(a, 'cover')} /></Tile>
         </Bento>
         <div className="mt-3 grid gap-3 lg:grid-cols-2">

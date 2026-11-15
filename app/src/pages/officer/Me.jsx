@@ -107,6 +107,8 @@ export default function Me() {
                 <ul className="mt-2 space-y-0.5 px-1 text-footnote font-medium text-red">{c.issues.map((i) => <li key={i}>{i}</li>)}</ul>
               )}
 
+              {/* Still loading: say so, so an empty to-do list isn't mistaken for nothing to do */}
+              {[tasks, contracts, fix].some((q) => !q.data && !q.error) && <p className="mt-6 px-1 text-footnote text-muted">Checking your to-dos…</p>}
               {/* A part that couldn't load says so, instead of looking like there's nothing to do */}
               {[[tasks, 'your set-up steps'], [contracts, 'your contracts'], [fix, 'reports to fix']].some(([q]) => q.error) && (
                 <div className="mt-6 space-y-2">
@@ -221,12 +223,12 @@ export default function Me() {
                   <Row to="/officer/me/growth" left={<Ico icon={Target} tone="green" />} title="Goals and one-to-ones" subtitle="What you're working on, notes and pay rises" />
                 </List>
               </Section>
-
-              {account}
             </>
           );
         }}
       </Load>
+      {/* Account and sign out stay reachable when the profile is loading or failed */}
+      {account}
       <PasswordSheet open={pw} onClose={() => setPw(false)} />
       <NotificationsSheet open={notes} onClose={() => setNotes(false)} />
       <InstallSheet open={inst} onClose={() => setInst(false)} />

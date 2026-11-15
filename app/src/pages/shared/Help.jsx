@@ -5,6 +5,7 @@ import {
 import { Button, Empty, List, Load, Page, Pressable, SearchInput, Section, cx, useAction, useApi } from '../../ui/index.jsx';
 import { InstallSheet } from '../../ui/pwa.jsx';
 import { downloadAction } from '../../api.js';
+import { useAuth } from '../../auth.jsx';
 
 // A small mark before each chapter heading
 const CHAPTER_ICON = {
@@ -84,12 +85,13 @@ function Guide({ chapters, q }) {
 }
 
 export default function Help() {
+  const { user } = useAuth();
   const g = useApi('help.guide');
   const [run, busy] = useAction();
   const [q, setQ] = useState('');
   // The search sits on the tab line, so the guide starts high
   return (
-    <Page title="Help & user guide" subtitle="How to use the app, step by step"
+    <Page title="Help & user guide" subtitle="How to use the app, step by step" back={user?.role === 'officer' ? { to: '/officer/me', label: 'Me' } : undefined}
       tools={<SearchInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the guide" className="w-full sm:w-72" />}
       actions={<Button variant="secondary" icon={Download} iconOnly="phone" busy={busy} onClick={() => run(() => downloadAction('help.pdf'))}>Download as PDF</Button>}>
       <Load q={g} skeleton="rows">{(d) => <Guide chapters={d.chapters} q={q} />}</Load>

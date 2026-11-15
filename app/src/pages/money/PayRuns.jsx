@@ -50,7 +50,7 @@ export function RunsList({ reloadKey }) {
 export default function PayRunDetail() {
   const { user } = useAuth();
   if (user.role === 'security' && !user.can_see_pay) {
-    return <Page title="Pay run"><Empty icon={Lock} title="No access to pay" body="Ask a company manager to give you access to pay information." /></Page>;
+    return <Page title="Pay runs"><Empty icon={Lock} title="No access to pay" body="Ask a company manager to give you access to pay information." /></Page>;
   }
   return <Detail isCo={user.role === 'company'} />;
 }

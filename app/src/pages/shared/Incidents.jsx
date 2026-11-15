@@ -4,7 +4,7 @@ import { Camera, CheckCheck, ChevronRight, Download, FilePen, FileSignature, Map
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
-import { addDays, Button, cx, dateTime, dayLabel, Empty, FilterChip, IconButton, List, Load, MoreMenu, Page, periodLabel, Pill, SearchInput, Section, Segmented, Select, time, ToolField, ToolMenu, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { addDays, BackTo, Button, cx, dateTime, dayLabel, Empty, FilterChip, IconButton, List, Load, MoreMenu, Page, periodLabel, Pill, SearchInput, Section, Segmented, Select, time, ToolField, ToolMenu, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { BanList, REGISTER_NOTE } from '../shift/_bans.jsx';
 import { clearLocal } from '../officer/_draft.js';
 import { StagePill } from './incident/SignStrip.jsx';
@@ -38,6 +38,9 @@ export default function Incidents() {
   // Opened from Analytics: the period being looked at (dates, the end day included)
   const from = sp.get('from') || '';
   const until = sp.get('to') || '';
+  // and the Analytics view it came from
+  const back = sp.get('back') || '';
+  const meBack = officer ? { to: '/officer/me', label: 'Me' } : undefined;
   const body = Object.fromEntries(Object.entries({ ...f, search, from, to: until ? addDays(until, 1) : '' }).filter(([, val]) => val));
   if (body.status === 'to_sign') { delete body.status; body.to_sign = true; }
   const q = useApi('incidents.list', body, { poll: 60000, skip: officer && !user.officer_id });
@@ -56,7 +59,7 @@ export default function Incidents() {
   );
   if (tab === 'ejections') {
     return (
-      <Page title="Reports" subtitle="Ejections you logged on shift" tools={tabs}>
+      <Page title="Reports" subtitle="Ejections you logged on shift" back={meBack} tools={tabs}>
         <MyEjections />
       </Page>
     );
@@ -88,7 +91,7 @@ export default function Incidents() {
   </>;
 
   return (
-    <Page title={officer ? 'Reports' : 'Incidents'} subtitle={officer ? 'Your incident reports and ejections' : undefined} wide={!officer} tools={tools}
+    <Page title={officer ? 'Reports' : 'Incidents'} subtitle={officer ? 'Your incident reports and ejections' : undefined} back={meBack} wide={!officer} tools={tools}
       actions={!officer && <>{!isVenue && <Button icon={Plus} to={`${base}/incidents/new`}>Report incident</Button>}
         <MoreMenu items={[
           { icon: Download, label: 'Export to spreadsheet', hint: 'The reports shown, as CSV', onClick: () => downloadAction('incidents.exportCsv', body).catch(() => {}) },
@@ -96,6 +99,7 @@ export default function Incidents() {
         ]} /></>}>
       {((officer && user.officer_id) || !officer) && <Drafts base={base} officer={officer} />}
 
+      {back && <BackTo to={back} label="Analytics" />}
       {(from || until) && (
         <FilterChip label={[!isVenue && f.venue_id && venueList.find((x) => x.id === f.venue_id)?.name, periodLabel(from, until)].filter(Boolean).join(' · ')}
           onClear={() => { const n = new URLSearchParams(sp); ['from', 'to', ...(isVenue ? [] : ['venue'])].forEach((k) => n.delete(k)); setSp(n, { replace: true }); }} />

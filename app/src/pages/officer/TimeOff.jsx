@@ -17,9 +17,9 @@ export default function TimeOff() {
   const tab = url.tab === 'availability' ? 'availability' : 'timeoff';
   const setTab = (t) => set({ tab: t });
   const [asking, setAsking] = useState(false);
-  // Opened fresh (a notification, a reload): availability belongs with Shifts, time off with Me
-  const back = tab === 'availability' ? { to: '/officer/shifts', label: 'Shifts' } : { to: '/officer/me', label: 'Me' };
-  const title = tab === 'availability' ? 'Availability' : 'Time off';
+  // One page under Me; opened from Shifts, Back still returns there (the real previous page wins)
+  const back = { to: '/officer/me', label: 'Me' };
+  const title = 'Time off and availability';
   if (!user.officer_id) return <Page title={title} back={back}><NotLinked /></Page>;
   return (
     <Page title={title} back={back} actions={tab === 'timeoff' && <Button icon={Plus} onClick={() => setAsking(true)}>Request time off</Button>}>

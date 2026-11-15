@@ -3,9 +3,9 @@ import { CalendarClock, History, Megaphone, MessagesSquare, Pencil, Plus, Repeat
 import {
   Button, Callout, Empty, KV, List, Load, Pill, Row, Segmented, Sheet, addDays, dayLabel, isoDate, range, relative, time,
 } from '../../ui/index.jsx';
-import { ChangeSheet, describeChange, LABEL, RepeatTag, statusOf } from '../manager/_cover.jsx';
+import { ChangeSheet, describeChange, LABEL, RepeatTag, requestLine, statusOf } from '../manager/_cover.jsx';
 
-/** The venue's cover requests (the Requests tab of the venue rota). */
+/** The venue's staff requests (the Requests tab of the venue rota). */
 export function CoverList({ q, many, onOpen, onNew }) {
   const [tab, setTab] = useState('upcoming');
   const now = Date.now();
@@ -21,8 +21,8 @@ export function CoverList({ q, many, onOpen, onNew }) {
           <List>
             {list.map((c) => (
               <Row key={c.id} onClick={() => onOpen(c)} chevron
-                title={<>{c.headcount} × {c.role_name}</>}
-                subtitle={<>{dayLabel(c.starts_at)} <span className="num">{range(c.starts_at, c.ends_at)}</span>{many ? ` · ${c.venue_name}` : ''}</>}
+                title={c.role_name}
+                subtitle={<span className="num">{requestLine(c)}{many ? ` · ${c.venue_name}` : ''}</span>}
                 right={(
                   <div className="flex flex-col items-end gap-1">
                     <Pill status={statusOf(c)}>{LABEL[statusOf(c)]}</Pill>
@@ -37,7 +37,7 @@ export function CoverList({ q, many, onOpen, onNew }) {
   );
 }
 
-/** The same booking a week on (or the first same weekday from tomorrow), to check and send */
+/** The same request a week on (or the first same weekday from tomorrow), to check and send */
 export function againDraft(c, today = isoDate()) {
   let date = isoDate(c.starts_at);
   while (date <= today) date = addDays(date, 7);
@@ -51,11 +51,12 @@ export function Detail({ c, onClose, onDone, onAgain }) {
   const waiting = c.change_status === 'pending';
   if (change) return <ChangeSheet c={c} mode={change} isMgr={false} onClose={() => setChange(null)} onDone={onDone} />;
   return (
-    <Sheet open onClose={onClose} title={`${c.headcount} × ${c.role_name}`}
+    <Sheet open onClose={onClose} title={c.role_name}
       footer={live && !waiting ? <><Button variant="secondary" icon={Trash2} onClick={() => setChange('delete')}>Cancel</Button><Button icon={Pencil} onClick={() => setChange('edit')}>Change</Button></> : null}>
       <div className="space-y-5">
+        <p className="num text-body font-semibold">{requestLine(c)}</p>
         <div className="flex flex-wrap items-center gap-2"><Pill status={st}>{LABEL[st]}</Pill><RepeatTag c={c} /></div>
-        {waiting && <Callout tone="warning" title="Waiting for approval">{describeChange(c)}. The booking stays as it is until Orb approves.</Callout>}
+        {waiting && <Callout tone="warning" title="Waiting for approval">{describeChange(c)}. The request stays as it is until Orb approves.</Callout>}
         {c.change_status === 'declined' && c.change_reason && <p className="rounded-2xl bg-red-soft px-3 py-2 text-footnote text-red">Your last change wasn't approved: {c.change_reason}</p>}
         <KV items={[
           ['Venue', c.venue_name],
@@ -66,7 +67,7 @@ export function Detail({ c, onClose, onDone, onAgain }) {
           ['Notes', c.notes],
           c.status === 'declined' && ['Reason', c.decline_reason || 'Please contact us to discuss.'],
         ]} />
-        {c.status === 'accepted' && <p className="text-subhead text-muted">We are staffing this. Confirmed officers show under On site on the day. Changes to booked cover need Orb's approval.</p>}
+        {c.status === 'accepted' && <p className="text-subhead text-muted">We are staffing this. Confirmed officers show under On site on the day. Changes to a confirmed request need Orb's approval.</p>}
         {c.conversation_id && <Button variant="soft" icon={MessagesSquare} to={`/venue/messages/${c.conversation_id}`}>Messages about this request</Button>}
         {onAgain && c.kind !== 'recurring' && <Button variant="soft" icon={Repeat} onClick={() => onAgain(againDraft(c))}>Request again</Button>}
       </div>

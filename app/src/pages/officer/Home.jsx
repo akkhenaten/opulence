@@ -45,11 +45,12 @@ export default function Home() {
   return (
     <Page key="home" backLabel="Home" title={`${greeting()}${first ? `, ${first}` : ''}`} subtitle={dayLabel(new Date())} photo="street">
       {pull}
-      <InstallCard className="mb-4" later="Me" />
-      <PushCard className="mb-4" later="Me" />
       <Load q={dash} skeleton="tiles">
         {(d) => (d.linked === false ? <NotLinked /> : <Body d={d} clock={clock} ops={ops} reload={reloadAll} />)}
       </Load>
+      {/* App set-up offers sit last, under the day's work */}
+      <InstallCard className="mt-5" later="Me" />
+      <PushCard className="mt-5" later="Me" />
     </Page>
   );
 }
@@ -129,22 +130,13 @@ function Body({ d, clock, ops, reload }) {
     </Section>
   );
 
-  // The next shift comes first; everything else waiting on the officer sits under it as one line each
+  // What stops them working comes first, then what waits on their answer, then the next shift; pay and renewals under it
+  const blocker = d.issues?.length > 0 || d.grace;
+  const later = paid || (!d.issues?.length && siaDays != null && siaDays <= 60);
+  const checking = (!ops.data && !ops.error) || (!packsQ.data && !packsQ.error);
   return (
     <div className="space-y-5">
-      <Section title="Next shift">
-        {confirmed.length === 0 ? <Nothing /> : (
-          <Hero s={confirmed[0]} clockable={cur?.assignment_id === confirmed[0].assignment_id} clockedIn={cur?.assignment_id === confirmed[0].assignment_id && (cur.events || []).some((e) => e.status !== 'rejected')} blocked={d.issues?.length > 0} pack={packs.find((v) => v.venue_id === confirmed[0].venue_id)} onDecline={() => setDeclining(confirmed[0])} />
-        )}
-      </Section>
-
-      {fails.some(([q]) => q.error) && (
-        <div className="space-y-2">{fails.map(([q, what]) => <LoadFail key={what} q={q} what={what} />)}</div>
-      )}
-
-      <ChaseBanner ops={ops} />
-      <PhoneCard soon={next.some((s) => new Date(s.starts_at) - Date.now() < 864e5)} />
-      {(paid || d.issues?.length > 0 || d.grace || (siaDays != null && siaDays <= 60)) && (
+      {blocker && (
         <List>
           {d.issues?.length > 0 && (
             <Row to={addFor(docKindFor(d.issues[0]))} left={<Ico icon={ShieldAlert} tone="red" />} title="You can't work shifts right now" subtitle={d.issues.join(' · ')} />
@@ -153,14 +145,11 @@ function Body({ d, clock, ops, reload }) {
             <Row to={addFor(docKindFor((d.graced || [])[0]))} left={<Ico icon={CalendarClock} tone={d.grace.days_left <= 3 ? 'red' : 'amber'} />}
               title={`You can work until ${date(d.grace.ends_on)}`} subtitle={`Send by then: ${(d.graced || []).join(', ')}`} chevron />
           )}
-          {!d.issues?.length && siaDays != null && siaDays <= 60 && (
-            <Row to={addFor('sia')} left={<Ico icon={AlertTriangle} tone="amber" />} title={`SIA licence: ${expiryText(siaDays).toLowerCase()}`} subtitle="Renew it and upload the new licence" />
-          )}
-          {paid && (
-            <Row to={`/officer/pay/${paid.id}`} left={<Ico icon={Wallet} tone="green" />} title={`Pay statement · ${money(paid.total)}`}
-              subtitle={`${dateShort(paid.period_start)} – ${date(paid.period_end)}`} />
-          )}
         </List>
+      )}
+
+      {fails.some(([q]) => q.error) && (
+        <div className="space-y-2">{fails.map(([q, what]) => <LoadFail key={what} q={q} what={what} />)}</div>
       )}
 
       {lg ? (
@@ -178,6 +167,27 @@ function Body({ d, clock, ops, reload }) {
           </div>
         </AttentionDrawer>
       ))}
+      {checking && <p className="px-1 text-footnote text-muted">Checking your to-dos…</p>}
+
+      <Section title="Next shift">
+        {confirmed.length === 0 ? <Nothing /> : (
+          <Hero s={confirmed[0]} clockable={cur?.assignment_id === confirmed[0].assignment_id} clockedIn={cur?.assignment_id === confirmed[0].assignment_id && (cur.events || []).some((e) => e.status !== 'rejected')} blocked={d.issues?.length > 0} pack={packs.find((v) => v.venue_id === confirmed[0].venue_id)} onDecline={() => setDeclining(confirmed[0])} />
+        )}
+      </Section>
+
+      <ChaseBanner ops={ops} />
+      <PhoneCard soon={next.some((s) => new Date(s.starts_at) - Date.now() < 864e5)} />
+      {later && (
+        <List>
+          {!d.issues?.length && siaDays != null && siaDays <= 60 && (
+            <Row to={addFor('sia')} left={<Ico icon={AlertTriangle} tone="amber" />} title={`SIA licence: ${expiryText(siaDays).toLowerCase()}`} subtitle="Renew it and upload the new licence" />
+          )}
+          {paid && (
+            <Row to={`/officer/pay/${paid.id}`} left={<Ico icon={Wallet} tone="green" />} title={`Pay statement · ${money(paid.total)}`}
+              subtitle={`${dateShort(paid.period_start)} – ${date(paid.period_end)}`} />
+          )}
+        </List>
+      )}
       <OfficeWaiting tasks={waiting} />
 
       {confirmed.length > 1 && (
@@ -219,14 +229,13 @@ function Weekend({ shifts }) {
   );
 }
 
+// Nothing booked: one line, so what is waiting stays in view
 function Nothing() {
   return (
-    <Tile tone="ink" className="!p-6">
-      <div className="flex items-center gap-2 text-footnote font-semibold uppercase tracking-wide opacity-70"><CalendarDays size={16} />Next shift</div>
-      <div className="display mt-3 text-title2 font-bold">Nothing booked</div>
-      <p className="mt-1 text-subhead opacity-70">Pick up an open shift or check back later.</p>
-      <Button size="lg" className="mt-5 w-full" to="/officer/shifts?tab=open" icon={Megaphone}>See open shifts</Button>
-    </Tile>
+    <List>
+      <Row to="/officer/shifts?tab=open" left={<Ico icon={CalendarDays} tone="grey" />} title="Nothing booked"
+        right={<span className="text-subhead font-semibold text-blue">See open shifts</span>} />
+    </List>
   );
 }
 

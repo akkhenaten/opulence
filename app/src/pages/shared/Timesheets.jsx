@@ -4,13 +4,12 @@ import {
   AlertTriangle, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Clock, Download, History, HandCoins, Lock, LogOut, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
 } from 'lucide-react';
 import {
-  ActionBar, addDays, Avatar, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, MoreMenu, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, ToolField, ToolMenu, useAction, useApi, useConfirm, useForm, useMedia, useUrlState,
+  ActionBar, addDays, Avatar, BackTo, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, MoreMenu, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, ToolField, ToolMenu, useAction, useApi, useConfirm, useForm, useMedia, useUrlState,
 } from '../../ui/index.jsx';
 import { api, downloadAction } from '../../api.js';
 import { useVenue } from '../../venue.jsx';
 import { ClockOutSheet } from './_clockOut.jsx';
 import { ProofFlags } from '../manager/_proof.jsx';
-import { previousEntry } from '../../ui/nav.js';
 import { Check as Tick, fromLondonInput, londonIso, SELF_HINT, SelfPills, toLondonInput, useBase } from '../manager/_parts.jsx';
 
 const FLAG_TONE = { late: 'amber', left_early: 'amber', exception: 'red', no_clock_out: 'red', manual: 'blue', edited: 'blue', cancelled_after_billing: 'red' };
@@ -182,8 +181,9 @@ export default function Timesheets() {
       options={officers.map(([id, name]) => ({ value: id, label: name }))} />
   );
   const changed = !!officerId + (!wide && !isVenue && !!venueId);
+  // A venue's week with no timesheets has nothing to filter, so the views only show once there are some
   const tools = <>
-    <Segmented value={filter} onChange={setFilter} options={segs} />
+    {(!isVenue || all.length > 0) && <Segmented value={filter} onChange={setFilter} options={segs} />}
     {venuePick && <div className="hidden w-48 sm:block">{venuePick}</div>}
     <ToolMenu count={changed} onClear={() => setUrl({ officer: '', ...(!wide && !isVenue && { venue: '' }) })}>
       {!wide && venuePick && <ToolField label="Venue">{venuePick}</ToolField>}
@@ -196,11 +196,7 @@ export default function Timesheets() {
       actions={<>{isVenue ? (toSignWeek.length > 0 && <Button icon={Signature} busy={busy} onClick={signWeek}>Sign off week · {toSignWeek.length}</Button>)
         : readyToPay && <Button variant="secondary" icon={HandCoins} busy={busy} onClick={sendToPay}>Send to pay run</Button>}
         <MoreMenu items={[{ icon: Download, label: 'Export this week', hint: 'Every row shown, as CSV', onClick: () => downloadAction('timesheets.exportCsv', body).catch(() => {}) }]} /></>}>
-      {from && (
-        <div className="mb-3">
-          <Button variant="soft" size="sm" icon={ChevronLeft} onClick={() => (previousEntry()?.path?.split('?')[0] === from ? nav(-1) : nav(from))}>Back to {url.from_label || 'where you were'}</Button>
-        </div>
-      )}
+      <BackTo to={from} label={url.from_label} />
       {earlier.length > 0 && (
         <Callout tone="warning" icon={Clock} className="mb-3" title={`${earlier.length} earlier shift${earlier.length > 1 ? 's' : ''} with no clock-in`}
           action={<Button size="sm" variant="secondary" onClick={() => { setUrl({ week: mondayOf(isoDate(earlier[earlier.length - 1].starts_at)), show: 'no_clock_in', status: '' }); setSel(new Set()); }}>Show oldest</Button>}>
@@ -221,6 +217,7 @@ export default function Timesheets() {
       <Load q={q}>{() => !rows.length ? (
         officerId || (!isVenue && venueId)
           ? <Empty icon={ClipboardCheck} title="Nothing matches" body="Try another venue or officer." />
+          : isVenue && !all.length ? <Empty icon={ClipboardCheck} title="No timesheets this week" body="Confirmed shifts show here once officers accept them." />
           : <Empty icon={ClipboardCheck} title={EMPTY[filter] || EMPTY.all} body={filter === 'all' || !EMPTY[filter] ? 'Confirmed shifts show here as soon as officers accept them.' : undefined} />
       ) : (
         <WeekTable rows={rows} week={week} days={q.data.days} see={see} sel={sel} toggle={toggle} can={can} act={act} onOpen={onOpen} busy={busy} />
@@ -257,8 +254,9 @@ function WeekStrip({ wk, health, see, filter, setFilter, isVenue, toReview }) {
     ['queried', health.queried, 'queried', 'red', MessageSquareReply],
     !isVenue && ['no_clock_in', health.no_clock_in, 'no clock-in', 'red', Clock],
     !isVenue && ['cancelled', health.cancelled, 'cancelled with hours', 'red', Ban],
-    ['no_rate', health.no_rate, 'without a rate', 'red', AlertTriangle],
-    ['unpaid_late', health.unpaid_late, 'signed, not paid yet', 'amber', HandCoins],
+    // Rates and pay are office work, so venues don't see them
+    !isVenue && ['no_rate', health.no_rate, 'without a rate', 'red', AlertTriangle],
+    !isVenue && ['unpaid_late', health.unpaid_late, 'signed, not paid yet', 'amber', HandCoins],
   ].filter((c) => c && c[1] > 0);
   // One line by default (the totals); Show breakdown opens the full strip with what still needs doing
   const [full, setFull] = useState(false);

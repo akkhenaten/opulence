@@ -5,11 +5,11 @@ import { api } from '../../api.js';
 import { londonParts, WEEKDAYS } from './_parts.jsx';
 import { useVenue } from '../../venue.jsx';
 
-// Shared by the venue's "Request cover" page and the managers' "Cover requests" page
+// Shared by the venue's staff requests (Request staff) and the managers' "Cover requests" page
 
 export const isFilled = (c) => c.status === 'accepted' && Number(c.filled) >= c.headcount;
 export const statusOf = (c) => (isFilled(c) ? 'filled' : c.status);
-export const LABEL = { pending: 'Waiting', accepted: 'Accepted', filled: 'Staffed', declined: 'Declined', cancelled: 'Cancelled' };
+export const LABEL = { pending: 'Waiting for reply', accepted: 'Being staffed', filled: 'Staffed', declined: 'Declined', cancelled: 'Cancelled' };
 export const isoDow = (d) => ((new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7) + 1; // 1 = Monday … 7 = Sunday
 const overnight = (s, e) => s && e && e <= s;
 
@@ -20,8 +20,27 @@ export const slotOf = (c) => ({ start: londonParts(c.starts_at).time, end: londo
 const FIT = 'min-w-0 px-2 sm:px-3.5';
 
 const listJoin = (a) => (a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);
-/** The repeating pattern in plain words, e.g. "Every Fri and Sat, 22:00–04:00 (overnight), 2 officers, from 21 Nov". */
-export function patternSummary({ frequency, days, start_date, has_end, end_date }) {
+// "2 door staff" / "1 door staff"; without a role, "2 staff"
+// "2 door supervisors", "1 steward"; without a role, "2 staff"
+const staffOf = (n, role) => {
+  if (!role) return `${n} staff`;
+  const r = role.toLowerCase();
+  return `${n} ${n === 1 || /(s|staff)$/.test(r) ? r : `${r}s`}`;
+};
+
+/** One date in plain words, e.g. "Fri 21 Nov, 22:00–04:00 (overnight), 2 door supervisors". */
+export function oneOffSummary({ date, start, end, headcount }, role) {
+  return `${WEEKDAYS[isoDow(date) - 1]} ${dateShort(date)}, ${start}–${end}${overnight(start, end) ? ' (overnight)' : ''}, ${staffOf(Number(headcount), role)}`;
+}
+
+/** A request row's line: its date, times and staff, plus how many dates when rows are grouped. */
+export function requestLine(c, dates = 1) {
+  const { date, time: start } = londonParts(c.starts_at);
+  return `${oneOffSummary({ date, start, end: londonParts(c.ends_at).time, headcount: c.headcount }, c.role_name)}${dates > 1 ? ` · ${dates} dates` : ''}`;
+}
+
+/** The repeating pattern in plain words, e.g. "Every Fri and Sat, 22:00–04:00 (overnight), 2 door staff, from 21 Nov". */
+export function patternSummary({ frequency, days, start_date, has_end, end_date }, role) {
   const groups = [];
   days.forEach((d) => {
     const g = groups.find((x) => x.start === d.start && x.end === d.end && Number(x.headcount) === Number(d.headcount));
@@ -29,7 +48,7 @@ export function patternSummary({ frequency, days, start_date, has_end, end_date 
   });
   const parts = groups.map((g) => {
     const n = Number(g.headcount);
-    return `${listJoin(g.dows.map((x) => WEEKDAYS[x - 1]))}, ${g.start}–${g.end}${overnight(g.start, g.end) ? ' (overnight)' : ''}, ${n} officer${n === 1 ? '' : 's'}`;
+    return `${listJoin(g.dows.map((x) => WEEKDAYS[x - 1]))}, ${g.start}–${g.end}${overnight(g.start, g.end) ? ' (overnight)' : ''}, ${staffOf(n, role)}`;
   });
   return `${frequency === 'fortnightly' ? 'Every 2 weeks on' : 'Every'} ${parts.join('; ')}${start_date ? `, from ${dateShort(start_date)}` : ''}${has_end && end_date ? ` until ${dateShort(end_date)}` : ''}`;
 }
@@ -67,7 +86,7 @@ export function DaysEditor({ days, onChange }) {
 const cleanDays = (days) => days.map((d) => ({ ...d, headcount: Number(d.headcount) }));
 const daysOk = (days) => days.length > 0 && days.every((d) => d.start && d.end && d.start !== d.end && Number(d.headcount) >= 1);
 
-/** New cover request: one date, or a repeating pattern. `draft` pre-fills it (e.g. read from a message). */
+/** New staff request: one date, or a repeating pattern. `draft` pre-fills it (e.g. read from a message). */
 export function RequestForm({ venues, roles, draft, onClose, onDone }) {
   const tomorrow = addDays(isoDate(), 1);
   const chosen = useVenue().venueId;
@@ -80,8 +99,10 @@ export function RequestForm({ venues, roles, draft, onClose, onDone }) {
   const [run, busy] = useAction();
   const v = f.v;
   const rec = v.kind === 'recurring';
+  const roleName = roles.find((r) => r.code === v.role)?.name;
+  const oneOk = v.date && v.start && v.end && v.start !== v.end && Number(v.headcount) >= 1;
   const ok = (v.venue_id || venues.length === 1) && v.role
-    && (rec ? daysOk(v.days) && v.start_date && (!v.has_end || v.end_date >= v.start_date) : v.date && v.start && v.end && v.start !== v.end && Number(v.headcount) >= 1);
+    && (rec ? daysOk(v.days) && v.start_date && (!v.has_end || v.end_date >= v.start_date) : oneOk);
   const send = () => run(() => api('cover.create', {
     venue_id: v.venue_id || venues[0]?.id, role: v.role, kind: v.kind, notes: v.notes.trim(),
     ...(rec
@@ -90,7 +111,7 @@ export function RequestForm({ venues, roles, draft, onClose, onDone }) {
   }), 'Request sent').then(onDone).catch(() => {});
 
   return (
-    <Sheet open onClose={onClose} title="Request cover"
+    <Sheet open onClose={onClose} title="Request staff"
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={send} busy={busy} disabled={!ok}>Send request</Button></>}>
       <div className="space-y-4">
         {draft && !draft.quiet && <Callout>Filled in from your message. Check the details before sending.</Callout>}
@@ -108,7 +129,7 @@ export function RequestForm({ venues, roles, draft, onClose, onDone }) {
             <div className="rounded-xl bg-bg px-4 py-1">
               <Toggle checked={v.has_end} onChange={(x) => f.set('has_end', x)} label="Ends on a date" hint={v.has_end ? undefined : 'Keeps going until you stop it. We book 8 weeks ahead.'} />
             </div>
-            {daysOk(v.days) && <Callout icon={Repeat}>{patternSummary(v)}</Callout>}
+            {daysOk(v.days) && <Callout icon={Repeat}>{patternSummary(v, roleName)}</Callout>}
           </>
         ) : (
           <>
@@ -118,6 +139,7 @@ export function RequestForm({ venues, roles, draft, onClose, onDone }) {
               <Input label="Finish" type="time" {...f.bind('end')} hint={overnight(v.start, v.end) ? 'Ends next day' : undefined} />
             </div>
             <Input label="How many officers" type="number" min="1" max="50" inputMode="numeric" {...f.bind('headcount')} />
+            {oneOk && <Callout icon={CalendarDays}>{oneOffSummary(v, roleName)}</Callout>}
           </>
         )}
         <Textarea label="Notes" rows={3} placeholder="Event, dress code, where to report" {...f.bind('notes')} />
@@ -138,7 +160,7 @@ export function ChangeSheet({ c, mode, isMgr, onClose, onDone }) {
   const needsOk = !isMgr && (c.status === 'accepted' || (scope === 'future' && c.accepted_all));
 
   const go = async () => {
-    if (mode === 'delete' && !(await confirm({ title: scope === 'future' ? 'Cancel this and later dates?' : 'Cancel this date?', confirm: 'Cancel cover', danger: true }))) return;
+    if (mode === 'delete' && !(await confirm({ title: scope === 'future' ? 'Cancel this and later dates?' : 'Cancel this date?', confirm: 'Cancel request', danger: true }))) return;
     const body = mode === 'delete' ? { id: c.id, scope, delete: true }
       : scope === 'one' ? { id: c.id, scope, start: v.start, end: v.end, headcount: Number(v.headcount), notes: v.notes }
         : { id: c.id, scope, frequency: v.frequency, days: cleanDays(v.days), end_date: v.has_end ? v.end_date : null, notes: v.notes };
@@ -153,7 +175,7 @@ export function ChangeSheet({ c, mode, isMgr, onClose, onDone }) {
       </Pressable>
     );
     return (
-      <Sheet open onClose={onClose} title={mode === 'delete' ? 'Cancel cover' : 'Change cover'} size="sm">
+      <Sheet open onClose={onClose} title={mode === 'delete' ? 'Cancel request' : 'Change request'} size="sm">
         <div className="space-y-2">
           {opt('one', CalendarDays, 'Only this date', londonParts(c.starts_at).date)}
           {opt('future', CalendarRange, 'This and later dates', c.pattern || 'The rest of the pattern')}
@@ -164,10 +186,10 @@ export function ChangeSheet({ c, mode, isMgr, onClose, onDone }) {
 
   const ok = mode === 'delete' || (scope === 'one' ? v.start && v.end && v.start !== v.end && Number(v.headcount) >= 1 : daysOk(v.days));
   return (
-    <Sheet open onClose={onClose} title={mode === 'delete' ? 'Cancel cover' : scope === 'future' ? 'Change this and later dates' : 'Change this date'}
-      footer={<><Button variant="secondary" onClick={onClose}>Back</Button><Button variant={mode === 'delete' ? 'danger' : 'primary'} busy={busy} disabled={!ok} onClick={go}>{needsOk ? 'Ask for approval' : mode === 'delete' ? 'Cancel cover' : 'Save'}</Button></>}>
+    <Sheet open onClose={onClose} title={mode === 'delete' ? 'Cancel request' : scope === 'future' ? 'Change this and later dates' : 'Change this date'}
+      footer={<><Button variant="secondary" onClick={onClose}>Back</Button><Button variant={mode === 'delete' ? 'danger' : 'primary'} busy={busy} disabled={!ok} onClick={go}>{needsOk ? 'Ask for approval' : mode === 'delete' ? 'Cancel request' : 'Save'}</Button></>}>
       <div className="space-y-4">
-        {needsOk && <Callout tone="warning">This cover is already booked, so Orb will approve the change. Until then the booking stays as it is.</Callout>}
+        {needsOk && <Callout tone="warning">This request is already confirmed, so Orb will approve the change. Until then the request stays as it is.</Callout>}
         {mode === 'delete' ? (
           <p className="text-body text-muted">{scope === 'future' ? 'This date and every later date in the pattern will be cancelled.' : 'Only this date will be cancelled.'}</p>
         ) : scope === 'one' ? (
@@ -185,7 +207,7 @@ export function ChangeSheet({ c, mode, isMgr, onClose, onDone }) {
             <DaysEditor days={v.days} onChange={(d) => f.set('days', d)} />
             <div className="rounded-xl bg-bg px-4 py-1"><Toggle checked={v.has_end} onChange={(x) => f.set('has_end', x)} label="Ends on a date" /></div>
             {v.has_end && <Input label="Last date" type="date" min={isoDate()} {...f.bind('end_date')} />}
-            {daysOk(v.days) && <Callout icon={Repeat}>{patternSummary({ ...v, start_date: null })}</Callout>}
+            {daysOk(v.days) && <Callout icon={Repeat}>{patternSummary({ ...v, start_date: null }, c.role_name)}</Callout>}
             <Textarea label="Notes" rows={2} {...f.bind('notes')} />
           </>
         )}

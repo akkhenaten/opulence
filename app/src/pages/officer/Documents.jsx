@@ -20,10 +20,10 @@ export default function Documents() {
   const [params] = useSearchParams();
   const [adding, setAdding] = useState(() => (DOC_KINDS.some((k) => k.value === params.get('add')) ? params.get('add') : null));
   const q = useApi('docs.list', { owner_type: 'officer', owner_id: user.officer_id }, { skip: !user.officer_id });
-  if (!user.officer_id) return <Page title="Documents" back={{ to: '/officer/me', label: 'Me' }}><NotLinked /></Page>;
+  if (!user.officer_id) return <Page title="Documents and licence" back={{ to: '/officer/me', label: 'Me' }}><NotLinked /></Page>;
 
   return (
-    <Page title="Documents" back={{ to: '/officer/me', label: 'Me' }} actions={<Button icon={Plus} onClick={() => setAdding('sia')}>Add</Button>}>
+    <Page title="Documents and licence" back={{ to: '/officer/me', label: 'Me' }} actions={<Button icon={Plus} onClick={() => setAdding('sia')}>Add</Button>}>
       <Load q={q} skeleton="rows">
         {(rows) => {
           const sorted = [...rows].sort((a, b) => rank(a) - rank(b));

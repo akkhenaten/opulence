@@ -69,11 +69,20 @@ export function startReveal(root = document.body) {
   return () => { mo.disconnect(); io.disconnect(); };
 }
 
+// The last number each counter showed, by page and key, so coming back to a page doesn't roll up from 0 again
+const lastShown = new Map();
+
 // A number that rolls to its value: up from 0 the first time, from the old value after. Anything that isn't a plain number passes through
-export function useCountUp(value, ms = 600) {
+// key: names the counter (its label); one seen before on this page starts from where it was
+export function useCountUp(value, ms = 600, key) {
   const n = typeof value === 'number' ? value : /^\d+$/.test(String(value ?? '')) ? Number(value) : null;
-  const [shown, setShown] = useState(n == null || reduced() ? n : 0);
-  const from = useRef(0);
+  const k = key != null && `${window.location.pathname}|${key}`;
+  const start = k && lastShown.has(k) ? lastShown.get(k) : 0;
+  const [shown, setShown] = useState(n == null || reduced() ? n : start);
+  const from = useRef(start);
+  useEffect(() => {
+    if (k && n != null) lastShown.set(k, n);
+  }, [k, n]);
   useEffect(() => {
     if (n == null) return undefined;
     if (reduced() || from.current === n) { setShown(n); from.current = n; return undefined; }

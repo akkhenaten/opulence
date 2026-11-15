@@ -6,7 +6,7 @@ import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import {
-  Button, Empty, FilterBar, FilterChip, List, Load, Page, periodLabel, Pill, Segmented, Select, Sheet, Textarea, Toggle, ToolField, ToolMenu, cx, dayLabel, range, relative, useAction, useApi, useMedia, useUrlState,
+  BackTo, Button, Empty, FilterBar, FilterChip, List, Load, Page, periodLabel, Pill, Segmented, Select, Sheet, Textarea, Toggle, ToolField, ToolMenu, cx, dayLabel, range, relative, useAction, useApi, useMedia, useUrlState,
 } from '../../ui/index.jsx';
 import { ABOUT, GiveFeedbackSheet, TONES } from '../venue/_feedback.jsx';
 import { useBase } from './_parts.jsx';
@@ -49,7 +49,7 @@ export function FeedbackList({ venueId, fixedVenue, onChanged, give: giveOpen, o
   const { user } = useAuth();
   const mgr = user.role !== 'venue';
   // Managers start on open feedback; status=all (or the older empty status=) shows everything
-  const [url, setUrl, clearUrl] = useUrlState({ venue: '', tone: '', about: '', status: mgr ? 'open' : '', from: '', to: '' });
+  const [url, setUrl] = useUrlState({ venue: '', tone: '', about: '', status: mgr ? 'open' : '', from: '', to: '', back: '' });
   const [local, setLocal] = useState({ tone: '', about: '', status: '' });
   const shared = useVenue();
   const f = fixedVenue ? { venue_id: venueId, ...local }
@@ -61,8 +61,8 @@ export function FeedbackList({ venueId, fixedVenue, onChanged, give: giveOpen, o
   };
   const clearF = () => {
     if (fixedVenue) return setLocal({ tone: '', about: '', status: '' });
-    clearUrl();
-    if (!mgr && shared.venueId) shared.setVenueId('');
+    // The venue and the way back to Analytics stay
+    setUrl({ tone: '', about: '', status: mgr ? 'open' : '', from: '', to: '' });
   };
   const opts = useApi('comments.options', {}, { skip: fixedVenue });
   // Opened from Analytics: the period being looked at (both days included)
@@ -102,6 +102,7 @@ export function FeedbackList({ venueId, fixedVenue, onChanged, give: giveOpen, o
       ]}>
         {!onGive && <Button icon={Plus} onClick={() => setGive(true)}>Give feedback</Button>}
       </FilterBar>}
+      {!fixedVenue && url.back && <BackTo to={url.back} label="Analytics" />}
       {(period.from || period.to) && (
         <FilterChip label={[mgr && f.venue_id && venues.find((v) => v.id === f.venue_id)?.name, periodLabel(period.from, period.to)].filter(Boolean).join(' · ')}
           onClear={() => setUrl({ from: '', to: '', ...(mgr && { venue: '' }) })} />

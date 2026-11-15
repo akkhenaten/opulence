@@ -11,6 +11,19 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-15', icon: Megaphone, title: 'Staff requests in plain words, and a way back from every figure', image: 'requests-and-way-back',
+    lede: "The seventh round of fixes from the three-portal review. Venues see exactly what they are asking for before they send it, billing screens say when there is nothing yet, and every figure in Analytics opens the list behind it with a way back.",
+    points: [
+      "Cover requests are now called staff requests on the venue side. Request staff shows a summary before sending, for example \"Fri 21 Nov, 22:00–04:00 (overnight), 2 door supervisors\", and a repeating request names the role instead of \"officers\"",
+      "Each request in the list reads as one line: the day, the hours and how many staff. Its status says Waiting for reply, Being staffed, Staffed, Declined or Cancelled, and the company's Cover tabs use the same words",
+      "A venue with no timesheets this week or no invoices yet sees a short line saying so, instead of filters with nothing behind them. Rate and pay warnings meant for the office no longer show to venues",
+      "In Analytics, Late and Absent open that week's timesheets, and Incidents and Feedback open the same period and venue. Back to Analytics returns to the range you were looking at, and clearing filters in Feedback keeps the venue",
+      "Pages say where Back goes: Overview on the venue home, On site for a venue's live screen, Incidents for the office and Reports for officers. Venue info is in the computer sidebar and on the venue Overview",
+      "On an officer's Home, anything stopping them working and the shifts waiting for an answer come before the next shift. Nothing booked is one line with See open shifts, and the app install and alert offers sit at the bottom. Me keeps Account and Sign out even if the profile can't load",
+      "Officer pages under Me are named after what's in them, such as Profile and bank, Documents and licence, and Time off and availability, and each has Back to Me. Counts no longer roll up from zero every time you come back to a page",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-15', icon: ListChecks, title: "See what's set up, what Orb did and what the clock-in proved", image: 'setup-and-proof',
     lede: "The sixth round of fixes from the three-portal review. A manager no longer has to guess whether Orb ran, what set-up is still missing, or why a timesheet was flagged.",
     points: [

@@ -13,9 +13,9 @@ export default function Profile() {
   const { user } = useAuth();
   const q = useApi('officers.get', {}, { skip: !user.officer_id });
   const notes = useApi('hrnotes.list', {}, { skip: !user.officer_id });
-  if (!user.officer_id) return <Page title="My details" back={{ to: '/officer/me', label: 'Me' }}><NotLinked /></Page>;
+  if (!user.officer_id) return <Page title="Profile and bank" back={{ to: '/officer/me', label: 'Me' }}><NotLinked /></Page>;
   return (
-    <Page title="My details" back={{ to: '/officer/me', label: 'Me' }}>
+    <Page title="Profile and bank" back={{ to: '/officer/me', label: 'Me' }}>
       <Load q={q}>{(o) => <Editor o={o} reload={q.reload} notes={notes.data || []} />}</Load>
     </Page>
   );

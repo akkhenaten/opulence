@@ -8,6 +8,7 @@ import {
 } from '../../ui/index.jsx';
 import { NotLinked } from './_parts.jsx';
 
+const ME = { to: '/officer/me', label: 'Me' };
 const SELF_EMPLOYED = 'You are self-employed: no tax or NI has been deducted.';
 const STATUS_LABEL = { issued: 'Issued', paid: 'Paid', draft: 'To check' };
 // A draft the office has sent for checking and the officer can still answer
@@ -19,7 +20,7 @@ const KIND_ICON = { hours: Clock3, bonus: Gift, expense: Receipt, deduction: Cir
 export default function Pay() {
   const { id } = useParams();
   const { user } = useAuth();
-  if (!user.officer_id) return <Page title="Pay"><NotLinked /></Page>;
+  if (!user.officer_id) return <Page title="Pay" back={ME}><NotLinked /></Page>;
   return id ? <Statement id={id} /> : <Statements />;
 }
 
@@ -35,7 +36,7 @@ function SelfEmployedNote() {
 function Statements() {
   const q = useApi('pay.list');
   return (
-    <Page title="Pay" subtitle="Your remittance statements">
+    <Page title="Pay" subtitle="Your remittance statements" back={ME}>
       <Load q={q} skeleton="rows">
         {(rows) => {
           if (!rows.length) {

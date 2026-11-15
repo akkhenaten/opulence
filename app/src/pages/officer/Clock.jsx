@@ -33,12 +33,14 @@ function getPosition() {
   });
 }
 
+const ME = { to: '/officer/me', label: 'Me' };
+
 export default function Clock() {
   const { user } = useAuth();
   const q = useApi('clock.status', {}, { poll: 30000, skip: !user.officer_id });
-  if (!user.officer_id) return <Page title="Clock"><NotLinked /></Page>;
+  if (!user.officer_id) return <Page title="Clock" back={ME}><NotLinked /></Page>;
   return (
-    <Page title="Clock">
+    <Page title="Clock" back={ME}>
       <Load q={q}>{(d) => <ClockScreen data={d} reload={q.reload} />}</Load>
     </Page>
   );

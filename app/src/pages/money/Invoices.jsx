@@ -161,6 +161,12 @@ function ExportSheet({ onClose }) {
 
 /* ---------- Venue manager ---------- */
 
+const VENUE_EMPTY = {
+  outstanding: ['Nothing to pay', 'New invoices show here when the office issues them.'],
+  paid: ['No paid invoices yet', 'Invoices you have paid show here once the office records the payment.'],
+  credit: ['No credit notes', 'Credit notes show here if the office corrects an invoice.'],
+};
+
 // Where to pay, shown only while something is outstanding; the invoice number is the reference
 function PayTo() {
   const s = useApi('settings.get').data;
@@ -185,9 +191,11 @@ function VenueInvoices() {
   const tools = <>
     {out.length > 0 && <Chip label={`to pay · ${out.length}`} value={money(sum(out))} tone="blue" icon={Hourglass} compact="phone" active={show === 'outstanding'} onClick={() => setShow(show === 'outstanding' ? 'all' : 'outstanding')} />}
     {overdue.length > 0 && <Chip label="overdue" value={money(sum(overdue))} tone="red" icon={AlertTriangle} compact="phone" />}
-    <Segmented value={show} onChange={setShow} options={[
-      { value: 'all', label: 'All' }, { value: 'outstanding', label: 'To pay', count: out.length }, { value: 'paid', label: 'Paid' }, { value: 'credit', label: 'Credit notes' },
-    ]} />
+    {/* Nothing to filter until the first invoice; Credit notes only once there is one */}
+    {rows.length > 0 && <Segmented value={show} onChange={setShow} options={[
+      { value: 'all', label: 'All' }, { value: 'outstanding', label: 'To pay', count: out.length }, { value: 'paid', label: 'Paid' },
+      rows.some((i) => i.kind === 'credit') && { value: 'credit', label: 'Credit notes' },
+    ].filter(Boolean)} />}
   </>;
   return (
     <Page title="Invoices" subtitle={venue ? `${venue.name}: invoices and credit notes` : 'Your invoices and credit notes'} tools={tools}>
@@ -196,7 +204,7 @@ function VenueInvoices() {
           const shown = all.filter((i) => show === 'all' || (show === 'outstanding' ? outstanding(i) : show === 'paid' ? i.status === 'paid' : i.kind === 'credit'));
           return (
             <>
-              {!all.length ? <Empty icon={ReceiptText} title="No invoices yet" body="Invoices appear here once they are issued." /> : <InvoiceList rows={shown} empty={[EMPTY[show] || 'No invoices here']} />}
+              {!all.length ? <Empty icon={ReceiptText} title="No invoices yet" body="Invoices appear here once they are issued." /> : <InvoiceList rows={shown} empty={VENUE_EMPTY[show] || ['No invoices here']} />}
               {out.length > 0 && <PayTo />}
             </>
           );

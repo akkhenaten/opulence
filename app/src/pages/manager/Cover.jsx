@@ -6,7 +6,7 @@ import {
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
-import { ChangeSheet, describeChange, isFilled, RepeatTag, statusOf } from './_cover.jsx';
+import { ChangeSheet, describeChange, isFilled, RepeatTag, requestLine, statusOf } from './_cover.jsx';
 
 const FILTERS = {
   pending: (c) => c.status === 'pending' || c.change_status === 'pending',
@@ -45,7 +45,7 @@ export default function Cover() {
     // The status switch sits on the tab line, so the list starts high
     <Page title="Cover requests" subtitle="Venues asking for extra officers" tools={(
       <Segmented value={tab} onChange={(v) => setUrl({ tab: v })} options={[
-          { value: 'pending', label: 'To decide', count: n('pending') }, { value: 'accepted', label: 'Staffing' }, { value: 'filled', label: 'Filled' },
+          { value: 'pending', label: 'To decide', count: n('pending') }, { value: 'accepted', label: 'Being staffed' }, { value: 'filled', label: 'Staffed' },
           { value: 'declined', label: 'Declined' }, { value: 'all', label: 'All' },
       ]} />
     )}>
@@ -56,8 +56,8 @@ export default function Cover() {
           <List>
             {list.map(({ key, first: c, dates }) => (
               <Row key={key} onClick={() => setOpenKey(key)} chevron
-                title={<>{c.venue_name} <span className="font-normal text-muted">· {c.headcount} × {c.role_name}</span></>}
-                subtitle={<>{dayLabel(c.starts_at)} <span className="num">{range(c.starts_at, c.ends_at)}</span>{dates.length > 1 ? ` · +${dates.length - 1} more date${dates.length > 2 ? 's' : ''}` : ''}{c.requested_by_name ? ` · ${c.requested_by_name}` : ''}</>}
+                title={c.venue_name}
+                subtitle={<span className="num">{requestLine(c, dates.length)}{c.requested_by_name ? ` · ${c.requested_by_name}` : ''}</span>}
                 right={(
                   <div className="flex flex-col items-end gap-1">
                     {c.change_status === 'pending' ? <Pill tone="amber">Change asked</Pill> : <Pill status={statusOf(c)} />}
@@ -152,7 +152,7 @@ function Detail({ c, dates, base, onClose, onDone, onPrev, onNext }) {
         <div className="flex flex-wrap gap-2">
           {c.conversation_id && <Button variant="soft" icon={MessagesSquare} to={`${base}/messages/${c.conversation_id}`}>Conversation with the venue</Button>}
           {live && !changeAsked && c.status === 'pending' && !mode && <Button variant="ghost" icon={Pencil} onClick={() => setMode('edit')}>Change</Button>}
-          {live && !changeAsked && !mode && <Button variant="ghost" icon={Trash2} onClick={() => setMode('delete')}>Cancel cover</Button>}
+          {live && !changeAsked && !mode && <Button variant="ghost" icon={Trash2} onClick={() => setMode('delete')}>Cancel request</Button>}
         </div>
       </div>
     </Sheet>
