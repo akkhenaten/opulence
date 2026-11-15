@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { FilePen, FilePlus2, FileSignature, FileUp, ScrollText, Search, Send, Trash2 } from 'lucide-react';
+import { FilePen, FilePlus2, FileSignature, FileUp, ScrollText, Search, Send, Settings2, Trash2 } from 'lucide-react';
 import { api } from '../../api.js';
 import { dateTime, Select, Empty, IconButton, List, Load, Page, Pill, Progress, Row, SearchInput, Segmented, ToolField, ToolMenu, useAction, useApi, useConfirm, useMedia } from '../../ui/index.jsx';
 import { ContractRow } from './_profileTabs.jsx';
@@ -123,6 +123,7 @@ export default function StaffContracts() {
   return (
     <Page title="Staff contracts" subtitle="Contracts and policies sent for signature, and where each one stands" tools={tools}
       actions={[
+        { label: 'Templates and signatory →', icon: Settings2, to: '/company/settings?tab=templates', variant: 'link' },
         { label: 'Send a template', icon: FileSignature, onClick: () => setSending(true) },
         { label: 'Upload contract', icon: FileUp, onClick: () => setUploading(true) },
         { label: 'Create contract', icon: FilePlus2, variant: 'primary', main: true, onClick: () => setCreating(true) },

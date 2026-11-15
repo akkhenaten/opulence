@@ -337,7 +337,7 @@ export const ToolField = ({ label, children }) => (
 
 export const Bento = ({ className, children }) => <div className={cx('bento grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4', className)}>{children}</div>;
 
-export function Tile({ title, icon: Icon, action, to, className, children, pad = true, tone }) {
+export function Tile({ title, icon: Icon, action, to, className, children, pad = true, tone, id }) {
   const tones = { blue: 'bg-blue text-white', soft: 'bg-blue-soft', ink: 'bg-ink text-white' };
   const body = (
     <>
@@ -355,7 +355,7 @@ export function Tile({ title, icon: Icon, action, to, className, children, pad =
   );
   const cls = cx('ui-panel rounded-tile border border-hairline shadow-tile min-w-0', tones[tone] || 'bg-surface', pad && 'p-[var(--pad-tile)]', to && 'pressable-card', className);
   const t = tone ? { 'data-tone': tone } : {};
-  return to ? <Link to={to} className={cx('block', cls)} {...t}>{body}</Link> : <section className={cls} {...t}>{body}</section>;
+  return to ? <Link to={to} id={id} className={cx('block', cls)} {...t}>{body}</Link> : <section id={id} className={cls} {...t}>{body}</section>;
 }
 
 export function Stat({ value: raw, label, hint, tone }) {

@@ -9,6 +9,7 @@ import { downloadUrl } from '../lib/storage.mjs';
 import { getSettings } from './settings.mjs';
 import { guardSelf, markOwn, otherApprover, SELF_MSG } from '../lib/selfcheck.mjs';
 import { CO, MGR, def } from './_def.mjs';
+import { failedChecks } from '../lib/proof.mjs';
 import { officerName, userName } from '../lib/names.mjs';
 import { officerRate, venueRate, bankHolidaySet, lastClosedPeriod } from './money.mjs';
 import { buildTimesheet } from './clock.mjs';
@@ -25,6 +26,10 @@ const BASE_SQL = `
     FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
     JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role JOIN officers o ON o.id = a.officer_id
     LEFT JOIN users ua ON ua.id = t.approved_by LEFT JOIN users us ON us.id = t.signed_by`;
+
+// What each timesheet carries of its clock events: the same checks Live and Exceptions show (no selfie itself)
+const PROOF_COLS = `ce.kind, ce.flags, ce.device_ok, ce.geo_ok, ce.distance_m, ce.qr_ok, ce.proof_rule, ce.face_result, ce.selfie_key IS NOT NULL AS has_selfie,
+  (SELECT label FROM venue_tags vt WHERE vt.id = ce.tag_id) AS tag_label`;
 
 const markSelf = (user, rows) => markOwn(user, rows);
 
@@ -72,7 +77,8 @@ export const actions = {
               t.statement_id, t.invoice_id, timesheet_billed(t.statement_id, t.invoice_id) AS locked, ${CANCELLED} AS cancelled,
               inv.status AS invoice_status, inv.number AS invoice_number, timesheet_billed(t.statement_id, NULL) AS pay_billed,
               ${userName('ua')} AS approved_by_name, ${userName('us')} AS signed_by_name, ${userName('ud')} AS declined_by_name, ${userName('uq')} AS queried_by_name,
-              ci.ts AS clock_in, ci.venue_code AS in_code, ci.status AS in_status, co.ts AS clock_out,
+              ci.ts AS clock_in, ci.venue_code AS in_code, ci.status AS in_status, co.ts AS clock_out, v.radius_m,
+              to_jsonb(ci) - 'ts' - 'status' AS proof_in, to_jsonb(co) - 'ts' AS proof_out,
               -- Hours or rates changed after the venue signed: who signed stays, and the venue signs again
               CASE WHEN t.signed_at IS NOT NULL AND t.status <> 'signed' THEN (SELECT max(al.created_at) FROM audit_log al
                 WHERE al.entity = 'timesheet' AND al.entity_id = t.id::text AND al.action IN ('timesheet.edit', 'timesheet.rate') AND al.created_at > t.signed_at) END AS changed_after_sign_at
@@ -81,9 +87,9 @@ export const actions = {
          LEFT JOIN timesheets t ON t.assignment_id = a.id LEFT JOIN invoices inv ON inv.id = t.invoice_id
          LEFT JOIN users ua ON ua.id = t.approved_by LEFT JOIN users us ON us.id = t.signed_by
          LEFT JOIN users ud ON ud.id = t.declined_by LEFT JOIN users uq ON uq.id = t.queried_by
-         LEFT JOIN LATERAL (SELECT ts, venue_code, status FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in'
+         LEFT JOIN LATERAL (SELECT ts, venue_code, status, ${PROOF_COLS} FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in'
                               AND ce.status IN ('ok','approved','manual','exception') ORDER BY ts LIMIT 1) ci ON true
-         LEFT JOIN LATERAL (SELECT ts FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'out'
+         LEFT JOIN LATERAL (SELECT ts, ${PROOF_COLS} FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'out'
                               AND ce.status IN ('ok','approved','manual','exception') ORDER BY ts DESC LIMIT 1) co ON true
         WHERE s.starts_at >= $1 AND s.starts_at < $2
           AND (t.id IS NOT NULL OR (a.status = 'accepted' AND s.status = 'published'))
@@ -103,7 +109,9 @@ export const actions = {
     for (const r of rows) if (r.photo_key && !(r.officer_id in photos)) photos[r.officer_id] = await downloadUrl(r.photo_key);
     const closed = await lastClosedPeriod();
 
-    const shaped = rows.map(({ photo_key: _p, ...r }) => {
+    // Clock-in checks (phone, distance, code, selfie, face) go to company and security managers, as on Live and Exceptions
+    const proofs = user.role !== 'venue';
+    const shaped = rows.map(({ photo_key: _p, proof_in, proof_out, ...r }) => {
       const state = rowState({ status: r.status, locked: r.locked, cancelled: r.cancelled, has_in: !!r.clock_in, ends_at: r.ends_at }, now);
       const date = londonDate(r.starts_at);
       const vr = pickVenueRate(vrates, { venue_id: r.venue_id, role: r.role, date });
@@ -120,6 +128,11 @@ export const actions = {
         ...r, state, date, photo_url: photos[r.officer_id] || null, how: r.in_status === 'manual' ? 'manual' : r.in_code || (r.clock_in ? 'gps' : null),
         charge_rate, pay_rate, charge_total, pay_total, charge_estimate: r.charge_rate == null, pay_estimate: r.pay_rate == null,
         unpaid_late: state === 'signed' && !r.pay_billed && closed && date <= closed.end,
+        ...(proofs && {
+          proof_in: proof_in?.kind ? { ...proof_in, radius_m: r.radius_m } : null,
+          proof_out: proof_out?.kind ? { ...proof_out, radius_m: r.radius_m } : null,
+          check: failedChecks(proof_in).length + failedChecks(proof_out).length > 0,
+        }),
       };
     });
 
@@ -367,7 +380,7 @@ export const actions = {
            OR (a.entity = 'assignment' AND a.entity_id = $2)
         ORDER BY a.created_at DESC LIMIT 100`, [t.id, t.assignment_id]);
     // Venues see what happened, not the officer's pay
-    return user.role === 'company' || moneyFor(user).pay ? rows : rows.map((r) => r.action === 'timesheet.rate' || r.action === 'timesheet.approve' ? { ...r, detail: null } : r);
+    return user.role === 'company' || moneyFor(user).pay ? rows : rows.map((r) => r.action === 'timesheet.rate' || r.action === 'timesheet.approve' ? { ...r, detail: r.detail?.self_approved ? { self_approved: true } : null } : r);
   }),
 
   // Officers on a published shift with no clock record — for manager follow-up (no time limit: a no-show stays until it is set or declined)

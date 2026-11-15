@@ -256,12 +256,26 @@ function NeedRows({ list, c, base }) {
   );
 }
 
+// A quiet panel says so in one line, in the same place, so nothing moves above Needs you or On the floor
+function QuietLine({ id, icon: Icon, className, children, link }) {
+  return (
+    <div id={id} className={cx('ui-panel flex scroll-mt-20 items-center gap-3 rounded-tile border border-hairline bg-surface px-4 py-3 shadow-tile', className)}>
+      <Icon size={18} className="shrink-0 text-muted" aria-hidden />
+      <p className="min-w-0 flex-1 text-subhead text-muted">{children}</p>
+      {link}
+    </div>
+  );
+}
+
 function Tonight({ d, next, base }) {
   const { shifts, sorted, short, unconfirmed } = next;
+  if (d && shifts.length === 0) {
+    return <QuietLine id="tonight" icon={CalendarDays} link={<TileLink to={`${base}/rota`}>Rota</TileLink>}>Tonight & tomorrow: no published shifts in the next 36 hours.</QuietLine>;
+  }
   return (
     <div id="tonight" className="scroll-mt-20">
       <Tile title="Tonight & tomorrow" icon={CalendarDays} pad={false} action={<TileLink to={`${base}/rota`}>Rota</TileLink>}>
-        {!d ? <p className="px-5 pb-5 text-subhead text-muted">Loading…</p> : shifts.length === 0 ? <p className="px-5 pb-5 text-subhead text-muted">No published shifts in the next 36 hours.</p> : (
+        {!d ? <p className="px-5 pb-5 text-subhead text-muted">Loading…</p> : (
           <>
             <p className="px-5 pb-2 text-footnote text-muted">
               <span className="num">{shifts.length}</span> {shifts.length === 1 ? 'shift' : 'shifts'}
@@ -295,6 +309,8 @@ function Tonight({ d, next, base }) {
 
 // The week in numbers, one slim strip (money only for those who can see pay)
 function Week({ d, c }) {
+  const quiet = !Number(d.hoursWeek) && !c.shiftsWeek && (!d.money || (!Number(d.money.revenueMonth) && !Number(d.money.outstanding) && !Number(d.money.overdue)));
+  if (quiet) return <QuietLine icon={TrendingUp} className="mt-6">This week: no timesheet hours or shifts yet{d.money ? ', nothing invoiced this month and nothing outstanding' : ''}.</QuietLine>;
   return (
     <Tile title="This week" icon={TrendingUp} tone="soft" className="mt-6">
       <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-4">

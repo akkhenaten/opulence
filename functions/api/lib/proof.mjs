@@ -10,3 +10,19 @@ export function evaluate({ rule = 'two_of_three', ...p }) {
   const missing = PROOFS.map(([name]) => name).filter((n) => !passed.includes(n));
   return { met: passed.length >= need, count: passed.length, need, passed, missing };
 }
+
+/**
+ * Which recorded clock checks failed, as the red flags on Live and Exceptions.
+ * Only an explicit false counts: old events from before a check existed carry null and say nothing.
+ */
+export function failedChecks(e) {
+  if (!e?.kind) return [];
+  const fl = e.flags || [];
+  const out = [];
+  if (e.device_ok === false) out.push('phone');
+  if (e.geo_ok === false) out.push('distance');
+  if (e.kind === 'in' && e.venue_code !== 'nfc' && e.qr_ok === false && !e.proof_rule) out.push('qr');
+  if (e.kind === 'in' && e.face_result === 'no_match') out.push('face');
+  if (fl.includes('rule_not_met')) out.push('rule');
+  return out;
+}

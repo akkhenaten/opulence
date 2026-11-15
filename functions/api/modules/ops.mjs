@@ -24,6 +24,7 @@ import { afterShiftChange, FRESH } from './shiftSync.mjs';
 import { opsMessage, closeQuick, ensureThread, post, opsUser, syncMembers } from '../lib/threads.mjs';
 import { statusesFor, pairKey, packDue, OK } from '../lib/venuePack.mjs';
 import { officerDisplay, officerName, userName } from '../lib/names.mjs';
+import { JOB_OF, byJob, summariseRun, nextWeekday } from '../lib/jobRuns.mjs';
 
 const ACTIVE = "('assigned','accepted')";
 const NO_CLOCK_IN = "NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status <> 'rejected')";
@@ -674,15 +675,40 @@ const JOBS = {
 
 export async function runOpsJobs(s) {
   const out = {};
+  const raw = {};
+  const started = {};
   for (const [name, fn] of Object.entries(JOBS)) {
+    const job = JOB_OF[name];
+    if (job && !started[job]) started[job] = new Date();
     try {
-      out[name] = await fn(s);
+      out[name] = raw[name] = await fn(s);
     } catch (e) {
       console.error(`[ops] ${name} failed:`, e);
       out[name] = `error: ${e.message}`;
+      raw[name] = e;
     }
   }
+  for (const [job, parts] of Object.entries(byJob(raw))) {
+    // Cards for shifts sorted on the rota close even with cover switched off; that isn't a cover run
+    if (!jobOn(s, job) && !Object.values(parts).some((v) => v instanceof Error)) continue;
+    await recordRun(job, started[job], summariseRun(job, parts)).catch((e) => console.error('[ops] run record failed:', e));
+  }
+  if (new Date().getUTCMinutes() < 5) await q("DELETE FROM ops_job_runs WHERE finished_at < now() - interval '90 days'").catch(() => {});
   return out;
+}
+
+/** Keep one record of a job run; runs with nothing to do refresh the previous idle record instead of adding rows. */
+export async function recordRun(job, startedAt, r) {
+  if (!r) return;
+  if (r.ok && r.idle) {
+    const upd = await q(
+      `UPDATE ops_job_runs SET started_at = $2, finished_at = now(), summary = $3
+        WHERE id = (SELECT id FROM ops_job_runs WHERE job = $1 ORDER BY finished_at DESC LIMIT 1) AND ok AND idle RETURNING id`,
+      [job, startedAt || new Date(), r.summary]);
+    if (upd.length) return;
+  }
+  await q('INSERT INTO ops_job_runs (job, started_at, ok, idle, summary, error) VALUES ($1,$2,$3,$4,$5,$6)',
+    [job, startedAt || new Date(), r.ok, r.idle, r.summary, r.error]);
 }
 
 /** The compliance check reads documents with AI, so a refresh runs it at most every 10 minutes. */
@@ -1105,6 +1131,12 @@ export async function offerRespond(b, user) {
   return { ok: true };
 }
 
+// Which activity lines belong to each Settings → Orb job (the activity page's filter chips)
+const ACTIVITY_KINDS = {
+  chase: ['escalate', 'reply'], pack: ['pack'], cover: ['offer'], feedback: ['feedback'], reconcile: ['reconcile'],
+  chat: ['chat'], compliance: ['compliance'], venue_setup: [], grace: [], incident_ai: [], attendance: [],
+};
+
 const OPS_SETTINGS = ['ops_jobs', 'ops_escalate_minutes', 'ops_offer_wait_minutes', 'ops_reconcile_dow', 'ops_compliance_dow', 'ops_ai_cap_credits', 'ops_pack_chase1', 'ops_pack_chase2', 'ops_pack_escalate', 'ops_pack_cover', 'ops_house_rules'];
 
 export const actions = {
@@ -1130,11 +1162,20 @@ export const actions = {
 
   'ops.count': def(MGR, async (_b, { user }) => ({ n: await pendingCount(await venueScope(user)) })),
 
-  'ops.activity': def(MGR, async (_b, { user }) => {
+  // Orb's lines, newest first. Filter by job ({ job }) or show only failed runs ({ problems: true }); failed runs are
+  // company-wide, so only company users see them.
+  'ops.activity': def(MGR, async (b, { user }) => {
     const scope = await venueScope(user);
-    return q(
-      `SELECT * FROM ops_activity WHERE kind NOT IN ('reconcile_run','compliance_run','applicant_purge') AND ($1::uuid[] IS NULL OR venue_id = ANY($1) ${''}OR (venue_id IS NULL AND $2))
-        ORDER BY created_at DESC LIMIT 150`, [scope, user.role === 'company']);
+    const co = user.role === 'company';
+    const job = b.job && ACTIVITY_KINDS[b.job] ? b.job : null;
+    const lines = b.problems ? [] : await q(
+      `SELECT * FROM ops_activity WHERE kind NOT IN ('reconcile_run','compliance_run','applicant_purge','compliance_reread_done') AND ($1::uuid[] IS NULL OR venue_id = ANY($1) ${''}OR (venue_id IS NULL AND $2))
+          AND ($3::text[] IS NULL OR kind = ANY($3))
+        ORDER BY created_at DESC LIMIT 150`, [scope, co, job ? ACTIVITY_KINDS[job] : null]);
+    const failed = co ? await q(
+      `SELECT id, job, finished_at, error FROM ops_job_runs WHERE NOT ok AND ($1::text IS NULL OR job = $1) ORDER BY finished_at DESC LIMIT 50`, [job]) : [];
+    const rows = [...lines, ...failed.map((r) => ({ id: `run-${r.id}`, kind: 'job_failed', job: r.job, text: r.error, credits: 0, created_at: r.finished_at }))];
+    return rows.sort((a, z) => new Date(z.created_at) - new Date(a.created_at)).slice(0, 150);
   }),
 
   // A manager (or Orb on their Confirm) offers an open shift to officers they picked: first to accept gets it
@@ -1238,11 +1279,18 @@ Answer in short, plain British business English. Use the officers' and venues' n
     const before = await pendingCount(scope);
     const out = { ops: await runOpsJobs(await getSettings()) };
     const today = londonDate(new Date());
-    out.reconcile = await runReconcile(addDays(today, -14), today).catch((e) => `error: ${e.message}`);
+    let t = new Date();
+    const rec = await runReconcile(addDays(today, -14), today).catch((e) => e);
+    out.reconcile = rec instanceof Error ? `error: ${rec.message}` : rec;
+    await recordRun('reconcile', t, summariseRun('reconcile', { reconcile: rec })).catch(() => {});
     const skipped = [];
     const last = await one("SELECT created_at FROM ops_activity WHERE kind = 'compliance' ORDER BY created_at DESC LIMIT 1");
-    if (complianceDue(last?.created_at)) out.compliance = await runCompliance({ manual: true }).catch((e) => `error: ${e.message}`);
-    else skipped.push('compliance');
+    if (complianceDue(last?.created_at)) {
+      t = new Date();
+      const c = await runCompliance({ manual: true }).catch((e) => e);
+      out.compliance = c instanceof Error ? `error: ${c.message}` : c;
+      await recordRun('compliance', t, summariseRun('compliance', { compliance: c })).catch(() => {});
+    } else skipped.push('compliance');
     await logActivity('refresh', `Checks run by ${user.name || 'a manager'}`);
     const after = await pendingCount(scope);
     const errors = [...Object.entries(out.ops), ['reconcile', out.reconcile], ['compliance', out.compliance]]
@@ -1289,7 +1337,24 @@ Answer in short, plain British business English. Use the officers' and venues' n
 
   'ops.settings.get': def(CO, async () => {
     const s = await getSettings();
-    return { ...Object.fromEntries(OPS_SETTINGS.map((k) => [k, s[k]])), ops_ai_used: s.ops_ai_month === monthKey() ? Number(s.ops_ai_used) : 0, month: monthKey() };
+    const [y, m] = monthKey().split('-').map(Number);
+    const resets_on = `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, '0')}-01`;
+    return { ...Object.fromEntries(OPS_SETTINGS.map((k) => [k, s[k]])), ops_ai_used: s.ops_ai_month === monthKey() ? Number(s.ops_ai_used) : 0, month: monthKey(), resets_on };
+  }),
+
+  // The latest run of each Orb job, with the next day for the weekly ones
+  'ops.jobRuns': def(CO, async () => {
+    const s = await getSettings();
+    const runs = await q('SELECT DISTINCT ON (job) job, started_at, finished_at, ok, idle, summary, error FROM ops_job_runs ORDER BY job, finished_at DESC');
+    const today = londonDate(new Date());
+    const ran = async (kind) => !!(await one('SELECT 1 FROM ops_activity WHERE kind = $1 AND text = $2', [kind, today]));
+    return {
+      runs,
+      next: {
+        reconcile: nextWeekday(today, s.ops_reconcile_dow, await ran('reconcile_run')),
+        compliance: nextWeekday(today, s.ops_compliance_dow, await ran('compliance_run')),
+      },
+    };
   }),
 
   'ops.settings.save': def(CO, async (b, { user }) => {

@@ -81,7 +81,7 @@ export function SigningTile() {
         </Load>
         <p className="mt-3 text-caption text-faint">Signs for the company when you send a contract, policy or pay rise. It is copied onto each document when it is sent.</p>
       </Tile>
-      <Tile title="Default company signatory" icon={FileSignature}>
+      <Tile title="Default company signatory" icon={FileSignature} id="signatory" className="scroll-mt-20">
         <Load q={list}>
           {(d) => (d.signatories.length ? (
             <>
@@ -128,6 +128,13 @@ function SignatureForm({ sig, onCancel, onSaved }) {
 export function TemplatesTab() {
   const q = useApi('contracts.templates');
   const [editing, setEditing] = useState(null);
+  // Set-up and the send sheet link here with focus=signatory
+  const focus = new URLSearchParams(window.location.search).get('focus');
+  useEffect(() => {
+    if (focus !== 'signatory') return;
+    const t = setTimeout(() => document.getElementById('signatory')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+    return () => clearTimeout(t);
+  }, [focus]);
   return (
     <>
       <SigningTile />
@@ -135,7 +142,10 @@ export function TemplatesTab() {
         {(rows) => (
           <>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <p className="max-w-xl text-subhead text-muted">Wording for contracts, policies and pay rises sent for e-signature. Signed documents always keep the version they were signed on.</p>
+              <div className="max-w-xl">
+                <p className="text-subhead text-muted">Wording for contracts, policies and pay rises sent for e-signature. Signed documents always keep the version they were signed on.</p>
+                <Button size="sm" variant="link" to="/company/people/contracts">Issued contracts →</Button>
+              </div>
               <Button icon={Plus} onClick={() => setEditing({ category: 'contract' })}>New template</Button>
             </div>
             {CATS.map((c) => {
@@ -502,7 +512,14 @@ export function SendDocSheet({ o: given, onClose, onDone }) {
                     {(d) => (d.signatories.length ? (
                       <Select value={signerId} onChange={(e) => setSigner(e.target.value)}
                         options={d.signatories.map((s) => ({ value: s.id, label: `${s.name}${s.title ? ` · ${s.title}` : ''}${s.id === d.default_signatory_id ? ' (default)' : ''}` }))} />
-                    ) : (
+                    ) : null)}
+                  </Load>
+                  {signers.data?.signatories.length > 0 && !signers.data.default_signatory_id && (
+                    <p className="mt-1.5 text-footnote text-muted">No default signatory is set, so the person chosen here signs.{' '}
+                      <Link to={`${SETUP_LINK}&focus=signatory`} onClick={onClose} className="font-semibold text-blue">Set a default →</Link></p>
+                  )}
+                  <Load q={signers}>
+                    {(d) => (d.signatories.length ? null : (
                       <div className="rounded-2xl bg-amber-soft px-4 py-3 text-subhead">
                         <div className="font-semibold">A saved company signature is needed</div>
                         <p className="mt-0.5 text-muted">Draw yours once and it is added to every document you send.</p>

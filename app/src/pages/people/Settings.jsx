@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  BadgeCheck, Bell, Building2, Camera, FileSignature, ImageUp, Inbox, Library, Mail, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Newspaper, Percent, Plus,
+  BadgeCheck, Bell, Building2, Camera, FileSignature, ImageUp, Inbox, Library, ListChecks, Mail, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Newspaper, Percent, Plus,
   PoundSterling, ReceiptText, Scale, ShieldCheck, Smartphone, Sparkles, Trash2, UserPlus, Users,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
@@ -93,6 +93,7 @@ function CompanyTab() {
     <Load q={q}>
       {(s) => (
         <>
+          <SetupCard s={s} />
           <InstallTile className="mb-4" />
           <BrandingTile s={s} onSaved={(d) => q.setData(d)} />
           <AppStyleTile s={s} onSaved={(d) => q.setData(d)} />
@@ -103,6 +104,70 @@ function CompanyTab() {
         </>
       )}
     </Load>
+  );
+}
+
+// What the app needs and is still missing; reads the same settings the screens use and blocks nothing
+const jumpTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+const listOf = (a) => (a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);
+const FIELD_WORD = { name: 'name', email: 'email', phone: 'phone', address: 'address', bank: 'bank account and sort code', prefix: 'invoice prefix', terms: 'payment terms' };
+
+function SetupCard({ s }) {
+  const q = useApi('settings.setup', {});
+  const [open, setOpen] = useState(false);
+  // Saving a setting on this tab re-checks the list
+  const first = useRef(true);
+  useEffect(() => { if (first.current) { first.current = false; return; } q.reload(); }, [s]); // eslint-disable-line react-hooks/exhaustive-deps
+  const d = q.data;
+  if (!d) return q.error ? <p className="mb-4 px-1 text-footnote text-red">Couldn't check what's left to set up.</p> : null;
+  if (d.complete) return <p className="mb-4 flex items-center gap-1.5 px-1 text-footnote font-semibold text-green"><BadgeCheck size={16} aria-hidden />Set-up complete</p>;
+  const ITEM = {
+    company: { title: 'Company details', todo: (i) => `Add the company ${listOf(i.missing.map((k) => FIELD_WORD[k]))}`, act: () => jumpTo('set-company') },
+    invoice: { title: 'Invoice details', todo: (i) => `Add the ${listOf(i.missing.map((k) => FIELD_WORD[k]))}`, act: () => jumpTo(i.missing.includes('bank') ? 'set-bank' : 'set-invoicing') },
+    rates: { title: 'Venue rates', todo: (i) => `Hours can't be approved without them: ${i.missing.map((v) => `${v.name} (${[v.charge && 'charge', v.pay_officers.length && 'pay'].filter(Boolean).join(' and ')})`).join(', ')}` },
+    signatory: { title: 'Default contract signatory', todo: () => 'Choose who signs contracts for the company', to: '/company/settings?tab=templates&focus=signatory' },
+    templates: { title: 'Contract template', todo: () => 'Add at least one contract template to send for signing', to: '/company/settings?tab=templates' },
+    email: { title: 'Email connected', todo: () => 'Connect a Gmail or Outlook mailbox to send and read email in the app', to: '/company/settings?tab=email' },
+    sia: { title: 'Automatic SIA checks', todo: () => 'Not set up: ask Orb support' },
+  };
+  const todo = d.items.filter((i) => !i.done);
+  const done = d.items.filter((i) => i.done);
+  return (
+    <Tile title="Set-up" icon={ListChecks} className="mb-4" action={<span className="num text-footnote font-semibold text-muted">{d.done} of {d.total} done</span>}>
+      <ul className="divide-y divide-line">
+        {todo.map((i) => {
+          const it = ITEM[i.key];
+          return (
+            <li key={i.key} className="py-2.5">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-body font-semibold">{it.title}</span>
+                {i.optional && <Pill tone="grey">Optional</Pill>}
+                {i.platform && <Pill tone="grey">Platform setting</Pill>}
+              </div>
+              <p className="mt-0.5 text-footnote text-muted">{it.todo(i)}</p>
+              {i.key === 'rates' ? (
+                <div className="mt-1 flex flex-wrap gap-x-3">
+                  {i.missing.map((v) => (
+                    <span key={v.id} className="contents">
+                      {v.charge && <Button size="sm" variant="link" to={`/company/venues/${v.id}?tab=rates`}>{v.name} rates →</Button>}
+                      {v.pay_officers.slice(0, 3).map((o) => <Button key={`${v.id}-${o.id}`} size="sm" variant="link" to={`/company/staff/${o.id}?tab=rates`}>{o.name} pay →</Button>)}
+                      {v.pay_officers.length > 3 && <span className="self-center text-footnote text-faint">and {v.pay_officers.length - 3} more at {v.name}</span>}
+                    </span>
+                  ))}
+                </div>
+              ) : (it.to || it.act) && <Button size="sm" variant="link" className="mt-1" to={it.to} onClick={it.act}>{i.key === 'email' ? 'Set up email →' : 'Open the setting →'}</Button>}
+            </li>
+          );
+        })}
+      </ul>
+      {done.length > 0 && (
+        <div className="mt-2 border-t border-line pt-2">
+          <Button size="sm" variant="link" aria-expanded={open} onClick={() => setOpen((x) => !x)}>{open ? 'Hide' : 'Show'} {done.length} done</Button>
+          {open && <ul className="mt-1 space-y-1">{done.map((i) => <li key={i.key} className="flex items-center gap-1.5 text-footnote text-muted"><BadgeCheck size={14} className="text-green" aria-hidden />{ITEM[i.key].title}{i.key === 'sia' && ': On'}</li>)}</ul>}
+        </div>
+      )}
+      <p className="mt-2 text-caption text-faint">Nothing here stops you using the app. Items clear by themselves once the setting is saved.</p>
+    </Tile>
   );
 }
 
@@ -395,7 +460,7 @@ function SettingsForm({ s, keys, onSaved, children }) {
 function CompanyFields({ b }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <Tile title="Company" icon={Building2} className="lg:col-span-2">
+      <Tile title="Company" icon={Building2} className="scroll-mt-20 lg:col-span-2" id="set-company">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Company name" {...b('company_name')} />
           <Input label="Company number" {...b('company_number')} />
@@ -410,14 +475,14 @@ function CompanyFields({ b }) {
           <Input label="VAT rate (%)" type="number" step="0.01" min="0" {...b('vat_rate')} />
         </div>
       </Tile>
-      <Tile title="Bank for client payments" icon={Landmark}>
+      <Tile title="Bank for client payments" icon={Landmark} className="scroll-mt-20" id="set-bank">
         <div className="grid grid-cols-2 gap-3">
           <Input label="Bank" className="col-span-2" {...b('bank_name')} />
           <Input label="Sort code" inputMode="numeric" placeholder="00-00-00" {...b('bank_sort_code')} />
           <Input label="Account number" inputMode="numeric" {...b('bank_account')} />
         </div>
       </Tile>
-      <Tile title="Invoicing" icon={ReceiptText} className="lg:col-span-2">
+      <Tile title="Invoicing" icon={ReceiptText} className="scroll-mt-20 lg:col-span-2" id="set-invoicing">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Input label="Invoice prefix" {...b('invoice_prefix')} />
           <Input label="Payment terms (days)" type="number" min="0" {...b('payment_terms_days')} />

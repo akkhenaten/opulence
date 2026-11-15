@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { ArrowLeft, Ban, Check, ClipboardList, History, ListChecks, MapPin, Pencil, Settings, Sparkles, Star, User, X } from 'lucide-react';
+import { ArrowLeft, Ban, Check, CircleAlert, ClipboardList, History, ListChecks, MapPin, Pencil, Settings, Sparkles, Star, User, X } from 'lucide-react';
 import {
   ActionBar, Button, Callout, cx, MoreMenu, dateTime, dayLabel, Empty, hours, Input, Load, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useUrlState,
 } from '../../ui/index.jsx';
@@ -550,24 +550,47 @@ export default function OrbPage() {
 
 /* ---------- Activity ---------- */
 
+// Filter chips: the scheduled jobs that leave lines here, plus failed runs
+const ACTIVITY_JOBS = ['chase', 'pack', 'cover', 'feedback', 'reconcile', 'compliance', 'chat'];
+
 export function Activity() {
-  const q = useApi('ops.activity', {}, { poll: 60000 });
+  const { user } = useBase();
+  const company = user.role === 'company';
+  const [url, setUrl] = useUrlState({ job: '' });
+  const problems = url.job === 'problems';
+  const q = useApi('ops.activity', problems ? { problems: true } : url.job ? { job: url.job } : {}, { poll: 60000 });
+  const chip = (k, label) => (
+    <Button key={k || 'all'} size="sm" variant={url.job === k ? 'soft' : 'secondary'} aria-pressed={url.job === k} className={cx('shrink-0', url.job === k && 'ring-2 ring-blue/15')}
+      onClick={() => setUrl({ job: k })}>{label}</Button>
+  );
   return (
-    <Load q={q}>{(rows) => (rows.length ? (
-      <Tile pad={false} className="overflow-hidden">
-        <ul className="divide-y divide-line">
-          {rows.map((r) => (
-            <li key={r.id} className="flex gap-3 px-4 py-3">
-              <span className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue-soft text-blue"><ClipboardList size={14} /></span>
-              <div className="min-w-0 flex-1">
-                <div className="text-subhead leading-snug">{r.text}</div>
-                <div className="mt-0.5 text-caption text-faint">{dateTime(r.created_at)}{Number(r.credits) > 0 && ` · ${Math.round(Number(r.credits)).toLocaleString('en-GB')} credits`}</div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </Tile>
-    ) : <Empty icon={ClipboardList} title="No activity yet" body="Everything Orb does is logged here." />)}</Load>
+    <>
+      <div role="group" aria-label="Show" className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+        {chip('', 'All')}
+        {company && chip('problems', 'Problems')}
+        {ACTIVITY_JOBS.map((k) => chip(k, JOB_SHORT[k]))}
+      </div>
+      <Load q={q}>{(rows) => (rows.length ? (
+        <Tile pad={false} className="overflow-hidden">
+          <ul className="divide-y divide-line">
+            {rows.map((r) => {
+              const bad = r.kind === 'job_failed';
+              return (
+                <li key={r.id} className="flex gap-3 px-4 py-3">
+                  <span className={cx('mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full', bad ? 'bg-red-soft text-red' : 'bg-blue-soft text-blue')}>{bad ? <CircleAlert size={14} /> : <ClipboardList size={14} />}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-subhead leading-snug">{bad ? <><span className="font-semibold text-red">{JOB_SHORT[r.job] || r.job} failed:</span> {r.text}</> : r.text}</div>
+                    <div className="mt-0.5 text-caption text-faint">{dateTime(r.created_at)}{Number(r.credits) > 0 && ` · ${Math.round(Number(r.credits)).toLocaleString('en-GB')} credits`}</div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Tile>
+      ) : problems ? <Empty icon={Check} title="No failed runs" body="Every Orb job that ran in the last 90 days worked." />
+        : url.job ? <Empty icon={ClipboardList} title={`Nothing from ${JOB_SHORT[url.job] || 'this job'} yet`} body="Lines appear here when the job does something." />
+          : <Empty icon={ClipboardList} title="No activity yet" body="Everything Orb does is logged here." />)}</Load>
+    </>
   );
 }
 
@@ -587,6 +610,30 @@ const JOBS = [
   { k: 'compliance_digest', label: 'Weekly compliance email', hint: 'After the weekly check, the worst issues by email to company managers' },
   { k: 'incident_ai', label: 'AI on incident reports', hint: 'Drafts from officers\' notes and photos; evidence review for managers' },
 ];
+const JOB_SHORT = {
+  chase: 'Chasing', pack: 'Site packs', cover: 'Cover', feedback: 'Feedback', reconcile: 'Hours check', chat: 'Chat', compliance: 'Compliance',
+  venue_setup: 'Venue details', grace: 'Grace periods', incident_ai: 'Incident AI', attendance: 'Attendance',
+};
+// Jobs that run on the 5-minute schedule; chat, voice and the weekly email run when asked or with the weekly check
+const SCHEDULED = new Set(['chase', 'pack', 'cover', 'feedback', 'reconcile', 'compliance', 'venue_setup', 'grace', 'incident_ai']);
+const WEEKLY = new Set(['reconcile', 'compliance']);
+
+// One line under each job: when it last ran and what it did, why it failed, or Off
+function JobStatus({ k, on, run, next, retry, retrying }) {
+  if (!on) return <p className="mt-1 text-footnote text-faint">Off</p>;
+  if (!SCHEDULED.has(k)) return <p className="mt-1 text-footnote text-faint">{k === 'compliance_digest' ? 'Sent after the weekly compliance check' : 'Runs when a manager uses it'}</p>;
+  const nextLine = WEEKLY.has(k) && next ? ` · Next: ${weekday(next)}` : '';
+  if (!run) return <p className="mt-1 text-footnote text-faint">Not run yet{nextLine}</p>;
+  if (!run.ok) return (
+    <div className="mt-1 flex flex-wrap items-center gap-x-3">
+      <p className="text-footnote text-red">Last run failed {relative(run.finished_at)}: {run.error}</p>
+      <Button size="sm" variant="link" busy={retrying} onClick={retry}>Run checks now</Button>
+    </div>
+  );
+  return <p className="mt-1 text-footnote text-muted">Last ran {relative(run.finished_at)}: {run.summary}{nextLine}</p>;
+}
+const weekday = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' });
+
 const PACK_TIMES = [
   { k: 'ops_pack_chase1', label: 'First chase to the officer' },
   { k: 'ops_pack_chase2', label: 'Second chase' },
@@ -598,6 +645,8 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 
 export function OpsSettings() {
   const q = useApi('ops.settings.get', {});
+  const runs = useApi('ops.jobRuns', {});
+  const usage = useApi('ai.usage', {});
   const [run, busy] = useAction();
   const [runNow, running] = useAction();
   const [runCheck, checking] = useAction();
@@ -608,6 +657,10 @@ export function OpsSettings() {
   const used = Number(v.ops_ai_used || 0);
   const cap = Number(v.ops_ai_cap_credits || 0);
   const pct = cap ? Math.min(100, (used / cap) * 100) : 100;
+  const lastRun = Object.fromEntries((runs.data?.runs || []).map((r) => [r.job, r]));
+  const checkNow = () => runNow(() => api('ops.runNow', { reconcile: true }), 'Checks run — new cards are on Today').then(runs.reload).catch(() => runs.reload());
+  // At 90% the bar names the features using the most, from Credits by feature
+  const top = pct >= 90 ? AI_MODULES.map((m) => ({ ...m, n: Math.round(usage.data?.used?.[m.k] || 0) })).filter((m) => m.n > 0).sort((a, z) => z.n - a.n).slice(0, 3) : [];
   const save = () => run(async () => {
     const r = await api('ops.settings.save', {
       ops_jobs: v.ops_jobs, ops_escalate_minutes: Number(v.ops_escalate_minutes), ops_offer_wait_minutes: Number(v.ops_offer_wait_minutes),
@@ -622,8 +675,14 @@ export function OpsSettings() {
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Tile title="What Orb does" action={<Button size="sm" variant="link" to="/company/orb">See what Orb did →</Button>}>
         <div className="divide-y divide-line">
-          {JOBS.map((j) => <div key={j.k} className="py-2"><Toggle label={j.label} hint={j.hint} checked={v.ops_jobs?.[j.k] !== false} onChange={(c) => set('ops_jobs', { ...v.ops_jobs, [j.k]: c })} /></div>)}
+          {JOBS.map((j) => (
+            <div key={j.k} className="py-2">
+              <Toggle label={j.label} hint={j.hint} checked={v.ops_jobs?.[j.k] !== false} onChange={(c) => set('ops_jobs', { ...v.ops_jobs, [j.k]: c })} />
+              {!runs.loading || runs.data ? <JobStatus k={j.k} on={q.data?.ops_jobs?.[j.k] !== false} run={lastRun[j.k]} next={runs.data?.next?.[j.k]} retry={checkNow} retrying={running} /> : null}
+            </div>
+          ))}
         </div>
+        {runs.error && <p className="mt-2 text-footnote text-red">Couldn't load when each job last ran.</p>}
       </Tile>
       <div className="space-y-4">
         <Tile title="Timings">
@@ -655,13 +714,15 @@ export function OpsSettings() {
             <span className="text-footnote text-muted">of {cap.toLocaleString('en-GB')} credits</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-bg"><div className={cx('h-full rounded-full', pct >= 90 ? 'bg-red' : 'bg-blue')} style={{ width: `${pct}%` }} /></div>
+          {v.resets_on && <p className="mt-1.5 text-footnote text-muted">Resets on {weekday(v.resets_on)}</p>}
+          {top.length > 0 && <p className="mt-1 text-footnote text-red">Most used: {top.map((m) => `${m.label} (${m.n.toLocaleString('en-GB')})`).join(', ')}. See Credits by feature.</p>}
           <Input className="mt-3" label="Monthly cap (credits)" type="number" min="0" step="10000" value={v.ops_ai_cap_credits} onChange={(e) => set('ops_ai_cap_credits', e.target.value)}
             hint="AI features pause at the cap. Reminders, records and escalations keep running." />
         </Tile>
         <ModuleUsage />
         <div className="flex flex-wrap gap-2">
           <Button busy={busy} onClick={save}>Save settings</Button>
-          <Button variant="secondary" busy={running} onClick={() => runNow(() => api('ops.runNow', { reconcile: true }), 'Checks run — new cards are on Today')}>Run checks now</Button>
+          <Button variant="secondary" busy={running} onClick={checkNow}>Run checks now</Button>
           <Button variant="secondary" busy={checking} onClick={() => runCheck(() => api('ops.complianceRun', {}), (r) => `Checked ${r.checked} officers · ${r.attention} need attention`).catch(() => {})}>Run compliance check</Button>
         </div>
       </div>

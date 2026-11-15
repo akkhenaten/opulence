@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Bell, Building2, CalendarDays, ClipboardCheck, FileSignature, Layers, LineChart, MapPin, Megaphone, MessageSquareHeart, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
+import { AlertTriangle, Bell, Building2, CalendarDays, ChevronRight, ClipboardCheck, FileSignature, Layers, LineChart, MapPin, Megaphone, MessageSquareHeart, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import { FeedbackTile, GiveFeedbackSheet, RateStaffSheet } from '../venue/_feedback.jsx';
@@ -95,7 +95,14 @@ function Body({ d, name }) {
       </Section>
       {d.tiles && <VenueTiles d={d} venueId={venueId} onPick={setVenueId} />}
       <Bento>
-        <Tile tone="blue" to="/venue/live" title="On site now" icon={Radio} className="col-span-2 lg:row-span-2">
+        {/* Nobody on site, due in or late: one line in the same place, not a big zero */}
+        {!live.on_site && !live.upcoming && !live.late && !live.no_show && !live.alerts?.length ? (
+          <Link to="/venue/live" className="ui-panel col-span-2 flex items-center gap-3 self-start rounded-tile border border-hairline bg-surface px-4 py-3 shadow-tile transition hover:bg-bg">
+            <Radio size={18} className="shrink-0 text-blue" aria-hidden />
+            <span className="min-w-0 flex-1 text-subhead"><span className="font-semibold">On site now:</span> <span className="text-muted">nobody clocked in{multi ? ' at your venues' : ''}.</span></span>
+            <ChevronRight size={18} className="shrink-0 text-faint" aria-hidden />
+          </Link>
+        ) : <Tile tone="blue" to="/venue/live" title="On site now" icon={Radio} className="col-span-2 lg:row-span-2">
           <div className="flex items-end gap-3">
             <div className="display num text-[64px] font-bold leading-none">{live.on_site}</div>
             <div className="mb-2 flex items-center gap-2 text-subhead font-semibold opacity-90"><Dot tone="green" live />{live.on_site === 1 ? 'officer on duty' : 'officers on duty'}</div>
@@ -116,7 +123,7 @@ function Body({ d, name }) {
               ))}
             </div>
           )}
-        </Tile>
+        </Tile>}
 
         {toSign > 0 && <Tile title="Timesheets" icon={ClipboardCheck} to="/venue/timesheets">
           <Stat value={toSign} label={toSign === 1 ? 'Timesheet to sign' : 'Timesheets to sign'} tone="blue" hint="Please check and sign" />
@@ -264,7 +271,7 @@ function MonthTile({ venueId }) {
     <Tile title="This month" icon={LineChart} to="/venue/analytics" className="mt-4">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat value={s.avg == null ? '–' : `${s.avg}★`} label="Average rating" />
-        <Stat value={i.total} label={i.total === 1 ? 'Incident' : 'Incidents'} />
+        {i.total ? <Stat value={i.total} label={i.total === 1 ? 'Incident' : 'Incidents'} /> : <div className="self-center text-subhead font-semibold text-green">No incidents this month</div>}
         <Stat value={a.late} label="Late arrivals" />
         <Stat value={c.avg_per_night ?? '–'} label="Customers a night" />
       </div>

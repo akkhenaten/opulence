@@ -9,6 +9,7 @@ import {
 import { api, downloadAction } from '../../api.js';
 import { useVenue } from '../../venue.jsx';
 import { ClockOutSheet } from './_clockOut.jsx';
+import { ProofFlags } from '../manager/_proof.jsx';
 import { previousEntry } from '../../ui/nav.js';
 import { Check as Tick, fromLondonInput, londonIso, SELF_HINT, SelfPills, toLondonInput, useBase } from '../manager/_parts.jsx';
 
@@ -30,10 +31,12 @@ const STATE = {
 };
 const HOW = { qr: [QrCode, 'Scanned the venue QR'], nfc: [Nfc, 'Tapped the venue NFC tag'], manual: [PenLine, 'Times set by a manager'], gps: [MapPin, 'Clocked in on location'] };
 const REVIEW = new Set(['awaiting', 'queried', 'no_clock_in', 'cancelled']);
+// A failed clock check keeps a row under Needs review until the venue signs: approving doesn't clear the check
+const checkOpen = (r) => r.check && ['awaiting', 'approved', 'queried'].includes(r.state);
 const noRate = (r) => ['awaiting', 'approved', 'signed'].includes(r.state) && (r.charge_rate === null || r.pay_rate === null);
 const FILTERS = {
   all: () => true,
-  review: (r, venue) => (venue ? r.state === 'approved' : REVIEW.has(r.state)),
+  review: (r, venue) => (venue ? r.state === 'approved' : REVIEW.has(r.state) || checkOpen(r)),
   queried: (r) => r.state === 'queried',
   no_clock_in: (r) => r.state === 'no_clock_in',
   cancelled: (r) => r.state === 'cancelled',
@@ -86,6 +89,7 @@ export default function Timesheets() {
   const see = q.data?.see || {};
 
   const health = q.data?.health || {};
+  const toReview = isVenue ? 0 : all.filter((r) => FILTERS.review(r)).length;
   const can = (r) => {
     if (r.self_locked || r.locked) return {};
     const s = r.state;
@@ -151,7 +155,7 @@ export default function Timesheets() {
   const segs = isVenue
     ? [{ value: 'all', label: 'All' }, { value: 'live', label: 'On site', count: all.filter((r) => r.state === 'live').length || undefined },
       { value: 'review', label: 'To sign', count: all.filter((r) => r.state === 'approved').length }, { value: 'queried', label: 'Queried' }]
-    : [{ value: 'all', label: 'All' }, { value: 'review', label: 'Needs review', count: health.to_review }, { value: 'queried', label: 'Queried' }, { value: 'no_clock_in', label: 'No clock-in' }];
+    : [{ value: 'all', label: 'All' }, { value: 'review', label: 'Needs review', count: toReview }, { value: 'queried', label: 'Queried' }, { value: 'no_clock_in', label: 'No clock-in' }];
 
   // Each view says what is empty, so an empty tab never reads like a filter problem
   const EMPTY = {
@@ -249,7 +253,7 @@ export default function Timesheets() {
 
 function WeekStrip({ wk, health, see, filter, setFilter, isVenue }) {
   const chips = [
-    !isVenue && ['review', health.to_review, 'to review', 'amber', ClipboardCheck],
+    !isVenue && ['review', toReview, 'to review', 'amber', ClipboardCheck],
     ['queried', health.queried, 'queried', 'red', MessageSquareReply],
     !isVenue && ['no_clock_in', health.no_clock_in, 'no clock-in', 'red', Clock],
     !isVenue && ['cancelled', health.cancelled, 'cancelled with hours', 'red', Ban],
@@ -442,6 +446,7 @@ function StateLine({ r }) {
       {r.state === 'signed' && <span className="inline-flex items-center gap-0.5 font-semibold text-green"><Check size={14} />Venue signed</span>}
       {r.state === 'declined' && r.decline_reason && <span className="text-muted">{r.decline_reason}</span>}
       {r.unpaid_late && <Pill tone="amber" className="!py-0 !text-caption2">Not paid yet</Pill>}
+      {r.check && <Pill tone="red" className="!py-0 !text-caption2">Check</Pill>}
       <BillChip r={r} />
       <SelfPills row={r} small />
     </div>
@@ -545,7 +550,9 @@ const trailChange = (a) => {
   const h = f.hours != null && n.hours != null && Number(f.hours) !== Number(n.hours) ? ` (${hours(f.hours)} → ${hours(n.hours)})` : '';
   return `${span(f)} → ${span(n)}${h}`;
 };
-const trailNote = (a) => a.detail?.reason || a.detail?.comment || a.detail?.reply || '';
+const SELF_WHY = 'for their own hours: no other manager could approve';
+const trailNote = (a) => [a.detail?.self_approved && a.action === 'timesheet.approve' && `${cap(SELF_WHY)}.`, a.detail?.reason || a.detail?.comment || a.detail?.reply].filter(Boolean).join(' ');
+const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
 
 function Detail({ t, can, isManager, see, act, busy, onClose, onDone, onPrev, onNext }) {
   const [mode, setMode] = useState(null);
@@ -603,7 +610,9 @@ function Detail({ t, can, isManager, see, act, busy, onClose, onDone, onPrev, on
           see.charge && t.id && ['Charge', <Rate r={t} k="charge" inline />],
           see.pay && t.id && ['Officer rate', <Rate r={t} k="pay" inline />],
           t.rate_note && ['Rate note', t.rate_note],
-          t.approved_by_name && ['Approved by', `${t.approved_by_name}${t.approved_at ? `, ${relative(t.approved_at)}` : ''}`],
+          t.approved_by_name && ['Approved by', t.self_approved
+            ? `${t.approved_by_name} ${SELF_WHY}${t.approved_at ? `, ${relative(t.approved_at)}` : ''}.`
+            : `${t.approved_by_name}${t.approved_at ? `, ${relative(t.approved_at)}` : ''}`],
           (t.signed_by_name || t.auto_signed) && ['Signed', t.changed_after_sign_at
             ? <span>Venue signed {t.auto_signed ? 'automatically' : t.signed_by_name}{t.signed_at ? `, ${relative(t.signed_at)}` : ''}, before the hours were changed on {dateShort(t.changed_after_sign_at)}<span className="block font-semibold text-amber">Needs the venue to sign again</span></span>
             : t.auto_signed ? 'Automatically' : `${t.signed_by_name}${t.signed_at ? `, ${relative(t.signed_at)}` : ''}`],
@@ -611,6 +620,20 @@ function Detail({ t, can, isManager, see, act, busy, onClose, onDone, onPrev, on
           t.resolution && ['Resolution', t.resolution],
           t.state === 'declined' && ['Declined', `${t.decline_reason || 'Not worked'}${t.declined_by_name ? ` — ${t.declined_by_name}` : ''}`],
         ]} />
+        {(t.proof_in || t.proof_out) && (
+          <div>
+            <div className="mb-2 text-caption font-semibold uppercase tracking-wide text-faint">Clock-in checks</div>
+            <div className="space-y-2">
+              {[['In', t.proof_in], ['Out', t.proof_out]].filter(([, e]) => e).map(([label, e]) => (
+                <div key={label} className="flex items-start gap-2">
+                  <span className="w-8 shrink-0 pt-0.5 text-footnote font-semibold text-muted">{label}</span>
+                  <div className="flex min-w-0 flex-1 flex-wrap gap-1.5"><ProofFlags e={e} /></div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-footnote text-muted">Clock-in checks show how the times were recorded. Approving confirms the hours to pay and bill; it doesn't clear the checks.</p>
+          </div>
+        )}
         {t.state === 'declined' && <p className="text-footnote text-muted">Not worked: no pay and no charge.</p>}
         {t.state === 'cancelled' && <p className="text-footnote text-red">The shift was cancelled after these hours were recorded. Decline them, or put the officer back on the Rota.</p>}
         {(t.flags || []).includes('cancelled_after_billing') && <p className="text-footnote text-red">Cancelled after it was paid or invoiced — issue a credit by hand.</p>}

@@ -11,6 +11,9 @@ import { monthKey } from '../lib/ai.mjs';
 import { OPTIONAL_KINDS } from '../lib/notify.mjs';
 import { cleanEverydaySettings } from '../lib/feed.mjs';
 import { canSeeGuide, canSeeFlow } from '../lib/emergency.mjs';
+import { autoCheckEnabled } from '../lib/siaChecker.mjs';
+import { officerName } from '../lib/names.mjs';
+import { setupMissing } from '../lib/setupCheck.mjs';
 
 const FIELDS = ['company_name', 'company_address', 'company_email', 'company_phone', 'vat_number', 'vat_rate', 'company_number', 'bank_name',
   'bank_sort_code', 'bank_account', 'invoice_prefix', 'invoice_cycle', 'payment_terms_days', 'pay_period', 'grace_minutes', 'auto_signoff_days',
@@ -24,6 +27,28 @@ export const getSettings = () => one('SELECT * FROM settings WHERE id = 1');
 const forClient = ({ nfc_meta_key, nfc_file_key, ...s }) => ({ ...s, nfc_ready: !!(nfc_meta_key && nfc_file_key) });
 
 export const actions = {
+  // Settings → Company "Set-up": what the app already needs and is still missing. Read-only; it blocks nothing.
+  'settings.setup': def(CO, async () => {
+    const s = await getSettings();
+    const [venues, tpl, mail, sig] = await Promise.all([
+      q(`SELECT v.id, v.name,
+                NOT EXISTS (SELECT 1 FROM venue_rates r WHERE r.venue_id = v.id) AS no_rates,
+                COALESCE((SELECT array_agg(DISTINCT ro.name) FROM shifts sh JOIN roles ro ON ro.code = sh.role
+                   WHERE sh.venue_id = v.id AND sh.status = 'published' AND sh.starts_at BETWEEN now() - interval '14 days' AND now() + interval '14 days'
+                     AND NOT EXISTS (SELECT 1 FROM venue_rates r WHERE r.venue_id = v.id AND r.role = sh.role)), '{}') AS charge_roles,
+                COALESCE((SELECT json_agg(DISTINCT jsonb_build_object('id', o.id, 'name', ${officerName('o')}))
+                   FROM shifts sh JOIN shift_assignments a ON a.shift_id = sh.id JOIN officers o ON o.id = a.officer_id
+                  WHERE sh.venue_id = v.id AND sh.status = 'published' AND a.status IN ('assigned','accepted')
+                    AND sh.starts_at BETWEEN now() - interval '14 days' AND now() + interval '14 days'
+                    AND NOT EXISTS (SELECT 1 FROM officer_rates r WHERE r.officer_id = a.officer_id AND r.role = sh.role AND (r.venue_id = v.id OR r.venue_id IS NULL))), '[]') AS pay_officers
+           FROM venues v WHERE v.active ORDER BY v.name`),
+      one("SELECT count(*)::int AS n FROM contract_templates WHERE active AND category = 'contract'"),
+      one("SELECT count(*)::int AS n FROM email_accounts WHERE status = 'connected'"),
+      s.default_signatory_id ? one("SELECT 1 FROM user_signatures sg JOIN users u ON u.id = sg.user_id WHERE sg.user_id = $1 AND u.status = 'active'", [s.default_signatory_id]) : null,
+    ]);
+    return setupMissing(s, { venues, templates: tpl.n, email: mail.n, signatory: !!sig, sia: autoCheckEnabled() });
+  }),
+
   'settings.get': def(ALL, async (_b, { user }) => {
     const s = await getSettings();
     const emergency_visible = canSeeGuide(user, s.emergency_guide);

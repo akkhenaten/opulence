@@ -1,6 +1,6 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  ArrowRightLeft, BadgeCheck, Calculator, Ban, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, Compass, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
+  ArrowRightLeft, BadgeCheck, Calculator, Ban, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, Compass, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, ListChecks, LogOut, Mail, MessageSquareHeart,
   Megaphone, MessageCircleWarning, MousePointerClick, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Scale, Send, SlidersHorizontal, ShieldAlert, Store, Timer, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -10,6 +10,19 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-15', icon: ListChecks, title: "See what's set up, what Orb did and what the clock-in proved", image: 'setup-and-proof',
+    lede: "The sixth round of fixes from the three-portal review. A manager no longer has to guess whether Orb ran, what set-up is still missing, or why a timesheet was flagged.",
+    points: [
+      "Settings → Orb shows when each job last ran and what it did, for example \"Last ran 5 minutes ago: Checked 14 timesheets, 2 cards raised\". A job that failed says why in red, with Run checks now. Weekly jobs show the next day they run, and switched-off jobs say Off",
+      "Orb activity can be filtered by job, and Problems lists only the runs that failed. The monthly budget says the day it resets and, near the limit, which features use the most",
+      "Settings → Company starts with a Set-up card: company and invoice details, venue rates (naming the venues), default signatory, a contract template, email (optional) and automatic SIA checks. It counts what's done, links to each setting and blocks nothing. When everything is in place it reads Set-up complete",
+      "Staff → Contracts links to Templates and signatory, and Templates links back to Issued contracts. Sending a contract with no default signatory says so and links to the signatory",
+      "A timesheet shows the clock-in and clock-out checks (phone, distance, QR or NFC, selfie and face) beside the hours. A failed check shows a Check label in the list and stays under Needs review until the venue signs. Approving the hours doesn't clear the check",
+      "Self-approved hours say why: \"Approved by … for their own hours: no other manager could approve\", in the timesheet and its History",
+      "On Today, Tonight & tomorrow and This week shrink to one line when there's nothing in them. The venue dashboard says No incidents this month and shows On site now as one line when nobody is clocked in",
+    ],
+  },
   {
     month: 'November 2026', date: '2026-11-15', icon: ArrowRightLeft, title: 'From where you see a problem to where you fix it, and back', image: 'fix-and-return',
     lede: "The fifth round of fixes from the three-portal review. Wrong hours, a shift, a licence, a venue, a phone or a setting are now one tap from where you notice them, with a clear way back.",

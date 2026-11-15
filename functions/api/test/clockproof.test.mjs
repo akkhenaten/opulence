@@ -109,3 +109,14 @@ test('device labels read like "iPhone · Safari"', () => {
   assert.equal(deviceLabel('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'), 'iPhone · Safari');
   assert.equal(deviceLabel('Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/AP1A) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36'), 'Pixel 8 · Chrome');
 });
+
+test('failedChecks: only explicit failures count, old events say nothing', async () => {
+  const { failedChecks } = await import('../lib/proof.mjs');
+  assert.deepEqual(failedChecks(null), []);
+  assert.deepEqual(failedChecks({ kind: 'in', device_ok: null, geo_ok: null, qr_ok: null }), []);
+  assert.deepEqual(failedChecks({ kind: 'in', device_ok: false, geo_ok: false, flags: ['new_phone'] }), ['phone', 'distance']);
+  assert.deepEqual(failedChecks({ kind: 'in', venue_code: 'nfc', qr_ok: false, geo_ok: true }), []);
+  assert.deepEqual(failedChecks({ kind: 'in', qr_ok: false, proof_rule: 'two_of_three', flags: ['rule_not_met'] }), ['rule']);
+  assert.deepEqual(failedChecks({ kind: 'in', face_result: 'no_match' }), ['face']);
+  assert.deepEqual(failedChecks({ kind: 'out', qr_ok: false, geo_ok: true }), []);
+});

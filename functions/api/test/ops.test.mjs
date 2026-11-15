@@ -71,3 +71,48 @@ test('refresh: compliance at most every 10 minutes; managers only', async () => 
   assert.ok(roles.includes('company') && roles.includes('security'));
   assert.ok(!roles.includes('officer') && !roles.includes('venue'));
 });
+
+import { summariseRun, byJob, nextWeekday, plainError } from '../lib/jobRuns.mjs';
+
+test('job runs: steps group by job and summarise in plain words', () => {
+  const g = byJob({ coverScan: 2, offerExpiry: 0, coverTidy: 1, packCheck: { steps: 0, settled: 0 }, unknown: 5 });
+  assert.deepEqual(Object.keys(g).sort(), ['cover', 'pack']);
+  assert.deepEqual(summariseRun('cover', g.cover), { ok: true, idle: false, summary: 'Raised 2 cover cards, closed 1 card sorted on the rota', error: null });
+  assert.deepEqual(summariseRun('pack', g.pack), { ok: true, idle: true, summary: 'No unsigned site packs due', error: null });
+  assert.equal(summariseRun('compliance', { compliance: { checked: 14, created: 2 }, docRead: 'idle' }).summary, 'Checked 14 officers, 2 cards raised');
+});
+
+test('job runs: off or not-due jobs record nothing; failures keep the reason', () => {
+  assert.equal(summariseRun('reconcile', { reconcile: 'not today' }), null);
+  assert.equal(summariseRun('compliance', { compliance: 'done', docRead: 'off' }), null);
+  const f = summariseRun('cover', { coverScan: new Error('connection reset\n  at x'), offerExpiry: 1 });
+  assert.deepEqual(f, { ok: false, idle: false, summary: '', error: 'connection reset' });
+  assert.equal(plainError('error: AI cap reached'), 'AI cap reached');
+});
+
+test('job runs: next weekday for weekly jobs', () => {
+  // 2026-11-16 is a Monday
+  assert.equal(nextWeekday('2026-11-16', 1), '2026-11-16');
+  assert.equal(nextWeekday('2026-11-16', 1, true), '2026-11-23');
+  assert.equal(nextWeekday('2026-11-18', 1), '2026-11-23');
+  assert.equal(nextWeekday('2026-11-15', 7), '2026-11-15');
+});
+
+import { setupMissing } from '../lib/setupCheck.mjs';
+
+test('set-up checklist names what is missing and counts only company items', () => {
+  const full = { company_name: 'Acme', company_email: 'a@b.c', company_phone: '1', company_address: 'x', bank_account: '1', bank_sort_code: '2', invoice_prefix: 'INV', payment_terms_days: 30 };
+  const r = setupMissing({ ...full, company_phone: '', bank_sort_code: null }, {
+    venues: [{ id: 'v1', name: 'Bar One', no_rates: true, charge_roles: [], pay_officers: [] }, { id: 'v2', name: 'Club', no_rates: false, charge_roles: [], pay_officers: [] }],
+    templates: 1, email: 0, signatory: false, sia: false,
+  });
+  const get = (k) => r.items.find((i) => i.key === k);
+  assert.deepEqual(get('company').missing, ['phone']);
+  assert.deepEqual(get('invoice').missing, ['bank']);
+  assert.deepEqual(get('rates').missing.map((v) => v.name), ['Bar One']);
+  assert.equal(get('signatory').done, false);
+  assert.equal(r.total, 5);
+  assert.equal(r.done, 1);
+  const ok = setupMissing(full, { venues: [], templates: 2, email: 0, signatory: true, sia: false });
+  assert.equal(ok.complete, true); // email is optional and SIA is a platform setting
+});
