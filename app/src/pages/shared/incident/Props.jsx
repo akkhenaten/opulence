@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, Ambulance, Baby, Ban, Check, CircleHelp, Clock3, DoorOpen, Flame, Hammer, Hand, HeartPulse, MapPin, MessageSquareWarning, Pill as PillIcon, ShieldAlert,
+  AlertTriangle, Ambulance, Baby, Ban, Check, CircleHelp, Clock3, DoorOpen, Flame, Gauge, Hammer, Hand, HeartPulse, MapPin, MessageSquareWarning, Pill as PillIcon, ShieldAlert,
   ShoppingBag, Siren, Sparkles, Swords, UserRoundX,
 } from 'lucide-react';
 import {
@@ -79,7 +79,7 @@ export function Props({ v, setV, w, edit, existing, manager, filled, confirm, sh
   const whenText = w.at ? `${dayLabel(w.at)} ${time(w.at)}` : 'When';
   const chips = [
     { k: 'type', icon: TI, label: v.type ? typeLabel(v.type) : 'Type', on: !!v.type },
-    { k: 'severity', dot: sev && SEV_DOT[sev.value], label: sev ? sev.label : 'Severity', on: !!sev, tone: v.severity === 'critical' || v.severity === 'high' ? 'text-red' : '' },
+    { k: 'severity', dot: sev && SEV_DOT[sev.value], icon: Gauge, label: sev ? sev.label : 'Severity', on: !!sev, tone: v.severity === 'critical' || v.severity === 'high' ? 'text-red' : '' },
     { k: 'when', icon: Clock3, label: w.venueName ? `${whenText} · ${w.venueName}` : whenText, on: !!w.at },
     { k: 'location', icon: MapPin, label: v.location || 'Location', on: !!v.location.trim() },
     { k: 'police', icon: Siren, label: v.police_called ? `Police${v.police_ref ? ` · ${v.police_ref}` : ''}` : 'Police', on: v.police_called, also: ['police_called'] },

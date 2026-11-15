@@ -51,11 +51,11 @@ export function DaysEditor({ days, onChange }) {
       {days.length > 0 && (
         <div className="mt-3 space-y-2">
           {days.map((d) => (
-            <div key={d.dow} className="grid grid-cols-[36px_minmax(0,1fr)_minmax(0,1fr)_minmax(52px,64px)] items-end gap-1.5 rounded-2xl bg-bg p-2 sm:grid-cols-[44px_1fr_1fr_72px] sm:gap-2">
-              <div className="pb-3 text-center text-subhead font-bold">{WEEKDAYS[d.dow - 1]}</div>
+            <div key={d.dow} className="grid grid-cols-[36px_minmax(0,1fr)_minmax(0,1fr)] items-start gap-1.5 rounded-2xl bg-bg p-2 min-[380px]:grid-cols-[36px_minmax(0,1fr)_minmax(0,1fr)_minmax(52px,64px)] sm:grid-cols-[44px_1fr_1fr_72px] sm:gap-2">
+              <div className="pt-9 text-center text-subhead font-bold">{WEEKDAYS[d.dow - 1]}</div>
               <Input label="Start" type="time" className="min-w-0" inputClassName={FIT} value={d.start} onChange={(e) => set(d.dow, 'start', e.target.value)} />
               <Input label="Finish" type="time" className="min-w-0" inputClassName={FIT} value={d.end} onChange={(e) => set(d.dow, 'end', e.target.value)} hint={overnight(d.start, d.end) ? 'Next day' : undefined} />
-              <Input label="Staff" type="number" min="1" max="50" inputMode="numeric" className="min-w-0" inputClassName={FIT} value={d.headcount} onChange={(e) => set(d.dow, 'headcount', e.target.value)} />
+              <Input label="Staff" type="number" min="1" max="50" inputMode="numeric" className="col-start-2 min-w-0 min-[380px]:col-start-auto" inputClassName={FIT} value={d.headcount} onChange={(e) => set(d.dow, 'headcount', e.target.value)} />
             </div>
           ))}
         </div>
