@@ -310,7 +310,7 @@ function useToDo(d, packs) {
   });
   const signing = rows.some((r) => r.icon === FileSignature);
   (tasks.data || []).filter((t) => !t.done && !(signing && t.code === 'contract')).forEach((t) => rows.push(t.office
-    ? { k: `o${t.code}`, icon: ListChecks, tone: 'grey', title: t.title, sub: 'Waiting on the office' }
+    ? { k: `o${t.code}`, icon: ListChecks, tone: 'grey', title: t.title, sub: t.waiting || 'Waiting on the office' }
     : { k: `o${t.code}`, to: t.to, icon: ListChecks, tone: 'blue', title: t.title, sub: 'Getting set up' }));
   return rows;
 }

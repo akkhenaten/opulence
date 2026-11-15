@@ -8,6 +8,7 @@ import Shell from './layouts/Shell.jsx';
 import { api } from './api.js';
 import { ConfirmProvider, Spinner, ToastProvider, useToast } from './ui/index.jsx';
 import { FileViewerHost } from './ui/FileViewer.jsx';
+import { ReportGuard } from './ui/ErrorBoundary.jsx';
 import { startReveal } from './ui/motion.js';
 import { AcceptInvite, Forgot, Login, Reset, Verify } from './pages/auth/AuthPages.jsx';
 
@@ -196,6 +197,9 @@ function OldVenueCover() {
   return <Navigate to="/venue/rota?tab=requests" replace state={state} />;
 }
 
+// Report pages recover instead of going blank
+const guard = (el) => <ReportGuard>{el}</ReportGuard>;
+
 // Screens shared by company and security managers, mounted under each prefix
 const managerRoutes = (
   <>
@@ -208,9 +212,9 @@ const managerRoutes = (
     <Route path="timesheets" element={<Timesheets />} />
     <Route path="exceptions" element={<Exceptions />} />
     <Route path="incidents" element={<Incidents />} />
-    <Route path="incidents/new" element={<IncidentForm />} />
-    <Route path="incidents/:id" element={<IncidentDetail />} />
-    <Route path="incidents/:id/edit" element={<IncidentForm />} />
+    <Route path="incidents/new" element={guard(<IncidentForm />)} />
+    <Route path="incidents/:id" element={guard(<IncidentDetail />)} />
+    <Route path="incidents/:id/edit" element={guard(<IncidentForm />)} />
     <Route path="ejections" element={<Ejections />} />
     <Route path="staff" element={<Staff />} />
     <Route path="staff/phones" element={<Phones />} />
@@ -316,7 +320,7 @@ function App() {
             <Route path="bans" element={<Bans />} />
             <Route path="timesheets" element={<Timesheets />} />
             <Route path="incidents" element={<Incidents />} />
-            <Route path="incidents/:id" element={<IncidentDetail />} />
+            <Route path="incidents/:id" element={guard(<IncidentDetail />)} />
             <Route path="invoices" element={<Invoices />} />
             <Route path="invoices/:id" element={<InvoiceDetail />} />
             <Route path="help" element={<Help />} />
@@ -344,9 +348,9 @@ function App() {
             <Route path="venue-pack/:venueId" element={<VenuePack />} />
             <Route path="me/growth" element={<OfficerGrowth />} />
             <Route path="incidents" element={<Incidents />} />
-            <Route path="incidents/new" element={<IncidentForm />} />
-            <Route path="incidents/:id" element={<IncidentDetail />} />
-            <Route path="incidents/:id/edit" element={<IncidentForm />} />
+            <Route path="incidents/new" element={guard(<IncidentForm />)} />
+            <Route path="incidents/:id" element={guard(<IncidentDetail />)} />
+            <Route path="incidents/:id/edit" element={guard(<IncidentForm />)} />
             <Route path="learn" element={<Learn />} />
             <Route path="learn/toolbox" element={<LearnToolbox />} />
             <Route path="learn/toolbox/:id" element={<LearnCard />} />

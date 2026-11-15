@@ -893,7 +893,7 @@ export function OnboardingTab({ o, reload, onForbidden }) {
                     <span className={`flex-1 text-body ${t.done ? 'text-muted line-through' : 'font-semibold'}`}>{t.title}</span>
                     {t.done_at && <span className="text-caption text-faint">{dateShort(t.done_at)}</span>}
                   </Pressable>
-                  {!t.done && STEP_TAB[t.code] && <Button size="sm" variant="ghost" className="mr-2" to={`?${STEP_TAB[t.code]}`} replace>Do it</Button>}
+                  {!t.done && STEP_TAB[t.code] && <Button size="sm" variant="ghost" className="mr-2" to={`?${STEP_TAB[t.code]}`} replace>{t.code === 'contract' && t.waiting ? 'Issue contract' : 'Do it'}</Button>}
                 </div>
               ))}
             </List>

@@ -179,7 +179,18 @@ export const actions = {
     const id = ownOrManager(user, b.officer_id);
     if (id) await syncOnboarding(id);
     const rows = await q('SELECT * FROM onboarding_tasks WHERE officer_id = $1 ORDER BY sort', [id]);
-    return rows.map((t) => ({ ...t, to: ONBOARD_LINK[t.code] || null, office: !ONBOARD_LINK[t.code] }));
+    const out = rows.map((t) => ({ ...t, to: ONBOARD_LINK[t.code] || null, office: !ONBOARD_LINK[t.code] }));
+    // The contract step opens the contract waiting to be signed; until the office sends one, it is the office's step
+    const step = out.find((t) => t.code === 'contract' && !t.done);
+    if (step) {
+      const c = await one(
+        `SELECT id, status FROM contracts WHERE officer_id = $1 AND coalesce(category, '') <> 'policy' AND status IN ('sent','signed')
+          ORDER BY (status = 'sent') DESC, sent_at DESC NULLS LAST LIMIT 1`, [id]);
+      if (c?.status === 'sent') Object.assign(step, { to: `/officer/contracts/${c.id}`, office: false });
+      else if (c?.status === 'signed') { await tickOnboarding(id, 'contract'); Object.assign(step, { done: true, done_at: new Date() }); }
+      else Object.assign(step, { to: null, office: true, waiting: 'Waiting for the office to send your contract' });
+    }
+    return out;
   }),
 
   'onboarding.toggle': def(CO, async (b) => {

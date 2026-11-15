@@ -11,6 +11,9 @@ export const KINDS = ['problem', 'idea'];
 export const STATUSES = ['new', 'looking', 'planned', 'fixed', 'not_now'];
 export const STATUS_LABEL = { new: 'New', looking: 'Looking at it', planned: 'Planned', fixed: 'Fixed', not_now: 'Not now' };
 export const DAILY_LIMIT = 20;
+// Fault reports per person while this function instance stays warm; a looping screen can't flood the log
+const ERROR_LIMIT = 30;
+const errorCounts = new Map();
 // The email template takes HTML, and this text comes from anyone
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const ROLE_LABEL = { company: 'Company manager', security: 'Security manager', venue: 'Venue manager', officer: 'Officer' };
@@ -86,6 +89,18 @@ export const actions = {
       await Promise.allSettled(platformEmails().map((to) => sendRawEmail(to, `App feedback — ${title}`, html)));
     }
     return { ok: true, id: row.id };
+  }),
+
+  // A screen that failed while drawing (report pages): written to the function log only, read with `openkbs fn logs api`
+  'appFeedback.clientError': def(ALL, async (b, { user }) => {
+    const n = (errorCounts.get(user.id) || 0) + 1;
+    errorCounts.set(user.id, n);
+    if (n > ERROR_LIMIT) return { ok: true };
+    const cut = (v, len) => String(v || '').slice(0, len);
+    console.error('[client.error]', JSON.stringify({
+      page: cut(b.page, 300), type: cut(b.type, 40), message: cut(b.message, 500), stack: cut(b.stack, 1000), app_version: cut(b.app_version, 40), role: user.role, user_id: user.id,
+    }));
+    return { ok: true };
   }),
 
   // What I sent, with its status and any reply

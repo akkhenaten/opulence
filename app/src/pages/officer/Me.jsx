@@ -127,7 +127,7 @@ export default function Me() {
                     {(tasks.data || []).map((t) => (
                       <Row key={t.code} to={!t.done && !t.office ? t.to : undefined} left={t.done ? <CircleCheck size={24} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
                         title={<span className={cx(t.done && 'text-muted line-through')}>{t.title}</span>}
-                        subtitle={t.done ? null : t.office ? 'Waiting on the office' : 'Tap to finish'} />
+                        subtitle={t.done ? null : t.office ? t.waiting || 'Waiting on the office' : 'Tap to finish'} />
                     ))}
                   </List>
                   <p className="mt-2 px-1 text-footnote text-muted"><ListChecks size={14} className="mr-1 inline" />Tap an item to finish it. Ticks appear as soon as it's done.</p>
@@ -157,7 +157,7 @@ export default function Me() {
                     {(tasks.data || []).map((t) => (
                       <Row key={t.code} to={!t.done && !t.office ? t.to : undefined} left={t.done ? <CircleCheck size={24} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
                         title={<span className={cx(t.done && 'text-muted line-through')}>{t.title}</span>}
-                        subtitle={t.done ? null : t.office ? 'Waiting on the office' : 'Tap to finish'} />
+                        subtitle={t.done ? null : t.office ? t.waiting || 'Waiting on the office' : 'Tap to finish'} />
                     ))}
                   </List>
                   <p className="mt-2 px-1 text-footnote text-muted"><ListChecks size={14} className="mr-1 inline" />Tap an item to finish it. Ticks appear as soon as it's done.</p>
@@ -177,6 +177,13 @@ export default function Me() {
                         right={<Pill status={x.status === 'sent' ? 'pending' : x.status}>{x.status === 'sent' ? 'To sign' : x.status === 'void' ? 'Void' : 'Signed'}</Pill>} />
                     ))}
                   </List>
+                </Section>
+              )}
+              {/* Older set-up links point here before any contract has been sent */}
+              {contracts.data && !contracts.data.length && hash === '#contracts' && (
+                <Section title="Contracts">
+                  <span id="contracts" className="block scroll-mt-24" />
+                  <p className="px-1 text-body text-muted"><FileSignature size={16} className="mr-1.5 inline" />No contract yet. The office will send it here.</p>
                 </Section>
               )}
 

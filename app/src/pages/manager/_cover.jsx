@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CalendarDays, CalendarRange, Repeat } from 'lucide-react';
-import { Button, Callout, Chip, cx, Input, isoDate, addDays, Pressable, Segmented, Select, Sheet, Textarea, Toggle, useAction, useConfirm, useForm } from '../../ui/index.jsx';
+import { Button, Callout, Chip, cx, dateShort, Input, isoDate, addDays, Pressable, Segmented, Select, Sheet, Textarea, Toggle, useAction, useConfirm, useForm } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { londonParts, WEEKDAYS } from './_parts.jsx';
 import { useVenue } from '../../venue.jsx';
@@ -15,6 +15,24 @@ const overnight = (s, e) => s && e && e <= s;
 
 // The times of one date as London wall-clock values
 export const slotOf = (c) => ({ start: londonParts(c.starts_at).time, end: londonParts(c.ends_at).time, headcount: c.headcount });
+
+// Narrow inputs so a day's row fits a phone
+const FIT = 'min-w-0 px-2 sm:px-3.5';
+
+const listJoin = (a) => (a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);
+/** The repeating pattern in plain words, e.g. "Every Fri and Sat, 22:00–04:00 (overnight), 2 officers, from 21 Nov". */
+export function patternSummary({ frequency, days, start_date, has_end, end_date }) {
+  const groups = [];
+  days.forEach((d) => {
+    const g = groups.find((x) => x.start === d.start && x.end === d.end && Number(x.headcount) === Number(d.headcount));
+    if (g) g.dows.push(d.dow); else groups.push({ ...d, dows: [d.dow] });
+  });
+  const parts = groups.map((g) => {
+    const n = Number(g.headcount);
+    return `${listJoin(g.dows.map((x) => WEEKDAYS[x - 1]))}, ${g.start}–${g.end}${overnight(g.start, g.end) ? ' (overnight)' : ''}, ${n} officer${n === 1 ? '' : 's'}`;
+  });
+  return `${frequency === 'fortnightly' ? 'Every 2 weeks on' : 'Every'} ${parts.join('; ')}${start_date ? `, from ${dateShort(start_date)}` : ''}${has_end && end_date ? ` until ${dateShort(end_date)}` : ''}`;
+}
 
 /** Days of the week with their own start, finish and number of staff. */
 export function DaysEditor({ days, onChange }) {
@@ -33,11 +51,11 @@ export function DaysEditor({ days, onChange }) {
       {days.length > 0 && (
         <div className="mt-3 space-y-2">
           {days.map((d) => (
-            <div key={d.dow} className="grid grid-cols-[44px_1fr_1fr_72px] items-end gap-2 rounded-2xl bg-bg p-2">
+            <div key={d.dow} className="grid grid-cols-[36px_minmax(0,1fr)_minmax(0,1fr)_minmax(52px,64px)] items-end gap-1.5 rounded-2xl bg-bg p-2 sm:grid-cols-[44px_1fr_1fr_72px] sm:gap-2">
               <div className="pb-3 text-center text-subhead font-bold">{WEEKDAYS[d.dow - 1]}</div>
-              <Input label="Start" type="time" value={d.start} onChange={(e) => set(d.dow, 'start', e.target.value)} />
-              <Input label="Finish" type="time" value={d.end} onChange={(e) => set(d.dow, 'end', e.target.value)} hint={overnight(d.start, d.end) ? 'Next day' : undefined} />
-              <Input label="Staff" type="number" min="1" max="50" inputMode="numeric" value={d.headcount} onChange={(e) => set(d.dow, 'headcount', e.target.value)} />
+              <Input label="Start" type="time" className="min-w-0" inputClassName={FIT} value={d.start} onChange={(e) => set(d.dow, 'start', e.target.value)} />
+              <Input label="Finish" type="time" className="min-w-0" inputClassName={FIT} value={d.end} onChange={(e) => set(d.dow, 'end', e.target.value)} hint={overnight(d.start, d.end) ? 'Next day' : undefined} />
+              <Input label="Staff" type="number" min="1" max="50" inputMode="numeric" className="min-w-0" inputClassName={FIT} value={d.headcount} onChange={(e) => set(d.dow, 'headcount', e.target.value)} />
             </div>
           ))}
         </div>
@@ -90,6 +108,7 @@ export function RequestForm({ venues, roles, draft, onClose, onDone }) {
             <div className="rounded-xl bg-bg px-4 py-1">
               <Toggle checked={v.has_end} onChange={(x) => f.set('has_end', x)} label="Ends on a date" hint={v.has_end ? undefined : 'Keeps going until you stop it. We book 8 weeks ahead.'} />
             </div>
+            {daysOk(v.days) && <Callout icon={Repeat}>{patternSummary(v)}</Callout>}
           </>
         ) : (
           <>
@@ -166,6 +185,7 @@ export function ChangeSheet({ c, mode, isMgr, onClose, onDone }) {
             <DaysEditor days={v.days} onChange={(d) => f.set('days', d)} />
             <div className="rounded-xl bg-bg px-4 py-1"><Toggle checked={v.has_end} onChange={(x) => f.set('has_end', x)} label="Ends on a date" /></div>
             {v.has_end && <Input label="Last date" type="date" min={isoDate()} {...f.bind('end_date')} />}
+            {daysOk(v.days) && <Callout icon={Repeat}>{patternSummary({ ...v, start_date: null })}</Callout>}
             <Textarea label="Notes" rows={2} {...f.bind('notes')} />
           </>
         )}

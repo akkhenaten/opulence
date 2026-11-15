@@ -17,9 +17,11 @@ export default function TimeOff() {
   const tab = url.tab === 'availability' ? 'availability' : 'timeoff';
   const setTab = (t) => set({ tab: t });
   const [asking, setAsking] = useState(false);
-  if (!user.officer_id) return <Page title="Time off" back={{ to: '/officer/me', label: 'Me' }}><NotLinked /></Page>;
+  // Opened fresh (a notification, a reload): availability belongs with Shifts, time off with Me
+  const back = tab === 'availability' ? { to: '/officer/shifts', label: 'Shifts' } : { to: '/officer/me', label: 'Me' };
+  if (!user.officer_id) return <Page title="Time off" back={back}><NotLinked /></Page>;
   return (
-    <Page title="Time off" back={{ to: '/officer/me', label: 'Me' }} actions={tab === 'timeoff' && <Button icon={Plus} onClick={() => setAsking(true)}>Request time off</Button>}>
+    <Page title="Time off" back={back} actions={tab === 'timeoff' && <Button icon={Plus} onClick={() => setAsking(true)}>Request time off</Button>}>
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'timeoff', label: 'Time off', icon: CalendarOff }, { value: 'availability', label: 'Weekly availability', icon: CalendarClock }]} />
       {tab === 'timeoff' ? <Requests open={asking} setOpen={setAsking} /> : <Availability />}
     </Page>

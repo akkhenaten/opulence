@@ -103,7 +103,8 @@ export function Columns({ items, format = (v) => v, height = 140, empty = 'No da
 export function HourStrip({ data }) {
   const by = Object.fromEntries((data || []).map((d) => [Number(d.hour), num(d.n)]));
   const max = Math.max(...Object.values(by), 1);
-  const peak = Object.entries(by).sort((a, b) => b[1] - a[1])[0];
+  // No busiest hour without data; on a tie the earliest hour wins
+  const peak = Object.values(by).some((n) => n > 0) ? Object.entries(by).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0] : null;
   return (
     <div>
       <div className="grid grid-cols-12 gap-1 sm:grid-cols-24" style={{ gridTemplateColumns: undefined }}>
@@ -119,6 +120,7 @@ export function HourStrip({ data }) {
           );
         })}
       </div>
+      {!peak && <p className="mt-3 text-footnote text-muted">No incidents in this period</p>}
       {peak && <p className="mt-3 text-footnote text-muted">Busiest hour: <span className="font-semibold text-ink">{String(peak[0]).padStart(2, '0')}:00</span> ({peak[1]})</p>}
     </div>
   );
