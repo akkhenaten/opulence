@@ -424,7 +424,7 @@ export default function Shell() {
                       <div className={cx('absolute left-3 top-2 h-px w-6 bg-line transition-opacity duration-[var(--dur-2)]', side.open ? 'opacity-0' : 'opacity-100')} />
                     </div>
                   )}
-                  {g.items.map((it, i) => <SideLink key={it.to} it={it} i={i} open={side.open} n={badges[it.badge]} onClick={tabTap(it)} active={isActive(it)} />)}
+                  {g.items.filter((it) => !it.phoneOnly).map((it, i) => <SideLink key={it.to} it={it} i={i} open={side.open} n={badges[it.badge]} onClick={tabTap(it)} active={isActive(it)} />)}
                 </div>
               ))}
             </nav>

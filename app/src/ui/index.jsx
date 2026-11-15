@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, AlertTriangle, Bell, CheckCircle2, Check as CheckIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Inbox, Info, Loader2, MoreHorizontal, Search, SlidersHorizontal, X, XCircle } from 'lucide-react';
 import { api } from '../api.js';
-import { initials, titleCase } from './format.js';
+import { dateShort, initials, titleCase } from './format.js';
 import { useBump, useCountUp, usePresence, useScrollLock } from './motion.js';
 import { pageHeader, previousEntry, previousPath, setTrailTitle } from './nav.js';
 import { Photo } from './Photo.jsx';
@@ -117,7 +117,7 @@ export function Page({ title: own, subtitle, actions, tools, tabCounts, back, ba
   // A page that is one tab of a section (Staff → Recruitment) takes the section's title and shows its tabs
   const hub = useHub();
   const title = !back && hub ? hub.title : own;
-  const backLabel = ownLabel || (!back && hub ? hub.current.label : undefined);
+  const backLabel = ownLabel || (!back && hub ? hub.current.trail || hub.current.label : undefined);
   const sentinel = useRef(null);
   useEffect(() => {
     pageHeader.set({ title: typeof title === 'string' ? title : '', wide: !!wide });
@@ -602,7 +602,8 @@ export function Segmented({ value, onChange, options, className, full, iconOnly 
 export const List = ({ children, className, inset }) => (
   <div className={cx('overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile divide-y divide-line', inset ? 'border-0 shadow-none rounded-2xl bg-bg/60' : 'ui-panel', className)}>{children}</div>
 );
-export function Row({ title, subtitle, left, right, to, onClick, chevron, className }) {
+// state: passed with the link (e.g. where the next page was opened from, for its Back)
+export function Row({ title, subtitle, left, right, to, state, onClick, chevron, className }) {
   const Inner = (
     <>
       {left && <div className="shrink-0">{left}</div>}
@@ -615,7 +616,7 @@ export function Row({ title, subtitle, left, right, to, onClick, chevron, classN
     </>
   );
   const cls = cx('flex w-full items-center gap-3 px-4 py-3 text-left', (to || onClick) && 'transition-colors hover:bg-bg active:bg-fill', className);
-  if (to) return <Link to={to} className={cls}>{Inner}</Link>;
+  if (to) return <Link to={to} state={state} className={cls}>{Inner}</Link>;
   if (onClick) return <button type="button" onClick={onClick} className={cls}>{Inner}</button>;
   return <div className={cls}>{Inner}</div>;
 }
@@ -843,6 +844,39 @@ export function Load({ q, children, skeleton, n }) {
   if (q.error && !q.data) return <ErrorBox error={q.error} retry={q.reload} />;
   return children(q.data);
 }
+
+/* A section that loads on its own says so when it fails, instead of looking empty ("nothing to do").
+   Nothing loaded: a compact "Couldn't load …" row. Loaded before, refresh failed: a quiet note; the old data stays. */
+export function LoadFail({ q, what, className }) {
+  if (!q?.error) return null;
+  if (q.data) {
+    return (
+      <p className={cx('text-footnote text-muted', className)}>Couldn't refresh · <button type="button" className="font-semibold text-blue" onClick={q.reload}>Try again</button></p>
+    );
+  }
+  return (
+    <div role="alert" className={cx('flex items-center gap-3 rounded-tile bg-red-soft px-4 py-3 text-red', className)}>
+      <AlertCircle size={18} className="shrink-0" />
+      <span className="min-w-0 flex-1 text-subhead font-semibold">Couldn't load {what}</span>
+      <Button variant="link" className="shrink-0 text-red" onClick={q.reload}>Try again</Button>
+    </div>
+  );
+}
+/* The filter a list was opened with from Analytics (venue and period): shown, and cleared with one tap */
+export function FilterChip({ label, onClear, className }) {
+  return (
+    <div className={cx('mb-3 flex', className)}>
+      <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-blue-soft py-1 pl-3 pr-1 text-footnote font-semibold text-blue">
+        <span className="truncate">{label}</span>
+        <button type="button" aria-label="Clear this filter" onClick={onClear} className="pressable grid h-6 w-6 shrink-0 place-items-center rounded-full hover:bg-blue/10"><X size={14} /></button>
+      </span>
+    </div>
+  );
+}
+export const periodLabel = (from, to) => (from && to ? `${dateShort(from)} – ${dateShort(to)}` : from ? `From ${dateShort(from)}` : to ? `Until ${dateShort(to)}` : '');
+
+// True when any of the useApi results failed with nothing to show
+export const anyFailed = (...qs) => qs.some((q) => q && q.error && !q.data);
 
 /* ---------- Sheet (bottom sheet on mobile, centred modal on desktop) ---------- */
 
@@ -1133,10 +1167,20 @@ export function useAttention(id = 'needs') {
 /** One slim bar for everything waiting on someone. It glows in the colour of the most urgent thing and opens a tall
  *  sheet with the full list, so the page under it doesn't turn into an endless scroll. Empty: a calm "All clear". */
 // preview: up to 4 { icon, tone } marks of what's inside; lead: the most urgent item in a line
-export function AttentionDrawer({ id = 'needs', title = 'Needs you', count = 0, tone = 'blue', preview = [], lead, empty = 'All clear, nothing needs you right now.', children, className }) {
+// failed: something feeding the count couldn't load, so "All clear" would be a guess; onRetry reloads it
+export function AttentionDrawer({ id = 'needs', title = 'Needs you', count = 0, tone = 'blue', preview = [], lead, empty = 'All clear, nothing needs you right now.', failed, onRetry, children, className }) {
   const { open, show, hide } = useAttention(id);
   const n = useCountUp(count);
   const bump = useBump(count);
+  if (!count && failed) {
+    return (
+      <div role="alert" className={cx('ui-panel flex items-center gap-3 rounded-tile border border-hairline bg-surface px-4 py-3 shadow-tile', className)}>
+        <span className="ui-raised-icon grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-soft text-amber"><AlertTriangle size={20} /></span>
+        <p className="min-w-0 flex-1 text-subhead font-semibold">Couldn't check everything</p>
+        {onRetry && <Button variant="link" className="shrink-0" onClick={onRetry}>Try again</Button>}
+      </div>
+    );
+  }
   if (!count) {
     return (
       <div className={cx('ui-panel flex items-center gap-3 rounded-tile border border-hairline bg-surface px-4 py-3 shadow-tile', className)}>

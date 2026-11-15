@@ -146,7 +146,7 @@ export default function InvoiceDetail() {
                 <div className="space-y-2 text-body">
                   <div className="flex justify-between"><span className="text-muted">Net</span><span className="num">{money(inv.net)}</span></div>
                   <div className="flex justify-between"><span className="text-muted">VAT at {Number(inv.vat_rate)}%</span><span className="num">{money(inv.vat)}</span></div>
-                  <div className="flex justify-between border-t border-line pt-2 text-headline font-bold"><span>Total</span><span className="num">{money(inv.gross)}</span></div>
+                  <div className="flex justify-between border-t border-line pt-2 text-headline font-bold"><span>Total incl. VAT</span><span className="num">{money(inv.gross)}</span></div>
                   {isCo && !credit && (
                     <div className="flex justify-between pt-1 text-footnote"><span className="text-muted">Margin (net less pay cost)</span><span className={cx('num font-semibold', margin < 0 ? 'text-red' : 'text-green')}>{money(margin)} · {pct(margin, inv.net)}</span></div>
                   )}

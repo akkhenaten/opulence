@@ -48,6 +48,13 @@ export async function syncOnboarding(officerId) {
   for (const code of profileDone(o)) await tickOnboarding(officerId, code);
 }
 
+// What an open step asks for (the stored title says what it looks like once done)
+const ONBOARD_ACTION = {
+  profile: 'Complete your personal details', sia: 'Upload your SIA licence', rtw: 'Upload right to work evidence', id: 'Upload photo ID',
+  poa: 'Upload proof of address', bank: 'Add your bank details and UTR', contract: 'Sign your contractor agreement',
+  verified: 'Office checks your documents', induction: 'Complete your induction',
+};
+
 // Where the officer finishes each item; office items have nowhere to go
 const ONBOARD_LINK = { profile: '/officer/profile', bank: '/officer/profile', sia: '/officer/documents', rtw: '/officer/documents', id: '/officer/documents', poa: '/officer/documents', contract: '/officer/me#contracts' };
 
@@ -179,7 +186,7 @@ export const actions = {
     const id = ownOrManager(user, b.officer_id);
     if (id) await syncOnboarding(id);
     const rows = await q('SELECT * FROM onboarding_tasks WHERE officer_id = $1 ORDER BY sort', [id]);
-    const out = rows.map((t) => ({ ...t, to: ONBOARD_LINK[t.code] || null, office: !ONBOARD_LINK[t.code] }));
+    const out = rows.map((t) => ({ ...t, action: ONBOARD_ACTION[t.code] || t.title, to: ONBOARD_LINK[t.code] || null, office: !ONBOARD_LINK[t.code] }));
     // The contract step opens the contract waiting to be signed; until the office sends one, it is the office's step
     const step = out.find((t) => t.code === 'contract' && !t.done);
     if (step) {

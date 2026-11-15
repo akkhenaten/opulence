@@ -6,7 +6,7 @@ import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import {
-  Button, Empty, FilterBar, List, Load, Page, Pill, Segmented, Select, Sheet, Textarea, Toggle, ToolField, ToolMenu, cx, dayLabel, range, relative, useAction, useApi, useMedia, useUrlState,
+  Button, Empty, FilterBar, FilterChip, List, Load, Page, periodLabel, Pill, Segmented, Select, Sheet, Textarea, Toggle, ToolField, ToolMenu, cx, dayLabel, range, relative, useAction, useApi, useMedia, useUrlState,
 } from '../../ui/index.jsx';
 import { ABOUT, GiveFeedbackSheet, TONES } from '../venue/_feedback.jsx';
 import { useBase } from './_parts.jsx';
@@ -49,7 +49,7 @@ export function FeedbackList({ venueId, fixedVenue, onChanged, give: giveOpen, o
   const { user } = useAuth();
   const mgr = user.role !== 'venue';
   // Managers start on open feedback; status=all (or the older empty status=) shows everything
-  const [url, setUrl, clearUrl] = useUrlState({ venue: '', tone: '', about: '', status: mgr ? 'open' : '' });
+  const [url, setUrl, clearUrl] = useUrlState({ venue: '', tone: '', about: '', status: mgr ? 'open' : '', from: '', to: '' });
   const [local, setLocal] = useState({ tone: '', about: '', status: '' });
   const shared = useVenue();
   const f = fixedVenue ? { venue_id: venueId, ...local }
@@ -65,7 +65,9 @@ export function FeedbackList({ venueId, fixedVenue, onChanged, give: giveOpen, o
     if (!mgr && shared.venueId) shared.setVenueId('');
   };
   const opts = useApi('comments.options', {}, { skip: fixedVenue });
-  const q = useApi('comments.list', { venue_id: f.venue_id || null, tone: f.tone || null, about: f.about || null, status: f.status === 'all' ? null : f.status || null });
+  // Opened from Analytics: the period being looked at (both days included)
+  const period = fixedVenue ? {} : { from: url.from || null, to: url.to || null };
+  const q = useApi('comments.list', { venue_id: f.venue_id || null, tone: f.tone || null, about: f.about || null, status: f.status === 'all' ? null : f.status || null, ...period });
   const [ownGive, setOwnGive] = useState(false);
   const give = onGive ? giveOpen : ownGive;
   const setGive = onGive || setOwnGive;
@@ -100,6 +102,10 @@ export function FeedbackList({ venueId, fixedVenue, onChanged, give: giveOpen, o
       ]}>
         {!onGive && <Button icon={Plus} onClick={() => setGive(true)}>Give feedback</Button>}
       </FilterBar>}
+      {(period.from || period.to) && (
+        <FilterChip label={[mgr && f.venue_id && venues.find((v) => v.id === f.venue_id)?.name, periodLabel(period.from, period.to)].filter(Boolean).join(' · ')}
+          onClear={() => setUrl({ from: '', to: '', ...(mgr && { venue: '' }) })} />
+      )}
       <Load q={q} skeleton="rows">
         {(rows) => (!rows.length ? (
           <Empty icon={MessageSquareHeart} title={mgr ? 'No feedback here' : 'No feedback yet'}

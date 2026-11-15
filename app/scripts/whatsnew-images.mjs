@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'clear-screens': 'A phone on a dark navy desk showing a calm app page with one slim amber notice and a small gold Try again button, beside it a brass compass and a neat printed map with a gold route line leading back to a marked point, warm lamp light, dark navy and gold.',
   'review-fixes': 'A dark navy desk at night with a phone showing a calm app page with one soft gold rounded button, beside it a printed checklist with five neat gold ticks, a brass magnifying glass resting across it and a small brass spanner, warm lamp light, dark navy and gold.',
   'landing-savings-model': 'A dark navy desk at night with an open leather ledger, a brass calculator and a neat stack of gold coins beside a laptop showing four slim dark cards with glowing gold figures, a weekly rota sheet with three highlighted rows, warm lamp light, dark navy and gold.',
   'landing-platform-cards': 'A laptop on a dark navy desk showing a calm web page with three slim dark cards stacked on the left, the middle one glowing with a soft gold border, and a dark phone-like panel on the right with a few neat rounded tiles and a small green dot, a brass desk lamp and a fountain pen beside it, warm lamp light, dark navy and gold.',

@@ -90,12 +90,15 @@ function CompanyBody({ rows, status, q }) {
 
   return !rows.length
     ? <Empty icon={ReceiptText} title="No invoices yet" body="Approve a timesheet and it goes straight onto its venue's draft invoice. Issue once the venue has signed the shifts off." />
-    : <InvoiceList rows={filtered} company />;
+    : <InvoiceList rows={filtered} company empty={q.trim() ? ['No invoices match', 'Try another search.'] : [EMPTY[status] || 'No invoices here']} />;
 }
 
-function InvoiceList({ rows, company }) {
+// Each tab names what is missing, so an empty tab never reads like a search problem
+const EMPTY = { draft: 'No draft invoices', issued: 'No issued invoices waiting', outstanding: 'No unpaid invoices', overdue: 'No overdue invoices', paid: 'No paid invoices', credit: 'No credit notes', void: 'No void invoices' };
+
+function InvoiceList({ rows, company, empty = ['No invoices here'] }) {
   const base = useBase();
-  if (!rows.length) return <Empty icon={FileText} title="No invoices here" />;
+  if (!rows.length) return <Empty icon={FileText} title={empty[0]} body={empty[1]} />;
   return (
     <List>
       {rows.map((i) => {
@@ -119,7 +122,7 @@ function InvoiceList({ rows, company }) {
               {due && <div className={cx('text-caption font-semibold', left < 0 ? 'text-red' : 'text-muted')}>{due}</div>}
               {company && i.status === 'draft' && i.kind === 'invoice' && (i.signed > 0 || i.awaiting > 0) && (
                 <div className="mt-0.5 flex flex-wrap gap-x-2 text-caption font-semibold">
-                  {i.signed > 0 && <span className="text-green">{i.signed} signed · {money(i.signed_net)} ready</span>}
+                  {i.signed > 0 && <span className="text-green">{i.signed} signed · {money(i.signed_net)} net ready</span>}
                   {i.awaiting > 0 && <span className="text-amber">{i.awaiting} awaiting venue</span>}
                   {i.late > 0 && <span className="text-blue">{i.late} late</span>}
                 </div>
@@ -127,6 +130,7 @@ function InvoiceList({ rows, company }) {
             </div>
             <div className="shrink-0 text-right">
               <div className={cx('num text-body font-bold', Number(i.gross) < 0 && 'text-muted')}>{money(i.gross)}</div>
+              <div className="text-caption text-muted">incl. VAT</div>
               <Pill status={i.status} />
             </div>
           </Link>
@@ -192,7 +196,7 @@ function VenueInvoices() {
           const shown = all.filter((i) => show === 'all' || (show === 'outstanding' ? outstanding(i) : show === 'paid' ? i.status === 'paid' : i.kind === 'credit'));
           return (
             <>
-              {!all.length ? <Empty icon={ReceiptText} title="No invoices yet" body="Invoices appear here once they are issued." /> : <InvoiceList rows={shown} />}
+              {!all.length ? <Empty icon={ReceiptText} title="No invoices yet" body="Invoices appear here once they are issued." /> : <InvoiceList rows={shown} empty={[EMPTY[show] || 'No invoices here']} />}
               {out.length > 0 && <PayTo />}
             </>
           );

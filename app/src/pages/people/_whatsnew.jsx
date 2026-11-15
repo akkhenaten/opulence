@@ -1,6 +1,6 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  ArrowRightLeft, BadgeCheck, Calculator, Ban, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
+  ArrowRightLeft, BadgeCheck, Calculator, Ban, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, Compass, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, LogOut, Mail, MessageSquareHeart,
   Megaphone, MessageCircleWarning, MousePointerClick, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Send, SlidersHorizontal, ShieldAlert, Store, Timer, UserRound, Siren, Smartphone, Sparkles, Users, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -10,6 +10,11 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-15', icon: Compass, title: 'Screens that tell the truth, and Back that goes where you expect', image: 'clear-screens',
+    lede: "The second round of fixes from the three-portal review. When something could not be loaded, the app now says so with Try again instead of showing nothing to do or All clear, and Back always leads somewhere sensible.",
+    points: ["If a check fails, officers, managers and venues see Couldn't load or Couldn't check everything with Try again, never an empty list, a zero or All clear", "An officer's set-up steps read as things to do, such as Upload your SIA licence or Sign your contractor agreement, and change to past tense once done", "Past shifts shows only finished shifts the officer accepted, starting with the last 6 weeks, with Show older shifts to go further back", "Venue phones now show Overview, On site, Rota, Logs and More. Messages, with its unread count, and Venue info sit under More", "Back names the page it returns to (Rota, Feedback, Pay run, Shift logs, Goals and one-to-ones), even when the page was opened from a link or notification", "From Analytics and Reports, tapping incidents or feedback opens that list for the same venue and period, with a chip to clear it, and Back keeps the period and venue you picked", "Timesheets and Invoices say what is empty on each tab, such as Nothing to sign this week or No overdue invoices, and an empty week shows No hours this week", "Invoice amounts say incl. VAT, invoice lines are labelled Net, and the total reads Total incl. VAT. No figures changed", "The venue Overview leads with what needs the venue and the next 48 hours, and tiles with nothing open fold into one Nothing open line"],
+  },
   {
     month: 'November 2026', date: '2026-11-15', icon: ShieldAlert, title: 'Fixes from the three-portal review', image: 'review-fixes',
     lede: "The first faults found in the review of the officer, manager and venue portals are fixed, so nobody lands on a blank page or a step that goes nowhere.",

@@ -29,7 +29,7 @@ export default function Reports() {
       <RangeBar r={r} presets={PRESETS} jumps={JUMPS} />
       <div id="r-money" className="pt-2"><MoneySection q={margin} overdue={overdue} hrs={hrs} /></div>
       <HoursSection q={hrs} />
-      <IncidentsSection q={inc} />
+      <IncidentsSection q={inc} range={range} />
       <ProofSection q={proof} />
       <OverdueSection q={overdue} />
     </Page>
@@ -140,7 +140,7 @@ function HoursSection({ q }) {
   );
 }
 
-function IncidentsSection({ q }) {
+function IncidentsSection({ q, range }) {
   return (
     <Part id="r-incidents" title="Incidents" icon={ShieldAlert}>
       <Wait q={q}>
@@ -150,7 +150,7 @@ function IncidentsSection({ q }) {
           const sev = Object.fromEntries(d.bySeverity.map((r) => [r.severity, num(r.n)]));
           return (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <Tile title="Total" icon={ShieldAlert}>
+              <Tile title="Total" icon={ShieldAlert} to={`/company/incidents?from=${range.from}&to=${range.to}`}>
                 <Stat value={total} label={total === 1 ? 'Incident reported' : 'Incidents reported'} />
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   {SEV.map((s) => (

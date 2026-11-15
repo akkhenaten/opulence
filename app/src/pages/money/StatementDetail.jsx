@@ -63,7 +63,7 @@ export default function StatementDetail() {
         };
 
         return (
-          <Page title={st.officer_name} subtitle={`Remittance statement · ${date(st.period_start)} – ${date(st.period_end)}`} back={{ to: `${base}/pay`, label: 'Pay runs' }}
+          <Page title={st.officer_name} subtitle={`Remittance statement · ${date(st.period_start)} – ${date(st.period_end)}`} back={st.run ? { to: `${base}/pay/runs/${st.run.id}`, label: 'Pay run' } : { to: `${base}/pay`, label: 'Pay runs' }}
             actions={[
               { label: st.pdf_document_id ? 'Saved PDF' : 'PDF', icon: Download, busy: pdfBusy, onClick: () => pdf(() => downloadAction('pay.pdf', { id: st.id })).catch(() => {}) },
               canIssue && { label: 'Issue', icon: Send, variant: 'primary', busy, onClick: issue },

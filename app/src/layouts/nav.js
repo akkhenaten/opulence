@@ -7,7 +7,7 @@ import {
 // Sidebar per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
 // `perm` hides an item unless the user has that permission. `hub` makes the item a section (ui/hub.jsx): it opens the
 // first tab the person can see, is lit on any of them, takes that tab's name when it is the only one, and goes when
-// there are none. `foot` items sit at the bottom of the sidebar.
+// there are none. `foot` items sit at the bottom of the sidebar; `phoneOnly` items are only in the phone More menu.
 export const NAV = {
   company: [
     { items: [
@@ -41,16 +41,17 @@ export const NAV = {
       { hub: 'learning', label: 'Learning', icon: GraduationCap },
     ] },
   ],
-  // My venue and the emergency guide are in the account menu
+  // My venue and the emergency guide are in the account menu; on phones Venue info is in More as well
   venue: [
     { items: [
       { to: '/venue', label: 'Overview', icon: LayoutGrid, end: true, tab: true },
       { to: '/venue/live', label: 'On site', icon: Radio, tab: true },
-      { to: '/venue/rota', label: 'Rota', icon: CalendarDays },
+      { to: '/venue/rota', label: 'Rota', icon: CalendarDays, tab: true },
       { hub: 'logs', label: 'Logs', icon: NotebookPen, tab: true },
       { hub: 'feedback', label: 'Feedback', icon: MessageSquareHeart },
       { hub: 'billing', label: 'Billing', icon: ReceiptText },
-      { to: '/venue/messages', label: 'Messages', icon: MessagesSquare, tab: true, badge: 'messages' },
+      { to: '/venue/messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
+      { to: '/venue/site', label: 'Venue info', icon: Building2, phoneOnly: true },
     ] },
   ],
   officer: [

@@ -6,7 +6,7 @@ import {
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  AttentionDrawer, Avatar, Button, cx, date, dateShort, Input, List, Load, Page, Pill, Row, Section, Sheet, useAction, useApi, useConfirm,
+  AttentionDrawer, Avatar, Button, cx, date, dateShort, Input, List, Load, LoadFail, Page, Pill, Row, Section, Sheet, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
 import { NotificationsSheet } from './_notify.jsx';
 import { InstallSheet, usePwa } from '../../ui/pwa.jsx';
@@ -101,6 +101,13 @@ export default function Me() {
                 <ul className="mt-2 space-y-0.5 px-1 text-footnote font-medium text-red">{c.issues.map((i) => <li key={i}>{i}</li>)}</ul>
               )}
 
+              {/* A part that couldn't load says so, instead of looking like there's nothing to do */}
+              {[[tasks, 'your set-up steps'], [contracts, 'your contracts'], [fix, 'reports to fix']].some(([q]) => q.error) && (
+                <div className="mt-6 space-y-2">
+                  {[[tasks, 'your set-up steps'], [contracts, 'your contracts'], [fix, 'reports to fix']].map(([q, what]) => <LoadFail key={what} q={q} what={what} />)}
+                </div>
+              )}
+
               {/* Phones: what needs doing folds into one glowing bar; from lg up it stays on the page */}
               {toSign.length + toFix.length + openTasks.length > 0 && (
                 <AttentionDrawer id="attention" title="Needs your attention" className="mt-6 lg:hidden"
@@ -126,7 +133,7 @@ export default function Me() {
                   <List>
                     {(tasks.data || []).map((t) => (
                       <Row key={t.code} to={!t.done && !t.office ? t.to : undefined} left={t.done ? <CircleCheck size={24} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
-                        title={<span className={cx(t.done && 'text-muted line-through')}>{t.title}</span>}
+                        title={<span className={cx(t.done && 'text-muted line-through')}>{t.done ? t.title : t.action || t.title}</span>}
                         subtitle={t.done ? null : t.office ? t.waiting || 'Waiting on the office' : 'Tap to finish'} />
                     ))}
                   </List>
@@ -156,7 +163,7 @@ export default function Me() {
                   <List>
                     {(tasks.data || []).map((t) => (
                       <Row key={t.code} to={!t.done && !t.office ? t.to : undefined} left={t.done ? <CircleCheck size={24} className="text-green" /> : <span className="block h-[22px] w-[22px] rounded-full border-2 border-line" />}
-                        title={<span className={cx(t.done && 'text-muted line-through')}>{t.title}</span>}
+                        title={<span className={cx(t.done && 'text-muted line-through')}>{t.done ? t.title : t.action || t.title}</span>}
                         subtitle={t.done ? null : t.office ? t.waiting || 'Waiting on the office' : 'Tap to finish'} />
                     ))}
                   </List>
@@ -190,8 +197,8 @@ export default function Me() {
               <Section title="Me">
                 <List>
                   <Row to="/officer/documents" left={<Ico icon={BadgeCheck} tone="green" />} title="Documents and licence" subtitle="SIA licence, right to work, certificates" />
-                  <Row to="/officer/pay" left={<Ico icon={FileText} />} title="Pay" subtitle="Statements and your rates" />
-                  <Row to="/officer/profile" left={<Ico icon={UserRound} />} title="My details" subtitle={[o.phone, o.postcode].filter(Boolean).join(' · ') || 'Phone, address, NI, UTR, bank'} />
+                  <Row to="/officer/pay" left={<Ico icon={FileText} />} title="Pay" subtitle="Your pay statements" />
+                  <Row to="/officer/profile" left={<Ico icon={UserRound} />} title="My details" subtitle="Contact details, bank and your rates" />
                   <Row to="/officer/time-off" left={<Ico icon={CalendarOff} tone="ink" />} title="Time off and availability" />
                 </List>
                 <List className="mt-3">

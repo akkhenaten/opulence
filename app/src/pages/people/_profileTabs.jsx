@@ -890,7 +890,7 @@ export function OnboardingTab({ o, reload, onForbidden }) {
                 <div key={t.code} className="flex items-center">
                   <Pressable press onClick={() => toggle(t)} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition hover:bg-bg">
                     <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${t.done ? 'border-green bg-green text-white' : 'border-line'}`}>{t.done && <Check size={14} strokeWidth={3} />}</span>
-                    <span className={`flex-1 text-body ${t.done ? 'text-muted line-through' : 'font-semibold'}`}>{t.title}</span>
+                    <span className={`flex-1 text-body ${t.done ? 'text-muted line-through' : 'font-semibold'}`}>{t.done ? t.title : t.action || t.title}</span>
                     {t.done_at && <span className="text-caption text-faint">{dateShort(t.done_at)}</span>}
                   </Pressable>
                   {!t.done && STEP_TAB[t.code] && <Button size="sm" variant="ghost" className="mr-2" to={`?${STEP_TAB[t.code]}`} replace>{t.code === 'contract' && t.waiting ? 'Issue contract' : 'Do it'}</Button>}

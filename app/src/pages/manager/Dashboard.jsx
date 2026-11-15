@@ -5,7 +5,7 @@ import {
   Sparkles, TrendingUp, TriangleAlert, UserX,
 } from 'lucide-react';
 import {
-  AttentionDrawer, Button, Chip, IconButton, MoreMenu, Page, Pill, Stat, Tile, confirmState, cx, dayLabel, hours, isoDate, money0, range, time, useAction, useApi, useAttention, useMedia, useToast,
+  AttentionDrawer, Button, LoadFail, anyFailed, Chip, IconButton, MoreMenu, Page, Pill, Stat, Tile, confirmState, cx, dayLabel, hours, isoDate, money0, range, time, useAction, useApi, useAttention, useMedia, useToast,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
@@ -47,13 +47,14 @@ const NEEDS = [
 const countsOf = (d) => ({ ...(d?.counts || {}), cantWork: d?.nonCompliantCount || 0, expiring: (d?.expiring || []).length });
 const needsFor = (c, isCompany) => NEEDS.filter((n) => (c[n.key] || 0) > 0 && (!n.company || isCompany));
 
-function summaryLine(d, isCompany, onSite, orb) {
+function summaryLine(d, isCompany, onSite, orb, failed) {
   const parts = [dayLabel(isoDate())];
-  if (!d) return parts[0];
+  if (!d) return failed ? `${parts[0]} · couldn't check everything` : parts[0];
   if (onSite) parts.push(`${onSite} on site`);
   const c = countsOf(d);
   const n = needsFor(c, isCompany).reduce((a, x) => a + c[x.key], 0) + (orb || 0);
-  parts.push(n ? `${n} ${n === 1 ? 'thing needs' : 'things need'} you` : 'all clear');
+  // A failed check never reads as all clear
+  parts.push(n ? `${n} ${n === 1 ? 'thing needs' : 'things need'} you` : failed ? "couldn't check everything" : 'all clear');
   return parts.join(' · ');
 }
 
@@ -106,6 +107,8 @@ export default function Dashboard() {
   const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: 'numeric', hourCycle: 'h23' }).format(new Date()));
   const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const orb = count.data?.n || 0;
+  const failed = anyFailed(q, count, toSign);
+  const retry = () => { q.reload(); count.reload(); toSign.reload(); };
   const onSite = board.rows.filter((r) => ['on_shift', 'on_break'].includes(r.state)).length;
 
   // Any shift change or Orb decision anywhere in the app: the board, the counts and the cards catch up
@@ -140,17 +143,17 @@ export default function Dashboard() {
   );
 
   return (
-    <Page backLabel="Today" title={`${greet}${first ? `, ${first}` : ''}`} subtitle={summaryLine(tab === 'everyday' ? null : dash, isCompany, onSite, orb)} wide photo="door" slim actions={actions || undefined}>
+    <Page backLabel="Today" title={`${greet}${first ? `, ${first}` : ''}`} subtitle={summaryLine(tab === 'everyday' ? null : dash, isCompany, onSite, orb, tab !== 'everyday' && failed)} wide photo="door" slim actions={actions || undefined}>
       {tab !== 'everyday' && <PushCard className="mb-4" later="your account menu" />}
       {tab === 'everyday'
         ? <FeedBody lead={<Button size="sm" variant="ghost" icon={ChevronLeft} onClick={() => setSp({}, { replace: true })}>Today</Button>} />
-        : <Today d={dash} board={board} base={base} isCompany={isCompany} lg={lg} orb={orb} reloadKey={reloadKey} focus={sp.get('card')} onOrbChange={() => { count.reload(); q.reload(); }} />}
+        : <Today d={dash} board={board} base={base} isCompany={isCompany} lg={lg} orb={orb} failed={failed} onRetry={retry} reloadKey={reloadKey} focus={sp.get('card')} onOrbChange={() => { count.reload(); q.reload(); }} />}
       {tab !== 'everyday' && <InstallCard className="mt-4" later={isCompany ? 'Settings' : 'My account'} />}
     </Page>
   );
 }
 
-function Today({ d, board, base, isCompany, lg, orb, reloadKey, onOrbChange, focus }) {
+function Today({ d, board, base, isCompany, lg, orb, failed, onRetry, reloadKey, onOrbChange, focus }) {
   const c = countsOf(d);
   const list = needsFor(c, isCompany);
   const total = list.reduce((a, x) => a + c[x.key], 0) + orb;
@@ -173,7 +176,9 @@ function Today({ d, board, base, isCompany, lg, orb, reloadKey, onOrbChange, foc
     <Inbox slim scroll={lg} compact n={orb} reloadKey={reloadKey} onChange={onOrbChange} focus={focus} title={title}
       pill={total > 0 ? <Pill tone="blue" className="num">{total}</Pill> : null}
       before={rows(['red'])} after={rows(['amber', 'blue'])}
-      empty={(
+      empty={failed ? (
+        <LoadFail q={{ error: true, reload: onRetry }} what="everything that needs you" />
+      ) : (
         <div className="ui-panel flex items-center gap-3 rounded-tile border border-hairline bg-surface p-4 shadow-tile">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-green-soft text-green"><CheckCircle2 size={18} /></span>
           <p className="text-subhead font-semibold">All clear, nothing needs you right now.</p>
@@ -183,7 +188,7 @@ function Today({ d, board, base, isCompany, lg, orb, reloadKey, onOrbChange, foc
   const queue = queueOf('Needs you');
   const top = list[0];
   const needsBar = (
-    <AttentionDrawer id="needs" title="Needs you" count={total}
+    <AttentionDrawer id="needs" title="Needs you" count={total} failed={failed} onRetry={onRetry}
       tone={list.some((x) => x.tone === 'red') ? 'red' : orb > 0 ? 'blue' : top?.tone || 'blue'}
       preview={[...list.filter((x) => x.tone === 'red'), ...(orb > 0 ? [{ icon: Sparkles, tone: 'blue' }] : []), ...list.filter((x) => x.tone !== 'red')]}
       lead={top ? `${c[top.key]} ${c[top.key] === 1 ? top.one : top.many}${list.length > 1 || orb ? ' · and more' : ''}` : orb > 0 ? `${orb} from Orb to approve` : null}>

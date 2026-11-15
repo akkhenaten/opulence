@@ -85,7 +85,7 @@ export function DayLines({ lines, periodStart, extra = [], who, onRow, action, e
               <th className={cx('py-3 pr-3 font-semibold', !who && 'pl-4')}>Description</th>
               <th className="px-3 py-3 text-right font-semibold">Hours</th>
               <th className="px-3 py-3 text-right font-semibold">Rate</th>
-              <th className="px-3 py-3 text-right font-semibold">Amount</th>
+              <th className="px-3 py-3 text-right font-semibold">Net</th>
               {extra.map((c) => <th key={c.key} className="px-3 py-3 text-right font-semibold">{c.label}</th>)}
               {action && <th className="px-3 py-3"><span className="sr-only">Actions</span></th>}
             </tr>

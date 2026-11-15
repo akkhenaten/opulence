@@ -18,7 +18,7 @@ export function ShiftLogList({ venueId: fixed }) {
     ) : (
       <List>
         {rows.map((r) => (
-          <Row key={r.shift_id} to={link(r.shift_id)} chevron
+          <Row key={r.shift_id} to={link(r.shift_id)} state={{ from: 'logs' }} chevron
             title={<>{dayLabel(r.starts_at)} <span className="num font-normal text-muted">{range(r.starts_at, r.ends_at)}</span></>}
             subtitle={`${named ? `${r.venue_name} · ` : ''}${r.handover_summary || `${r.entries} entr${r.entries === 1 ? 'y' : 'ies'}${r.signed_by_name ? ` · signed by ${r.signed_by_name}` : ''}`}`}
             right={(

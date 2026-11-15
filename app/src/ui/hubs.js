@@ -8,7 +8,7 @@ export const HUBS = {
       { to: 'email', label: 'Email', roles: ['company'] },
     ] },
     rota: { title: 'Rota', tabs: [
-      { to: 'rota', label: 'Week' },
+      { to: 'rota', label: 'Week', trail: 'Rota' },
       { to: 'rota?tab=requests', label: 'Shift requests' },
       { to: 'cover', label: 'Cover' },
       { to: 'exceptions', label: 'Exceptions' },
@@ -66,7 +66,7 @@ export const HUBS = {
       { to: 'bans', label: 'Ejections' },
     ] },
     feedback: { title: 'Feedback', tabs: [
-      { to: 'feedback', label: 'Give feedback' },
+      { to: 'feedback', label: 'Give feedback', trail: 'Feedback' },
       { to: 'reviews', label: 'Reviews' },
       { to: 'analytics', label: 'Analytics', module: 'analytics' },
     ] },

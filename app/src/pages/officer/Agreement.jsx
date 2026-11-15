@@ -22,7 +22,7 @@ export default function Agreement() {
   const [run, busy] = useAction();
   const a = q.data;
   return (
-    <Page title="Pay rise" back={{ to: '/officer/me/growth', label: 'Goals' }}
+    <Page title="Pay rise" back={{ to: '/officer/me/growth', label: 'Goals and one-to-ones' }}
       actions={a && <>
         <Pill tone={STATUS[a.status]?.[1]}>{STATUS[a.status]?.[0]}</Pill>
         {a.status !== 'sent' && <Button variant="secondary" icon={Download} iconOnly="phone" busy={busy} onClick={() => run(() => downloadAction('payAgreements.pdf', { id })).catch(() => {})}>PDF</Button>}

@@ -34,7 +34,7 @@ export default function IncidentDetail() {
   const [office, asking] = useOfficeChat(base);
   const inc = q.data;
   return (
-    <Page title={inc ? inc.reference || inc.ref : 'Incident'} subtitle={inc && `${typeLabel(inc.type)} · ${inc.venue_name}`} back={{ to: `${base}/incidents`, label: 'Incidents' }}
+    <Page title={inc ? inc.reference || inc.ref : 'Incident'} subtitle={inc && `${typeLabel(inc.type)} · ${inc.venue_name}`} back={{ to: `${base}/incidents`, label: user.role === 'venue' ? 'Incidents' : 'Reports' }}
       actions={inc && user.role === 'venue' && <Button variant="secondary" icon={MessagesSquare} iconOnly="phone" busy={asking} onClick={() => office(inc.venue_id, `About incident ${inc.reference || inc.ref}: `)}>Ask the office</Button>}>
       <Load q={q}>{(x) => <Detail inc={x} reload={q.reload} base={base} pdf={pdf} pdfBusy={busy} />}</Load>
     </Page>

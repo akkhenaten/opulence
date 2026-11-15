@@ -143,6 +143,13 @@ export default function Timesheets() {
       { value: 'review', label: 'To sign', count: all.filter((r) => r.state === 'approved').length }, { value: 'queried', label: 'Queried' }]
     : [{ value: 'all', label: 'All' }, { value: 'review', label: 'Needs review', count: health.to_review }, { value: 'queried', label: 'Queried' }, { value: 'no_clock_in', label: 'No clock-in' }];
 
+  // Each view says what is empty, so an empty tab never reads like a filter problem
+  const EMPTY = {
+    all: 'No timesheets for this week', live: 'No one on site right now', queried: 'No queried timesheets',
+    review: isVenue ? 'Nothing to sign this week' : 'Nothing needs review', no_clock_in: 'No missing clock-ins',
+    cancelled: 'No cancelled shifts with hours', no_rate: 'Every shift has a rate', unpaid_late: 'Nothing signed and waiting for pay',
+  };
+
   // The week sits beside the title; the view, venue and officer sit on the tab line, so the table starts high
   const weekPicker = (
     <span className="inline-flex items-center gap-1">
@@ -193,7 +200,9 @@ export default function Timesheets() {
       )}
 
       <Load q={q}>{() => !rows.length ? (
-        <Empty icon={ClipboardCheck} title={all.length ? 'Nothing matches' : 'No shifts this week'} body={all.length ? 'Try another filter.' : 'Confirmed shifts show here as soon as officers accept them.'} />
+        officerId || (!isVenue && venueId)
+          ? <Empty icon={ClipboardCheck} title="Nothing matches" body="Try another venue or officer." />
+          : <Empty icon={ClipboardCheck} title={EMPTY[filter] || EMPTY.all} body={filter === 'all' || !EMPTY[filter] ? 'Confirmed shifts show here as soon as officers accept them.' : undefined} />
       ) : (
         <WeekTable rows={rows} week={week} days={q.data.days} see={see} sel={sel} toggle={toggle} can={can} act={act} onOpen={onOpen} busy={busy} />
       )}</Load>
@@ -234,6 +243,9 @@ function WeekStrip({ wk, health, see, filter, setFilter, isVenue }) {
   ].filter((c) => c && c[1] > 0);
   // One line by default (the totals); Show breakdown opens the full strip with what still needs doing
   const [full, setFull] = useState(false);
+  if (!Number(wk.hours) && !chips.length) return (
+    <div className="mb-4 rounded-tile border border-hairline bg-surface px-4 py-2.5 text-subhead text-muted shadow-tile">No hours this week</div>
+  );
   const toggle = (
     <Button variant="ghost" size="sm" iconRight={full ? ChevronUp : ChevronDown} aria-expanded={full} onClick={() => setFull(!full)} className="ml-auto">
       {full ? 'Hide breakdown' : 'Show breakdown'}

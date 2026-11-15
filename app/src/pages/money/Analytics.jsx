@@ -1,5 +1,5 @@
 // Analytics: lateness and absence, incidents, satisfaction and customers, with the change against the period before
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { CalendarClock, LineChart, MessageSquareHeart, ShieldAlert, Users } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
@@ -92,10 +92,12 @@ export function AnalyticsView({ venueId, fixedVenue }) {
   const { range } = r;
   // A venue manager's venue follows their home tiles / top-bar chip
   const shared = useVenue();
-  const [localVenue, setLocalVenue] = useState(venueId || '');
-  const venue = office ? localVenue : shared.venueId;
-  const setVenue = office ? setLocalVenue : shared.setVenueId;
-  const [officer, setOfficer] = useState('');
+  // The office's venue and officer filters are in the address, so Back from a drill-through finds them as they were
+  const [pick, setPick] = useUrlState({ venue: venueId || '', officer: '' });
+  const venue = office ? pick.venue : shared.venueId;
+  const setVenue = office ? (v) => setPick({ venue: v }) : shared.setVenueId;
+  const officer = pick.officer;
+  const setOfficer = (v) => setPick({ officer: v });
   const ok = range.from && range.to && range.from <= range.to;
   const opts = useApi('analytics.options', {}, { skip: fixedVenue });
   const q = useApi('analytics.venue', { from: range.from, to: range.to, venue_id: (fixedVenue ? venueId : venue) || null, officer_id: officer || null }, { skip: !ok });
@@ -124,7 +126,7 @@ export function AnalyticsView({ venueId, fixedVenue }) {
   const body = !ok ? <Empty icon={LineChart} title="Choose a date range" body="The start date must be on or before the end date." />
     : q.error && !q.data ? <ErrorBox error={q.error} retry={q.reload} />
     : !q.data ? <SkeletonTiles n={8} />
-    : <Sections d={q.data} base={base} office={office} venueFilter={(fixedVenue ? venueId : venue) || ''} />;
+    : <Sections d={q.data} base={base} office={office} range={range} venueFilter={(fixedVenue ? venueId : venue) || ''} />;
 
   if (fixedVenue) return <>{filters}{body}</>;
   return (
@@ -136,10 +138,12 @@ export function AnalyticsView({ venueId, fixedVenue }) {
   );
 }
 
-function Sections({ d, base, office, venueFilter }) {
+function Sections({ d, base, office, range, venueFilter }) {
   const { attendance: a, incidents: i, satisfaction: s, customers: c } = d;
   const many = !venueFilter;
-  const fb = (tone) => `${base}/feedback?status=${tone === 'complaint' ? 'open' : 'all'}${tone ? `&tone=${tone}` : ''}${venueFilter ? `&venue=${venueFilter}` : ''}`;
+  // Drill-throughs carry the period and venue being looked at
+  const ctx = `from=${range.from}&to=${range.to}${venueFilter ? `&venue=${venueFilter}` : ''}`;
+  const fb = (tone) => `${base}/feedback?status=${tone === 'complaint' ? 'open' : 'all'}${tone ? `&tone=${tone}` : ''}&${ctx}`;
   return (
     <div className="space-y-2">
       <Part id="a-attendance" title="Lateness and absence" icon={CalendarClock}>
@@ -158,7 +162,7 @@ function Sections({ d, base, office, venueFilter }) {
 
       <Part id="a-incidents" title="Incidents" icon={ShieldAlert}>
         <Bento>
-          <Tile icon={ShieldAlert} title="Incidents" to={`${base}/incidents`}><Stat value={i.total} label="Reported" hint={change(i, 'total')} tone={toneOf(i, 'total')} /></Tile>
+          <Tile icon={ShieldAlert} title="Incidents" to={`${base}/incidents?${ctx}`}><Stat value={i.total} label="Reported" hint={change(i, 'total')} tone={toneOf(i, 'total')} /></Tile>
           <Tile title="High or critical"><Stat value={i.high} label="Serious incidents" hint={change(i, 'high')} tone={toneOf(i, 'high')} /></Tile>
           <Tile title="Per 1,000 customers"><Stat value={fig(i.per_1000)} label="On nights with a count" hint={i.per_1000 == null ? 'Needs customer numbers' : change(i, 'per_1000')} tone={toneOf(i, 'per_1000')} /></Tile>
           <Tile title="Bans"><Stat value={i.bans} label="Customers banned" hint={change(i, 'bans')} /></Tile>

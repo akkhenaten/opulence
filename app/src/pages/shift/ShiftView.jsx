@@ -54,9 +54,11 @@ export default function ShiftView() {
   const loc = useLocation();
   const q = useApi('shifts.detail', { id }, { poll: 30000 });
   const mgr = user.role !== 'officer' && user.role !== 'venue';
+  // Opened fresh (a link, a refresh with no history): back to where the shift was opened from, else the rota
+  const from = loc.state?.from;
   const back = user.role === 'officer' ? { to: '/officer/shifts', label: 'Shifts' }
-    : user.role === 'venue' ? { to: '/venue/logs', label: 'Shift logs' }
-      : loc.state?.from === 'live' ? (user.role === 'venue' ? { to: '/venue/live', label: 'On site' } : { to: `/${user.role}`, label: 'Today' }) : { to: `/${user.role}/rota`, label: 'Rota' };
+    : user.role === 'venue' ? (from === 'live' ? { to: '/venue/live', label: 'On site' } : from === 'logs' ? { to: '/venue/logs', label: 'Shift logs' } : { to: '/venue/rota', label: 'Rota' })
+      : from === 'live' ? { to: `/${user.role}`, label: 'Today' } : { to: `/${user.role}/rota`, label: 'Rota' };
   return (
     <Page backLabel="Shift" title={q.data?.shift.venue_name || 'Shift'} subtitle={q.data ? <>{dayLabel(q.data.shift.starts_at)} · <span className="num">{range(q.data.shift.starts_at, q.data.shift.ends_at)}</span></> : null} back={back}>
       <Load q={q} skeleton="rows">{(d) => (mgr && d.me.access === 'mgr' ? <ManagerShift d={d} reload={q.reload} role={user.role} /> : <Body d={d} reload={q.reload} role={user.role} />)}</Load>

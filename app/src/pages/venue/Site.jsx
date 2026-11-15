@@ -13,11 +13,11 @@ export default function Site() {
     <Load q={venues} skeleton="page">
       {(all) => {
         const list = all.filter((v) => v.active !== false);
-        if (!list.length) return <Page title="My venue"><Empty icon={Building2} title="No venue linked" body="Ask the security company to give you access to your venue." /></Page>;
+        if (!list.length) return <Page title="My venue" back={{ to: '/venue', label: 'Overview' }}><Empty icon={Building2} title="No venue linked" body="Ask the security company to give you access to your venue." /></Page>;
         const id = list.length === 1 ? list[0].id : venueId;
         if (!id) {
           return (
-            <Page title="My venues" subtitle="Choose a venue to see its details, site pack and documents">
+            <Page title="My venues" back={{ to: '/venue', label: 'Overview' }} subtitle="Choose a venue to see its details, site pack and documents">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {list.map((v) => (
                   <Pressable key={v.id} card onClick={() => setVenueId(v.id)}
@@ -35,7 +35,7 @@ export default function Site() {
           );
         }
         return (
-          <Page title="My venue" subtitle="Details the security company keeps for your site">
+          <Page title="My venue" back={{ to: '/venue', label: 'Overview' }} subtitle="Details the security company keeps for your site">
             <VenueView key={id} id={id} />
           </Page>
         );

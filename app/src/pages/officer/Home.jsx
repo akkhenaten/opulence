@@ -7,7 +7,7 @@ import {
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  AttentionDrawer, Avatar, Button, cx, date, dateShort, dayLabel, daysUntil, List, Load, money, Page, range, relative, Row, Section, Tile, time, useAction, useApi, useMedia, usePullRefresh,
+  AttentionDrawer, Avatar, Button, cx, date, dateShort, dayLabel, daysUntil, List, Load, LoadFail, money, Page, range, relative, Row, Section, Tile, time, useAction, useApi, useMedia, usePullRefresh,
 } from '../../ui/index.jsx';
 import { useModules } from '../learn/_parts.jsx';
 import { ChaseBanner, useOps } from './_ops.jsx';
@@ -86,10 +86,13 @@ function Body({ d, clock, ops, reload }) {
 
   const offers = (ops.data?.offers || []).filter((o) => o.status === 'offered');
   // Site packs to read before upcoming shifts: a To do row each, and a line on the next shift's card
-  const packs = packTodos(useApi('venuePacks.myList', {}).data?.venues);
+  const packsQ = useApi('venuePacks.myList', {});
+  const packs = packTodos(packsQ.data?.venues);
   const addFor = (kind) => `/officer/documents${kind ? `?add=${kind}` : ''}`;
   const paid = freshStatement(d.lastStatement);
-  const todo = useToDo(d, packs);
+  const [todo, todoFails] = useToDo(d, packs);
+  // A list that couldn't load says so here, so an empty To do doesn't read as "nothing to do"
+  const fails = [[clock, 'your clock-in'], [packsQ, 'site packs to read'], ...todoFails];
   // Phones: the shifts to answer and the to-do list fold into one glowing bar, so the page stays short
   const lg = useMedia('(min-width: 1024px)');
   const tone = todo.some((r) => r.tone === 'red') ? 'red' : ask.length ? 'amber' : todo.some((r) => r.tone === 'amber') ? 'amber' : 'blue';
@@ -117,6 +120,10 @@ function Body({ d, clock, ops, reload }) {
           <Hero s={confirmed[0]} clockable={cur?.assignment_id === confirmed[0].assignment_id} clockedIn={cur?.assignment_id === confirmed[0].assignment_id && (cur.events || []).some((e) => e.status !== 'rejected')} blocked={d.issues?.length > 0} pack={packs.find((v) => v.venue_id === confirmed[0].venue_id)} onDecline={() => setDeclining(confirmed[0])} />
         )}
       </Section>
+
+      {fails.some(([q]) => q.error) && (
+        <div className="space-y-2">{fails.map(([q, what]) => <LoadFail key={what} q={q} what={what} />)}</div>
+      )}
 
       <ChaseBanner ops={ops} />
       <PhoneCard soon={next.some((s) => new Date(s.starts_at) - Date.now() < 864e5)} />
@@ -310,9 +317,11 @@ function useToDo(d, packs) {
   });
   const signing = rows.some((r) => r.icon === FileSignature);
   (tasks.data || []).filter((t) => !t.done && !(signing && t.code === 'contract')).forEach((t) => rows.push(t.office
-    ? { k: `o${t.code}`, icon: ListChecks, tone: 'grey', title: t.title, sub: t.waiting || 'Waiting on the office' }
-    : { k: `o${t.code}`, to: t.to, icon: ListChecks, tone: 'blue', title: t.title, sub: 'Getting set up' }));
-  return rows;
+    ? { k: `o${t.code}`, icon: ListChecks, tone: 'grey', title: t.action || t.title, sub: t.waiting || 'Waiting on the office' }
+    : { k: `o${t.code}`, to: t.to, icon: ListChecks, tone: 'blue', title: t.action || t.title, sub: 'Getting set up' }));
+  const fails = [[tasks, 'your set-up steps'], [contracts, 'your contracts'], [drafts, 'your draft reports'], [resign, 'reports to sign']];
+  if (m?.academy) fails.push([learn, 'your training']);
+  return [rows, fails];
 }
 
 function ToDo({ rows }) {

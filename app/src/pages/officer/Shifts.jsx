@@ -22,13 +22,22 @@ export default function Shifts() {
     decided.current = true;
     if (offered) set({ tab: 'offers' });
   }, [ops.data]); // eslint-disable-line react-hooks/exhaustive-deps
-  const tab = ['open', 'offers', 'mine'].includes(url.tab) ? url.tab : 'calendar';
+  const tab = ['open', 'offers', 'mine', 'past'].includes(url.tab) ? url.tab : 'calendar';
   const setTab = (t) => { decided.current = true; set({ tab: t === 'calendar' ? '' : t }); };
   const waiting = !url.tab && !ops.data && ops.loading;
   const pull = usePullRefresh(() => Promise.all([open.reload(), ops.reload()]), !['mine', 'calendar'].includes(tab) && !!user.officer_id);
 
+  // Past shifts: its own view with its own heading, Back returns to the shifts
+  if (tab === 'past') {
+    return (
+      <Page title="Past shifts" back={{ to: '/officer/shifts', label: 'Shifts' }}>
+        {!user.officer_id ? <NotLinked /> : <Past />}
+      </Page>
+    );
+  }
+
   return (
-    <Page title="Shifts" actions={<><Button size="sm" variant="secondary" icon={CalendarOff} iconOnly="phone" to="/officer/time-off?tab=availability">Availability</Button><MoreMenu items={[{ label: 'Past shifts', icon: History, to: '/officer/shifts?tab=mine' }]} /></>}>
+    <Page title="Shifts" actions={<><Button size="sm" variant="secondary" icon={CalendarOff} iconOnly="phone" to="/officer/time-off?tab=availability">Availability</Button><MoreMenu items={[{ label: 'Past shifts', icon: History, to: '/officer/shifts?tab=past' }]} /></>}>
       {pull}
       {!user.officer_id ? <NotLinked /> : (
         <>
@@ -72,7 +81,7 @@ function Mine() {
               </div>
             )}
             {!upcoming.length ? (
-              <Empty photo="kit" icon={CalendarDays} title="No upcoming shifts" body="When you're booked on a shift it appears here." action={<Button to="/officer/shifts?tab=open" icon={Megaphone}>Find open shifts</Button>} />
+              <Empty photo="kit" icon={CalendarDays} title="No upcoming shifts" body="When you're booked on a shift it appears here." action={<div className="flex flex-wrap justify-center gap-2"><Button to="/officer/shifts?tab=open" icon={Megaphone}>Find open shifts</Button><Button variant="secondary" icon={History} to="/officer/shifts?tab=past">See past shifts</Button></div>} />
             ) : (
               <div className="space-y-2.5">
                 {upcoming.map((s) => {
@@ -107,13 +116,7 @@ function Mine() {
             {past.length > 0 && (
               <Section title="Recent" icon={History} count={past.length}>
                 <div className="space-y-2.5 opacity-90">
-                  {past.map((s) => {
-                    const ins = (s.clock || []).filter((e) => e.kind === 'in' && e.status !== 'rejected');
-                    const outs = (s.clock || []).filter((e) => e.kind === 'out' && e.status !== 'rejected');
-                    const worked = ins.length ? `Worked ${time(ins[0].ts)}${outs.length ? `–${time(outs.at(-1).ts)}` : ''}` : 'No clock-in recorded';
-                    const canReport = now - new Date(s.ends_at).getTime() < 30 * 86400000;
-                    return <ShiftCard key={s.assignment_id} s={s} to={`/officer/shifts/${s.id}`} status={ins.length ? 'Worked' : 'Not clocked'} statusTone={ins.length ? 'grey' : 'amber'}><p className="mt-2 text-footnote text-muted">{worked}{canReport && <span className="font-semibold text-blue"> · Report or log an ejection ›</span>}</p></ShiftCard>;
-                  })}
+                  {past.map((s) => <PastCard key={s.assignment_id} s={s} now={now} />)}
                 </div>
               </Section>
             )}
@@ -123,6 +126,54 @@ function Mine() {
         );
       }}
     </Load>
+    </>
+  );
+}
+
+// A shift that has ended: when the officer clocked in and out, and a way to report on it while that's still allowed
+function PastCard({ s, now }) {
+  const ins = (s.clock || []).filter((e) => e.kind === 'in' && e.status !== 'rejected');
+  const outs = (s.clock || []).filter((e) => e.kind === 'out' && e.status !== 'rejected');
+  const worked = ins.length ? `Worked ${time(ins[0].ts)}${outs.length ? `–${time(outs.at(-1).ts)}` : ''}` : 'No clock-in recorded';
+  const canReport = now - new Date(s.ends_at).getTime() < 30 * 86400000;
+  return <ShiftCard s={s} to={`/officer/shifts/${s.id}`} status={ins.length ? 'Worked' : 'Not clocked'} statusTone={ins.length ? 'grey' : 'amber'}><p className="mt-2 text-footnote text-muted">{worked}{canReport && <span className="font-semibold text-blue"> · Report or log an ejection ›</span>}</p></ShiftCard>;
+}
+
+// Past shifts, newest first: the last 6 weeks, and older ones 6 weeks at a time
+const STEP_WEEKS = 6;
+function Past() {
+  const [weeks, setWeeks] = useState(STEP_WEEKS);
+  const [to] = useState(() => new Date().toISOString());
+  const from = new Date(`${addDays(isoDate(), -7 * weeks)}T00:00:00Z`).toISOString();
+  const q = useApi('shifts.mine', { from, to });
+  const pull = usePullRefresh(q.reload);
+  const now = Date.now();
+  const past = (q.data || []).filter((s) => new Date(s.ends_at) <= now && s.assignment_status === 'accepted').sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
+  // Going further back found nothing more: there is nothing older to show
+  const [counts, setCounts] = useState({});
+  useEffect(() => { if (q.data && !q.loading) setCounts((c) => ({ ...c, [weeks]: past.length })); }, [q.data, q.loading, weeks, past.length]);
+  const noMore = weeks > STEP_WEEKS && counts[weeks] != null && counts[weeks] === counts[weeks - STEP_WEEKS];
+  const period = `Last ${weeks} weeks`;
+  return (
+    <>
+      {pull}
+      <p className="mb-3 px-1 text-footnote text-muted"><History size={14} className="mr-1 inline" />{period} · Only shifts you were booked on and accepted are listed</p>
+      <Load q={q} skeleton="rows">
+        {() => (
+          <>
+            {!past.length ? (
+              <Empty icon={History} title={`No past shifts in the last ${weeks} weeks`} body="Shifts you've worked show here once they've ended." />
+            ) : (
+              <div className="space-y-2.5">{past.map((s) => <PastCard key={s.assignment_id} s={s} now={now} />)}</div>
+            )}
+            <div className="mt-4 flex justify-center">
+              {noMore
+                ? <p className="text-footnote text-muted">No earlier shifts</p>
+                : <Button variant="secondary" busy={q.loading} onClick={() => setWeeks((w) => w + STEP_WEEKS)}>Show older shifts</Button>}
+            </div>
+          </>
+        )}
+      </Load>
     </>
   );
 }

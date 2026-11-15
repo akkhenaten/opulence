@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Building2, CalendarDays, ClipboardCheck, FileSignature, Layers, LineChart, MapPin, Megaphone, MessageSquareHeart, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
+import { AlertTriangle, Bell, Building2, CalendarDays, ClipboardCheck, FileSignature, Layers, LineChart, MapPin, Megaphone, MessageSquareHeart, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import { FeedbackTile, GiveFeedbackSheet, RateStaffSheet } from '../venue/_feedback.jsx';
@@ -38,6 +38,8 @@ function Body({ d, name }) {
   const live = d.live;
   const toSign = d.counts?.toSign || 0;
   const pendingCover = d.cover.filter((c) => c.status === 'pending').length;
+  const openInc = d.incidents.filter((i) => i.status !== 'closed').length;
+  const quiet = [!toSign && 'timesheets', !(Number(d.invoices.outstanding) > 0) && 'invoices', !pendingCover && 'cover', !openInc && 'incidents'].filter(Boolean);
   const [rate, setRate] = useState(false);
   const [give, setGive] = useState(false);
   const analytics = useModuleOn('analytics');
@@ -62,6 +64,35 @@ function Body({ d, name }) {
       <RateStaffSheet open={rate} onClose={() => setRate(false)} />
       <GiveFeedbackSheet open={give} onClose={() => setGive(false)} />
       <NeedsYou d={d} toSign={toSign} venueId={venueId} />
+      <Section title="Next 48 hours">
+        {!d.shifts.length ? <Quiet icon={CalendarDays} text="No shifts booked in the next 48 hours." /> : (
+          <List>
+            {d.shifts.map((s) => {
+              const short = s.filled < s.headcount;
+              return (
+                <div key={s.id} className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-body font-semibold">{dayLabel(s.starts_at)} · <span className="num">{range(s.starts_at, s.ends_at)}</span></div>
+                      <div className="truncate text-footnote text-muted">{s.role_name}{multi ? ` · ${s.venue_name}` : ''}</div>
+                    </div>
+                    <Pill tone={short || s.confirmed < s.filled ? 'amber' : 'green'}><span className="num">{s.filled}/{s.headcount}</span> {short ? 'filling' : s.confirmed < s.filled ? 'booked' : 'confirmed'}</Pill>
+                  </div>
+                  {s.team?.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {s.team.map((t, i) => (
+                        <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-bg px-2.5 py-0.5 text-caption font-semibold">
+                          <Dot tone={assignTone(t.status)} label={t.status === 'accepted' ? 'Confirmed' : 'Not confirmed yet'} />{t.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </List>
+        )}
+      </Section>
       {d.tiles && <VenueTiles d={d} venueId={venueId} onPick={setVenueId} />}
       <Bento>
         <Tile tone="blue" to="/venue/live" title="On site now" icon={Radio} className="col-span-2 lg:row-span-2">
@@ -87,53 +118,25 @@ function Body({ d, name }) {
           )}
         </Tile>
 
-        <Tile title="Timesheets" icon={ClipboardCheck} to="/venue/timesheets">
-          <Stat value={toSign} label={toSign === 1 ? 'Timesheet to sign' : 'Timesheets to sign'} tone={toSign ? 'blue' : undefined} hint={toSign ? 'Please check and sign' : 'All signed'} />
-        </Tile>
-        <Tile title="Invoices" icon={ReceiptText} to="/venue/invoices">
-          <Stat value={money(d.invoices.outstanding)} label="Outstanding" hint={`${d.invoices.count} invoice${d.invoices.count === 1 ? '' : 's'}`} />
-        </Tile>
-        <Tile title="Cover" icon={Megaphone} to="/venue/rota?tab=requests">
+        {toSign > 0 && <Tile title="Timesheets" icon={ClipboardCheck} to="/venue/timesheets">
+          <Stat value={toSign} label={toSign === 1 ? 'Timesheet to sign' : 'Timesheets to sign'} tone="blue" hint="Please check and sign" />
+        </Tile>}
+        {Number(d.invoices.outstanding) > 0 && <Tile title="Invoices" icon={ReceiptText} to="/venue/invoices">
+          <Stat value={money(d.invoices.outstanding)} label="Outstanding" hint={`${d.invoices.count} invoice${d.invoices.count === 1 ? '' : 's'} · incl. VAT`} />
+        </Tile>}
+        {pendingCover > 0 && <Tile title="Cover" icon={Megaphone} to="/venue/rota?tab=requests">
           <Stat value={pendingCover} label="Requests awaiting reply" hint={`${d.cover.length} upcoming`} />
-        </Tile>
-        <Tile title="Incidents" icon={ShieldAlert} to="/venue/incidents">
-          <Stat value={d.incidents.filter((i) => i.status !== 'closed').length} label="Open in recent reports" hint={`${d.incidents.length} recent`} />
-        </Tile>
+        </Tile>}
+        {openInc > 0 && <Tile title="Incidents" icon={ShieldAlert} to="/venue/incidents">
+          <Stat value={openInc} label="Open in recent reports" hint={`${d.incidents.length} recent`} />
+        </Tile>}
       </Bento>
+      {/* Zero tiles fold into one quiet line, so the page leads with what is open */}
+      {quiet.length > 0 && <p className="mt-2 text-footnote text-muted">Nothing open: {quiet.join(', ')}</p>}
       <FeedbackTile multi={multi} className="mt-4" />
       {analytics && <MonthTile venueId={venueId} />}
 
       <div className="grid grid-cols-1 gap-x-4 lg:grid-cols-2">
-        <Section title="Next 48 hours">
-          {!d.shifts.length ? <Quiet icon={CalendarDays} text="No shifts booked in the next 48 hours." /> : (
-            <List>
-              {d.shifts.map((s) => {
-                const short = s.filled < s.headcount;
-                return (
-                  <div key={s.id} className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-body font-semibold">{dayLabel(s.starts_at)} · <span className="num">{range(s.starts_at, s.ends_at)}</span></div>
-                        <div className="truncate text-footnote text-muted">{s.role_name}{multi ? ` · ${s.venue_name}` : ''}</div>
-                      </div>
-                      <Pill tone={short || s.confirmed < s.filled ? 'amber' : 'green'}><span className="num">{s.filled}/{s.headcount}</span> {short ? 'filling' : s.confirmed < s.filled ? 'booked' : 'confirmed'}</Pill>
-                    </div>
-                    {s.team?.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {s.team.map((t, i) => (
-                          <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-bg px-2.5 py-0.5 text-caption font-semibold">
-                            <Dot tone={assignTone(t.status)} label={t.status === 'accepted' ? 'Confirmed' : 'Not confirmed yet'} />{t.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </List>
-          )}
-        </Section>
-
         {/* Cover requests are on the Cover tile and Rota → Requests; incidents show only when there are some */}
         {d.incidents.length > 0 && (
           <Section title="Recent incidents" action={<Link to="/venue/incidents" className="-my-2.5 inline-block py-2.5 text-subhead font-semibold text-blue">See all</Link>}>
@@ -173,10 +176,13 @@ function NeedsYou({ d, toSign, venueId }) {
   // Incident reports the officer and the manager have signed, waiting on the venue's signature
   const inc = useApi('incidents.list', { to_sign: true, venue_id: venueId || undefined }, { poll: 60000 });
   const reports = d.counts?.incidentsToSign ?? (inc.data?.length || 0);
+  // A failed check is said out loud, never counted as nothing to sign
+  const failed = d.counts?.incidentsToSign == null && inc.error && !inc.data;
   const late = (d.live.late || 0) + (d.live.no_show || 0);
   const items = [
     toSign > 0 && { key: 'sign', to: '/venue/timesheets?show=review', icon: ClipboardCheck, tone: 'bg-blue-soft text-blue', title: `${toSign} timesheet${toSign === 1 ? '' : 's'} to sign`, sub: 'Check the hours and sign' },
     reports > 0 && { key: 'incidents', to: '/venue/incidents?to_sign=1', icon: FileSignature, tone: 'bg-blue-soft text-blue', title: `${reports} incident report${reports === 1 ? '' : 's'} to sign`, sub: 'Read what happened and sign' },
+    failed && { key: 'failed', onClick: inc.reload, icon: AlertTriangle, tone: 'bg-amber-soft text-amber', title: "Couldn't check reports to sign", sub: 'Try again' },
     late > 0 && { key: 'late', to: '/venue/live', icon: Radio, tone: 'bg-red-soft text-red', title: `${late} officer${late === 1 ? '' : 's'} late or not arrived`, sub: 'See who is on site now' },
     d.invoices.count > 0 && { key: 'pay', to: '/venue/invoices', icon: ReceiptText, tone: 'bg-amber-soft text-amber', title: `${d.invoices.count} invoice${d.invoices.count === 1 ? '' : 's'} to pay`, sub: `${money(d.invoices.outstanding)} outstanding` },
   ].filter(Boolean);
@@ -184,7 +190,7 @@ function NeedsYou({ d, toSign, venueId }) {
   const list = (
     <List>
       {items.map((i) => (
-        <Row key={i.key} to={i.to} title={i.title} subtitle={i.sub}
+        <Row key={i.key} to={i.to} onClick={i.onClick} title={i.title} subtitle={i.sub}
           left={<span className={cx('grid h-9 w-9 place-items-center rounded-xl', i.tone)}><i.icon size={18} /></span>} />
       ))}
     </List>
@@ -192,7 +198,7 @@ function NeedsYou({ d, toSign, venueId }) {
   // Phones: one glowing bar that opens the list; from lg up the list sits on the page
   return (
     <>
-      <AttentionDrawer id="needs" title="Needs you" className="mb-4 lg:hidden" count={items.length} tone={late > 0 ? 'red' : toSign > 0 || reports > 0 ? 'blue' : 'amber'}
+      <AttentionDrawer id="needs" title="Needs you" className="mb-4 lg:hidden" count={items.length} failed={failed} onRetry={inc.reload} tone={late > 0 ? 'red' : toSign > 0 || reports > 0 ? 'blue' : 'amber'}
         preview={items.map((i) => ({ icon: i.icon, tone: i.key === 'late' ? 'red' : i.key === 'sign' || i.key === 'incidents' ? 'blue' : 'amber' }))} lead={items[0].title}>
         {list}
       </AttentionDrawer>

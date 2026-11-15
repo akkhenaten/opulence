@@ -4,7 +4,7 @@ import { Camera, CheckCheck, ChevronRight, Download, FilePen, FileSignature, Map
 import { api, downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
-import { Button, cx, dateTime, dayLabel, Empty, IconButton, List, Load, MoreMenu, Page, Pill, SearchInput, Section, Segmented, Select, time, ToolField, ToolMenu, useAction, useApi, useConfirm } from '../../ui/index.jsx';
+import { addDays, Button, cx, dateTime, dayLabel, Empty, FilterChip, IconButton, List, Load, MoreMenu, Page, periodLabel, Pill, SearchInput, Section, Segmented, Select, time, ToolField, ToolMenu, useAction, useApi, useConfirm } from '../../ui/index.jsx';
 import { BanList } from '../shift/_bans.jsx';
 import { clearLocal } from '../officer/_draft.js';
 import { StagePill } from './incident/SignStrip.jsx';
@@ -35,7 +35,10 @@ export default function Incidents() {
   const [search, setSearch] = useState(text);
   useEffect(() => { const t = setTimeout(() => setSearch(text.trim()), 300); return () => clearTimeout(t); }, [text]);
 
-  const body = Object.fromEntries(Object.entries({ ...f, search }).filter(([, val]) => val));
+  // Opened from Analytics: the period being looked at (dates, the end day included)
+  const from = sp.get('from') || '';
+  const until = sp.get('to') || '';
+  const body = Object.fromEntries(Object.entries({ ...f, search, from, to: until ? addDays(until, 1) : '' }).filter(([, val]) => val));
   if (body.status === 'to_sign') { delete body.status; body.to_sign = true; }
   const q = useApi('incidents.list', body, { poll: 60000, skip: officer && !user.officer_id });
   const venues = useApi('venues.list', {}, { skip: officer || isVenue });
@@ -93,6 +96,10 @@ export default function Incidents() {
         ]} /></>}>
       {((officer && user.officer_id) || !officer) && <Drafts base={base} officer={officer} />}
 
+      {(from || until) && (
+        <FilterChip label={[!isVenue && f.venue_id && venueList.find((x) => x.id === f.venue_id)?.name, periodLabel(from, until)].filter(Boolean).join(' · ')}
+          onClear={() => { const n = new URLSearchParams(sp); ['from', 'to', ...(isVenue ? [] : ['venue'])].forEach((k) => n.delete(k)); setSp(n, { replace: true }); }} />
+      )}
       {officer && !user.officer_id ? <NotLinked /> : <Load q={q}>
         {(rows) => (!rows.length ? (
           <Empty photo="kit" icon={ShieldAlert} title={Object.keys(body).length ? 'No incidents match' : 'No incidents yet'}
