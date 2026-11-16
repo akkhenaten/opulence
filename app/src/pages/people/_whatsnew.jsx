@@ -11,6 +11,16 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-16', icon: Megaphone, title: "Venue requests you can't miss", image: 'venue-requests',
+    lede: "When a venue asks for officers, the office now sees it in every place it looks, not only on Today and in the bell.",
+    points: [
+      "The Rota tab Cover is now Venue requests, so it can't be mixed up with Shift requests, where officers ask to work an open shift",
+      "Every tab on the Rota row shows how many venue requests and shift requests are waiting, whichever tab is open",
+      "A venue's page lists its requests under Needs action, one line for a repeating request, and a tap opens it ready to answer",
+      "An empty Shift requests tab points to Venue requests",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-16', icon: Wallet, title: 'One venue, separate invoices per budget', image: 'billing-streams',
     lede: "Some clients pay for parts of the work out of different budgets, for example a concierge desk and contractor site management at New Eidyn. A venue can now have billing streams, and each stream gets its own invoice with its own PO, recipients and bill-to.",
     points: [

@@ -5,7 +5,7 @@ import { api } from '../../api.js';
 import { londonParts, WEEKDAYS } from './_parts.jsx';
 import { useVenue } from '../../venue.jsx';
 
-// Shared by the venue's staff requests (Request staff) and the managers' "Cover requests" page
+// Shared by the venue's staff requests (Request staff) and the managers. "Venue requests" page
 
 export const isFilled = (c) => c.status === 'accepted' && Number(c.filled) >= c.headcount;
 export const statusOf = (c) => (isFilled(c) ? 'filled' : c.status);

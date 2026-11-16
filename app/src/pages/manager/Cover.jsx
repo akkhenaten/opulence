@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, CircleX, Hourglass, Layers, Megaphone, MessagesSquare, Pencil, Trash2, UserCheck, UserPlus, X } from 'lucide-react';
 import {
@@ -6,10 +6,11 @@ import {
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
+import { coverWaiting, useRotaCounts } from './_rotaCounts.js';
 import { ChangeSheet, describeChange, isFilled, RepeatTag, requestLine, statusOf } from './_cover.jsx';
 
 const FILTERS = {
-  pending: (c) => c.status === 'pending' || c.change_status === 'pending',
+  pending: coverWaiting,
   accepted: (c) => c.status === 'accepted' && !isFilled(c),
   filled: isFilled,
   declined: (c) => c.status === 'declined' || c.status === 'cancelled',
@@ -31,7 +32,8 @@ function group(list) {
 export default function Cover() {
   const { base } = useBase();
   const q = useApi('cover.list', {});
-  const [url, setUrl] = useUrlState({ tab: 'pending' });
+  const tabCounts = useRotaCounts({ cover: q });
+  const [url, setUrl] = useUrlState({ tab: 'pending', open: '' });
   const tab = FILTERS[url.tab] ? url.tab : 'pending';
   const [openKey, setOpenKey] = useState(null);
   const rows = q.data || [];
@@ -40,10 +42,17 @@ export default function Cover() {
   const shown = group(rows.filter(FILTERS[tab]));
   const at = shown.findIndex((g) => g.key === openKey);
   const open = at >= 0 ? shown[at] : null;
+  // ?open=<date id> (from a venue's page) opens the row holding that date once the list is in
+  useEffect(() => {
+    if (!url.open || !q.data) return;
+    const g = shown.find((x) => x.dates.some((c) => c.id === url.open));
+    if (g) setOpenKey(g.key);
+    setUrl({ open: '' });
+  }, [url.open, q.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     // The status switch sits on the tab line, so the list starts high
-    <Page title="Cover requests" subtitle="Venues asking for extra officers" tools={(
+    <Page title="Venue requests" subtitle="Venues asking for officers: answer each date or the whole series" tabCounts={tabCounts} tools={(
       <Segmented value={tab} onChange={(v) => setUrl({ tab: v })} options={[
           { value: 'pending', label: 'To decide', icon: Hourglass, count: n('pending') }, { value: 'accepted', label: 'Being staffed', icon: UserPlus }, { value: 'filled', label: 'Staffed', icon: UserCheck },
           { value: 'declined', label: 'Declined', icon: CircleX }, { value: 'all', label: 'All', icon: Layers },

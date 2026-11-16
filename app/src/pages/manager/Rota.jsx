@@ -11,6 +11,7 @@ import { useAuth } from '../../auth.jsx';
 import { Check as Tick, WEEKDAYS, durationH, londonIso, londonParts, shiftTimes, useBase } from './_parts.jsx';
 import { PackPill } from '../shared/PackPaper.jsx';
 import { ClockOutSheet } from '../shared/_clockOut.jsx';
+import { useRotaCounts } from './_rotaCounts.js';
 
 const dayOf = (iso) => londonParts(iso).date;
 const ACTIVE = ['assigned', 'accepted'];
@@ -53,6 +54,7 @@ export default function Rota() {
   const venues = useApi('venues.list', {});
   const roles = useApi('roles.list', {});
   const reqs = useApi('shifts.pendingRequests', {});
+  const tabCounts = useRotaCounts({ reqs });
   const body = useMemo(() => ({ from: londonIso(week), to: londonIso(addDays(week, 7)), ...(venueId ? { venue_id: venueId } : {}) }), [week, venueId]);
   const shifts = useApi('shifts.list', body);
   const [run, busy] = useAction();
@@ -128,7 +130,7 @@ export default function Rota() {
   </>;
 
   return (
-    <Page title="Rota" subtitle={tab === 'rota' ? weekPicker : 'Officer requests for open shifts'} wide tools={tools} tabCounts={{ 'Shift requests': reqs.data?.length }}
+    <Page title="Rota" subtitle={tab === 'rota' ? weekPicker : 'Officer requests for open shifts'} wide tools={tools} tabCounts={tabCounts}
       actions={tab === 'rota' && <>
         <div className="hidden items-center gap-2 sm:flex">
           {pubItem && <Button variant="soft" icon={Send} onClick={publish} busy={busy}>Publish {drafts.length}{hiddenDrafts > 0 && <span className="font-medium opacity-75"> ({hiddenDrafts} hidden by filters)</span>}</Button>}
@@ -535,6 +537,7 @@ function OfficerAgenda({ rows, onOpen }) {
 /* ---------- Officer requests ---------- */
 
 function Requests({ q, roleName, onChanged, onOpen }) {
+  const { base } = useBase();
   const [run, busy] = useAction();
   const [busyId, setBusyId] = useState(null);
   const [picking, setPicking] = useState(false);
@@ -557,7 +560,8 @@ function Requests({ q, roleName, onChanged, onOpen }) {
     .then(() => { stop(); onChanged(); }).catch(() => onChanged());
   return (
     <Load q={q}>{(rows) => {
-      if (!rows.length) return <Empty icon={Hand} title="No requests" body="When officers ask to work an open shift, it shows here." />;
+      if (!rows.length) return <Empty icon={Hand} title="No requests" body="When officers ask to work an open shift, it shows here."
+        action={<Button variant="link" to={`${base}/cover`}>Looking for a venue's request? See Venue requests</Button>} />;
       const chosen = rows.filter((r) => sel.has(r.id));
       const toggle = (id) => setSel((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; });
       const allOn = chosen.length === rows.length;

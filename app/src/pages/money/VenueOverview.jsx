@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { CalendarDays, CircleAlert, Mail, Phone, Radio, UserRound } from 'lucide-react';
 import { Avatar, Button, cx, dayLabel, Empty, List, LoadFail, money, Pill, range, Row, Section, SkeletonRows, useApi } from '../../ui/index.jsx';
 import { timesheetHref } from './_lines.jsx';
+import { requestLine } from '../manager/_cover.jsx';
+import { coverWaiting } from '../manager/_rotaCounts.js';
 
 const DAY = 86400000;
 const OPEN_INVOICE = ['issued', 'overdue'];
@@ -17,6 +19,7 @@ export default function VenueOverview({ v, base, isCo, openTab }) {
   const toSign = useApi('timesheets.list', { venue_id: v.id, status: 'approved' });
   const queried = useApi('timesheets.list', { venue_id: v.id, status: 'disputed' });
   const invoices = useApi('invoices.list', { venue_id: v.id }, { skip: !isCo });
+  const cover = useApi('cover.list', { venue_id: v.id });
 
   const week = (shifts.data || []).filter((s) => s.status === 'published').sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   const drafts = (shifts.data || []).filter((s) => s.status === 'draft').length;
@@ -26,7 +29,18 @@ export default function VenueOverview({ v, base, isCo, openTab }) {
     key: `ts-${r.id}`, title: `${r.officer_name} · ${dayLabel(r.starts_at)}`, subtitle: why,
     to: timesheetHref(base, { work_date: r.starts_at, timesheet_id: r.id }, loc.pathname, v.name),
   });
+  // A repeating request is one line, as on Venue requests
+  const asks = [];
+  for (const c of (cover.data || []).filter(coverWaiting)) {
+    const key = c.kind === 'recurring' && c.change_status !== 'pending' ? `s-${c.series_id}` : c.id;
+    const g = asks.find((x) => x.key === key);
+    if (g) g.dates++; else asks.push({ key, c, dates: 1 });
+  }
   const todo = [
+    ...asks.map(({ key, c, dates }) => ({
+      key: `cov-${key}`, title: requestLine(c, dates), to: `${base}/cover?open=${c.id}`, tone: 'amber',
+      subtitle: c.change_status === 'pending' ? 'The venue asked to change booked cover' : `Venue request waiting for your answer${c.stream_name ? ` · ${c.stream_name}` : ''}`,
+    })),
     ...(queried.data || []).map((r) => hours(r, 'Hours queried by the venue: answer or correct them')),
     ...(toSign.data || []).map((r) => hours(r, 'Hours approved, waiting for the venue to sign')),
     ...unpaid.map((i) => ({
@@ -35,7 +49,7 @@ export default function VenueOverview({ v, base, isCo, openTab }) {
     })),
     ...(v.feedback_open ? [{ key: 'fb', title: `${v.feedback_open} open feedback item${v.feedback_open === 1 ? '' : 's'}`, subtitle: 'From the venue or logged by the office', onClick: () => openTab('feedback') }] : []),
   ];
-  const todoLoading = [toSign, queried, ...(isCo ? [invoices] : [])].some((x) => x.loading && !x.data);
+  const todoLoading = [cover, toSign, queried, ...(isCo ? [invoices] : [])].some((x) => x.loading && !x.data);
   const MAX = 6;
 
   return (
@@ -74,13 +88,13 @@ export default function VenueOverview({ v, base, isCo, openTab }) {
 
       <div>
         <Section title="Needs action" icon={CircleAlert} count={todo.length} className="mt-6 lg:mt-0">
-          {[queried, toSign, ...(isCo ? [invoices] : [])].map((x, i) => <LoadFail key={i} q={x} what={x === invoices ? 'invoices' : 'timesheets'} className="mb-2" />)}
+          {[cover, queried, toSign, ...(isCo ? [invoices] : [])].map((x, i) => <LoadFail key={i} q={x} what={x === invoices ? 'invoices' : x === cover ? 'venue requests' : 'timesheets'} className="mb-2" />)}
           {todoLoading ? <SkeletonRows n={2} /> : todo.length ? (
             <List>
               {todo.slice(0, MAX).map((t) => <Row key={t.key} to={t.to} onClick={t.onClick} chevron={!!t.onClick} title={t.title} subtitle={<span className={cx(t.tone === 'red' && 'text-red')}>{t.subtitle}</span>} />)}
             </List>
-          ) : <p className="px-1 text-subhead text-muted">Nothing waiting: no hours to sign or queried{isCo ? ', no invoices to pay' : ''} and no open feedback.</p>}
-          {todo.length > MAX && <p className="mt-2 px-1 text-footnote text-muted">And {todo.length - MAX} more on Timesheets{isCo ? ' and Invoices' : ''}.</p>}
+          ) : <p className="px-1 text-subhead text-muted">Nothing waiting: no venue requests, no hours to sign or queried{isCo ? ', no invoices to pay' : ''} and no open feedback.</p>}
+          {todo.length > MAX && <p className="mt-2 px-1 text-footnote text-muted">And {todo.length - MAX} more on Venue requests, Timesheets{isCo ? ' and Invoices' : ''}.</p>}
         </Section>
 
         <Section title="Site contact" icon={UserRound}>

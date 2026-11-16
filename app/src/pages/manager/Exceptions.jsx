@@ -7,12 +7,14 @@ import {
 import { api } from '../../api.js';
 import { SELF_HINT, SelfPills, useBase } from './_parts.jsx';
 import { ProofFlags, SelfieCompare } from './_proof.jsx';
+import { useRotaCounts } from './_rotaCounts.js';
 
 const KIND = { in: 'Clock-in', out: 'Clock-out', break_start: 'Break start', break_end: 'Break end' };
 
 export default function Exceptions() {
   const [sp, setSp] = useSearchParams();
   const { base } = useBase();
+  const tabCounts = useRotaCounts();
   const tab = sp.get('tab') === 'decided' ? 'decided' : 'open';
   const setTab = (t) => setSp(t === 'open' ? {} : { tab: t }, { replace: true });
   const q = useApi('clock.exceptions', { include_decided: tab === 'decided' }, { skip: sp.get('tab') === 'phones' });
@@ -48,7 +50,7 @@ export default function Exceptions() {
   // Phone changes moved to Staff → Phones
   if (sp.get('tab') === 'phones') return <Navigate to={`${base}/staff/phones`} replace />;
   return (
-    <Page title="Exceptions" subtitle="Clock events that failed a check: phone, location, venue code or selfie"
+    <Page title="Exceptions" subtitle="Clock events that failed a check: phone, location, venue code or selfie" tabCounts={tabCounts}
       actions={open.length > 1 && (picking
         ? <Button variant="secondary" onClick={stopPicking}>Done</Button>
         : <Button variant="secondary" icon={ListChecks} onClick={() => setPicking(true)}>Select</Button>)}

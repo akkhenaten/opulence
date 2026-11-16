@@ -10,7 +10,7 @@ export const HUBS = {
     rota: { title: 'Rota', tabs: [
       { to: 'rota', label: 'Week', trail: 'Rota' },
       { to: 'rota?tab=requests', label: 'Shift requests' },
-      { to: 'cover', label: 'Cover' },
+      { to: 'cover', label: 'Venue requests' },
       { to: 'exceptions', label: 'Exceptions' },
     ] },
     incidents: { title: 'Incidents', tabs: [
