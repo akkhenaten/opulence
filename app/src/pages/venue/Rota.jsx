@@ -64,7 +64,7 @@ export default function VenueRota() {
   return (
     <Page title="Rota" subtitle={tab === 'rota' ? weekPicker : 'Extra officers you have asked for'} wide tools={tools}
       actions={<Button icon={Plus} onClick={() => ask()}>Request staff</Button>}>
-      {tab === 'requests' ? <CoverList q={coverQ} many={many && !venueId} onOpen={setOpen} onNew={() => ask()} /> : (
+      {tab === 'requests' ? <CoverList q={coverQ} many={many && !venueId} onOpen={setOpen} onNew={() => ask()} onDone={() => cover.reload()} /> : (
         <>
           <Load q={shifts}>{(rows) => (
             <Week week={week} today={today} rows={rows} many={many && !venueId}

@@ -261,6 +261,32 @@ async function applyChange(occ, scope, payload, userId) {
   return `From ${fmtDate(occ.occurs_on)}: ${describe(s)}`;
 }
 
+/* ---------- Several dates at once (venue Requests: Select) ---------- */
+
+/** Times and staff for one date in a bulk change: what was sent, else the date's own. */
+export function bulkSlot(own, b) {
+  const has = (k) => b[k] !== undefined && b[k] !== null && b[k] !== '';
+  return { start: has('start') ? b.start : own.start, end: has('end') ? b.end : own.end, headcount: has('headcount') ? Number(b.headcount) : own.headcount };
+}
+
+/** Why a date can't be changed any more, or null. */
+export function bulkWhy(occ, now = new Date()) {
+  if (!['pending', 'accepted'].includes(occ.status)) return `is ${occ.status}`;
+  if (new Date(occ.starts_at) <= now) return 'already started';
+  if (occ.change_status === 'pending') return 'has a change waiting';
+  return null;
+}
+
+const dayShort = (d) => new Date(typeof d === 'string' && d.length === 10 ? `${d}T12:00:00Z` : d)
+  .toLocaleDateString('en-GB', { timeZone: 'Europe/London', weekday: 'short', day: 'numeric', month: 'short' });
+
+/** "Mon 16 Nov, Tue 17 Nov and Wed 18 Nov"; long lists end "+N more". */
+export function datesLabel(list, max = 6) {
+  const d = list.map(dayShort);
+  if (d.length > max) return `${d.slice(0, max).join(', ')} +${d.length - max} more`;
+  return d.length > 1 ? `${d.slice(0, -1).join(', ')} and ${d[d.length - 1]}` : (d[0] || '');
+}
+
 export const actions = {
   'cover.list': def(['company', 'security', 'venue'], async (b, { user }) => {
     const scope = await venueScope(user);
@@ -383,6 +409,81 @@ export const actions = {
     await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Change to booked cover approved', body: done, link: '/venue/rota?tab=requests', email: true });
     await audit(user, 'cover.change_approved', 'cover_request', occ.id, { scope: occ.change_scope });
     return { ok: true, summary: done };
+  }),
+
+  // Cancel or change several dates in one go. Each date follows the same rules as cover.update (booked dates from a venue
+  // wait for approval); one message per request thread and one notification per venue, not one per date
+  'cover.updateMany': def(['company', 'security', 'venue'], async (b, { user }) => {
+    required(b, 'ids');
+    const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map(String))];
+    if (!ids.length || ids.length > 100) fail(400, 'Choose between 1 and 100 dates');
+    const has = (k) => b[k] !== undefined && b[k] !== null && b[k] !== '';
+    const del = !!b.delete;
+    const hasNotes = b.notes !== undefined && b.notes !== null; // '' clears them
+    const retime = !del && (['start', 'end', 'headcount'].some(has) || hasNotes);
+    if (!del && !retime && !has('stream_id')) fail(400, 'Nothing to change');
+    const mgr = isMgr(user);
+    const res = { done: [], waiting: [], skipped: [] };
+    const byVenue = new Map(); // venue_id → { name, threads: Map(root → series), done, waiting }
+    for (const id of ids) {
+      let occ;
+      try { occ = await loadOcc(user, id); } catch { res.skipped.push({ id, reason: 'not found' }); continue; }
+      const why = bulkWhy(occ);
+      if (why) { res.skipped.push({ id, date: occ.occurs_on, reason: why }); continue; }
+      const v = byVenue.get(occ.venue_id) || { name: occ.venue_name, threads: new Map(), done: [], waiting: [] };
+      byVenue.set(occ.venue_id, v);
+      if (occ.series_id) v.threads.set(occ.root_id || occ.series_id, { id: occ.series_id, root_id: occ.root_id, venue_id: occ.venue_id });
+      try {
+        let moved = false;
+        if (!del && has('stream_id') && b.stream_id !== occ.stream_id) {
+          if (occ.status === 'accepted' && !mgr) {
+            if (!retime) { res.skipped.push({ id, date: occ.occurs_on, reason: 'booked — ask the office to move it to another stream' }); continue; }
+          } else {
+            const sid = await streamFor(occ.venue_id, b.stream_id, occ.role);
+            await q('UPDATE cover_requests SET stream_id = $2 WHERE id = $1', [occ.id, sid]);
+            moved = true;
+          }
+        }
+        if (!del && !retime) { if (moved) { res.done.push(occ); v.done.push(occ); } continue; }
+        const payload = del ? { type: 'delete' }
+          : { type: 'edit', slot: cleanSlot(bulkSlot({ start: fmtTime(occ.starts_at), end: fmtTime(occ.ends_at), headcount: occ.headcount }, b)), notes: hasNotes ? String(b.notes).slice(0, 1000) : undefined };
+        if (occ.status === 'accepted' && !mgr) {
+          await q("UPDATE cover_requests SET change_status = 'pending', change_scope = 'one', change_payload = $2, change_by = $3, change_reason = '' WHERE id = $1",
+            [occ.id, JSON.stringify(payload), user.id]);
+          res.waiting.push(occ); v.waiting.push(occ);
+        } else {
+          await applyChange(occ, 'one', payload, user.id);
+          res.done.push(occ); v.done.push(occ);
+        }
+      } catch (e) {
+        res.skipped.push({ id, date: occ.occurs_on, reason: e.message || 'could not be changed' });
+      }
+    }
+    // End of the per-date loop: messages go out once per thread and venue from here
+    const verb = del ? 'Cancelled' : 'Changed';
+    for (const [venueId, v] of byVenue) {
+      if (!v.done.length && !v.waiting.length) continue;
+      const parts = [];
+      if (v.done.length) parts.push(`${verb} ${datesLabel(v.done.map((o) => o.occurs_on))}`);
+      if (v.waiting.length) parts.push(`Asked to ${del ? 'cancel' : 'change'} booked ${datesLabel(v.waiting.map((o) => o.occurs_on))} — waiting for approval`);
+      const text = `${parts.join('. ')}.`;
+      for (const series of v.threads.values()) {
+        const conv = await coverThread(series, v.name);
+        await post(conv.id, user.id, { body: text });
+      }
+      if (!mgr) {
+        await notify(await managersFor(venueId), {
+          kind: 'cover', severity: v.waiting.length ? 'warning' : undefined, email: v.waiting.length > 0,
+          title: v.waiting.length ? `${v.name} wants to ${del ? 'cancel' : 'change'} booked cover` : `${v.name} ${del ? 'cancelled' : 'changed'} ${v.done.length} requested date${v.done.length === 1 ? '' : 's'}`,
+          body: text, link: '/company/cover',
+        });
+      } else {
+        await notify(await venueContacts(venueId), { kind: 'cover', title: 'Your cover request was updated', body: text, link: '/venue/rota?tab=requests' });
+      }
+      await audit(user, 'cover.update_many', 'venue', venueId, { type: del ? 'delete' : 'edit', done: v.done.length, waiting: v.waiting.length });
+    }
+    const out = (list) => list.length;
+    return { done: out(res.done), waiting: out(res.waiting), skipped: res.skipped.map((x) => ({ ...x, date: x.date ? dayShort(x.date) : null })) };
   }),
 
   // Kept for older screens: cancelling = deleting this one date

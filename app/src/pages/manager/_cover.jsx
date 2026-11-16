@@ -5,7 +5,7 @@ import { api } from '../../api.js';
 import { londonParts, WEEKDAYS } from './_parts.jsx';
 import { useVenue } from '../../venue.jsx';
 
-// Shared by the venue's staff requests (Request staff) and the managers. "Venue requests" page
+// Shared by the venue's staff requests (Request staff) and the managers' "Venue requests" page
 
 export const isFilled = (c) => c.status === 'accepted' && Number(c.filled) >= c.headcount;
 export const statusOf = (c) => (isFilled(c) ? 'filled' : c.status);
@@ -241,6 +241,51 @@ export function ChangeSheet({ c, mode, isMgr, onClose, onDone }) {
     </Sheet>
   );
 }
+
+/** Change several chosen dates at once. A field left blank keeps each date's own value; only what was changed is sent. */
+export function BulkChangeSheet({ dates, onClose, onDone }) {
+  const same = (fn) => { const vals = [...new Set(dates.map(fn))]; return vals.length === 1 ? vals[0] : ''; };
+  const start0 = { start: same((c) => slotOf(c).start), end: same((c) => slotOf(c).end), headcount: same((c) => String(c.headcount)), notes: same((c) => c.notes || ''), stream_id: same((c) => c.stream_id || '') };
+  const f = useForm(start0);
+  const v = f.v;
+  const [run, busy] = useAction();
+  const venueIds = new Set(dates.map((c) => c.venue_id));
+  const venueId = venueIds.size === 1 ? dates[0].venue_id : null;
+  const streams = useApi('streams.list', { venue_id: venueId }, { skip: !venueId });
+  const active = (streams.data || []).filter((x) => x.status === 'active');
+  const booked = dates.filter((c) => c.status === 'accepted').length;
+  const changed = Object.fromEntries(Object.keys(start0).filter((k) => String(v[k] ?? '') !== String(start0[k] ?? '') && (k === 'notes' || v[k] !== '')).map((k) => [k, v[k]]));
+  const any = Object.keys(changed).length > 0;
+  const bad = (changed.headcount && !(Number(changed.headcount) >= 1)) || ((v.start || start0.start) && (v.start || start0.start) === (v.end || start0.end));
+  const mixed = (k) => (start0[k] === '' && v[k] === '' ? 'Mixed — leave blank to keep each date\'s own' : undefined);
+  const save = () => run(() => api('cover.updateMany', { ids: dates.map((c) => c.id), ...changed, ...(changed.headcount && { headcount: Number(changed.headcount) }) }), bulkToast(false)).then(onDone).catch(() => {});
+  return (
+    <Sheet open onClose={onClose} title={`Change ${dates.length} date${dates.length === 1 ? '' : 's'}`}
+      footer={<><Button variant="secondary" onClick={onClose}>Back</Button><Button busy={busy} disabled={!any || bad} onClick={save}>Save</Button></>}>
+      <div className="space-y-4">
+        {booked > 0 && <Callout tone="warning">{booked === dates.length ? 'These dates are' : `${booked} of these are`} already booked, so the office approves those changes. {booked < dates.length ? 'The rest change now.' : 'Until then they stay as they are.'}</Callout>}
+        <div className="grid grid-cols-3 gap-3">
+          <Input label="Start" type="time" {...f.bind('start')} hint={mixed('start')} />
+          <Input label="Finish" type="time" {...f.bind('end')} hint={mixed('end') || (overnight(v.start, v.end) ? 'Next day' : undefined)} />
+          <Input label="Staff" type="number" min="1" max="50" inputMode="numeric" placeholder={start0.headcount === '' ? 'Mixed' : undefined} {...f.bind('headcount')} />
+        </div>
+        {(start0.start === '' || start0.end === '' || start0.headcount === '') && <p className="text-footnote text-muted">Blank fields keep each date's own times and staff.</p>}
+        {active.length > 1 && (
+          <Select label="Bill to" value={v.stream_id} onChange={(e) => f.set('stream_id', e.target.value)}
+            options={[...(start0.stream_id === '' ? [{ value: '', label: 'Keep each date\'s own' }] : []), ...active.map((x) => ({ value: x.id, label: x.name }))]} />
+        )}
+        <Textarea label="Notes" rows={3} placeholder={start0.notes === '' && dates.some((c) => c.notes) ? 'Mixed — leave blank to keep each date\'s own' : 'Event, dress code, where to report'} {...f.bind('notes')} />
+      </div>
+    </Sheet>
+  );
+}
+
+/** Toast text for a bulk result: "3 cancelled · 2 sent for approval · 1 skipped (already started)". */
+export const bulkToast = (del) => (r) => [
+  r.done && `${r.done} ${del ? 'cancelled' : 'changed'}`,
+  r.waiting && `${r.waiting} sent for approval`,
+  r.skipped?.length && `${r.skipped.length} skipped (${[...new Set(r.skipped.map((x) => x.reason))].join(', ')})`,
+].filter(Boolean).join(' · ') || 'Nothing changed';
 
 // "Repeats every Fri & Sat" label for list rows
 // `short` keeps list rows narrow: just "Every week" without the times

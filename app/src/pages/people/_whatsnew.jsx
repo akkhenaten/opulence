@@ -11,6 +11,17 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-16', icon: ListChecks, title: 'Change or cancel several requested dates at once', image: 'bulk-cover',
+    lede: "Venues that ask for staff over several dates no longer have to open each one. Tick the dates, then cancel them or change them together.",
+    points: [
+      "On Rota → Requests, tap Select, tick the dates you want and use Cancel or Change in the bar at the bottom. Select all ticks every upcoming date",
+      "For a repeating request, 'All N dates of this request' ticks the whole series in one go, and you can untick the odd one out",
+      "Change sets new times, number of staff, notes or the budget it bills to. Anything left blank keeps each date's own",
+      "Dates still waiting change at once. Dates already booked go to the office for approval, as before",
+      "The office gets one message and one notification for the whole change, not one per date. Each date can still be opened and changed on its own",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-16', icon: Megaphone, title: "Venue requests you can't miss", image: 'venue-requests',
     lede: "When a venue asks for officers, the office now sees it in every place it looks, not only on Today and in the bell.",
     points: [
