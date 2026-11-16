@@ -11,7 +11,21 @@ import { useAuth } from '../../auth.jsx';
 export const isFilled = (c) => c.status === 'accepted' && Number(c.filled) >= c.headcount;
 export const statusOf = (c) => (isFilled(c) ? 'filled' : c.status);
 export const LABEL = { pending: 'Waiting for reply', accepted: 'Being staffed', filled: 'Staffed', declined: 'Declined', cancelled: 'Cancelled' };
-export const isoDow = (d) => ((new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7) + 1; // 1 = Monday … 7 = Sunday
+// The same rules as the server (cover.mjs cancelWhy / bulkWhy): any date today can be cancelled, started or not;
+// changing stops once a date starts. A cancel waits for the office only when officers are booked.
+const dayOf = (c) => (c.occurs_on ? String(c.occurs_on).slice(0, 10) : isoDate(c.starts_at));
+export const canCancel = (c, today = isoDate()) => ['pending', 'accepted'].includes(c.status) && c.change_status !== 'pending' && dayOf(c) >= today;
+export const canChange = (c, now = Date.now()) => ['pending', 'accepted'].includes(c.status) && c.change_status !== 'pending' && new Date(c.starts_at) > now;
+export const isStaffed = (c) => c.status === 'accepted' && Number(c.filled) > 0;
+/** "2 cancel now, 3 need the office's approval" for a venue cancelling these dates. */
+export function cancelSplit(dates, mgr) {
+  const wait = mgr ? 0 : dates.filter(isStaffed).length;
+  const now = dates.length - wait;
+  if (!wait) return `${now === 1 ? 'It is' : `All ${now} are`} cancelled straight away and the office is told.`;
+  if (!now) return `${wait === 1 ? 'It is' : 'They are'} booked, so the office approves the cancellation first.`;
+  return `${now} cancel now, ${wait} need${wait === 1 ? 's' : ''} the office's approval because officers are booked.`;
+}
+export const isoDow = (d) =>((new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7) + 1; // 1 = Monday … 7 = Sunday
 const overnight = (s, e) => s && e && e <= s;
 
 // The times of one date as London wall-clock values
@@ -117,7 +131,7 @@ function changedFields(start, v, many) {
  * `edit` (rows from cover.list) opens the same form on what was asked: one date (only it, or it and every later date),
  * or several chosen dates together.
  */
-export function RequestForm({ venues, roles, draft, edit, onClose, onDone }) {
+export function RequestForm({ venues, roles, draft, edit, initialMode = 'one', onClose, onDone }) {
   const tomorrow = addDays(isoDate(), 1);
   const chosen = useVenue()?.venueId;
   const { user } = useAuth();
@@ -132,7 +146,7 @@ export function RequestForm({ venues, roles, draft, edit, onClose, onDone }) {
     has_end: !!draft?.end_date, end_date: draft?.end_date || addDays(tomorrow, 56), notes: draft?.notes || '',
   });
   // Changing one date: just it ('one'), or it and every later date ('future'; on a one-off that makes it repeating)
-  const [mode, setMode] = useState('one');
+  const [mode, setMode] = useState(initialMode);
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const v = f.v;
@@ -169,6 +183,10 @@ export function RequestForm({ venues, roles, draft, edit, onClose, onDone }) {
   // A venue's change to booked cover waits for the office
   const booked = edit ? edit.filter((c) => c.status === 'accepted').length : 0;
   const needsOk = !mgr && edit && (booked > 0 || (mode === 'future' && one?.accepted_all));
+  // A date that has started can only be cancelled
+  const started = edit ? edit.filter((c) => !canChange(c)).length : 0;
+  const frozen = edit && started === edit.length;
+  const cancellable = edit ? edit.filter((c) => canCancel(c)) : [];
   const mixed = (k) => (many && start0[k] === '' && v[k] === '' ? 'Mixed — leave blank to keep each date\'s own' : undefined);
 
   const send = () => run(() => api('cover.create', {
@@ -188,7 +206,7 @@ export function RequestForm({ venues, roles, draft, edit, onClose, onDone }) {
   const cancelDates = async () => {
     const future = mode === 'future' && one?.kind === 'recurring';
     const title = many ? `Cancel ${edit.length} dates?` : future ? 'Cancel this and later dates?' : 'Cancel this date?';
-    const body = needsOk ? `${booked === (many ? edit.length : 1) ? 'Booked dates' : `${booked} booked date${booked === 1 ? '' : 's'}`} wait for the office to approve.` : undefined;
+    const body = future ? (needsOk ? 'Booked dates wait for the office to approve.' : undefined) : cancelSplit(cancellable, mgr);
     if (!(await confirm({ title, body, confirm: 'Cancel request', danger: true }))) return;
     if (many) run(() => api('cover.updateMany', { ids: edit.map((c) => c.id), delete: true }), bulkToast(true)).then(onDone).catch(() => {});
     else run(() => api('cover.update', { id: one.id, scope: future ? 'future' : 'one', delete: true }), approvalToast).then(onDone).catch(() => {});
@@ -198,9 +216,9 @@ export function RequestForm({ venues, roles, draft, edit, onClose, onDone }) {
   const venueName = edit ? edit[0].venue_name : null;
   const footer = edit ? (
     <>
-      <Button variant="link-red" className="mr-auto" onClick={cancelDates} disabled={busy}>{many ? `Cancel ${edit.length} dates` : mode === 'future' && one?.kind === 'recurring' ? 'Cancel these dates' : 'Cancel date'}</Button>
+      <Button variant="link-red" className="mr-auto" onClick={cancelDates} disabled={busy || !cancellable.length}>{many ? `Cancel ${edit.length} dates` : mode === 'future' && one?.kind === 'recurring' ? 'Cancel these dates' : 'Cancel date'}</Button>
       <Button variant="secondary" onClick={onClose}>Back</Button>
-      <Button onClick={save} busy={busy} disabled={!ok || !dirty}>{needsOk ? 'Ask for approval' : 'Save'}</Button>
+      <Button onClick={save} busy={busy} disabled={!ok || !dirty || frozen}>{needsOk ? 'Ask for approval' : 'Save'}</Button>
     </>
   ) : <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={send} busy={busy} disabled={!ok}>Send request</Button></>;
 
@@ -208,7 +226,8 @@ export function RequestForm({ venues, roles, draft, edit, onClose, onDone }) {
     <Sheet open onClose={onClose} title={title} footer={footer}>
       <div className="space-y-4">
         {draft && !draft.quiet && !edit && <Callout>Filled in from your message. Check the details before sending.</Callout>}
-        {needsOk && <Callout tone="warning">{many && booked < edit.length ? `${booked} of these are already booked, so the office approves those changes. The rest change now.` : 'This is already booked, so the office approves the change. Until then it stays as it is.'}</Callout>}
+        {started > 0 && <Callout tone="warning">{frozen ? `${many ? 'These dates have' : 'This date has'} already started, so ${many ? 'they' : 'it'} can only be cancelled.` : `${started} of these ${started === 1 ? 'has' : 'have'} started, so ${started === 1 ? 'it' : 'they'} can only be cancelled — a change skips ${started === 1 ? 'it' : 'them'}.`}</Callout>}
+        {needsOk && !frozen && <Callout tone="warning">{many && booked < edit.length ? `${booked} of these are already booked, so the office approves those changes. The rest change now.` : 'This is already booked, so the office approves the change. Until then it stays as it is.'}</Callout>}
         {!edit && <Segmented full value={v.kind} onChange={(k) => f.set('kind', k)} options={[{ value: 'one_off', label: 'One date' }, { value: 'recurring', label: 'Repeating' }]} />}
         {one && <Segmented full value={mode} onChange={setMode} options={one.kind === 'recurring'
           ? [{ value: 'one', label: 'Only this date' }, { value: 'future', label: 'This and later dates' }]
@@ -267,10 +286,10 @@ export function RequestForm({ venues, roles, draft, edit, onClose, onDone }) {
 }
 
 /** The request form opened on dates already asked for; it loads the officer types itself. */
-export function ChangeRequest({ edit, onClose, onDone }) {
+export function ChangeRequest({ edit, initialMode, onClose, onDone }) {
   const roles = useApi('roles.list', {});
   if (!roles.data) return null;
-  return <RequestForm venues={[]} roles={roles.data} edit={edit} onClose={onClose} onDone={onDone} />;
+  return <RequestForm venues={[]} roles={roles.data} edit={edit} initialMode={initialMode} onClose={onClose} onDone={onDone} />;
 }
 
 /** Toast text for a bulk result: "3 cancelled · 2 sent for approval · 1 skipped (already started)". */

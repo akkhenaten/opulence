@@ -11,6 +11,18 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-16', icon: LayoutList, title: "Cancel today's dates, and requests shown the way you made them", image: 'request-cards',
+    lede: "A venue can now cancel any of today's dates, even after the shift has started. Requests also show as one card each, the way they were made: a repeating request is a single card with all of its dates inside.",
+    points: [
+      "Any date today can be cancelled from its card, the shift card on the rota or the request form. Days before today stay as they are",
+      "If nobody is booked yet, the date is cancelled straight away. If officers are booked, the office approves the cancellation first, and is told when someone is already on site",
+      "Changing times or staff still stops once a date has started. After that, cancel is the only option",
+      "On Rota → Requests, each request is one card showing its pattern, budget, counts by state and the next date. Tap it to see the dates inside",
+      "Cancelled and past dates fold behind one line, such as '40 cancelled', and open greyed out",
+      "Each card can change or cancel the whole request, select some of its dates, or open the conversation with the office. The office's Venue requests uses the same cards, with accept, decline and approve",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-16', icon: CalendarCog, title: 'Change a request in the same form you made it', image: 'venue-rota',
     lede: "Changing a staff request now opens the full Request staff form, with every option it had when it was made. Venues also see the office's own rota, narrowed to their venues.",
     points: [

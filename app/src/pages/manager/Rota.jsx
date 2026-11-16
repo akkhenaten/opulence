@@ -12,7 +12,7 @@ import { Check as Tick, WEEKDAYS, durationH, londonIso, londonParts, shiftTimes,
 import { PackPill } from '../shared/PackPaper.jsx';
 import { ClockOutSheet } from '../shared/_clockOut.jsx';
 import { useRotaCounts } from './_rotaCounts.js';
-import { ChangeRequest, LABEL, RequestForm, statusOf } from './_cover.jsx';
+import { canCancel, canChange, ChangeRequest, LABEL, RequestForm, statusOf } from './_cover.jsx';
 import { CoverList, Detail as RequestDetail } from '../venue/_requests.jsx';
 import { ShiftBody } from '../shift/ShiftView.jsx';
 import { useVenue } from '../../venue.jsx';
@@ -692,11 +692,11 @@ function VenueShiftDetail({ id, row, coverById, onClose, onChange, onPrev, onNex
   const d = q.data && String(q.data.shift?.id) === String(id) ? q.data : null;
   const req = row?.cover_request_id ? coverById.get(row.cover_request_id) : null;
   const ahead = row && new Date(row.starts_at) > new Date();
-  // One change at a time: while the office looks at one, the shift stays as it is
-  const open = req && ahead && req.change_status !== 'pending';
+  // One change at a time: while the office looks at one, the shift stays as it is. Today's shift can still be cancelled once it starts.
+  const open = req && ahead && canChange(req);
   const footer = (
     <>
-      {open && <Button variant="link-red" onClick={() => onChange(req)}>Cancel</Button>}
+      {req && canCancel(req) && <Button variant="link-red" onClick={() => onChange(req)}>Cancel</Button>}
       <Button variant="secondary" icon={NotebookPen} to={`/venue/logs/${id}`}>Open shift page</Button>
       {open && <Button onClick={() => onChange(req)}>Change</Button>}
     </>

@@ -1,95 +1,57 @@
 import { useState } from 'react';
 import { api } from '../../api.js';
-import { CalendarClock, History, Megaphone, MessagesSquare, Pencil, Plus, Repeat, Trash2 } from 'lucide-react';
+import { CalendarClock, History, ListChecks, Megaphone, MessagesSquare, Pencil, Plus, Repeat, Trash2, X } from 'lucide-react';
 import {
-  ActionBar, Button, Callout, cx, Empty, KV, List, Load, Pill, Pressable, Row, Segmented, Sheet, addDays, dayLabel, isoDate, range, relative, time, useAction, useConfirm,
+  Button, Callout, Empty, KV, Load, Pill, Segmented, Sheet, addDays, dayLabel, isoDate, range, relative, time, useAction, useConfirm,
 } from '../../ui/index.jsx';
-import { bulkToast, ChangeRequest, describeChange, LABEL, RepeatTag, requestLine, statusOf } from '../manager/_cover.jsx';
-import { Check as Tick } from '../manager/_parts.jsx';
+import { bulkToast, canCancel, canChange, cancelSplit, ChangeRequest, describeChange, LABEL, RepeatTag, requestLine, statusOf } from '../manager/_cover.jsx';
+import { groupRequests, RequestCards, sortGroups } from '../manager/_requestCards.jsx';
 
-// A date the venue can still cancel or change: not started, waiting or booked, no change already waiting
-const changeable = (c, now = Date.now()) => ['pending', 'accepted'].includes(c.status) && new Date(c.starts_at) > now && c.change_status !== 'pending';
-
-/** The venue's staff requests (the Requests tab of the venue rota). Select ticks several dates to cancel or change together. */
+/** The venue's staff requests (the Requests tab of the venue rota): one card per request, its dates inside. */
 export function CoverList({ q, many, onOpen, onNew, onDone }) {
   const [tab, setTab] = useState('upcoming');
-  const [picking, setPicking] = useState(false);
-  const [sel, setSel] = useState(new Set());
-  const [bulk, setBulk] = useState(null);
-  const [run, busy] = useAction();
+  const [bulk, setBulk] = useState(null); // { edit, mode }
+  const [run] = useAction();
   const confirm = useConfirm();
-  const now = Date.now();
-  const stop = () => { setPicking(false); setSel(new Set()); };
-  const toggle = (id) => setSel((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const done = () => { stop(); setBulk(null); onDone?.(); };
-  const cancelAll = async (chosen) => {
-    const booked = chosen.filter((c) => c.status === 'accepted').length;
-    if (!(await confirm({
-      title: `Cancel ${chosen.length} date${chosen.length === 1 ? '' : 's'}?`, confirm: 'Cancel dates', danger: true,
-      body: booked ? `${booked === chosen.length ? 'They are' : `${booked} of them are`} already booked, so the office approves ${booked === 1 ? 'that one' : 'those'} first.` : 'The office is told straight away.',
-    }))) return;
-    run(() => api('cover.updateMany', { ids: chosen.map((c) => c.id), delete: true }), bulkToast(true)).then(done).catch(() => onDone?.());
+  const cancelDates = async (dates, stop, title) => {
+    const list = dates.filter((c) => canCancel(c)).slice(0, 100);
+    if (!list.length) return;
+    if (!(await confirm({ title: title || `Cancel ${list.length} date${list.length === 1 ? '' : 's'}?`, body: cancelSplit(list, false), confirm: 'Cancel dates', danger: true }))) return;
+    run(() => api('cover.updateMany', { ids: list.map((c) => c.id), delete: true }), bulkToast(true)).then(() => { stop?.(); onDone?.(); }).catch(() => onDone?.());
+  };
+  // The whole request: its pattern from the next date that can still change, or every changeable date when it was split into several patterns
+  const changeWhole = (g) => {
+    const open = g.live.filter((c) => canChange(c));
+    const series = new Set(open.map((c) => c.series_id));
+    if (open.length > 1 && series.size > 1) setBulk({ edit: open });
+    else setBulk({ edit: [open[0]], mode: open[0].kind === 'recurring' ? 'future' : 'one' });
+  };
+  const actions = (g, { select, picking, stop }) => {
+    const changeable = g.live.filter((c) => canChange(c));
+    const cancellable = g.live.filter((c) => canCancel(c));
+    return (
+      <>
+        <Button size="sm" variant="soft" icon={Pencil} disabled={!changeable.length} onClick={() => changeWhole(g)}>Change whole request</Button>
+        <Button size="sm" variant="soft" icon={Trash2} disabled={!cancellable.length} onClick={() => cancelDates(cancellable, null, 'Cancel the whole request?')}>Cancel whole request</Button>
+        {g.live.length > 1 && <Button size="sm" variant={picking ? 'secondary' : 'ghost'} icon={picking ? X : ListChecks} onClick={picking ? stop : select}>{picking ? 'Done' : 'Select dates'}</Button>}
+        {g.conversation_id && <Button size="sm" variant="ghost" icon={MessagesSquare} to={`/venue/messages/${g.conversation_id}`}>Message the office</Button>}
+        {!changeable.length && g.live.length > 0 && (
+          <p className="w-full text-caption text-muted">{g.counts.change ? 'A change is waiting for the office.' : 'The next date has started, so it can only be cancelled.'}</p>
+        )}
+      </>
+    );
   };
   return (
     <>
-      <div className="mb-4"><Segmented value={tab} onChange={(t) => { setTab(t); stop(); }} options={[{ value: 'upcoming', label: 'Upcoming', icon: CalendarClock }, { value: 'past', label: 'Past', icon: History }]} /></div>
+      <div className="mb-4"><Segmented value={tab} onChange={setTab} options={[{ value: 'upcoming', label: 'Upcoming', icon: CalendarClock }, { value: 'past', label: 'Past', icon: History }]} /></div>
       <Load q={q}>{(rows) => {
-        const list = rows.filter((c) => (tab === 'upcoming' ? new Date(c.ends_at) > now : new Date(c.ends_at) <= now))
-          .sort((a, b) => (tab === 'upcoming' ? new Date(a.starts_at) - new Date(b.starts_at) : new Date(b.starts_at) - new Date(a.starts_at)));
-        if (!list.length) return <Empty icon={Megaphone} title={tab === 'upcoming' ? 'No upcoming requests' : 'No past requests'} body={tab === 'upcoming' ? 'Need extra officers for an event, or every Friday and Saturday? Send a request and we will confirm.' : undefined}
+        const groups = sortGroups(groupRequests(rows).filter((g) => (tab === 'upcoming' ? !!g.next : !g.next)));
+        if (!groups.length) return <Empty icon={Megaphone} title={tab === 'upcoming' ? 'No upcoming requests' : 'No past requests'} body={tab === 'upcoming' ? 'Need extra officers for an event, or every Friday and Saturday? Send a request and we will confirm.' : undefined}
           action={tab === 'upcoming' && <Button icon={Plus} onClick={onNew}>Request staff</Button>} />;
-        const open = tab === 'upcoming' ? list.filter((c) => changeable(c, now)) : [];
-        const chosen = open.filter((c) => sel.has(c.id));
-        const allOn = open.length > 0 && chosen.length === open.length;
-        // Every changeable date of the same repeating request
-        const seriesOf = (c) => open.filter((x) => x.series_id && x.series_id === c.series_id && x.kind === 'recurring');
-        const pickSeries = (c) => setSel((x) => { const n = new Set(x); seriesOf(c).forEach((d) => n.add(d.id)); return n; });
-        return (
-          <>
-            {open.length > 1 && (
-              <div className="mb-2 flex justify-end gap-2">
-                {picking && <Button variant="ghost" size="sm" onClick={() => setSel(allOn ? new Set() : new Set(open.map((c) => c.id)))}>{allOn ? 'Clear selection' : `Select all ${open.length}`}</Button>}
-                <Button variant={picking ? 'secondary' : 'ghost'} size="sm" onClick={() => (picking ? stop() : setPicking(true))}>{picking ? 'Done' : 'Select'}</Button>
-              </div>
-            )}
-            <List>
-              {list.map((c) => {
-                const can = picking && open.includes(c);
-                const right = (
-                  <div className="flex flex-col items-end gap-1">
-                    <Pill status={statusOf(c)}>{LABEL[statusOf(c)]}</Pill>
-                    {c.change_status === 'pending' ? <span className="text-caption font-semibold text-amber">Change awaiting approval</span> : <RepeatTag c={c} short />}
-                  </div>
-                );
-                const subtitle = <span className="num">{requestLine(c)}{many ? ` · ${c.venue_name}` : ''}{c.stream_name ? ` · ${c.stream_name}` : ''}</span>;
-                if (!picking) return <Row key={c.id} onClick={() => onOpen(c)} chevron title={c.role_name} subtitle={subtitle} right={right} />;
-                const series = can ? seriesOf(c) : [];
-                return (
-                  <div key={c.id} className={cx('flex items-center gap-3 px-4 py-3', !can && 'opacity-50')}>
-                    {can ? <Tick checked={sel.has(c.id)} onChange={() => toggle(c.id)} label={`Select ${dayLabel(c.starts_at)}`} /> : <span className="w-6 shrink-0" aria-hidden />}
-                    <div className="min-w-0 flex-1">
-                      <Pressable press={can} disabled={!can} className="min-w-0 text-left" onClick={() => can && toggle(c.id)}>
-                        <div className="truncate text-body font-semibold">{c.role_name}</div>
-                        <div className="truncate text-footnote text-muted">{subtitle}</div>
-                      </Pressable>
-                      {series.length > 1 && series.some((d) => !sel.has(d.id)) && (
-                        <Button variant="link" size="sm" onClick={() => pickSeries(c)}>All {series.length} dates of this request</Button>
-                      )}
-                    </div>
-                    {right}
-                  </div>
-                );
-              })}
-            </List>
-            <ActionBar show={picking && chosen.length > 0}>
-              <span className="num mr-2 text-subhead font-semibold">{chosen.length} selected</span>
-              <Button variant="secondary" size="sm" icon={Trash2} disabled={busy} onClick={() => cancelAll(chosen)}>Cancel {chosen.length}</Button>
-              <Button size="sm" icon={Pencil} disabled={busy} onClick={() => setBulk(chosen)}>Change {chosen.length}</Button>
-            </ActionBar>
-          </>
-        );
+        return <RequestCards key={tab} groups={groups} many={many} onOpen={(c) => onOpen(c)} actions={tab === 'upcoming' ? actions : undefined}
+          onCancelDates={(d, stop) => cancelDates(d, stop)} onChangeDates={(d, stop) => { stop(); setBulk({ edit: d.filter((c) => canChange(c)) }); }} />;
       }}</Load>
-      {bulk && <ChangeRequest edit={bulk} onClose={() => setBulk(null)} onDone={done} />}
+      {bulk && <ChangeRequest edit={bulk.edit} initialMode={bulk.mode} onClose={() => setBulk(null)} onDone={() => { setBulk(null); onDone?.(); }} />}
     </>
   );
 }
@@ -102,14 +64,25 @@ export function againDraft(c, today = isoDate()) {
 }
 
 export function Detail({ c, onClose, onDone, onAgain }) {
-  const [change, setChange] = useState(null);
+  const [change, setChange] = useState(false);
+  const [run, busy] = useAction();
+  const confirm = useConfirm();
   const st = statusOf(c);
-  const live = ['pending', 'accepted'].includes(c.status) && new Date(c.starts_at) > new Date();
   const waiting = c.change_status === 'pending';
-  if (change) return <ChangeRequest edit={[c]} onClose={() => setChange(null)} onDone={onDone} />;
+  // Any date today can be cancelled; changing stops once it starts
+  const cancel = async () => {
+    if (!(await confirm({ title: `Cancel ${dayLabel(c.starts_at)}?`, body: cancelSplit([c], false), confirm: 'Cancel date', danger: true }))) return;
+    run(() => api('cover.update', { id: c.id, scope: 'one', delete: true }), (r) => (r.status === 'awaiting_approval' ? 'Sent to the office for approval' : 'Cancelled')).then(onDone).catch(() => {});
+  };
+  if (change) return <ChangeRequest edit={[c]} onClose={() => setChange(false)} onDone={onDone} />;
+  const footer = canCancel(c) || canChange(c) ? (
+    <>
+      {canCancel(c) && <Button variant="secondary" icon={Trash2} busy={busy} onClick={cancel}>Cancel</Button>}
+      {canChange(c) && <Button icon={Pencil} onClick={() => setChange(true)}>Change</Button>}
+    </>
+  ) : null;
   return (
-    <Sheet open onClose={onClose} title={c.role_name}
-      footer={live && !waiting ? <><Button variant="secondary" icon={Trash2} onClick={() => setChange('delete')}>Cancel</Button><Button icon={Pencil} onClick={() => setChange('edit')}>Change</Button></> : null}>
+    <Sheet open onClose={onClose} title={c.role_name} footer={footer}>
       <div className="space-y-5">
         <p className="num text-body font-semibold">{requestLine(c)}</p>
         <div className="flex flex-wrap items-center gap-2"><Pill status={st}>{LABEL[st]}</Pill><RepeatTag c={c} /></div>

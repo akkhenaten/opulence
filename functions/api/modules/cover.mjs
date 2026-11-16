@@ -310,6 +310,35 @@ export function bulkWhy(occ, now = new Date()) {
   return null;
 }
 
+/** Why a date can't be cancelled any more, or null. Any date today can go, started or not; earlier days are locked. */
+export function cancelWhy(occ, today = londonDate(new Date())) {
+  if (!['pending', 'accepted'].includes(occ.status)) return `is ${occ.status}`;
+  if (String(occ.occurs_on || londonDate(new Date(occ.starts_at))).slice(0, 10) < today) return 'is in the past';
+  if (occ.change_status === 'pending') return 'has a change waiting';
+  return null;
+}
+
+/** Officers booked on a date's live shifts (one date, or it and every later date of its series). */
+async function staffed(occ, future = false) {
+  const r = await one(
+    `SELECT count(*)::int AS n FROM shift_assignments a JOIN shifts sh ON sh.id = a.shift_id JOIN cover_requests c ON c.id = sh.cover_request_id
+      WHERE sh.status <> 'cancelled' AND a.status IN ('assigned','accepted') AND c.status IN ('pending','accepted')
+        AND ${future ? 'c.series_id = $2 AND c.occurs_on >= $3' : 'c.id = $1'}`,
+    future ? [occ.id, occ.series_id, occ.occurs_on] : [occ.id]);
+  return r?.n || 0;
+}
+
+/** Someone has clocked in on this date's shift and not yet out. */
+async function onSite(occId) {
+  const r = await one(
+    `SELECT 1 FROM shift_assignments a JOIN shifts sh ON sh.id = a.shift_id
+      WHERE sh.cover_request_id = $1 AND sh.status <> 'cancelled' AND a.status IN ('assigned','accepted')
+        AND EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'in' AND ce.status IN ('ok','approved','manual'))
+        AND NOT EXISTS (SELECT 1 FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'out' AND ce.status IN ('ok','approved','manual'))
+      LIMIT 1`, [occId]);
+  return !!r;
+}
+
 const dayShort = (d) => new Date(typeof d === 'string' && d.length === 10 ? `${d}T12:00:00Z` : d)
   .toLocaleDateString('en-GB', { timeZone: 'Europe/London', weekday: 'short', day: 'numeric', month: 'short' });
 
@@ -381,7 +410,9 @@ export const actions = {
     required(b, 'id', 'scope');
     const occ = await loadOcc(user, b.id);
     if (!['pending', 'accepted'].includes(occ.status)) fail(400, `This date is ${occ.status}`);
-    if (new Date(occ.starts_at) < new Date()) fail(400, 'This date has already started');
+    // Cancelling works on any date today; changing only before it starts
+    if (b.delete) { if (cancelWhy(occ) === 'is in the past') fail(400, 'This date is in the past'); }
+    else if (new Date(occ.starts_at) < new Date()) fail(400, 'This date has already started — it can only be cancelled');
     // "Repeating" on a one-off date turns it into a pattern from that date
     const scope = b.scope === 'future' && (occ.kind === 'recurring' || b.kind === 'recurring') ? 'future' : 'one';
     if (b.role && !b.delete) need(await one('SELECT 1 FROM roles WHERE code = $1', [String(b.role)]), 'Unknown role');
@@ -406,18 +437,22 @@ export const actions = {
       const def_ = cleanSeries({ ...b, kind: 'recurring', role: b.role || occ.role, start_date: occ.occurs_on }, occ.occurs_on);
       payload = { type: 'edit', series: def_ };
     }
-    const touchesAccepted = scope === 'one'
-      ? occ.status === 'accepted'
-      : !!(await one("SELECT 1 FROM cover_requests WHERE series_id = $1 AND occurs_on >= $2 AND status = 'accepted' LIMIT 1", [occ.series_id, occ.occurs_on]));
+    // A cancel only waits for the office when officers are booked; any other change to an accepted date always does
+    const touchesAccepted = payload.type === 'delete'
+      ? (await staffed(occ, scope === 'future')) > 0
+      : scope === 'one'
+        ? occ.status === 'accepted'
+        : !!(await one("SELECT 1 FROM cover_requests WHERE series_id = $1 AND occurs_on >= $2 AND status = 'accepted' LIMIT 1", [occ.series_id, occ.occurs_on]));
     const conv = occ.series_id ? await coverThread({ id: occ.series_id, root_id: occ.root_id, venue_id: occ.venue_id }, occ.venue_name) : null;
     if (touchesAccepted && !isMgr(user)) {
       await q("UPDATE cover_requests SET change_status = 'pending', change_scope = $2, change_payload = $3, change_by = $4, change_reason = '' WHERE id = $1",
         [occ.id, scope, JSON.stringify(payload), user.id]);
       const what = payload.type === 'delete' ? 'cancel' : 'change';
+      const site = payload.type === 'delete' && (await onSite(occ.id)) ? ' An officer is on site now.' : '';
       const label = `${scope === 'future' ? `${fmtDate(occ.occurs_on)} and later dates` : fmtDate(occ.occurs_on)}`;
-      if (conv) await post(conv.id, user.id, { body: `Asked to ${what} ${label}. Waiting for Orb to approve.` });
+      if (conv) await post(conv.id, user.id, { body: `Asked to ${what} ${label}. Waiting for Orb to approve.${site}` });
       await notify(await managersFor(occ.venue_id), {
-        kind: 'cover', severity: 'warning', title: `${occ.venue_name} wants to ${what} booked cover`, body: label, link: '/company/cover', email: true,
+        kind: 'cover', severity: 'warning', title: `${occ.venue_name} wants to ${what} booked cover`, body: `${label}${site}`, link: '/company/cover', email: true,
       });
       await audit(user, 'cover.change_requested', 'cover_request', occ.id, { scope, type: payload.type });
       return { status: 'awaiting_approval' };
@@ -474,7 +509,7 @@ export const actions = {
     for (const id of ids) {
       let occ;
       try { occ = await loadOcc(user, id); } catch { res.skipped.push({ id, reason: 'not found' }); continue; }
-      const why = bulkWhy(occ);
+      const why = del ? cancelWhy(occ) : bulkWhy(occ);
       if (why) { res.skipped.push({ id, date: occ.occurs_on, reason: why }); continue; }
       const v = byVenue.get(occ.venue_id) || { name: occ.venue_name, threads: new Map(), done: [], waiting: [] };
       byVenue.set(occ.venue_id, v);
@@ -493,9 +528,12 @@ export const actions = {
         if (!del && !retime) { if (moved) { res.done.push(occ); v.done.push(occ); } continue; }
         const payload = del ? { type: 'delete' }
           : { type: 'edit', slot: cleanSlot(bulkSlot({ start: fmtTime(occ.starts_at), end: fmtTime(occ.ends_at), headcount: occ.headcount }, b)), notes: hasNotes ? String(b.notes).slice(0, 1000) : undefined, role: has('role') ? String(b.role) : undefined };
-        if (occ.status === 'accepted' && !mgr) {
+        // A cancel waits only when officers are booked on the date
+        const waits = occ.status === 'accepted' && !mgr && (!del || (await staffed(occ)) > 0);
+        if (waits) {
           await q("UPDATE cover_requests SET change_status = 'pending', change_scope = 'one', change_payload = $2, change_by = $3, change_reason = '' WHERE id = $1",
             [occ.id, JSON.stringify(payload), user.id]);
+          if (del && (await onSite(occ.id))) v.onSite = true;
           res.waiting.push(occ); v.waiting.push(occ);
         } else {
           await applyChange(occ, 'one', payload, user.id);
@@ -512,6 +550,7 @@ export const actions = {
       const parts = [];
       if (v.done.length) parts.push(`${verb} ${datesLabel(v.done.map((o) => o.occurs_on))}`);
       if (v.waiting.length) parts.push(`Asked to ${del ? 'cancel' : 'change'} booked ${datesLabel(v.waiting.map((o) => o.occurs_on))} — waiting for approval`);
+      if (v.onSite) parts.push('An officer is on site now');
       const text = `${parts.join('. ')}.`;
       for (const series of v.threads.values()) {
         const conv = await coverThread(series, v.name);

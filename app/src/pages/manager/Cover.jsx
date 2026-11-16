@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, CircleX, Hourglass, Layers, Megaphone, MessagesSquare, Pencil, Trash2, UserCheck, UserPlus, X } from 'lucide-react';
 import {
-  Button, dateTime, dayLabel, Empty, isoDate, KV, List, Load, mondayOf, Page, Pill, range, relative, Row, Segmented, Sheet, Textarea, Toggle, useAction, useApi, useUrlState,
+  Button, dateTime, dayLabel, Empty, isoDate, KV, Load, mondayOf, Page, Pill, range, relative, Segmented, Sheet, Textarea, Toggle, useAction, useApi, useUrlState,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
 import { coverWaiting, useRotaCounts } from './_rotaCounts.js';
-import { ChangeRequest, describeChange, isFilled, RepeatTag, requestLine, statusOf } from './_cover.jsx';
+import { canCancel, canChange, ChangeRequest, describeChange, isFilled, RepeatTag, statusOf } from './_cover.jsx';
+import { groupRequests, RequestCards, sortGroups } from './_requestCards.jsx';
 
 const FILTERS = {
   pending: coverWaiting,
@@ -17,69 +18,57 @@ const FILTERS = {
   all: () => true,
 };
 
-// Dates of one repeating request with the same status show as one row
-function group(list) {
-  const out = [];
-  const at = {};
-  for (const c of list) {
-    const key = c.kind === 'recurring' && c.change_status !== 'pending' ? `${c.series_id}:${statusOf(c)}` : c.id;
-    if (at[key] != null) out[at[key]].dates.push(c);
-    else { at[key] = out.length; out.push({ key, first: c, dates: [c] }); }
-  }
-  return out;
-}
-
 export default function Cover() {
   const { base } = useBase();
   const q = useApi('cover.list', {});
   const tabCounts = useRotaCounts({ cover: q });
   const [url, setUrl] = useUrlState({ tab: 'pending', open: '' });
   const tab = FILTERS[url.tab] ? url.tab : 'pending';
-  const [openKey, setOpenKey] = useState(null);
+  const [openId, setOpenId] = useState(null);
   const rows = q.data || [];
   const n = (k) => rows.filter(FILTERS[k]).length;
-  // The drawer steps through the rows of the tab in view
-  const shown = group(rows.filter(FILTERS[tab]));
-  const at = shown.findIndex((g) => g.key === openKey);
-  const open = at >= 0 ? shown[at] : null;
-  // ?open=<date id> (from a venue's page) opens the row holding that date once the list is in
+  // Tabs filter per date, then the dates gather into one card per request; the drawer steps through them in order
+  const groups = sortGroups(groupRequests(rows.filter(FILTERS[tab])));
+  const flat = groups.flatMap((g) => [...g.upcoming, ...g.folded]);
+  const at = flat.findIndex((c) => c.id === openId);
+  const open = at >= 0 ? flat[at] : null;
+  // Accepting or declining "all dates" covers the other waiting dates of the same pattern
+  const sameSeries = (c) => (c.kind === 'recurring' && c.change_status !== 'pending'
+    ? flat.filter((x) => x.series_id === c.series_id && statusOf(x) === statusOf(c) && x.change_status !== 'pending') : [c]);
+  // ?open=<date id> (from a venue's page) opens that date once the list is in
   useEffect(() => {
     if (!url.open || !q.data) return;
-    const g = shown.find((x) => x.dates.some((c) => c.id === url.open));
-    if (g) setOpenKey(g.key);
+    if (flat.some((c) => c.id === url.open)) setOpenId(url.open);
     setUrl({ open: '' });
   }, [url.open, q.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const actions = (g) => {
+    const ask = g.upcoming.find((c) => c.change_status === 'pending');
+    const pend = g.upcoming.find((c) => c.status === 'pending' && c.change_status !== 'pending');
+    return (
+      <>
+        {ask && <Button size="sm" variant="soft" icon={Check} onClick={() => setOpenId(ask.id)}>Review change</Button>}
+        {pend && <Button size="sm" variant="soft" icon={Check} onClick={() => setOpenId(pend.id)}>Accept or decline</Button>}
+        {g.conversation_id && <Button size="sm" variant="ghost" icon={MessagesSquare} to={`${base}/messages/${g.conversation_id}`}>Conversation</Button>}
+      </>
+    );
+  };
+
   return (
     // The status switch sits on the tab line, so the list starts high
-    <Page title="Venue requests" subtitle="Venues asking for officers: answer each date or the whole series" tabCounts={tabCounts} tools={(
+    <Page title="Venue requests" subtitle="Venues asking for officers: answer each date or the whole request" tabCounts={tabCounts} tools={(
       <Segmented value={tab} onChange={(v) => setUrl({ tab: v })} options={[
           { value: 'pending', label: 'To decide', icon: Hourglass, count: n('pending') }, { value: 'accepted', label: 'Being staffed', icon: UserPlus }, { value: 'filled', label: 'Staffed', icon: UserCheck },
           { value: 'declined', label: 'Declined', icon: CircleX }, { value: 'all', label: 'All', icon: Layers },
       ]} />
     )}>
       <Load q={q}>{() => {
-        const list = shown;
-        if (!list.length) return <Empty icon={Megaphone} title={tab === 'pending' ? 'Nothing to decide' : 'Nothing here'} body={tab === 'pending' ? 'New requests and changes from venues appear here.' : undefined} />;
-        return (
-          <List>
-            {list.map(({ key, first: c, dates }) => (
-              <Row key={key} onClick={() => setOpenKey(key)} chevron
-                title={c.stream_name ? `${c.venue_name} · ${c.stream_name}` : c.venue_name}
-                subtitle={<span className="num">{requestLine(c, dates.length)}{c.requested_by_name ? ` · ${c.requested_by_name}` : ''}</span>}
-                right={(
-                  <div className="flex flex-col items-end gap-1">
-                    {c.change_status === 'pending' ? <Pill tone="amber">Change asked</Pill> : <Pill status={statusOf(c)} />}
-                    {c.status === 'accepted' && dates.length === 1 ? <span className="num text-caption text-muted">{c.filled}/{c.headcount} staffed</span> : <RepeatTag c={c} short />}
-                  </div>
-                )} />
-            ))}
-          </List>
-        );
+        if (!groups.length) return <Empty icon={Megaphone} title={tab === 'pending' ? 'Nothing to decide' : 'Nothing here'} body={tab === 'pending' ? 'New requests and changes from venues appear here.' : undefined} />;
+        return <RequestCards key={tab} office groups={groups} onOpen={(c) => setOpenId(c.id)} actions={actions} />;
       }}</Load>
-      {open && <Detail key={open.key} c={open.first} dates={open.dates} base={base} onClose={() => setOpenKey(null)} onDone={() => { setOpenKey(null); q.reload(); }}
-        onPrev={at > 0 ? () => setOpenKey(shown[at - 1].key) : undefined}
-        onNext={at < shown.length - 1 ? () => setOpenKey(shown[at + 1].key) : undefined} />}
+      {open && <Detail key={open.id} c={open} dates={sameSeries(open)} base={base} onClose={() => setOpenId(null)} onDone={() => { setOpenId(null); q.reload(); }}
+        onPrev={at > 0 ? () => setOpenId(flat[at - 1].id) : undefined}
+        onNext={at < flat.length - 1 ? () => setOpenId(flat[at + 1].id) : undefined} />}
     </Page>
   );
 }
@@ -108,7 +97,7 @@ function Detail({ c, dates, base, onClose, onDone, onPrev, onNext }) {
   if (mode === 'edit' || mode === 'delete') return <ChangeRequest edit={[c]} onClose={() => setMode(null)} onDone={onDone} />;
 
   const changeAsked = c.change_status === 'pending';
-  const live = ['pending', 'accepted'].includes(c.status) && new Date(c.starts_at) > new Date();
+  const live = canChange(c);
   let footer = null;
   if (changeAsked) {
     footer = mode === 'refuse'
@@ -162,7 +151,7 @@ function Detail({ c, dates, base, onClose, onDone, onPrev, onNext }) {
         <div className="flex flex-wrap gap-2">
           {c.conversation_id && <Button variant="soft" icon={MessagesSquare} to={`${base}/messages/${c.conversation_id}`}>Conversation with the venue</Button>}
           {live && !changeAsked && c.status === 'pending' && !mode && <Button variant="ghost" icon={Pencil} onClick={() => setMode('edit')}>Change</Button>}
-          {live && !changeAsked && !mode && <Button variant="ghost" icon={Trash2} onClick={() => setMode('delete')}>Cancel request</Button>}
+          {canCancel(c) && !mode && <Button variant="ghost" icon={Trash2} onClick={() => setMode('delete')}>Cancel request</Button>}
         </div>
       </div>
     </Sheet>
