@@ -11,6 +11,14 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-16', icon: Radio, title: 'On site opens again for venues', image: 'onsite-fix',
+    lede: "The venue's On site page and the dashboard's 'On site now' links had stopped opening. They work again.",
+    points: [
+      "On site in the menu, the 'On site now' tile and the 'nobody clocked in' line on the dashboard all open the live board again",
+      "The board shows who is on site, due in, late or finished at your venues, and updates every 15 seconds as before",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-16', icon: MousePointerClick, title: 'Select several shifts on the rota, like files in Windows', image: 'rota-multiselect',
     lede: "The office no longer staffs the rota one shift at a time. Pick several shifts the way you pick files, then assign, publish, approve requests or cancel them together.",
     points: [
