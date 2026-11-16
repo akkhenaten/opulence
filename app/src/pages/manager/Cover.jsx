@@ -7,7 +7,7 @@ import {
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
 import { coverWaiting, useRotaCounts } from './_rotaCounts.js';
-import { ChangeSheet, describeChange, isFilled, RepeatTag, requestLine, statusOf } from './_cover.jsx';
+import { ChangeRequest, describeChange, isFilled, RepeatTag, requestLine, statusOf } from './_cover.jsx';
 
 const FILTERS = {
   pending: coverWaiting,
@@ -105,7 +105,7 @@ function Detail({ c, dates, base, onClose, onDone, onPrev, onNext }) {
   const decline = () => run(() => api('cover.decline', { id: c.id, reason: reason.trim(), scope: many ? 'series' : 'one' }), 'Declined').then(onDone).catch(() => {});
   const decide = (approve) => run(() => api('cover.decideChange', { id: c.id, approve, reason: reason.trim() }), approve ? 'Change approved' : 'Change declined').then(onDone).catch(() => {});
 
-  if (mode === 'edit' || mode === 'delete') return <ChangeSheet c={c} mode={mode} isMgr onClose={() => setMode(null)} onDone={onDone} />;
+  if (mode === 'edit' || mode === 'delete') return <ChangeRequest edit={[c]} onClose={() => setMode(null)} onDone={onDone} />;
 
   const changeAsked = c.change_status === 'pending';
   const live = ['pending', 'accepted'].includes(c.status) && new Date(c.starts_at) > new Date();

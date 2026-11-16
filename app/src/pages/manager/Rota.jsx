@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowUpRight, Building2, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, Clock, Copy, Crown, FilePen, Hand, LogOut, NotebookPen, Plus, Printer, Repeat, Rows2, Rows4, Send, Trash2, UserMinus, UserPlus, UserRound, UserX, X,
 } from 'lucide-react';
@@ -12,6 +12,10 @@ import { Check as Tick, WEEKDAYS, durationH, londonIso, londonParts, shiftTimes,
 import { PackPill } from '../shared/PackPaper.jsx';
 import { ClockOutSheet } from '../shared/_clockOut.jsx';
 import { useRotaCounts } from './_rotaCounts.js';
+import { ChangeRequest, LABEL, RequestForm, statusOf } from './_cover.jsx';
+import { CoverList, Detail as RequestDetail } from '../venue/_requests.jsx';
+import { ShiftBody } from '../shift/ShiftView.jsx';
+import { useVenue } from '../../venue.jsx';
 
 const dayOf = (iso) => londonParts(iso).date;
 const ACTIVE = ['assigned', 'accepted'];
@@ -34,6 +38,12 @@ function useDensity() {
 }
 
 export default function Rota() {
+  // Venue managers get the same rota, narrowed to their venues: published shifts, their staff requests, and no rota editing
+  const { user } = useAuth();
+  const isVenue = user?.role === 'venue';
+  const vctx = useVenue();
+  const filters = isVenue ? FILTERS.filter((f) => !['drafts', 'requests'].includes(f.key)) : FILTERS;
+  const views = isVenue ? VIEWS.filter((v) => v.value !== 'officers') : VIEWS;
   // Tab, open shift, week, venue, view and filters live in the address, so Back and shared links land on the same view
   const thisWeek = mondayOf(isoDate());
   const [url, setUrl] = useUrlState({ tab: 'rota', shift: '', assign: '', week: thisWeek, day: '', venue: '', view: 'venues', f: '', empty: '1' });
@@ -42,34 +52,67 @@ export default function Rota() {
   const setOpenId = (id) => setUrl({ shift: id || '', assign: '' });
   const week = /^\d{4}-\d{2}-\d{2}$/.test(url.week) ? mondayOf(url.week) : thisWeek;
   const setWeek = (w) => setUrl({ week: w, day: '' });
-  const venueId = url.venue;
-  const view = VIEWS.some((v) => v.value === url.view) ? url.view : 'venues';
-  const on = (url.f || '').split(',').filter((k) => FILTERS.some((f) => f.key === k));
+  // A venue's pick is the same one as the top-bar chip and the home tiles
+  const venueId = isVenue ? vctx.venueId : url.venue;
+  const setVenue = (id) => (isVenue ? vctx.setVenueId(id) : setUrl({ venue: id }));
+  const view = views.some((v) => v.value === url.view) ? url.view : 'venues';
+  const on = (url.f || '').split(',').filter((k) => filters.some((f) => f.key === k));
   const toggleFilter = (k) => setUrl({ f: (on.includes(k) ? on.filter((x) => x !== k) : [...on, k]).join(',') });
   const hideEmpty = url.empty !== '0';
   const [density, setDensity] = useDensity();
   const wide = useMedia('(min-width: 640px)');
   const [form, setForm] = useState(null); // { shift? , date? , repeat? }
+  const [ask, setAsk] = useState(null); // venue: { draft } for a new staff request
+  const [change, setChange] = useState(null); // venue: the request dates being changed
+  const [req, setReq] = useState(null); // venue: a request opened from the Requests tab
 
-  const venues = useApi('venues.list', {});
+  const venuesQ = useApi('venues.list', {}, { skip: isVenue });
+  const venueList = useMemo(() => (isVenue ? vctx.venues.map((v) => ({ ...v, active: true })) : venuesQ.data || []), [isVenue, vctx.venues, venuesQ.data]);
   const roles = useApi('roles.list', {});
-  const reqs = useApi('shifts.pendingRequests', {});
-  const tabCounts = useRotaCounts({ reqs });
+  const reqs = useApi('shifts.pendingRequests', {}, { skip: isVenue });
+  const cover = useApi('cover.list', {}, { skip: !isVenue, poll: 60000 });
+  const tabCounts = useRotaCounts(isVenue ? { cover, venue: true } : { reqs });
   const body = useMemo(() => ({ from: londonIso(week), to: londonIso(addDays(week, 7)), ...(venueId ? { venue_id: venueId } : {}) }), [week, venueId]);
-  const shifts = useApi('shifts.list', body);
+  const shifts = useApi('shifts.list', body, isVenue ? { poll: 60000 } : undefined);
   const [run, busy] = useAction();
   const confirm = useConfirm();
 
   const roleName = (code) => roles.data?.find((r) => r.code === code)?.name || titleCase(code);
-  const rows = useMemo(() => shifts.data || [], [shifts.data]);
-  const shown = useMemo(() => (on.length ? rows.filter((s) => FILTERS.some((f) => on.includes(f.key) && f.test(s))) : rows), [rows, url.f]); // eslint-disable-line react-hooks/exhaustive-deps
-  const counts = Object.fromEntries(FILTERS.map((f) => [f.key, rows.filter(f.test).length]));
+  // A venue's own requests, narrowed by its venue pick; a shift booked from one says when a change to it is waiting
+  const coverQ = useMemo(() => ({ ...cover, data: cover.data && cover.data.filter((c) => !venueId || c.venue_id === venueId) }), [cover, venueId]);
+  const coverById = useMemo(() => new Map((cover.data || []).map((c) => [c.id, c])), [cover.data]);
+  const rows = useMemo(() => (shifts.data || []).map((s) => (isVenue && s.cover_request_id ? { ...s, change_waiting: coverById.get(s.cover_request_id)?.change_status === 'pending' } : s)), [shifts.data, coverById, isVenue]);
+  const shown = useMemo(() => (on.length ? rows.filter((s) => filters.some((f) => on.includes(f.key) && f.test(s))) : rows), [rows, url.f]); // eslint-disable-line react-hooks/exhaustive-deps
+  const counts = Object.fromEntries(filters.map((f) => [f.key, rows.filter(f.test).length]));
+  // Requests not on the rota yet (waiting for a reply, or booked but not published) sit in their day as dashed cards
+  const requests = useMemo(() => {
+    if (!isVenue) return undefined;
+    const onRota = new Set(rows.map((s) => s.cover_request_id).filter(Boolean));
+    return (coverQ.data || []).filter((c) => ['pending', 'accepted'].includes(c.status) && !onRota.has(c.id));
+  }, [isVenue, rows, coverQ.data]);
   const drafts = rows.filter((s) => s.status === 'draft');
   const hiddenDrafts = drafts.length - shown.filter((s) => s.status === 'draft').length;
-  const reload = () => { shifts.reload(); reqs.reload(); };
+  const reload = () => { shifts.reload(); if (isVenue) cover.reload(); else reqs.reload(); };
+  const today = isoDate();
+  const askFor = (date, vid) => setAsk({ draft: { date: date && date >= today ? date : undefined, venue_id: vid || venueId || undefined, quiet: true } });
+  const onAdd = isVenue ? askFor : (date, vid) => setForm({ date, venue_id: vid });
+
+  // A message turned into a request arrives with a draft to check; "Request staff" from the overview opens the form
+  const loc = useLocation();
+  const nav = useNavigate();
+  useEffect(() => {
+    if (!isVenue) return;
+    if (loc.state?.draft) { setAsk({ draft: loc.state.draft }); nav(loc.pathname + loc.search, { replace: true, state: null }); }
+  }, [loc.state]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!isVenue || !new URLSearchParams(loc.search).get('new')) return;
+    setAsk({ draft: { quiet: true } });
+    const n = new URLSearchParams(loc.search); n.delete('new');
+    nav({ pathname: loc.pathname, search: n.toString() ? `?${n}` : '' }, { replace: true });
+  }, [loc.search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Venues in the grid: with a filter on, or "Hide empty venues", only the ones with shifts showing
-  const activeVenues = (venues.data || []).filter((v) => v.active && (!venueId || v.id === venueId));
+  const activeVenues = venueList.filter((v) => v.active && (!venueId || v.id === venueId));
   const gridVenues = hideEmpty || on.length ? activeVenues.filter((v) => shown.some((s) => s.venue_id === v.id)) : orderVenues(shown, activeVenues);
   // The shifts in the order they sit on screen, so ‹ › in the drawer walks the board
   const order = view === 'venues'
@@ -106,19 +149,21 @@ export default function Rota() {
       {!isThisWeek && <Button variant="ghost" size="sm" onClick={() => setWeek(thisWeek)}>Today</Button>}
     </span>
   );
-  const venueOptions = [{ value: '', label: 'All venues' }, ...(venues.data || []).filter((v) => v.active).map((v) => ({ value: v.id, label: v.name }))];
-  const viewSwitch = <Segmented value={view} onChange={(v) => setUrl({ view: v })} options={VIEWS} />;
-  const venuePick = <Select aria-label="Venue" value={venueId} onChange={(e) => setUrl({ venue: e.target.value })} options={venueOptions} />;
-  const changed = (density === 'compact') + (view === 'venues' && !hideEmpty) + (!wide && !!venueId) + (!wide && view !== 'venues');
+  const venueOptions = [{ value: '', label: isVenue ? 'All my venues' : 'All venues' }, ...venueList.filter((v) => v.active).map((v) => ({ value: v.id, label: v.name }))];
+  // One venue: nothing to pick
+  const pickVenue = !isVenue || vctx.many;
+  const viewSwitch = <Segmented value={view} onChange={(v) => setUrl({ view: v })} options={views} />;
+  const venuePick = <Select aria-label="Venue" value={venueId} onChange={(e) => setVenue(e.target.value)} options={venueOptions} />;
+  const changed = (density === 'compact') + (view === 'venues' && !hideEmpty) + (!wide && pickVenue && !!venueId) + (!wide && view !== 'venues');
   const tools = tab === 'rota' && <>
-    {FILTERS.filter((f) => counts[f.key] || on.includes(f.key)).map((f) => (
+    {filters.filter((f) => counts[f.key] || on.includes(f.key)).map((f) => (
       <Chip key={f.key} label={f.label} value={counts[f.key]} tone={f.tone} icon={f.icon} compact="phone" active={on.includes(f.key)} onClick={() => toggleFilter(f.key)} />
     ))}
     <div className="hidden sm:block">{viewSwitch}</div>
-    <div className="hidden w-44 sm:block">{venuePick}</div>
-    <ToolMenu label={wide ? 'Display' : 'Filters'} count={changed} onClear={() => { setDensity('comfortable'); setUrl({ empty: '1', ...(!wide && { venue: '', view: 'venues' }) }); }}>
+    {pickVenue && <div className="hidden w-44 sm:block">{venuePick}</div>}
+    <ToolMenu label={wide ? 'Display' : 'Filters'} count={changed} onClear={() => { setDensity('comfortable'); setUrl({ empty: '1', ...(!wide && { view: 'venues' }) }); if (!wide) setVenue(''); }}>
       {!wide && <ToolField label="View">{viewSwitch}</ToolField>}
-      {!wide && <ToolField label="Venue">{venuePick}</ToolField>}
+      {!wide && pickVenue && <ToolField label="Venue">{venuePick}</ToolField>}
       <ToolField label="Card size">
         <Segmented value={density} onChange={setDensity} options={[
           { value: 'comfortable', label: 'Comfortable', icon: Rows2 },
@@ -130,8 +175,8 @@ export default function Rota() {
   </>;
 
   return (
-    <Page title="Rota" subtitle={tab === 'rota' ? weekPicker : 'Officer requests for open shifts'} wide tools={tools} tabCounts={tabCounts}
-      actions={tab === 'rota' && <>
+    <Page title="Rota" subtitle={tab === 'rota' ? weekPicker : isVenue ? 'Your staff requests' : 'Officer requests for open shifts'} wide tools={tools} tabCounts={tabCounts}
+      actions={isVenue ? <Button icon={Plus} onClick={() => askFor()}>Request staff</Button> : tab === 'rota' && <>
         <div className="hidden items-center gap-2 sm:flex">
           {pubItem && <Button variant="soft" icon={Send} onClick={publish} busy={busy}>Publish {drafts.length}{hiddenDrafts > 0 && <span className="font-medium opacity-75"> ({hiddenDrafts} hidden by filters)</span>}</Button>}
           <MoreMenu items={more} label="More ways to add shifts" title="Rota" />
@@ -139,13 +184,17 @@ export default function Rota() {
         <div className="sm:hidden"><MoreMenu items={[pubItem, ...more]} title="Rota" /></div>
         <Button icon={Plus} onClick={() => setForm({})}>New shift</Button>
       </>}>
-      {tab === 'requests' ? <Requests q={reqs} roleName={roleName} onChanged={reload} onOpen={setOpenId} /> : (
+      {tab === 'requests' ? (isVenue
+        ? <CoverList q={coverQ} many={vctx.many && !venueId} onOpen={setReq} onNew={() => askFor()} onDone={() => cover.reload()} />
+        : <Requests q={reqs} roleName={roleName} onChanged={reload} onOpen={setOpenId} />) : (
         <>
           <Load q={shifts}>{() => {
-            const props = { rows: shown, all: rows, week, density, onOpen: (s) => setOpenId(s.id), onAdd: (date, vid) => setForm({ date, venue_id: vid }), onUnfilled: () => setUrl({ f: 'unfilled' }) };
+            const props = { rows: shown, all: rows, week, density, requests, onOpen: (s) => setOpenId(s.id), onRequest: setReq, onAdd, addWord: isVenue ? 'Request staff' : 'Add shift', onUnfilled: () => setUrl({ f: 'unfilled' }) };
             const none = on.length
               ? <Empty icon={CalendarDays} title="No shifts match these filters" action={<Button variant="secondary" onClick={() => setUrl({ f: '' })}>Clear filters</Button>} />
-              : <Empty photo="kit" icon={CalendarDays} title="No shifts this week" action={<Button icon={Plus} onClick={() => setForm({})}>New shift</Button>} />;
+              : isVenue
+                ? <Empty icon={CalendarDays} title="No shifts this week" body="Shifts show here once the security company publishes them. Need officers? Ask from here." action={<Button icon={Plus} onClick={() => askFor()}>Request staff</Button>} />
+                : <Empty photo="kit" icon={CalendarDays} title="No shifts this week" action={<Button icon={Plus} onClick={() => setForm({})}>New shift</Button>} />;
             const phone = <PhoneDay {...props} venues={activeVenues} day={url.day} setDay={(d) => setUrl({ day: d })} />;
             if (view === 'officers') {
               if (!shown.length) return none;
@@ -153,16 +202,23 @@ export default function Rota() {
             }
             if (view === 'venues') {
               if (!activeVenues.length) return <Empty icon={CalendarDays} title="No venues" />;
-              return <>{gridVenues.length ? <VenueGrid {...props} venues={gridVenues} /> : <div className="hidden md:block">{none}</div>}{phone}</>;
+              // A venue's dashed requests count as something to show in its row
+              const withReqs = requests ? orderVenues(shown, activeVenues).filter((v) => gridVenues.includes(v) || requests.some((c) => c.venue_id === v.id)) : gridVenues;
+              return <>{withReqs.length ? <VenueGrid {...props} venues={withReqs} /> : <div className="hidden md:block">{none}</div>}{phone}</>;
             }
             return <><DayGrid {...props} />{phone}</>;
           }}</Load>
         </>
       )}
 
-      {openId && <ShiftDetail id={openId} startAssign={url.assign === '1'} roleName={roleName} onClose={() => setOpenId(null)} onChanged={reload} onPrev={step(at - 1)} onNext={step(at + 1)}
+      {openId && isVenue && <VenueShiftDetail id={openId} row={rows.find((s) => String(s.id) === String(openId))} coverById={coverById} onClose={() => setOpenId(null)}
+        onChange={(c) => setChange([c])} onPrev={step(at - 1)} onNext={step(at + 1)} />}
+      {openId && !isVenue && <ShiftDetail id={openId} startAssign={url.assign === '1'} roleName={roleName} onClose={() => setOpenId(null)} onChanged={reload} onPrev={step(at - 1)} onNext={step(at + 1)}
         onEdit={(s) => { setOpenId(null); setForm({ shift: s }); }} />}
-      {form && <ShiftForm init={form} venues={(venues.data || []).filter((v) => v.active)} roles={roles.data || []} onClose={() => setForm(null)}
+      {ask && <RequestForm venues={vctx.venues} roles={roles.data || []} draft={ask.draft} onClose={() => setAsk(null)} onDone={() => { setAsk(null); reload(); }} />}
+      {change && <ChangeRequest edit={change} onClose={() => setChange(null)} onDone={() => { setChange(null); setOpenId(null); reload(); }} />}
+      {req && <RequestDetail c={req} onClose={() => setReq(null)} onDone={() => { setReq(null); reload(); }} onAgain={(draft) => { setReq(null); setAsk({ draft }); }} />}
+      {form && !isVenue && <ShiftForm init={form} venues={venueList.filter((v) => v.active)} roles={roles.data || []} onClose={() => setForm(null)}
         onSaved={(d) => { setForm(null); if (d && (d >= addDays(week, 7) || d < week)) setWeek(mondayOf(d)); reload(); }} />}
     </Page>
   );
@@ -177,6 +233,7 @@ const STICKY = 'sticky left-0 z-10 bg-surface shadow-[1px_0_0_var(--color-line)]
 const DAYS = (week) => Array.from({ length: 7 }, (_, i) => addDays(week, i));
 const places = (s) => (s.status === 'cancelled' ? 0 : Math.max(0, s.headcount - s.filled));
 const byTime = (a, b) => a.starts_at.localeCompare(b.starts_at);
+const cellRequests = (list, d, vid) => (list || []).filter((c) => dayOf(c.starts_at) === d && (vid == null || c.venue_id === vid)).sort(byTime);
 const cellShifts = (rows, d, vid) => rows.filter((s) => dayOf(s.starts_at) === d && (vid == null || s.venue_id === vid)).sort(byTime);
 // Drafts have not been sent to anyone yet, so only published shifts can be waiting on confirmations
 const shiftState = (s) => {
@@ -231,7 +288,7 @@ function Faces({ people, open, size = 20 }) {
   const gaps = Math.min(open, Math.max(1, 4 - Math.min(people.length, 3)));
   return (
     <span className="flex items-center">
-      {people.slice(0, 3).map((a, i) => <Avatar key={a.id} name={a.name} size={size} className={cx('ring-2 ring-surface', i > 0 && '-ml-1.5')} />)}
+      {people.slice(0, 3).map((a, i) => <Avatar key={a.id || i} name={a.name} size={size} className={cx('ring-2 ring-surface', i > 0 && '-ml-1.5')} />)}
       {people.length > 3 && <span className="num ml-1 text-caption2 font-semibold text-muted">+{people.length - 3}</span>}
       {Array.from({ length: gaps }, (_, i) => <span key={i} aria-hidden className="ml-1 inline-block shrink-0 rounded-full border-[1.5px] border-dashed border-faint" style={{ width: size, height: size }} />)}
       {open > gaps && <span className="num ml-1 text-caption2 text-faint">+{open - gaps}</span>}
@@ -292,12 +349,31 @@ function ShiftCard({ s, onOpen, showVenue = true, density = 'comfortable', flat 
             {draft && <Pill status="draft" />}
             {s.open && <Pill tone="blue">Open</Pill>}
             {requested > 0 && <Pill tone="amber">{requested} req</Pill>}
+            {s.change_waiting && <Pill tone="amber">Change waiting</Pill>}
           </div>
         </>
       )}
     </Pressable>
     {direct}
     </div>
+  );
+}
+
+// A venue's staff request that is not on the rota yet: dashed, with where it stands
+function RequestCard({ c, onOpen, showVenue = true, density = 'comfortable' }) {
+  const st = statusOf(c);
+  return (
+    <Pressable press onClick={() => onOpen(c)} title={`Your request · ${c.headcount} × ${c.role_name} · ${LABEL[st]}`}
+      className={cx('@container block w-full rounded-xl border border-dashed border-faint/70 bg-surface/60 text-left transition hover:border-faint', density === 'compact' ? 'min-h-8 py-1.5 pl-2.5 pr-2' : 'min-h-14 py-2 pl-2.5 pr-2')}>
+      <div className="flex items-center gap-1.5">
+        <span className="num whitespace-nowrap text-footnote font-bold">{range(c.starts_at, c.ends_at).replace(/:00/g, '')}</span>
+        <span className="num ml-auto shrink-0 text-caption font-bold text-muted">{c.headcount}×</span>
+      </div>
+      {density !== 'compact' && <>
+        <div className="mt-0.5 truncate text-caption text-muted">{showVenue && <span className="font-semibold text-ink">{c.venue_name} · </span>}Request · {c.role_name}</div>
+        <div className="mt-1.5 flex flex-wrap gap-1"><Pill status={st}>{LABEL[st]}</Pill>{c.change_status === 'pending' && <Pill tone="amber">Change waiting</Pill>}</div>
+      </>}
+    </Pressable>
   );
 }
 
@@ -372,7 +448,7 @@ function TotalsRow({ rows, week, onUnfilled, lead = true }) {
   );
 }
 
-function VenueGrid({ rows, all, week, venues, density, onOpen, onAdd, onUnfilled }) {
+function VenueGrid({ rows, all, week, venues, density, requests, onOpen, onRequest, onAdd, addWord, onUnfilled }) {
   const today = isoDate();
   return (
     <GridFrame week={week} totals={<TotalsRow rows={all} week={week} onUnfilled={onUnfilled} />}>
@@ -388,7 +464,8 @@ function VenueGrid({ rows, all, week, venues, density, onOpen, onAdd, onUnfilled
             {DAYS(week).map((d) => (
               <div key={d} className={cx('group min-w-0 space-y-1.5 border-l border-line p-1.5', cellTone(d, today))}>
                 {cellShifts(mine, d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} density={density} flat />)}
-                <AddCell label={`Add shift at ${v.name}, ${dayLabel(d)}`} onClick={() => onAdd(d, v.id)} />
+                {cellRequests(requests, d, v.id).map((c) => <RequestCard key={c.id} c={c} onOpen={onRequest} showVenue={false} density={density} />)}
+                <AddCell label={`${addWord} at ${v.name}, ${dayLabel(d)}`} onClick={() => onAdd(d, v.id)} />
               </div>
             ))}
           </div>
@@ -399,7 +476,7 @@ function VenueGrid({ rows, all, week, venues, density, onOpen, onAdd, onUnfilled
 }
 
 // By day: the whole week in one row of seven columns
-function DayGrid({ rows, all, week, density, onOpen, onAdd, onUnfilled }) {
+function DayGrid({ rows, all, week, density, requests, onOpen, onRequest, onAdd, addWord, onUnfilled }) {
   const today = isoDate();
   return (
     <GridFrame week={week} lead={false} totals={<TotalsRow rows={all} week={week} lead={false} onUnfilled={onUnfilled} />}>
@@ -407,7 +484,8 @@ function DayGrid({ rows, all, week, density, onOpen, onAdd, onUnfilled }) {
         {DAYS(week).map((d) => (
           <div key={d} className={cx('group min-w-0 space-y-1.5 p-1.5', d !== week && 'border-l border-line', cellTone(d, today))}>
             {cellShifts(rows, d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} density={density} flat />)}
-            <AddCell label={`Add shift ${dayLabel(d)}`} onClick={() => onAdd(d)} />
+            {cellRequests(requests, d).map((c) => <RequestCard key={c.id} c={c} onOpen={onRequest} density={density} />)}
+            <AddCell label={`${addWord} ${dayLabel(d)}`} onClick={() => onAdd(d)} />
           </div>
         ))}
       </div>
@@ -450,15 +528,17 @@ function OfficerGrid({ rows, all, week, density, onOpen, onUnfilled }) {
 
 /* A day at a time: a strip of the week's days (a red dot where places are open), then that day's shifts by venue,
    venues with open places first and short shifts at the top of each. */
-function PhoneDay({ rows, week, venues, onOpen, onAdd, day: picked, setDay }) {
+function PhoneDay({ rows, week, venues, requests, onOpen, onRequest, onAdd, addWord, day: picked, setDay }) {
   const today = isoDate();
   const days = DAYS(week);
   // The chosen day lives in the address, so Back from a shift returns to it; a new week starts on today or its Monday
   const day = days.includes(picked) ? picked : days.includes(today) ? today : week;
   const list = cellShifts(rows, day);
-  const groups = [...new Set(list.map((s) => s.venue_id))].map((id) => {
+  const asked = cellRequests(requests, day);
+  const groups = [...new Set([...list, ...asked].map((s) => s.venue_id))].map((id) => {
     const mine = list.filter((s) => s.venue_id === id).sort((a, b) => (places(b) > 0) - (places(a) > 0) || byTime(a, b));
-    return { id, name: venues.find((v) => v.id === id)?.name || mine[0].venue_name, list: mine, open: mine.reduce((n, s) => n + places(s), 0) };
+    const reqs = asked.filter((c) => c.venue_id === id);
+    return { id, name: venues.find((v) => v.id === id)?.name || (mine[0] || reqs[0]).venue_name, list: mine, reqs, open: mine.reduce((n, s) => n + places(s), 0) };
   }).sort((a, b) => (b.open > 0) - (a.open > 0) || a.name.localeCompare(b.name));
   return (
     <div className="md:hidden">
@@ -479,10 +559,10 @@ function PhoneDay({ rows, week, venues, onOpen, onAdd, day: picked, setDay }) {
       </div>
       <div className="mb-2 flex items-center justify-between">
         <span className={cx('text-footnote font-semibold uppercase tracking-wide', day === today ? 'text-blue' : 'text-muted')}>{dayLabel(day)}{day === today ? ' · Today' : ''}</span>
-        <Pressable press onClick={() => onAdd(day)} className="-my-2 px-1 py-2 text-footnote font-semibold text-blue" aria-label={`Add shift ${dayLabel(day)}`}>+ Add</Pressable>
+        <Pressable press onClick={() => onAdd(day)} className="-my-2 px-1 py-2 text-footnote font-semibold text-blue" aria-label={`${addWord} ${dayLabel(day)}`}>+ {addWord === 'Add shift' ? 'Add' : 'Request'}</Pressable>
       </div>
       {!groups.length
-        ? <Pressable press onClick={() => onAdd(day)} className="block w-full rounded-2xl border border-dashed border-line px-4 py-6 text-center text-footnote text-faint">No shifts · <span className="font-semibold text-blue">Add one</span></Pressable>
+        ? <Pressable press onClick={() => onAdd(day)} className="block w-full rounded-2xl border border-dashed border-line px-4 py-6 text-center text-footnote text-faint">No shifts · <span className="font-semibold text-blue">{addWord === 'Add shift' ? 'Add one' : 'Request staff'}</span></Pressable>
         : (
           <div className="space-y-4">
             {groups.map((g) => (
@@ -491,7 +571,10 @@ function PhoneDay({ rows, week, venues, onOpen, onAdd, day: picked, setDay }) {
                   <span className="truncate text-subhead font-semibold">{g.name}</span>
                   {g.open > 0 && <span className="num shrink-0 text-caption font-semibold text-red">{g.open} unfilled</span>}
                 </div>
-                <div className="space-y-2">{g.list.map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} />)}</div>
+                <div className="space-y-2">
+                  {g.list.map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} />)}
+                  {g.reqs.map((c) => <RequestCard key={c.id} c={c} onOpen={onRequest} showVenue={false} />)}
+                </div>
               </section>
             ))}
           </div>
@@ -601,6 +684,43 @@ function Requests({ q, roleName, onChanged, onOpen }) {
 }
 
 /* ---------- Shift detail ---------- */
+
+/* The venue's drawer: the same shift page the team works from (who is on and clocked in, the handover, the shift's
+   ejections, bans and incidents, the signed log), plus Change and Cancel when the shift came from the venue's own request. */
+function VenueShiftDetail({ id, row, coverById, onClose, onChange, onPrev, onNext }) {
+  const q = useApi('shifts.detail', { id });
+  const d = q.data && String(q.data.shift?.id) === String(id) ? q.data : null;
+  const req = row?.cover_request_id ? coverById.get(row.cover_request_id) : null;
+  const ahead = row && new Date(row.starts_at) > new Date();
+  // One change at a time: while the office looks at one, the shift stays as it is
+  const open = req && ahead && req.change_status !== 'pending';
+  const footer = (
+    <>
+      {open && <Button variant="link-red" onClick={() => onChange(req)}>Cancel</Button>}
+      <Button variant="secondary" icon={NotebookPen} to={`/venue/logs/${id}`}>Open shift page</Button>
+      {open && <Button onClick={() => onChange(req)}>Change</Button>}
+    </>
+  );
+  return (
+    <Sheet open side onClose={onClose} title={row?.venue_name || 'Shift'} footer={footer} size="md" onPrev={onPrev} onNext={onNext}>
+      {q.loading && !d ? <Spinner /> : q.error && !d ? <ErrorBox error={q.error} retry={q.reload} /> : !d ? null : (
+        <div className="space-y-5">
+          {row && (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <Pill tone={shiftState(row) === 'short' ? 'red' : shiftState(row) === 'unconfirmed' ? 'amber' : 'green'} className="num">{row.filled}/{row.headcount} booked</Pill>
+                {row.change_waiting && <Pill tone="amber">Change waiting for the office</Pill>}
+              </div>
+              {(row.stream_name || row.notes) && <KV items={[row.stream_name && ['Bill to', row.stream_name], ['Notes', row.notes]]} />}
+              {ahead && !req && <p className="text-footnote text-muted">Set up by the office — message them to change it.</p>}
+            </>
+          )}
+          <ShiftBody d={d} reload={q.reload} role="venue" />
+        </div>
+      )}
+    </Sheet>
+  );
+}
 
 function ShiftDetail({ id, startAssign, roleName, onClose, onChanged, onEdit, onPrev, onNext }) {
   const q = useApi('shifts.get', { id });

@@ -203,12 +203,14 @@ export const actions = {
           AND ($3::text IS NULL OR i.status = $3) AND ($4::text IS NULL OR i.severity = $4) AND ($5::text IS NULL OR i.type = $5)
           AND ($6::uuid IS NULL OR i.venue_id = $6) AND ($7::timestamptz IS NULL OR i.occurred_at >= $7) AND ($8::timestamptz IS NULL OR i.occurred_at < $8)
           AND ($9::text IS NULL OR i.ref ILIKE $9 OR i.title ILIKE $9 OR i.description ILIKE $9 OR i.location ILIKE $9 OR i.police_ref ILIKE $9)
-          AND ($11::text IS NULL OR i.sign_stage = $11)
+          AND ($11::text IS NULL OR i.sign_stage = $11) AND ($12::uuid IS NULL OR i.shift_id = $12)
         ORDER BY ${b.sort === 'reported' ? 'i.created_at' : 'i.occurred_at'} DESC LIMIT $10`,
       [user.role === 'officer' ? null : scope, user.role === 'officer' ? user.officer_id : b.officer_id || null, b.status || null, b.severity || null, b.type || null,
         b.venue_id || null, b.from || null, b.to || null, b.search ? `%${b.search}%` : null, Math.min(Number(b.limit) || 200, 500),
         // "To sign": the reports waiting on the caller's own signature
-        b.to_sign ? signerRole(user.role) : b.sign_stage || null]);
+        b.to_sign ? signerRole(user.role) : b.sign_stage || null,
+        // One shift's reports (the venue's shift card)
+        b.shift_id || null]);
   }),
 
   'incidents.get': def(ALL, async (b, { user }) => {

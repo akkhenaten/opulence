@@ -51,7 +51,7 @@ export default function ShiftView() {
       : from === 'live' ? { to: `/${user.role}`, label: 'Today' } : { to: `/${user.role}/rota`, label: 'Rota' };
   return (
     <Page backLabel="Shift" title={q.data?.shift.venue_name || 'Shift'} subtitle={q.data ? <>{dayLabel(q.data.shift.starts_at)} · <span className="num">{range(q.data.shift.starts_at, q.data.shift.ends_at)}</span></> : null} back={back}>
-      <Load q={q} skeleton="rows">{(d) => (mgr && d.me.access === 'mgr' ? <ManagerShift d={d} reload={q.reload} role={user.role} /> : <Body d={d} reload={q.reload} role={user.role} />)}</Load>
+      <Load q={q} skeleton="rows">{(d) => (mgr && d.me.access === 'mgr' ? <ManagerShift d={d} reload={q.reload} role={user.role} /> : <ShiftBody d={d} reload={q.reload} role={user.role} />)}</Load>
     </Page>
   );
 }
@@ -68,7 +68,7 @@ function ManagerShift({ d, reload, role }) {
         <Segmented value={view} onChange={setView} options={VIEWS} />
         {view === 'officer' && people.length > 1 && <Segmented value={m.user_id} onChange={setWho} options={people.map((x) => ({ value: x.user_id, label: x.name }))} />}
       </div>
-      {view === 'mgr' ? <Body d={d} reload={reload} role={role} />
+      {view === 'mgr' ? <ShiftBody d={d} reload={reload} role={role} />
         : !m ? <Empty icon={Users} title="Nobody to show" body="No one on this shift has the app yet." />
           : <OfficerPreview d={d} m={m} />}
     </div>
@@ -93,7 +93,7 @@ function OfficerPreview({ d, m }) {
         <span className="font-semibold">This is what {m.name} sees.</span> {onShift ? 'They are clocked in, so this is their Home.' : m.clocked_out ? 'They have clocked out.' : 'Not started yet: they have not clocked in.'} Nothing here can be pressed.
       </div>
       <div inert="" className="pointer-events-none select-none" aria-hidden="true">
-        <Body d={pd} reload={() => {}} role="officer" live={onShift} preview />
+        <ShiftBody d={pd} reload={() => {}} role="officer" live={onShift} preview />
       </div>
     </div>
   );
@@ -103,10 +103,11 @@ function OfficerPreview({ d, m }) {
 export function ShiftPanel({ id }) {
   const { user } = useAuth();
   const q = useApi('shifts.detail', { id }, { poll: 30000 });
-  return <Load q={q} skeleton="rows">{(d) => <Body d={d} reload={q.reload} role={user.role} live />}</Load>;
+  return <Load q={q} skeleton="rows">{(d) => <ShiftBody d={d} reload={q.reload} role={user.role} live />}</Load>;
 }
 
-function Body({ d, reload, role, live, preview }) {
+// The shift itself, also the venue's rota drawer
+export function ShiftBody({ d, reload, role, live, preview }) {
   const { shift: s, me, team, log } = d;
   const loc = useLocation();
   // A past shift card's "Log ejection" lands here with ?eject=1 and opens the sheet straight away
@@ -143,7 +144,9 @@ function Body({ d, reload, role, live, preview }) {
         {manager && <ManagerActions s={s} d={d} role={role} />}
         {manager && <InstructionsCard d={d} reload={reload} />}
         {venue && started && <VenueActions s={s} />}
-        {!venue && <HandoverBlock d={d} onAdd={me.can_write && !signed ? () => composer.current?.handover() : null} />}
+        {/* The venue reads what the last team left and this team's handover once the log is signed */}
+        <HandoverBlock d={d} venue={venue} onAdd={!venue && me.can_write && !signed ? () => composer.current?.handover() : null} />
+        {venue && <ShiftIncidents shiftId={s.id} />}
         {officer && me.assignment_id && (preview
           ? <div className="flex items-center gap-3 rounded-tile bg-surface p-4 shadow-tile"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><FileSignature size={20} /></span><span className="font-semibold">Site pack</span></div>
           : <SitePackCard venueId={s.venue_id} />)}
@@ -411,7 +414,23 @@ function InstructionsCard({ d, reload }) {
 }
 
 // What the last team left, plus what this shift is leaving for the next one
-function HandoverBlock({ d, onAdd }) {
+// Reports filed against this shift, for the venue
+function ShiftIncidents({ shiftId }) {
+  const q = useApi('incidents.list', { shift_id: shiftId, limit: 50 });
+  if (!q.data?.length) return null;
+  return (
+    <Section title="Incidents" icon={ShieldAlert}>
+      <List>
+        {q.data.map((i) => (
+          <Row key={i.id} to={`/venue/incidents/${i.id}`} chevron title={i.title || 'Incident'} subtitle={`${i.ref ? `${i.ref} · ` : ''}${dateTime(i.occurred_at)}`}
+            right={i.severity && <Pill status={i.severity} />} />
+        ))}
+      </List>
+    </Section>
+  );
+}
+
+function HandoverBlock({ d, onAdd, venue }) {
   const [photo, setPhoto] = useState(null);
   const prev = d.previous_handover;
   const mine = d.entries.filter((e) => e.kind === 'handover' && e.state === 'kept');
@@ -422,7 +441,7 @@ function HandoverBlock({ d, onAdd }) {
         <div className="flex items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-soft text-blue"><ArrowRightLeft size={20} /></span>
           <div className="min-w-0 flex-1">
-            <div className="text-caption font-semibold uppercase tracking-wide text-muted">Left for you</div>
+            <div className="text-caption font-semibold uppercase tracking-wide text-muted">{venue ? 'From the last shift here' : 'Left for you'}</div>
             {prev ? (
               <>
                 <p className="mt-1 whitespace-pre-line text-body">{prev.handover_summary || 'No summary written.'}</p>

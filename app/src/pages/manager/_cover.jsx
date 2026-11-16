@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { CalendarDays, CalendarRange, Repeat } from 'lucide-react';
-import { Button, Callout, Chip, cx, dateShort, Input, isoDate, addDays, Pressable, Segmented, Select, Sheet, Textarea, Toggle, useAction, useApi, useConfirm, useForm } from '../../ui/index.jsx';
+import { CalendarDays, Repeat } from 'lucide-react';
+import { Button, Callout, Chip, cx, dateShort, Input, isoDate, addDays, Segmented, Select, Sheet, Textarea, Toggle, useAction, useApi, useConfirm, useForm } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { londonParts, WEEKDAYS } from './_parts.jsx';
 import { useVenue } from '../../venue.jsx';
+import { useAuth } from '../../auth.jsx';
 
 // Shared by the venue's staff requests (Request staff) and the managers' "Venue requests" page
 
@@ -86,51 +87,140 @@ export function DaysEditor({ days, onChange }) {
 const cleanDays = (days) => days.map((d) => ({ ...d, headcount: Number(d.headcount) }));
 const daysOk = (days) => days.length > 0 && days.every((d) => d.start && d.end && d.start !== d.end && Number(d.headcount) >= 1);
 
-/** New staff request: one date, or a repeating pattern. `draft` pre-fills it (e.g. read from a message). */
-export function RequestForm({ venues, roles, draft, onClose, onDone }) {
+// What a change starts from: one date's own values, or for several dates the value they share ('' where they differ)
+function editStart(edit) {
+  const same = (fn) => { const vals = [...new Set(edit.map(fn))]; return vals.length === 1 ? vals[0] : ''; };
+  const c = edit[0];
+  const date = c.occurs_on ? String(c.occurs_on).slice(0, 10) : londonParts(c.starts_at).date;
+  const slot = slotOf(c);
+  // A one-off made repeating starts as "this weekday, these times"
+  const days = c.kind === 'recurring' && c.days?.length ? c.days.map((d) => ({ ...d })) : [{ dow: isoDow(date), start: slot.start, end: slot.end, headcount: slot.headcount }];
+  return {
+    venue_id: c.venue_id, role: same((x) => x.role), kind: c.kind === 'recurring' ? 'recurring' : 'one_off', date,
+    start: same((x) => slotOf(x).start), end: same((x) => slotOf(x).end), headcount: same((x) => String(x.headcount)),
+    frequency: c.frequency || 'weekly', days, start_date: date, has_end: c.kind === 'recurring' && !!c.end_date,
+    end_date: c.kind === 'recurring' && c.end_date ? String(c.end_date).slice(0, 10) : addDays(date, 56),
+    notes: same((x) => x.notes || ''), stream_id: same((x) => x.stream_id || ''),
+  };
+}
+
+// The fields of a one-date change that differ from where they started; for several dates a blank field keeps each date's own
+const ONE_KEYS = ['date', 'start', 'end', 'headcount', 'role', 'notes'];
+function changedFields(start, v, many) {
+  return Object.fromEntries(ONE_KEYS.filter((k) => !(many && k === 'date'))
+    .filter((k) => String(v[k] ?? '') !== String(start[k] ?? '') && (k === 'notes' || v[k] !== ''))
+    .map((k) => [k, k === 'headcount' ? Number(v[k]) : v[k]]));
+}
+
+/**
+ * Staff request: one date, or a repeating pattern. `draft` pre-fills a new one (e.g. read from a message).
+ * `edit` (rows from cover.list) opens the same form on what was asked: one date (only it, or it and every later date),
+ * or several chosen dates together.
+ */
+export function RequestForm({ venues, roles, draft, edit, onClose, onDone }) {
   const tomorrow = addDays(isoDate(), 1);
-  const chosen = useVenue().venueId;
-  const f = useForm({
+  const chosen = useVenue()?.venueId;
+  const { user } = useAuth();
+  const mgr = user?.role !== 'venue';
+  const many = edit?.length > 1;
+  const one = edit?.length === 1 ? edit[0] : null;
+  const [start0] = useState(() => (edit?.length ? editStart(edit) : null));
+  const f = useForm(start0 || {
     venue_id: draft?.venue_id || chosen || (venues.length === 1 ? venues[0].id : ''), role: draft?.role || '', kind: draft?.kind || 'one_off',
     date: draft?.date || tomorrow, start: draft?.start || '21:00', end: draft?.end || '03:00', headcount: draft?.headcount || 1,
     frequency: draft?.frequency || 'weekly', days: draft?.days || [], start_date: draft?.start_date || tomorrow,
     has_end: !!draft?.end_date, end_date: draft?.end_date || addDays(tomorrow, 56), notes: draft?.notes || '',
   });
+  // Changing one date: just it ('one'), or it and every later date ('future'; on a one-off that makes it repeating)
+  const [mode, setMode] = useState('one');
   const [run, busy] = useAction();
+  const confirm = useConfirm();
   const v = f.v;
-  const rec = v.kind === 'recurring';
+  const rec = edit ? mode === 'future' : v.kind === 'recurring';
   const roleName = roles.find((r) => r.code === v.role)?.name;
   // Billing stream: which budget pays. Only asked when the venue bills more than one, or a new one is being added here.
   const venueId = v.venue_id || venues[0]?.id;
-  const streams = useApi('streams.list', { venue_id: venueId }, { skip: !venueId });
+  const streams = useApi('streams.list', { venue_id: venueId }, { skip: !venueId || (many && new Set(edit.map((c) => c.venue_id)).size > 1) });
   const active = (streams.data || []).filter((x) => x.status === 'active');
-  const [picked, setPicked] = useState(''); // '' = follow the role; '__new' = add one
+  const [picked, setPicked] = useState(start0?.stream_id || ''); // '' = follow the role (new) or keep each date's own (change); '__new' = add one
   const [ns, setNs] = useState({ name: '', po_ref: '', recipient: '' });
   const byRole = active.find((x) => x.roles.includes(v.role)) || active.find((x) => x.is_default);
-  const streamId = picked && picked !== '__new' && active.some((x) => x.id === picked) ? picked : byRole?.id || '';
+  const valid = picked && picked !== '__new' && active.some((x) => x.id === picked);
+  const streamId = valid ? picked : edit ? '' : byRole?.id || '';
   const adding = picked === '__new';
-  const oneOk = v.date && v.start && v.end && v.start !== v.end && Number(v.headcount) >= 1;
-  const ok = (v.venue_id || venues.length === 1) && v.role && (!adding || ns.name.trim())
-    && (rec ? daysOk(v.days) && v.start_date && (!v.has_end || v.end_date >= v.start_date) : oneOk);
+  const keepStream = edit && !active.some((x) => x.id === start0.stream_id);
+  const streamPart = adding ? { new_stream: { name: ns.name.trim(), po_ref: ns.po_ref.trim(), recipient: ns.recipient.trim() } }
+    : streamId && streamId !== start0?.stream_id ? { stream_id: streamId } : edit ? {} : streamId ? { stream_id: streamId } : {};
+
+  const oneOk = (many || v.date) && v.start && v.end && v.start !== v.end && Number(v.headcount) >= 1;
+  const recOk = daysOk(v.days) && (edit || v.start_date) && (!v.has_end || v.end_date >= (edit ? start0.start_date : v.start_date));
+  let ok; let dirty = true; let changed = {};
+  if (!edit) ok = (v.venue_id || venues.length === 1) && v.role && (!adding || ns.name.trim()) && (rec ? recOk : oneOk);
+  else if (many) {
+    changed = changedFields(start0, v, true);
+    const s = v.start || start0.start; const e = v.end || start0.end;
+    dirty = Object.keys(changed).length > 0 || Object.keys(streamPart).length > 0;
+    ok = (!adding || ns.name.trim()) && !(changed.headcount !== undefined && !(changed.headcount >= 1 && changed.headcount <= 50)) && !(s && s === e);
+  } else {
+    changed = changedFields(start0, v, false);
+    dirty = mode === 'future' || Object.keys(changed).length > 0 || Object.keys(streamPart).length > 0;
+    ok = v.role && (!adding || ns.name.trim()) && (rec ? recOk : oneOk);
+  }
+  // A venue's change to booked cover waits for the office
+  const booked = edit ? edit.filter((c) => c.status === 'accepted').length : 0;
+  const needsOk = !mgr && edit && (booked > 0 || (mode === 'future' && one?.accepted_all));
+  const mixed = (k) => (many && start0[k] === '' && v[k] === '' ? 'Mixed — leave blank to keep each date\'s own' : undefined);
+
   const send = () => run(() => api('cover.create', {
-    venue_id: venueId, role: v.role, kind: v.kind, notes: v.notes.trim(),
-    ...(adding ? { new_stream: { name: ns.name.trim(), po_ref: ns.po_ref.trim(), recipient: ns.recipient.trim() } } : streamId ? { stream_id: streamId } : {}),
+    venue_id: venueId, role: v.role, kind: v.kind, notes: v.notes.trim(), ...streamPart,
     ...(rec
       ? { frequency: v.frequency, days: cleanDays(v.days), start_date: v.start_date, end_date: v.has_end ? v.end_date : null }
       : { date: v.date, start: v.start, end: v.end, headcount: Number(v.headcount) }),
   }), 'Request sent').then(onDone).catch(() => {});
+  const approvalToast = (r) => (r.status === 'awaiting_approval' ? 'Sent to the office for approval' : 'Updated');
+  const save = () => {
+    if (many) return run(() => api('cover.updateMany', { ids: edit.map((c) => c.id), ...changed, ...streamPart }), bulkToast(false)).then(onDone).catch(() => {});
+    const body = mode === 'future'
+      ? { id: one.id, scope: 'future', kind: 'recurring', role: v.role, notes: v.notes, frequency: v.frequency, days: cleanDays(v.days), end_date: v.has_end ? v.end_date : null, ...streamPart }
+      : { id: one.id, scope: 'one', date: v.date, start: v.start, end: v.end, headcount: Number(v.headcount), role: v.role, notes: v.notes, ...streamPart };
+    return run(() => api('cover.update', body), approvalToast).then(onDone).catch(() => {});
+  };
+  const cancelDates = async () => {
+    const future = mode === 'future' && one?.kind === 'recurring';
+    const title = many ? `Cancel ${edit.length} dates?` : future ? 'Cancel this and later dates?' : 'Cancel this date?';
+    const body = needsOk ? `${booked === (many ? edit.length : 1) ? 'Booked dates' : `${booked} booked date${booked === 1 ? '' : 's'}`} wait for the office to approve.` : undefined;
+    if (!(await confirm({ title, body, confirm: 'Cancel request', danger: true }))) return;
+    if (many) run(() => api('cover.updateMany', { ids: edit.map((c) => c.id), delete: true }), bulkToast(true)).then(onDone).catch(() => {});
+    else run(() => api('cover.update', { id: one.id, scope: future ? 'future' : 'one', delete: true }), approvalToast).then(onDone).catch(() => {});
+  };
+
+  const title = !edit ? 'Request staff' : many ? `Change ${edit.length} dates` : 'Change request';
+  const venueName = edit ? edit[0].venue_name : null;
+  const footer = edit ? (
+    <>
+      <Button variant="link-red" className="mr-auto" onClick={cancelDates} disabled={busy}>{many ? `Cancel ${edit.length} dates` : mode === 'future' && one?.kind === 'recurring' ? 'Cancel these dates' : 'Cancel date'}</Button>
+      <Button variant="secondary" onClick={onClose}>Back</Button>
+      <Button onClick={save} busy={busy} disabled={!ok || !dirty}>{needsOk ? 'Ask for approval' : 'Save'}</Button>
+    </>
+  ) : <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={send} busy={busy} disabled={!ok}>Send request</Button></>;
 
   return (
-    <Sheet open onClose={onClose} title="Request staff"
-      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={send} busy={busy} disabled={!ok}>Send request</Button></>}>
+    <Sheet open onClose={onClose} title={title} footer={footer}>
       <div className="space-y-4">
-        {draft && !draft.quiet && <Callout>Filled in from your message. Check the details before sending.</Callout>}
-        <Segmented full value={v.kind} onChange={(k) => f.set('kind', k)} options={[{ value: 'one_off', label: 'One date' }, { value: 'recurring', label: 'Repeating' }]} />
-        {venues.length !== 1 && <Select label="Venue" value={v.venue_id} onChange={(e) => f.set('venue_id', e.target.value)} placeholder="Choose venue" options={venues.map((x) => ({ value: x.id, label: x.name }))} />}
-        <Select label="Officer type" value={v.role} onChange={(e) => f.set('role', e.target.value)} placeholder="Choose" options={roles.map((r) => ({ value: r.code, label: r.name }))} />
+        {draft && !draft.quiet && !edit && <Callout>Filled in from your message. Check the details before sending.</Callout>}
+        {needsOk && <Callout tone="warning">{many && booked < edit.length ? `${booked} of these are already booked, so the office approves those changes. The rest change now.` : 'This is already booked, so the office approves the change. Until then it stays as it is.'}</Callout>}
+        {!edit && <Segmented full value={v.kind} onChange={(k) => f.set('kind', k)} options={[{ value: 'one_off', label: 'One date' }, { value: 'recurring', label: 'Repeating' }]} />}
+        {one && <Segmented full value={mode} onChange={setMode} options={one.kind === 'recurring'
+          ? [{ value: 'one', label: 'Only this date' }, { value: 'future', label: 'This and later dates' }]
+          : [{ value: 'one', label: 'One date' }, { value: 'future', label: 'Repeating' }]} />}
+        {edit ? (venueName && <p className="text-footnote text-muted">{venueName}{many ? ` · ${edit.length} dates` : ''}</p>)
+          : venues.length !== 1 && <Select label="Venue" value={v.venue_id} onChange={(e) => f.set('venue_id', e.target.value)} placeholder="Choose venue" options={venues.map((x) => ({ value: x.id, label: x.name }))} />}
+        <Select label="Officer type" value={v.role} onChange={(e) => f.set('role', e.target.value)} placeholder={many && start0.role === '' ? undefined : 'Choose'}
+          options={[...(many && start0.role === '' ? [{ value: '', label: 'Keep each date\'s own' }] : []), ...roles.map((r) => ({ value: r.code, label: r.name }))]} />
         {active.length > 1 || adding ? (
           <Select label="Bill to" hint="Each budget gets its own invoice" value={adding ? '__new' : streamId} onChange={(e) => setPicked(e.target.value)}
-            options={[...active.map((x) => ({ value: x.id, label: x.po_ref ? `${x.name} · PO ${x.po_ref}` : x.name })), { value: '__new', label: '+ New stream' }]} />
+            options={[...(keepStream ? [{ value: '', label: many ? 'Keep each date\'s own' : 'Keep as it is' }] : []),
+              ...active.map((x) => ({ value: x.id, label: x.po_ref ? `${x.name} · PO ${x.po_ref}` : x.name })), { value: '__new', label: '+ New stream' }]} />
         ) : active.length === 1 && (
           <button type="button" className="text-footnote font-semibold text-blue" onClick={() => setPicked('__new')}>Paid from a separate budget? Add a billing stream</button>
         )}
@@ -149,135 +239,38 @@ export function RequestForm({ venues, roles, draft, onClose, onDone }) {
             <Segmented value={v.frequency} onChange={(x) => f.set('frequency', x)} options={[{ value: 'weekly', label: 'Every week' }, { value: 'fortnightly', label: 'Every 2 weeks' }]} />
             <DaysEditor days={v.days} onChange={(d) => f.set('days', d)} />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Starting" type="date" min={isoDate()} {...f.bind('start_date')} />
-              {v.has_end && <Input label="Last date" type="date" min={v.start_date} {...f.bind('end_date')} />}
+              {edit ? <div className="text-body"><div className="text-footnote font-semibold text-muted">Starting</div><div className="mt-2">From {dateShort(start0.start_date)}</div></div>
+                : <Input label="Starting" type="date" min={isoDate()} {...f.bind('start_date')} />}
+              {v.has_end && <Input label="Last date" type="date" min={edit ? start0.start_date : v.start_date} {...f.bind('end_date')} />}
             </div>
             <div className="rounded-xl bg-bg px-4 py-1">
               <Toggle checked={v.has_end} onChange={(x) => f.set('has_end', x)} label="Ends on a date" hint={v.has_end ? undefined : 'Keeps going until you stop it. We book 8 weeks ahead.'} />
             </div>
-            {daysOk(v.days) && <Callout icon={Repeat}>{patternSummary(v, roleName)}</Callout>}
+            {daysOk(v.days) && <Callout icon={Repeat}>{patternSummary(edit ? { ...v, start_date: start0.start_date } : v, roleName)}</Callout>}
           </>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <Input label="Date" type="date" min={isoDate()} className="col-span-2 sm:col-span-1" {...f.bind('date')} />
-              <Input label="Start" type="time" {...f.bind('start')} />
-              <Input label="Finish" type="time" {...f.bind('end')} hint={overnight(v.start, v.end) ? 'Ends next day' : undefined} />
+            <div className={cx('grid grid-cols-2 gap-3', !many && 'sm:grid-cols-3')}>
+              {!many && <Input label="Date" type="date" min={isoDate()} className="col-span-2 sm:col-span-1" {...f.bind('date')} />}
+              <Input label="Start" type="time" {...f.bind('start')} hint={mixed('start')} />
+              <Input label="Finish" type="time" {...f.bind('end')} hint={mixed('end') || (overnight(v.start, v.end) ? 'Ends next day' : undefined)} />
             </div>
-            <Input label="How many officers" type="number" min="1" max="50" inputMode="numeric" {...f.bind('headcount')} />
-            {oneOk && <Callout icon={CalendarDays}>{oneOffSummary(v, roleName)}</Callout>}
+            <Input label="How many officers" type="number" min="1" max="50" inputMode="numeric" placeholder={many && start0.headcount === '' ? 'Mixed' : undefined} {...f.bind('headcount')} />
+            {many && (start0.start === '' || start0.end === '' || start0.headcount === '' || start0.role === '') && <p className="text-footnote text-muted">Blank fields keep each date's own.</p>}
+            {oneOk && !many && <Callout icon={CalendarDays}>{oneOffSummary(v, roleName)}</Callout>}
           </>
         )}
-        <Textarea label="Notes" rows={3} placeholder="Event, dress code, where to report" {...f.bind('notes')} />
+        <Textarea label="Notes" rows={3} placeholder={many && start0.notes === '' && edit.some((c) => c.notes) ? 'Mixed — leave blank to keep each date\'s own' : 'Event, dress code, where to report'} {...f.bind('notes')} />
       </div>
     </Sheet>
   );
 }
 
-/** Edit or delete a date: just this one, or this and every later date in the pattern. */
-export function ChangeSheet({ c, mode, isMgr, onClose, onDone }) {
-  const recurring = c.kind === 'recurring';
-  const [scope, setScope] = useState(recurring ? null : 'one');
-  const slot = slotOf(c);
-  const f = useForm({ ...slot, notes: c.notes || '', frequency: c.frequency || 'weekly', days: (c.days || []).map((d) => ({ ...d })), has_end: !!c.end_date, end_date: c.end_date ? String(c.end_date).slice(0, 10) : addDays(isoDate(), 56) });
-  const [run, busy] = useAction();
-  const confirm = useConfirm();
-  const v = f.v;
-  const needsOk = !isMgr && (c.status === 'accepted' || (scope === 'future' && c.accepted_all));
-
-  const go = async () => {
-    if (mode === 'delete' && !(await confirm({ title: scope === 'future' ? 'Cancel this and later dates?' : 'Cancel this date?', confirm: 'Cancel request', danger: true }))) return;
-    const body = mode === 'delete' ? { id: c.id, scope, delete: true }
-      : scope === 'one' ? { id: c.id, scope, start: v.start, end: v.end, headcount: Number(v.headcount), notes: v.notes }
-        : { id: c.id, scope, frequency: v.frequency, days: cleanDays(v.days), end_date: v.has_end ? v.end_date : null, notes: v.notes };
-    run(() => api('cover.update', body), (r) => (r.status === 'awaiting_approval' ? 'Sent to Orb for approval' : 'Updated')).then(onDone).catch(() => {});
-  };
-
-  if (!scope) {
-    const opt = (s, Icon, title, sub) => (
-      <Pressable onClick={() => setScope(s)} className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3">
-        <Icon size={20} className="shrink-0 text-blue" />
-        <div className="min-w-0"><div className="text-body font-semibold">{title}</div><div className="text-footnote text-muted">{sub}</div></div>
-      </Pressable>
-    );
-    return (
-      <Sheet open onClose={onClose} title={mode === 'delete' ? 'Cancel request' : 'Change request'} size="sm">
-        <div className="space-y-2">
-          {opt('one', CalendarDays, 'Only this date', londonParts(c.starts_at).date)}
-          {opt('future', CalendarRange, 'This and later dates', c.pattern || 'The rest of the pattern')}
-        </div>
-      </Sheet>
-    );
-  }
-
-  const ok = mode === 'delete' || (scope === 'one' ? v.start && v.end && v.start !== v.end && Number(v.headcount) >= 1 : daysOk(v.days));
-  return (
-    <Sheet open onClose={onClose} title={mode === 'delete' ? 'Cancel request' : scope === 'future' ? 'Change this and later dates' : 'Change this date'}
-      footer={<><Button variant="secondary" onClick={onClose}>Back</Button><Button variant={mode === 'delete' ? 'danger' : 'primary'} busy={busy} disabled={!ok} onClick={go}>{needsOk ? 'Ask for approval' : mode === 'delete' ? 'Cancel request' : 'Save'}</Button></>}>
-      <div className="space-y-4">
-        {needsOk && <Callout tone="warning">This request is already confirmed, so Orb will approve the change. Until then the request stays as it is.</Callout>}
-        {mode === 'delete' ? (
-          <p className="text-body text-muted">{scope === 'future' ? 'This date and every later date in the pattern will be cancelled.' : 'Only this date will be cancelled.'}</p>
-        ) : scope === 'one' ? (
-          <>
-            <div className="grid grid-cols-3 gap-3">
-              <Input label="Start" type="time" {...f.bind('start')} />
-              <Input label="Finish" type="time" {...f.bind('end')} hint={overnight(v.start, v.end) ? 'Next day' : undefined} />
-              <Input label="Staff" type="number" min="1" max="50" inputMode="numeric" {...f.bind('headcount')} />
-            </div>
-            <Textarea label="Notes" rows={3} {...f.bind('notes')} />
-          </>
-        ) : (
-          <>
-            <Segmented value={v.frequency} onChange={(x) => f.set('frequency', x)} options={[{ value: 'weekly', label: 'Every week' }, { value: 'fortnightly', label: 'Every 2 weeks' }]} />
-            <DaysEditor days={v.days} onChange={(d) => f.set('days', d)} />
-            <div className="rounded-xl bg-bg px-4 py-1"><Toggle checked={v.has_end} onChange={(x) => f.set('has_end', x)} label="Ends on a date" /></div>
-            {v.has_end && <Input label="Last date" type="date" min={isoDate()} {...f.bind('end_date')} />}
-            {daysOk(v.days) && <Callout icon={Repeat}>{patternSummary({ ...v, start_date: null }, c.role_name)}</Callout>}
-            <Textarea label="Notes" rows={2} {...f.bind('notes')} />
-          </>
-        )}
-      </div>
-    </Sheet>
-  );
-}
-
-/** Change several chosen dates at once. A field left blank keeps each date's own value; only what was changed is sent. */
-export function BulkChangeSheet({ dates, onClose, onDone }) {
-  const same = (fn) => { const vals = [...new Set(dates.map(fn))]; return vals.length === 1 ? vals[0] : ''; };
-  const start0 = { start: same((c) => slotOf(c).start), end: same((c) => slotOf(c).end), headcount: same((c) => String(c.headcount)), notes: same((c) => c.notes || ''), stream_id: same((c) => c.stream_id || '') };
-  const f = useForm(start0);
-  const v = f.v;
-  const [run, busy] = useAction();
-  const venueIds = new Set(dates.map((c) => c.venue_id));
-  const venueId = venueIds.size === 1 ? dates[0].venue_id : null;
-  const streams = useApi('streams.list', { venue_id: venueId }, { skip: !venueId });
-  const active = (streams.data || []).filter((x) => x.status === 'active');
-  const booked = dates.filter((c) => c.status === 'accepted').length;
-  const changed = Object.fromEntries(Object.keys(start0).filter((k) => String(v[k] ?? '') !== String(start0[k] ?? '') && (k === 'notes' || v[k] !== '')).map((k) => [k, v[k]]));
-  const any = Object.keys(changed).length > 0;
-  const bad = (changed.headcount && !(Number(changed.headcount) >= 1)) || ((v.start || start0.start) && (v.start || start0.start) === (v.end || start0.end));
-  const mixed = (k) => (start0[k] === '' && v[k] === '' ? 'Mixed — leave blank to keep each date\'s own' : undefined);
-  const save = () => run(() => api('cover.updateMany', { ids: dates.map((c) => c.id), ...changed, ...(changed.headcount && { headcount: Number(changed.headcount) }) }), bulkToast(false)).then(onDone).catch(() => {});
-  return (
-    <Sheet open onClose={onClose} title={`Change ${dates.length} date${dates.length === 1 ? '' : 's'}`}
-      footer={<><Button variant="secondary" onClick={onClose}>Back</Button><Button busy={busy} disabled={!any || bad} onClick={save}>Save</Button></>}>
-      <div className="space-y-4">
-        {booked > 0 && <Callout tone="warning">{booked === dates.length ? 'These dates are' : `${booked} of these are`} already booked, so the office approves those changes. {booked < dates.length ? 'The rest change now.' : 'Until then they stay as they are.'}</Callout>}
-        <div className="grid grid-cols-3 gap-3">
-          <Input label="Start" type="time" {...f.bind('start')} hint={mixed('start')} />
-          <Input label="Finish" type="time" {...f.bind('end')} hint={mixed('end') || (overnight(v.start, v.end) ? 'Next day' : undefined)} />
-          <Input label="Staff" type="number" min="1" max="50" inputMode="numeric" placeholder={start0.headcount === '' ? 'Mixed' : undefined} {...f.bind('headcount')} />
-        </div>
-        {(start0.start === '' || start0.end === '' || start0.headcount === '') && <p className="text-footnote text-muted">Blank fields keep each date's own times and staff.</p>}
-        {active.length > 1 && (
-          <Select label="Bill to" value={v.stream_id} onChange={(e) => f.set('stream_id', e.target.value)}
-            options={[...(start0.stream_id === '' ? [{ value: '', label: 'Keep each date\'s own' }] : []), ...active.map((x) => ({ value: x.id, label: x.name }))]} />
-        )}
-        <Textarea label="Notes" rows={3} placeholder={start0.notes === '' && dates.some((c) => c.notes) ? 'Mixed — leave blank to keep each date\'s own' : 'Event, dress code, where to report'} {...f.bind('notes')} />
-      </div>
-    </Sheet>
-  );
+/** The request form opened on dates already asked for; it loads the officer types itself. */
+export function ChangeRequest({ edit, onClose, onDone }) {
+  const roles = useApi('roles.list', {});
+  if (!roles.data) return null;
+  return <RequestForm venues={[]} roles={roles.data} edit={edit} onClose={onClose} onDone={onDone} />;
 }
 
 /** Toast text for a bulk result: "3 cancelled · 2 sent for approval · 1 skipped (already started)". */
@@ -297,7 +290,11 @@ export const RepeatTag = ({ c, short, className }) => (c.kind === 'recurring'
 export function describeChange(c) {
   const p = c.change_payload || {};
   if (p.type === 'delete') return c.change_scope === 'future' ? 'Cancel this and all later dates' : 'Cancel this date';
-  if (p.slot) return `Change this date to ${p.slot.start}–${p.slot.end}, ${p.slot.headcount} staff`;
+  if (p.slot) {
+    const day = p.slot.date && p.slot.date !== String(c.occurs_on || '').slice(0, 10) ? `move this date to ${WEEKDAYS[isoDow(p.slot.date) - 1]} ${dateShort(p.slot.date)}, ` : 'change this date to ';
+    const type = p.role && p.role !== c.role ? ', another officer type' : '';
+    return `${day[0].toUpperCase()}${day.slice(1)}${p.slot.start}–${p.slot.end}, ${p.slot.headcount} staff${type}`;
+  }
   if (p.series) {
     const days = (p.series.days || []).map((d) => `${WEEKDAYS[d.dow - 1]} ${d.start}–${d.end} ×${d.headcount}`).join(', ');
     return `From this date: ${p.series.frequency === 'fortnightly' ? 'every 2 weeks' : 'every week'} — ${days}${p.series.end_date ? `, until ${p.series.end_date}` : ''}`;

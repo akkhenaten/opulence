@@ -1,6 +1,6 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
-  ArrowRightLeft, BadgeCheck, Calculator, Ban, CalendarClock, BellOff, BellRing, Building2, CalendarDays, Check, Compass, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, ListChecks, LogOut, Mail, MessageSquareHeart,
+  ArrowRightLeft, BadgeCheck, Calculator, Ban, CalendarClock, CalendarCog, BellOff, BellRing, Building2, CalendarDays, Check, Compass, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, ListChecks, LogOut, Mail, MessageSquareHeart,
   Megaphone, MessageCircleWarning, MousePointerClick, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Scale, Send, SlidersHorizontal, ShieldAlert, Store, Timer, UserRound, Siren, Smartphone, Sparkles, Users, UsersRound, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -10,6 +10,18 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-16', icon: CalendarCog, title: 'Change a request in the same form you made it', image: 'venue-rota',
+    lede: "Changing a staff request now opens the full Request staff form, with every option it had when it was made. Venues also see the office's own rota, narrowed to their venues.",
+    points: [
+      "Change opens the same form as Request staff: date, times, number of staff, officer type, notes and the budget it bills to, filled in with what was asked",
+      "Move a date to another day, switch the officer type, or make a one-off date repeat. Several ticked dates open the same form, and anything left blank keeps each date's own",
+      "Dates still waiting change at once. Dates already booked go to the office for approval, as before",
+      "A venue's Rota is now the office's week grid for its own venues, with Week and Requests tabs. Requests not on the rota yet show as dashed cards on their day",
+      "Tapping a shift opens its card: who is on and clocked in, the handover from the last shift, the shift's ejections, the venue's bans, incidents filed on it and the signed log",
+      "A shift booked from the venue's request can be changed or cancelled from its card. Shifts the office set up say to message the office",
+    ],
+  },
   {
     month: 'November 2026', date: '2026-11-16', icon: ListChecks, title: 'Change or cancel several requested dates at once', image: 'bulk-cover',
     lede: "Venues that ask for staff over several dates no longer have to open each one. Tick the dates, then cancel them or change them together.",

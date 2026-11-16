@@ -60,6 +60,10 @@ export const HUBS = {
     ] },
   },
   venue: {
+    rota: { title: 'Rota', tabs: [
+      { to: 'rota', label: 'Week', trail: 'Rota' },
+      { to: 'rota?tab=requests', label: 'Requests' },
+    ] },
     logs: { title: 'Logs', tabs: [
       { to: 'logs', label: 'Shift logs' },
       { to: 'incidents', label: 'Incidents' },

@@ -4,7 +4,7 @@ import { CalendarClock, History, Megaphone, MessagesSquare, Pencil, Plus, Repeat
 import {
   ActionBar, Button, Callout, cx, Empty, KV, List, Load, Pill, Pressable, Row, Segmented, Sheet, addDays, dayLabel, isoDate, range, relative, time, useAction, useConfirm,
 } from '../../ui/index.jsx';
-import { BulkChangeSheet, bulkToast, ChangeSheet, describeChange, LABEL, RepeatTag, requestLine, statusOf } from '../manager/_cover.jsx';
+import { bulkToast, ChangeRequest, describeChange, LABEL, RepeatTag, requestLine, statusOf } from '../manager/_cover.jsx';
 import { Check as Tick } from '../manager/_parts.jsx';
 
 // A date the venue can still cancel or change: not started, waiting or booked, no change already waiting
@@ -89,7 +89,7 @@ export function CoverList({ q, many, onOpen, onNew, onDone }) {
           </>
         );
       }}</Load>
-      {bulk && <BulkChangeSheet dates={bulk} onClose={() => setBulk(null)} onDone={done} />}
+      {bulk && <ChangeRequest edit={bulk} onClose={() => setBulk(null)} onDone={done} />}
     </>
   );
 }
@@ -106,7 +106,7 @@ export function Detail({ c, onClose, onDone, onAgain }) {
   const st = statusOf(c);
   const live = ['pending', 'accepted'].includes(c.status) && new Date(c.starts_at) > new Date();
   const waiting = c.change_status === 'pending';
-  if (change) return <ChangeSheet c={c} mode={change} isMgr={false} onClose={() => setChange(null)} onDone={onDone} />;
+  if (change) return <ChangeRequest edit={[c]} onClose={() => setChange(null)} onDone={onDone} />;
   return (
     <Sheet open onClose={onClose} title={c.role_name}
       footer={live && !waiting ? <><Button variant="secondary" icon={Trash2} onClick={() => setChange('delete')}>Cancel</Button><Button icon={Pencil} onClick={() => setChange('edit')}>Change</Button></> : null}>

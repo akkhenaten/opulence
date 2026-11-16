@@ -158,25 +158,27 @@ async function cancelOccurrence(occ, db = { q, one }) {
   }
 }
 
-/** Moves an occurrence to new times / staff numbers; its shift follows and the team is told. */
-async function retimeOccurrence(occ, slot, extra = {}, db = { q, one }) {
-  const r = occRange(occ.occurs_on, slot.start, slot.end);
+/** Moves an occurrence to new times / staff numbers, and to another day when slot.date says so; its shift follows and the team is told. */
+export async function retimeOccurrence(occ, slot, extra = {}, db = { q, one }) {
+  const day = slot.date || occ.occurs_on;
+  const r = occRange(day, slot.start, slot.end);
   const role = extra.role || occ.role;
   const notes = extra.notes ?? occ.notes;
   await db.q(
     `UPDATE cover_requests SET starts_at = $2, ends_at = $3, headcount = $4, role = $5, notes = $6, change_status = 'none', change_payload = NULL, change_scope = NULL,
-       series_id = COALESCE($7, series_id) WHERE id = $1`,
-    [occ.id, r.starts_at, r.ends_at, slot.headcount, role, notes, extra.series_id || null]);
+       series_id = COALESCE($7, series_id), occurs_on = $8 WHERE id = $1`,
+    [occ.id, r.starts_at, r.ends_at, slot.headcount, role, notes, extra.series_id || null, day]);
   const shifts = await db.q(
     "UPDATE shifts SET starts_at = $2, ends_at = $3, headcount = $4, role = $5, notes = $6 WHERE cover_request_id = $1 AND status <> 'cancelled' RETURNING id",
     [occ.id, r.starts_at, r.ends_at, slot.headcount, role, notes]);
   const moved = String(new Date(occ.starts_at).getTime()) !== String(r.starts_at.getTime()) || String(new Date(occ.ends_at).getTime()) !== String(r.ends_at.getTime());
-  const v = await one('SELECT name FROM venues WHERE id = $1', [occ.venue_id]);
+  const v = await db.one('SELECT name FROM venues WHERE id = $1', [occ.venue_id]);
   // What the team was told about the old times no longer holds; fewer places may leave cover cards with nothing to do
   const team = shifts.length ? await db.q("SELECT id, officer_id, shift_id FROM shift_assignments WHERE shift_id = ANY($1::uuid[]) AND status IN ('assigned','accepted')", [shifts.map((s) => s.id)]) : [];
   await syncAfter(db, { stale: moved ? team.map((a) => ({ ...a, venue_name: v.name, starts_at: occ.starts_at })) : [], shiftIds: shifts.map((s) => s.id), officerIds: team.map((a) => a.officer_id) });
   if (moved) {
-    for (const s of shifts) await notifyShiftOfficers(s.id, 'Shift times changed', `${v.name} · now ${fmtDateTime(r.starts_at)} – ${fmtTime(r.ends_at)}`);
+    const title = day !== occ.occurs_on ? 'Shift moved' : 'Shift times changed';
+    for (const s of shifts) await notifyShiftOfficers(s.id, title, `${v.name} · ${day !== occ.occurs_on ? 'moved to' : 'now'} ${fmtDateTime(r.starts_at)} – ${fmtTime(r.ends_at)}`);
   }
 }
 
@@ -249,12 +251,43 @@ function cleanSlot(b) {
   return slot;
 }
 
+/** One date's full edit from the request form: day, times, staff, officer type and notes. Unsent fields keep the date's own. */
+export function editOne(b, occ, today) {
+  const date = b.date ? String(b.date) : occ.occurs_on;
+  if (!DATE.test(date) || Number.isNaN(new Date(`${date}T12:00:00Z`).getTime()) || new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date) fail(400, 'Pick a valid date');
+  if (date !== occ.occurs_on && date < today) fail(400, 'Pick a date from today on');
+  return {
+    type: 'edit', slot: { ...cleanSlot(b), date }, role: b.role ? String(b.role) : occ.role,
+    notes: b.notes === undefined || b.notes === null ? undefined : String(b.notes).slice(0, 1000),
+  };
+}
+
+/** A date moved onto a day its request already covers would be booked twice. */
+export async function dateClash(occ, date, db = { one }) {
+  if (!date || date === occ.occurs_on || !occ.series_id) return;
+  const hit = await db.one("SELECT 1 FROM cover_requests WHERE series_id = $1 AND occurs_on = $2 AND id <> $3 AND status IN ('pending','accepted') LIMIT 1", [occ.series_id, date, occ.id]);
+  if (hit) fail(400, `There's already a request on ${fmtDate(date)} — change that one instead`);
+}
+
+/** "+ New stream" sent with an edit: the same as when making a request. */
+async function newStreamFrom(b, venueId, user) {
+  const ns = b.new_stream;
+  const s = await createStream(venueId, { name: ns.name, po_ref: ns.po_ref, recipients: ns.recipient ? [ns.recipient] : ns.recipients }, user);
+  await audit(user, 'stream.create', 'venue', venueId, s);
+  await tellCompanyNewStream(s, user);
+  return s;
+}
+
+const roleNameOf = async (code) => (await one('SELECT name FROM roles WHERE code = $1', [code]))?.name || code;
+
 /** Carries out an edit or delete; returns a short description for messages. */
 async function applyChange(occ, scope, payload, userId) {
   if (scope === 'one') {
     if (payload.type === 'delete') { await cancelOccurrence(occ); return `${fmtDate(occ.occurs_on)} cancelled`; }
     await retimeOccurrence(occ, payload.slot, { notes: payload.notes, role: payload.role });
-    return `${fmtDate(occ.occurs_on)} changed to ${payload.slot.start}–${payload.slot.end}, ${payload.slot.headcount} staff`;
+    const day = payload.slot.date && payload.slot.date !== occ.occurs_on ? `moved to ${fmtDate(payload.slot.date)},` : 'changed to';
+    const type = payload.role && payload.role !== occ.role ? ` · ${await roleNameOf(payload.role)}` : '';
+    return `${fmtDate(occ.occurs_on)} ${day} ${payload.slot.start}–${payload.slot.end}, ${payload.slot.headcount} staff${type}`;
   }
   if (payload.type === 'delete') { await applyFuture(occ, 'delete', userId); return `${fmtDate(occ.occurs_on)} and all later dates cancelled`; }
   const s = await applyFuture(occ, payload.series, userId);
@@ -349,7 +382,10 @@ export const actions = {
     const occ = await loadOcc(user, b.id);
     if (!['pending', 'accepted'].includes(occ.status)) fail(400, `This date is ${occ.status}`);
     if (new Date(occ.starts_at) < new Date()) fail(400, 'This date has already started');
-    const scope = b.scope === 'future' && occ.kind === 'recurring' ? 'future' : 'one';
+    // "Repeating" on a one-off date turns it into a pattern from that date
+    const scope = b.scope === 'future' && (occ.kind === 'recurring' || b.kind === 'recurring') ? 'future' : 'one';
+    if (b.role && !b.delete) need(await one('SELECT 1 FROM roles WHERE code = $1', [String(b.role)]), 'Unknown role');
+    if (b.new_stream?.name && !b.delete) b = { ...b, stream_id: (await newStreamFrom(b, occ.venue_id, user)).id };
     // Another budget for dates not yet booked; booked shifts move stream on the rota (Opulence checks the invoice side)
     if (b.stream_id && b.stream_id !== occ.stream_id && !b.delete) {
       const sid = await streamFor(occ.venue_id, b.stream_id, occ.role);
@@ -363,8 +399,10 @@ export const actions = {
     }
     let payload;
     if (b.delete) payload = { type: 'delete' };
-    else if (scope === 'one') payload = { type: 'edit', slot: cleanSlot(b), notes: b.notes === undefined ? undefined : String(b.notes).slice(0, 1000) };
-    else {
+    else if (scope === 'one') {
+      payload = editOne(b, occ, londonDate(new Date()));
+      await dateClash(occ, payload.slot.date);
+    } else {
       const def_ = cleanSeries({ ...b, kind: 'recurring', role: b.role || occ.role, start_date: occ.occurs_on }, occ.occurs_on);
       payload = { type: 'edit', series: def_ };
     }
@@ -404,6 +442,8 @@ export const actions = {
       await audit(user, 'cover.change_declined', 'cover_request', occ.id);
       return { ok: true };
     }
+    // The day it asked for may have been taken while the change waited
+    await dateClash(occ, occ.change_payload?.slot?.date);
     const done = await applyChange(occ, occ.change_scope, occ.change_payload, user.id);
     if (conv) await post(conv.id, user.id, { body: `Approved: ${done}.` });
     await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Change to booked cover approved', body: done, link: '/venue/rota?tab=requests', email: true });
@@ -420,9 +460,15 @@ export const actions = {
     const has = (k) => b[k] !== undefined && b[k] !== null && b[k] !== '';
     const del = !!b.delete;
     const hasNotes = b.notes !== undefined && b.notes !== null; // '' clears them
-    const retime = !del && (['start', 'end', 'headcount'].some(has) || hasNotes);
-    if (!del && !retime && !has('stream_id')) fail(400, 'Nothing to change');
+    const retime = !del && (['start', 'end', 'headcount', 'role'].some(has) || hasNotes);
+    if (!del && !retime && !has('stream_id') && !b.new_stream?.name) fail(400, 'Nothing to change');
+    if (!del && has('role')) need(await one('SELECT 1 FROM roles WHERE code = $1', [String(b.role)]), 'Unknown role');
     const mgr = isMgr(user);
+    // "+ New stream" from the form: made once, at the one venue the dates belong to
+    if (!del && b.new_stream?.name) {
+      const first = await loadOcc(user, ids[0]);
+      b = { ...b, stream_id: (await newStreamFrom(b, first.venue_id, user)).id };
+    }
     const res = { done: [], waiting: [], skipped: [] };
     const byVenue = new Map(); // venue_id → { name, threads: Map(root → series), done, waiting }
     for (const id of ids) {
@@ -446,7 +492,7 @@ export const actions = {
         }
         if (!del && !retime) { if (moved) { res.done.push(occ); v.done.push(occ); } continue; }
         const payload = del ? { type: 'delete' }
-          : { type: 'edit', slot: cleanSlot(bulkSlot({ start: fmtTime(occ.starts_at), end: fmtTime(occ.ends_at), headcount: occ.headcount }, b)), notes: hasNotes ? String(b.notes).slice(0, 1000) : undefined };
+          : { type: 'edit', slot: cleanSlot(bulkSlot({ start: fmtTime(occ.starts_at), end: fmtTime(occ.ends_at), headcount: occ.headcount }, b)), notes: hasNotes ? String(b.notes).slice(0, 1000) : undefined, role: has('role') ? String(b.role) : undefined };
         if (occ.status === 'accepted' && !mgr) {
           await q("UPDATE cover_requests SET change_status = 'pending', change_scope = 'one', change_payload = $2, change_by = $3, change_reason = '' WHERE id = $1",
             [occ.id, JSON.stringify(payload), user.id]);

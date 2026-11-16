@@ -55,7 +55,6 @@ const Feedback = P(() => import('./pages/money/Feedback.jsx'));
 const Analytics = P(() => import('./pages/money/Analytics.jsx'));
 // Venue manager
 const VenueDashboard = P(() => import('./pages/money/VenueDashboard.jsx'));
-const VenueRota = P(() => import('./pages/venue/Rota.jsx'));
 // Officer
 const OfficerHome = P(() => import('./pages/officer/Home.jsx'));
 const OfficerShifts = P(() => import('./pages/officer/Shifts.jsx'));
@@ -306,7 +305,8 @@ function App() {
           <Route path="/venue" element={<VenueProvider><Shell /></VenueProvider>}>
             <Route index element={<VenueDashboard />} />
             <Route path="live" element={<Live />} />
-            <Route path="rota" element={<VenueRota />} />
+            <Route path="rota" element={<Rota />} />
+            <Route path="shifts/:id" element={<ShiftView />} />
             <Route path="cover" element={<OldVenueCover />} />
             <Route path="requests" element={<Navigate to="/venue/messages" replace />} />
             <Route path="messages" element={<Messages />} />
