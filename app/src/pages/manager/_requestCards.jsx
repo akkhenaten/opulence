@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, Pencil, Trash2 } from 'lucide-react';
-import { ActionBar, Button, cx, dayLabel, List, Pill, Pressable, range, Row } from '../../ui/index.jsx';
+import { ActionBar, Button, cx, dayLabel, List, Pill, Pressable, range, Row, useSelect } from '../../ui/index.jsx';
 import { canCancel, canChange, LABEL, requestLine, statusOf } from './_cover.jsx';
 import { Check as Tick } from './_parts.jsx';
 
@@ -68,26 +68,34 @@ function StatePill({ c }) {
 /**
  * The request cards. `office` puts the venue first; `many` names the venue on a venue manager's cards.
  * `actions(group, { select })` gives each card its own buttons; `onCancelDates` / `onChangeDates(dates, stop)` act on ticked dates.
+ * The office ticks dates across all the cards (`canPick` says which) and `bar(dates, stop)` adds its own buttons.
  */
-export function RequestCards({ groups, office, many, onOpen, actions, onCancelDates, onChangeDates }) {
+export function RequestCards({ groups, office, many, onOpen, actions, onCancelDates, onChangeDates, canPick, bar }) {
   const [open, setOpen] = useState(() => new Set(groups.length === 1 ? [groups[0].key] : []));
   const [shown, setShown] = useState(new Set()); // cards whose folded dates are out
-  const [pick, setPick] = useState(null); // { key, sel: Set }
   const flip = (fn, key) => fn((x) => { const n = new Set(x); if (n.has(key)) n.delete(key); else n.add(key); return n; });
-  const stop = () => setPick(null);
-  const tick = (id) => setPick((p) => { const sel = new Set(p.sel); if (sel.has(id)) sel.delete(id); else sel.add(id); return { ...p, sel }; });
-  const picked = pick ? groups.find((g) => g.key === pick.key)?.live.filter((c) => pick.sel.has(c.id)) || [] : [];
+  // Ticking dates: a venue within one card, the office across all of them; Ctrl/Shift+click, Ctrl+A and Esc as in a file list
+  const [scope, setScope] = useState(null); // the card being picked from, or 'all'
+  const ok = canPick || ((c) => canCancel(c) || canChange(c));
+  const inScope = (g) => !!scope && (scope === 'all' || scope === g.key);
+  const pool = groups.filter(inScope).flatMap((g) => g.live);
+  const pick = useSelect({ ids: pool.filter(ok).map((c) => c.id) });
+  useEffect(() => { if (!pick.picking) setScope(null); }, [pick.picking]);
+  const stop = () => { pick.stop(); setScope(null); };
+  const select = (g) => { setScope(office ? 'all' : g.key); pick.start(); };
+  const tick = (e, id, on) => { if (!pick.click(e, id)) pick.toggle(id, on); };
+  const picked = pool.filter((c) => pick.has(c.id));
   const title = (c) => (office ? (c.stream_name ? `${c.venue_name} · ${c.stream_name}` : c.venue_name) : c.role_name);
   const meta = (c) => [office ? c.role_name : many && c.venue_name, !office && c.stream_name, office && c.requested_by_name].filter(Boolean).join(' · ');
 
   const dateRow = (c, g, faded) => {
-    const can = pick?.key === g.key && (canCancel(c) || canChange(c));
+    const can = inScope(g) && ok(c);
     const sub = <span className="num">{range(c.starts_at, c.ends_at)} · {c.headcount} staff{c.status === 'accepted' ? ` · ${c.filled}/${c.headcount} booked` : ''}</span>;
-    if (pick?.key === g.key && !faded) {
+    if (inScope(g) && !faded) {
       return (
-        <div key={c.id} className={cx('flex items-center gap-3 px-4 py-3', !can && 'opacity-50')}>
-          {can ? <Tick checked={pick.sel.has(c.id)} onChange={() => tick(c.id)} label={`Select ${dayLabel(c.starts_at)}`} /> : <span className="w-6 shrink-0" aria-hidden />}
-          <Pressable press={can} disabled={!can} className="min-w-0 flex-1 text-left" onClick={() => can && tick(c.id)}>
+        <div key={c.id} className={cx('flex items-center gap-3 px-4 py-3', !can && 'opacity-50', pick.has(c.id) && 'bg-blue-soft/50')}>
+          {can ? <Tick checked={pick.has(c.id)} onChange={(on, e) => tick(e, c.id, on)} label={`Select ${dayLabel(c.starts_at)}`} /> : <span className="w-6 shrink-0" aria-hidden />}
+          <Pressable press={can} disabled={!can} className="min-w-0 flex-1 select-none text-left" onClick={(e) => can && tick(e, c.id)}>
             <div className="truncate text-body font-semibold">{dayLabel(c.starts_at)}</div>
             <div className="truncate text-footnote text-muted">{sub}</div>
           </Pressable>
@@ -129,7 +137,7 @@ export function RequestCards({ groups, office, many, onOpen, actions, onCancelDa
               </Pressable>
               {isOpen && (
                 <div className="border-t border-line bg-bg/40">
-                  {actions && <div className="flex flex-wrap gap-2 px-4 py-2.5">{actions(g, { select: () => setPick({ key: g.key, sel: new Set() }), picking: pick?.key === g.key, stop })}</div>}
+                  {actions && <div className="flex flex-wrap gap-2 px-4 py-2.5">{actions(g, { select: () => select(g), picking: inScope(g), stop })}</div>}
                   <div className="divide-y divide-line">
                     {g.upcoming.map((d) => dateRow(d, g))}
                     {!g.upcoming.length && <p className="px-4 py-3 text-footnote text-muted">No dates ahead.</p>}
@@ -150,6 +158,7 @@ export function RequestCards({ groups, office, many, onOpen, actions, onCancelDa
         <span className="num mr-2 text-subhead font-semibold">{picked.length} selected</span>
         {onCancelDates && <Button variant="secondary" size="sm" icon={Trash2} disabled={!picked.some((c) => canCancel(c))} onClick={() => onCancelDates(picked, stop)}>Cancel {picked.length}</Button>}
         {onChangeDates && <Button size="sm" icon={Pencil} disabled={!picked.some((c) => canChange(c))} onClick={() => onChangeDates(picked, stop)}>Change {picked.length}</Button>}
+        {bar?.(picked, stop)}
       </ActionBar>
     </>
   );

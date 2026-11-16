@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  ArrowUpRight, Building2, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, Clock, Copy, Crown, FilePen, Hand, LogOut, NotebookPen, Plus, Printer, Repeat, Rows2, Rows4, Send, Trash2, UserMinus, UserPlus, UserRound, UserX, X,
+  ArrowUpRight, Building2, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, Clock, Copy, Crown, FilePen, Hand, ListChecks, LogOut, NotebookPen, Plus, Printer, Repeat, Rows2, Rows4, Send, Trash2, UserMinus, UserPlus, UserRound, UserX, X,
 } from 'lucide-react';
 import {
-  ActionBar, addDays, AssignPill, Avatar, Button, Chip, confirmState, cx, dateShort, dayLabel, Dot, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, MoreMenu, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Textarea, ToolField, ToolMenu, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useMedia, useToast, useUrlState, nameMatches, displayName,
+  ActionBar, addDays, AssignPill, Avatar, Button, Chip, confirmState, cx, dateShort, dayLabel, Dot, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, MoreMenu, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Textarea, ToolField, ToolMenu, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useMedia, useSelect, useToast, useUrlState, nameMatches, displayName,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -16,6 +16,7 @@ import { canCancel, canChange, ChangeRequest, LABEL, RequestForm, statusOf } fro
 import { CoverList, Detail as RequestDetail } from '../venue/_requests.jsx';
 import { ShiftBody } from '../shift/ShiftView.jsx';
 import { useVenue } from '../../venue.jsx';
+import { pickable, RotaBar } from './_rotaBulk.jsx';
 
 const dayOf = (iso) => londonParts(iso).date;
 const ACTIVE = ['assigned', 'accepted'];
@@ -119,6 +120,31 @@ export default function Rota() {
     ? gridVenues.flatMap((v) => DAYS(week).flatMap((d) => cellShifts(shown, d, v.id)))
     : DAYS(week).flatMap((d) => cellShifts(shown, d));
   const at = order.findIndex((s) => String(s.id) === String(openId));
+
+  /* The office picks several shifts like files in Windows: Ctrl/Cmd+click, Shift+click for the rectangle between two
+     cards, Ctrl/Cmd+A, Esc; long press on a phone. A cell is { row, day }: the venue's row, the one row of By day, or
+     Unfilled then each officer in By officer (a shift can sit in several of those). */
+  const officerRows = useOfficerRows(shown);
+  const cellsOf = (s) => {
+    const day = dayOf(s.starts_at);
+    if (view === 'venues') return [{ row: gridVenues.findIndex((v) => v.id === s.venue_id), day }];
+    if (view === 'officers') return [...(places(s) > 0 ? [{ row: 0, day }] : []), ...officerRows.flatMap((o, i) => (o.mine.some((x) => x.id === s.id) ? [{ row: i + 1, day }] : []))];
+    return [{ row: 0, day }];
+  };
+  const canPick = order.filter((s) => pickable(s));
+  const pickIds = [...new Set(canPick.map((s) => s.id))];
+  const rect = (a, b) => {
+    const byId = new Map(canPick.map((s) => [s.id, s]));
+    const [p, q] = [a.at || cellsOf(byId.get(a.id) || {})[0], b.at || cellsOf(byId.get(b.id) || {})[0]];
+    if (!p || !q) return [b.id];
+    const [r0, r1] = [Math.min(p.row, q.row), Math.max(p.row, q.row)];
+    const [d0, d1] = p.day < q.day ? [p.day, q.day] : [q.day, p.day];
+    return pickIds.filter((id) => cellsOf(byId.get(id)).some((c) => c.row >= r0 && c.row <= r1 && c.day >= d0 && c.day <= d1));
+  };
+  const office = !isVenue && tab === 'rota';
+  const pick = useSelect({ ids: office ? pickIds : [], range: rect, keys: office ? 'always' : 'picking' });
+  useEffect(() => { pick.stop(); }, [week, venueId, tab, view]); // eslint-disable-line react-hooks/exhaustive-deps
+  const picked = office ? shown.filter((s) => pick.has(s.id) && pickable(s)) : [];
   const step = (i) => (at >= 0 && order[i] ? () => setOpenId(order[i].id) : undefined);
 
   const publish = async () => {
@@ -137,6 +163,7 @@ export default function Rota() {
     { label: 'Repeat shift…', icon: Repeat, hint: 'Same times on several days or weeks', onClick: () => setForm({ repeat: true }) },
     { label: 'Copy last week', icon: Copy, hint: 'All of last week\'s shifts as drafts', onClick: copyWeek, busy },
     { label: 'Print this week', icon: Printer, onClick: () => window.print() },
+    { label: 'Select shifts', icon: ListChecks, hint: 'Or Ctrl+click, Shift+click, Ctrl+A', onClick: pick.start },
   ];
   const pubItem = drafts.length > 0 && { label: `Publish ${drafts.length}`, icon: Send, hint: hiddenDrafts ? `${hiddenDrafts} hidden by filters` : 'Send the drafts to officers', onClick: publish, busy };
 
@@ -189,7 +216,7 @@ export default function Rota() {
         : <Requests q={reqs} roleName={roleName} onChanged={reload} onOpen={setOpenId} />) : (
         <>
           <Load q={shifts}>{() => {
-            const props = { rows: shown, all: rows, week, density, requests, onOpen: (s) => setOpenId(s.id), onRequest: setReq, onAdd, addWord: isVenue ? 'Request staff' : 'Add shift', onUnfilled: () => setUrl({ f: 'unfilled' }) };
+            const props = { rows: shown, all: rows, week, density, requests, onOpen: (s) => setOpenId(s.id), onRequest: setReq, onAdd, addWord: isVenue ? 'Request staff' : 'Add shift', onUnfilled: () => setUrl({ f: 'unfilled' }), pick: office ? pick : null };
             const none = on.length
               ? <Empty icon={CalendarDays} title="No shifts match these filters" action={<Button variant="secondary" onClick={() => setUrl({ f: '' })}>Clear filters</Button>} />
               : isVenue
@@ -208,6 +235,7 @@ export default function Rota() {
             }
             return <><DayGrid {...props} />{phone}</>;
           }}</Load>
+          {office && <RotaBar pick={pick} shifts={picked} total={pickIds.length} onDone={reload} />}
         </>
       )}
 
@@ -298,7 +326,20 @@ function Faces({ people, open, size = 20 }) {
 
 /* Each state has a shape or word as well as a colour: short → red bar and the count, unconfirmed → amber bar and a clock,
    draft → dashed edge and "Draft". Compact is one line (time, role when it fits, count); comfortable adds role, faces and labels. */
-function ShiftCard({ s, onOpen, showVenue = true, density = 'comfortable', flat }) {
+// The selection tick on a picked card
+const Picked = () => <span aria-hidden className="absolute bottom-1 right-1 grid h-5 w-5 place-items-center rounded-full bg-blue text-white shadow-tile"><Check size={13} strokeWidth={3} /></span>;
+// Click and long-press for a card the office can pick; a plain click opens it unless picking has started
+const pickProps = (pick, s, at, onOpen) => {
+  const can = !!pick && pickable(s);
+  return {
+    on: can && pick.has(s.id),
+    onClick: (e) => { if (can && pick.click(e, s.id, at)) return; if (!pick?.picking) onOpen(s); },
+    ...(can ? pick.press(s.id, at) : {}),
+    ...(pick?.picking ? { 'aria-pressed': can && pick.has(s.id) } : {}),
+  };
+};
+
+function ShiftCard({ s, onOpen, showVenue = true, density = 'comfortable', flat, pick, at }) {
   const state = shiftState(s);
   const compact = density === 'compact';
   const draft = s.status === 'draft';
@@ -317,7 +358,8 @@ function ShiftCard({ s, onOpen, showVenue = true, density = 'comfortable', flat 
   );
   const { base } = useBase();
   // Desktop: a published shift's page is one click away from the card (the preview stays the default tap)
-  const direct = !compact && !draft && (
+  const { on, ...picker } = pickProps(pick, s, at, onOpen);
+  const direct = !compact && !draft && !pick?.picking && (
     <Link to={`${base}/shifts/${s.id}`} aria-label={`Open shift page: ${s.venue_name}, ${range(s.starts_at, s.ends_at)}`} title="Open shift page"
       className="absolute bottom-1.5 right-1.5 hidden h-7 w-7 items-center justify-center rounded-lg bg-fill text-muted opacity-0 transition hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 md:flex">
       <ArrowUpRight size={16} aria-hidden />
@@ -325,9 +367,10 @@ function ShiftCard({ s, onOpen, showVenue = true, density = 'comfortable', flat 
   );
   return (
     <div className="group relative">
-    <Pressable press onClick={() => onOpen(s)} title={whoTitle(s)}
+    <Pressable press {...picker} title={whoTitle(s)}
       className={cx('@container relative block w-full overflow-hidden rounded-xl border bg-surface text-left transition hover:border-faint active:scale-[0.99]',
-        compact ? 'min-h-8 py-1.5 pl-2.5 pr-2' : 'min-h-14 py-2 pl-2.5 pr-2', draft ? 'border-dashed border-faint/70' : 'border-hairline', !flat && 'shadow-tile')}>
+        compact ? 'min-h-8 py-1.5 pl-2.5 pr-2' : 'min-h-14 py-2 pl-2.5 pr-2', draft ? 'border-dashed border-faint/70' : 'border-hairline', !flat && 'shadow-tile',
+        pick && 'select-none', on && 'border-blue bg-blue-soft/60 ring-2 ring-blue')}>
       {s.status === 'published' && state !== 'confirmed' && <span aria-hidden className={cx('absolute inset-y-0 left-0 w-[3px]', state === 'short' ? 'bg-red' : 'bg-amber')} />}
       {compact ? (
         <div className="flex items-center gap-1.5">
@@ -353,6 +396,7 @@ function ShiftCard({ s, onOpen, showVenue = true, density = 'comfortable', flat 
           </div>
         </>
       )}
+      {on && <Picked />}
     </Pressable>
     {direct}
     </div>
@@ -377,13 +421,15 @@ function RequestCard({ c, onOpen, showVenue = true, density = 'comfortable' }) {
   );
 }
 
-function OfficerChip({ s, oid, onOpen }) {
+function OfficerChip({ s, oid, onOpen, pick, at }) {
   const a = s.assignments.find((x) => x.officer_id === oid);
+  const { on, ...picker } = pickProps(pick, s, at, onOpen);
   return (
-    <Pressable press onClick={() => onOpen(s)} title={whoTitle(s)} className={cx('block w-full rounded-xl p-2 text-left text-caption transition hover:-translate-y-0.5', a.status === 'requested' || (a.status === 'assigned' && s.status === 'published') ? 'bg-amber-soft' : s.status === 'draft' ? 'bg-bg' : 'bg-green-soft')}>
+    <Pressable press {...picker} title={whoTitle(s)} className={cx('relative block w-full rounded-xl p-2 text-left text-caption transition hover:-translate-y-0.5', a.status === 'requested' || (a.status === 'assigned' && s.status === 'published') ? 'bg-amber-soft' : s.status === 'draft' ? 'bg-bg' : 'bg-green-soft', pick && 'select-none', on && 'ring-2 ring-blue')}>
       <div className="num whitespace-nowrap font-bold">{range(s.starts_at, s.ends_at)}</div>
       <div className="truncate text-muted">{s.venue_name}</div>
       {a.status !== 'accepted' && <div className="font-semibold">{a.status === 'assigned' ? (s.status === 'published' ? 'Unconfirmed' : 'Draft') : titleCase(a.status)}</div>}
+      {on && <Picked />}
     </Pressable>
   );
 }
@@ -448,11 +494,11 @@ function TotalsRow({ rows, week, onUnfilled, lead = true }) {
   );
 }
 
-function VenueGrid({ rows, all, week, venues, density, requests, onOpen, onRequest, onAdd, addWord, onUnfilled }) {
+function VenueGrid({ rows, all, week, venues, density, requests, onOpen, onRequest, onAdd, addWord, onUnfilled, pick }) {
   const today = isoDate();
   return (
     <GridFrame week={week} totals={<TotalsRow rows={all} week={week} onUnfilled={onUnfilled} />}>
-      {venues.map((v) => {
+      {venues.map((v, row) => {
         const mine = rows.filter((s) => s.venue_id === v.id);
         const open = mine.reduce((n, s) => n + places(s), 0);
         return (
@@ -463,7 +509,7 @@ function VenueGrid({ rows, all, week, venues, density, requests, onOpen, onReque
             </div>
             {DAYS(week).map((d) => (
               <div key={d} className={cx('group min-w-0 space-y-1.5 border-l border-line p-1.5', cellTone(d, today))}>
-                {cellShifts(mine, d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} density={density} flat />)}
+                {cellShifts(mine, d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} density={density} flat pick={pick} at={{ row, day: d }} />)}
                 {cellRequests(requests, d, v.id).map((c) => <RequestCard key={c.id} c={c} onOpen={onRequest} showVenue={false} density={density} />)}
                 <AddCell label={`${addWord} at ${v.name}, ${dayLabel(d)}`} onClick={() => onAdd(d, v.id)} />
               </div>
@@ -476,14 +522,14 @@ function VenueGrid({ rows, all, week, venues, density, requests, onOpen, onReque
 }
 
 // By day: the whole week in one row of seven columns
-function DayGrid({ rows, all, week, density, requests, onOpen, onRequest, onAdd, addWord, onUnfilled }) {
+function DayGrid({ rows, all, week, density, requests, onOpen, onRequest, onAdd, addWord, onUnfilled, pick }) {
   const today = isoDate();
   return (
     <GridFrame week={week} lead={false} totals={<TotalsRow rows={all} week={week} lead={false} onUnfilled={onUnfilled} />}>
       <div className={cx('grid min-h-[240px]', DAY_COLS)}>
         {DAYS(week).map((d) => (
           <div key={d} className={cx('group min-w-0 space-y-1.5 p-1.5', d !== week && 'border-l border-line', cellTone(d, today))}>
-            {cellShifts(rows, d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} density={density} flat />)}
+            {cellShifts(rows, d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} density={density} flat pick={pick} at={{ row: 0, day: d }} />)}
             {cellRequests(requests, d).map((c) => <RequestCard key={c.id} c={c} onOpen={onRequest} density={density} />)}
             <AddCell label={`${addWord} ${dayLabel(d)}`} onClick={() => onAdd(d)} />
           </div>
@@ -493,7 +539,7 @@ function DayGrid({ rows, all, week, density, requests, onOpen, onRequest, onAdd,
   );
 }
 
-function OfficerGrid({ rows, all, week, density, onOpen, onUnfilled }) {
+function OfficerGrid({ rows, all, week, density, onOpen, onUnfilled, pick }) {
   const today = isoDate();
   const officers = useOfficerRows(rows);
   const unfilled = rows.filter((s) => places(s) > 0);
@@ -505,17 +551,17 @@ function OfficerGrid({ rows, all, week, density, onOpen, onUnfilled }) {
           <div className={cx(STICKY, 'bg-red-soft px-3 py-3')}><div className="text-subhead font-semibold text-red">Unfilled</div><div className="num text-caption text-muted">{((n) => `${n} place${n === 1 ? '' : 's'}`)(unfilled.reduce((n, s) => n + places(s), 0))}</div></div>
           {days.map((d) => (
             <div key={d} className="min-w-0 space-y-1.5 border-l border-line p-1.5">
-              {cellShifts(unfilled, d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} density={density} flat />)}
+              {cellShifts(unfilled, d).map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} density={density} flat pick={pick} at={{ row: 0, day: d }} />)}
             </div>
           ))}
         </div>
       )}
-      {officers.map((o) => (
+      {officers.map((o, i) => (
         <div key={o.id} className={cx('grid', COLS)}>
           <div className={cx(STICKY, 'flex items-center gap-2 px-3 py-3')}><Avatar name={o.name} size={28} /><div className="min-w-0"><div className="truncate text-subhead font-semibold">{o.name}</div><div className="num text-caption text-muted">{o.hours}h</div></div></div>
           {days.map((d) => (
             <div key={d} className={cx('min-w-0 space-y-1.5 border-l border-line p-1.5', cellTone(d, today))}>
-              {cellShifts(o.mine, d).map((s) => <OfficerChip key={s.id} s={s} oid={o.id} onOpen={onOpen} />)}
+              {cellShifts(o.mine, d).map((s) => <OfficerChip key={s.id} s={s} oid={o.id} onOpen={onOpen} pick={pick} at={{ row: i + 1, day: d }} />)}
             </div>
           ))}
         </div>
@@ -528,7 +574,7 @@ function OfficerGrid({ rows, all, week, density, onOpen, onUnfilled }) {
 
 /* A day at a time: a strip of the week's days (a red dot where places are open), then that day's shifts by venue,
    venues with open places first and short shifts at the top of each. */
-function PhoneDay({ rows, week, venues, requests, onOpen, onRequest, onAdd, addWord, day: picked, setDay }) {
+function PhoneDay({ rows, week, venues, requests, onOpen, onRequest, onAdd, addWord, day: picked, setDay, pick }) {
   const today = isoDate();
   const days = DAYS(week);
   // The chosen day lives in the address, so Back from a shift returns to it; a new week starts on today or its Monday
@@ -572,7 +618,7 @@ function PhoneDay({ rows, week, venues, requests, onOpen, onRequest, onAdd, addW
                   {g.open > 0 && <span className="num shrink-0 text-caption font-semibold text-red">{g.open} unfilled</span>}
                 </div>
                 <div className="space-y-2">
-                  {g.list.map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} />)}
+                  {g.list.map((s) => <ShiftCard key={s.id} s={s} onOpen={onOpen} showVenue={false} pick={pick} />)}
                   {g.reqs.map((c) => <RequestCard key={c.id} c={c} onOpen={onRequest} showVenue={false} />)}
                 </div>
               </section>
@@ -583,7 +629,7 @@ function PhoneDay({ rows, week, venues, requests, onOpen, onRequest, onAdd, addW
   );
 }
 
-function OfficerAgenda({ rows, onOpen }) {
+function OfficerAgenda({ rows, onOpen, pick }) {
   const today = isoDate();
   const officers = useOfficerRows(rows);
   const unfilled = rows.filter((s) => places(s) > 0);
@@ -595,12 +641,12 @@ function OfficerAgenda({ rows, onOpen }) {
           <div className="mb-3 flex items-baseline justify-between"><span className="text-headline font-semibold text-red">Unfilled</span><span className="num text-footnote text-muted">{open} place{open === 1 ? '' : 's'}</span></div>
           <div className="space-y-2">
             {unfilled.map((s) => (
-              <div key={s.id} className="flex gap-3"><DayTag days={[dayOf(s.starts_at)]} today={today} /><div className="min-w-0 flex-1"><ShiftCard s={s} onOpen={onOpen} /></div></div>
+              <div key={s.id} className="flex gap-3"><DayTag days={[dayOf(s.starts_at)]} today={today} /><div className="min-w-0 flex-1"><ShiftCard s={s} onOpen={onOpen} pick={pick} at={{ row: 0, day: dayOf(s.starts_at) }} /></div></div>
             ))}
           </div>
         </section>
       )}
-      {officers.map((o) => (
+      {officers.map((o, i) => (
         <section key={o.id} className="rounded-tile border border-hairline bg-surface p-4 shadow-tile">
           <div className="mb-3 flex items-center gap-3">
             <Avatar name={o.name} size={36} />
@@ -608,7 +654,7 @@ function OfficerAgenda({ rows, onOpen }) {
           </div>
           <div className="space-y-2">
             {o.mine.map((s) => (
-              <div key={s.id} className="flex items-start gap-3"><DayTag days={[dayOf(s.starts_at)]} today={today} /><div className="min-w-0 flex-1"><OfficerChip s={s} oid={o.id} onOpen={onOpen} /></div></div>
+              <div key={s.id} className="flex items-start gap-3"><DayTag days={[dayOf(s.starts_at)]} today={today} /><div className="min-w-0 flex-1"><OfficerChip s={s} oid={o.id} onOpen={onOpen} pick={pick} at={{ row: i + 1, day: dayOf(s.starts_at) }} /></div></div>
             ))}
           </div>
         </section>
@@ -623,13 +669,13 @@ function Requests({ q, roleName, onChanged, onOpen }) {
   const { base } = useBase();
   const [run, busy] = useAction();
   const [busyId, setBusyId] = useState(null);
-  const [picking, setPicking] = useState(false);
-  const [sel, setSel] = useState(() => new Set());
+  // Ctrl/Shift+click, Ctrl+A and Esc pick requests the way they pick files
+  const pick = useSelect({ ids: (q.data || []).map((r) => r.id) });
+  const { picking, stop } = pick;
   const decide = (r, approve) => {
     setBusyId(r.id);
     run(() => api('shifts.decideRequest', { id: r.id, approve }), approve ? 'Request approved' : 'Request declined').then(onChanged).catch(() => {}).finally(() => setBusyId(null));
   };
-  const stop = () => { setPicking(false); setSel(new Set()); };
   // Several at once: the same call per request, one after another; whatever went through is kept if one fails
   const decideAll = (list, approve) => run(async () => {
     let n = 0;
@@ -645,21 +691,20 @@ function Requests({ q, roleName, onChanged, onOpen }) {
     <Load q={q}>{(rows) => {
       if (!rows.length) return <Empty icon={Hand} title="No requests" body="When officers ask to work an open shift, it shows here."
         action={<Button variant="link" to={`${base}/cover`}>Looking for a venue's request? See Venue requests</Button>} />;
-      const chosen = rows.filter((r) => sel.has(r.id));
-      const toggle = (id) => setSel((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+      const chosen = rows.filter((r) => pick.has(r.id));
       const allOn = chosen.length === rows.length;
       return (
         <>
           <div className="mb-2 flex justify-end gap-2">
-            {picking && <Button variant="ghost" size="sm" onClick={() => setSel(allOn ? new Set() : new Set(rows.map((r) => r.id)))}>{allOn ? 'Clear selection' : `Select all ${rows.length}`}</Button>}
-            {rows.length > 1 && <Button variant={picking ? 'secondary' : 'ghost'} size="sm" onClick={() => (picking ? stop() : setPicking(true))}>{picking ? 'Done' : 'Select'}</Button>}
+            {picking && <Button variant="ghost" size="sm" onClick={() => pick.setAll(!allOn)}>{allOn ? 'Clear selection' : `Select all ${rows.length}`}</Button>}
+            {rows.length > 1 && <Button variant={picking ? 'secondary' : 'ghost'} size="sm" onClick={() => (picking ? stop() : pick.start())}>{picking ? 'Done' : 'Select'}</Button>}
           </div>
           <List>
             {rows.map((r) => (
-              <div key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                {picking && <Tick checked={sel.has(r.id)} onChange={() => toggle(r.id)} label={`Select ${r.officer_name}`} />}
+              <div key={r.id} className={cx('flex flex-wrap items-center gap-3 px-4 py-3', pick.has(r.id) && 'bg-blue-soft/50')}>
+                {picking && <Tick checked={pick.has(r.id)} onChange={(on, e) => { if (!pick.click(e, r.id)) pick.toggle(r.id, on); }} label={`Select ${r.officer_name}`} />}
                 <Avatar name={r.officer_name} size={40} />
-                <Pressable press className="min-w-0 flex-1 text-left" onClick={() => (picking ? toggle(r.id) : onOpen(r.shift_id))}>
+                <Pressable press className="min-w-0 flex-1 select-none text-left" {...pick.press(r.id)} onClick={(e) => { if (!pick.click(e, r.id)) onOpen(r.shift_id); }}>
                   <div className="truncate text-body font-semibold">{r.officer_name}</div>
                   <div className="truncate text-footnote text-muted">{r.venue_name} · {dayLabel(r.starts_at)} <span className="num">{range(r.starts_at, r.ends_at)}</span> · {roleName(r.role)}</div>
                 </Pressable>

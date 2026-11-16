@@ -104,12 +104,21 @@ export async function shiftsWithAssignments(where, params, user) {
 }
 
 /** Cancel a shift and everyone on it; they are told, and alerts, cards and buttons about it go. */
-async function cancelShift(s, user, reason) {
+// quiet: the caller tells the team itself (one message for several shifts) from the team returned
+async function cancelShift(s, user, reason, { quiet } = {}) {
   await q("UPDATE shifts SET status = 'cancelled' WHERE id = $1", [s.id]);
   const team = await q("UPDATE shift_assignments SET status = 'cancelled' WHERE shift_id = $1 AND status IN ('assigned','accepted','requested') RETURNING id, officer_id, shift_id, status", [s.id]);
   await afterShiftChange({ removed: team.map((a) => ({ ...a, venue_name: s.venue_name, starts_at: s.starts_at })), shiftIds: [s.id], gone: true });
-  for (const a of team) await notify(await officerUser(a.officer_id), { kind: 'shift', title: 'Shift cancelled', body: `${s.venue_name} · ${fmtDateTime(s.starts_at)}`, link: '/officer/shifts', email: true, severity: 'warning', tier: 'urgent' });
+  if (!quiet) for (const a of team) await notify(await officerUser(a.officer_id), { kind: 'shift', title: 'Shift cancelled', body: `${s.venue_name} · ${fmtDateTime(s.starts_at)}`, link: '/officer/shifts', email: true, severity: 'warning', tier: 'urgent' });
   await audit(user, 'shift.cancel', 'shift', s.id, { reason });
+  return team;
+}
+
+// Only drafts go for good; nobody was told about them, so nobody is told now
+async function deleteDraft(s) {
+  const team = await q('SELECT id, officer_id, shift_id FROM shift_assignments WHERE shift_id = $1', [s.id]);
+  await q('DELETE FROM shifts WHERE id = $1', [s.id]);
+  await afterShiftChange({ removed: team.map((a) => ({ ...a, venue_name: s.venue_name, starts_at: s.starts_at })), shiftIds: [s.id], gone: true });
 }
 
 // The shift page itself, where the officer can accept or decline
@@ -123,6 +132,47 @@ async function notifyAssigned(assignment, shift, kind = 'assigned') {
     kind: 'shift', title, body: `${shift.venue_name} · ${fmtDateTime(shift.starts_at)} – ${fmtTime(shift.ends_at)}`, link: assignedLink(shift), email: true, ref: `asg:${assignment.id}`, tier: soon ? 'urgent' : null,
   });
 }
+
+/* ---------- Several shifts at once ---------- */
+
+export const MAX_BULK = 200;
+// "Sat 21 Nov · The Ivy": how a shift left out of a bulk action is named in the list
+export const shiftLabel = (s) => `${new Date(s.starts_at).toLocaleDateString('en-GB', { timeZone: 'Europe/London', weekday: 'short', day: 'numeric', month: 'short' })}${s.venue_name ? ` · ${s.venue_name}` : ''}`;
+
+/** Why a shift sits out of a bulk action of this kind, or null when it fits. */
+export function bulkSkip(s, kind, now = Date.now()) {
+  if (s.status === 'cancelled') return 'cancelled';
+  if (new Date(s.ends_at) <= now) return 'already finished';
+  if (kind === 'publish' && s.status !== 'draft') return 'already published';
+  if ((kind === 'open' || kind === 'requests') && s.status !== 'published') return 'still a draft';
+  return null;
+}
+
+// Requests on a shift are taken in the order they came in, while places last
+export const oldestFirst = (reqs) => [...reqs].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+// The picked shifts the manager may touch, earliest first, so each check sees the bookings made before it
+async function bulkShifts(user, ids) {
+  if (!Array.isArray(ids) || !ids.length) fail(400, 'Pick at least one shift');
+  if (ids.length > MAX_BULK) fail(400, `Up to ${MAX_BULK} shifts at a time`);
+  const scope = await venueScope(user);
+  return q(
+    `SELECT s.*, v.name AS venue_name, (SELECT count(*)::int FROM shift_assignments a WHERE a.shift_id = s.id AND a.status IN ('assigned','accepted')) AS filled
+       FROM shifts s JOIN venues v ON v.id = s.venue_id
+      WHERE s.id = ANY($1::uuid[]) AND ($2::uuid[] IS NULL OR s.venue_id = ANY($2)) ORDER BY s.starts_at`, [ids, scope]);
+}
+const left = (s, why) => ({ id: s.id, label: shiftLabel(s), why });
+
+// One message per officer for everything a bulk action did to them
+async function notifyGrouped(officerId, list, one, many, extra = {}) {
+  await notify(await officerUser(officerId), {
+    kind: 'shift', title: list.length > 1 ? `${list.length} ${many}` : one,
+    body: `${list.slice(0, 3).map((s) => `${s.venue_name} ${fmtDateTime(s.starts_at)}`).join(' · ')}${list.length > 3 ? ` +${list.length - 3} more` : ''}`,
+    link: list.length === 1 ? assignedLink(list[0]) : '/officer/shifts', email: true, ref: list.length === 1 && list[0].assignment_id ? `asg:${list[0].assignment_id}` : null,
+    ...extra,
+  });
+}
+const byOfficer = (rows) => rows.reduce((m, r) => m.set(r.officer_id, [...(m.get(r.officer_id) || []), r]), new Map());
 
 export const actions = {
   // ---------- Shifts ----------
@@ -259,9 +309,7 @@ export const actions = {
     const s = await getShift(b.id);
     await assertVenue(user, s.venue_id);
     if (s.status !== 'draft') fail(400, 'Only draft shifts can be deleted — cancel it instead');
-    const team = await q('SELECT id, officer_id, shift_id FROM shift_assignments WHERE shift_id = $1', [b.id]);
-    await q('DELETE FROM shifts WHERE id = $1', [b.id]);
-    await afterShiftChange({ removed: team.map((a) => ({ ...a, venue_name: s.venue_name, starts_at: s.starts_at })), shiftIds: [b.id], gone: true });
+    await deleteDraft(s);
     return { ok: true };
   }),
 
@@ -381,6 +429,155 @@ export const actions = {
     }
     await audit(user, b.approve ? 'shift.request_approve' : 'shift.request_reject', 'shift', s.id, { officer: a.officer_id });
     return { ok: true };
+  }),
+
+  /* ---------- Several shifts at once: each one gets the same checks as on its own; whatever does not fit is
+     left out and named with the reason, and each officer hears once ---------- */
+
+  // Who can take the picked shifts: how many each officer fits, and why not the rest
+  'shifts.candidatesMany': def(MGR, async (b, { user }) => {
+    const shifts = (await bulkShifts(user, b.ids)).filter((s) => !bulkSkip(s, 'assign') && s.filled < s.headcount).slice(0, 40);
+    const on = new Set((await q("SELECT shift_id, officer_id FROM shift_assignments WHERE shift_id = ANY($1::uuid[]) AND status IN ('assigned','accepted')", [shifts.map((s) => s.id)]))
+      .map((r) => `${r.shift_id}:${r.officer_id}`));
+    const officers = await q("SELECT * FROM officers WHERE status = 'active' ORDER BY first_name");
+    const list = await Promise.all(officers.map(async (o) => {
+      const blocked = [];
+      const warnings = [];
+      let fits = 0;
+      for (const s of shifts) {
+        if (on.has(`${s.id}:${o.id}`)) { blocked.push(left(s, 'already on it')); continue; }
+        const c = await checkOfficerForShift(o.id, s);
+        if (c.blocking.length) blocked.push(left(s, c.blocking.join('; ')));
+        else { fits++; if (c.warnings.length) warnings.push(left(s, c.warnings.join('; '))); }
+      }
+      return { id: o.id, name: officerDisplay(o), full_name: `${o.first_name} ${o.last_name}`, goes_by: o.goes_by || '', fits, blocked, warnings };
+    }));
+    return { shifts: shifts.length, officers: list.sort((a, z) => z.fits - a.fits || a.warnings.length - z.warnings.length || a.name.localeCompare(z.name)) };
+  }),
+
+  'shifts.assignMany': def(MGR, async (b, { user }) => {
+    required(b, 'ids', 'officer_id');
+    const shifts = await bulkShifts(user, b.ids);
+    const on = new Set((await q("SELECT shift_id FROM shift_assignments WHERE officer_id = $1 AND shift_id = ANY($2::uuid[]) AND status IN ('assigned','accepted')", [b.officer_id, shifts.map((s) => s.id)])).map((r) => r.shift_id));
+    const skipped = [];
+    const todo = [];
+    for (const s of shifts) {
+      const why = bulkSkip(s, 'assign') || (on.has(s.id) && 'already on it') || (s.filled >= s.headcount && 'full');
+      if (why) skipped.push(left(s, why)); else todo.push(s);
+    }
+    // Warnings are asked about once for the lot, before anything is booked
+    if (!b.override) {
+      const warnings = [];
+      for (const s of todo) {
+        const c = await checkOfficerForShift(b.officer_id, s);
+        if (!c.blocking.length && c.warnings.length) warnings.push(left(s, c.warnings.join('; ')));
+      }
+      if (warnings.length) return { needs_override: true, warnings, done: 0, skipped };
+    }
+    const made = [];
+    for (const s of todo) {
+      const c = await checkOfficerForShift(b.officer_id, s);
+      if (c.blocking.length) { skipped.push(left(s, c.blocking.join('; '))); continue; }
+      if (c.warnings.length && !b.override) { skipped.push(left(s, c.warnings.join('; '))); continue; }
+      if ((await filledCount(s.id)) >= s.headcount) { skipped.push(left(s, 'full')); continue; }
+      const a = await one(
+        `INSERT INTO shift_assignments (shift_id, officer_id, status) VALUES ($1,$2,'assigned')
+         ON CONFLICT (shift_id, officer_id) DO UPDATE SET status = 'assigned', responded_at = NULL, ${FRESH} RETURNING *`, [s.id, b.officer_id]);
+      await q('DELETE FROM pack_reminders WHERE assignment_id = $1', [a.id]);
+      made.push({ ...s, assignment_id: a.id, warnings: c.warnings });
+    }
+    const live = made.filter((s) => s.status === 'published');
+    if (live.length) {
+      await notifyGrouped(b.officer_id, live, 'New shift assigned', 'new shifts assigned');
+      for (const s of live) await remindPack(s.assignment_id);
+    }
+    if (made.length) await afterShiftChange({ shiftIds: made.map((s) => s.id), officerIds: [b.officer_id] });
+    await audit(user, 'shift.assign_many', 'shift', null, { officer: b.officer_id, shifts: made.map((s) => s.id), override: made.flatMap((s) => s.warnings), skipped: skipped.length });
+    return { done: made.length, skipped };
+  }),
+
+  // Every officer request on the picked shifts: approved oldest first while places last, or all declined
+  'shifts.decideRequests': def(MGR, async (b, { user }) => {
+    required(b, 'ids', 'approve');
+    const shifts = await bulkShifts(user, b.ids);
+    const reqs = await q(
+      `SELECT a.*, ${officerName('o')} AS name FROM shift_assignments a JOIN officers o ON o.id = a.officer_id
+        WHERE a.shift_id = ANY($1::uuid[]) AND a.status = 'requested'`, [shifts.map((s) => s.id)]);
+    const skipped = [];
+    const done = [];
+    for (const s of shifts) {
+      const mine = oldestFirst(reqs.filter((a) => a.shift_id === s.id));
+      if (!mine.length) continue;
+      const why = bulkSkip(s, 'requests');
+      if (why) { skipped.push(left(s, why)); continue; }
+      let free = s.headcount - s.filled;
+      for (const a of mine) {
+        if (b.approve) {
+          if (free <= 0) { skipped.push(left(s, `full, ${a.name} left waiting`)); continue; }
+          const c = await checkOfficerForShift(a.officer_id, s, { ignoreAssignment: a.id });
+          if (c.blocking.length) { skipped.push(left(s, `${a.name}: ${c.blocking.join('; ')}`)); continue; }
+          await q("UPDATE shift_assignments SET status = 'accepted', responded_at = now() WHERE id = $1", [a.id]);
+          free--;
+        } else {
+          await q("UPDATE shift_assignments SET status = 'rejected' WHERE id = $1", [a.id]);
+        }
+        done.push({ ...s, officer_id: a.officer_id, assignment_id: a.id });
+      }
+    }
+    // The requests are dealt with, so the managers' notices about them go
+    if (done.length) await q('DELETE FROM notifications WHERE ref = ANY($1::text[])', [done.map((d) => `req:${d.assignment_id}`)]);
+    for (const [officerId, list] of byOfficer(done)) {
+      if (b.approve) await notifyGrouped(officerId, list, 'Shift request approved', 'shift requests approved');
+      else await notifyGrouped(officerId, list, 'Shift request not approved', 'shift requests not approved', { email: false, link: '/officer/shifts', ref: null });
+    }
+    if (b.approve) {
+      for (const d of done) await remindPack(d.assignment_id);
+      if (done.length) await afterShiftChange({ shiftIds: [...new Set(done.map((d) => d.id))], officerIds: [...new Set(done.map((d) => d.officer_id))] });
+    }
+    await audit(user, b.approve ? 'shift.request_approve_many' : 'shift.request_reject_many', 'shift', null, { requests: done.map((d) => d.assignment_id), skipped: skipped.length });
+    return { done: done.length, skipped };
+  }),
+
+  // Offer the picked published shifts to officers, or stop offering them
+  'shifts.setOpen': def(MGR, async (b, { user }) => {
+    required(b, 'ids', 'open');
+    const shifts = await bulkShifts(user, b.ids);
+    const skipped = [];
+    const ids = [];
+    for (const s of shifts) {
+      const why = bulkSkip(s, 'open');
+      if (why) skipped.push(left(s, why));
+      else if (!!s.open !== !!b.open) ids.push(s.id);
+    }
+    if (ids.length) await q('UPDATE shifts SET open = $2 WHERE id = ANY($1::uuid[])', [ids, !!b.open]);
+    if (ids.length && b.open) {
+      const officers = await q("SELECT user_id FROM officers WHERE status = 'active' AND user_id IS NOT NULL");
+      await notify(officers.map((o) => o.user_id), { kind: 'open_shift', title: `${ids.length} open shift${ids.length > 1 ? 's' : ''} available`, body: 'Request them in the app before they go.', link: '/officer/shifts?tab=open' });
+    }
+    await audit(user, b.open ? 'shift.open_many' : 'shift.close_many', 'shift', null, { shifts: ids });
+    return { done: ids.length, skipped };
+  }),
+
+  // Published shifts are cancelled (the team is told once each), drafts deleted; a shift someone is clocked in on stays
+  'shifts.cancelMany': def(MGR, async (b, { user }) => {
+    const shifts = await bulkShifts(user, b.ids);
+    const clocked = new Set((await q('SELECT DISTINCT a.shift_id FROM clock_events ce JOIN shift_assignments a ON a.id = ce.assignment_id WHERE a.shift_id = ANY($1::uuid[])', [shifts.map((s) => s.id)])).map((r) => r.shift_id));
+    const skipped = [];
+    const told = [];
+    let cancelled = 0;
+    let deleted = 0;
+    for (const s of shifts) {
+      const why = s.status === 'cancelled' ? 'already cancelled' : clocked.has(s.id) ? 'someone has clocked in' : new Date(s.ends_at) <= Date.now() ? 'already finished' : null;
+      if (why) { skipped.push(left(s, why)); continue; }
+      if (s.status === 'draft') { await deleteDraft(s); deleted++; continue; }
+      const team = await cancelShift(s, user, b.reason, { quiet: true });
+      told.push(...team.map((a) => ({ ...s, officer_id: a.officer_id })));
+      cancelled++;
+    }
+    for (const [officerId, list] of byOfficer(told)) {
+      await notifyGrouped(officerId, list, 'Shift cancelled', 'shifts cancelled', { link: '/officer/shifts', ref: null, severity: 'warning', tier: 'urgent' });
+    }
+    return { done: cancelled + deleted, cancelled, deleted, skipped };
   }),
 
   'shifts.pendingRequests': def(MGR, async (_b, { user }) => {

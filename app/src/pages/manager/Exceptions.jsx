@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { Check, History, Inbox, ListChecks, ShieldCheck, Smartphone, X } from 'lucide-react';
 import {
-  ActionBar, Avatar, Button, Check as Tick, cx, dayLabel, Empty, List, Load, Page, Pill, range, relative, Row, Section, Segmented, Sheet, time, useAction, useApi, useConfirm,
+  ActionBar, Avatar, Button, Check as Tick, cx, dayLabel, Empty, List, Load, Page, Pill, range, relative, Row, Section, Segmented, Sheet, time, useAction, useApi, useConfirm, useSelect,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { SELF_HINT, SelfPills, useBase } from './_parts.jsx';
@@ -21,14 +21,15 @@ export default function Exceptions() {
   const [run] = useAction();
   const confirm = useConfirm();
   const [busyId, setBusyId] = useState(null);
-  const [picking, setPicking] = useState(false);
-  const [picked, setPicked] = useState([]);
   const [rejecting, setRejecting] = useState(false);
   const [runMany, busyMany] = useAction();
   const open = tab === 'open' ? (q.data || []).filter((e) => e.status === 'exception' && !e.self_locked) : [];
-  const chosen = open.filter((e) => picked.includes(e.id));
-  const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
-  const stopPicking = () => { setPicking(false); setPicked([]); setRejecting(false); };
+  // Ctrl/Shift+click, Ctrl+A and Esc pick events the way they pick files
+  const pick = useSelect({ ids: open.map((e) => e.id) });
+  const { picking } = pick;
+  const chosen = open.filter((e) => pick.has(e.id));
+  const toggle = (id, e) => { if (!(e && pick.click(e, id))) pick.toggle(id); };
+  const stopPicking = () => { pick.stop(); setRejecting(false); };
   const changeTab = (t) => { stopPicking(); setTab(t); };
 
   // Several at once: the same per-event decision, one after another, then one refresh
@@ -53,7 +54,7 @@ export default function Exceptions() {
     <Page title="Exceptions" subtitle="Clock events that failed a check: phone, location, venue code or selfie" tabCounts={tabCounts}
       actions={open.length > 1 && (picking
         ? <Button variant="secondary" onClick={stopPicking}>Done</Button>
-        : <Button variant="secondary" icon={ListChecks} onClick={() => setPicking(true)}>Select</Button>)}
+        : <Button variant="secondary" icon={ListChecks} onClick={pick.start}>Select</Button>)}
       tools={<Segmented value={tab} onChange={changeTab} options={[
         { value: 'open', label: 'To review', icon: Inbox, count: tab === 'open' ? q.data?.length : undefined }, { value: 'decided', label: 'History', icon: History },
       ]} />}>
@@ -64,12 +65,12 @@ export default function Exceptions() {
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {list.map((e) => {
               const can = picking && e.status === 'exception' && !e.self_locked;
-              const on = picked.includes(e.id);
+              const on = pick.has(e.id);
               return (
-              <div key={e.id} onClick={can ? () => toggle(e.id) : undefined}
-                className={cx('rounded-tile border bg-surface p-4 shadow-tile sm:p-5', on ? 'border-blue ring-1 ring-blue' : 'border-hairline', can && 'cursor-pointer')}>
+              <div key={e.id} onClick={can ? (ev) => toggle(e.id, ev) : undefined}
+                className={cx('rounded-tile border bg-surface p-4 shadow-tile sm:p-5', on ? 'border-blue ring-1 ring-blue' : 'border-hairline', can && 'cursor-pointer select-none')}>
                 <div className="flex items-start gap-3">
-                  {can && <Tick round checked={on} onChange={() => toggle(e.id)} label={`Select ${e.officer_name}`} className="mt-2.5" />}
+                  {can && <Tick round checked={on} onChange={(_, ev) => toggle(e.id, ev)} label={`Select ${e.officer_name}`} className="mt-2.5" />}
                   <Avatar name={e.officer_name} size={42} />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2">

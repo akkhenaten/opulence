@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { ArrowLeft, Ban, Check, CircleAlert, ClipboardList, History, ListChecks, MapPin, Pencil, Settings, Sparkles, Star, User, X } from 'lucide-react';
 import {
-  ActionBar, Button, Callout, cx, MoreMenu, dateTime, dayLabel, Empty, hours, Input, Load, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useUrlState,
+  ActionBar, Button, Callout, Check as Tick, cx, MoreMenu, dateTime, dayLabel, Empty, hours, Input, Load, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useSelect, useUrlState,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
@@ -39,17 +39,21 @@ export function Inbox({ onChange, compact, slim, scroll, n, reloadKey, title = '
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (reloadKey) q.reload(); }, [reloadKey]);
   // Bulk: cards of one kind at a time, each decided with Orb's default choices
-  const [selecting, setSelecting] = useState(false);
-  const [sel, setSel] = useState([]);
   const [declining, setDeclining] = useState(false);
   const [run, busy] = useAction();
   const confirm = useConfirm();
   const items = view === 'pending' ? q.data || [] : [];
-  const chosen = items.filter((it) => sel.includes(it.id));
+  // Ctrl/Shift+click, Ctrl+A and Esc as in a file list; cards join only if they are the kind picked first
+  const kindOf = (id) => items.find((it) => it.id === id)?.kind;
+  const pick = useSelect({ ids: items.map((it) => it.id), can: (id, s) => { const first = [...s][0]; return first == null || kindOf(first) === kindOf(id); } });
+  const { picking: selecting } = pick;
+  const setSel = (list) => pick.setSel(new Set(list));
+  const chosen = items.filter((it) => pick.has(it.id));
+  const sel = chosen.map((it) => it.id);
   const kind = chosen[0]?.kind;
   const kinds = Object.entries(items.reduce((m, it) => ({ ...m, [it.kind]: (m[it.kind] || 0) + 1 }), {})).filter(([, n]) => n > 1);
-  const stop = () => { setSelecting(false); setSel([]); setDeclining(false); };
-  const toggle = (it) => setSel((s) => (s.includes(it.id) ? s.filter((x) => x !== it.id) : kind && kind !== it.kind ? s : [...s, it.id]));
+  const stop = () => { pick.stop(); setDeclining(false); };
+  const toggle = (it, e) => { if (!(e && pick.click(e, it.id))) pick.toggle(it.id); };
   const many = (decision, reason) => run(async () => {
     const r = await api('ops.decideMany', { ids: sel, decision, reason });
     stop(); reload();
@@ -76,7 +80,7 @@ export function Inbox({ onChange, compact, slim, scroll, n, reloadKey, title = '
         {selecting && <Button size="sm" variant="secondary" icon={X} onClick={stop}>Done</Button>}
         <MoreMenu label="Orb options" items={[
           view === 'pending' ? { label: 'Decided cards', icon: History, onClick: () => switchView('decided') } : { label: 'To approve', icon: Sparkles, onClick: () => switchView('pending') },
-          view === 'pending' && kinds.length > 0 && (selecting ? { label: 'Stop selecting', icon: X, onClick: stop } : { label: 'Select several', icon: ListChecks, onClick: () => setSelecting(true) }),
+          view === 'pending' && kinds.length > 0 && (selecting ? { label: 'Stop selecting', icon: X, onClick: stop } : { label: 'Select several', icon: ListChecks, onClick: pick.start }),
         ]} />
       </div>
     </div>
@@ -84,7 +88,7 @@ export function Inbox({ onChange, compact, slim, scroll, n, reloadKey, title = '
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Segmented value={view} onChange={(v) => { setView(v); stop(); }} options={[{ value: 'pending', label: 'To approve', icon: Sparkles }, { value: 'decided', label: 'Decided', icon: History }]} />
         {view === 'pending' && kinds.length > 0 && (
-          <Button size="sm" variant={selecting ? 'secondary' : 'ghost'} icon={selecting ? X : ListChecks} onClick={() => (selecting ? stop() : setSelecting(true))}>{selecting ? 'Done' : 'Select'}</Button>
+          <Button size="sm" variant={selecting ? 'secondary' : 'ghost'} icon={selecting ? X : ListChecks} onClick={() => (selecting ? stop() : pick.start())}>{selecting ? 'Done' : 'Select'}</Button>
         )}
       </div>
   );
@@ -102,7 +106,7 @@ export function Inbox({ onChange, compact, slim, scroll, n, reloadKey, title = '
       <Load q={q}>{(rows) => (rows.length ? (
         <div className={compact ? 'space-y-3' : 'grid grid-cols-1 gap-3 lg:grid-cols-2'}>
           {rows.map((it) => <ItemCard key={it.id} it={it} onDone={reload} compact={compact} focus={focus === it.id}
-            select={selecting ? { on: sel.includes(it.id), can: !kind || kind === it.kind, toggle: () => toggle(it) } : null} />)}
+            select={selecting ? { on: pick.has(it.id), can: !kind || kind === it.kind, toggle: (e) => toggle(it, e) } : null} />)}
         </div>
       ) : view === 'pending' && (before || after) ? null : view === 'pending' && empty ? empty : (
         <Empty icon={Sparkles} title={view === 'pending' ? 'All clear' : 'Nothing decided yet'}
@@ -180,8 +184,8 @@ function ItemCard({ it, onDone, select, compact, focus }) {
     <Tile className={cx('flex flex-col transition', select && !select.can && 'opacity-50', (select?.on || focus) && 'ring-2 ring-blue')}>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         {select && (
-          <input type="checkbox" aria-label={`Select ${it.title}`} className="h-5 w-5 shrink-0 cursor-pointer accent-[var(--color-blue)] disabled:cursor-not-allowed"
-            checked={select.on} disabled={!select.can} onChange={select.toggle} />
+          select.can ? <Tick checked={select.on} onChange={(_, e) => select.toggle(e)} label={`Select ${it.title}`} />
+            : <span aria-hidden className="h-[22px] w-[22px] shrink-0 rounded-md border-2 border-line bg-bg" title="Pick cards of one kind" />
         )}
         <Pill tone={k.tone}>{k.label}</Pill>
         {ISSUE_CARDS.includes(it.kind) && SEVERITY[p.severity] && <Pill tone={SEVERITY[p.severity].tone}>{SEVERITY[p.severity].label}</Pill>}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, CircleX, Hourglass, Layers, Megaphone, MessagesSquare, Pencil, Trash2, UserCheck, UserPlus, X } from 'lucide-react';
+import { Check, CircleX, Hourglass, Layers, ListChecks, Megaphone, MessagesSquare, Pencil, Trash2, UserCheck, UserPlus, X } from 'lucide-react';
 import {
   Button, dateTime, dayLabel, Empty, isoDate, KV, Load, mondayOf, Page, Pill, range, relative, Segmented, Sheet, Textarea, Toggle, useAction, useApi, useUrlState,
 } from '../../ui/index.jsx';
@@ -42,13 +42,43 @@ export default function Cover() {
     setUrl({ open: '' });
   }, [url.open, q.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const actions = (g) => {
+  // Several dates at once, across requests: the same call per date as in the drawer, one after another
+  const [bulk, bulkBusy] = useAction();
+  const [refuse, setRefuse] = useState(null); // { kind: 'dates' | 'changes', list, stop } waiting for a reason
+  const [why, setWhy] = useState('');
+  const newDate = (c) => c.status === 'pending' && c.change_status !== 'pending';
+  const asked = (c) => c.change_status === 'pending';
+  const each = (list, call, word, stop) => bulk(async () => {
+    let done = 0;
+    let err = null;
+    for (const c of list) {
+      try { await api(...call(c)); done++; } catch (e) { err = e; }
+    }
+    if (err && !done) throw err;
+    return { done, failed: list.length - done };
+  }, ({ done, failed }) => `${done} ${word}${failed ? ` · ${failed} not done` : ''}`).then(() => { stop(); setRefuse(null); setWhy(''); q.reload(); }).catch(() => q.reload());
+  const bar = (list, stop) => {
+    const dates = list.filter(newDate);
+    const changes = list.filter(asked);
+    return (
+      <>
+        {dates.length > 0 && <Button size="sm" variant="secondary" icon={X} disabled={bulkBusy} onClick={() => setRefuse({ kind: 'dates', list: dates, stop })}>Decline {dates.length}</Button>}
+        {dates.length > 0 && <Button size="sm" icon={Check} busy={bulkBusy} onClick={() => each(dates, (c) => ['cover.accept', { id: c.id, open: true, scope: 'one' }], 'accepted', stop)}>Accept {dates.length}</Button>}
+        {changes.length > 0 && <Button size="sm" variant="secondary" icon={X} disabled={bulkBusy} onClick={() => setRefuse({ kind: 'changes', list: changes, stop })}>Decline {changes.length} change{changes.length === 1 ? '' : 's'}</Button>}
+        {changes.length > 0 && <Button size="sm" icon={Check} busy={bulkBusy} onClick={() => each(changes, (c) => ['cover.decideChange', { id: c.id, approve: true, reason: '' }], 'changes approved', stop)}>Approve {changes.length} change{changes.length === 1 ? '' : 's'}</Button>}
+      </>
+    );
+  };
+
+  const actions = (g, { select, picking, stop }) => {
     const ask = g.upcoming.find((c) => c.change_status === 'pending');
     const pend = g.upcoming.find((c) => c.status === 'pending' && c.change_status !== 'pending');
+    const several = groups.flatMap((x) => x.live).filter((c) => newDate(c) || asked(c)).length > 1;
     return (
       <>
         {ask && <Button size="sm" variant="soft" icon={Check} onClick={() => setOpenId(ask.id)}>Review change</Button>}
         {pend && <Button size="sm" variant="soft" icon={Check} onClick={() => setOpenId(pend.id)}>Accept or decline</Button>}
+        {several && <Button size="sm" variant={picking ? 'secondary' : 'ghost'} icon={picking ? X : ListChecks} onClick={picking ? stop : select}>{picking ? 'Done' : 'Select dates'}</Button>}
         {g.conversation_id && <Button size="sm" variant="ghost" icon={MessagesSquare} to={`${base}/messages/${g.conversation_id}`}>Conversation</Button>}
       </>
     );
@@ -64,8 +94,18 @@ export default function Cover() {
     )}>
       <Load q={q}>{() => {
         if (!groups.length) return <Empty icon={Megaphone} title={tab === 'pending' ? 'Nothing to decide' : 'Nothing here'} body={tab === 'pending' ? 'New requests and changes from venues appear here.' : undefined} />;
-        return <RequestCards key={tab} office groups={groups} onOpen={(c) => setOpenId(c.id)} actions={actions} />;
+        return <RequestCards key={tab} office groups={groups} onOpen={(c) => setOpenId(c.id)} actions={actions} canPick={(c) => newDate(c) || asked(c)} bar={bar} />;
       }}</Load>
+      {refuse && (
+        <Sheet open onClose={() => !bulkBusy && setRefuse(null)} size="sm"
+          title={refuse.kind === 'dates' ? `Decline ${refuse.list.length} date${refuse.list.length === 1 ? '' : 's'}?` : `Decline ${refuse.list.length} change${refuse.list.length === 1 ? '' : 's'}?`}
+          footer={<><Button variant="secondary" disabled={bulkBusy} onClick={() => setRefuse(null)}>Cancel</Button>
+            <Button variant="danger" busy={bulkBusy} onClick={() => each(refuse.list, refuse.kind === 'dates'
+              ? (c) => ['cover.decline', { id: c.id, reason: why.trim(), scope: 'one' }]
+              : (c) => ['cover.decideChange', { id: c.id, approve: false, reason: why.trim() }], refuse.kind === 'dates' ? 'declined' : 'changes declined', refuse.stop)}>Decline</Button></>}>
+          <Textarea label="Reason for the venue (optional)" rows={3} value={why} onChange={(e) => setWhy(e.target.value)} />
+        </Sheet>
+      )}
       {open && <Detail key={open.id} c={open} dates={sameSeries(open)} base={base} onClose={() => setOpenId(null)} onDone={() => { setOpenId(null); q.reload(); }}
         onPrev={at > 0 ? () => setOpenId(flat[at - 1].id) : undefined}
         onNext={at < flat.length - 1 ? () => setOpenId(flat[at + 1].id) : undefined} />}

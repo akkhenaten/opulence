@@ -11,6 +11,18 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-16', icon: MousePointerClick, title: 'Select several shifts on the rota, like files in Windows', image: 'rota-multiselect',
+    lede: "The office no longer staffs the rota one shift at a time. Pick several shifts the way you pick files, then assign, publish, approve requests or cancel them together.",
+    points: [
+      "Ctrl+click (Cmd on a Mac) adds or drops a shift. Shift+click picks every shift in the rectangle between two cards: venues and days in By venue, officers and days in By officer. Ctrl+A picks the whole week shown, and Esc clears",
+      "On a phone, a long press on a shift starts picking, then taps add or drop shifts. 'Select shifts' in the rota's … menu does the same",
+      "Assign puts one officer on all of them. The list shows how many of the shifts each officer can take and why not the rest, and warnings such as long hours are asked about once",
+      "The bar under the selection also publishes drafts, approves or declines officer requests (oldest first while places last), offers shifts as open or stops offering them, and cancels shifts or deletes drafts with one confirmation",
+      "Shifts that don't fit are skipped and listed with the reason, such as 'Sat 21 Nov · The Ivy — full'. Each officer gets one message for all their new shifts",
+      "The same keys work on every list with Select: Rota → Requests, Timesheets, Clock exceptions, the Ops assistant's cards and Venue requests. Venue requests can now accept, decline or approve changes on dates across several requests at once",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-16', icon: LayoutList, title: "Cancel today's dates, and requests shown the way you made them", image: 'request-cards',
     lede: "A venue can now cancel any of today's dates, even after the shift has started. Requests also show as one card each, the way they were made: a repeating request is a single card with all of its dates inside.",
     points: [

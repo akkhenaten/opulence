@@ -13,6 +13,7 @@ export * from './format.js';
 export { useBump, useCountUp, useNow, usePresence, useScrollLock } from './motion.js';
 export { usePageHeader, useScrollMemory, useUrlState } from './nav.js';
 export { usePullRefresh } from './usePullRefresh.js';
+export { useSelect } from './useSelect.js';
 export { Lightbox } from './Lightbox.jsx';
 const cx = (...c) => c.filter(Boolean).join(' ');
 export { cx };
@@ -53,7 +54,8 @@ export function useAction() {
     setBusy(true);
     try {
       const r = await fn();
-      if (success) toast(typeof success === 'function' ? success(r) : success);
+      const msg = typeof success === 'function' ? success(r) : success;
+      if (msg) toast(msg);
       return r;
     } catch (e) {
       toast(e.message, 'error');
@@ -1144,7 +1146,7 @@ export function Tabs({ tabs, value, onChange, iconOnly, collapse }) {
 export function Check({ checked, onChange, label, className, round }) {
   return (
     <button type="button" role="checkbox" aria-checked={!!checked} aria-label={label}
-      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange(!checked); }}
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange(!checked, e); }}
       className={cx('ui-check relative grid h-[22px] w-[22px] shrink-0 place-items-center border-2 transition-colors before:absolute before:-inset-2.5', round ? 'rounded-full' : 'rounded-md',
         checked ? 'border-blue bg-blue text-white' : 'border-line bg-surface hover:border-faint', className)}>
       {checked && <CheckIcon size={14} strokeWidth={3} className="anim-pop" />}

@@ -4,7 +4,7 @@ import {
   AlertTriangle, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Clock, ClockAlert, Download, History, HandCoins, Layers, Lock, LogOut, MapPin, ReceiptText, MessageSquareReply, Nfc, PenLine, QrCode, Signature, Undo2,
 } from 'lucide-react';
 import {
-  ActionBar, addDays, Avatar, BackTo, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, MoreMenu, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, ToolField, ToolMenu, useAction, useApi, useConfirm, useForm, useMedia, useUrlState,
+  ActionBar, addDays, Avatar, BackTo, Button, Callout, cx, dateShort, dayLabel, Empty, hours, IconButton, Input, isoDate, KV, Load, money, mondayOf, MoreMenu, Page, Pill, Pressable, range, relative, Segmented, Select, Sheet, Textarea, time, titleCase, ToolField, ToolMenu, useAction, useApi, useConfirm, useForm, useMedia, useSelect, useUrlState,
 } from '../../ui/index.jsx';
 import { api, downloadAction } from '../../api.js';
 import { useVenue } from '../../venue.jsx';
@@ -70,7 +70,6 @@ export default function Timesheets() {
   const setVenueId = isVenue ? shared.setVenueId : (v) => setUrl({ venue: v });
   const officerId = url.officer;
   const setOfficerId = (v) => setUrl({ officer: v });
-  const [sel, setSel] = useState(() => new Set());
   const [openId, setOpenId] = useState(null);
   const [sheet, setSheet] = useState(null); // { kind: decline | rate | manual, rows }
   const [run, busy] = useAction();
@@ -106,12 +105,15 @@ export default function Timesheets() {
     };
   };
   const selectable = rows.filter((r) => { const c = can(r); return c.approve || c.sign || c.decline; });
+  // Shift+click a tick for the run between, Ctrl+A for all, Esc to clear, as in a file list
+  const pick = useSelect({ ids: selectable.map((r) => r.assignment_id), keys: 'always' });
+  const { sel, setSel } = pick;
   const chosen = rows.filter((r) => sel.has(r.assignment_id));
   const toApprove = chosen.filter((r) => can(r).approve);
   const toSign = chosen.filter((r) => can(r).sign);
   const toDecline = chosen.filter((r) => can(r).decline);
   const allOn = selectable.length > 0 && selectable.every((r) => sel.has(r.assignment_id));
-  const toggle = (id, on) => setSel((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n; });
+  const toggle = (id, on, e) => { if (!(e && pick.click(e, id))) pick.toggle(id, on); };
   const done = () => { setSel(new Set()); setSheet(null); setOpenId(null); q.reload(); missing.reload(); };
   // The detail drawer steps through the rows in the order the table shows them (by day)
   const order = DAYS(week).flatMap((d) => rows.filter((r) => r.date === d));
@@ -208,7 +210,7 @@ export default function Timesheets() {
 
       {selectable.length > 0 && (
         <div className="mb-2 flex justify-end">
-          <Button variant="ghost" size="sm" onClick={() => setSel(allOn ? new Set() : new Set(selectable.map((r) => r.assignment_id)))}>
+          <Button variant="ghost" size="sm" onClick={() => pick.setAll(!allOn)}>
             {allOn ? 'Clear selection' : `Select all ${selectable.length}`}
           </Button>
         </div>
@@ -381,7 +383,7 @@ function TableRow({ r, see, sel, toggle, can, act, onOpen, busy }) {
   return (
     <tr onClick={() => onOpen(r)} className={cx('cursor-pointer border-b border-line transition-colors last:border-0 hover:brightness-[0.98]', st.row)}>
       <td className={cx('border-l-4 py-2.5 pl-3', st.edge)} onClick={(e) => e.stopPropagation()}>
-        {pick ? <Tick checked={sel.has(r.assignment_id)} onChange={(on) => toggle(r.assignment_id, on)} label={`Select ${r.officer_name}`} /> : r.locked && <Lock size={14} className="text-faint" />}
+        {pick ? <Tick checked={sel.has(r.assignment_id)} onChange={(on, e) => toggle(r.assignment_id, on, e)} label={`Select ${r.officer_name}`} /> : r.locked && <Lock size={14} className="text-faint" />}
       </td>
       <td className="px-3 py-2.5">
         <div className="flex items-center gap-2.5">
@@ -412,7 +414,7 @@ function RowCard({ r, see, sel, toggle, can, act, onOpen, busy }) {
     <div role="button" tabIndex={0} onClick={() => onOpen(r)} onKeyDown={(e) => e.key === 'Enter' && onOpen(r)}
       className={cx('cursor-pointer rounded-2xl border border-l-4 border-hairline bg-surface p-3 shadow-tile', st.edge, st.row)}>
       <div className="flex items-start gap-2.5">
-        {pick && <span className="pt-2"><Tick checked={sel.has(r.assignment_id)} onChange={(on) => toggle(r.assignment_id, on)} label={`Select ${r.officer_name}`} /></span>}
+        {pick && <span className="pt-2"><Tick checked={sel.has(r.assignment_id)} onChange={(on, e) => toggle(r.assignment_id, on, e)} label={`Select ${r.officer_name}`} /></span>}
         <Avatar name={r.officer_name} src={r.photo_url} size={36} />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
