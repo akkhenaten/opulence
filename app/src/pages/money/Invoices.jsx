@@ -22,7 +22,7 @@ export default function Invoices() {
 function CompanyInvoices() {
   const list = useApi('invoices.list', {});
   // Status and search live in the address, so a filtered list survives Back and can be shared
-  const [f, setF] = useUrlState({ status: 'all', q: '' });
+  const [f, setF] = useUrlState({ status: 'all', q: '', stream: '' });
   const [exp, setExp] = useState(false);
   const [run, busy] = useAction();
   // Drafts fill themselves from approved timesheets; this only catches up anything the 5-minute sweep has not reached yet
@@ -32,11 +32,17 @@ function CompanyInvoices() {
   const drafts = (list.data || []).filter((i) => i.status === 'draft' && i.kind === 'invoice');
   const issueAll = async () => {
     if (!(await confirm({ title: `Issue ${drafts.length} draft invoice${drafts.length === 1 ? '' : 's'}?`, body: 'Each venue is sent its invoice. Only hours the venue has signed off are billed; the rest move to the next invoice.', confirm: 'Issue all' }))) return;
-    run(() => api('invoices.issueMany', {}), (x) => [`${x.issued} issued`, x.skipped.length && `${x.skipped.length} left as draft (nothing signed off yet)`].filter(Boolean).join(' · ')).then(list.reload).catch(() => {});
+    run(() => api('invoices.issueMany', {}), (x) => [`${x.issued} issued`, x.skipped.length && `${x.skipped.length} left as draft (nothing signed off yet, or its stream is not checked)`].filter(Boolean).join(' · ')).then(list.reload).catch(() => {});
   };
 
   const status = f.status;
   const wide = useMedia('(min-width: 640px)');
+  // Venues billing more than one budget: pick one stream's invoices
+  const streamOpts = useMemo(() => {
+    const seen = new Map();
+    for (const i of list.data || []) if (i.stream_label && !seen.has(i.stream_id)) seen.set(i.stream_id, `${i.venue_name} · ${i.stream_label}`);
+    return [...seen].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [list.data]);
   const rows = list.data || [];
   const out = rows.filter(outstanding);
   const overdue = rows.filter((i) => i.status === 'overdue');
@@ -56,6 +62,7 @@ function CompanyInvoices() {
       { value: 'overdue', label: 'Overdue', icon: AlertTriangle, count: c('overdue') }, { value: 'paid', label: 'Paid', icon: CheckCircle2 },
     ]} />
     {wide ? more : <ToolMenu count={MAIN.includes(status) ? 0 : 1} onClear={() => setF({ status: 'all' })}><ToolField label="More statuses">{more}</ToolField></ToolMenu>}
+    {streamOpts.length > 0 && <Select aria-label="Billing stream" className="w-52" value={f.stream} placeholder="All streams" onChange={(e) => setF({ stream: e.target.value })} options={streamOpts} />}
     <SearchInput className="w-full sm:w-56" value={f.q} onChange={(e) => setF({ q: e.target.value })} placeholder="Number, venue or client" />
   </>;
 
@@ -69,7 +76,7 @@ function CompanyInvoices() {
         {drafts.length > 0 && <Button icon={Send} busy={busy} onClick={issueAll}>Issue all drafts</Button>}
       </>}>
       <Load q={list}>
-        {(all) => <CompanyBody rows={all} status={status} q={f.q} />}
+        {(all) => <CompanyBody rows={f.stream ? all.filter((i) => i.stream_id === f.stream) : all} status={status} q={f.q} />}
       </Load>
       {exp && <ExportSheet onClose={() => setExp(false)} />}
     </Page>
@@ -84,7 +91,7 @@ function CompanyBody({ rows, status, q }) {
     const s = q.trim().toLowerCase();
     return rows.filter((i) => {
       if (status === 'credit') { if (i.kind !== 'credit') return false; } else if (status !== 'all' && (i.status !== status || i.kind === 'credit')) return false;
-      return !s || [i.number, i.venue_name, i.client_name].some((x) => String(x || '').toLowerCase().includes(s));
+      return !s || [i.number, i.venue_name, i.client_name, i.stream_label, i.po_ref].some((x) => String(x || '').toLowerCase().includes(s));
     });
   }, [rows, status, q]);
 
@@ -116,10 +123,11 @@ function InvoiceList({ rows, company, empty = ['No invoices here'] }) {
                 {i.number || 'Draft'}{i.kind === 'credit' && <span className="ml-1.5 text-caption font-semibold text-muted">Credit note</span>}
               </div>
               <div className="truncate text-footnote text-muted">
-                {company ? [i.venue_name, i.client_name].filter(Boolean).join(' · ') : i.venue_name}
+                {company ? [i.venue_name, i.stream_label, i.client_name].filter(Boolean).join(' · ') : [i.venue_name, i.stream_label].filter(Boolean).join(' · ')}
                 {i.period_start && ` · ${dateShort(i.period_start)} – ${dateShort(i.period_end)}`}
               </div>
               {due && <div className={cx('text-caption font-semibold', left < 0 ? 'text-red' : 'text-muted')}>{due}</div>}
+              {company && i.status === 'draft' && i.stream_checked === false && <div className="text-caption font-semibold text-amber">Stream not yet checked</div>}
               {company && i.status === 'draft' && i.kind === 'invoice' && (i.signed > 0 || i.awaiting > 0) && (
                 <div className="mt-0.5 flex flex-wrap gap-x-2 text-caption font-semibold">
                   {i.signed > 0 && <span className="text-green">{i.signed} signed · {money(i.signed_net)} net ready</span>}

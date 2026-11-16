@@ -283,7 +283,7 @@ function ShiftCard({ s, onOpen, showVenue = true, density = 'comfortable', flat 
             <span className="num whitespace-nowrap text-footnote font-bold"><span className="@[100px]:hidden">{short}</span><span className="hidden @[100px]:inline">{range(s.starts_at, s.ends_at)}</span></span>
             <span className="ml-auto">{count}</span>
           </div>
-          <div className="mt-0.5 truncate text-caption text-muted">{showVenue && <span className="font-semibold text-ink">{s.venue_name} · </span>}{s.role_name}</div>
+          <div className="mt-0.5 truncate text-caption text-muted">{showVenue && <span className="font-semibold text-ink">{s.venue_name} · </span>}{s.role_name}{s.stream_name && <> · {s.stream_name}</>}</div>
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
             {state === 'unconfirmed' && clock}
             <Faces people={people} open={places(s)} />
@@ -655,6 +655,7 @@ function ShiftDetail({ id, startAssign, roleName, onClose, onChanged, onEdit, on
           <KV items={[
             ['When', <>{dayLabel(s.starts_at)}, <span className="num">{range(s.starts_at, s.ends_at)}</span></>],
             ['Role', s.role_name || roleName(s.role)],
+            s.stream_name && ['Bill to', s.stream_name],
             ['Length', <span className="num">{durationH(s.starts_at, s.ends_at)}h{s.break_minutes ? ` incl. ${s.break_minutes} min break` : ''}</span>],
             ['Notes', s.notes],
           ]} />
@@ -786,6 +787,12 @@ function ShiftForm({ init, venues, roles, onClose, onSaved }) {
   const v = f.v;
   const t = v.date && v.start && v.end ? shiftTimes(v.date, v.start, v.end) : null;
   const overnight = t && dayOf(t.ends_at) !== v.date;
+  // Billing stream: asked only at venues that bill more than one; a new shift follows the stream that claims its role
+  const streams = useApi('streams.list', { venue_id: v.venue_id }, { skip: !v.venue_id });
+  const active = (streams.data || []).filter((x) => x.status === 'active');
+  const [picked, setPicked] = useState(s?.stream_id || '');
+  const byRole = active.find((x) => x.roles.includes(v.role)) || active.find((x) => x.is_default);
+  const streamId = active.some((x) => x.id === picked) ? picked : byRole?.id || '';
 
   const dates = useMemo(() => {
     if (!repeat || !v.date) return [v.date];
@@ -803,7 +810,8 @@ function ShiftForm({ init, venues, roles, onClose, onSaved }) {
     if (!dirty || await confirm({ title: 'Discard changes?', body: "What you've changed here won't be saved.", confirm: 'Discard', cancel: 'Keep editing', danger: true })) onClose();
   };
   const save = (status) => {
-    const common = { venue_id: v.venue_id, role: v.role, break_minutes: Number(v.break_minutes) || 0, headcount: Number(v.headcount) || 1, open: !!v.open, notes: v.notes };
+    const common = { venue_id: v.venue_id, role: v.role, break_minutes: Number(v.break_minutes) || 0, headcount: Number(v.headcount) || 1, open: !!v.open, notes: v.notes,
+      ...(active.length > 1 && streamId ? { stream_id: streamId } : {}) };
     let p;
     if (s) p = api('shifts.save', { id: s.id, ...common, ...t });
     else if (dates.length > 1) p = api('shifts.bulkCreate', { ...common, dates, start_time: v.start, end_time: v.end, status });
@@ -819,6 +827,10 @@ function ShiftForm({ init, venues, roles, onClose, onSaved }) {
       <div className="space-y-3">
         <Select label="Venue" value={v.venue_id} onChange={(e) => f.set('venue_id', e.target.value)} placeholder="Choose venue" options={venues.map((x) => ({ value: x.id, label: x.name }))} />
         <Select label="Role" value={v.role} onChange={(e) => f.set('role', e.target.value)} placeholder="Choose role" options={roles.map((r) => ({ value: r.code, label: r.name }))} />
+        {active.length > 1 && (
+          <Select label="Bill to" hint={s ? 'Moving it changes which invoice it goes on, until that invoice is issued' : 'Each budget gets its own invoice'} value={streamId} onChange={(e) => setPicked(e.target.value)}
+            options={active.map((x) => ({ value: x.id, label: x.name }))} />
+        )}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Input label="Date" type="date" className="col-span-2 sm:col-span-1" {...f.bind('date')} />
           <Input label="Start" type="time" {...f.bind('start')} />

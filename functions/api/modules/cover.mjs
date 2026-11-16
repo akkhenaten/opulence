@@ -11,6 +11,7 @@ import { londonToUtc } from './rota.mjs';
 import { afterShiftChange } from './shiftSync.mjs';
 import { MGR, def } from './_def.mjs';
 import { userName } from '../lib/names.mjs';
+import { createStream, streamFor, streamNameSql, tellCompanyNewStream } from './streams.mjs';
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -91,7 +92,7 @@ export const describe = (s) => {
 
 async function createShift(occ, series, userId, db) {
   return insert('shifts', {
-    venue_id: occ.venue_id, role: occ.role, starts_at: occ.starts_at, ends_at: occ.ends_at, headcount: occ.headcount, cover_request_id: occ.id,
+    venue_id: occ.venue_id, stream_id: occ.stream_id, role: occ.role, starts_at: occ.starts_at, ends_at: occ.ends_at, headcount: occ.headcount, cover_request_id: occ.id,
     status: 'published', open: !!series.open, notes: occ.notes || '', created_by: userId,
   }, db);
 }
@@ -106,10 +107,10 @@ async function materialise(series, userId, db = { q, one }) {
   for (const d of dates) {
     const r = occRange(d.date, d.start, d.end);
     const occ = await db.one(
-      `INSERT INTO cover_requests (venue_id, role, starts_at, ends_at, headcount, notes, requested_by, series_id, occurs_on, status, decided_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      `INSERT INTO cover_requests (venue_id, role, starts_at, ends_at, headcount, notes, requested_by, series_id, occurs_on, status, decided_by, stream_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [series.venue_id, series.role, r.starts_at, r.ends_at, d.headcount, series.notes, series.requested_by, series.id, d.date,
-        series.accepted_all ? 'accepted' : 'pending', series.accepted_all ? userId : null]);
+        series.accepted_all ? 'accepted' : 'pending', series.accepted_all ? userId : null, series.stream_id || null]);
     if (series.accepted_all) await createShift(occ, series, userId, db);
     made += 1;
   }
@@ -198,7 +199,7 @@ async function applyFuture(pivot, def, userId) {
     }
     const anyAccepted = old.accepted_all || affected.some((o) => o.status === 'accepted');
     const s = await insert('cover_series', {
-      venue_id: old.venue_id, role: def.role, kind: 'recurring', frequency: def.frequency, days: JSON.stringify(def.days), start_date: from, end_date: def.end_date,
+      venue_id: old.venue_id, stream_id: old.stream_id, role: def.role, kind: 'recurring', frequency: def.frequency, days: JSON.stringify(def.days), start_date: from, end_date: def.end_date,
       notes: def.notes, requested_by: old.requested_by, accepted_all: anyAccepted, open: old.open, root_id: old.root_id || old.id,
     }, t);
     s.days = def.days;
@@ -264,7 +265,7 @@ export const actions = {
   'cover.list': def(['company', 'security', 'venue'], async (b, { user }) => {
     const scope = await venueScope(user);
     const rows = await q(
-      `SELECT c.*, v.name AS venue_name, r.name AS role_name, ${userName('u')} AS requested_by_name, ${userName('cu')} AS change_by_name,
+      `SELECT c.*, v.name AS venue_name, r.name AS role_name, ${streamNameSql('c')} AS stream_name, ${userName('u')} AS requested_by_name, ${userName('cu')} AS change_by_name,
               s.kind, s.frequency, s.days, s.start_date, s.end_date, s.accepted_all, s.status AS series_status, COALESCE(s.root_id, s.id) AS root_id,
               (SELECT id FROM conversations x WHERE x.kind = 'cover' AND x.ref_id = COALESCE(s.root_id, c.series_id)) AS conversation_id,
               (SELECT count(*) FROM shifts sh WHERE sh.cover_request_id = c.id AND sh.status <> 'cancelled') AS shift_count,
@@ -287,8 +288,15 @@ export const actions = {
     const today = londonDate(new Date());
     const def_ = cleanSeries(b, today);
     need(await one('SELECT 1 FROM roles WHERE code = $1', [def_.role]), 'Unknown role');
+    let newStream = null;
     const series = await tx(async (t) => {
-      const s = await insert('cover_series', { ...def_, days: JSON.stringify(def_.days), venue_id: b.venue_id, requested_by: user.id }, t);
+      // The budget it bills to: picked, or made right here with "+ New stream", or the venue's stream for the role
+      if (b.new_stream?.name) {
+        const ns = b.new_stream;
+        newStream = await createStream(b.venue_id, { name: ns.name, po_ref: ns.po_ref, recipients: ns.recipient ? [ns.recipient] : ns.recipients }, user, t);
+      }
+      const stream_id = newStream ? newStream.id : await streamFor(b.venue_id, b.stream_id, def_.role, t);
+      const s = await insert('cover_series', { ...def_, days: JSON.stringify(def_.days), venue_id: b.venue_id, requested_by: user.id, stream_id }, t);
       s.days = def_.days;
       const made = await materialise(s, user.id, t);
       if (!made) fail(400, 'Those days do not fall between the dates you chose');
@@ -301,7 +309,11 @@ export const actions = {
     await notify((await managersFor(b.venue_id)).filter((id) => id !== user.id), {
       kind: 'cover', title: `New cover request · ${v.name}`, body: text, link: '/company/cover', email: true,
     });
-    await audit(user, 'cover.create', 'cover_series', series.id, { kind: series.kind });
+    if (newStream) {
+      await audit(user, 'stream.create', 'venue', b.venue_id, newStream);
+      await tellCompanyNewStream(newStream, user);
+    }
+    await audit(user, 'cover.create', 'cover_series', series.id, { kind: series.kind, stream_id: series.stream_id });
     return { series_id: series.id, conversation_id: conv.id };
   }),
 
@@ -312,6 +324,17 @@ export const actions = {
     if (!['pending', 'accepted'].includes(occ.status)) fail(400, `This date is ${occ.status}`);
     if (new Date(occ.starts_at) < new Date()) fail(400, 'This date has already started');
     const scope = b.scope === 'future' && occ.kind === 'recurring' ? 'future' : 'one';
+    // Another budget for dates not yet booked; booked shifts move stream on the rota (Opulence checks the invoice side)
+    if (b.stream_id && b.stream_id !== occ.stream_id && !b.delete) {
+      const sid = await streamFor(occ.venue_id, b.stream_id, occ.role);
+      if (scope === 'future') {
+        await q("UPDATE cover_requests SET stream_id = $3 WHERE series_id = $1 AND occurs_on >= $2 AND status = 'pending'", [occ.series_id, occ.occurs_on, sid]);
+        await q('UPDATE cover_series SET stream_id = $2 WHERE id = $1', [occ.series_id, sid]);
+      } else if (occ.status === 'pending') await q('UPDATE cover_requests SET stream_id = $2 WHERE id = $1', [occ.id, sid]);
+      else if (!isMgr(user)) fail(400, 'This date is booked — ask Opulence to move it to another stream');
+      await audit(user, 'cover.stream', 'cover_request', occ.id, { scope, stream_id: sid });
+      if (b.stream_only) return { status: 'done', summary: 'Billing stream changed' };
+    }
     let payload;
     if (b.delete) payload = { type: 'delete' };
     else if (scope === 'one') payload = { type: 'edit', slot: cleanSlot(b), notes: b.notes === undefined ? undefined : String(b.notes).slice(0, 1000) };

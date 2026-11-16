@@ -133,7 +133,7 @@ test('pipeline: approve fixes the rates and refuses cancelled work; a rebuild us
 
 test('venue logins: timesheets.list redacts the officer rate, rates are per role, venue rota reaches management as cover requests', () => {
   const ts = read('../modules/timesheets.mjs');
-  assert.match(ts, /user\.role === 'officer' \? out : out\.map\(\(r\) => redactMoney\(r, user\)\)/);
+  assert.match(ts, /user\.role === 'officer' \? out\.map\(\(\{ stream_id: _s, stream_name: _n, \.\.\.r \}\) => r\) : out\.map\(\(r\) => redactMoney\(r, user\)\)/);
   const venue = redactMoney({ charge_rate: 20, pay_rate: 13, pay_amount: 104, charge_amount: 160 }, { role: 'venue' });
   assert.equal(venue.pay_rate, undefined);
   assert.equal(venue.charge_rate, 20);

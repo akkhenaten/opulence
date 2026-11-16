@@ -11,6 +11,19 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-16', icon: Wallet, title: 'One venue, separate invoices per budget', image: 'billing-streams',
+    lede: "Some clients pay for parts of the work out of different budgets, for example a concierge desk and contractor site management at New Eidyn. A venue can now have billing streams, and each stream gets its own invoice with its own PO, recipients and bill-to.",
+    points: [
+      "On a venue's Setup tab, Billing streams lists them. Every venue starts with one, so venues that pay from a single budget see no change",
+      "Each stream has its own PO or reference, extra invoice recipients and bill-to name and address. Charge rates can be set for the whole venue or for one stream",
+      "A stream can claim roles, for example Concierge, so rota shifts for that role go on its invoice without anyone picking it",
+      "When a venue requests staff, they choose which budget it bills to, or add a new stream right there. They can use it straight away, and it shows under Needs you for the office to check before its first invoice goes out",
+      "A shift can move to another stream until its invoice is issued. After that, a credit note is needed",
+      "Invoices show the stream and its PO. The list can be filtered by stream, and the CSV export has Stream and PO columns",
+      "Officers don't see any of this",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-15', icon: MousePointerClick, title: 'Tab rows and search boxes that make room', image: 'compact-tabs-and-search',
     lede: "Rows of tabs and filters used to fill the width of the page and push buttons off the edge. In every portal they now take only the room they need, so the page shows more of the work.",
     points: [

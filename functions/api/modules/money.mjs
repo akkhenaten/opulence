@@ -5,7 +5,8 @@ import { venueScope, assertVenue } from '../lib/scope.mjs';
 import { bandFractions, money, gbp } from '../lib/rates.mjs';
 import { payAmount, chargeAmount } from '../lib/timesheetState.mjs';
 import { Doc } from '../lib/pdf.mjs';
-import { notify, officerUser, venueContacts } from '../lib/notify.mjs';
+import { notify, officerUser, venueContacts, sendRawEmail, emailHtml } from '../lib/notify.mjs';
+import { esc, getBrand } from '../lib/brand.mjs';
 import { fmtDate, fmtTime, londonDate, addDays } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { getSettings } from './settings.mjs';
@@ -24,8 +25,11 @@ export async function officerRate(officerId, role, venueId, date, db = { one }) 
   return r ? Number(r.rate) : null;
 }
 
-export async function venueRate(venueId, role, date, db = { one }) {
-  return db.one('SELECT * FROM venue_rates WHERE venue_id = $1 AND role = $2 AND effective_from <= $3 ORDER BY effective_from DESC LIMIT 1', [venueId, role, date]);
+/** The venue charge rate on a date: a billing stream's own rate beats the venue-wide one, then the latest effective */
+export async function venueRate(venueId, role, date, db = { one }, streamId = null) {
+  return db.one(
+    `SELECT * FROM venue_rates WHERE venue_id = $1 AND role = $2 AND effective_from <= $3 AND (stream_id IS NULL OR stream_id = $4)
+      ORDER BY stream_id IS NULL, effective_from DESC LIMIT 1`, [venueId, role, date, streamId]);
 }
 
 const bankHolidays = async () => new Set((await q('SELECT day FROM bank_holidays')).map((r) => r.day));
@@ -41,7 +45,7 @@ export async function payFor(t, s, bh, db) {
 
 /** Venue charge for a timesheet: the rate fixed on approval as the base, with the venue rate card's minimum hours and uplifts */
 export async function chargeFor(t, s, bh, db) {
-  const vr = await venueRate(t.venue_id, t.role, londonDate(t.starts_at), db);
+  const vr = await venueRate(t.venue_id, t.role, londonDate(t.starts_at), db, t.stream_id);
   const base = t.charge_rate != null ? Number(t.charge_rate) : vr ? Number(vr.rate) : null;
   const fr = bandFractions(t.actual_start, t.actual_end, s, bh);
   return { vr, base, fr, ...chargeAmount(t.hours, fr, base, vr) };
@@ -89,15 +93,20 @@ async function loadStatement(id) {
 async function loadInvoice(id) {
   const inv = need(await one(
     `SELECT i.*, v.name AS venue_name, v.address AS venue_address, v.postcode, c.name AS client_name, c.billing_address, c.billing_email, c.vat_number AS client_vat,
-            ci.number AS credit_of_number
-       FROM invoices i JOIN venues v ON v.id = i.venue_id LEFT JOIN clients c ON c.id = v.client_id LEFT JOIN invoices ci ON ci.id = i.credit_of WHERE i.id = $1`, [id]));
+            ci.number AS credit_of_number, vs.name AS stream_name, vs.po_ref, vs.recipients, vs.bill_to_name, vs.bill_to_address, vs.is_default AS stream_default,
+            vs.checked_at IS NOT NULL AS stream_checked,
+            (SELECT count(*)::int FROM venue_streams x WHERE x.venue_id = i.venue_id AND x.status = 'active') AS venue_stream_count
+       FROM invoices i JOIN venues v ON v.id = i.venue_id LEFT JOIN clients c ON c.id = v.client_id LEFT JOIN invoices ci ON ci.id = i.credit_of
+       LEFT JOIN venue_streams vs ON vs.id = i.stream_id WHERE i.id = $1`, [id]));
   inv.lines = await q(`SELECT l.*, ts.status AS ts_status, ts.auto_signed AS ts_auto_signed FROM invoice_lines l LEFT JOIN timesheets ts ON ts.id = l.timesheet_id
     WHERE l.invoice_id = $1 ORDER BY l.work_date NULLS LAST, l.description`, [id]);
   return inv;
 }
 
 const statementFilename = (st, o) => `${o.first_name} ${o.last_name} — Pay statement — ${longDate(st.run_date || st.issued_at || st.period_end)}.pdf`;
-const invoiceFilename = (inv) => `${inv.venue_name} — ${inv.kind === 'credit' ? 'Credit note' : 'Invoice'} ${inv.number || 'draft'} — ${longDate(inv.issue_date || new Date())}.pdf`;
+// A venue billing more than one stream: the stream rides along in the name so the PDFs tell themselves apart
+const streamLabel = (inv) => (inv.venue_stream_count > 1 && inv.stream_name && inv.stream_name !== inv.venue_name ? inv.stream_name : '');
+const invoiceFilename = (inv) => `${[inv.venue_name, streamLabel(inv)].filter(Boolean).join(' · ')} — ${inv.kind === 'credit' ? 'Credit note' : 'Invoice'} ${inv.number || 'draft'} — ${longDate(inv.issue_date || new Date())}.pdf`;
 
 export async function buildStatementPdf(st) {
   const s = await getSettings();
@@ -132,7 +141,9 @@ export async function buildInvoicePdf(inv) {
   const d = await Doc.create(`${title} ${inv.number || 'draft'}`);
   await d.header(s, title, inv.number || 'DRAFT');
   d.meta(
-    [['Bill to', inv.client_name || inv.venue_name], ['Address', inv.billing_address || [inv.venue_address, inv.postcode].filter(Boolean).join(', ')], ['Venue', inv.venue_name]],
+    [['Bill to', inv.bill_to_name || inv.client_name || inv.venue_name],
+      ['Address', inv.bill_to_address || inv.billing_address || [inv.venue_address, inv.postcode].filter(Boolean).join(', ')],
+      ['Venue', [inv.venue_name, streamLabel(inv)].filter(Boolean).join(' · ')], ...(inv.po_ref ? [['PO / Ref', inv.po_ref]] : [])],
     [['Issue date', inv.issue_date ? fmtDate(inv.issue_date) : '-'], ['Due date', inv.due_date ? fmtDate(inv.due_date) : '-'],
       ['Period', inv.period_start ? `${fmtDate(inv.period_start)} - ${fmtDate(inv.period_end)}` : '-'], ...(inv.credit_of_number ? [['Credit against', inv.credit_of_number]] : [])],
   );
@@ -208,6 +219,33 @@ async function reconcileAfter(start, end) {
   }
 }
 
+/**
+ * The stream's own invoice recipients (often a finance inbox with no login) get the invoice details by email, once each;
+ * an address that is already a venue contact has had it through the app.
+ */
+export async function mailRecipients(inv, contactIds = []) {
+  const list = (inv.recipients || []).filter(Boolean);
+  if (!list.length) return 0;
+  const known = new Set((await q('SELECT lower(email) AS e FROM users WHERE id = ANY($1::uuid[])', [contactIds])).map((r) => r.e));
+  const to = [...new Set(list.map((e) => e.toLowerCase()))].filter((e) => !known.has(e));
+  if (!to.length) return 0;
+  const s = await getSettings();
+  const { name } = await getBrand();
+  const credit = inv.kind === 'credit';
+  const what = `${credit ? 'Credit note' : 'Invoice'} ${inv.number}`;
+  const rows = [
+    ['For', [inv.venue_name, streamLabel(inv)].filter(Boolean).join(' · ')], ...(inv.po_ref ? [['PO / Ref', inv.po_ref]] : []),
+    ['Period', inv.period_start ? `${fmtDate(inv.period_start)} – ${fmtDate(inv.period_end)}` : '-'],
+    ['Total', gbp(inv.gross)], ...(credit ? [['Against', inv.credit_of_number || '-']] : [['Due', inv.due_date ? fmtDate(inv.due_date) : '-']]),
+    ...(credit ? [] : [['Pay to', `${s.bank_name || '-'} · ${s.bank_sort_code || '-'} · ${s.bank_account || '-'} · ref ${inv.number}`]]),
+  ];
+  const body = `<table style="border-collapse:collapse;margin-top:6px">${rows.map(([k, v]) => `<tr><td style="padding:3px 14px 3px 0;color:#6B7280">${esc(k)}</td><td style="padding:3px 0;color:#0B1220">${esc(v)}</td></tr>`).join('')}</table>
+    <p style="margin-top:12px">You receive this as the invoice contact for this budget. Reply to this email for a PDF copy or with any question.</p>`;
+  const html = await emailHtml(esc(what), body, '');
+  const sent = await Promise.allSettled(to.map((e) => sendRawEmail(e, `${name} — ${what}`, html)));
+  return sent.filter((r) => r.status === 'fulfilled' && r.value).length;
+}
+
 /** Issue one draft invoice: number it, hold back unsigned lines, tell the venue, archive the PDF */
 async function issueInvoice(id, user, via) {
   let held = [];
@@ -215,6 +253,8 @@ async function issueInvoice(id, user, via) {
     await t.q('SELECT pg_advisory_xact_lock(424243)');
     const cur = need(await t.one('SELECT * FROM invoices WHERE id = $1 FOR UPDATE', [id]));
     if (cur.status !== 'draft') fail(400, 'Already issued');
+    const st = await t.one('SELECT name, checked_at FROM venue_streams WHERE id = $1', [cur.stream_id]);
+    if (st && !st.checked_at) fail(400, `Stream not yet checked by Opulence — check "${st.name}" on the venue's Billing streams first`);
     const hold = await holdBackUnsigned(t, { invoiceId: id });
     if (!hold.kept) fail(400, hold.moved.length ? 'Nothing on this draft is signed off by the venue yet' : 'This draft has no lines');
     held = hold.moved;
@@ -224,10 +264,13 @@ async function issueInvoice(id, user, via) {
          due_date = (now() AT TIME ZONE 'Europe/London')::date + $3::int WHERE id = $1 RETURNING *`,
       [id, `${s.invoice_prefix}${s.invoice_seq}`, s.payment_terms_days]);
   });
-  const v = await one('SELECT name FROM venues WHERE id = $1', [inv.venue_id]);
-  await notify(await venueContacts(inv.venue_id), {
-    kind: 'invoice', title: `Invoice ${inv.number}`, body: `${v.name} · ${gbp(inv.gross)} due ${fmtDate(inv.due_date)}`, link: `/venue/invoices/${inv.id}`, email: true,
+  const full = await loadInvoice(inv.id);
+  const where = [full.venue_name, streamLabel(full)].filter(Boolean).join(' · ');
+  const contacts = await venueContacts(inv.venue_id);
+  await notify(contacts, {
+    kind: 'invoice', title: `Invoice ${inv.number}`, body: `${where} · ${gbp(inv.gross)} due ${fmtDate(inv.due_date)}${full.po_ref ? ` · PO ${full.po_ref}` : ''}`, link: `/venue/invoices/${inv.id}`, email: true,
   });
+  await mailRecipients(full, contacts);
   await syncTimesheets(held);
   const docId = await archiveInvoice(inv.id, user.id);
   await audit(user, 'invoice.issue', 'invoice', inv.id, { number: inv.number, gross: inv.gross, held_back: held.length, via });
@@ -392,8 +435,9 @@ export const actions = {
     await sweep();
     const drafts = await q(
       `SELECT i.id, count(l.id)::int AS lines FROM invoices i LEFT JOIN invoice_lines l ON l.invoice_id = i.id AND l.timesheet_id IS NOT NULL
-        WHERE i.status = 'draft' AND i.kind = 'invoice' AND ($1::date IS NULL OR (i.period_start <= $2 AND i.period_end >= $1)) AND ($3::uuid IS NULL OR i.venue_id = $3) GROUP BY i.id`,
-      [b.start || null, b.end || null, b.venue_id || null]);
+        WHERE i.status = 'draft' AND i.kind = 'invoice' AND ($1::date IS NULL OR (i.period_start <= $2 AND i.period_end >= $1)) AND ($3::uuid IS NULL OR i.venue_id = $3)
+          AND ($4::uuid IS NULL OR i.stream_id = $4) GROUP BY i.id`,
+      [b.start || null, b.end || null, b.venue_id || null, b.stream_id || null]);
     await audit(user, 'invoice.generate', 'invoice', null, { start: b.start || null, end: b.end || null, drafts: drafts.length, via: b.via });
     if (drafts.length && b.start && b.end) await reconcileAfter(b.start, b.end);
     return { created: drafts.length, timesheets: drafts.reduce((n, d) => n + d.lines, 0), skipped: 0, missing_rates: [], live: true };
@@ -401,10 +445,13 @@ export const actions = {
 
   'invoices.list': def(['company', 'venue'], async (b, { user }) => {
     const scope = await venueScope(user);
-    return q(
+    const rows = await q(
       `SELECT i.*, v.name AS venue_name, c.name AS client_name,
-              ls.signed, ls.awaiting, ls.signed_net, ls.late
+              ls.signed, ls.awaiting, ls.signed_net, ls.late,
+              vs.name AS stream_name, vs.po_ref, vs.checked_at IS NOT NULL AS stream_checked, vs.is_default AS stream_default,
+              (SELECT count(*)::int FROM venue_streams x WHERE x.venue_id = i.venue_id AND x.status = 'active') AS venue_stream_count
          FROM invoices i JOIN venues v ON v.id = i.venue_id LEFT JOIN clients c ON c.id = v.client_id
+         LEFT JOIN venue_streams vs ON vs.id = i.stream_id
          LEFT JOIN LATERAL (
            SELECT count(*) FILTER (WHERE ts.status = 'signed' OR l.timesheet_id IS NULL)::int AS signed,
                   count(*) FILTER (WHERE l.timesheet_id IS NOT NULL AND ts.status IS DISTINCT FROM 'signed')::int AS awaiting,
@@ -412,8 +459,12 @@ export const actions = {
                   count(*) FILTER (WHERE l.work_date < i.period_start)::int AS late
              FROM invoice_lines l LEFT JOIN timesheets ts ON ts.id = l.timesheet_id WHERE l.invoice_id = i.id AND i.status = 'draft') ls ON true
         WHERE ($1::uuid[] IS NULL OR i.venue_id = ANY($1)) AND ($2::text IS NULL OR i.status = $2) AND ($3::uuid IS NULL OR i.venue_id = $3)
+          AND ($4::uuid IS NULL OR i.stream_id = $4)
           ${user.role === 'venue' ? "AND i.status NOT IN ('draft','void')" : ''}
-        ORDER BY i.created_at DESC LIMIT 500`, [scope, b.status || null, b.venue_id || null]);
+        ORDER BY i.created_at DESC LIMIT 500`, [scope, b.status || null, b.venue_id || null, b.stream_id || null]);
+    // The Stream column only shows once some venue bills more than one stream
+    const many = rows.some((r) => r.venue_stream_count > 1);
+    return rows.map((r) => ({ ...r, streams_in_use: many, stream_label: streamLabel(r) || null }));
   }),
 
   'invoices.get': def(['company', 'venue'], async (b, { user }) => {
@@ -515,16 +566,18 @@ export const actions = {
     const cn = await tx(async (t) => {
       const s = await t.one('UPDATE settings SET invoice_seq = invoice_seq + 1 RETURNING invoice_prefix, invoice_seq');
       const c = await t.one(
-        `INSERT INTO invoices (venue_id, kind, credit_of, number, period_start, period_end, vat_rate, status, issue_date, notes)
-         VALUES ($1,'credit',$2,$3,$4,$5,$6,'issued',(now() AT TIME ZONE 'Europe/London')::date,$7) RETURNING *`,
-        [orig.venue_id, orig.id, `${s.invoice_prefix}CN${s.invoice_seq}`, orig.period_start, orig.period_end, orig.vat_rate, b.reason]);
+        `INSERT INTO invoices (venue_id, stream_id, kind, credit_of, number, period_start, period_end, vat_rate, status, issue_date, notes)
+         VALUES ($1,$8,'credit',$2,$3,$4,$5,$6,'issued',(now() AT TIME ZONE 'Europe/London')::date,$7) RETURNING *`,
+        [orig.venue_id, orig.id, `${s.invoice_prefix}CN${s.invoice_seq}`, orig.period_start, orig.period_end, orig.vat_rate, b.reason, orig.stream_id]);
       await t.q('INSERT INTO invoice_lines (invoice_id, description, amount) VALUES ($1,$2,$3)', [c.id, `Credit against ${orig.number}: ${b.reason}`, -amount]);
       await recalcInvoice(t, c.id);
       if (amount >= Number(orig.net) && orig.status !== 'paid') await t.q("UPDATE invoices SET status = 'void' WHERE id = $1", [orig.id]);
       return t.one('SELECT * FROM invoices WHERE id = $1', [c.id]);
     });
     cn.pdf_document_id = await archiveInvoice(cn.id, user.id);
-    await notify(await venueContacts(orig.venue_id), { kind: 'invoice', title: `Credit note ${cn.number}`, body: `${gbp(-cn.gross)} against ${orig.number}`, link: `/venue/invoices/${cn.id}`, email: true });
+    const contacts = await venueContacts(orig.venue_id);
+    await notify(contacts, { kind: 'invoice', title: `Credit note ${cn.number}`, body: `${gbp(-cn.gross)} against ${orig.number}`, link: `/venue/invoices/${cn.id}`, email: true });
+    await mailRecipients(await loadInvoice(cn.id), contacts);
     await audit(user, 'invoice.credit', 'invoice', orig.id, { credit: cn.id, amount, reason: b.reason });
     return cn;
   }),
@@ -540,13 +593,13 @@ export const actions = {
 
   'invoices.exportCsv': def(CO, async (b) => {
     const rows = await q(
-      `SELECT i.number, i.kind, i.issue_date, i.due_date, i.net, i.vat, i.gross, i.status, v.name AS venue, c.name AS client
-         FROM invoices i JOIN venues v ON v.id = i.venue_id LEFT JOIN clients c ON c.id = v.client_id
+      `SELECT i.number, i.kind, i.issue_date, i.due_date, i.net, i.vat, i.gross, i.status, v.name AS venue, c.name AS client, vs.name AS stream, vs.po_ref
+         FROM invoices i JOIN venues v ON v.id = i.venue_id LEFT JOIN clients c ON c.id = v.client_id LEFT JOIN venue_streams vs ON vs.id = i.stream_id
         WHERE i.status NOT IN ('draft') AND ($1::date IS NULL OR i.issue_date >= $1) AND ($2::date IS NULL OR i.issue_date <= $2) ORDER BY i.issue_date, i.number`,
       [b.from || null, b.to || null]);
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const csv = [['Number', 'Type', 'Issue date', 'Due date', 'Client', 'Venue', 'Net', 'VAT', 'Gross', 'Status'].join(',')]
-      .concat(rows.map((r) => [r.number, r.kind, r.issue_date, r.due_date, r.client, r.venue, r.net, r.vat, r.gross, r.status].map(esc).join(','))).join('\n');
+    const csv = [['Number', 'Type', 'Issue date', 'Due date', 'Client', 'Venue', 'Stream', 'PO / Ref', 'Net', 'VAT', 'Gross', 'Status'].join(',')]
+      .concat(rows.map((r) => [r.number, r.kind, r.issue_date, r.due_date, r.client, r.venue, r.stream, r.po_ref, r.net, r.vat, r.gross, r.status].map(esc).join(','))).join('\n');
     return { filename: `invoices-${b.from || 'all'}-${b.to || ''}.csv`, csv };
   }),
 

@@ -76,7 +76,7 @@ export default function InvoiceDetail() {
             actions={(() => {
               // One main action by status: Issue a draft, Mark an issued invoice paid, otherwise the PDF. The rest sit in …
               const pdfAct = { label: inv.pdf_document_id ? 'Saved PDF' : 'PDF', icon: Download, busy: pdfBusy, onClick: () => pdf(() => downloadAction('invoices.pdf', { id: inv.id })).catch(() => {}) };
-              const main = editable ? { label: split.awaiting ? `Issue ${split.signed} signed` : 'Issue', icon: Send, busy, disabled: !split.issuable, onClick: issue }
+              const main = editable ? { label: split.awaiting ? `Issue ${split.signed} signed` : 'Issue', icon: Send, busy, disabled: !split.issuable || unchecked, onClick: issue }
                 : isCo && ['issued', 'overdue'].includes(inv.status) && !credit ? { label: 'Mark paid', icon: CheckIcon, onClick: () => setPaying(true) }
                   : pdfAct;
               const more = [
@@ -117,9 +117,12 @@ export default function InvoiceDetail() {
             <Section title="Details" icon={Info}>
               <Tile>
                 <KV items={[
-                  ['Bill to', inv.client_name || inv.venue_name],
-                  ['Billing address', inv.billing_address || [inv.venue_address, inv.postcode].filter(Boolean).join(', ')],
+                  ['Bill to', inv.bill_to_name || inv.client_name || inv.venue_name],
+                  ['Billing address', inv.bill_to_address || inv.billing_address || [inv.venue_address, inv.postcode].filter(Boolean).join(', ')],
                   ['Venue', inv.venue_name],
+                  stream && ['Stream', stream],
+                  inv.po_ref && ['PO / Ref', inv.po_ref],
+                  inv.recipients?.length > 0 && ['Also sent to', inv.recipients.join(', ')],
                   ['Period', inv.period_start ? `${date(inv.period_start)} – ${date(inv.period_end)}` : null],
                   ['Issue date', inv.issue_date ? date(inv.issue_date) : 'Not issued'],
                   ['Due date', inv.due_date ? date(inv.due_date) : null],
@@ -130,6 +133,12 @@ export default function InvoiceDetail() {
               </Tile>
             </Section>
 
+            {unchecked && (
+              <Callout tone="warning" className="mb-2">
+                The stream "{inv.stream_name}" was added by the venue and hasn't been checked yet. Check its PO, recipients and rates on the venue's{' '}
+                <Link to={`${base}/venues/${inv.venue_id}?tab=streams`} className="font-semibold text-blue">Billing streams</Link>, then issue.
+              </Callout>
+            )}
             {draft && !credit && (
               <Callout tone={split.awaiting ? 'warning' : 'info'} icon={split.awaiting ? Clock : RefreshCw} className="mb-2">
                 Kept up to date from approved timesheets: approvals, rate changes, queries and declines show here straight away.
@@ -178,7 +187,7 @@ function NotesEditor({ inv, onSaved }) {
   return (
     <Section title="Notes" icon={StickyNote}>
       <Tile>
-        <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Printed on the invoice, e.g. purchase order number" />
+        <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={inv.po_ref ? `Printed on the invoice. The PO (${inv.po_ref}) comes from the billing stream` : "Printed on the invoice. A PO that applies every time is best set on the venue's billing stream"} />
         <div className="mt-3 flex justify-end">
           <Button size="sm" variant="soft" busy={busy} disabled={notes === (inv.notes || '')} onClick={() => run(() => api('invoices.update', { id: inv.id, notes }), 'Notes saved').then(onSaved).catch(() => {})}>Save notes</Button>
         </div>

@@ -78,7 +78,7 @@ export async function writeWebsite(v) {
 export async function currentVenueRates(venueId, onDate = new Date().toISOString().slice(0, 10)) {
   return q(
     `SELECT DISTINCT ON (role) r.*, ro.name AS role_name FROM venue_rates r JOIN roles ro ON ro.code = r.role
-      WHERE venue_id = $1 AND effective_from <= $2 ORDER BY role, effective_from DESC`, [venueId, onDate]);
+      WHERE venue_id = $1 AND effective_from <= $2 AND stream_id IS NULL ORDER BY role, effective_from DESC`, [venueId, onDate]);
 }
 
 // Venue managers never see the security company's internal notes about their site
@@ -306,7 +306,9 @@ export const actions = {
   'venues.rates': def(['company', 'security', 'venue'], async (b, { user }) => {
     await assertVenue(user, b.venue_id);
     if (user.role === 'security' && !canSeePay(user)) fail(403, 'No access to rates');
-    return q('SELECT r.*, ro.name AS role_name FROM venue_rates r JOIN roles ro ON ro.code = r.role WHERE venue_id = $1 ORDER BY role, effective_from DESC', [b.venue_id]);
+    // stream_id NULL = the venue-wide rate; a stream's own rate wins on that stream's shifts
+    return q(`SELECT r.*, ro.name AS role_name, vs.name AS stream_name FROM venue_rates r JOIN roles ro ON ro.code = r.role
+                LEFT JOIN venue_streams vs ON vs.id = r.stream_id WHERE r.venue_id = $1 ORDER BY role, r.stream_id NULLS FIRST, effective_from DESC`, [b.venue_id]);
   }),
 
   // Per role on this venue's shifts (last 120 days and ahead): shifts with no charge rate on their date, the first such date,
@@ -318,7 +320,7 @@ export const actions = {
       `WITH sh AS (
          SELECT s.id, s.role, (s.starts_at AT TIME ZONE 'Europe/London')::date AS day FROM shifts s
           WHERE s.venue_id = $1 AND s.status <> 'cancelled' AND s.starts_at > now() - interval '120 days'
-            AND NOT EXISTS (SELECT 1 FROM venue_rates vr WHERE vr.venue_id = s.venue_id AND vr.role = s.role
+            AND NOT EXISTS (SELECT 1 FROM venue_rates vr WHERE vr.venue_id = s.venue_id AND vr.role = s.role AND (vr.stream_id IS NULL OR vr.stream_id = s.stream_id)
                               AND vr.effective_from <= (s.starts_at AT TIME ZONE 'Europe/London')::date))
        SELECT sh.role, count(DISTINCT sh.id)::int AS shifts, min(sh.day)::text AS first_day,
               count(t.id) FILTER (WHERE t.status IN ('pending','disputed') AND t.charge_rate IS NULL)::int AS waiting
@@ -331,12 +333,14 @@ export const actions = {
     required(b, 'venue_id', 'role', 'rate');
     await assertVenue(user, b.venue_id);
     need(await one('SELECT 1 FROM roles WHERE code = $1', [b.role]), 'Unknown role');
-    const f = pick(b, ['venue_id', 'role', 'rate', 'night_uplift', 'weekend_uplift', 'bh_uplift', 'min_hours', 'effective_from']);
+    const f = pick(b, ['venue_id', 'role', 'rate', 'night_uplift', 'weekend_uplift', 'bh_uplift', 'min_hours', 'effective_from', 'stream_id']);
+    f.stream_id = f.stream_id || null;
+    if (f.stream_id) need(await one('SELECT 1 FROM venue_streams WHERE id = $1 AND venue_id = $2', [f.stream_id, f.venue_id]), 'Choose a billing stream of this venue', 400);
     const n = (k, max) => { if (f[k] == null || f[k] === '') { delete f[k]; return; } f[k] = Number(f[k]); if (!Number.isFinite(f[k]) || f[k] < 0 || f[k] > max) fail(400, 'Check the rate, uplifts and minimum hours'); };
     n('rate', 1000); n('night_uplift', 500); n('weekend_uplift', 500); n('bh_uplift', 500); n('min_hours', 24);
     if (!(f.rate > 0)) fail(400, 'Enter a rate per hour');
     if (f.effective_from && !/^\d{4}-\d{2}-\d{2}$/.test(f.effective_from)) fail(400, 'Choose the date the rate starts');
-    const same = f.effective_from && await one('SELECT id FROM venue_rates WHERE venue_id = $1 AND role = $2 AND effective_from = $3', [f.venue_id, f.role, f.effective_from]);
+    const same = f.effective_from && await one('SELECT id FROM venue_rates WHERE venue_id = $1 AND role = $2 AND effective_from = $3 AND stream_id IS NOT DISTINCT FROM $4', [f.venue_id, f.role, f.effective_from, f.stream_id]);
     const r = same ? await update('venue_rates', same.id, f) : await insert('venue_rates', f);
     await audit(user, 'venue.rate', 'venue', b.venue_id, r);
     return r;

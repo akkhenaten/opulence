@@ -13,9 +13,9 @@ const LOCK = 424243;
 export const FEED_AGAIN = 'feed_dirty = true, feed_since = now()';
 
 const ROW_SQL = `
-  SELECT t.*, a.officer_id, s.starts_at, s.role, r.name AS role_name, s.venue_id, v.name AS venue_name, v.invoice_cycle AS venue_cycle,
+  SELECT t.*, a.officer_id, s.starts_at, s.role, r.name AS role_name, s.venue_id, s.stream_id, v.name AS venue_name, v.invoice_cycle AS venue_cycle,
          o.first_name, o.last_name, (a.status NOT IN ('assigned','accepted') OR s.status = 'cancelled') AS cancelled,
-         i.status AS invoice_status, i.venue_id AS invoice_venue,
+         i.status AS invoice_status, i.venue_id AS invoice_venue, i.stream_id AS invoice_stream,
          st.status AS statement_status, st.officer_id AS statement_officer, pr.status AS run_status, st.pay_run_id AS statement_run
     FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
     JOIN venues v ON v.id = s.venue_id JOIN roles r ON r.code = s.role JOIN officers o ON o.id = a.officer_id
@@ -26,16 +26,17 @@ const ROW_SQL = `
 const CYCLES = ['weekly', 'fortnightly', 'monthly'];
 const cycle = (v, fallback) => (CYCLES.includes(v) ? v : CYCLES.includes(fallback) ? fallback : 'weekly');
 
-// The venue's open draft for this date (or the next one, for a late line), opened if there is none
+// The open draft of the venue's billing stream for this date (or the next one, for a late line), opened if there is none.
+// Each stream bills on its own: issuing one stream's invoice leaves the others' drafts open.
 async function draftInvoice(t, r, date, today, s) {
   const list = await t.q(
     `SELECT id, period_start, period_end, status FROM invoices
-      WHERE venue_id = $1 AND kind = 'invoice' AND status <> 'void' AND period_start IS NOT NULL AND period_end >= $2::date - 62`, [r.venue_id, date]);
+      WHERE venue_id = $1 AND stream_id = $3 AND kind = 'invoice' AND status <> 'void' AND period_start IS NOT NULL AND period_end >= $2::date - 62`, [r.venue_id, date, r.stream_id]);
   const kind = cycle(r.venue_cycle, s.invoice_cycle);
   const pick = pickTarget({ kind, date, today, drafts: list.filter((d) => d.status === 'draft'), closed: list.filter((d) => d.status !== 'draft') });
   if (pick.use) return pick.use;
-  const inv = await t.one('INSERT INTO invoices (venue_id, period_start, period_end, vat_rate) VALUES ($1,$2,$3,$4) RETURNING id',
-    [r.venue_id, pick.create.start, pick.create.end, s.vat_rate]);
+  const inv = await t.one('INSERT INTO invoices (venue_id, stream_id, period_start, period_end, vat_rate) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+    [r.venue_id, r.stream_id, pick.create.start, pick.create.end, s.vat_rate]);
   return inv.id;
 }
 
@@ -105,7 +106,7 @@ export async function syncTimesheets(ids) {
       // Venue side
       if (!billed({ invoice_id: r.invoice_id, invoice_status: r.invoice_status })) {
         let invId = r.invoice_status ? r.invoice_id : null; // a dangling id (draft deleted) counts as none
-        if (invId && (!want || r.invoice_venue !== r.venue_id)) {
+        if (invId && (!want || r.invoice_venue !== r.venue_id || r.invoice_stream !== r.stream_id)) {
           await t.q('DELETE FROM invoice_lines WHERE invoice_id = $1 AND timesheet_id = $2', [invId, r.id]);
           touchedInv.add(invId);
           invId = null;

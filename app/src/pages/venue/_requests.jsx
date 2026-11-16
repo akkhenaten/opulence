@@ -22,7 +22,7 @@ export function CoverList({ q, many, onOpen, onNew }) {
             {list.map((c) => (
               <Row key={c.id} onClick={() => onOpen(c)} chevron
                 title={c.role_name}
-                subtitle={<span className="num">{requestLine(c)}{many ? ` · ${c.venue_name}` : ''}</span>}
+                subtitle={<span className="num">{requestLine(c)}{many ? ` · ${c.venue_name}` : ''}{c.stream_name ? ` · ${c.stream_name}` : ''}</span>}
                 right={(
                   <div className="flex flex-col items-end gap-1">
                     <Pill status={statusOf(c)}>{LABEL[statusOf(c)]}</Pill>

@@ -1,7 +1,7 @@
 import { Building2, ChevronRight, MapPin, NotebookPen, Phone, ShieldCheck, UsersRound } from 'lucide-react';
 import { Avatar, Empty, List, Load, Page, Pressable, Row, Section, Tile, useApi } from '../../ui/index.jsx';
 import { useVenue } from '../../venue.jsx';
-import { DocumentsTab } from '../money/VenueDetail.jsx';
+import { DocumentsTab, StreamsSection } from '../money/VenueDetail.jsx';
 import { ClientPack } from './SitePack.jsx';
 
 /** The venue manager's read-only view of their site: details, instructions, who to contact and shared documents. */
@@ -76,6 +76,7 @@ function VenueView({ id }) {
             <List>{v.contacts.map((u) => <Row key={u.id} left={<Avatar name={u.name} size={38} />} title={u.name} subtitle={u.email} />)}</List>
           </Section>
           <div className="lg:col-span-2"><ClientPack venueId={v.id} /></div>
+          <div className="lg:col-span-2"><StreamsSection venueId={v.id} venueName={v.name} /></div>
           <div className="lg:col-span-2"><DocumentsTab venueId={v.id} readOnly /></div>
         </div>
       )}

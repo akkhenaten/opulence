@@ -12,6 +12,7 @@ import { CO, MGR, def } from './_def.mjs';
 import { failedChecks } from '../lib/proof.mjs';
 import { officerName, userName } from '../lib/names.mjs';
 import { officerRate, venueRate, bankHolidaySet, lastClosedPeriod } from './money.mjs';
+import { streamNameSql } from './streams.mjs';
 import { buildTimesheet } from './clock.mjs';
 import {
   rowState, redactMoney, moneyFor, missingRates, payAmount, chargeAmount, totals, pickOfficerRate, pickVenueRate, NEEDS_REVIEW,
@@ -21,6 +22,7 @@ const CANCELLED = `(a.status NOT IN ('assigned','accepted') OR s.status = 'cance
 
 const BASE_SQL = `
   SELECT t.*, a.officer_id, s.id AS shift_id, s.starts_at, s.ends_at, s.role, r.name AS role_name, s.venue_id, v.name AS venue_name,
+         s.stream_id, ${streamNameSql('s')} AS stream_name,
          ${officerName('o')} AS officer_name, ${userName('ua')} AS approved_by_name, ${userName('us')} AS signed_by_name,
          timesheet_billed(t.statement_id, t.invoice_id) AS locked, ${CANCELLED} AS cancelled
     FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
@@ -41,7 +43,7 @@ async function loadScoped(user, ids) {
 /** The rates a timesheet is approved at: an override already on it, else the rate cards on the shift's date */
 async function ratesFor(t) {
   const date = londonDate(t.starts_at);
-  const charge = t.charge_rate != null ? Number(t.charge_rate) : (await venueRate(t.venue_id, t.role, date))?.rate ?? null;
+  const charge = t.charge_rate != null ? Number(t.charge_rate) : (await venueRate(t.venue_id, t.role, date, undefined, t.stream_id))?.rate ?? null;
   const pay = t.pay_rate != null ? Number(t.pay_rate) : await officerRate(t.officer_id, t.role, t.venue_id, date);
   return { charge_rate: charge == null ? null : Number(charge), pay_rate: pay };
 }
@@ -62,7 +64,7 @@ export const actions = {
         ORDER BY s.starts_at DESC LIMIT 500`, params);
     // Officers see their own pay; everyone else only the money their role may see (venues never the officer's rate)
     const out = await markSelf(user, rows);
-    return user.role === 'officer' ? out : out.map((r) => redactMoney(r, user));
+    return user.role === 'officer' ? out.map(({ stream_id: _s, stream_name: _n, ...r }) => r) : out.map((r) => redactMoney(r, user));
   }),
 
   // The week table: every accepted officer on a published shift (worked, live, upcoming or a no-show), plus anything with a timesheet
@@ -72,6 +74,7 @@ export const actions = {
     const rows = await q(
       `SELECT a.id AS assignment_id, a.officer_id, a.status AS assignment_status, s.id AS shift_id, s.starts_at, s.ends_at, s.break_minutes AS planned_break,
               s.role, r.name AS role_name, s.venue_id, v.name AS venue_name, ${officerName('o')} AS officer_name, o.photo_key,
+              s.stream_id, ${streamNameSql('s')} AS stream_name,
               t.id, t.status, t.actual_start, t.actual_end, t.break_minutes, t.hours, t.flags, t.charge_rate, t.pay_rate, t.charge_rate_set, t.pay_rate_set,
               t.rate_note, t.decline_reason, t.dispute_comment, t.resolution, t.approved_at, t.signed_at, t.auto_signed, t.self_approved, t.queried_at,
               t.statement_id, t.invoice_id, timesheet_billed(t.statement_id, t.invoice_id) AS locked, ${CANCELLED} AS cancelled,
@@ -114,7 +117,7 @@ export const actions = {
     const shaped = rows.map(({ photo_key: _p, proof_in, proof_out, ...r }) => {
       const state = rowState({ status: r.status, locked: r.locked, cancelled: r.cancelled, has_in: !!r.clock_in, ends_at: r.ends_at }, now);
       const date = londonDate(r.starts_at);
-      const vr = pickVenueRate(vrates, { venue_id: r.venue_id, role: r.role, date });
+      const vr = pickVenueRate(vrates, { venue_id: r.venue_id, role: r.role, date, stream_id: r.stream_id });
       const charge_rate = r.charge_rate != null ? Number(r.charge_rate) : vr ? Number(vr.rate) : null;
       const pay_rate = r.pay_rate != null ? Number(r.pay_rate) : pickOfficerRate(orates, { officer_id: r.officer_id, role: r.role, venue_id: r.venue_id, date });
       let charge_total = null;

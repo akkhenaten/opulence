@@ -392,7 +392,7 @@ function TableRow({ r, see, sel, toggle, can, act, onOpen, busy }) {
           </div>
         </div>
       </td>
-      <td className="px-3 py-2.5"><div className="truncate">{r.venue_name}</div><div className="truncate text-caption text-muted">{r.role_name}</div></td>
+      <td className="px-3 py-2.5"><div className="truncate">{r.venue_name}</div><div className="truncate text-caption text-muted">{r.role_name}{r.stream_name ? ` · ${r.stream_name}` : ''}</div></td>
       <td className="num whitespace-nowrap px-3 py-2.5 text-muted">{range(r.starts_at, r.ends_at)}</td>
       <td className="px-3 py-2.5"><Actual r={r} /></td>
       <td className={cx('num px-3 py-2.5 text-right font-bold', struck && 'line-through')}>{r.id || r.state === 'live' ? hours(r.hours) : '—'}</td>
@@ -419,7 +419,7 @@ function RowCard({ r, see, sel, toggle, can, act, onOpen, busy }) {
             <span className="truncate text-body font-semibold">{r.officer_name}</span>
             <span className={cx('num shrink-0 text-callout font-bold', struck && 'line-through')}>{r.id || r.state === 'live' ? hours(r.hours) : ''}</span>
           </div>
-          <div className="truncate text-footnote text-muted">{r.venue_name} · {r.role_name} · <span className="num">{range(r.starts_at, r.ends_at)}</span></div>
+          <div className="truncate text-footnote text-muted">{r.venue_name}{r.stream_name ? ` · ${r.stream_name}` : ''} · {r.role_name} · <span className="num">{range(r.starts_at, r.ends_at)}</span></div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1"><StateLine r={r} /><Actual r={r} compact /></div>
           {(see.charge || see.pay) && r.id && (
             <div className="mt-1 flex flex-wrap gap-x-4 text-footnote">
@@ -603,7 +603,7 @@ function Detail({ t, can, isManager, see, act, busy, onClose, onDone, onPrev, on
           <div><div className="text-caption font-semibold uppercase text-faint">Hours to pay and bill</div><div className={cx('num mt-0.5 font-bold', t.state === 'declined' && 'line-through')}>{t.id ? hours(t.hours) : '—'}</div></div>
         </div>
         <KV items={[
-          ['Date', dayLabel(t.starts_at)], ['Venue', t.venue_name], ['Role', t.role_name],
+          ['Date', dayLabel(t.starts_at)], ['Venue', t.stream_name ? `${t.venue_name} · ${t.stream_name}` : t.venue_name], ['Role', t.role_name],
           t.id && ['Break', <span className="num">{t.break_minutes} min</span>],
           see.charge && t.id && ['Charge', <Rate r={t} k="charge" inline />],
           see.pay && t.id && ['Officer rate', <Rate r={t} k="pay" inline />],

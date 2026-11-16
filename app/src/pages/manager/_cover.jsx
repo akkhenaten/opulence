@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CalendarDays, CalendarRange, Repeat } from 'lucide-react';
-import { Button, Callout, Chip, cx, dateShort, Input, isoDate, addDays, Pressable, Segmented, Select, Sheet, Textarea, Toggle, useAction, useConfirm, useForm } from '../../ui/index.jsx';
+import { Button, Callout, Chip, cx, dateShort, Input, isoDate, addDays, Pressable, Segmented, Select, Sheet, Textarea, Toggle, useAction, useApi, useConfirm, useForm } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { londonParts, WEEKDAYS } from './_parts.jsx';
 import { useVenue } from '../../venue.jsx';
@@ -100,11 +100,21 @@ export function RequestForm({ venues, roles, draft, onClose, onDone }) {
   const v = f.v;
   const rec = v.kind === 'recurring';
   const roleName = roles.find((r) => r.code === v.role)?.name;
+  // Billing stream: which budget pays. Only asked when the venue bills more than one, or a new one is being added here.
+  const venueId = v.venue_id || venues[0]?.id;
+  const streams = useApi('streams.list', { venue_id: venueId }, { skip: !venueId });
+  const active = (streams.data || []).filter((x) => x.status === 'active');
+  const [picked, setPicked] = useState(''); // '' = follow the role; '__new' = add one
+  const [ns, setNs] = useState({ name: '', po_ref: '', recipient: '' });
+  const byRole = active.find((x) => x.roles.includes(v.role)) || active.find((x) => x.is_default);
+  const streamId = picked && picked !== '__new' && active.some((x) => x.id === picked) ? picked : byRole?.id || '';
+  const adding = picked === '__new';
   const oneOk = v.date && v.start && v.end && v.start !== v.end && Number(v.headcount) >= 1;
-  const ok = (v.venue_id || venues.length === 1) && v.role
+  const ok = (v.venue_id || venues.length === 1) && v.role && (!adding || ns.name.trim())
     && (rec ? daysOk(v.days) && v.start_date && (!v.has_end || v.end_date >= v.start_date) : oneOk);
   const send = () => run(() => api('cover.create', {
-    venue_id: v.venue_id || venues[0]?.id, role: v.role, kind: v.kind, notes: v.notes.trim(),
+    venue_id: venueId, role: v.role, kind: v.kind, notes: v.notes.trim(),
+    ...(adding ? { new_stream: { name: ns.name.trim(), po_ref: ns.po_ref.trim(), recipient: ns.recipient.trim() } } : streamId ? { stream_id: streamId } : {}),
     ...(rec
       ? { frequency: v.frequency, days: cleanDays(v.days), start_date: v.start_date, end_date: v.has_end ? v.end_date : null }
       : { date: v.date, start: v.start, end: v.end, headcount: Number(v.headcount) }),
@@ -118,6 +128,22 @@ export function RequestForm({ venues, roles, draft, onClose, onDone }) {
         <Segmented full value={v.kind} onChange={(k) => f.set('kind', k)} options={[{ value: 'one_off', label: 'One date' }, { value: 'recurring', label: 'Repeating' }]} />
         {venues.length !== 1 && <Select label="Venue" value={v.venue_id} onChange={(e) => f.set('venue_id', e.target.value)} placeholder="Choose venue" options={venues.map((x) => ({ value: x.id, label: x.name }))} />}
         <Select label="Officer type" value={v.role} onChange={(e) => f.set('role', e.target.value)} placeholder="Choose" options={roles.map((r) => ({ value: r.code, label: r.name }))} />
+        {active.length > 1 || adding ? (
+          <Select label="Bill to" hint="Each budget gets its own invoice" value={adding ? '__new' : streamId} onChange={(e) => setPicked(e.target.value)}
+            options={[...active.map((x) => ({ value: x.id, label: x.po_ref ? `${x.name} · PO ${x.po_ref}` : x.name })), { value: '__new', label: '+ New stream' }]} />
+        ) : active.length === 1 && (
+          <button type="button" className="text-footnote font-semibold text-blue" onClick={() => setPicked('__new')}>Paid from a separate budget? Add a billing stream</button>
+        )}
+        {adding && (
+          <div className="space-y-3 rounded-xl bg-bg p-3">
+            <Input label="Stream name" placeholder="e.g. Site management – contractors" autoFocus value={ns.name} onChange={(e) => setNs((x) => ({ ...x, name: e.target.value }))} />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Input label="PO / reference" placeholder="Optional" value={ns.po_ref} onChange={(e) => setNs((x) => ({ ...x, po_ref: e.target.value }))} />
+              <Input label="Send its invoices to" inputMode="email" autoComplete="off" placeholder="Optional email" value={ns.recipient} onChange={(e) => setNs((x) => ({ ...x, recipient: e.target.value }))} />
+            </div>
+            <p className="text-footnote text-muted">It gets its own invoice. The security company checks its details before the first one goes out.</p>
+          </div>
+        )}
         {rec ? (
           <>
             <Segmented value={v.frequency} onChange={(x) => f.set('frequency', x)} options={[{ value: 'weekly', label: 'Every week' }, { value: 'fortnightly', label: 'Every 2 weeks' }]} />

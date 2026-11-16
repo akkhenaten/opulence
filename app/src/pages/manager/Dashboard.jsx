@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, CalendarClock, CalendarDays, CalendarOff, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, FileSignature, Hand, History, Megaphone, Newspaper, RefreshCw, Settings, ShieldAlert, ShieldCheck,
-  Sparkles, TrendingUp, TriangleAlert, UserX,
+  Sparkles, TrendingUp, TriangleAlert, UserX, Wallet,
 } from 'lucide-react';
 import {
   AttentionDrawer, Button, LoadFail, anyFailed, Chip, IconButton, MoreMenu, Page, Pill, Stat, Tile, confirmState, cx, dayLabel, hours, isoDate, money0, range, time, useAction, useApi, useAttention, useMedia, useToast,
@@ -41,10 +41,11 @@ const NEEDS = [
   { key: 'expiring', to: '/people/compliance', icon: ShieldCheck, tone: 'amber', one: 'officer with a licence or right to work expiring in 60 days', many: 'officers with a licence or right to work expiring in 60 days', company: true },
   { key: 'toApprove', to: '/timesheets?status=pending', icon: ClipboardCheck, tone: 'blue', one: 'timesheet to approve', many: 'timesheets to approve' },
   { key: 'requests', to: '/rota?tab=requests', icon: Hand, tone: 'blue', one: 'shift request', many: 'shift requests' },
+  { key: 'streamsToCheck', to: '/venues', icon: Wallet, tone: 'amber', one: 'new billing stream to check', many: 'new billing streams to check', company: true },
   { key: 'timeOff', to: '/company/hr/time-off', abs: true, icon: CalendarOff, tone: 'amber', one: 'time off request to review', many: 'time off requests to review', company: true },
 ];
 // The counts from dashboard.get, plus the two compliance ones (expiring comes as a list of at most 10)
-const countsOf = (d) => ({ ...(d?.counts || {}), cantWork: d?.nonCompliantCount || 0, expiring: (d?.expiring || []).length });
+const countsOf = (d) => ({ ...(d?.counts || {}), cantWork: d?.nonCompliantCount || 0, expiring: (d?.expiring || []).length, streamCheckVenue: d?.streamCheckVenue });
 const needsFor = (c, isCompany) => NEEDS.filter((n) => (c[n.key] || 0) > 0 && (!n.company || isCompany));
 
 function summaryLine(d, isCompany, onSite, orb, failed) {
@@ -243,7 +244,7 @@ function NeedRows({ list, c, base }) {
     <div className="ui-panel mb-3 overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile">
       <div className="divide-y divide-line">
         {list.map((n) => (
-          <Link key={n.key} to={n.abs ? n.to : `${base}${n.to}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-bg">
+          <Link key={n.key} to={n.abs ? n.to : n.key === 'streamsToCheck' && c.streamCheckVenue ? `${base}/venues/${c.streamCheckVenue}?tab=streams` : `${base}${n.to}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-bg">
             <span className={cx('grid h-9 w-9 shrink-0 place-items-center rounded-xl', CHIP[n.tone])}><n.icon size={18} /></span>
             <div className="min-w-0 flex-1 text-subhead leading-snug">
               <span className="num font-bold">{n.key === 'expiring' && c[n.key] >= 10 ? '10+' : c[n.key]}</span> {c[n.key] === 1 ? n.one : n.many}

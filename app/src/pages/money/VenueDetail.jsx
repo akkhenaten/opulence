@@ -4,11 +4,11 @@ import RecentEmail from '../email/_recent.jsx';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
-  Ban, BookOpen, Building2, ClipboardList, Crosshair, Download, Eye, FileText, FolderOpen, Globe, Info, LayoutDashboard, LineChart, MessageSquareHeart, UserMinus, UserPlus, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, PoundSterling, Power, QrCode, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, Upload, Users,
+  Ban, BookOpen, Building2, ClipboardList, Crosshair, Download, Eye, FileText, FolderOpen, Globe, Info, LayoutDashboard, LineChart, MessageSquareHeart, UserMinus, UserPlus, LocateFixed, MapPin, Nfc, Pause, Pencil, Phone, Play, Plus, PoundSterling, Power, QrCode, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, Upload, Users, Wallet, Archive, ArchiveRestore, Star, CircleCheck,
 } from 'lucide-react';
 import { api, downloadAction, upload } from '../../api.js';
 import {
-  ActionBar, Avatar, Bento, Button, Check, cx, date, daysUntil, Empty, IconButton, Input, isoDate, List, Load, money, MoreMenu, Page, Pill, Pressable, Row, Section, Segmented, Select, Sheet, Stat, Table, Tabs, Textarea, Tile, useAction, useApi, useConfirm, useDirtyGuard, useForm, useToast,
+  ActionBar, Avatar, Bento, Button, Check, Chips, cx, date, daysUntil, Empty, IconButton, Input, isoDate, List, Load, money, MoreMenu, Page, Pill, Pressable, Row, Section, Segmented, Select, Sheet, Stat, Table, Tabs, Textarea, Tile, useAction, useApi, useConfirm, useDirtyGuard, useForm, useToast,
 } from '../../ui/index.jsx';
 import { useBase, VenueBadge } from './_parts.jsx';
 import OrbBrand from '../../ui/OrbBrand.jsx';
@@ -28,7 +28,7 @@ import RecordHistory from '../people/_history.jsx';
 
 const UK = [54.3, -2.6];
 // Old tab names and where each opens now: Site setup parts (and Details) live in Setup, documents, logs and bans in Records
-const OLD_SETUP = { location: 'location', codes: 'codes', qr: 'codes', rates: 'rates', details: 'details' };
+const OLD_SETUP = { location: 'location', codes: 'codes', qr: 'codes', rates: 'rates', streams: 'streams', details: 'details' };
 const OLD_RECORDS = { documents: 'docs', logs: 'logs', bans: 'bans' };
 
 export default function VenueDetail() {
@@ -127,7 +127,7 @@ function SetupTab({ v, isCo, focus, onSaved, canPhoto, details }) {
   const parts = [
     { id: 'location', label: 'Location', icon: MapPin },
     { id: 'codes', label: 'Venue codes', icon: QrCode },
-    ...(isCo ? [{ id: 'rates', label: 'Charge rates', icon: PoundSterling }] : []),
+    ...(isCo ? [{ id: 'rates', label: 'Charge rates', icon: PoundSterling }, { id: 'streams', label: 'Billing streams', icon: Wallet }] : []),
     { id: 'details', label: 'Details', icon: Info },
   ];
   const go = (id) => document.getElementById(`setup-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -167,6 +167,11 @@ function SetupTab({ v, isCo, focus, onSaved, canPhoto, details }) {
       {isCo && (
         <section id="setup-rates" className="mt-8 scroll-mt-20">
           <RatesTab venueId={v.id} />
+        </section>
+      )}
+      {isCo && (
+        <section id="setup-streams" className="mt-8 scroll-mt-20">
+          <StreamsSection venueId={v.id} venueName={v.name} isCo />
         </section>
       )}
       <section id="setup-details" className="scroll-mt-20">
@@ -777,6 +782,17 @@ function RatesTab({ venueId }) {
   const rates = useApi('venues.rates', { venue_id: venueId });
   const roles = useApi('roles.list');
   const gaps = useApi('venues.rateGaps', { venue_id: venueId });
+  const streams = useApi('streams.list', { venue_id: venueId });
+  const activeStreams = (streams.data || []).filter((x) => x.status === 'active');
+  const multi = activeStreams.length > 1;
+  const [stream, setStream] = useState(''); // '' = venue-wide; a stream's own rates win on its shifts
+  const shown = useMemo(() => (rates.data || []).filter((r) => (r.stream_id || '') === (multi ? stream : '')), [rates.data, stream, multi]);
+  // What a stream falls back to for roles it has no own rate for
+  const wide = useMemo(() => {
+    const out = {};
+    for (const r of rates.data || []) if (!r.stream_id && r.effective_from <= isoDate() && !out[r.role]) out[r.role] = r;
+    return out;
+  }, [rates.data]);
   const [sheet, setSheet] = useState(null); // { role, from?, base? }
   const [history, setHistory] = useState(false);
   const confirm = useConfirm();
@@ -787,17 +803,17 @@ function RatesTab({ venueId }) {
   const status = useMemo(() => {
     const seen = new Set();
     const out = {};
-    for (const r of rates.data || []) { // ordered by role, effective_from desc
+    for (const r of shown) { // ordered by role, effective_from desc
       if (r.effective_from > today) out[r.id] = 'scheduled';
       else if (!seen.has(r.role)) { out[r.id] = 'current'; seen.add(r.role); } else out[r.id] = 'superseded';
     }
     return out;
-  }, [rates.data, today]);
+  }, [shown, today]);
 
   const byRole = useMemo(() => {
     const gap = Object.fromEntries((gaps.data || []).map((g) => [g.role, g]));
     const list = (roles.data || []).map((ro) => {
-      const mine = (rates.data || []).filter((r) => r.role === ro.code);
+      const mine = shown.filter((r) => r.role === ro.code);
       return {
         ...ro, current: mine.find((r) => status[r.id] === 'current') || null,
         next: mine.filter((r) => status[r.id] === 'scheduled').sort((a, b) => (a.effective_from < b.effective_from ? -1 : 1))[0] || null, gap: gap[ro.code] || null,
@@ -806,7 +822,7 @@ function RatesTab({ venueId }) {
     // Roles in use here first: rated, then booked without a rate, then the rest
     const rank = (r) => (r.gap ? 0 : r.current || r.next ? 1 : 2);
     return list.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
-  }, [roles.data, rates.data, gaps.data, status]);
+  }, [roles.data, shown, gaps.data, status]);
 
   const del = async (r) => {
     if (!(await confirm({ title: 'Delete this rate?', body: `${r.role_name} at ${money(r.rate)}/h from ${date(r.effective_from)}. Existing invoices are not changed.`, confirm: 'Delete', danger: true }))) return;
@@ -817,6 +833,10 @@ function RatesTab({ venueId }) {
   const tone = { current: 'green', scheduled: 'blue', superseded: 'grey' };
   return (
     <Section title="Charge rates per hour" icon={PoundSterling} className="mt-0" action={<Button size="sm" variant="soft" onClick={() => setHistory((h) => !h)}>{history ? 'Hide history' : 'Rate history'}</Button>}>
+      {multi && (
+        <Segmented className="mb-3" value={stream} onChange={setStream}
+          options={[{ value: '', label: 'Venue-wide' }, ...activeStreams.map((x) => ({ value: x.id, label: x.name }))]} />
+      )}
       <Load q={roles}>
         {() => (
           <List>
@@ -827,10 +847,10 @@ function RatesTab({ venueId }) {
                   <div className="min-w-0 flex-1">
                     <div className="text-body font-semibold">{r.name}</div>
                     <div className="text-footnote text-muted">
-                      {r.current ? upliftLine(r.current) : r.next ? `From ${date(r.next.effective_from)}` : 'No charge rate'}
+                      {r.current ? upliftLine(r.current) : r.next ? `From ${date(r.next.effective_from)}` : stream && wide[r.code] ? `Venue-wide ${money(wide[r.code].rate)}/h` : 'No charge rate'}
                       {r.current && r.next && <> · <span className="text-blue">{money(r.next.rate)}/h from {date(r.next.effective_from)}</span></>}
                     </div>
-                    {r.gap && (
+                    {r.gap && !stream && (
                       <div className="mt-1 text-footnote font-semibold text-red">
                         {r.gap.shifts} shift{r.gap.shifts === 1 ? '' : 's'} from {date(r.gap.first_day)} with no rate{r.gap.waiting ? `, ${r.gap.waiting} timesheet${r.gap.waiting === 1 ? '' : 's'} can't be approved yet` : ''}
                       </div>
@@ -838,8 +858,9 @@ function RatesTab({ venueId }) {
                   </div>
                   <span className={cx('num text-title3 font-bold', !r.current && 'text-faint')}>{r.current ? money(r.current.rate) : '–'}<span className="text-footnote font-semibold text-muted">/h</span></span>
                   <Button size="sm" variant={r.gap ? 'primary' : r.current ? 'secondary' : 'soft'} icon={r.current ? Pencil : Plus}
-                    onClick={() => setSheet({ role: r.code, name: r.name, base, from: r.gap ? r.gap.first_day : today })}>
-                    {r.current ? 'Change' : 'Set rate'}
+                    onClick={() => setSheet({ role: r.code, name: r.name, base: base || (stream ? wide[r.code] : null), from: r.gap && !stream ? r.gap.first_day : today,
+                      stream_id: stream || null, stream_name: activeStreams.find((x) => x.id === stream)?.name })}>
+                    {r.current ? 'Change' : stream ? 'Own rate' : 'Set rate'}
                   </Button>
                 </div>
               );
@@ -852,7 +873,7 @@ function RatesTab({ venueId }) {
         <Load q={rates}>
           {(rows) => (
             <div className="mt-4">
-              <Table rows={rows} empty="No charge rates yet."
+              <Table rows={rows.filter((r) => status[r.id])} empty="No charge rates yet."
                 columns={[
                   { key: 'role_name', mobile: 'title', label: 'Role', render: (r) => <span className="font-semibold">{r.role_name}</span> },
                   { key: 'rate', mobile: 'value', label: 'Rate', align: 'right', render: (r) => <span className="num font-semibold">{money(r.rate)}</span> },
@@ -883,11 +904,11 @@ function RateSheet({ venueId, init, onClose, onSaved }) {
   });
   const ok = Number(f.v.rate) > 0 && f.v.effective_from;
   const save = () => run(() => api('venues.saveRate', {
-    venue_id: venueId, role: init.role, rate: Number(f.v.rate), night_uplift: Number(f.v.night_uplift || 0), weekend_uplift: Number(f.v.weekend_uplift || 0),
+    venue_id: venueId, role: init.role, stream_id: init.stream_id || null, rate: Number(f.v.rate), night_uplift: Number(f.v.night_uplift || 0), weekend_uplift: Number(f.v.weekend_uplift || 0),
     bh_uplift: Number(f.v.bh_uplift || 0), min_hours: Number(f.v.min_hours || 0), effective_from: f.v.effective_from,
   }), 'Charge rate saved').then(() => { onSaved(); onClose(); }).catch(() => {});
   return (
-    <Sheet open onClose={onClose} title={`${init.name}: charge rate`}
+    <Sheet open onClose={onClose} title={`${init.name}: charge rate${init.stream_name ? ` · ${init.stream_name}` : ''}`}
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!ok} onClick={save}>Save rate</Button></>}>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -904,6 +925,110 @@ function RateSheet({ venueId, init, onClose, onSaved }) {
           Shifts from this date use the new rate when their timesheet is approved. Timesheets already approved, and issued invoices, keep the rate they were approved at.
           {init.from && init.from < isoDate() && !b ? ' It starts on the first shift here without a rate, so those timesheets can be approved.' : ''}
         </p>
+      </div>
+    </Sheet>
+  );
+}
+
+/* ---------- Billing streams ---------- */
+
+// A venue paying from more than one budget gets one invoice per stream, each with its own PO, recipients and bill-to.
+// Company managers also choose the roles a stream claims (rota shifts of that role land on it) and check streams a venue added.
+// Venue managers (My venue) can add streams and edit their PO and recipients; Opulence checks a new one before it is invoiced.
+export function StreamsSection({ venueId, venueName, isCo }) {
+  const q = useApi('streams.list', { venue_id: venueId });
+  const roles = useApi('roles.list', {}, { skip: !isCo });
+  const [sheet, setSheet] = useState(null); // stream, or {} for a new one
+  const [showArchived, setShowArchived] = useState(false);
+  const [run] = useAction();
+  const confirm = useConfirm();
+  const roleName = (c) => (roles.data || []).find((r) => r.code === c)?.name || c;
+  const act = (name, s, msg) => run(() => api(name, { id: s.id }), msg).then(q.reload).catch(() => {});
+  const archive = async (s) => {
+    if (!(await confirm({ title: `Archive "${s.name}"?`, body: 'Its shifts and invoices stay as they are. New shifts and requests can no longer go on it.', confirm: 'Archive' }))) return;
+    act('streams.archive', s, 'Stream archived');
+  };
+  return (
+    <Section title="Billing streams" icon={Wallet} className="mt-0"
+      action={<Button size="sm" variant="soft" icon={Plus} onClick={() => setSheet({})}>New stream</Button>}>
+      <Load q={q}>
+        {(rows) => {
+          const active = rows.filter((s) => s.status === 'active');
+          const archived = rows.filter((s) => s.status !== 'active');
+          const list = showArchived ? rows : active;
+          return (
+            <>
+              <List>
+                {list.map((s) => (
+                  <div key={s.id} className="flex flex-wrap items-start gap-x-3 gap-y-2 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-body font-semibold">{s.name}</span>
+                        {s.is_default && <Pill tone="blue">Default</Pill>}
+                        {s.status !== 'active' && <Pill tone="grey">Archived</Pill>}
+                        {!s.checked && s.status === 'active' && <Pill tone="amber">Not yet checked</Pill>}
+                      </div>
+                      <div className="text-footnote text-muted">
+                        {[s.po_ref ? `PO ${s.po_ref}` : 'No PO', s.recipients.length ? s.recipients.join(', ') : 'Sent to the venue managers',
+                          s.bill_to_name && `Bill to ${s.bill_to_name}`].filter(Boolean).join(' · ')}
+                      </div>
+                      {isCo && (
+                        <div className="text-footnote text-muted">
+                          {s.roles.length ? `Rota shifts for ${s.roles.map(roleName).join(', ')}` : s.is_default ? 'Every role no other stream claims' : 'Picked by hand on requests and shifts'}
+                          {` · ${s.shifts} shift${s.shifts === 1 ? '' : 's'} · ${s.invoices} invoice${s.invoices === 1 ? '' : 's'}`}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {isCo && !s.checked && s.status === 'active' && <Button size="sm" icon={CircleCheck} onClick={() => act('streams.check', s, `"${s.name}" checked — it can now be invoiced`)}>Check</Button>}
+                      {s.status === 'active' && <Button size="sm" variant="secondary" icon={Pencil} iconOnly="phone" onClick={() => setSheet(s)}>Edit</Button>}
+                      {isCo && !(s.is_default && s.status === 'active') && (
+                        <MoreMenu items={s.status === 'active' ? [
+                          !s.is_default && { label: 'Make default', icon: Star, hint: 'Roles no stream claims go here', onClick: () => act('streams.setDefault', s, `"${s.name}" is now the default`) },
+                          !s.is_default && { label: 'Archive', icon: Archive, onClick: () => archive(s) },
+                        ].filter(Boolean) : [{ label: 'Restore', icon: ArchiveRestore, onClick: () => act('streams.unarchive', s, 'Stream restored') }]} />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </List>
+              <p className="mt-2 px-1 text-caption text-faint">
+                {active.length > 1
+                  ? 'Each stream gets its own invoice every period. The stream is picked when staff are requested or a shift is added, and can change until its line is invoiced.'
+                  : `${venueName} has one invoice per period. Add a stream when part of the work is paid from a different budget, for example a concierge desk and contractor site management.`}
+                {archived.length > 0 && <> <button type="button" className="font-semibold text-blue" onClick={() => setShowArchived((x) => !x)}>{showArchived ? 'Hide archived' : `Show ${archived.length} archived`}</button></>}
+              </p>
+            </>
+          );
+        }}
+      </Load>
+      {sheet && <StreamSheet venueId={venueId} s={sheet} isCo={isCo} roles={roles.data || []} onClose={() => setSheet(null)} onSaved={q.reload} />}
+    </Section>
+  );
+}
+
+function StreamSheet({ venueId, s, isCo, roles, onClose, onSaved }) {
+  const [run, busy] = useAction();
+  const f = useForm({
+    name: s.name || '', po_ref: s.po_ref || '', recipients: (s.recipients || []).join(', '), bill_to_name: s.bill_to_name || '', bill_to_address: s.bill_to_address || '',
+  });
+  const [claims, setClaims] = useState(s.roles || []);
+  const save = () => run(() => api('streams.save', {
+    ...(s.id ? { id: s.id } : { venue_id: venueId }), ...f.v, ...(isCo ? { roles: claims } : {}),
+  }), s.id ? 'Stream saved' : 'Stream added').then(() => { onSaved(); onClose(); }).catch(() => {});
+  return (
+    <Sheet open onClose={onClose} title={s.id ? `Edit ${s.name}` : 'New billing stream'}
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!f.v.name.trim()} onClick={save}>{s.id ? 'Save' : 'Add stream'}</Button></>}>
+      <div className="space-y-4">
+        <Input label="Name" placeholder="e.g. Site management – contractors" autoFocus={!s.id} {...f.bind('name')} />
+        <Input label="PO / reference" hint="Printed on every invoice for this stream" {...f.bind('po_ref')} />
+        <Input label="Send invoices to" inputMode="email" autoComplete="off" placeholder="accounts@client.com" hint="Separate several addresses with commas. Venue managers are told as well." {...f.bind('recipients')} />
+        <Input label="Bill to (name)" placeholder="Leave empty to use the client's name" {...f.bind('bill_to_name')} />
+        <Textarea label="Bill to (address)" rows={3} placeholder="Leave empty to use the client's billing address" {...f.bind('bill_to_address')} />
+        {isCo && (
+          <Chips label="Rota shifts for these roles go on this stream" options={roles.map((r) => ({ value: r.code, label: r.name }))} value={claims} onChange={setClaims} />
+        )}
+        {!isCo && !s.id && <p className="text-footnote text-muted">You can use it straight away. The security company checks its details before its first invoice goes out.</p>}
       </div>
     </Sheet>
   );

@@ -93,10 +93,10 @@ export function pickOfficerRate(list, { officer_id, role, venue_id, date }) {
   return hit ? Number(hit.rate) : null;
 }
 
-/** The venue rate card row on a date (same order as money.venueRate) */
-export function pickVenueRate(list, { venue_id, role, date }) {
-  return list.filter((r) => r.venue_id === venue_id && r.role === role && r.effective_from <= date)
-    .sort((a, b) => (a.effective_from < b.effective_from ? 1 : -1))[0] || null;
+/** The venue rate card row on a date: the stream's own row beats the venue-wide one, then the latest (same order as money.venueRate) */
+export function pickVenueRate(list, { venue_id, role, date, stream_id = null }) {
+  return list.filter((r) => r.venue_id === venue_id && r.role === role && r.effective_from <= date && (r.stream_id == null || r.stream_id === stream_id))
+    .sort((a, b) => (a.stream_id == null) - (b.stream_id == null) || (a.effective_from < b.effective_from ? 1 : -1))[0] || null;
 }
 
 export const DECLINE_REASONS = ['No-show', 'Sent home', 'Wrong booking', 'Duplicate', 'Shift cancelled'];

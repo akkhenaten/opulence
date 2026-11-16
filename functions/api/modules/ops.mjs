@@ -306,7 +306,8 @@ export async function runReconcile(start, end) {
             (SELECT max(ts) FROM clock_events ce WHERE ce.assignment_id = a.id AND ce.kind = 'out' AND ce.status IN ('ok','approved','manual')) AS cout,
             sl.id AS stmt_line_id, sl.hours AS stmt_h, st.status AS stmt_status, st.id AS stmt_id,
             il.id AS inv_line_id, il.hours AS inv_h, i.status AS inv_status, i.id AS inv_id,
-            (SELECT min_hours FROM venue_rates vr WHERE vr.venue_id = s.venue_id AND vr.role = s.role AND vr.effective_from <= s.starts_at::date ORDER BY effective_from DESC LIMIT 1) AS min_hours
+            (SELECT min_hours FROM venue_rates vr WHERE vr.venue_id = s.venue_id AND vr.role = s.role AND vr.effective_from <= s.starts_at::date
+               AND (vr.stream_id IS NULL OR vr.stream_id = s.stream_id) ORDER BY vr.stream_id IS NULL, effective_from DESC LIMIT 1) AS min_hours
        FROM timesheets t JOIN shift_assignments a ON a.id = t.assignment_id JOIN shifts s ON s.id = a.shift_id
        JOIN venues v ON v.id = s.venue_id JOIN officers o ON o.id = a.officer_id
        LEFT JOIN statement_lines sl ON sl.timesheet_id = t.id AND sl.kind = 'hours' LEFT JOIN statements st ON st.id = sl.statement_id

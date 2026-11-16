@@ -56,7 +56,7 @@ export default function Cover() {
           <List>
             {list.map(({ key, first: c, dates }) => (
               <Row key={key} onClick={() => setOpenKey(key)} chevron
-                title={c.venue_name}
+                title={c.stream_name ? `${c.venue_name} · ${c.stream_name}` : c.venue_name}
                 subtitle={<span className="num">{requestLine(c, dates.length)}{c.requested_by_name ? ` · ${c.requested_by_name}` : ''}</span>}
                 right={(
                   <div className="flex flex-col items-end gap-1">
@@ -128,6 +128,7 @@ function Detail({ c, dates, base, onClose, onDone, onPrev, onNext }) {
         )}
         <KV items={[
           ['Needed', `${c.headcount} × ${c.role_name}`],
+          c.stream_name && ['Bill to', c.stream_name],
           ['When', <>{dayLabel(c.starts_at)}, <span className="num">{range(c.starts_at, c.ends_at)}</span></>],
           series && ['Pattern', c.pattern],
           dates.length > 1 && ['Dates', dates.map((d) => dayLabel(d.starts_at)).join(', ')],

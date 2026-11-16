@@ -35,7 +35,7 @@ export const actions = {
                 NOT EXISTS (SELECT 1 FROM venue_rates r WHERE r.venue_id = v.id) AS no_rates,
                 COALESCE((SELECT array_agg(DISTINCT ro.name) FROM shifts sh JOIN roles ro ON ro.code = sh.role
                    WHERE sh.venue_id = v.id AND sh.status = 'published' AND sh.starts_at BETWEEN now() - interval '14 days' AND now() + interval '14 days'
-                     AND NOT EXISTS (SELECT 1 FROM venue_rates r WHERE r.venue_id = v.id AND r.role = sh.role)), '{}') AS charge_roles,
+                     AND NOT EXISTS (SELECT 1 FROM venue_rates r WHERE r.venue_id = v.id AND r.role = sh.role AND (r.stream_id IS NULL OR r.stream_id = sh.stream_id))), '{}') AS charge_roles,
                 COALESCE((SELECT json_agg(DISTINCT jsonb_build_object('id', o.id, 'name', ${officerName('o')}))
                    FROM shifts sh JOIN shift_assignments a ON a.shift_id = sh.id JOIN officers o ON o.id = a.officer_id
                   WHERE sh.venue_id = v.id AND sh.status = 'published' AND a.status IN ('assigned','accepted')

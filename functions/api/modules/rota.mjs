@@ -10,6 +10,7 @@ import { statusFor, statusesFor, pairKey, OK, STATUS_LABEL } from '../lib/venueP
 import { remindPack } from './venuePacks.mjs';
 import { afterShiftChange, FRESH } from './shiftSync.mjs';
 import { officerDisplay, officerName } from '../lib/names.mjs';
+import { streamFor, assertStreamMovable, afterStreamMove, streamNameSql } from './streams.mjs';
 
 const WEEKDAY = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
 
@@ -72,7 +73,7 @@ export async function filledCount(shiftId) {
 export async function shiftsWithAssignments(where, params, user) {
   const venueView = user.role === 'venue';
   const rows = await q(
-    `SELECT s.*, v.name AS venue_name, r.name AS role_name,
+    `SELECT s.*, v.name AS venue_name, r.name AS role_name, ${streamNameSql('s')} AS stream_name,
        COALESCE(json_agg(json_build_object(
          'id', a.id, 'officer_id', a.officer_id, 'status', a.status, 'is_lead', a.is_lead,
          'name', ${officerName('o')}, 'goes_by', o.goes_by, 'sia_number', o.sia_number,
@@ -93,6 +94,8 @@ export async function shiftsWithAssignments(where, params, user) {
       if (p && !OK.has(p.status)) a.pack = p.status;
     }
     const out = { ...s, filled };
+    // Which budget a shift bills to is between Opulence and the venue
+    if (user.role === 'officer') { delete out.stream_id; delete out.stream_name; }
     // The signed-in manager's own shifts are marked "You" on the rota
     if (user.self_officer_id) out.assignments = s.assignments.map((a) => ({ ...a, is_self: a.officer_id === user.self_officer_id }));
     if (venueView) out.assignments = s.assignments.filter((a) => ['assigned', 'accepted'].includes(a.status)).map(({ name, sia_number, clocked_in, clocked_out, status, is_lead }) => ({ name, sia_number, clocked_in, clocked_out, status, is_lead }));
@@ -151,6 +154,13 @@ export const actions = {
     if (b.id) {
       const before = await getShift(b.id);
       await assertVenue(user, before.venue_id);
+      // A move to another venue starts on that venue's stream for the role, unless one was picked
+      const venueMoved = f.venue_id !== before.venue_id;
+      if (('stream_id' in b && b.stream_id !== before.stream_id) || venueMoved) {
+        f.stream_id = await streamFor(f.venue_id, venueMoved && b.stream_id === before.stream_id ? null : b.stream_id, f.role);
+        if (f.stream_id === before.stream_id) delete f.stream_id;
+        else await assertStreamMovable(b.id);
+      }
       // Cancelling goes the same way as the Cancel button, so the team is told and everything about it is cleared
       if (f.status === 'cancelled' && before.status !== 'cancelled') {
         delete f.status;
@@ -177,8 +187,13 @@ export const actions = {
         const users = (await q("SELECT o.user_id FROM shift_assignments a JOIN officers o ON o.id = a.officer_id WHERE a.shift_id = $1 AND a.status IN ('assigned','accepted') AND o.user_id IS NOT NULL", [s.id])).map((r) => r.user_id);
         await notify(users, { kind: 'shift', title: 'Shift notes updated', body: String(s.notes || 'The notes were cleared.').slice(0, 160), link: `/officer/shifts/${s.id}`, dedupe: `notes:${s.id}:${Math.floor(Date.now() / 60000)}` });
       }
+      if (f.stream_id) {
+        await afterStreamMove(s);
+        await audit(user, 'shift.stream', 'shift', s.id, { from: before.stream_id, to: s.stream_id });
+      }
       await audit(user, 'shift.update', 'shift', s.id, f);
     } else {
+      f.stream_id = await streamFor(f.venue_id, b.stream_id, f.role);
       s = await insert('shifts', { ...f, status: f.status || 'draft', created_by: user.id });
       await audit(user, 'shift.create', 'shift', s.id);
     }
@@ -190,13 +205,14 @@ export const actions = {
     required(b, 'venue_id', 'role', 'start_time', 'end_time', 'dates');
     await assertVenue(user, b.venue_id);
     if (b.dates.length > 62) fail(400, 'Up to 62 dates at a time');
+    const stream = await streamFor(b.venue_id, b.stream_id, b.role);
     const created = [];
     for (const d of b.dates) {
       const starts = londonToUtc(d, b.start_time);
       let ends = londonToUtc(d, b.end_time);
       if (ends <= starts) ends = londonToUtc(addDay(d), b.end_time);
       created.push(await insert('shifts', {
-        venue_id: b.venue_id, role: b.role, starts_at: starts, ends_at: ends, headcount: b.headcount || 1, break_minutes: b.break_minutes || 0,
+        venue_id: b.venue_id, stream_id: stream, role: b.role, starts_at: starts, ends_at: ends, headcount: b.headcount || 1, break_minutes: b.break_minutes || 0,
         open: !!b.open, status: b.status || 'draft', notes: b.notes || '', created_by: user.id,
       }));
     }
@@ -255,8 +271,8 @@ export const actions = {
     const days = Math.round((new Date(b.to_week) - new Date(b.from_week)) / 86400000);
     if (days % 7) fail(400, 'Weeks must start on the same weekday');
     const rows = await q(
-      `INSERT INTO shifts (venue_id, role, starts_at, ends_at, break_minutes, headcount, open, notes, status, created_by)
-       SELECT venue_id, role, starts_at + ($3 || ' days')::interval, ends_at + ($3 || ' days')::interval, break_minutes, headcount, open, notes, 'draft', $4
+      `INSERT INTO shifts (venue_id, stream_id, role, starts_at, ends_at, break_minutes, headcount, open, notes, status, created_by)
+       SELECT venue_id, (SELECT x.id FROM venue_streams x WHERE x.id = shifts.stream_id AND x.status = 'active'), role, starts_at + ($3 || ' days')::interval, ends_at + ($3 || ' days')::interval, break_minutes, headcount, open, notes, 'draft', $4
          FROM shifts WHERE status <> 'cancelled' AND starts_at >= ($1::date::timestamp AT TIME ZONE 'Europe/London')
           AND starts_at < (($1::date + 7)::timestamp AT TIME ZONE 'Europe/London')
           AND ($2::uuid[] IS NULL OR venue_id = ANY($2)) AND ($5::uuid IS NULL OR venue_id = $5)

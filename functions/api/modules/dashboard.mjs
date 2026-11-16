@@ -83,6 +83,9 @@ async function managerDash(ctx) {
     Object.assign(out, { nonCompliant: nonCompliant.slice(0, 10), nonCompliantCount: nonCompliant.length, onGraceCount: onGrace.length, expiring, pipeline });
     out.counts.graceEnding = graceEnding;
     out.counts.timeOff = timeOff;
+    // Billing streams a venue added: they bill once Opulence has checked the PO, recipient and rates
+    out.counts.streamsToCheck = await count("SELECT count(*)::int AS n FROM venue_streams WHERE status = 'active' AND checked_at IS NULL");
+    if (out.counts.streamsToCheck) out.streamCheckVenue = (await one("SELECT venue_id FROM venue_streams WHERE status = 'active' AND checked_at IS NULL ORDER BY created_at LIMIT 1"))?.venue_id || null;
     out.activeOfficers = officers.filter((o) => o.status === 'active').length;
   }
   if (canSeePay(user)) {
