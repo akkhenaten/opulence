@@ -1,1 +1,0 @@
-import{a as e}from"./index-CVcIR-59.js";const r=t=>t.status==="pending"||t.change_status==="pending";function p({reqs:t,cover:s}={}){var n;const o=e("shifts.pendingRequests",{},{skip:!!t}),i=e("cover.list",{},{skip:!!s}),a=t||o,u=s||i;return{"Shift requests":(n=a.data)==null?void 0:n.length,"Venue requests":(u.data||[]).filter(r).length}}export{r as c,p as u};
