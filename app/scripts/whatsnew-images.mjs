@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'person-page': 'A dark navy desk at night with a laptop showing one calm profile page: a round portrait softly out of focus at the top, a slim row of tabs beneath it and a short column of four neat gold toggle switches, two switched on, beside it a small brass key ring holding two keys and a single brass-edged ID card, warm lamp light, dark navy and gold.',
   'orb-credits-rules': 'A dark navy desk at night with a small brass balance scale, one pan holding a neat stack of gold-edged index cards and the other a single softly glowing gold orb, beside a tablet showing tidy rows of small check marks, warm lamp light, dark navy and gold.',
   'requests-reach-officers': 'A dark navy desk at night with a phone showing a slim menu where one calendar icon carries a small red dot, beside it a tablet with a neat list of rows each holding two small gold-edged buttons, and a brass megaphone resting on a folded rota, warm lamp light, dark navy and gold.',
   'onsite-fix': 'A phone on a dark navy desk at night showing a calm board of small round portraits in two neat rows, each with a soft green dot, under a slim gold header with a tiny radio wave icon, a brass venue door key and a folded rota beside it, warm lamp light, dark navy and gold.',

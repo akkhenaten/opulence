@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import RecentEmail from '../email/_recent.jsx';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -22,7 +22,7 @@ import { AnalyticsView, useModuleOn } from './Analytics.jsx';
 import { GiveFeedbackSheet } from '../venue/_feedback.jsx';
 import { FeedbackList } from './Feedback.jsx';
 import { ClientSelect } from './_client.jsx';
-import { InviteSheet } from '../people/_access.jsx';
+import { AddPersonSheet } from '../people/_person.jsx';
 import { viewFiles } from '../../ui/FileViewer.jsx';
 import RecordHistory from '../people/_history.jsx';
 
@@ -1046,6 +1046,8 @@ function PeopleTab({ v, isCo, onChanged }) {
     await run(() => api('users.update', { id: u.id, venue_ids: u.venue_ids.filter((x) => x !== v.id) }), `${u.name} removed from ${v.name}`).then(onChanged).catch(() => {});
   };
   const removeBtn = (u) => isCo && <IconButton icon={UserMinus} label={`Remove ${u.name} from this venue`} size="sm" onClick={() => remove(u)} />;
+  // A name opens the person's page, where their access (and their other venues) is changed
+  const nameOf = (u) => (isCo ? <Link to={`/company/staff/${u.id}`} className="text-blue hover:underline">{u.name}</Link> : u.name);
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <div>
@@ -1054,7 +1056,7 @@ function PeopleTab({ v, isCo, onChanged }) {
           {v.contacts.length ? (
             <List>
               {v.contacts.map((u) => (
-                <Row key={u.id} left={<Avatar name={u.name} size={38} />} title={u.name} subtitle={[u.email, u.phone].filter(Boolean).join(' · ')}
+                <Row key={u.id} left={<Avatar name={u.name} size={38} />} title={nameOf(u)} subtitle={[u.email, u.phone].filter(Boolean).join(' · ')}
                   right={<div className="flex items-center gap-2">{u.status !== 'active' && <Pill status={u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : 'Disabled'}</Pill>}{removeBtn(u)}</div>} />
               ))}
             </List>
@@ -1065,15 +1067,12 @@ function PeopleTab({ v, isCo, onChanged }) {
         <Section title="Security managers" icon={ShieldCheck} count={v.security.length} className="mt-0">
           {v.security.length ? (
             <List>
-              {v.security.map((u) => <Row key={u.id} left={<Avatar name={u.name} size={38} />} title={u.name} subtitle={[u.email, u.phone].filter(Boolean).join(' · ')} right={removeBtn(u)} />)}
+              {v.security.map((u) => <Row key={u.id} left={<Avatar name={u.name} size={38} />} title={nameOf(u)} subtitle={[u.email, u.phone].filter(Boolean).join(' · ')} right={removeBtn(u)} />)}
             </List>
           ) : <Empty icon={Users} title="No security managers" body="Security managers assigned to this venue can run its rota and live board." />}
         </Section>
       </div>
-      <div className="lg:col-span-2">
-        {isCo && <Button variant="soft" icon={Users} to="/company/settings?tab=users">Manage users and venue access</Button>}
-      </div>
-      {inviting && <InviteSheet preset={{ role: 'venue', venue_ids: [v.id], client_id: v.client_id || '' }} onClose={() => setInviting(false)} onDone={onChanged} />}
+      {inviting && <AddPersonSheet title="Invite venue manager" preset={{ manager: 'venue', officer: false, venue_ids: [v.id], client_id: v.client_id || '' }} onClose={() => setInviting(false)} onDone={onChanged} />}
     </div>
   );
 }

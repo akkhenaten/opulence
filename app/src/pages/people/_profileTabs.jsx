@@ -1069,11 +1069,14 @@ export function ContractRow({ c, who, onView, onVoid, onDone }) {
 export function OffboardingTab({ o, reload }) {
   const confirm = useConfirm();
   const [run, busy] = useAction();
-  const { v, bind, set } = useForm({ leave_date: isoDate(), reason: '', kit_returned: false, rehire_eligible: true, notes: '', disable_login: true });
+  // Someone who is also a manager may keep their manager access and lose only the Officer app
+  const dual = !!o.user_id && !!o.login_role && o.login_role !== 'officer';
+  const { v, bind, set } = useForm({ leave_date: isoDate(), reason: '', kit_returned: false, rehire_eligible: true, notes: '', login: dual ? 'officer_only' : 'all' });
   const ob = o.offboarding;
+  const loginWord = !o.user_id ? '' : { all: ' and their app access is switched off', officer_only: ' and the Officer app is taken off their login' }[v.login] || '';
   const save = async () => {
-    if (!(await confirm({ title: `Offboard ${o.first_name}?`, body: `Status becomes Left. Shifts after ${date(v.leave_date)} are cancelled${v.disable_login ? ' and their app login is disabled' : ''}.`, confirm: 'Offboard', danger: true }))) return;
-    await run(() => api('offboarding.save', { officer_id: o.id, ...v }), 'Officer offboarded');
+    if (!(await confirm({ title: `Offboard ${o.first_name}?`, body: `Status becomes Left. Shifts after ${date(v.leave_date)} are cancelled${loginWord}.`, confirm: 'Offboard', danger: true }))) return;
+    await run(() => api('offboarding.save', { officer_id: o.id, ...v, login: o.user_id ? v.login : 'keep' }), 'Officer offboarded');
     reload();
   };
   const rehire = async () => {
@@ -1102,8 +1105,15 @@ export function OffboardingTab({ o, reload }) {
         <div className="divide-y divide-line rounded-2xl bg-bg px-4">
           <div className="py-1.5"><Toggle checked={v.kit_returned} onChange={(x) => set('kit_returned', x)} label="Kit and ID returned" /></div>
           <div className="py-1.5"><Toggle checked={v.rehire_eligible} onChange={(x) => set('rehire_eligible', x)} label="Eligible for rehire" /></div>
-          <div className="py-1.5"><Toggle checked={v.disable_login} onChange={(x) => set('disable_login', x)} label="Disable app login" /></div>
+          {o.user_id && !dual && <div className="py-1.5"><Toggle checked={v.login === 'all'} onChange={(x) => set('login', x ? 'all' : 'keep')} label="Switch off app access" /></div>}
         </div>
+        {dual && (
+          <Select label="Their app access" {...bind('login')} options={[
+            { value: 'officer_only', label: 'Remove the Officer app only (keep their manager access)' },
+            { value: 'all', label: 'Switch off all app access' },
+            { value: 'keep', label: 'Keep app access as it is' },
+          ]} />
+        )}
         <div className="flex justify-end"><Button variant="danger" busy={busy} onClick={save}>Offboard officer</Button></div>
       </div>
     </Tile>

@@ -1,16 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import {
-  BadgeCheck, Bell, Building2, Camera, FileSignature, ImageUp, Inbox, ListChecks, Mail, MonitorSmartphone, Nfc, Palette, CalendarDays, ChevronRight, Clock, KeyRound, Landmark, LayoutGrid, Layers, MapPin, Newspaper, Percent, Plus,
-  PoundSterling, ReceiptText, Scale, ShieldCheck, Smartphone, Sparkles, Trash2, UserPlus, Users, UserRound,
+  BadgeCheck, Bell, Building2, Camera, FileSignature, ImageUp, Inbox, ListChecks, Mail, MonitorSmartphone, Nfc, Palette, CalendarDays, Clock, KeyRound, Landmark, LayoutGrid, Layers, Newspaper, Percent, Plus,
+  PoundSterling, ReceiptText, Scale, ShieldCheck, Smartphone, Sparkles, Trash2,
 } from 'lucide-react';
 import { api, upload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  ActionBar, Avatar, Button, Callout, cx, dateShort, dayLabel, Empty, IconButton, Input, isoDate, List, Load, LoadFail, Page, Pill, Pressable, relative, Row, SearchInput, Section, Segmented, Select, Sheet, Table, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm, useMedia, useToast, useUrlState,
+  ActionBar, Button, cx, dayLabel, Empty, IconButton, Input, isoDate, List, Load, Page, Pill, Pressable, relative, Row, Section, Segmented, Select, Sheet, Table, Tabs, Textarea, Tile, Toggle, useAction, useApi, useConfirm, useForm, useToast,
 } from '../../ui/index.jsx';
-import { Chips, CopyLink, DOC_KINDS, docKindLabel, SIA_TYPES } from './_parts.jsx';
-import { ROLE_LABEL } from '../../layouts/nav.js';
+import { Chips, DOC_KINDS, docKindLabel, SIA_TYPES } from './_parts.jsx';
 import { NOTIFY_KINDS, NotificationsSheet } from '../officer/_notify.jsx';
 import { resetEverydaySettings } from '../everyday/_parts.jsx';
 import { loadStyleFonts, previewStyle, restoreStyle, styleVars } from '../../ui/style.js';
@@ -18,16 +17,13 @@ import { TemplatesTab } from './_esign.jsx';
 import { EmailTab } from '../email/_settings.jsx';
 import { InstallTile } from '../../ui/pwa.jsx';
 import { OpsSettings } from '../manager/OpsAI.jsx';
-import { AccessFields, InviteSheet, inviteStatus, USER_ROLES } from './_access.jsx';
-import { actionLabel, changeLine } from './_auditText.js';
 
 const TABS = [
-  { value: 'company', label: 'Company', icon: Building2 }, { value: 'users', label: 'Users & access', icon: KeyRound }, { value: 'rules', label: 'Workforce rules', icon: Scale },
+  { value: 'company', label: 'Company', icon: Building2 }, { value: 'rules', label: 'Workforce rules', icon: Scale },
   { value: 'templates', label: 'Templates & contracts', icon: FileSignature }, { value: 'notifications', label: 'Notifications', icon: Bell }, { value: 'email', label: 'Email', icon: Mail },
   { value: 'orb', label: 'Orb', icon: Sparkles },
   { value: 'demos', label: 'Demo requests', icon: Inbox },
 ];
-const ROLE_ICON = { company: Building2, security: ShieldCheck, venue: MapPin };
 // Older links used these tab names; the library is now a part of a shared tab
 const OLD_TAB = { calendar: 'rules', contracts: 'templates', account: 'company', library: 'templates' };
 const OLD_PART = { library: 'library' };
@@ -43,6 +39,13 @@ function useMarkDirty(on) {
 }
 
 export default function Settings() {
+  const [sp] = useSearchParams();
+  // Users & access moved to Staff → People, where each person's page has an Access tab
+  if (sp.get('tab') === 'users') return <Navigate replace to={sp.get('user') ? `/company/staff/${sp.get('user')}` : '/company/staff?who=all'} />;
+  return <SettingsPage />;
+}
+
+function SettingsPage() {
   const [sp, setSp] = useSearchParams();
   const confirm = useConfirm();
   // Email had been a part of Notifications (?tab=notifications&part=email): it is its own tab now
@@ -56,7 +59,7 @@ export default function Settings() {
     setSp(next, { replace: true });
   };
   return (
-    <Page title="Settings" subtitle="Company details, access, workforce rules, notifications, email, templates and Orb">
+    <Page title="Settings" subtitle="Company details, workforce rules, notifications, email, templates and Orb">
       <DirtyCtx.Provider value={mark}>
         {/* A tab's parts sit beside the tabs when there is room, so the form starts high */}
         <div className="sm:flex sm:flex-wrap sm:items-start sm:gap-x-3">
@@ -64,7 +67,6 @@ export default function Settings() {
           {PARTS[tab] && <Segmented className="mb-4" value={part} options={PARTS[tab]} onChange={(x) => x !== part && go({ tab, part: x })} />}
         </div>
         {tab === 'company' && <CompanyTab />}
-        {tab === 'users' && <UsersTab />}
         {tab === 'rules' && <RulesTab />}
         {tab === 'templates' && <TemplatesTab library={part === 'library' || sp.has('library') || window.location.hash === '#library'} />}
         {tab === 'notifications' && <NotificationsTab />}
@@ -123,7 +125,7 @@ function SetupCard({ s }) {
   if (d.complete) return <p className="mb-4 flex items-center gap-1.5 px-1 text-footnote font-semibold text-green"><BadgeCheck size={16} aria-hidden />Set-up complete</p>;
   const ITEM = {
     company: { title: 'Company details', todo: (i) => `Add the company ${listOf(i.missing.map((k) => FIELD_WORD[k]))}`, act: () => jumpTo('set-company') },
-    invoice: { title: 'Invoice details', todo: (i) => `Add the ${listOf(i.missing.map((k) => FIELD_WORD[k]))}`, act: () => jumpTo(i.missing.includes('bank') ? 'set-bank' : 'set-invoicing') },
+    invoice: { title: 'Invoice details', todo: (i) => `Add the ${listOf(i.missing.map((k) => FIELD_WORD[k]))}`, act: (i) => jumpTo(i.missing.includes('bank') ? 'set-bank' : 'set-invoicing') },
     rates: { title: 'Venue rates', todo: (i) => `Hours can't be approved without them: ${i.missing.map((v) => `${v.name} (${[v.charge && 'charge', v.pay_officers.length && 'pay'].filter(Boolean).join(' and ')})`).join(', ')}` },
     signatory: { title: 'Default contract signatory', todo: () => 'Choose who signs contracts for the company', to: '/company/settings?tab=templates&focus=signatory' },
     templates: { title: 'Contract template', todo: () => 'Add at least one contract template to send for signing', to: '/company/settings?tab=templates' },
@@ -155,7 +157,7 @@ function SetupCard({ s }) {
                     </span>
                   ))}
                 </div>
-              ) : (it.to || it.act) && <Button size="sm" variant="link" className="mt-1" to={it.to} onClick={it.act}>{i.key === 'email' ? 'Set up email →' : 'Open the setting →'}</Button>}
+              ) : (it.to || it.act) && <Button size="sm" variant="link" className="mt-1" to={it.to} onClick={it.act ? () => it.act(i) : undefined}>{i.key === 'email' ? 'Set up email →' : 'Open the setting →'}</Button>}
             </li>
           );
         })}
@@ -579,251 +581,6 @@ function KeyField({ label, value }) {
         <code className="min-w-0 flex-1 break-all rounded-xl bg-bg px-3 py-2 font-mono text-caption">{value}</code>
         <Button size="sm" variant="secondary" onClick={copy}>Copy</Button>
       </div>
-    </div>
-  );
-}
-
-/* ---------------- Users ---------------- */
-
-const STATUS_OPTS = [{ value: 'all', label: 'Any status' }, { value: 'active', label: 'Active' }, { value: 'invited', label: 'Invited' }, { value: 'disabled', label: 'Deactivated' }];
-const STATUS_WORD = { active: 'Active', invited: 'Invited', disabled: 'Deactivated' };
-const statusPill = (u) => <Pill status={u.status === 'active' ? 'active' : u.status === 'invited' ? 'pending' : 'cancelled'}>{STATUS_WORD[u.status] || u.status}</Pill>;
-const venuesCell = (u) => (u.role === 'company' ? 'All' : !u.venues?.length ? '—' : u.venues.length === 1 ? u.venues[0] : `${u.venues.length} venues`);
-const payWord = (u) => (u.role === 'company' ? 'sees pay' : u.role === 'security' && u.can_see_pay ? 'sees pay' : u.role === 'officer' ? 'own pay only' : "can't see pay");
-const seenWord = (u) => (u.status === 'invited' ? (u.invite_sent_at ? `Invited · sent ${dateShort(u.invite_sent_at)}` : 'Invited · not emailed yet')
-  : u.last_login ? `Seen ${relative(u.last_login)}` : 'Never signed in');
-// The whole of someone's access in one line: what they are, where, pay, last seen
-const accessSummary = (u) => [
-  u.role === 'company' ? 'Company manager · all venues' : u.role === 'officer' ? 'Officer · their own shifts' : `${ROLE_LABEL[u.role]} for ${u.venues?.length ? listOf(u.venues) : 'no venues yet'}`,
-  payWord(u), seenWord(u).replace(/^Seen/, 'last seen').replace(/^Never/, 'never'),
-].join(' · ');
-const activeCompanyManagers = (all) => all.filter((x) => x.role === 'company' && x.status === 'active' && !x.platform);
-
-function UsersTab() {
-  const { user: me } = useAuth();
-  const [url, setUrl] = useUrlState({ role: 'all', status: 'all', q: '', user: '' });
-  const [, setSp] = useSearchParams();
-  const nav = useNavigate();
-  const wide = useMedia('(min-width: 1024px)');
-  const q = useApi('users.list');
-  const venues = useApi('venues.list');
-  const clients = useApi('clients.list');
-  const [inviting, setInviting] = useState(false);
-  // Opening a person adds a step to history, so the phone's Back closes them; stepping through replaces it
-  const pushed = useRef(false);
-  const open = (u) => {
-    if (url.user) return setUrl({ user: u.id });
-    pushed.current = true;
-    setSp((cur) => { const n = new URLSearchParams(cur); n.set('user', u.id); return n; });
-  };
-  const close = () => { if (pushed.current) { pushed.current = false; nav(-1); } else setUrl({ user: '' }); };
-  useEffect(() => { if (!url.user) pushed.current = false; }, [url.user]);
-  // A link to an officer's access (from a staff profile) shows the Officers list behind them
-  const linked = q.data?.find((x) => x.id === url.user);
-  useEffect(() => { if (linked?.role === 'officer' && url.role !== 'officer') setUrl({ role: 'officer' }); }, [linked?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const role = ['all', 'officer', ...USER_ROLES].includes(url.role) ? url.role : 'all';
-  const status = STATUS_OPTS.some((o) => o.value === url.status) ? url.status : 'all';
-  return (
-    <Load q={q}>
-      {(all) => {
-        const s = url.q.trim().toLowerCase();
-        const rows = all.filter((u) => (role === 'all' ? u.role !== 'officer' : u.role === role) && (status === 'all' || u.status === status)
-          && (!s || [u.name, u.goes_by, u.email, u.client_name, ...(u.venues || [])].join(' ').toLowerCase().includes(s)));
-        const editing = all.find((x) => x.id === url.user);
-        const at = editing ? rows.findIndex((x) => x.id === editing.id) : -1;
-        const step = (i) => (at >= 0 && rows[i] ? () => setUrl({ user: rows[i].id }) : undefined);
-        const cms = activeCompanyManagers(all);
-        const you = (u) => u.id === me.id && <span className="ml-1.5 text-caption font-semibold text-faint">You</span>;
-        const columns = [
-          { key: 'name', label: 'Name', render: (u) => (
-            <div className="flex items-center gap-3"><Avatar name={u.name} src={[u.photo_thumb_url, u.photo_url]} size={32} />
-              <div className="min-w-0"><div className="truncate font-semibold">{u.name}{you(u)}</div><div className="truncate text-footnote text-muted">{u.email}</div></div></div>
-          ) },
-          { key: 'role', label: 'Access', render: (u) => <div className="flex flex-wrap items-center gap-1.5">{ROLE_LABEL[u.role]}{u.platform && <Pill tone="amber">Platform admin</Pill>}</div> },
-          { key: 'venues', label: 'Venues', render: (u) => <span title={u.venues?.join(', ')}>{venuesCell(u)}</span> },
-          { key: 'shifts', label: 'Works shifts', render: (u) => (u.officer_id ? 'Yes' : '—') },
-          { key: 'pay', label: 'Pay', render: (u) => (u.role === 'venue' ? '—' : payWord(u).replace(/^./, (c) => c.toUpperCase())) },
-          { key: 'status', label: 'Status', render: statusPill },
-          { key: 'seen', label: 'Last seen', render: (u) => <span className="text-footnote text-muted">{u.status === 'invited' ? (u.invite_sent_at ? `Sent ${dateShort(u.invite_sent_at)}` : 'Not emailed yet') : u.last_login ? relative(u.last_login) : 'Never'}</span> },
-        ];
-        return (
-          <>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <Segmented value={role} onChange={(x) => setUrl({ role: x })} options={[{ value: 'all', label: 'Managers', icon: Layers }, ...USER_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r].replace(' manager', ''), icon: ROLE_ICON[r] })), { value: 'officer', label: 'Officers', icon: UserRound }]} />
-              <Button icon={UserPlus} onClick={() => setInviting(true)}>Invite manager or venue user</Button>
-            </div>
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <SearchInput className="min-w-0 flex-1 sm:max-w-sm" aria-label="Search people" placeholder="Search name, email or venue" value={url.q} onChange={(e) => setUrl({ q: e.target.value })} />
-              <Select className="w-auto" aria-label="Status" value={status} onChange={(e) => setUrl({ status: e.target.value })} options={STATUS_OPTS} />
-            </div>
-            {role === 'officer' && (
-              <p className="mb-3 text-footnote text-muted">Officer logins come from their staff record. Add officers and give them app access in <Link to="/company/staff" className="font-semibold text-blue">People → Staff</Link>.</p>
-            )}
-            {!rows.length ? <Empty title={s || status !== 'all' ? 'Nobody matches' : 'No users'} body={s || status !== 'all' ? 'Try another search or status.' : undefined} />
-              : wide ? <Table columns={columns} rows={rows} onRow={open} selected={editing?.id} />
-                : (
-                  <List>
-                    {rows.map((u) => (
-                      <Row key={u.id} onClick={() => open(u)} chevron
-                        left={<Avatar name={u.name} src={[u.photo_thumb_url, u.photo_url]} size={40} />}
-                        title={<span>{u.name}{you(u)}</span>}
-                        subtitle={[u.officer_id ? (u.role === 'officer' ? 'Staff record linked' : 'Also works shifts') : null, u.email, u.client_name ? `Client: ${u.client_name}` : null, u.venues?.length ? u.venues.join(', ') : null, seenWord(u)].filter(Boolean).join(' · ')}
-                        right={<div className="flex flex-col items-end gap-1">{u.platform && <Pill tone="amber">Platform admin</Pill>}<Pill tone="grey">{ROLE_LABEL[u.role]}</Pill>{u.status !== 'active' && statusPill(u)}</div>} />
-                    ))}
-                  </List>
-                )}
-            {inviting && <InviteSheet onClose={() => setInviting(false)} onDone={() => { q.reload(); clients.reload(); }} />}
-            {editing && <UserSheet key={editing.id} u={editing} me={me} all={all} venues={venues.data || []} clients={clients.data || []} onClientCreated={clients.reload}
-              lastManager={cms.length === 1 && cms[0].id === editing.id} onClose={close} onDone={q.reload} onPrev={step(at - 1)} onNext={step(at + 1)} />}
-          </>
-        );
-      }}
-    </Load>
-  );
-}
-
-const sameSet = (a = [], b = []) => a.length === b.length && a.every((x) => b.includes(x));
-
-function UserSheet({ u, me, all = [], venues, clients, onClientCreated, lastManager, onClose, onDone, onPrev, onNext }) {
-  const start = { name: u.name, goes_by: u.goes_by || '', email: u.email, phone: u.phone || '', can_see_pay: !!u.can_see_pay, venue_ids: u.venue_ids || [], client_id: u.client_id || '' };
-  const { v, bind, set } = useForm(start);
-  const [run, busy] = useAction();
-  const confirm = useConfirm();
-  const [link, setLink] = useState(null);
-  // Only the platform admin changes their own account
-  const locked = u.platform && !me.platform;
-  const dirty = Object.keys(start).some((k) => (k === 'venue_ids' ? !sameSet(v[k], start[k]) : v[k] !== start[k]));
-  const save = async () => {
-    await run(() => api('users.update', { id: u.id, ...v, email: u.officer_id || v.email === u.email ? undefined : v.email, ...(['security', 'venue'].includes(u.role) ? { venue_ids: v.venue_ids, client_id: v.client_id || null } : { venue_ids: undefined, client_id: undefined }) }), 'User updated');
-    onDone();
-    onClose();
-  };
-  const setStatus = async (status) => {
-    if (status === 'disabled' && !(await confirm({ title: `Deactivate ${u.name}?`, body: 'They will be signed out and unable to log in.', confirm: 'Deactivate', danger: true }))) return;
-    await run(() => api('users.update', { id: u.id, status }), status === 'disabled' ? 'User deactivated' : 'User reactivated');
-    onDone();
-    onClose();
-  };
-  const reset = async () => setLink((await run(() => api('users.resetLink', { id: u.id }), 'Link created')).link);
-  // The invite's last email: as loaded, then as it is after Resend invite
-  const [sent, setSent] = useState({ invite_sent_at: u.invite_sent_at, invite_emailed: u.invite_emailed });
-  const resend = async () => {
-    const r = await run(() => api('users.resendInvite', { id: u.id }), (x) => (x.emailed === false ? "Email didn't send — share the link below" : 'Invite sent again'));
-    setSent({ invite_sent_at: r.sent_at || new Date().toISOString(), invite_emailed: r.emailed !== false });
-    setLink(r.invite_link);
-  };
-  const inviteHint = inviteStatus({ ...u, ...sent }).hint;
-  // What ticking and unticking will do, before Save
-  const nameOf = (id) => venues.find((x) => x.id === id)?.name;
-  const gain = v.venue_ids.filter((id) => !start.venue_ids.includes(id)).map(nameOf).filter(Boolean);
-  const lose = start.venue_ids.filter((id) => !v.venue_ids.includes(id)).map(nameOf).filter(Boolean);
-  if (u.role === 'security' && v.can_see_pay !== start.can_see_pay) (v.can_see_pay ? gain : lose).push('pay');
-  const changes = [gain.length && `Will gain: ${listOf(gain)}`, lose.length && `Will lose: ${listOf(lose)}`].filter(Boolean).join(' · ');
-  return (
-    <Sheet open side full onClose={onClose} title={u.name} dirty={dirty} onPrev={onPrev} onNext={onNext}
-      footer={locked ? <Button variant="secondary" onClick={onClose}>Close</Button> : <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={save}>Save</Button></>}>
-      <div className="space-y-4">
-        {locked && <Callout tone="warning" title="Platform admin">Only they can change this account.</Callout>}
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2">{u.platform && <Pill tone="amber">Platform admin</Pill>}<Pill tone="grey">{ROLE_LABEL[u.role]}</Pill>{statusPill(u)}<span className="text-footnote text-muted">{u.email}</span></div>
-          <p className="text-subhead">{accessSummary(u)}</p>
-          {u.role !== 'officer' && !locked && <p className="text-footnote text-muted">To change the access type, deactivate this login and invite them again with the new type.</p>}
-        </div>
-        <fieldset disabled={locked} className="space-y-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Input label="Name" {...bind('name')} />
-          <Input label="Phone" type="tel" {...bind('phone')} />
-          <Input label="Goes by (optional)" placeholder="e.g. Goddey" maxLength={40} {...bind('goes_by')} />
-        </div>
-        {u.officer_id
-          ? <p className="text-footnote text-muted">Their sign-in email follows their staff record. Change it on the staff profile.</p>
-          : <Input label="Sign-in email" type="email" hint={v.email !== u.email ? 'They will sign in with the new email from now on' : undefined} {...bind('email')} />}
-        {['security', 'venue'].includes(u.role) && <AccessFields role={u.role} v={v} set={set} venues={venues} clients={clients} onClientCreated={onClientCreated} />}
-        {u.role === 'security' && <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.can_see_pay} onChange={(x) => set('can_see_pay', x)} label="Can see pay" hint="Officer rates and pay statements" /></div>}
-        {changes && <p className="rounded-xl bg-blue-soft px-3 py-2 text-footnote font-semibold text-blue" aria-live="polite">{changes}</p>}
-        </fieldset>
-        {['company', 'security'].includes(u.role) && u.status !== 'disabled' && !locked && <WorksShifts u={u} all={all} onDone={() => { onDone(); onClose(); }} />}
-        {u.officer_id && <Link to={`/company/staff/${u.officer_id}`} className="inline-flex items-center gap-1.5 text-subhead font-semibold text-blue"><Users size={16} />Open staff profile<ChevronRight size={16} /></Link>}
-        {u.status === 'invited'
-          ? (link || u.invite_link) && <CopyLink link={link || u.invite_link} hint={inviteHint} />
-          : link && <CopyLink link={link} label="Password reset link" hint="Valid for 48 hours. Share it directly." />}
-        {(!locked || u.status === 'invited') && <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
-          {u.status === 'invited' && <Button variant="soft" onClick={resend}>Resend invite</Button>}
-          {u.status === 'active' && !locked && <Button variant="soft" icon={KeyRound} onClick={reset}>Password reset link</Button>}
-          {u.status !== 'disabled' && u.id !== me.id && !locked && (lastManager
-            ? <p className="text-footnote text-muted">There must be at least one active company manager.</p>
-            : <Button variant="danger" onClick={() => setStatus('disabled')}>Deactivate</Button>)}
-          {u.status === 'disabled' && !locked && <Button variant="secondary" onClick={() => setStatus('active')}>Reactivate</Button>}
-        </div>}
-        <AccessHistory id={u.id} />
-      </div>
-    </Sheet>
-  );
-}
-
-// Who changed this login and how: invites, venues gained and lost, pay, deactivation
-function AccessHistory({ id }) {
-  const q = useApi('audit.list', { entity: 'user', entity_id: id, limit: 50 });
-  const [more, setMore] = useState(false);
-  const rows = q.data || [];
-  if (!q.error && !rows.length) return null;
-  const shown = more ? rows : rows.slice(0, 10);
-  return (
-    <div className="border-t border-line pt-4">
-      <h3 className="mb-2 text-subhead font-semibold">Access history</h3>
-      <LoadFail q={q} what="access history" />
-      {shown.length > 0 && (
-        <ol className="space-y-2.5">
-          {shown.map((r) => (
-            <li key={r.id} className="text-footnote">
-              <div><span className="font-semibold">{actionLabel(r.action)}</span><span className="text-muted"> · {r.user_name || 'System'} · {relative(r.created_at)}</span></div>
-              {changeLine(r) && <div className="text-muted">{changeLine(r)}</div>}
-            </li>
-          ))}
-        </ol>
-      )}
-      {!more && rows.length > 10 && <Button variant="link" className="mt-2" onClick={() => setMore(true)}>Show more ({rows.length - 10})</Button>}
-    </div>
-  );
-}
-
-// A company or security manager who also works shifts: one login, with a staff record behind it
-function WorksShifts({ u, all, onDone }) {
-  const { user: me, refresh } = useAuth();
-  const [run, busy] = useAction();
-  const confirm = useConfirm();
-  const [picking, setPicking] = useState(false);
-  const on = !!u.officer_id;
-  // Officer logins that look like the same person (same name), from before one login could do both
-  const norm = (n) => String(n || '').trim().toLowerCase();
-  const twins = all.filter((x) => x.role === 'officer' && x.status !== 'disabled' && x.officer_id && norm(x.name) === norm(u.name));
-  const done = async () => { if (u.id === me.id) await refresh(); onDone(); };
-  const flip = async (x) => {
-    if (x && twins.length) return setPicking(true);
-    if (!x && !(await confirm({ title: `Stop ${u.name} working shifts?`, body: 'Their staff record, shifts, hours and pay history stay. It just has no login any more, and the "My shifts" side disappears for them.', confirm: 'Turn off', danger: true }))) return;
-    await run(() => api('users.setWorksShifts', { id: u.id, on: x }), x ? 'They can now switch to My shifts' : 'Turned off').catch(() => null);
-    done();
-  };
-  const merge = async (t) => {
-    if (!(await confirm({ title: `Merge ${t.email} into ${u.email}?`, body: `${u.name} signs in with ${u.email} from now on and switches to "My shifts" for their own shifts, pay and training. The officer login ${t.email} is deactivated. Nothing in their history is lost.`, confirm: 'Merge' }))) return;
-    await run(() => api('users.mergeOfficerLogin', { manager_id: u.id, officer_user_id: t.id }), 'Logins merged').catch(() => null);
-    done();
-  };
-  const create = async () => { await run(() => api('users.setWorksShifts', { id: u.id, on: true }), 'They can now switch to My shifts').catch(() => null); done(); };
-  return (
-    <div className="rounded-2xl bg-bg px-4 py-2">
-      <Toggle checked={on} disabled={busy} onChange={flip} label="Also works shifts"
-        hint={on ? 'They switch between Manager and My shifts in the app. Someone else approves their own hours and pay.' : 'Give them a staff record on this login, so they can be rostered, clock in and get paid'} />
-      {!on && twins.length > 0 && !picking && (
-        <p className="pb-2 text-footnote text-muted">{twins.length === 1 ? `${twins[0].name} also has an officer login (${twins[0].email}).` : 'They may also have an officer login.'} <button type="button" className="font-semibold text-blue" onClick={() => setPicking(true)}>Merge it</button></p>
-      )}
-      {picking && (
-        <div className="space-y-2 pb-3 pt-1">
-          <p className="text-footnote text-muted">Keep their existing staff record and history by merging their officer login, or start a new staff record.</p>
-          {twins.map((t) => <Button key={t.id} variant="soft" className="w-full" disabled={busy} onClick={() => merge(t)}>Merge {t.email}</Button>)}
-          <Button variant="secondary" className="w-full" disabled={busy} onClick={create}>New staff record instead</Button>
-        </div>
-      )}
     </div>
   );
 }

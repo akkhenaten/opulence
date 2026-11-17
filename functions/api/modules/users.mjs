@@ -1,7 +1,7 @@
 import { one, q, tx } from '../lib/db.mjs';
-import { fail, required, pick } from '../lib/http.mjs';
+import { fail, required, pick, need } from '../lib/http.mjs';
 import { goesBy, randomToken } from '../lib/auth.mjs';
-import { sendRawEmail, emailHtml } from '../lib/notify.mjs';
+import { sendRawEmail, emailHtml, notify } from '../lib/notify.mjs';
 import { audit } from '../lib/audit.mjs';
 import { photoUrls } from '../lib/storage.mjs';
 import { CO, ALL, def } from './_def.mjs';
@@ -11,6 +11,7 @@ import { disconnectUser } from './email.mjs';
 import { officerName, userName } from '../lib/names.mjs';
 import { guardPlatformAccount, inviteRole, isPlatformEmail } from '../lib/platform.mjs';
 import { accessChanges, blocksLastCompanyManager } from '../lib/access.mjs';
+import { LAST_MANAGER, appsGained, appsLine, appsOf, planAccess } from '../lib/apps.mjs';
 
 const ROLE_LABEL = { company: 'Company Manager', security: 'Security Manager', venue: 'Venue Manager', officer: 'Security Officer' };
 
@@ -59,6 +60,107 @@ async function checkClient(t, role, clientId) {
   return clientId;
 }
 
+// The login list and one login: role, client, venues, the invite's last email, and the staff record behind it
+async function userRows(where, params) {
+  const rows = await q(
+    `SELECT u.id, u.email, u.name, u.goes_by, u.phone, u.role, COALESCE((SELECT o.photo_key FROM officers o WHERE o.user_id = u.id LIMIT 1), u.photo_key) AS photo_key, u.status, u.can_see_pay, u.last_login, u.created_at,
+            u.client_id, (SELECT c.name FROM clients c WHERE c.id = u.client_id) AS client_name,
+            COALESCE(array_agg(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS venues,
+            COALESCE(array_agg(DISTINCT v.id) FILTER (WHERE v.id IS NOT NULL), '{}') AS venue_ids,
+            CASE WHEN u.status = 'invited' THEN '/app/invite/' || u.invite_token END AS invite_link, u.invite_sent_at, u.invite_emailed,
+            (SELECT o.id FROM officers o WHERE o.user_id = u.id LIMIT 1) AS officer_id,
+            (SELECT ${officerName('o')} FROM officers o WHERE o.user_id = u.id LIMIT 1) AS officer_name
+       FROM users u
+       LEFT JOIN venue_contacts vc ON vc.user_id = u.id AND u.role = 'venue'
+       LEFT JOIN security_venues sv ON sv.user_id = u.id AND u.role = 'security'
+       LEFT JOIN venues v ON v.id = COALESCE(vc.venue_id, sv.venue_id)
+      WHERE NOT u.system AND ${where}
+      GROUP BY u.id ORDER BY u.role, u.name`, params);
+  return (await withPhotos(rows)).map((u) => ({ ...u, platform: isPlatformEmail(u.email) }));
+}
+
+// Active company managers other than this one, the platform admin left out
+async function otherCompanyManagers(id) {
+  const others = await q("SELECT email FROM users WHERE role = 'company' AND status = 'active' AND NOT system AND id <> $1", [id]);
+  return others.filter((x) => !isPlatformEmail(x.email)).length;
+}
+
+/** The rules for switching someone's app access off, the same from every screen: not yourself, not the platform
+ *  admin (unless it is them), and never the last active company manager. */
+export async function assertCanDisable(actor, target) {
+  if (!target) fail(404, 'User not found');
+  if (target.id === actor.id) fail(400, "You can't disable yourself");
+  guardPlatformAccount(actor, target.email);
+  if (target.role === 'company' && blocksLastCompanyManager({ target: { ...target, platform: isPlatformEmail(target.email) }, status: 'disabled', otherActive: await otherCompanyManagers(target.id) })) fail(400, LAST_MANAGER);
+}
+
+/** Switch a login off or back on: a disabled manager's staff record is unlinked, their mailboxes disconnected, and it is audited */
+export async function setLoginStatus(actor, id, status, extra = {}) {
+  const target = await one('SELECT * FROM users WHERE id = $1', [id]);
+  if (status === 'disabled') await assertCanDisable(actor, target);
+  else guardPlatformAccount(actor, need(target, 'User not found').email);
+  if (target.status === status) return { ok: true };
+  await tx(async (t) => {
+    await t.q('UPDATE users SET status = $2 WHERE id = $1', [id, status]);
+    if (status === 'disabled' && target.role !== 'officer') {
+      const o = await t.one('UPDATE officers SET user_id = NULL WHERE user_id = $1 RETURNING id', [id]);
+      if (o) await audit(actor, 'user.works_shifts', 'user', id, { on: false, officer_id: o.id, reason: 'disabled' });
+    }
+  });
+  if (status === 'disabled') await disconnectUser(id);
+  await audit(actor, 'user.update', 'user', id, { status, before: { status: target.status }, ...extra });
+  return { ok: true };
+}
+
+/** Give a manager login a staff record: the one named, else one with the same email and no login, else a new one */
+export async function linkStaffRecord(t, u, officerId = null) {
+  if (officerId) {
+    const o = await t.one('SELECT id, user_id FROM officers WHERE id = $1 FOR UPDATE', [officerId]);
+    if (!o) fail(404, 'Staff record not found');
+    if (o.user_id) fail(409, 'That staff record already has its own login. Merge it instead.');
+    await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [o.id, u.id]);
+    return o.id;
+  }
+  // Same email already on the staff list without a login: link that one rather than adding a duplicate
+  const same = await t.one('SELECT id FROM officers WHERE lower(email) = $1 AND user_id IS NULL LIMIT 1', [u.email]);
+  if (same) {
+    await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [same.id, u.id]);
+    return same.id;
+  }
+  const cut = u.name.lastIndexOf(' ');
+  const o = await t.one(
+    `INSERT INTO officers (first_name, last_name, email, phone, status, user_id, goes_by) VALUES ($1,$2,$3,$4,'active',$5,$6) RETURNING id`,
+    [cut > 0 ? u.name.slice(0, cut) : u.name, cut > 0 ? u.name.slice(cut + 1) : '', u.email, u.phone || '', u.id, u.goes_by || '']);
+  await seedOnboarding(t, o.id);
+  return o.id;
+}
+
+/** A staff record without a login gets one: the Officer app, plus a manager access if ticked. The invite is sent only on request. */
+async function giveLogin(actor, o, want, b) {
+  const plan = rule(() => planAccess({ before: appsOf(null), want, hasLogin: false, fromStaffRecord: true }));
+  if (!o.email) fail(400, 'Add their email on Overview first');
+  const taken = await one('SELECT id, name FROM users WHERE email = lower($1)', [o.email.trim()]);
+  if (taken) fail(409, `${taken.name} already signs in with this email`, { existing: { user_id: taken.id, name: taken.name } });
+  const role = inviteRole(o.email, plan.role);
+  const u = await tx(async (t) => {
+    const created = await createInvite(t, { email: o.email, name: `${o.first_name} ${o.last_name}`.trim(), role, phone: o.phone || '', goes_by: o.goes_by || '',
+      can_see_pay: role === 'security' && !!b.can_see_pay });
+    const clientId = await checkClient(t, role, b.client_id);
+    if (clientId) await t.q('UPDATE users SET client_id = $2 WHERE id = $1', [created.id, clientId]);
+    await setVenues(t, created.id, role, b.venue_ids || []);
+    await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [o.id, created.id]);
+    return created;
+  });
+  await audit(actor, 'user.invite', 'user', u.id, { email: u.email, role, officer_id: o.id });
+  await audit(actor, 'user.access', 'user', u.id, { role, apps: appsLine({ ...want }), ...appsGained(appsOf(null), want), officer_id: o.id });
+  if (!b.invite) return { ok: true, user_id: u.id, officer_id: o.id, invite_link: `/app/invite/${u.invite_token}`, emailed: false };
+  const { link, emailed, sent_at } = await sendInviteMail(u, actor);
+  return { ok: true, user_id: u.id, officer_id: o.id, invite_link: link, emailed, sent_at };
+}
+
+// The ticks' rules (lib/apps.mjs) speak as plain errors; here they become the API's 400s
+const rule = (fn) => { try { return fn(); } catch (e) { return fail(e.status || 400, e.message); } };
+
 const withPhotos = (rows) => Promise.all(rows.map(async ({ photo_key, ...u }) => ({ ...u, ...(await photoUrls(photo_key)) })));
 
 // The audited record's name, looked up only when the id is a uuid (some entries carry other keys)
@@ -103,21 +205,13 @@ export function auditWhere(b) {
 }
 
 export const actions = {
-  'users.list': def(CO, async (b) => withPhotos(await q(
-    `SELECT u.id, u.email, u.name, u.goes_by, u.phone, u.role, COALESCE((SELECT o.photo_key FROM officers o WHERE o.user_id = u.id LIMIT 1), u.photo_key) AS photo_key, u.status, u.can_see_pay, u.last_login, u.created_at,
-            u.client_id, (SELECT c.name FROM clients c WHERE c.id = u.client_id) AS client_name,
-            COALESCE(array_agg(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS venues,
-            COALESCE(array_agg(DISTINCT v.id) FILTER (WHERE v.id IS NOT NULL), '{}') AS venue_ids,
-            CASE WHEN u.status = 'invited' THEN '/app/invite/' || u.invite_token END AS invite_link, u.invite_sent_at, u.invite_emailed,
-            (SELECT o.id FROM officers o WHERE o.user_id = u.id LIMIT 1) AS officer_id,
-            (SELECT ${officerName('o')} FROM officers o WHERE o.user_id = u.id LIMIT 1) AS officer_name
-       FROM users u
-       LEFT JOIN venue_contacts vc ON vc.user_id = u.id AND u.role = 'venue'
-       LEFT JOIN security_venues sv ON sv.user_id = u.id AND u.role = 'security'
-       LEFT JOIN venues v ON v.id = COALESCE(vc.venue_id, sv.venue_id)
-      WHERE NOT u.system AND ($1::text IS NULL OR u.role = $1)
-      GROUP BY u.id ORDER BY u.role, u.name`, [b.role || null]))
-    .then((rows) => rows.map((u) => ({ ...u, platform: isPlatformEmail(u.email) })))),
+  'users.list': def(CO, async (b) => userRows('($1::text IS NULL OR u.role = $1)', [b.role || null])),
+
+  // One login as in the list, for a person's page when they have no staff record
+  'users.get': def(CO, async (b) => {
+    required(b, 'id');
+    return need((await userRows('u.id = $1::uuid', [b.id]))[0], 'User not found');
+  }),
 
   'users.invite': def(CO, async (b, { user }) => {
     required(b, 'email', 'name', 'role');
@@ -142,11 +236,7 @@ export const actions = {
     // Only the platform admin changes their own account (access, venues, pay, status); nobody gives another account their email
     guardPlatformAccount(user, target?.email, b.email);
     // Someone must stay able to run the company: the last active company manager can't be disabled
-    if (target && b.status === 'disabled' && target.role === 'company') {
-      const others = await q("SELECT email FROM users WHERE role = 'company' AND status = 'active' AND NOT system AND id <> $1", [b.id]);
-      const otherActive = others.filter((x) => !isPlatformEmail(x.email)).length;
-      if (blocksLastCompanyManager({ target: { ...target, platform: isPlatformEmail(target.email) }, status: b.status, otherActive })) fail(400, 'There must be at least one active company manager.');
-    }
+    if (b.status === 'disabled' && target?.status !== 'disabled') await assertCanDisable(user, target);
     const fields = pick(b, ['name', 'goes_by', 'phone', 'can_see_pay', 'email']);
     if (fields.goes_by !== undefined) fields.goes_by = goesBy(fields.goes_by);
     if (b.status === 'disabled' || b.status === 'active') fields.status = b.status;
@@ -227,29 +317,57 @@ export const actions = {
       return { ok: true };
     }
     if (linked) return { ok: true, officer_id: linked.id };
-    const officerId = await tx(async (t) => {
-      if (b.officer_id) {
-        const o = await t.one('SELECT id, user_id FROM officers WHERE id = $1 FOR UPDATE', [b.officer_id]);
-        if (!o) fail(404, 'Staff record not found');
-        if (o.user_id) fail(409, 'That staff record already has its own login. Merge it instead.');
-        await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [o.id, u.id]);
-        return o.id;
-      }
-      // Same email or phone already on the staff list without a login: link that one rather than adding a duplicate
-      const same = await t.one('SELECT id FROM officers WHERE lower(email) = $1 AND user_id IS NULL LIMIT 1', [u.email]);
-      if (same) {
-        await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [same.id, u.id]);
-        return same.id;
-      }
-      const cut = u.name.lastIndexOf(' ');
-      const o = await t.one(
-        `INSERT INTO officers (first_name, last_name, email, phone, status, user_id, goes_by) VALUES ($1,$2,$3,$4,'active',$5,$6) RETURNING id`,
-        [cut > 0 ? u.name.slice(0, cut) : u.name, cut > 0 ? u.name.slice(cut + 1) : '', u.email, u.phone || '', u.id, u.goes_by || '']);
-      await seedOnboarding(t, o.id);
-      return o.id;
-    });
+    const officerId = await tx((t) => linkStaffRecord(t, u, b.officer_id || null));
     await audit(user, 'user.works_shifts', 'user', u.id, { on: true, officer_id: officerId });
     return { ok: true, officer_id: officerId };
+  }),
+
+  // The Access tab: tick what a person can use (Officer app, and Office, Security manager or Venue manager), their
+  // venues and pay, in one save. The same login carries both; venues move with the access, it is audited and they are told.
+  'users.setAccess': def(CO, async (b, { user }) => {
+    const want = { officer: !!b.officer, manager: b.manager || null };
+    let u = null;
+    let linked = null;
+    if (b.id) {
+      u = need(await one('SELECT * FROM users WHERE id = $1 AND NOT system', [b.id]), 'User not found');
+      linked = await one('SELECT id FROM officers WHERE user_id = $1', [u.id]);
+    } else {
+      required(b, 'officer_id');
+      linked = need(await one('SELECT * FROM officers WHERE id = $1', [b.officer_id]), 'Staff record not found');
+      if (linked.user_id) u = await one('SELECT * FROM users WHERE id = $1', [linked.user_id]);
+    }
+    if (!u) return giveLogin(user, linked, want, b);
+    guardPlatformAccount(user, u.email);
+    if (u.status === 'disabled') fail(400, 'Their app access is switched off. Reactivate them first.');
+    const before = appsOf(u, !!linked);
+    const lastCompanyManager = u.role === 'company' && u.status === 'active' && !isPlatformEmail(u.email) && (await otherCompanyManagers(u.id)) === 0;
+    const plan = rule(() => planAccess({ before, want, isSelf: u.id === user.id, lastCompanyManager }));
+    const role = plan.role;
+    const canSeePay = role === 'company' ? u.can_see_pay : role === 'security' ? ('can_see_pay' in b ? !!b.can_see_pay : u.can_see_pay) : false;
+    let venuesBefore = [];
+    let venuesAfter = [];
+    let officerId = linked?.id || null;
+    let clientId = null;
+    await tx(async (t) => {
+      venuesBefore = await venueNames(t, u.id);
+      const keepIds = (await t.q('SELECT venue_id FROM venue_contacts WHERE user_id = $1 UNION SELECT venue_id FROM security_venues WHERE user_id = $1', [u.id])).map((r) => r.venue_id);
+      clientId = await checkClient(t, role, 'client_id' in b ? b.client_id : u.client_id);
+      await t.q('UPDATE users SET role = $2, client_id = $3, can_see_pay = $4 WHERE id = $1', [u.id, role, clientId, canSeePay]);
+      // Venues follow the access: moving between Security and Venue manager keeps the same venues unless new ones are given
+      await t.q('DELETE FROM venue_contacts WHERE user_id = $1', [u.id]);
+      await t.q('DELETE FROM security_venues WHERE user_id = $1', [u.id]);
+      await setVenues(t, u.id, role, Array.isArray(b.venue_ids) ? b.venue_ids : keepIds);
+      if (plan.link === 'link') officerId = await linkStaffRecord(t, { ...u, role }, b.link_officer_id || null);
+      if (plan.link === 'unlink') { await t.q('UPDATE officers SET user_id = NULL WHERE user_id = $1', [u.id]); officerId = null; }
+      venuesAfter = await venueNames(t, u.id);
+    });
+    const fields = { role, can_see_pay: canSeePay, client_id: clientId };
+    const changes = accessChanges(u, fields, venuesBefore, venuesAfter);
+    if (!plan.changed && !Object.keys(changes).length) return { ok: true, officer_id: officerId, changed: false };
+    const after = { ...want, venues: venuesAfter, can_see_pay: canSeePay };
+    await audit(user, 'user.access', 'user', u.id, { ...fields, apps: appsLine(after), ...appsGained(before, want), officer_id: linked?.id || officerId, ...changes });
+    if (u.status === 'active') await notify([u.id], { kind: 'hr', title: 'Your access changed', body: `You can now use: ${appsLine(after)}.` });
+    return { ok: true, officer_id: officerId, changed: true };
   }),
 
   // Someone who had a second email just for the officer app: move their staff record onto the manager login

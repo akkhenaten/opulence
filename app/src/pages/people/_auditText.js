@@ -33,6 +33,7 @@ export const ACTION_TEXT = {
   'ban.update': 'Customer ban changed', 'ban.revoke': 'Customer ban lifted', 'feedback.dont_send': "Venue asked not to send an officer",
   'user.invite': 'Login invited', 'user.invite_sent': 'Login invite sent', 'user.update': 'Login changed', 'user.self_update': 'Person changed their own login',
   'user.reset_link': 'Password reset link sent', 'user.platform_role': 'Access level changed',
+  'user.access': 'What they can use changed', 'user.works_shifts': 'Officer app changed', 'user.merge_officer': 'Logins merged',
   'settings.update': 'Settings changed', 'academy.assign': 'Course assigned', 'academy.unassign': 'Course unassigned', 'training.remind': 'Training reminder sent',
   'compliance.grace_grant': 'Grace period given', 'compliance.grace_renew': 'Grace period extended', 'compliance.dismiss': 'Compliance alert dismissed', 'compliance.act': 'Compliance action taken',
   'clock.manual': 'Clock time entered by hand', 'device.register': 'Phone registered', 'device.revoke': 'Phone removed',
@@ -50,6 +51,8 @@ export function changeLine(r) {
   const d = r?.detail;
   if (!d || typeof d !== 'object') return '';
   const parts = [];
+  if (d.gained?.length) parts.push(`can now use ${names(d.gained)}`);
+  if (d.lost?.length) parts.push(`no longer ${names(d.lost)}`);
   if (d.venues_added?.length) parts.push(`added ${names(d.venues_added)}`);
   if (d.venues_removed?.length) parts.push(`removed ${names(d.venues_removed)}`);
   for (const [k, old] of Object.entries(d.before || {})) {

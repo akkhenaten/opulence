@@ -7,7 +7,7 @@ import {
 } from '../../ui/index.jsx';
 import RecentEmail from '../email/_recent.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
-import { InviteSheet } from '../people/_access.jsx';
+import { AddPersonSheet } from '../people/_person.jsx';
 import { useBase } from './_parts.jsx';
 
 const NEW = '__new';
@@ -89,14 +89,14 @@ function ClientPeople({ id, onChanged }) {
         {c.contacts.length ? (
           <List>
             {c.contacts.map((u) => (
-              <Row key={u.id} left={<Avatar name={u.name} size={36} />} title={u.name}
+              <Row key={u.id} to={`/company/staff/${u.id}`} left={<Avatar name={u.name} size={36} />} title={u.name}
                 subtitle={[ROLE_LABEL[u.role], u.venues.length ? u.venues.join(', ') : 'No venues yet', u.email].filter(Boolean).join(' · ')}
                 right={u.status !== 'active' && <Pill status={u.status === 'invited' ? 'pending' : 'cancelled'}>{u.status === 'invited' ? 'Invited' : 'Disabled'}</Pill>} />
             ))}
           </List>
         ) : <Empty icon={Users} title="No contacts yet" body="Invite the client's manager. They get access to this client's venues." />}
       </Section>
-      {inviting && <InviteSheet preset={{ role: 'venue', client_id: id, venue_ids: c.venues.filter((v) => v.active).map((v) => v.id) }}
+      {inviting && <AddPersonSheet title="Invite contact" preset={{ manager: 'venue', officer: false, client_id: id, venue_ids: c.venues.filter((v) => v.active).map((v) => v.id) }}
         onClose={() => setInviting(false)} onDone={() => { q.reload(); onChanged?.(); }} />}
     </>
   );

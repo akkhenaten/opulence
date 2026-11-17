@@ -19,7 +19,7 @@ import { officerDisplay, officerName, userName } from '../lib/names.mjs';
 
 const NON_SIA = new Set(['steward']);
 const PRIVATE = ['ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account', 'dob'];
-const MANAGER_FIELDS = ['first_name', 'last_name', 'goes_by', 'email', 'phone', 'dob', 'address', 'postcode', 'ni_number', 'utr', 'bank_name', 'bank_sort_code',
+export const MANAGER_FIELDS = ['first_name', 'last_name', 'goes_by', 'email', 'phone', 'dob', 'address', 'postcode', 'ni_number', 'utr', 'bank_name', 'bank_sort_code',
   'bank_account', 'photo_key', 'sia_number', 'sia_type', 'sia_expiry', 'rtw_type', 'rtw_expiry', 'status', 'roles', 'max_weekly_hours',
   'start_date', 'notes'];
 const SELF_FIELDS = ['goes_by', 'phone', 'address', 'postcode', 'dob', 'ni_number', 'utr', 'bank_name', 'bank_sort_code', 'bank_account', 'photo_key'];

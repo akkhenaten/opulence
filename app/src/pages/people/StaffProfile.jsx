@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import RecentEmail from '../email/_recent.jsx';
 import {
-  Ban, Briefcase, CalendarCheck, CalendarDays, CalendarOff, ChevronRight, Clock, FileSignature, FileText, GraduationCap, Mail, MessagesSquare, NotebookPen, Pencil, Phone, PoundSterling, Send, ShieldCheck,
+  Ban, Briefcase, History, KeyRound, CalendarCheck, CalendarDays, CalendarOff, ChevronRight, Clock, FileSignature, FileText, GraduationCap, Mail, MessagesSquare, NotebookPen, Pencil, Phone, PoundSterling, Send, ShieldCheck,
   UserCheck, UserMinus, UserPlus, UserRound,
 } from 'lucide-react';
 import { api } from '../../api.js';
@@ -12,32 +12,46 @@ import {
 } from '../../ui/index.jsx';
 import { uploadPhoto } from '../officer/_parts.jsx';
 import { inviteStatus } from './_access.jsx';
-import { ROLE_LABEL } from '../../layouts/nav.js';
 import { ComplianceBadge, CopyLink, ExpiryPill, graceLine, OFFICER_STATUSES, SIA_TYPES, Chips, canPay, useBase, useRoles } from './_parts.jsx';
 import {
   AttendanceTab, AvailabilityTab, ComplianceTab, ContractsTab, DocumentsTab, GrowthTab, HrTab, OffboardingTab, OnboardingTab, OverviewTab, RatesTab, ShiftsTab, TimeOffTab, TrainingTab,
 } from './_profileTabs.jsx';
-import RecordHistory from './_history.jsx';
+import { AccessTab, appsLine, appsOf, PersonHistory, UserProfile } from './_person.jsx';
 
 // Five groups, each a set of sub-views; the sub keys are the old tab keys so access rules and old links carry over
-const GROUP_ICON = { overview: UserRound, compliance: ShieldCheck, work: CalendarDays, pay: PoundSterling, hr: Briefcase };
+const GROUP_ICON = { overview: UserRound, access: KeyRound, history: History, compliance: ShieldCheck, work: CalendarDays, pay: PoundSterling, hr: Briefcase };
 const SUB_ICON = {
-  overview: UserRound, compliance: ShieldCheck, documents: FileText, training: GraduationCap, shifts: CalendarDays, attendance: Clock, availability: CalendarCheck, timeoff: CalendarOff,
+  overview: UserRound, access: KeyRound, history: History, compliance: ShieldCheck, documents: FileText, training: GraduationCap, shifts: CalendarDays, attendance: Clock, availability: CalendarCheck, timeoff: CalendarOff,
   rates: PoundSterling, growth: MessagesSquare, hr: NotebookPen, contracts: FileSignature, onboarding: UserPlus, offboarding: UserMinus,
 };
 const GROUPS = [
   ['overview', 'Overview', [['overview', 'Overview']]],
+  ['access', 'Access', [['access', 'Access']]],
   ['compliance', 'Compliance', [['compliance', 'Compliance'], ['documents', 'Documents'], ['training', 'Training']]],
   ['work', 'Work', [['shifts', 'Shifts'], ['attendance', 'Attendance'], ['availability', 'Availability'], ['timeoff', 'Time off']]],
   ['pay', 'Pay', [['rates', 'Rates']]],
   ['hr', 'HR', [['growth', 'One-to-ones'], ['hr', 'HR notes'], ['contracts', 'Contracts'], ['onboarding', 'Onboarding'], ['offboarding', 'Offboarding']]],
+  ['history', 'History', [['history', 'History']]],
 ];
 const GROUP_OF = Object.fromEntries(GROUPS.flatMap(([g, , subs]) => subs.map(([k]) => [k, g])));
-const CO_ONLY = ['onboarding', 'contracts', 'offboarding'];
+const CO_ONLY = ['onboarding', 'contracts', 'offboarding', 'access', 'history'];
 
+// One page per person: the id may be a staff record or a login. A login with a staff record opens the record's page;
+// a login with none (an office or venue manager) gets its own, smaller page.
 export default function StaffProfile() {
   const { id } = useParams();
+  const { search } = useLocation();
   const base = useBase();
+  const who = useApi('people.resolve', { id });
+  return (
+    <Load q={who} skeleton="page">
+      {(p) => (p.officer_id && p.officer_id !== id ? <Navigate replace to={`${base}/staff/${p.officer_id}${search}`} />
+        : p.officer_id ? <OfficerPage id={id} base={base} /> : <UserProfile userId={p.user_id} />)}
+    </Load>
+  );
+}
+
+function OfficerPage({ id, base }) {
   const { user } = useAuth();
   const q = useApi('officers.get', { id });
   return (
@@ -72,20 +86,6 @@ function Profile({ o, reload, user, base }) {
   const pickSub = (x) => setUrl({ tab: group.value, sub: x });
   const forbid = (k) => setHidden((h) => (h.includes(k) ? h : [...h, k]));
 
-  const invite = async () => {
-    const r = await run(() => api('officers.inviteLogin', { id: o.id }), 'Invite sent').catch((e) => e);
-    // Their email already signs in as a manager: one login does both, no invite needed
-    if (r?.data?.can_link) {
-      if (await confirm({ title: `Link to ${r.data.user_name}'s manager login?`, body: `${r.data.user_name} keeps signing in as they do today and switches to "My shifts" for their own shifts, pay and training. Another manager approves their hours.`, confirm: 'Link' })) {
-        await run(() => api('officers.linkLogin', { id: o.id }), 'Linked to their manager login').catch(() => {});
-        reload();
-      }
-      return;
-    }
-    if (r instanceof Error) return;
-    setLink(r.invite_link);
-    reload();
-  };
   const resend = async () => {
     const r = await run(() => api('users.resendInvite', { id: o.user_id }), (x) => (x.emailed === false ? "Email didn't send — share the link below" : 'Invite sent again'));
     setLink(r.invite_link);
@@ -101,10 +101,10 @@ function Profile({ o, reload, user, base }) {
   const props = { o, reload, user, isCo, roles, roleName, onForbidden: forbid };
 
   return (
-    <Page title={o.full_name || o.name} subtitle={o.goes_by?.trim() ? `Goes by ${o.goes_by.trim()}` : undefined} back={{ to: `${base}/staff`, label: isCo ? 'Staff' : 'Officers' }}
+    <Page title={o.full_name || o.name} subtitle={o.goes_by?.trim() ? `Goes by ${o.goes_by.trim()}` : undefined} back={{ to: `${base}/staff`, label: isCo ? 'People' : 'Officers' }}
       actions={isCo ? [
         { label: 'Edit', icon: Pencil, onClick: () => setEditing(true), main: true },
-        !o.user_id && o.email && { label: 'Invite to app', icon: Send, variant: 'soft', busy, onClick: invite },
+        !o.user_id && { label: 'Give app access', icon: KeyRound, variant: 'soft', onClick: () => setUrl({ tab: 'access', sub: null }) },
         o.user_id && o.login_status === 'invited' && { label: 'Resend invite', icon: Send, variant: 'soft', busy, onClick: resend },
         o.status !== 'left' && { label: 'Status', icon: UserCheck, onClick: () => setStatusOpen(true) },
         o.status === 'active' && { label: 'Suspend', icon: Ban, danger: true, onClick: suspend },
@@ -139,7 +139,7 @@ function Profile({ o, reload, user, base }) {
             </div>
           </div>
         </div>
-        <AppAccess o={o} manage={user.role === 'company'} />
+        <AppAccess o={o} manage={isCo} />
         {(o.compliance?.issues?.length > 0 || o.compliance?.graced?.length > 0) && (
           <div className="mt-4 flex flex-wrap gap-1.5 border-t border-line pt-3">
             {o.compliance.issues.map((i) => <span key={i} className="rounded-lg bg-red-soft px-2 py-0.5 text-caption font-semibold text-red">{i}</span>)}
@@ -156,7 +156,8 @@ function Profile({ o, reload, user, base }) {
 
       {current === 'overview' && <OverviewTab {...props} />}
       {current === 'overview' && isCo && <RecentEmail type="officer" id={o.id} />}
-      {current === 'overview' && <RecordHistory entity="officer" id={o.id} related />}
+      {current === 'access' && <AccessTab person={{ officer_id: o.id, user_id: o.user_id, email: o.email, name: o.full_name || o.name }} reload={reload} />}
+      {current === 'history' && <PersonHistory officerId={o.id} userId={o.user_id} />}
       {current === 'compliance' && <ComplianceTab {...props} />}
       {current === 'documents' && <DocumentsTab {...props} onForbidden={() => forbid('documents')} />}
       {current === 'rates' && <RatesTab {...props} />}
@@ -287,13 +288,13 @@ function AppAccess({ o, manage }) {
     : o.login_status === 'disabled' ? 'Login deactivated'
       : o.login_status === 'invited' ? (o.invite_sent_at ? `Invited · sent ${dateShort(o.invite_sent_at)}` : 'Invited · not emailed yet')
         : o.last_login ? `Active · seen ${relative(o.last_login)}` : 'Active · not signed in yet';
-  const manager = o.login_role && o.login_role !== 'officer' ? ROLE_LABEL[o.login_role] : null;
+  const apps = o.user_id ? appsLine(appsOf(o.login_role, true)) : null;
   return (
     <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line pt-3 text-subhead">
       <span className="text-caption2 font-semibold uppercase tracking-wide text-faint">App access</span>
       <span className="font-semibold">{line}</span>
-      {manager && <span className="text-muted">Also a {manager.toLowerCase()}</span>}
-      {manage && o.user_id && <Link to={`/company/settings?tab=users&user=${o.user_id}`} className="ml-auto inline-flex items-center gap-1 font-semibold text-blue">Manage access<ChevronRight size={16} /></Link>}
+      {apps && <span className="text-muted">{apps}</span>}
+      {manage && <Link to="?tab=access" className="ml-auto inline-flex items-center gap-1 font-semibold text-blue">{o.user_id ? 'Manage access' : 'Give app access'}<ChevronRight size={16} /></Link>}
     </div>
   );
 }

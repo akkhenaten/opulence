@@ -59,7 +59,7 @@ function History({ entity, id, related = false, className }) {
           <LoadFail q={q} what="history" />
           {!q.data && !q.error ? <Spinner /> : (
             <ol className="space-y-3">
-              {rows.map((r) => <Entry key={r.id} r={r} own={r.entity === entity && String(r.entity_id) === String(id)} />)}
+              {rows.map((r) => <HistoryEntry key={r.id} r={r} own={r.entity === entity && String(r.entity_id) === String(id)} />)}
             </ol>
           )}
           {rows.length >= limit && count > limit && <Button variant="link" className="mt-2" onClick={() => setLimit((x) => x + PAGE)}>Show more ({count - limit})</Button>}
@@ -69,7 +69,7 @@ function History({ entity, id, related = false, className }) {
   );
 }
 
-function Entry({ r, own }) {
+export function HistoryEntry({ r, own }) {
   const [more, setMore] = useState(false);
   const detail = r.detail && typeof r.detail === 'object' && Object.keys(r.detail).length ? r.detail : null;
   const line = changeLine(r);

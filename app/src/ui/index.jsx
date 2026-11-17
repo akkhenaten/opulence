@@ -563,11 +563,11 @@ export function SearchInput({ value, onChange, placeholder = 'Search', className
     </div>
   );
 }
-export function Toggle({ checked, onChange, label, hint }) {
+export function Toggle({ checked, onChange, label, hint, disabled }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-4 py-1">
+    <label className={cx('flex items-center justify-between gap-4 py-1', disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer')}>
       <span><span className="block text-body font-medium">{label}</span>{hint && <span className="block text-caption text-muted">{hint}</span>}</span>
-      <button type="button" role="switch" aria-checked={!!checked} onClick={() => onChange(!checked)}
+      <button type="button" role="switch" aria-checked={!!checked} disabled={disabled} onClick={() => onChange(!checked)}
         className={cx('ui-toggle relative h-[31px] w-[51px] shrink-0 rounded-full before:absolute before:-inset-[7px] transition-colors duration-[var(--dur-2)]', checked ? 'bg-green' : 'bg-toggle-off')}>
         <span className={cx('ui-toggle-thumb absolute top-[2px] h-[27px] w-[27px] rounded-full bg-white shadow transition-[left] duration-[var(--dur-2)] ease-ios', checked ? 'left-[22px]' : 'left-[2px]')} />
       </button>

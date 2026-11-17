@@ -8,6 +8,7 @@ import { parse, fill, unknownPlaceholders } from '../lib/docmarkup.mjs';
 import { nextReference, event, events, markOpened, companySigner, signerColumns, uaOf, sealQuietly, pdfFor } from '../lib/esign.mjs';
 import { CATEGORIES, officerValues, typedValues, contractInput, companyOf, uploadSignaturePage } from './esign.mjs';
 import { audit } from '../lib/audit.mjs';
+import { assertCanDisable, setLoginStatus } from './users.mjs';
 import { unavailableClashNotice } from '../lib/access.mjs';
 import { getSettings } from './settings.mjs';
 import { recordEngagement } from './contractsPack.mjs';
@@ -392,6 +393,13 @@ export const actions = {
   // ---- Offboarding ----
   'offboarding.save': def(CO, async (b, { user }) => {
     required(b, 'officer_id', 'leave_date');
+    // What happens to their app access: kept, the Officer app only (a manager keeps their portal), or all of it.
+    // The old disable_login switch still works. The rules are the Access tab's, checked before anything changes.
+    const login = ['keep', 'officer_only', 'all'].includes(b.login) ? b.login : b.disable_login === false ? 'keep' : 'all';
+    const acct = await one('SELECT u.* FROM users u JOIN officers o ON o.user_id = u.id WHERE o.id = $1', [b.officer_id]);
+    const unlinkOnly = acct && login === 'officer_only' && acct.role !== 'officer';
+    const switchOff = acct && acct.status !== 'disabled' && (login === 'all' || (login === 'officer_only' && acct.role === 'officer'));
+    if (switchOff) await assertCanDisable(user, acct);
     const removed = await tx(async (t) => {
       await t.q(
         `INSERT INTO offboarding (officer_id, leave_date, reason, kit_returned, rehire_eligible, notes, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7)
@@ -404,9 +412,11 @@ export const actions = {
           WHERE s.id = a.shift_id AND v.id = s.venue_id AND a.officer_id = $1 AND s.starts_at > ($2::date + interval '1 day') AND a.status IN ('assigned','accepted','requested')
           RETURNING a.id, a.officer_id, a.shift_id, s.starts_at, v.name AS venue_name`,
         [b.officer_id, b.leave_date]);
-      if (b.disable_login !== false) await t.q("UPDATE users SET status = 'disabled' FROM officers o WHERE o.user_id = users.id AND o.id = $1", [b.officer_id]);
+      if (unlinkOnly) await t.q('UPDATE officers SET user_id = NULL WHERE id = $1', [b.officer_id]);
       return rows;
     });
+    if (unlinkOnly) await audit(user, 'user.works_shifts', 'user', acct.id, { on: false, officer_id: b.officer_id, reason: 'offboarded' });
+    if (switchOff) await setLoginStatus(user, acct.id, 'disabled', { reason: 'offboarded' });
     await afterShiftChange({ removed, officerIds: [b.officer_id] });
     await audit(user, 'officer.offboard', 'officer', b.officer_id, { reason: b.reason });
     return { ok: true };
@@ -414,7 +424,9 @@ export const actions = {
 
   'offboarding.rehire': def(CO, async (b, { user }) => {
     await q("UPDATE officers SET status = 'onboarding' WHERE id = $1", [b.officer_id]);
-    await q("UPDATE users SET status = 'active' FROM officers o WHERE o.user_id = users.id AND o.id = $1 AND users.password_hash IS NOT NULL", [b.officer_id]);
+    // An officer login that had set its password comes back on, through the same switch as Reactivate
+    const acct = await one("SELECT u.id FROM users u JOIN officers o ON o.user_id = u.id WHERE o.id = $1 AND u.role = 'officer' AND u.status = 'disabled' AND u.password_hash IS NOT NULL", [b.officer_id]);
+    if (acct) await setLoginStatus(user, acct.id, 'active', { reason: 'rehired' });
     await q('DELETE FROM offboarding WHERE officer_id = $1', [b.officer_id]);
     await audit(user, 'officer.rehire', 'officer', b.officer_id);
     return { ok: true };

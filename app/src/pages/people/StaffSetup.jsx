@@ -123,7 +123,7 @@ function SubmissionSheet({ id, onClose, onDone }) {
       {sent ? <Sent r={sent} /> : <Load q={q}>
         {() => (venue ? (
           <div className="space-y-5">
-            {s.duplicate && <Callout tone="warning">{s.duplicate.name} already has a login with this email ({s.duplicate.status}). Discard this one, or change their access in Settings → Users.</Callout>}
+            {s.duplicate && <Callout tone="warning">{s.duplicate.name} already has a login with this email ({s.duplicate.status}). Discard this one, or change their access on their page in Staff → People.</Callout>}
             <KV items={[
               ['Name', `${d.first_name} ${d.last_name}${d.goes_by ? ` (${d.goes_by})` : ''}`],
               ['Job title', d.job_title || '—'],
@@ -136,7 +136,7 @@ function SubmissionSheet({ id, onClose, onDone }) {
             )}
             <Chips label="Link them to" options={(s.venues || []).map((x) => ({ value: x.id, label: x.name }))} value={picked} onChange={setVenues} />
             {!picked.length && <p className="text-caption text-muted">Their venue name didn't match one of yours. Pick it above; if it isn't there yet, add it in Venues first.</p>}
-            <p className="text-caption text-muted">Create login adds them as a Venue Manager for these venues, with their photo and no email; send the invite later from Settings → Users. Create and send invite also emails them a link to set their password.</p>
+            <p className="text-caption text-muted">Create login adds them as a Venue Manager for these venues, with their photo and no email; send the invite later from their Access tab in Staff → People. Create and send invite also emails them a link to set their password.</p>
           </div>
         ) : (
           <div className="space-y-5">
@@ -179,7 +179,7 @@ function SubmissionSheet({ id, onClose, onDone }) {
 
 // After Create and send invite: the invite link to share, and what to do if the email or the login didn't happen
 function Sent({ r }) {
-  const where = r.kind === 'venue' ? 'Settings → Users' : 'their profile in Staff';
+  const where = r.kind === 'venue' ? 'their Access tab in Staff → People' : 'their profile in Staff → People';
   return (
     <div className="space-y-4">
       {r.invite_error ? (

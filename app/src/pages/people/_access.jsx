@@ -1,10 +1,7 @@
 // Who a manager or venue user is, and what they can reach: role, then the client they speak for, then their venues
-import { useState } from 'react';
-import { api } from '../../api.js';
-import { useAuth } from '../../auth.jsx';
-import { Button, dateTime, Input, Segmented, Sheet, Toggle, useAction, useApi, useForm } from '../../ui/index.jsx';
-import { ROLE_LABEL } from '../../layouts/nav.js';
-import { Chips, CopyLink } from './_parts.jsx';
+import { dateTime } from '../../ui/index.jsx';
+import { Chips } from './_parts.jsx';
+import { AddPersonSheet } from './_person.jsx';
 import { ClientSelect } from '../money/_client.jsx';
 
 export const USER_ROLES = ['company', 'security', 'venue'];
@@ -57,46 +54,32 @@ export const inviteStatus = (u) => {
 };
 
 // The platform admin's login is always a Company manager (the server enforces it; this just shows it)
-const PLATFORM_EMAILS = ['info@orbsolutions.co.uk'];
+export const PLATFORM_EMAILS = ['info@orbsolutions.co.uk'];
 
-/** Invite a manager or venue user. `preset` fills in the role, client and venues (from a venue or client page). */
+const APP_NAME = { officer: 'Officer app', company: 'Office', security: 'Security manager', venue: 'Venue manager' };
+const listOf = (xs) => (xs.length <= 2 ? xs.join(' and ') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+const PLACE = ['security', 'venue'];
+
+/** "Will gain: Security manager, Club One · Will lose: Officer app" for a change of ticks, venues and pay */
+export function accessPreview(start, v, venues = []) {
+  const nameOf = (id) => venues.find((x) => x.id === id)?.name;
+  const apps = (x) => [x.officer && 'officer', x.manager].filter(Boolean);
+  const gain = apps(v).filter((k) => !apps(start).includes(k)).map((k) => APP_NAME[k]);
+  const lose = apps(start).filter((k) => !apps(v).includes(k)).map((k) => APP_NAME[k]);
+  const before = PLACE.includes(start.manager) ? start.venue_ids || [] : [];
+  const after = PLACE.includes(v.manager) ? v.venue_ids || [] : [];
+  gain.push(...after.filter((id) => !before.includes(id)).map(nameOf).filter(Boolean));
+  lose.push(...before.filter((id) => !after.includes(id)).map(nameOf).filter(Boolean));
+  const kept = before.filter((id) => after.includes(id)).map(nameOf).filter(Boolean);
+  const moved = start.manager && v.manager && start.manager !== v.manager && kept.length;
+  const pay = (x) => x.manager === 'company' || (x.manager === 'security' && !!x.can_see_pay);
+  if (pay(v) !== pay(start)) (pay(v) ? gain : lose).push('pay');
+  return [gain.length && `Will gain: ${listOf(gain)}`, lose.length && `Will lose: ${listOf(lose)}`, moved && `Keeps ${listOf(kept)} as ${APP_NAME[v.manager]}`]
+    .filter(Boolean).join(' · ');
+}
+
+/** Old callers: invite a manager or venue user. `preset.role` picks the manager access; the sheet is Add person. */
 export function InviteSheet({ preset = {}, onClose, onDone }) {
-  const { user } = useAuth();
-  const venues = useApi('venues.list');
-  const clients = useApi('clients.list', {}, { skip: user.role !== 'company' });
-  const { v, bind, set } = useForm({ name: '', email: '', phone: '', role: 'security', venue_ids: [], client_id: '', can_see_pay: false, ...preset });
-  const [run, busy] = useAction();
-  const [link, setLink] = useState(null);
-  const [emailed, setEmailed] = useState(true);
-  const platform = PLATFORM_EMAILS.includes(v.email.trim().toLowerCase());
-  const role = platform ? 'company' : v.role;
-  const send = async () => {
-    const office = role === 'company';
-    const r = await run(() => api('users.invite', {
-      ...v, role, venue_ids: office ? undefined : v.venue_ids, client_id: office ? null : v.client_id || null, can_see_pay: role === 'security' && v.can_see_pay,
-    }), (x) => (x.emailed === false ? "Email didn't send — share the link below" : 'Invite sent'));
-    setLink(r.invite_link);
-    setEmailed(r.emailed !== false);
-    onDone();
-  };
-  return (
-    <Sheet open onClose={onClose} title={link ? 'Invite sent' : 'Invite manager or venue user'}
-      footer={link ? <Button onClick={onClose}>Done</Button>
-        : <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!v.name || !v.email} onClick={send}>Send invite</Button></>}>
-      {link ? <CopyLink link={link} hint={inviteHint(emailed, v.email)} /> : (
-        <div className="space-y-4">
-          <Segmented value={role} onChange={(r) => set('role', r)} options={USER_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))} />
-          <p className="text-footnote text-muted">{platform ? 'This is the platform admin — always a Company manager.' : ROLE_HINT[role]}</p>
-          <Input label="Full name" {...bind('name')} />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Input label="Email" type="email" {...bind('email')} />
-            <Input label="Phone" type="tel" {...bind('phone')} />
-          </div>
-          <AccessFields role={role} v={v} set={set} venues={venues.data || []} clients={clients.data || []} onClientCreated={clients.reload} />
-          {role === 'security' && <div className="rounded-2xl bg-bg px-4 py-2"><Toggle checked={v.can_see_pay} onChange={(x) => set('can_see_pay', x)} label="Can see pay" hint="Officer rates and pay statements" /></div>}
-          <p className="text-caption text-faint">Officers are added from People → Staff, with App access turned on.</p>
-        </div>
-      )}
-    </Sheet>
-  );
+  const { role, ...rest } = preset;
+  return <AddPersonSheet title="Invite manager or venue user" preset={{ manager: role || 'security', officer: false, ...rest }} onClose={onClose} onDone={onDone} />;
 }

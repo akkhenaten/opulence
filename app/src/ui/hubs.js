@@ -18,7 +18,7 @@ export const HUBS = {
       { to: 'ejections', label: 'Ejections register' },
     ] },
     staff: { title: 'Staff', tabs: [
-      { to: 'staff', label: 'Officers' },
+      { to: 'staff', label: 'People' },
       { to: 'recruitment', label: 'Recruitment', roles: ['company'] },
       { to: 'people/compliance', label: 'Compliance' },
       { to: 'people/contracts', label: 'Contracts', roles: ['company'] },

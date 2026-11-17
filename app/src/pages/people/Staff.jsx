@@ -1,26 +1,63 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarClock, Download, LayoutGrid, List, Plus, ShieldAlert, ShieldCheck, UserPlus, Users } from 'lucide-react';
-import { api, downloadAction } from '../../api.js';
+import { CalendarClock, Download, LayoutGrid, List, Plus, ShieldAlert, UserPlus, Users } from 'lucide-react';
+import { downloadAction } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Button, Chip, date, Empty, Load, MoreMenu, Page, PhotoCard, Pill, SearchInput, Segmented, Select, Sheet, Table, ToolField, ToolMenu, useAction, useApi, useForm, useMedia, useUrlState, displayName,
+  Avatar, Button, Chip, date, Empty, Load, MoreMenu, Page, PhotoCard, Pill, SearchInput, Segmented, Select, Table, ToolField, ToolMenu, useApi, useMedia, useUrlState, displayName,
 } from '../../ui/index.jsx';
-import {
-  ComplianceBadge, CopyLink, OFFICER_STATUSES, OfficerCoreFields, cleanOfficer, complianceState, emptyOfficer, useBase, useRoles,
-} from './_parts.jsx';
+import { ComplianceBadge, OFFICER_STATUSES, complianceState, useBase, useRoles } from './_parts.jsx';
+import { AddPersonSheet, LoginList } from './_person.jsx';
 
 // What managers can chase about the app: a registered clock-in phone, and phone notifications
 const APP_SETUP = {
   phone: { label: 'No phone registered', test: (o) => o.has_phone },
   push: { label: 'No notifications', test: (o) => o.has_push },
+  none: { label: 'No app', test: (o) => !!o.user_id },
 };
 const AppSetup = ({ o }) => (o.has_phone && o.has_push ? <span className="text-footnote text-faint">Set up</span> : (
   <span className="flex flex-wrap gap-1">{!o.has_phone && <Pill tone="amber">No phone</Pill>}{!o.has_push && <Pill tone="grey">No notifications</Pill>}</span>
 ));
+// Who the list shows: officers (the staff records), or the people who sign in to a manager portal, or everyone
+const WHO = [{ value: 'officers', label: 'Officers' }, { value: 'company', label: 'Office' }, { value: 'security', label: 'Security managers' }, { value: 'venue', label: 'Venue managers' }, { value: 'all', label: 'All' }];
+const LOGIN_STATUS = [{ value: 'all', label: 'Any status' }, { value: 'active', label: 'Active' }, { value: 'invited', label: 'Invited' }, { value: 'disabled', label: 'Deactivated' }];
 const COMPLIANCE = [{ value: 'all', label: 'Any compliance' }, { value: 'green', label: 'Compliant' }, { value: 'amber', label: 'Expiring or not checked' }, { value: 'grace', label: 'On grace' }, { value: 'red', label: 'Not compliant' }];
 
 export default function Staff() {
+  const { user } = useAuth();
+  const [url, setUrl] = useUrlState({ who: 'officers' });
+  const who = user.role === 'company' && WHO.some((w) => w.value === url.who) ? url.who : 'officers';
+  const picker = user.role === 'company' && <Segmented value={who} onChange={(w) => setUrl({ who: w === 'officers' ? null : w })} options={WHO} className="mb-4" />;
+  return who === 'officers' ? <Officers picker={picker} /> : <Logins who={who} picker={picker} me={user} />;
+}
+
+// Office, security and venue managers, or everyone (logins plus staff records with no app)
+function Logins({ who, picker, me }) {
+  const users = useApi('users.list', { role: who === 'all' ? undefined : who });
+  const officers = useApi('officers.list', {}, { skip: who !== 'all' });
+  const [url, setUrl] = useUrlState({ q: '', login: 'all' });
+  const status = LOGIN_STATUS.some((x) => x.value === url.login) ? url.login : 'all';
+  const [adding, setAdding] = useState(false);
+  const rows = useMemo(() => [
+    ...(users.data || []).map((u) => ({ ...u, key: u.id })),
+    ...(who === 'all' ? (officers.data || []).filter((o) => !o.user_id && o.status !== 'left')
+      .map((o) => ({ key: o.id, id: o.id, officer_id: o.id, name: displayName(o), email: o.email, photo_url: o.photo_url, role: null, status: null })) : []),
+  ].sort((a, b) => String(a.name).localeCompare(String(b.name))), [users.data, officers.data, who]);
+  const tools = <>
+    <SearchInput className="min-w-0 flex-1 sm:w-56 sm:flex-none" value={url.q} onChange={(e) => setUrl({ q: e.target.value })} placeholder="Search name, email, client or venue" />
+    <div className="w-40"><Select aria-label="Status" value={status} onChange={(e) => setUrl({ login: e.target.value === 'all' ? null : e.target.value })} options={LOGIN_STATUS} /></div>
+  </>;
+  const preset = who === 'all' ? {} : { manager: who, officer: false };
+  return (
+    <Page2 isCo onAdd={() => setAdding(true)} tools={tools}>
+      {picker}
+      <Load q={users}>{() => <LoginList who={who} rows={rows} search={url.q} status={status} me={me} />}</Load>
+      {adding && <AddPersonSheet preset={preset} onClose={() => setAdding(false)} onDone={() => { users.reload(); officers.reload?.(); }} />}
+    </Page2>
+  );
+}
+
+function Officers({ picker }) {
   const { user } = useAuth();
   const base = useBase();
   const isCo = user.role === 'company';
@@ -74,6 +111,7 @@ export default function Staff() {
 
   return (
     <Page2 isCo={isCo} onAdd={() => setAdding(true)} tools={tools}>
+      {picker}
       <Load q={q}>
         {() => (
           <>
@@ -113,75 +151,23 @@ export default function Staff() {
           </>
         )}
       </Load>
-      {isCo && <AddOfficerSheet open={adding} onClose={() => setAdding(false)} roles={roles} onDone={q.reload} />}
+      {isCo && adding && <AddPersonSheet title="Add officer" preset={{ officer: true }} onClose={() => setAdding(false)} onDone={q.reload} />}
     </Page2>
   );
 }
 
 function Page2({ isCo, onAdd, tools, children }) {
   return (
-    <Page title={isCo ? 'Staff' : 'Officers'} subtitle={isCo ? 'Officers, licences and compliance' : 'Officers you can roster'} tools={tools}
-      actions={<>{isCo && <Button icon={Plus} onClick={onAdd}>Add staff member</Button>}
+    <Page title={isCo ? 'People' : 'Officers'} subtitle={isCo ? 'Officers, managers and venue users, and what each can use' : 'Officers you can roster'} tools={tools}
+      actions={<>{isCo && <Button icon={Plus} onClick={onAdd}>Add person</Button>}
         <MoreMenu items={[{ icon: Download, label: 'Export to spreadsheet', hint: 'Everyone on the list, as CSV', onClick: () => downloadAction('staff.exportCsv', {}).catch(() => {}) }]} /></>}>
       {children}
     </Page>
   );
 }
 
-export function AddOfficerSheet({ open, onClose, roles, onDone, status = 'active', title = 'Add staff member', statusOptions }) {
-  const nav = useNavigate();
-  const base = useBase();
-  const form = useForm(emptyOfficer(status));
-  const [run, busy] = useAction();
-  const [result, setResult] = useState(null);
-  const [dup, setDup] = useState(null);
-  const [linkable, setLinkable] = useState(null);
-  const close = () => { onClose(); setTimeout(() => { setResult(null); setDup(null); setLinkable(null); form.setV(emptyOfficer(status)); }, 300); };
-  // extra: { link_user } links to the manager login with this email, { keep_separate } doesn't
-  const save = async (extra = {}) => {
-    setDup(null);
-    setLinkable(null);
-    const r = await run(() => api('officers.save', { ...cleanOfficer(form.v), ...extra }), extra.link_user ? `${form.v.first_name} linked to their manager login` : `${form.v.first_name} added`)
-      .catch((e) => { setDup(e.data?.duplicate || null); setLinkable(e.data?.can_link ? e.data.user_name : null); });
-    if (!r) return;
-    onDone?.();
-    if (r.invite_link) setResult(r);
-    else { close(); nav(`${base}/staff/${r.id}`); }
-  };
-  return (
-    <Sheet open={open} onClose={close} title={result ? 'Staff member added' : title}
-      footer={result
-        ? <><Button variant="secondary" onClick={close}>Done</Button><Button onClick={() => { close(); nav(`${base}/staff/${result.id}`); }}>Open profile</Button></>
-        : <><Button variant="secondary" onClick={close}>Cancel</Button><Button busy={busy} disabled={!form.v.first_name || !form.v.last_name} onClick={() => save()}>Save</Button></>}>
-      {result ? (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-2xl bg-green-soft p-4 text-green"><ShieldCheck size={20} /><span className="text-body font-semibold">Invite created. They can set a password with this link.</span></div>
-          <CopyLink link={result.invite_link} />
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <p className="text-subhead text-muted">Someone who works shifts. Turn on App access to email them a login. Managers and venue users are invited from Settings → Users &amp; access.</p>
-          {dup && (
-            <div className="flex items-center gap-3 rounded-2xl bg-amber-soft p-3 text-amber">
-              <Users size={20} className="shrink-0" />
-              <span className="min-w-0 flex-1 text-subhead font-semibold">Already on your staff: {dup.name}{dup.status && dup.status !== 'active' ? ` (${dup.status})` : ''}</span>
-              <Button size="sm" variant="secondary" onClick={() => { close(); nav(`${base}/staff/${dup.id}`); }}>Open</Button>
-            </div>
-          )}
-          {linkable && (
-            <div className="space-y-3 rounded-2xl bg-blue-soft p-4">
-              <p className="text-subhead font-semibold text-blue">{linkable} already signs in as a manager. Link this staff record to their login?</p>
-              <p className="text-footnote text-muted">One login does both: they switch to "My shifts" to clock in and see their own pay. No invite is sent, and another manager approves their hours.</p>
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" busy={busy} onClick={() => save({ link_user: true })}>Link to their manager login</Button>
-                {!form.v.invite && <Button size="sm" variant="secondary" disabled={busy} onClick={() => save({ keep_separate: true })}>Keep separate</Button>}
-              </div>
-            </div>
-          )}
-          <OfficerCoreFields form={form} roles={roles} statusOptions={statusOptions} />
-        </div>
-      )}
-      {!result && <p className="mt-4 text-caption text-faint">You can add right to work, bank details and documents from the profile.</p>}
-    </Sheet>
-  );
+/** Recruitment's Add applicant: the Add person sheet, starting as an applicant with no app */
+export function AddOfficerSheet({ open, onClose, onDone, status = 'active', title = 'Add officer', statusOptions }) {
+  if (!open) return null;
+  return <AddPersonSheet title={title} preset={{ status, officer: status === 'active' }} statusOptions={statusOptions} onClose={onClose} onDone={onDone} />;
 }

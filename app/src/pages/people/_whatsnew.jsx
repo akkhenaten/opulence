@@ -11,6 +11,19 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-17', icon: UserRound, title: 'One page for every person, and what they can use', image: 'person-page',
+    lede: "Everyone now has one page in Staff → People: their profile, the apps they can use, their venues and their history, together. The Users & access tab in Settings has gone, and its old links open the right page.",
+    points: [
+      "People lists everyone: Officers, Office, Security managers, Venue managers or All. Filter officers by No app to see who has no login yet",
+      "A person's Access tab has a tick for each app: Officer app, Office, Security manager and Venue manager. One manager access at a time, and venue managers don't have the Officer app",
+      "Before you save, the tab says what they will gain and lose, including venues and pay. They get a notice that their access changed, and History records it",
+      "Change someone from security manager to venue manager, or give a manager the Officer app, without deactivating them and inviting them again",
+      "Invites, resending them, the invite link, a password reset link and Deactivate all sit on the same tab",
+      "One Add person sheet, from People, a venue page or a client page. Create makes the login without emailing; Create and send invite emails it. An email already in use offers their page instead of a second record",
+      "Offboarding someone who is also a manager asks whether to remove the Officer app only, switch off all app access, or keep it",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-17', icon: Sparkles, title: 'Orb spends credits only where it needs to think', image: 'orb-credits-rules',
     lede: "Everyday work that follows a pattern is now done by plain rules, at no AI cost. Orb's AI is kept for the things that need judgement, so your monthly AI credits go further.",
     points: [

@@ -154,6 +154,7 @@ async function recordAddrs(type, id) {
     return (await q(`SELECT lower(billing_email) AS e FROM clients WHERE id = $1
       UNION SELECT lower(u.email) FROM venues v JOIN venue_contacts vc ON vc.venue_id = v.id JOIN users u ON u.id = vc.user_id WHERE v.client_id = $1`, [id])).map((r) => r.e);
   }
+  if (type === 'user') return (await q('SELECT lower(email) AS e FROM users WHERE id = $1', [id])).map((r) => r.e);
   fail(400, 'Unknown record type');
 }
 
