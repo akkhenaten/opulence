@@ -7,9 +7,9 @@ export const SONNET = 'claude-sonnet-5';
 export const HAIKU = 'claude-haiku-4-5-20251001';
 const URL = 'https://proxy.openkbs.com/v1/anthropic/v1/messages';
 
-// Prices are credits per 1K tokens
+// Prices are credits per 1K tokens. A prompt read back from the cache costs a tenth of fresh input
 export function creditsFor(usage = {}, price = {}) {
-  const input = (usage.input_tokens || 0) + (usage.cache_creation_input_tokens || 0) + (usage.cache_read_input_tokens || 0);
+  const input = (usage.input_tokens || 0) + (usage.cache_creation_input_tokens || 0) + (usage.cache_read_input_tokens || 0) * 0.1;
   return Math.round(((input * (price.inputPrice || 0) + (usage.output_tokens || 0) * (price.outputPrice || 0)) / 1000) * 100) / 100;
 }
 

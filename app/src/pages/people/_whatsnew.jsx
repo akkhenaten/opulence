@@ -11,6 +11,19 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-17', icon: Sparkles, title: 'Orb spends credits only where it needs to think', image: 'orb-credits-rules',
+    lede: "Everyday work that follows a pattern is now done by plain rules, at no AI cost. Orb's AI is kept for the things that need judgement, so your monthly AI credits go further.",
+    points: [
+      "Short replies to Orb's shift messages, like \"yes\", \"omw 10\" or \"can't tonight\", are read by rules. Only long or mixed replies go to the AI",
+      "A plain staff request typed in chat, like \"2 door staff Saturday 9pm-3am\" or \"every Fri and Sat 10pm to 2am, 3 doormen\", fills the request form by rules. Changes, cancellations and anything unclear are still read by the AI",
+      "Toolbox search matches cards by their words first, and says call 999 straight away when a life is at risk. The AI only helps when no card fits",
+      "Compliance cards come with a set to-do list. Ask Orb what to do first on a card when you want the AI's advice",
+      "Incident evidence is reviewed by AI once, when the report comes in. Tap Check again after changes to review it once more",
+      "Venue feedback with low stars or a complaint becomes a card for the office by rules. The AI reads only long notes. Venue street lines and website text no longer use AI, and the course tutor and email summaries use the quicker, cheaper model",
+      "Your AI usage figures now count re-read text at its real, lower price",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-17', icon: BellRing, title: "Requests that reach officers, and one list of what needs you", image: 'requests-reach-officers',
     lede: "A venue's staff request now lights up Rota in the menu as soon as it arrives, and every count in the app comes from one list, so the menu, Today, the bell and the venue's dashboard always agree.",
     points: [

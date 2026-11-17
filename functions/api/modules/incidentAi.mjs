@@ -53,27 +53,6 @@ const field = (desc, type = 'string') => ({
   required: ['value', 'source'],
 });
 
-const DRAFT_TOOL = {
-  name: 'draft_report',
-  description: 'Suggested incident report fields. Leave out any field you have no basis for.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      type: field(`One of: ${TYPES.join(', ')}`),
-      severity: field('One of: low, medium, high, critical'),
-      description: field('What happened, in order, including any damage seen. 3–8 sentences.'),
-      location: field('Where in or near the venue'),
-      people_involved: field('Broad descriptions only, no names unless the officer gave them in the notes'),
-      injuries: field('Injuries seen or reported, or "None reported"'),
-      actions_taken: field('What the officers did'),
-      police_called: field('Whether police were called', 'boolean'),
-      ambulance_called: field('Whether an ambulance was called', 'boolean'),
-      questions: { type: 'array', items: { type: 'string' }, description: 'Short questions for the officer where the notes and photos disagree or key facts are missing' },
-    },
-    required: ['questions'],
-  },
-};
-
 const REVIEW_TOOL = {
   name: 'evidence_review',
   description: 'Evidence review of an incident report for the manager.',
@@ -166,15 +145,15 @@ export async function decideIncident(it, b, user) {
   return { sent_back: true };
 }
 
-// Ops job: refresh up to 2 submitted reports whose files or text changed since the last summary
+// Ops job: review up to 2 submitted reports that have never been reviewed. Edits after that don't queue another AI run;
+// the manager's Check again (incidents.aiReview) does, and the page says when the summary is older than the report
 export async function evidenceScan(s) {
   if (!aiOn(s)) return 'off';
   const rows = await q(
     `SELECT i.id FROM incidents i
       WHERE i.status = 'submitted' AND i.updated_at > now() - interval '30 days'
         AND EXISTS (SELECT 1 FROM incident_attachments x WHERE x.incident_id = i.id AND x.removed_at IS NULL)
-        AND (i.ai_summary_at IS NULL OR i.ai_summary_at < GREATEST(i.updated_at,
-             (SELECT max(GREATEST(x.created_at, COALESCE(x.removed_at, x.created_at))) FROM incident_attachments x WHERE x.incident_id = i.id)))
+        AND i.ai_summary_at IS NULL
       ORDER BY i.updated_at DESC LIMIT 2`);
   let n = 0;
   for (const r of rows) {
@@ -267,40 +246,6 @@ const WRITE_TOOL = {
 const SECTION_KEYS = ['what', 'people', 'injuries', 'actions', 'force_justification'];
 
 export const actions = {
-  // Officer: suggest report fields from their photos/files and rough notes
-  // Officers draft from their shift; managers filing from the office can use it too
-  'incidents.aiDraft': def(['officer', 'company', 'security'], async (b, { user }) => {
-    const officer = user.role === 'officer';
-    if (!aiOn(await getSettings())) fail(400, 'AI on incidents is switched off by your company');
-    const keys = [...new Set(b.keys || [])].slice(0, 20);
-    const notes = String(b.notes || '').slice(0, 4000);
-    if (!keys.length && !notes.trim()) fail(400, 'Add photos or a few notes first');
-    const { shift, blocks, used, skipped } = await gather(b, user, keys);
-    const current = Object.entries(b.current || {}).filter(([, v]) => v !== '' && v != null).map(([k, v]) => `${k}: ${String(v).slice(0, 500)}`).join('\n');
-    const text = [
-      officer ? `Officer: ${user.name}.` : `Written by ${user.name} from the office, not the officer on the door.`,
-      shift ? `Shift: ${shift.role_name} at ${shift.venue_name}, ${fmtDateTime(shift.starts_at)} to ${fmtDateTime(shift.ends_at)}.` : '',
-      b.occurred_at ? `Incident time given: ${fmtDateTime(b.occurred_at)}.` : '',
-      b.occurred_at && Date.now() - new Date(b.occurred_at) > 86400000 ? `This is being written up later, on ${fmtDateTime(new Date())}: write it in the past tense from the officer's recollection.` : '',
-      `Officer's rough notes:\n${notes || '(none)'}`,
-      current ? `Fields already filled in:\n${current}` : '',
-      used.length ? `${used.length} photo(s)/file(s) follow.` : 'No photos.',
-      skipped.length ? `Not readable here: ${skipped.map((f) => f.name).join(', ')}` : '',
-    ].filter(Boolean).join('\n\n');
-    const r = await extract({
-      model: SONNET, max_tokens: 1800,
-      system: `You help a UK SIA-licensed security officer turn rough notes and photos into a clear incident report draft. The officer checks every suggestion before it is used.\n${RULES}\n- The officer's notes are the main source; photos add detail. Mark source "photo" only for facts seen in a photo.\n- Don't contradict what the officer wrote; raise it as a question instead.`,
-      messages: [{ role: 'user', content: [{ type: 'text', text }, ...blocks] }],
-      tool: DRAFT_TOOL,
-    });
-    const out = r.input || {};
-    const suggestions = Object.fromEntries(Object.entries(out).filter(([k, v]) => k !== 'questions' && v && v.value !== undefined && v.value !== ''));
-    if (suggestions.type && !TYPES.includes(suggestions.type.value)) delete suggestions.type;
-    if (suggestions.severity && !['low', 'medium', 'high', 'critical'].includes(suggestions.severity.value)) delete suggestions.severity;
-    await audit(user, 'incident.ai_draft', 'incident', b.incident_id || null, { files: used.length, credits: r.credits });
-    return { suggestions, questions: out.questions || [], skipped: skipped.map((f) => f.name), credits: r.credits };
-  }),
-
   // The writing page: Orb writes the whole report (or redoes one section) from the officer's notes, people, facts and photos
   'incidents.aiWrite': def(['officer', 'company', 'security'], async (b, { user }) => {
     const officer = user.role === 'officer';

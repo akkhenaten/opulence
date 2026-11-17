@@ -271,10 +271,21 @@ const STREET_TOOL = {
   input_schema: { type: 'object', properties: { street: { type: 'string', description: 'Building number and street, e.g. "26 George IV Bridge"; empty if not on the page' } }, required: ['street'] },
 };
 
-// The street line just before the postcode, copied by AI from the page text; anything not on the page is dropped
+const STREET_WORD = 'Street|St|Road|Rd|Lane|Ln|Avenue|Ave|Place|Pl|Square|Sq|Terrace|Ter|Crescent|Cres|Row|Way|Drive|Dr|Court|Ct|Walk|Close|Gardens|Gdns|Bridge|Hill|Wynd|Parade|Quay|Mews|Gate|Grove|Green|Park|Market|Broadway|Circus|Vennel|Loan|Brae|Causeway|Embankment|Wharf|Yard|Mall|Arcade|Precinct|Boulevard';
+const STREET_RE = new RegExp(`\\b(\\d{1,4}[A-Za-z]?(?:\\s?[-–]\\s?\\d{1,4}[A-Za-z]?)?,?\\s+(?:[A-Z][\\w'’.-]*\\s+){0,4}(?:${STREET_WORD}))\\b\\.?`, 'g');
+
+/** "26 George IV Bridge": the last number-and-street before the postcode, copied as written; '' when there isn't one */
+export function streetByRule(near) {
+  const all = [...String(near || '').matchAll(STREET_RE)];
+  return all.length ? all[all.length - 1][1].replace(/\s+/g, ' ').trim().slice(0, 150) : '';
+}
+
+// The street line just before the postcode: by the rule above, else copied by AI from the page text; anything not on the page is dropped
 async function streetFromText(name, pc, text) {
   const near = textBefore(text, pc);
   if (!near) return '';
+  const byRule = streetByRule(near);
+  if (byRule) return byRule;
   try {
     const { input } = await extract({
       model: HAIKU, module: 'website', tool: STREET_TOOL, max_tokens: 120, timeout: 15000,

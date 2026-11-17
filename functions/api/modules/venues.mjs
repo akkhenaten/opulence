@@ -11,7 +11,7 @@ import { audit } from '../lib/audit.mjs';
 import { CO, MGR, def, pub } from './_def.mjs';
 import { getSettings } from './settings.mjs';
 import { isSiteClient } from '../lib/siteClients.mjs';
-import { cleanBlurb, cityOf, publicTile, webUrl } from '../lib/siteVenues.mjs';
+import { cleanBlurb, publicTile, webUrl } from '../lib/siteVenues.mjs';
 import { extract, HAIKU } from '../lib/ai.mjs';
 import { feedbackShape, groupPublic, tickedPraise } from './reviews.mjs';
 import { keepLogoBytes, keepLogoFromWeb, LOGO_MAX, LOGO_TYPES, lookUpAddress, lookUpLogos } from '../lib/venueLookup.mjs';
@@ -188,13 +188,8 @@ export const actions = {
     await audit(user, b.id ? 'venue.update' : 'venue.create', 'venue', v.id, f);
     // Orb's venue setup card for this venue closes as soon as the details are complete
     import('./venueSetup.mjs').then((m) => m.runVenueSetup({ venueIds: [v.id], lookups: 0 })).catch((e) => console.warn('[venues] setup check', e.message));
-    // A venue on the website without a welcome line gets one from AI; the default line covers any failure
-    if (v.on_website && !v.website_blurb) {
-      try {
-        const w = await writeWebsite(v);
-        if (w.blurb) v = await one('UPDATE venues SET website_blurb = $2, city = COALESCE(city, $3) WHERE id = $1 RETURNING *', [v.id, w.blurb, cityOf(v) || w.city]);
-      } catch (e) { console.warn('[venues] website text', e.message); }
-    }
+    // No welcome line of its own: the website shows the default line and the city from the address (siteVenues.publicTile).
+    // AI writes one only when a manager taps Write with AI (venues.writeWebsite)
     if (v.on_website && v.photo_key && !v.website_photo_url) v.website_photo_url = await websitePhoto(v);
     return v;
   }),

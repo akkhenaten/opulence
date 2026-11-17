@@ -6,6 +6,8 @@ import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, need, pick } from '../lib/http.mjs';
 import { venueScope, assertVenue, assertOfficerAccess, narrowScope } from '../lib/scope.mjs';
 import { pickVenueFromText } from '../lib/venuePick.mjs';
+import { parseRequest } from '../lib/parseRequest.mjs';
+import { feedbackProblem } from '../lib/feedbackRules.mjs';
 import { notify, withdraw, companyManagers, securityFor, venueContacts, officerUser, managersFor } from '../lib/notify.mjs';
 import { fmtDate, fmtTime, fmtDateTime, londonDate, londonParts, addDays } from '../lib/time.mjs';
 import { roundHours, money } from '../lib/rates.mjs';
@@ -1236,45 +1238,6 @@ export const actions = {
     return { done: done.length, failed };
   }),
 
-  'ops.chat': def(MGR, async (b, { user }) => {
-    required(b, 'messages');
-    const s = await getSettings();
-    if (!jobOn(s, 'chat')) fail(400, 'Orb chat is switched off in Settings');
-    const now = new Date();
-    const system = `You are Orb, the operations manager assistant inside Orb Security, a UK manned-security company. You help ${user.name} (${user.role === 'company' ? 'company manager' : 'security manager'}) run rotas, cover, attendance and hours.
-Today is ${londonParts(now).weekday} ${londonDate(now)}, time ${fmtTime(now)} Europe/London. Weeks run Monday to Sunday.
-Rules: use the tools to look things up — never guess figures. For the law, the SIA, licensing, force, searching, welfare, incidents or good practice, use security_knowledge (Scotland first) and say it is general guidance. For licences, right to work or "who can work" questions use compliance_status; compliance fixes are approved on the compliance cards in the Orb inbox. You can NEVER change anything yourself: to make a change, call propose_change, which puts a card in the Orb inbox for the manager to approve, and say so.
-Answer in short, plain British business English. Use the officers' and venues' names, dates like "Sat 24 Oct" and 24-hour times. No markdown tables; short lists are fine.${houseRulesBlock(s.ops_house_rules)}`;
-    const messages = b.messages.slice(-20).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 4000) })).filter((m) => m.content);
-    if (!messages.length || messages[messages.length - 1].role !== 'user') fail(400, 'Send a question');
-    const created = [];
-    let credits = 0;
-    for (let round = 0; round < 7; round++) {
-      const r = await claude({ model: SONNET, system, messages, tools: round < 6 ? CHAT_TOOLS : undefined, max_tokens: 1200 });
-      credits += r.credits;
-      const uses = (r.content || []).filter((c) => c.type === 'tool_use');
-      if (r.stop_reason !== 'tool_use' || !uses.length) {
-        const reply = (r.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('\n').trim();
-        const asked = String(b.messages.filter((m) => m.role === 'user').pop()?.content || '').slice(0, 140);
-        await logActivity('chat', `${user.name} asked: ${asked}`, { credits });
-        return { reply: reply || 'Done.', items: created, credits };
-      }
-      messages.push({ role: 'assistant', content: r.content });
-      const results = [];
-      for (const u of uses) {
-        let out;
-        try {
-          out = await runTool(u.name, u.input || {}, user, created);
-        } catch (e) {
-          out = { error: e.message };
-        }
-        results.push({ type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(out).slice(0, 12000) });
-      }
-      messages.push({ role: 'user', content: results });
-    }
-    return { reply: 'That needed too many steps — try a narrower question.', items: created, credits };
-  }),
-
   // Live operations → refresh: every Orb check now (not reminders or invoices), then what it found
   'ops.refresh': def(MGR, async (_b, { user }) => tx(async ({ one: o }) => {
     const lock = await o("SELECT pg_try_advisory_xact_lock(hashtext('ops.refresh')) AS ok");
@@ -1423,8 +1386,10 @@ If the date, times or number of officers are missing or ambiguous, use intent "u
     const history = (b.history || []).slice(-6).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 1000) })).filter((m) => m.content);
     const messages = [...history, { role: 'user', content: String(b.text).slice(0, 2000) }];
     while (messages.length && messages[0].role !== 'user') messages.shift();
-    const { input: parsed, credits } = await extract({ model: HAIKU, system, messages, tool: REQUEST_TOOL, max_tokens: 800 });
     const codes = roles.map((r) => r.code);
+    // A plain first message is read by rules; a follow-up in a conversation, or anything the rules aren't sure of, by the AI
+    const ruled = history.length ? null : parseRequest(b.text, today, codes);
+    const { input: parsed, credits } = ruled ? { input: ruled, credits: 0 } : await extract({ model: HAIKU, system, messages, tool: REQUEST_TOOL, max_tokens: 800 });
     const okRole = (r) => (codes.includes(r) ? r : codes.includes('door') ? 'door' : codes[0]);
     const hhmm = (t) => (/^\d{1,2}:\d{2}$/.test(t || '') ? t.padStart(5, '0') : '');
     const rec = parsed?.recurrence;
@@ -1471,15 +1436,16 @@ If the date, times or number of officers are missing or ambiguous, use intent "u
         `UPDATE venue_feedback SET rating = $3, note = $4, answered_at = now(), answered_by = $5 WHERE shift_id = $1 AND officer_id = $2 AND answered_at IS NULL RETURNING *`,
         [b.shift_id, r.officer_id, rating, note, user.id]);
       if (!f) continue;
-      let problem = rating <= 2;
+      // Low stars or a plain complaint word is a problem by rule; only a long note with neither is read by the AI
+      let problem = feedbackProblem(rating, note);
       let credits = 0;
-      if (!problem && note.trim().length > 3) {
+      if (problem === null) {
         try {
           const x = await extract({ model: HAIKU, system: 'You label venue feedback about a security officer. A problem is any complaint, safety, conduct, lateness, appearance or performance concern.', messages: [{ role: 'user', content: note }],
             tool: { name: 'label', description: 'Label the feedback', input_schema: { type: 'object', properties: { problem: { type: 'boolean' }, summary: { type: 'string' } }, required: ['problem'] } }, max_tokens: 200 });
           problem = !!x.input?.problem;
           credits = x.credits;
-        } catch { /* cap reached or AI down: keep the rating-based rule */ }
+        } catch { problem = false; /* cap reached or AI down: the stars and the words said no problem */ }
       }
       const o = await one('SELECT first_name, last_name, goes_by FROM officers WHERE id = $1', [r.officer_id]);
       if (problem) {

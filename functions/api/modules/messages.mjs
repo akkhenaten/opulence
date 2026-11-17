@@ -17,6 +17,7 @@ import { officerReply, offerRespond, packReply } from './ops.mjs';
 import { ALL, def } from './_def.mjs';
 import { userName } from '../lib/names.mjs';
 import { shiftAccess } from './shiftlog.mjs';
+import { replyByRules } from '../lib/replyRules.mjs';
 
 const PAGE = 40;
 const EDIT_MINUTES = 15;
@@ -195,6 +196,9 @@ const REPLY_TOOL = {
 };
 
 export async function classifyReply(text, kind) {
+  // Most replies are a word or two: rules first, AI only for what they can't read
+  const byRules = replyByRules(text, kind);
+  if (byRules.intent !== 'unclear') return byRules;
   const allowed = { chase: 'on_my_way or cant_make_it', pack: 'signing_now or cant_make_it' }[kind] || 'accept or decline';
   const asked = {
     chase: 'Their shift has started and they have not clocked in. We asked if they are on their way.',

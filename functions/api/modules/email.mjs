@@ -6,7 +6,7 @@ import { one, q, tx } from '../lib/db.mjs';
 import { fail, need, required } from '../lib/http.mjs';
 import { randomToken } from '../lib/auth.mjs';
 import { audit } from '../lib/audit.mjs';
-import { claude, SONNET } from '../lib/ai.mjs';
+import { claude, SONNET, HAIKU } from '../lib/ai.mjs';
 import { putObject, downloadUrl, headObject, getObjectBytes } from '../lib/storage.mjs';
 import { fmtDate, fmtTime } from '../lib/time.mjs';
 import { seal, open, pkce, hasKey } from '../lib/mail/crypto.mjs';
@@ -533,7 +533,7 @@ export const actions = {
   'email.summary': def(CO, async (b, { user }) => {
     const { acc, t } = await loadThread(user, b);
     const res = await claude({
-      model: SONNET, module: 'email', max_tokens: 500,
+      model: HAIKU, module: 'email', max_tokens: 500,
       system: 'You summarise an email thread for a manager at a UK security company. British English. 2-5 short bullet points: what it is about, what is being asked, any dates/times/venues, and what (if anything) the manager needs to do. Plain text, bullets start with "- ". No preamble.',
       messages: [{ role: 'user', content: threadText(t, acc.address) }],
     });

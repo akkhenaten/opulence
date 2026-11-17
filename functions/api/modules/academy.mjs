@@ -5,7 +5,7 @@ import { one, q, tx } from '../lib/db.mjs';
 import { fail, need, required } from '../lib/http.mjs';
 import { audit } from '../lib/audit.mjs';
 import { isManager, requireOfficer } from '../lib/auth.mjs';
-import { claude, drawImage, extract, SONNET } from '../lib/ai.mjs';
+import { claude, drawImage, extract, SONNET, HAIKU } from '../lib/ai.mjs';
 import { downloadUrl, putObject, photoUrls } from '../lib/storage.mjs';
 import crypto from 'node:crypto';
 import { notify, officerUser, companyManagers } from '../lib/notify.mjs';
@@ -405,7 +405,7 @@ export const actions = {
     return c;
   }),
 
-  // Tutor chat: answers from the course's published text only
+  // Tutor chat: answers from the course's published text only (Haiku: it reads the text given, no deep reasoning)
   'academy.tutor': def(STAFF, async (b, { user }) => {
     await requireModule('academy');
     required(b, 'course_id');
@@ -413,7 +413,7 @@ export const actions = {
     const messages = (b.messages || []).slice(-12).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 2000) })).filter((m) => m.content);
     if (!messages.length || messages[messages.length - 1].role !== 'user') fail(400, 'Ask a question');
     const r = await claude({
-      model: SONNET, module: 'academy', max_tokens: 700, messages,
+      model: HAIKU, module: 'academy', max_tokens: 700, messages,
       system: `You are the tutor for one course in a UK security company's training app. Answer the officer's questions using ONLY the course text below.
 - If the answer is not in the course, say so plainly ("That isn't covered in this course") and suggest they check the Toolbox or ask their manager. Do not answer from general knowledge.
 - In an emergency, tell them to call 999 first.

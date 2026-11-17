@@ -605,8 +605,6 @@ export async function runCompliance({ manual = false, officerIds = null } = {}) 
   const open = await q("SELECT * FROM ops_items WHERE kind = 'compliance' AND status = 'pending' AND ($1::uuid[] IS NULL OR officer_id = ANY($1))", [officerIds]);
   let created = 0;
   let updated = 0;
-  let credits = 0;
-  const rules = results.length ? (await one('SELECT ops_house_rules FROM settings WHERE id = 1'))?.ops_house_rules : '';
   for (const { officer: o, issues } of results) {
     const severity = issues[0].severity;
     const at = issues.map((i) => i.shift).filter(Boolean).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))[0];
@@ -615,8 +613,8 @@ export async function runCompliance({ manual = false, officerIds = null } = {}) 
     if (card && card.payload.sig === issuesSig) continue;
     // Already raised (and decided) for exactly these issues: no new card, so no AI advice either
     if (!card && await one('SELECT 1 FROM ops_items WHERE dedupe = $1', [`compliance:${o.id}:${issuesSig}`])) continue;
-    const advice = await advise(o, issues, rules);
-    credits += advice.credits;
+    // The card's lines say what is wrong; Orb only writes advice when a manager asks for it (compliance.explain)
+    const advice = { text: templateAdvice(o, issues) };
     const payload = { officer_id: o.id, officer_name: officerDisplay(o), severity, issues, sig: issuesSig };
     if (card) {
       await q('UPDATE ops_items SET title = $2, reason = $3, payload = $4, venue_id = $5 WHERE id = $1', [card.id, cardTitle(o, issues), advice.text, payload, at?.venue_id || null]);
@@ -635,7 +633,7 @@ export async function runCompliance({ manual = false, officerIds = null } = {}) 
   await withdraw({ items: cleared.map((c) => c.id) });
   if (officerIds) return { checked: officerIds.length, attention: results.length, created, updated, cleared: cleared.length };
   const { n: checked } = await one("SELECT count(*)::int AS n FROM officers WHERE status IN ('active','onboarding')");
-  await logActivity('compliance', `Compliance check${manual ? ' (run by hand)' : ''}: ${plural(checked, 'officer')} checked, ${results.length} need attention${cleared.length ? `, ${cleared.length} cleared` : ''}`, { credits });
+  await logActivity('compliance', `Compliance check${manual ? ' (run by hand)' : ''}: ${plural(checked, 'officer')} checked, ${results.length} need attention${cleared.length ? `, ${cleared.length} cleared` : ''}`);
   return { checked, attention: results.length, created, updated, cleared: cleared.length, documents_read: read };
 }
 
@@ -959,6 +957,18 @@ export const actions = {
   }),
 
   // The weekly email, for checking what managers will receive
+  // Orb's advice on one compliance card, written only when a manager asks (the card already lists the issues)
+  'compliance.explain': def(MGR, async (b) => {
+    required(b, 'id');
+    const card = need(await one("SELECT * FROM ops_items WHERE id = $1 AND kind = 'compliance'", [b.id]), 'Card not found');
+    const o = need(await one('SELECT id, first_name, last_name FROM officers WHERE id = $1', [card.officer_id]), 'Officer not found');
+    const issues = card.payload?.issues || [];
+    if (!issues.length) return { text: card.reason };
+    const rules = (await one('SELECT ops_house_rules FROM settings WHERE id = 1'))?.ops_house_rules || '';
+    const { text } = await advise(o, issues, rules);
+    await q('UPDATE ops_items SET reason = $2 WHERE id = $1', [card.id, text]);
+    return { text };
+  }),
   'compliance.digestPreview': def(CO, async () => buildDigest()),
 
   'ops.complianceRun': def(CO, async () => runCompliance({ manual: true })),

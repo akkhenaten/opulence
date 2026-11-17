@@ -10,6 +10,7 @@ import { CONTENT_RULES, officerVenues, reviewDate } from '../lib/learn.mjs';
 import { CO, def } from './_def.mjs';
 import { plat } from '../lib/platform.mjs';
 import { GUIDE_LEVELS } from '../lib/emergency.mjs';
+import { isEmergency, searchCards } from '../lib/cardSearch.mjs';
 
 const STAFF = ['company', 'security', 'officer'];
 const CATEGORIES = ['first_aid', 'situations', 'law', 'venue'];
@@ -138,6 +139,9 @@ export const actions = {
     required(b, 'text');
     const cards = await visibleCards(user);
     if (!cards.length) return { matches: [], note: 'No cards are published yet. In an emergency call 999, otherwise call your supervisor.' };
+    // Word search first; the AI reads the situation only when no card shares its words
+    const found = searchCards(b.text, cards);
+    if (found.length) return { matches: found, emergency: isEmergency(b.text), note: '' };
     const { input } = await extract({
       model: HAIKU, module: 'toolbox', max_tokens: 600,
       tool: {
@@ -157,7 +161,7 @@ export const actions = {
     const matches = (input?.matches || []).map((m) => cards[m.n - 1] && { card: cards[m.n - 1], why: m.why }).filter(Boolean).slice(0, 3);
     return {
       matches,
-      emergency: !!input?.emergency,
+      emergency: !!input?.emergency || isEmergency(b.text),
       note: matches.length ? '' : 'No card matches that. In an emergency call 999, otherwise call your supervisor.',
     };
   }),

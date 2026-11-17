@@ -431,7 +431,7 @@ function EvidenceReview({ inc, onRequest }) {
   const byId = Object.fromEntries(inc.attachments.map((a, i) => [a.id, { ...a, n: i + 1 }]));
   return (
     <Tile title={<span className="inline-flex items-center gap-1.5"><Sparkles size={16} className="text-blue" />Evidence review</span>}
-      action={d && !d.error && <Button size="sm" variant="ghost" icon={RefreshCw} busy={state.loading} onClick={() => load(true)}>Refresh</Button>}>
+      action={d && !d.error && <Button size="sm" variant="ghost" icon={RefreshCw} busy={state.loading} onClick={() => load(true)}>Check again</Button>}>
       {state.error && <Callout tone="warning" className="mb-2">{state.error}</Callout>}
       {(!d || d.error) ? (
         <div className="grid gap-2">
@@ -440,7 +440,7 @@ function EvidenceReview({ inc, onRequest }) {
         </div>
       ) : (
         <div className="space-y-3 text-subhead">
-          {state.stale && <p className="rounded-xl bg-bg px-3 py-2 text-caption text-muted">The report or its files changed since this review. It refreshes by itself shortly, or tap Refresh.</p>}
+          {state.stale && <p className="rounded-xl bg-bg px-3 py-2 text-caption text-muted">The report or its files changed since this review. Tap Check again to review it with the changes.</p>}
           {d.summary && <p className="leading-relaxed">{d.summary}</p>}
           {d.mismatches?.length > 0 && (
             <div>

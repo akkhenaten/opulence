@@ -56,7 +56,7 @@ test('overnight times roll to the next day in London time', () => {
 
 test('AI credits and month key', () => {
   assert.equal(creditsFor({ input_tokens: 1000, output_tokens: 1000 }, { inputPrice: 450, outputPrice: 2250 }), 2700);
-  assert.equal(creditsFor({ input_tokens: 500, cache_read_input_tokens: 500, output_tokens: 0 }, { inputPrice: 150, outputPrice: 750 }), 150);
+  assert.equal(creditsFor({ input_tokens: 500, cache_read_input_tokens: 500, output_tokens: 0 }, { inputPrice: 150, outputPrice: 750 }), 82.5);
   assert.equal(monthKey(new Date('2026-10-31T23:30:00Z')), '2026-10');
   assert.equal(monthKey(new Date('2026-03-31T23:30:00Z')), '2026-04'); // BST
 });

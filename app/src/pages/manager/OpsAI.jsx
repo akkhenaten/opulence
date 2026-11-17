@@ -148,6 +148,9 @@ function ItemCard({ it, onDone, select, compact, focus }) {
   const [use, setUse] = useState('');
   const [ask, setAsk] = useState(p.ask || '');
   const [feedback, setFeedback] = useState(false);
+  // Compliance cards are written by rules; Orb's advice (AI credits) only when someone asks for it
+  const [explained, setExplained] = useState('');
+  const [explain, explaining] = useAction();
   const approveLabel = { cover: 'Send offers', venue_request: 'Approve & publish', reconcile: p.info_only ? 'Mark reviewed' : 'Approve fix', feedback: 'Decide…', compliance: 'Apply selected', venue_setup: 'Apply selected', incident: it.officer_id ? 'Send back to the officer' : 'Mark reviewed' }[it.kind];
   const allowed = (a) => !a.company_only || user.role === 'company';
   const [picked, setPicked] = useState(() => new Set((p.issues || []).flatMap((i) => i.actions.filter((a) => a.default && allowed(a)).map((a) => a.id))));
@@ -156,7 +159,7 @@ function ItemCard({ it, onDone, select, compact, focus }) {
   const manual = ISSUE_CARDS.includes(it.kind) && !(p.issues || []).some((i) => i.actions.some(allowed));
   const reason = pending && manual
     ? (it.kind === 'venue_setup' ? 'Add it by hand in Site setup, then this card clears by itself.' : 'Fix it on their profile, then this card clears by itself.')
-    : it.reason;
+    : (explained || it.reason);
   const fixAt = it.kind === 'venue_setup' ? it.venue_id && { to: `${base}/venues/${it.venue_id}?tab=setup`, icon: MapPin, label: 'Open Setup' }
     : p.officer_id && { to: `${base}/staff/${p.officer_id}`, icon: User, label: `Open ${p.officer_name || 'profile'}` };
   const size = compact ? 'sm' : undefined;
@@ -194,6 +197,10 @@ function ItemCard({ it, onDone, select, compact, focus }) {
       </div>
       <div className="text-headline font-bold leading-snug">{it.title}</div>
       {reason && <p className={cx('mt-1 text-subhead leading-relaxed text-muted', compact && !more && 'line-clamp-2')}>{reason}</p>}
+      {pending && it.kind === 'compliance' && !manual && !explained && (
+        <Button variant="link" size="sm" icon={Sparkles} busy={explaining} className="self-start"
+          onClick={() => explain(() => api('compliance.explain', { id: it.id }).then((r) => { setExplained(r.text); setMore(true); })).catch(() => {})}>Ask Orb what to do first</Button>
+      )}
       {compact && !more && reason?.length > 110 && <Pressable press onClick={() => setMore(true)} className="inline-block self-start text-footnote font-semibold text-blue hover:underline">More</Pressable>}
 
       <div className="mt-3 flex-1">
