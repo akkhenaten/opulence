@@ -11,6 +11,18 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-17', icon: BellRing, title: "Requests that reach officers, and one list of what needs you", image: 'requests-reach-officers',
+    lede: "A venue's staff request now lights up Rota in the menu as soon as it arrives, and every count in the app comes from one list, so the menu, Today, the bell and the venue's dashboard always agree.",
+    points: [
+      "A new venue request puts a red number on Rota, on the computer menu and the phone's tab bar. Other managers' screens update at once, without a refresh",
+      "Accepting a request now asks what happens next: broadcast the shift to every active officer, ask Orb to propose the team, or assign it yourself. Your last choice is remembered on that device, and accepting several dates applies one choice to all",
+      "Needs you, on Today and in the bell, opens in place. Accept or decline requests, approve changes, timesheets, clock-in phones and time off, reply to queries and mark budgets checked without leaving the page",
+      "Nothing is counted twice: an unfilled shift that already has an Orb card is shown once, and reports waiting for your signature aren't listed again as open",
+      "A date that has already started can't be accepted. Each requested date sits in one place: waiting, being staffed or staffed",
+      "Venues sign timesheets straight from Needs you, with Sign all. Officers see one line when their SIA licence is running out",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-16', icon: Radio, title: 'On site opens again for venues', image: 'onsite-fix',
     lede: "The venue's On site page and the dashboard's 'On site now' links had stopped opening. They work again.",
     points: [

@@ -41,15 +41,21 @@ export async function api(action, body = {}) {
     window.dispatchEvent(new Event('orb:signed-out'));
   }
   if (!res.ok) throw new ApiError(data.error || 'Something went wrong', res.status, data);
-  // A shift change tidies alerts and Orb cards on the server, so the bell and Live catch up straight away
-  if (SHIFT_CHANGES.test(action)) {
+  // Anything that clears or adds a to-do (or tidies Orb cards) refreshes the badges, the bell and Needs you straight away
+  if (TODO_CHANGES.test(action)) {
     window.dispatchEvent(new Event('orb:ops'));
     window.dispatchEvent(new Event('orb:notify'));
   }
   return data;
 }
 
-const SHIFT_CHANGES = /^(shifts\.(assign|reassign|unassign|save|cancel|delete|publish|respond|request|decideRequest|bulkCreate|copyWeek)|cover\.(accept|cancel|create|decideChange|decline|update)|offboarding\.(save|rehire)|ops\.(decide|offerRespond|reply))$/;
+const TODO_CHANGES = new RegExp('^(' + [
+  'shifts\\.(assign|assignMany|reassign|unassign|save|cancel|cancelMany|delete|publish|respond|request|decideRequests?|bulkCreate|copyWeek|setOpen)',
+  'cover\\.(accept|acceptMany|cancel|create|decideChange|decline|update|updateMany)',
+  'timesheets\\.(approve|sign|answer|dispute|decline|reopen)', 'incidents\\.(sign|review|create)', 'timeoff\\.(decide|request|cancel)',
+  'docs\\.verify', 'device\\.decide', 'clock\\.decide', 'streams\\.check', 'contracts\\.sign', 'venuePacks\\.sign',
+  'offboarding\\.(save|rehire)', 'ops\\.(decide|offerRespond|reply)',
+].join('|') + ')$');
 
 // Upload a file to private storage: returns the stored key (docs/...). purpose: officer|venue|incident|photo|company
 export async function upload(file, purpose = 'officer') {

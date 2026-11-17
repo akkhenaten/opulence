@@ -1126,7 +1126,10 @@ export async function offerRespond(b, user) {
   await opsMessage(user.id, `It's yours: ${sh.venue_name} · ${when(sh)}. It is now on your rota.`);
   await coverFilledThreads(sh, firstLast(o));
   await notifyManagers(sh.venue_id, { kind: 'ops', title: `${firstLast(o)} took the cover shift`, body: `${sh.venue_name} · ${when(sh)}`, link: 'rota', dedupe: `took:${offer.id}` });
-  await notify(await venueContacts(sh.venue_id), { kind: 'cover', title: `Replacement confirmed · ${sh.venue_name}`, body: `${firstLast(o)} is covering ${when(sh)}`, link: '/venue/rota', dedupe: `vtook:${offer.id}` });
+  // "Replacement" only when it really replaces someone who dropped out; a venue's own request is just staffed
+  const it = offer.item_id ? await one('SELECT payload FROM ops_items WHERE id = $1', [offer.item_id]) : null;
+  const replaces = ['no-show', 'cant_make_it', 'pack'].includes(it?.payload?.cause);
+  await notify(await venueContacts(sh.venue_id), { kind: 'cover', title: `${replaces ? 'Replacement' : 'Staff'} confirmed · ${sh.venue_name}`, body: `${firstLast(o)} is ${replaces ? 'covering' : 'booked for'} ${when(sh)}`, link: '/venue/rota', dedupe: `vtook:${offer.id}` });
   await logActivity('offer', `${firstLast(o)} accepted cover at ${sh.venue_name} (${when(sh)})`, { ref_type: 'shift', ref_id: sh.id, venue_id: sh.venue_id });
   await audit(user, 'ops.offer_accept', 'shift', sh.id, { officer: offer.officer_id });
   return { ok: true };

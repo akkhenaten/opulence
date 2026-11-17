@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { CalendarDays, Repeat } from 'lucide-react';
-import { Button, Callout, Chip, cx, dateShort, Input, isoDate, addDays, Segmented, Select, Sheet, Textarea, Toggle, useAction, useApi, useConfirm, useForm } from '../../ui/index.jsx';
+import { CalendarDays, CheckCircle2, Circle, Megaphone, Repeat, Sparkles, UserPlus } from 'lucide-react';
+import { Button, Callout, Chip, cx, Pressable, dateShort, Input, isoDate, addDays, Segmented, Select, Sheet, Textarea, Toggle, useAction, useApi, useConfirm, useForm } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { londonParts, WEEKDAYS } from './_parts.jsx';
 import { useVenue } from '../../venue.jsx';
 import { useAuth } from '../../auth.jsx';
+import { ACCEPT_CHOICES, lastAcceptChoice, rememberAcceptChoice } from './_coverState.js';
 
 // Shared by the venue's staff requests (Request staff) and the managers' "Venue requests" page
 
@@ -241,7 +242,7 @@ export function RequestForm({ venues, roles, draft, edit, initialMode = 'one', o
             options={[...(keepStream ? [{ value: '', label: many ? 'Keep each date\'s own' : 'Keep as it is' }] : []),
               ...active.map((x) => ({ value: x.id, label: x.po_ref ? `${x.name} · PO ${x.po_ref}` : x.name })), { value: '__new', label: '+ New stream' }]} />
         ) : active.length === 1 && (
-          <button type="button" className="text-footnote font-semibold text-blue" onClick={() => setPicked('__new')}>Paid from a separate budget? Add a billing stream</button>
+          <Button variant="link" size="sm" onClick={() => setPicked('__new')}>Paid from a separate budget? Add a billing stream</Button>
         )}
         {adding && (
           <div className="space-y-3 rounded-xl bg-bg p-3">
@@ -319,4 +320,57 @@ export function describeChange(c) {
     return `From this date: ${p.series.frequency === 'fortnightly' ? 'every 2 weeks' : 'every week'} — ${days}${p.series.end_date ? `, until ${p.series.end_date}` : ''}`;
   }
   return 'Change';
+}
+
+const CHOICE_ICON = { broadcast: Megaphone, orb: Sparkles, none: UserPlus };
+
+/**
+ * Accepting a venue's request: what happens next, picked each time (the last choice is the default on this device).
+ * One date (id, with scope 'series' for every waiting date of a pattern) or several picked dates (ids).
+ * onDone(result, how): "I'll assign myself" callers go on to the rota.
+ */
+export function AcceptSheet({ id, ids, scope = 'one', label, layer, onClose, onDone }) {
+  const [how, setHow] = useState(lastAcceptChoice);
+  const [run, busy] = useAction();
+  const n = ids ? ids.length : null;
+  const go = () => {
+    rememberAcceptChoice(how);
+    const call = ids ? api('cover.acceptMany', { ids, notify: how }) : api('cover.accept', { id, scope, notify: how });
+    const said = { broadcast: 'officers told', orb: 'Orb is finding the team', none: 'pick the team next' }[how];
+    return run(() => call, (r) => `${ids ? `${r.done} accepted${r.skipped?.length ? ` · ${r.skipped.length} not done` : ''}` : 'Accepted'} · ${said}`)
+      .then((r) => onDone?.(r, how)).catch(() => {});
+  };
+  return (
+    <Sheet open layer={layer} onClose={onClose} title={n ? `Accept ${n} date${n === 1 ? '' : 's'}` : 'Accept request'}
+      footer={<><Button variant="secondary" onClick={onClose}>Back</Button><Button busy={busy} onClick={go}>{n ? `Accept ${n}` : 'Accept'}</Button></>}>
+      {label && <p className="mb-3 text-subhead text-muted">{label}</p>}
+      <AcceptChoices value={how} onChange={setHow} />
+    </Sheet>
+  );
+}
+
+/** The three "then" rows, also shown inline in the request drawer. */
+export function AcceptChoices({ value, onChange }) {
+  return (
+    <>
+      <p className="mb-2 text-footnote font-semibold uppercase tracking-wide text-muted">Then</p>
+      <div role="radiogroup" aria-label="After accepting" className="space-y-2">
+        {ACCEPT_CHOICES.map((c) => {
+          const I = CHOICE_ICON[c.key];
+          const on = value === c.key;
+          return (
+            <Pressable key={c.key} press role="radio" aria-checked={on} onClick={() => onChange(c.key)}
+              className={cx('flex w-full items-start gap-3 rounded-2xl border p-3', on ? 'border-blue bg-blue-soft' : 'border-line bg-surface')}>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-bg text-blue"><I size={18} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-body font-semibold">{c.label}</span>
+                <span className="block text-footnote text-muted">{c.hint}</span>
+              </span>
+              {on ? <CheckCircle2 size={20} className="mt-1 shrink-0 text-blue" /> : <Circle size={20} className="mt-1 shrink-0 text-faint" />}
+            </Pressable>
+          );
+        })}
+      </div>
+    </>
+  );
 }

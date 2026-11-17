@@ -7,17 +7,17 @@ import {
 // Sidebar per role. `tab` marks the items shown in the mobile tab bar (max 5); `short` is the tab bar label;
 // `perm` hides an item unless the user has that permission. `hub` makes the item a section (ui/hub.jsx): it opens the
 // first tab the person can see, is lit on any of them, takes that tab's name when it is the only one, and goes when
-// there are none. `foot` items sit at the bottom of the sidebar; `phoneOnly` items are only in the phone More menu.
+// there are none. `badge` names the count shown on it (the to-do list's byNav, or messages and the like). `foot` items sit at the bottom of the sidebar; `phoneOnly` items are only in the phone More menu.
 export const NAV = {
   company: [
     { items: [
       { to: '/company', label: 'Today', icon: LayoutGrid, end: true, tab: true, badge: 'ops' },
       { hub: 'messages', label: 'Messages', icon: MessagesSquare, badge: 'inbox' },
-      { hub: 'rota', label: 'Rota', icon: CalendarDays, tab: true },
-      { hub: 'incidents', label: 'Incidents', icon: ShieldAlert, tab: true },
-      { hub: 'staff', label: 'Staff', icon: Users },
+      { hub: 'rota', label: 'Rota', icon: CalendarDays, tab: true, badge: 'rota' },
+      { hub: 'incidents', label: 'Incidents', icon: ShieldAlert, tab: true, badge: 'incidents' },
+      { hub: 'staff', label: 'Staff', icon: Users, badge: 'staff' },
       { hub: 'venues', label: 'Venues', icon: Building2 },
-      { hub: 'money', label: 'Money', icon: Banknote },
+      { hub: 'money', label: 'Money', icon: Banknote, badge: 'money' },
       { hub: 'reports', label: 'Reports', icon: BarChart3 },
     ] },
     { foot: true, items: [
@@ -30,11 +30,11 @@ export const NAV = {
     { items: [
       { to: '/security', label: 'Today', icon: LayoutGrid, end: true, tab: true, badge: 'ops' },
       { hub: 'messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
-      { hub: 'rota', label: 'Rota', icon: CalendarDays, tab: true },
-      { hub: 'incidents', label: 'Incidents', icon: ShieldAlert, tab: true },
-      { hub: 'staff', label: 'Staff', icon: Users },
+      { hub: 'rota', label: 'Rota', icon: CalendarDays, tab: true, badge: 'rota' },
+      { hub: 'incidents', label: 'Incidents', icon: ShieldAlert, tab: true, badge: 'incidents' },
+      { hub: 'staff', label: 'Staff', icon: Users, badge: 'staff' },
       { hub: 'venues', label: 'Venues', icon: Building2 },
-      { hub: 'money', label: 'Money', icon: Banknote },
+      { hub: 'money', label: 'Money', icon: Banknote, badge: 'money' },
       { hub: 'reports', label: 'Reports', icon: BarChart3 },
     ] },
     { foot: true, items: [
@@ -47,9 +47,9 @@ export const NAV = {
       { to: '/venue', label: 'Overview', icon: LayoutGrid, end: true, tab: true },
       { to: '/venue/live', label: 'On site', icon: Radio, tab: true },
       { to: '/venue/rota', label: 'Rota', icon: CalendarDays, tab: true },
-      { hub: 'logs', label: 'Logs', icon: NotebookPen, tab: true },
+      { hub: 'logs', label: 'Logs', icon: NotebookPen, tab: true, badge: 'logs' },
       { hub: 'feedback', label: 'Feedback', icon: MessageSquareHeart },
-      { hub: 'billing', label: 'Billing', icon: ReceiptText },
+      { hub: 'billing', label: 'Billing', icon: ReceiptText, badge: 'billing' },
       { to: '/venue/messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
       { to: '/venue/site', label: 'Venue info', icon: Building2 },
     ] },

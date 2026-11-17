@@ -3,11 +3,11 @@
 import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, required, need } from '../lib/http.mjs';
 import { venueScope, assertVenue } from '../lib/scope.mjs';
-import { notify, managersFor, venueContacts, officerUser } from '../lib/notify.mjs';
+import { notify, managersFor, notifyManagersAt, venueContacts, officerUser } from '../lib/notify.mjs';
 import { fmtDate, fmtTime, fmtDateTime, londonDate, addDays } from '../lib/time.mjs';
 import { audit } from '../lib/audit.mjs';
 import { ensureThread, post } from '../lib/threads.mjs';
-import { londonToUtc } from './rota.mjs';
+import { londonToUtc, announceOpen } from './rota.mjs';
 import { afterShiftChange } from './shiftSync.mjs';
 import { MGR, def } from './_def.mjs';
 import { userName } from '../lib/names.mjs';
@@ -217,9 +217,9 @@ async function applyFuture(pivot, def, userId) {
       } else {
         const r = occRange(w.date, w.start, w.end);
         const occ = await t.one(
-          `INSERT INTO cover_requests (venue_id, role, starts_at, ends_at, headcount, notes, requested_by, series_id, occurs_on, status, decided_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-          [s.venue_id, s.role, r.starts_at, r.ends_at, w.headcount, s.notes, s.requested_by, s.id, w.date, anyAccepted ? 'accepted' : 'pending', anyAccepted ? userId : null]);
+          `INSERT INTO cover_requests (venue_id, role, starts_at, ends_at, headcount, notes, requested_by, series_id, occurs_on, status, decided_by, stream_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+          [s.venue_id, s.role, r.starts_at, r.ends_at, w.headcount, s.notes, s.requested_by, s.id, w.date, anyAccepted ? 'accepted' : 'pending', anyAccepted ? userId : null, s.stream_id || null]);
         if (anyAccepted) await createShift(occ, s, userId, t);
       }
     }
@@ -230,6 +230,18 @@ async function applyFuture(pivot, def, userId) {
   });
   for (const args of later) await afterShiftChange(args);
   return fresh;
+}
+
+export const NOTIFY = ['broadcast', 'orb', 'none'];
+
+/** After an accept: tell officers the shifts are open, or ask Orb to propose a team (one card per shift), or nothing. */
+export async function staffAccepted(shifts, how) {
+  if (!shifts.length) return;
+  if (how === 'broadcast') await announceOpen(shifts.length);
+  if (how === 'orb') {
+    const { proposeCover } = await import('./ops.mjs');
+    for (const sh of shifts) await proposeCover({ id: sh.id }, 'new');
+  }
 }
 
 async function loadOcc(user, id) {
@@ -357,6 +369,7 @@ export const actions = {
               s.kind, s.frequency, s.days, s.start_date, s.end_date, s.accepted_all, s.status AS series_status, COALESCE(s.root_id, s.id) AS root_id,
               (SELECT id FROM conversations x WHERE x.kind = 'cover' AND x.ref_id = COALESCE(s.root_id, c.series_id)) AS conversation_id,
               (SELECT count(*) FROM shifts sh WHERE sh.cover_request_id = c.id AND sh.status <> 'cancelled') AS shift_count,
+              (SELECT sh.id FROM shifts sh WHERE sh.cover_request_id = c.id AND sh.status <> 'cancelled' ORDER BY sh.starts_at LIMIT 1) AS shift_id,
               (SELECT count(*) FROM shift_assignments a JOIN shifts sh ON sh.id = a.shift_id
                  WHERE sh.cover_request_id = c.id AND sh.status <> 'cancelled' AND a.status IN ('assigned','accepted')) AS filled,
               (SELECT count(*)::int FROM shift_assignments a JOIN shifts sh ON sh.id = a.shift_id
@@ -394,9 +407,9 @@ export const actions = {
     const conv = await coverThread(series, v.name);
     const text = describe(series);
     await post(conv.id, user.id, { body: `New cover request: ${text}${def_.notes ? `\n${def_.notes}` : ''}` });
-    await notify((await managersFor(b.venue_id)).filter((id) => id !== user.id), {
-      kind: 'cover', title: `New cover request · ${v.name}`, body: text, link: '/company/cover', email: true,
-    });
+    await notifyManagersAt(b.venue_id, {
+      kind: 'cover', title: `New cover request · ${v.name}`, body: text, link: 'cover', email: true,
+    }, { except: user.id });
     if (newStream) {
       await audit(user, 'stream.create', 'venue', b.venue_id, newStream);
       await tellCompanyNewStream(newStream, user);
@@ -450,16 +463,16 @@ export const actions = {
       const what = payload.type === 'delete' ? 'cancel' : 'change';
       const site = payload.type === 'delete' && (await onSite(occ.id)) ? ' An officer is on site now.' : '';
       const label = `${scope === 'future' ? `${fmtDate(occ.occurs_on)} and later dates` : fmtDate(occ.occurs_on)}`;
-      if (conv) await post(conv.id, user.id, { body: `Asked to ${what} ${label}. Waiting for Orb to approve.${site}` });
-      await notify(await managersFor(occ.venue_id), {
-        kind: 'cover', severity: 'warning', title: `${occ.venue_name} wants to ${what} booked cover`, body: `${label}${site}`, link: '/company/cover', email: true,
+      if (conv) await post(conv.id, user.id, { body: `Asked to ${what} ${label}. Waiting for the office to approve.${site}` });
+      await notifyManagersAt(occ.venue_id, {
+        kind: 'cover', severity: 'warning', title: `${occ.venue_name} wants to ${what} booked cover`, body: `${label}${site}`, link: 'cover', email: true,
       });
       await audit(user, 'cover.change_requested', 'cover_request', occ.id, { scope, type: payload.type });
       return { status: 'awaiting_approval' };
     }
     const done = await applyChange(occ, scope, payload, user.id);
     if (conv) await post(conv.id, user.id, { body: `Updated: ${done}.` });
-    if (!isMgr(user)) await notify(await managersFor(occ.venue_id), { kind: 'cover', title: `${occ.venue_name} updated a cover request`, body: done, link: '/company/cover' });
+    if (!isMgr(user)) await notifyManagersAt(occ.venue_id, { kind: 'cover', title: `${occ.venue_name} updated a cover request`, body: done, link: 'cover' });
     else if (touchesAccepted || occ.status === 'pending') await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Your cover request was updated', body: done, link: '/venue/rota?tab=requests' });
     await audit(user, 'cover.update', 'cover_request', occ.id, { scope, type: payload.type });
     return { status: 'done', summary: done };
@@ -557,10 +570,10 @@ export const actions = {
         await post(conv.id, user.id, { body: text });
       }
       if (!mgr) {
-        await notify(await managersFor(venueId), {
+        await notifyManagersAt(venueId, {
           kind: 'cover', severity: v.waiting.length ? 'warning' : undefined, email: v.waiting.length > 0,
           title: v.waiting.length ? `${v.name} wants to ${del ? 'cancel' : 'change'} booked cover` : `${v.name} ${del ? 'cancelled' : 'changed'} ${v.done.length} requested date${v.done.length === 1 ? '' : 's'}`,
-          body: text, link: '/company/cover',
+          body: text, link: 'cover',
         });
       } else {
         await notify(await venueContacts(venueId), { kind: 'cover', title: 'Your cover request was updated', body: text, link: '/venue/rota?tab=requests' });
@@ -574,31 +587,54 @@ export const actions = {
   // Kept for older screens: cancelling = deleting this one date
   'cover.cancel': def(['company', 'security', 'venue'], async (b, ctx) => actions['cover.update'].fn({ id: b.id, scope: b.scope || 'one', delete: true }, ctx)),
 
-  // Accept one date, or every pending date in the series (future dates then arrive accepted)
+  // Accept one date, or every pending date in the series (future dates then arrive accepted).
+  // notify: 'broadcast' opens the new shifts to officers and tells them, 'orb' asks Orb to propose who should work,
+  // 'none' leaves them for the manager to assign. Past dates are never accepted.
   'cover.accept': def(MGR, async (b, { user }) => {
     required(b, 'id');
+    const how = NOTIFY.includes(b.notify) ? b.notify : (b.open ? 'broadcast' : 'none');
     const occ = await loadOcc(user, b.id);
     const series = occ.series_id ? await one('SELECT * FROM cover_series WHERE id = $1', [occ.series_id]) : null;
     const all = b.scope === 'series' && series;
     const list = all
       ? await q("SELECT * FROM cover_requests WHERE series_id = $1 AND status = 'pending' AND starts_at > now() ORDER BY occurs_on", [series.id])
       : (occ.status === 'pending' ? [occ] : []);
+    if (!all && list.length && new Date(occ.starts_at) <= new Date()) fail(409, 'This date has already started, so it can’t be accepted');
     if (!list.length) fail(409, 'Nothing pending to accept');
+    const open = how === 'broadcast';
     const shifts = await tx(async (t) => {
-      if (all) await t.q('UPDATE cover_series SET accepted_all = true, open = $2 WHERE id = $1', [series.id, !!b.open]);
+      if (all) await t.q('UPDATE cover_series SET accepted_all = true, open = $2 WHERE id = $1', [series.id, open]);
       const out = [];
       for (const c of list) {
         const ok = await t.one("UPDATE cover_requests SET status = 'accepted', decided_by = $2 WHERE id = $1 AND status = 'pending' RETURNING *", [c.id, user.id]);
-        if (ok) out.push(await createShift(ok, { open: !!b.open }, user.id, t));
+        if (ok) out.push(await createShift(ok, { open }, user.id, t));
       }
       return out;
     });
+    await staffAccepted(shifts, how);
     const conv = series ? await coverThread(series, occ.venue_name) : null;
     const text = all ? `Accepted all ${shifts.length} dates${series.kind === 'recurring' && !series.end_date ? ' — new dates will be booked automatically' : ''}` : `Accepted ${fmtDate(occ.occurs_on || occ.starts_at)}`;
     if (conv) await post(conv.id, user.id, { body: `${text}. We'll confirm the team nearer the time.` });
     await notify(await venueContacts(occ.venue_id), { kind: 'cover', title: 'Cover request accepted', body: text, link: '/venue/rota?tab=requests', email: true });
-    await audit(user, 'cover.accept', 'cover_request', occ.id, { scope: all ? 'series' : 'one', count: shifts.length });
-    return all ? { accepted: shifts.length, shift_ids: shifts.map((s) => s.id), starts_at: shifts[0]?.starts_at } : shifts[0];
+    await audit(user, 'cover.accept', 'cover_request', occ.id, { scope: all ? 'series' : 'one', count: shifts.length, notify: how });
+    return all ? { accepted: shifts.length, shift_ids: shifts.map((s) => s.id), starts_at: shifts[0]?.starts_at, notify: how } : { ...shifts[0], notify: how };
+  }),
+
+  // Several picked dates with one choice: the officers get one notice, not one per date
+  'cover.acceptMany': def(MGR, async (b, ctx) => {
+    required(b, 'ids');
+    const how = NOTIFY.includes(b.notify) ? b.notify : 'broadcast';
+    const shifts = [];
+    const skipped = [];
+    for (const id of [...new Set(b.ids)].slice(0, MAX_PER_CALL)) {
+      try {
+        const r = await actions['cover.accept'].fn({ id, scope: 'one', notify: 'none' }, ctx);
+        if (r?.id) shifts.push(r);
+      } catch (e) { skipped.push({ id, reason: e.message }); }
+    }
+    await staffAccepted(shifts, how);
+    await audit(ctx.user, 'cover.accept_many', 'cover_request', null, { count: shifts.length, skipped: skipped.length, notify: how });
+    return { done: shifts.length, skipped, shift_ids: shifts.map((s) => s.id), notify: how };
   }),
 
   'cover.decline': def(MGR, async (b, { user }) => {

@@ -1,5 +1,6 @@
 import { q } from './db.mjs';
 import { pushToUsers } from './webpush.mjs';
+import { publishTo } from './realtime.mjs';
 import { esc, footerHtml, getBrand, getFooter, getSender, onColor } from './brand.mjs';
 import { fmtDateTime } from './time.mjs';
 import { platformEmails } from './platform.mjs';
@@ -89,6 +90,8 @@ export async function notify(userIds, { kind, title, body = '', link = '', sever
      ON CONFLICT DO NOTHING RETURNING user_id`,
     [ids, kind, title, body, link, severity, dedupe, ref],
   );
+  // A hint to open apps: refresh the bell, the menu badges and Needs you now, not at the next poll
+  if (rows.length) await publishTo(rows.map((r) => r.user_id), 'notif', {}).catch(() => {});
   if (rows.length && t !== 'fyi') {
     try {
       const to = rows.map((r) => r.user_id);
@@ -151,4 +154,11 @@ export const venueContacts = async (venueId) => (await q("SELECT c.user_id AS id
 export const officerUser = async (officerId) => (await q('SELECT user_id AS id FROM officers WHERE id = $1 AND user_id IS NOT NULL', [officerId])).map((r) => r.id);
 export async function managersFor(venueId) {
   return [...(await companyManagers()), ...(await securityFor(venueId))];
+}
+
+/** Notifies the venue's managers with a link into each one's own portal ('cover' → /company/cover or /security/cover). */
+export async function notifyManagersAt(venueId, n, { except = null } = {}) {
+  const not = (ids) => ids.filter((id) => id !== except);
+  await notify(not(await companyManagers()), { ...n, link: `/company/${n.link}` });
+  if (venueId) await notify(not(await securityFor(venueId)), { ...n, link: `/security/${n.link}` });
 }

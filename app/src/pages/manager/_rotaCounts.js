@@ -1,7 +1,8 @@
 import { useApi } from '../../ui/index.jsx';
+import { requestState } from './_coverState.js';
 
 // A venue's date waits on us when it is new or a change to it was asked
-export const coverWaiting = (c) => c.status === 'pending' || c.change_status === 'pending';
+export const coverWaiting = (c) => requestState(c) === 'waiting';
 
 // Numbers on the Rota tab row, the same on every tab of it. A page that already loads one of the lists passes it in
 // A venue's Rota has one: its own requests waiting on the office

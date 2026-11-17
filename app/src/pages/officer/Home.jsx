@@ -95,7 +95,9 @@ function Body({ d, clock, ops, reload }) {
   const next = d.next || [];
   const ask = next.filter((s) => s.assignment_status === 'assigned');
   const confirmed = next.filter((s) => s.assignment_status === 'accepted');
-  const siaDays = daysUntil(d.officer?.sia_expiry);
+  // One SIA line: when the licence document is already in To do, the reminder under the next shift isn't repeated
+  const siaInTodo = (d.expiringDocs || []).some((x) => String(x.kind).startsWith('sia'));
+  const siaDays = siaInTodo ? null : daysUntil(d.officer?.sia_expiry);
 
   const accept = (a) => run(() => api('shifts.respond', { assignment_id: a.assignment_id, accept: true }), 'Shift confirmed').then(reload).catch(() => {});
 
@@ -107,7 +109,9 @@ function Body({ d, clock, ops, reload }) {
   const packs = packTodos(packsQ.data?.venues);
   const addFor = (kind) => `/officer/documents${kind ? `?add=${kind}` : ''}`;
   const paid = freshStatement(d.lastStatement);
-  const [todo, todoFails, waiting] = useToDo(d, packs);
+  // The next shift's card already carries its site pack, so To do lists only the other venues' packs
+  const heroPack = confirmed[0] && packs.find((v) => v.venue_id === confirmed[0].venue_id);
+  const [todo, todoFails, waiting] = useToDo(d, packs.filter((v) => v !== heroPack));
   // A list that couldn't load says so here, so an empty To do doesn't read as "nothing to do"
   const fails = [[clock, 'your clock-in'], [packsQ, 'site packs to read'], ...todoFails];
   // Phones: the shifts to answer and the to-do list fold into one glowing bar, so the page stays short
@@ -337,9 +341,13 @@ function useToDo(d, packs) {
   packs.forEach((v) => rows.push({ k: `p${v.venue_id}`, to: `/officer/venue-pack/${v.venue_id}`, icon: BookOpenCheck, tone: 'amber', title: `Read the site pack for ${v.name}`, sub: `Before your shift on ${dayLabel(v.next_shift)}` }));
   (d.expiringDocs || []).forEach((x, i) => {
     const n = daysUntil(x.expiry);
-    rows.push({ k: `d${i}`, to: `/officer/documents?add=${x.kind}`, icon: ShieldCheck, tone: n < 0 ? 'red' : 'amber', title: x.title, sub: n < 0 ? 'Expired: upload a new one' : `Expires ${date(x.expiry)}` });
+    const sia = String(x.kind).startsWith('sia');
+    rows.push({ k: `d${i}`, to: `/officer/documents?add=${x.kind}`, icon: ShieldCheck, tone: n < 0 ? 'red' : 'amber',
+      title: sia ? (n < 0 ? 'SIA licence expired' : `SIA licence expires ${n === 0 ? 'today' : `in ${n} day${n === 1 ? '' : 's'}`}`) : x.title,
+      sub: n < 0 ? 'Expired: upload a new one' : sia ? 'Renew it and upload the new licence' : `Expires ${date(x.expiry)}` });
   });
-  const signing = rows.some((r) => r.icon === FileSignature);
+  // A contract waiting for a signature already has its row, so the set-up step for it isn't listed twice
+  const signing = rows.some((r) => r.k.startsWith('c'));
   const open = (tasks.data || []).filter((t) => !t.done && !(signing && t.code === 'contract'));
   open.filter((t) => !t.office).forEach((t) => rows.push({ k: `o${t.code}`, to: t.to, icon: ListChecks, tone: 'blue', title: t.action || t.title, sub: 'Getting set up' }));
   // Office steps sit in their own group below, not in To do

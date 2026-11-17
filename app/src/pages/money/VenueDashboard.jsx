@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Bell, Building2, CalendarDays, ChevronRight, ClipboardCheck, FileSignature, Layers, LineChart, MapPin, Megaphone, MessageSquareHeart, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
+import { AlertTriangle, Bell, Building2, CalendarDays, ChevronRight, Layers, LineChart, MapPin, Megaphone, MessageSquareHeart, Plus, Radio, ReceiptText, ShieldAlert, Star } from 'lucide-react';
 import { useAuth } from '../../auth.jsx';
 import { useVenue } from '../../venue.jsx';
 import { FeedbackTile, GiveFeedbackSheet, RateStaffSheet } from '../venue/_feedback.jsx';
@@ -11,6 +11,7 @@ import {
 } from '../../ui/index.jsx';
 import { InstallCard } from '../../ui/pwa.jsx';
 import { PushCard } from '../officer/_notify.jsx';
+import { NEED_ICON, NeedRow } from '../manager/_needs.jsx';
 
 const STATE_LABEL = { late: 'Late', no_show: 'No show', left_early: 'Left early' };
 
@@ -64,7 +65,7 @@ function Body({ d, name }) {
       <PushCard className="mb-4" later="your account menu" />
       <RateStaffSheet open={rate} onClose={() => setRate(false)} />
       <GiveFeedbackSheet open={give} onClose={() => setGive(false)} />
-      <NeedsYou d={d} toSign={toSign} venueId={venueId} />
+      <NeedsYou d={d} venueId={venueId} />
       <Section title="Next 48 hours">
         {!d.shifts.length ? <Quiet icon={CalendarDays} text="No shifts booked in the next 48 hours." /> : (
           <List>
@@ -126,9 +127,7 @@ function Body({ d, name }) {
           )}
         </Tile>}
 
-        {toSign > 0 && <Tile title="Timesheets" icon={ClipboardCheck} to="/venue/timesheets">
-          <Stat value={toSign} label={toSign === 1 ? 'Timesheet to sign' : 'Timesheets to sign'} tone="blue" hint="Please check and sign" />
-        </Tile>}
+        {/* Timesheets to sign live in Needs you, where they can be signed in place */}
         {Number(d.invoices.outstanding) > 0 && <Tile title="Invoices" icon={ReceiptText} to="/venue/invoices">
           <Stat value={money(d.invoices.outstanding)} label="Outstanding" hint={`${d.invoices.count} invoice${d.invoices.count === 1 ? '' : 's'} · incl. VAT${d.invoices.credits ? ' · Credit notes are shown on Invoices' : ''}`} />
         </Tile>}
@@ -179,35 +178,38 @@ function Body({ d, name }) {
   );
 }
 
-// What is waiting on the venue itself, from what the page already loads; hidden when nothing is
-function NeedsYou({ d, toSign, venueId }) {
-  // Incident reports the officer and the manager have signed, waiting on the venue's signature
-  const inc = useApi('incidents.list', { to_sign: true, venue_id: venueId || undefined }, { poll: 60000 });
-  const reports = d.counts?.incidentsToSign ?? (inc.data?.length || 0);
-  // A failed check is said out loud, never counted as nothing to sign
-  const failed = d.counts?.incidentsToSign == null && inc.error && !inc.data;
+// What is waiting on the venue itself: the shared to-do list (the same rows and Sign button as the bell), plus who is
+// late right now from the live board; hidden when nothing is
+function NeedsYou({ d, venueId }) {
+  // Invoices already have their own tile with the amount, so they aren't listed twice on this page
+  const todo = (d.todo?.items || []).filter((i) => i.key !== 'invoices');
+  // A failed check is said out loud, never counted as nothing to do
+  const failed = !!d.todo?.failed;
   const late = (d.live.late || 0) + (d.live.no_show || 0);
-  const items = [
-    toSign > 0 && { key: 'sign', to: '/venue/timesheets?show=review', icon: ClipboardCheck, tone: 'bg-blue-soft text-blue', title: `${toSign} timesheet${toSign === 1 ? '' : 's'} to sign`, sub: 'Check the hours and sign' },
-    reports > 0 && { key: 'incidents', to: '/venue/incidents?to_sign=1', icon: FileSignature, tone: 'bg-blue-soft text-blue', title: `${reports} incident report${reports === 1 ? '' : 's'} to sign`, sub: 'Read what happened and sign' },
-    failed && { key: 'failed', onClick: inc.reload, icon: AlertTriangle, tone: 'bg-amber-soft text-amber', title: "Couldn't check reports to sign", sub: 'Try again' },
-    late > 0 && { key: 'late', to: '/venue/live', icon: Radio, tone: 'bg-red-soft text-red', title: `${late} officer${late === 1 ? '' : 's'} late or not arrived`, sub: 'See who is on site now' },
-    d.invoices.count > 0 && { key: 'pay', to: '/venue/invoices', icon: ReceiptText, tone: 'bg-amber-soft text-amber', title: `${d.invoices.count} invoice${d.invoices.count === 1 ? '' : 's'} to pay`, sub: `${money(d.invoices.outstanding)} outstanding` },
-  ].filter(Boolean);
-  if (!items.length) return null;
+  if (!todo.length && !late && !failed) return null;
   const list = (
-    <List>
-      {items.map((i) => (
-        <Row key={i.key} to={i.to} onClick={i.onClick} title={i.title} subtitle={i.sub}
-          left={<span className={cx('grid h-9 w-9 place-items-center rounded-xl', i.tone)}><i.icon size={18} /></span>} />
-      ))}
-    </List>
+    <div className="ui-panel overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile">
+      <div className="divide-y divide-line">
+        {late > 0 && (
+          <Link to="/venue/live" className="flex items-center gap-3 px-4 py-3 transition hover:bg-bg">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-red-soft text-red"><Radio size={18} /></span>
+            <span className="min-w-0 flex-1 text-subhead leading-snug"><span className="num font-bold">{late}</span> officer{late === 1 ? '' : 's'} late or not arrived</span>
+            <ChevronRight size={18} className="shrink-0 text-faint" />
+          </Link>
+        )}
+        {todo.map((i) => <NeedRow key={i.key} item={i} venueId={venueId || undefined} />)}
+        {failed && <p className="flex items-center gap-2 px-4 py-3 text-footnote text-muted"><AlertTriangle size={16} className="shrink-0 text-amber" />Some of what's waiting couldn't be checked.</p>}
+      </div>
+    </div>
   );
+  const tones = [...(late ? ['red'] : []), ...todo.map((i) => i.tone)];
   // Phones: one glowing bar that opens the list; from lg up the list sits on the page
   return (
     <>
-      <AttentionDrawer id="needs" title="Needs you" className="mb-4 lg:hidden" count={items.length} failed={failed} onRetry={inc.reload} tone={late > 0 ? 'red' : toSign > 0 || reports > 0 ? 'blue' : 'amber'}
-        preview={items.map((i) => ({ icon: i.icon, tone: i.key === 'late' ? 'red' : i.key === 'sign' || i.key === 'incidents' ? 'blue' : 'amber' }))} lead={items[0].title}>
+      <AttentionDrawer id="needs" title="Needs you" className="mb-4 lg:hidden" count={todo.reduce((n, i) => n + i.count, late)} failed={failed}
+        tone={tones.includes('red') ? 'red' : tones.includes('amber') ? 'amber' : 'blue'}
+        preview={[...(late ? [{ icon: Radio, tone: 'red' }] : []), ...todo.map((i) => ({ icon: NEED_ICON[i.key] || Bell, tone: i.tone }))]}
+        lead={late ? `${late} officer${late === 1 ? '' : 's'} late or not arrived` : todo[0]?.title}>
         {list}
       </AttentionDrawer>
       <Section title="Needs you" icon={Bell} className="!mt-0 mb-4 hidden lg:block">{list}</Section>

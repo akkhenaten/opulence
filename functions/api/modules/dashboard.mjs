@@ -7,6 +7,7 @@ import { compliance } from './officers.mjs';
 import { ALL, def } from './_def.mjs';
 import { officerDisplay, officerName } from '../lib/names.mjs';
 import { getSettings } from './settings.mjs';
+import { todoSummary } from './todo.mjs';
 
 const count = async (sql, params) => (await one(sql, params)).n;
 
@@ -169,7 +170,8 @@ async function officerDash({ user }) {
 export const actions = {
   'dashboard.get': def(ALL, async (b, ctx) => {
     if (ctx.user.role === 'officer') return officerDash(ctx);
-    if (ctx.user.role === 'venue') return venueDash(b, ctx);
-    return managerDash(ctx);
+    // The to-do list rides along, so Needs you shows the same counts as the badges and the bell
+    const [out, todo] = await Promise.all([ctx.user.role === 'venue' ? venueDash(b, ctx) : managerDash(ctx), todoSummary(b, ctx)]);
+    return { ...out, todo };
   }),
 };

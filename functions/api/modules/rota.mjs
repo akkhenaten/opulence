@@ -174,6 +174,13 @@ async function notifyGrouped(officerId, list, one, many, extra = {}) {
 }
 const byOfficer = (rows) => rows.reduce((m, r) => m.set(r.officer_id, [...(m.get(r.officer_id) || []), r]), new Map());
 
+/** Tells every active officer that n shifts are open to request (the same notice wherever a shift is opened). */
+export async function announceOpen(n) {
+  if (!n) return;
+  const officers = await q("SELECT user_id FROM officers WHERE status = 'active' AND user_id IS NOT NULL");
+  await notify(officers.map((o) => o.user_id), { kind: 'open_shift', title: `${n} open shift${n > 1 ? 's' : ''} available`, body: 'Request them in the app before they go.', link: '/officer/shifts?tab=open' });
+}
+
 export const actions = {
   // ---------- Shifts ----------
   'shifts.list': def(ALL, async (b, { user }) => {
@@ -550,10 +557,7 @@ export const actions = {
       else if (!!s.open !== !!b.open) ids.push(s.id);
     }
     if (ids.length) await q('UPDATE shifts SET open = $2 WHERE id = ANY($1::uuid[])', [ids, !!b.open]);
-    if (ids.length && b.open) {
-      const officers = await q("SELECT user_id FROM officers WHERE status = 'active' AND user_id IS NOT NULL");
-      await notify(officers.map((o) => o.user_id), { kind: 'open_shift', title: `${ids.length} open shift${ids.length > 1 ? 's' : ''} available`, body: 'Request them in the app before they go.', link: '/officer/shifts?tab=open' });
-    }
+    if (ids.length && b.open) await announceOpen(ids.length);
     await audit(user, b.open ? 'shift.open_many' : 'shift.close_many', 'shift', null, { shifts: ids });
     return { done: ids.length, skipped };
   }),

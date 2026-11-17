@@ -5,6 +5,7 @@ import { api } from '../api.js';
 import { startRealtime, useRealtime, useRealtimeConnected } from '../realtime.js';
 import { HOME, portalLink, useAuth } from '../auth.jsx';
 import { VenueChip } from '../venue.jsx';
+import { NeedRow } from '../pages/manager/_needs.jsx';
 import { Avatar, Button, cx, Empty, IconButton, Pressable, relative, Sheet, SkeletonPage, SkeletonRows, useApi, useBump, usePageHeader, useScrollMemory } from '../ui/index.jsx';
 import { NAV, ROLE_LABEL } from './nav.js';
 import { HubCtx, hubTabs } from '../ui/hub.jsx';
@@ -55,11 +56,11 @@ function useNarrow() {
 }
 
 // Where each portal keeps its full to-do list
-const TODO_LINK = { company: ['/company#needs', 'See all in Needs you'], security: ['/company#needs', 'See all in Needs you'],
+const TODO_LINK = { company: ['/company#needs', 'See all in Needs you'], security: ['/security#needs', 'See all in Needs you'],
   officer: ['/officer#todo', 'See your To do'], venue: ['/venue#needs', 'See Needs you'] };
 
 // Top of the bell: what still needs this person. Hidden when nothing does.
-function Waiting({ q, role, go }) {
+function Waiting({ q, role, go, onGo }) {
   const items = q.data?.items || [];
   if (q.error && !q.data) return <p className="mb-3 text-footnote text-muted">Couldn't check what's waiting for you.</p>;
   if (!items.length) return q.data?.failed ? <p className="mb-3 text-footnote text-muted">Some of what's waiting couldn't be checked.</p> : null;
@@ -70,14 +71,9 @@ function Waiting({ q, role, go }) {
         <h3 className="text-footnote font-semibold uppercase tracking-wide text-muted">Waiting for you</h3>
         <Button variant="ghost" size="sm" onClick={() => go(to)}>{label}</Button>
       </div>
-      <div className="-mx-2 divide-y divide-line">
-        {items.map((i) => (
-          <Pressable key={i.key} onClick={() => go(i.link)} className="flex items-center gap-3 rounded-xl px-2 py-3">
-            <span className="grid h-7 min-w-7 place-items-center rounded-full bg-blue-soft px-2 text-footnote font-bold text-blue num">{i.count}</span>
-            <span className="min-w-0 flex-1 text-body font-semibold">{i.title}</span>
-            <ChevronRight size={18} className="shrink-0 text-faint" />
-          </Pressable>
-        ))}
+      {/* The same rows and buttons as Needs you: venue requests, timesheets, phones… can be dealt with from here */}
+      <div className="-mx-4 divide-y divide-line overflow-hidden rounded-2xl">
+        {items.map((i) => <NeedRow key={i.key} item={i} onGo={onGo} layer="top" />)}
       </div>
       {q.data.failed && <p className="mt-1 text-caption text-faint">Some of what's waiting couldn't be checked.</p>}
     </section>
@@ -130,7 +126,7 @@ function NotificationBell() {
         badge={unread} badgeTone={count.data?.critical ? 'red' : 'blue'} />
       <Sheet open={open} onClose={() => setOpen(false)} title="Notifications"
         footer={unread > 0 && <Button variant="ghost" onClick={async () => { await api('notifications.markRead', {}); count.reload(); list.reload(); }}>Mark all as read</Button>}>
-        <Waiting q={waiting} role={user.role} go={go} />
+        <Waiting q={waiting} role={user.role} go={go} onGo={() => setOpen(false)} />
         {waiting.data?.items?.length > 0 && <h3 className="mb-1 mt-5 text-footnote font-semibold uppercase tracking-wide text-muted">Recent</h3>}
         {list.loading && !list.data ? <SkeletonRows n={4} className="-mx-1 border-0 shadow-none" />
           : !list.data?.items?.length ? (waiting.data?.items?.length ? <p className="py-2 text-subhead text-muted">No alerts yet</p> : <Empty icon={BellOff} title="You are all caught up" />) : (
@@ -198,9 +194,10 @@ const MORE_ICON = 'ui-raised-icon grid h-9 w-9 shrink-0 place-items-center round
 
 // Count badge for a nav item (Orb inbox)
 // pops when the number changes
-function Badge({ n, className }) {
+// red when something behind it is urgent (an unfilled shift, a query, a clock exception)
+function Badge({ n, red, className }) {
   const bump = useBump(n);
-  return n > 0 ? <span className={cx('rounded-full bg-blue px-1.5 text-caption2 font-bold leading-[18px] text-white', bump && 'badge-bump', className)}>{n > 99 ? '99+' : n}</span> : null;
+  return n > 0 ? <span className={cx('rounded-full px-1.5 text-caption2 font-bold leading-[18px] text-white', red ? 'bg-red' : 'bg-blue', bump && 'badge-bump', className)}>{n > 99 ? '99+' : n}</span> : null;
 }
 
 // A small label on a nav item (Platform: Admin)
@@ -227,15 +224,15 @@ function useSidebar() {
 
 // A sidebar link: the icon with its own motion (navMotion.js), the label that fades when the strip shrinks, the badge
 // as a corner dot on the icon while shrunk
-function SideLink({ it, i, open, n, className, on = NAV_ON, onClick, active }) {
+function SideLink({ it, i, open, n, red, className, on = NAV_ON, onClick, active }) {
   return (
     <Link to={it.to} onClick={onClick} aria-label={it.label} title={open ? undefined : it.label} style={{ '--i': i }} aria-current={active ? 'page' : undefined}
       className={cx(NAV_ITEM, className, active ? on : NAV_OFF)}>
       <span className={cx('nav-ic relative grid shrink-0 place-items-center', `nav-m-${motionFor(it.icon)}`)}>
         <it.icon size={18} />
-        {!open && <Badge n={n} className="absolute -right-3 -top-2.5 ring-2 ring-bg" />}
+        {!open && <Badge n={n} red={red} className="absolute -right-3 -top-2.5 ring-2 ring-bg" />}
       </span>
-      <span className="side-label flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap"><span className="flex-1 truncate">{it.label}</span><Tag t={it.tag} /><Badge n={n} /></span>
+      <span className="side-label flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap"><span className="flex-1 truncate">{it.label}</span><Tag t={it.tag} /><Badge n={n} red={red} /></span>
     </Link>
   );
 }
@@ -278,7 +275,8 @@ export default function Shell() {
   const { user, signOut } = useAuth();
   useLandingCheck(user);
   const isMgr = ['company', 'security'].includes(user.role);
-  const opsCount = useApi('ops.count', {}, { poll: 30000, skip: !isMgr });
+  // One to-do list behind every badge, Needs you and the bell (todo.summary), so the numbers agree everywhere
+  const todo = useApi('todo.summary', {}, { poll: 30000, skip: !isMgr && user.role !== 'venue' });
   const settings = useApi('settings.get', {});
   const modules = settings.data?.modules || {};
   const on = (m) => modules[m] !== false;
@@ -290,13 +288,14 @@ export default function Shell() {
   useEffect(() => { syncPush(); }, [user.id]);
   const mail = useApi('email.accounts', {}, { poll: 120000, skip: user.role !== 'company' });
   useEffect(() => { const h = () => mail.reload(); window.addEventListener('orb:email', h); return () => window.removeEventListener('orb:email', h); });
-  useEffect(() => { const h = () => opsCount.reload(); window.addEventListener('orb:ops', h); return () => window.removeEventListener('orb:ops', h); });
+  useEffect(() => { const h = () => todo.reload(); window.addEventListener('orb:ops', h); return () => window.removeEventListener('orb:ops', h); });
   // App feedback: whether the button shows, and the platform admin's count of new items
   const fb = useApi('appFeedback.status', {}, { poll: 120000 });
   useEffect(() => { const h = () => fb.reload(); window.addEventListener('orb:feedback-status', h); return () => window.removeEventListener('orb:feedback-status', h); });
   const fbOn = !!fb.data?.on;
-  const badges = { ops: opsCount.data?.n || 0, everyday: feed.data?.unread || 0, messages: msgs.data?.unread || 0, email: (mail.data?.accounts || []).reduce((n, a) => n + (a.unread || 0), 0), platform: fb.data?.new || 0 };
+  const badges = { ...(todo.data?.byNav || {}), everyday: feed.data?.unread || 0, messages: msgs.data?.unread || 0, email: (mail.data?.accounts || []).reduce((n, a) => n + (a.unread || 0), 0), platform: fb.data?.new || 0 };
   badges.inbox = badges.messages + badges.email;
+  const urgent = new Set((todo.data?.items || []).filter((i) => i.tone === 'red').map((i) => i.nav));
   const chatBadge = badges.messages + (user.role === 'officer' && feedOn ? badges.everyday : 0);
   const loc = useLocation();
   const [more, setMore] = useState(false);
@@ -327,6 +326,8 @@ export default function Shell() {
     return () => window.removeEventListener('orb:messages', r);
   }, []);
   useRealtime(['msg', 'read'], () => reloadMsgs.current());
+  // A new notice (a venue's request, an officer asking for a shift…): badges, the bell and Needs you catch up now
+  useRealtime('notif', () => { window.dispatchEvent(new Event('orb:ops')); window.dispatchEvent(new Event('orb:notify')); });
   // Opening the feed clears the badge
   const onFeed = /\/everyday$/.test(loc.pathname) || /[?&]tab=everyday/.test(loc.search);
   useEffect(() => { if (feedOn && onFeed) setTimeout(feed.reload, 1500); }, [onFeed, feedOn]);
@@ -460,12 +461,12 @@ export default function Shell() {
                       <div className={cx('absolute left-3 top-2 h-px w-6 bg-line transition-opacity duration-[var(--dur-2)]', side.open ? 'opacity-0' : 'opacity-100')} />
                     </div>
                   )}
-                  {g.items.filter((it) => !it.phoneOnly).map((it, i) => <SideLink key={it.to} it={it} i={i} open={side.open} n={badges[it.badge]} onClick={tabTap(it)} active={isActive(it)} />)}
+                  {g.items.filter((it) => !it.phoneOnly).map((it, i) => <SideLink key={it.to} it={it} i={i} open={side.open} n={badges[it.badge]} red={urgent.has(it.badge)} onClick={tabTap(it)} active={isActive(it)} />)}
                 </div>
               ))}
             </nav>
             {groups.filter((g) => g.foot).map((g, gi) => (
-              <div key={gi} className="mt-2">{g.items.map((it, i) => <SideLink key={it.to} it={it} i={i} open={side.open} n={badges[it.badge]} onClick={tabTap(it)} active={isActive(it)} on={NAV_ON_STATIC} />)}</div>
+              <div key={gi} className="mt-2">{g.items.map((it, i) => <SideLink key={it.to} it={it} i={i} open={side.open} n={badges[it.badge]} red={urgent.has(it.badge)} onClick={tabTap(it)} active={isActive(it)} on={NAV_ON_STATIC} />)}</div>
             ))}
             <Pressable press onClick={() => setAccount(true)} aria-label="My account" title={side.open ? undefined : `${user.name} · My account`}
               className={cx('mt-4 flex items-center gap-3 rounded-2xl bg-fill hover:bg-fill-strong transition-[padding] duration-[var(--dur-3)] ease-ios', side.open ? 'p-3' : 'p-1.5')}>
@@ -519,13 +520,13 @@ export default function Shell() {
               className={cx('pressable flex min-h-[54px] flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-caption2 font-semibold', isActive(it) ? 'text-blue' : 'text-faint')}>
               {it.primary
                 ? <span className={cx('ui-tab-primary -mt-5 grid h-14 w-14 place-items-center rounded-full bg-blue text-white shadow-[0_8px_20px_-6px_color-mix(in_srgb,var(--accent-fill,var(--color-blue))_80%,transparent)] ring-4 ring-bg', isActive(it) && 'anim-pop')}><it.icon size={24} /></span>
-                : <span className={cx('grid h-7 place-items-center rounded-full px-4 transition-colors duration-[var(--dur-2)]', isActive(it) && 'ui-tab-pill anim-pop bg-blue-soft')}><it.icon size={24} /></span>}
+                : <span className={cx('relative grid h-7 place-items-center rounded-full px-4 transition-colors duration-[var(--dur-2)]', isActive(it) && 'ui-tab-pill anim-pop bg-blue-soft')}><it.icon size={24} /><Badge n={badges[it.badge]} red={urgent.has(it.badge)} className="absolute right-0.5 -top-1" /></span>}
               <span className={cx(it.primary && 'mt-0.5')}>{it.short || it.label}</span>
             </Link>
           ))}
           {extra.length > 0 && (
             <Pressable press onClick={() => setMore(true)} className={cx('pressable flex min-h-[54px] flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-caption2 font-semibold', extra.some(isActive) ? 'text-blue' : 'text-faint')}>
-              <span className="relative"><MoreHorizontal size={24} /><Badge n={extra.reduce((a, it) => a + (badges[it.badge] || 0), 0)} className="absolute -right-3 -top-1" /></span>More
+              <span className="relative"><MoreHorizontal size={24} /><Badge n={extra.reduce((a, it) => a + (badges[it.badge] || 0), 0)} red={extra.some((it) => urgent.has(it.badge))} className="absolute -right-3 -top-1" /></span>More
             </Pressable>
           )}
         </div>
@@ -539,7 +540,7 @@ export default function Shell() {
               {g.items.map((it) => (
                 <Link key={it.to} to={it.to} className={cx(MORE_ROW, isActive(it) ? 'bg-blue-soft text-blue' : 'text-ink')}>
                   <span className={MORE_ICON}><it.icon size={20} /></span>
-                  <span className="min-w-0 flex-1 truncate">{it.label}</span><Tag t={it.tag} /><Badge n={badges[it.badge]} /><ChevronRight size={18} className="text-faint" />
+                  <span className="min-w-0 flex-1 truncate">{it.label}</span><Tag t={it.tag} /><Badge n={badges[it.badge]} red={urgent.has(it.badge)} /><ChevronRight size={18} className="text-faint" />
                 </Link>
               ))}
             </div>

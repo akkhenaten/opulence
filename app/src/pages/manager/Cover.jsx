@@ -2,18 +2,20 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, CircleX, Hourglass, Layers, ListChecks, Megaphone, MessagesSquare, Pencil, Trash2, UserCheck, UserPlus, X } from 'lucide-react';
 import {
-  Button, dateTime, dayLabel, Empty, isoDate, KV, Load, mondayOf, Page, Pill, range, relative, Segmented, Sheet, Textarea, Toggle, useAction, useApi, useUrlState,
+  Button, dateTime, dayLabel, Empty, isoDate, KV, Load, mondayOf, Page, Pill, range, relative, Segmented, Sheet, Textarea, useAction, useApi, useUrlState,
 } from '../../ui/index.jsx';
 import { api } from '../../api.js';
 import { useBase } from './_parts.jsx';
 import { coverWaiting, useRotaCounts } from './_rotaCounts.js';
-import { canCancel, canChange, ChangeRequest, describeChange, isFilled, RepeatTag, statusOf } from './_cover.jsx';
+import { AcceptChoices, AcceptSheet, canCancel, canChange, ChangeRequest, describeChange, RepeatTag, statusOf } from './_cover.jsx';
+import { lastAcceptChoice, rememberAcceptChoice, requestState } from './_coverState.js';
 import { groupRequests, RequestCards, sortGroups } from './_requestCards.jsx';
 
+// Each date in one tab only: a booked date with a change waiting is under Waiting until the office answers
 const FILTERS = {
   pending: coverWaiting,
-  accepted: (c) => c.status === 'accepted' && !isFilled(c),
-  filled: isFilled,
+  accepted: (c) => requestState(c) === 'staffing',
+  filled: (c) => requestState(c) === 'staffed',
   declined: (c) => c.status === 'declined' || c.status === 'cancelled',
   all: () => true,
 };
@@ -46,6 +48,7 @@ export default function Cover() {
   const [bulk, bulkBusy] = useAction();
   const [refuse, setRefuse] = useState(null); // { kind: 'dates' | 'changes', list, stop } waiting for a reason
   const [why, setWhy] = useState('');
+  const [accepting, setAccepting] = useState(null); // { ids, stop }: several dates, one "then" for all
   const newDate = (c) => c.status === 'pending' && c.change_status !== 'pending';
   const asked = (c) => c.change_status === 'pending';
   const each = (list, call, word, stop) => bulk(async () => {
@@ -63,7 +66,7 @@ export default function Cover() {
     return (
       <>
         {dates.length > 0 && <Button size="sm" variant="secondary" icon={X} disabled={bulkBusy} onClick={() => setRefuse({ kind: 'dates', list: dates, stop })}>Decline {dates.length}</Button>}
-        {dates.length > 0 && <Button size="sm" icon={Check} busy={bulkBusy} onClick={() => each(dates, (c) => ['cover.accept', { id: c.id, open: true, scope: 'one' }], 'accepted', stop)}>Accept {dates.length}</Button>}
+        {dates.length > 0 && <Button size="sm" icon={Check} busy={bulkBusy} onClick={() => setAccepting({ ids: dates.map((c) => c.id), stop })}>Accept {dates.length}</Button>}
         {changes.length > 0 && <Button size="sm" variant="secondary" icon={X} disabled={bulkBusy} onClick={() => setRefuse({ kind: 'changes', list: changes, stop })}>Decline {changes.length} change{changes.length === 1 ? '' : 's'}</Button>}
         {changes.length > 0 && <Button size="sm" icon={Check} busy={bulkBusy} onClick={() => each(changes, (c) => ['cover.decideChange', { id: c.id, approve: true, reason: '' }], 'changes approved', stop)}>Approve {changes.length} change{changes.length === 1 ? '' : 's'}</Button>}
       </>
@@ -106,6 +109,8 @@ export default function Cover() {
           <Textarea label="Reason for the venue (optional)" rows={3} value={why} onChange={(e) => setWhy(e.target.value)} />
         </Sheet>
       )}
+      {accepting && <AcceptSheet ids={accepting.ids} onClose={() => setAccepting(null)}
+        onDone={() => { accepting.stop(); setAccepting(null); q.reload(); }} />}
       {open && <Detail key={open.id} c={open} dates={sameSeries(open)} base={base} onClose={() => setOpenId(null)} onDone={() => { setOpenId(null); q.reload(); }}
         onPrev={at > 0 ? () => setOpenId(flat[at - 1].id) : undefined}
         onNext={at < flat.length - 1 ? () => setOpenId(flat[at + 1].id) : undefined} />}
@@ -120,17 +125,18 @@ function Detail({ c, dates, base, onClose, onDone, onPrev, onNext }) {
   const nav = useNavigate();
   const [mode, setMode] = useState(null); // 'accept' | 'decline' | 'edit' | 'delete' | 'refuse'
   const [scope, setScope] = useState(dates.length > 1 ? 'series' : 'one');
-  const [asOpen, setAsOpen] = useState(true);
+  const [how, setHow] = useState(lastAcceptChoice);
   const [reason, setReason] = useState('');
   const [run, busy] = useAction();
   const series = c.kind === 'recurring';
   const many = scope === 'series' && series;
-  // Accepting goes straight on to staffing the (first) new shift
-  const accept = () => run(() => api('cover.accept', { id: c.id, open: asOpen, scope: many ? 'series' : 'one' }), many ? 'All dates accepted' : 'Accepted, shift created')
+  // "I'll assign myself" goes straight on to staffing the (first) new shift; otherwise officers or Orb take it from here
+  const accept = () => { rememberAcceptChoice(how); return run(() => api('cover.accept', { id: c.id, notify: how, scope: many ? 'series' : 'one' }),
+    { broadcast: 'Accepted · officers told', orb: 'Accepted · Orb is finding the team', none: 'Accepted, shift created' }[how])
     .then((r) => {
       const id = r?.id || r?.shift_ids?.[0];
-      if (id) nav(`${base}/rota?shift=${id}&assign=1&week=${mondayOf(isoDate(r.starts_at || c.starts_at))}`); else onDone();
-    }).catch(() => {});
+      if (id && how === 'none') nav(`${base}/rota?shift=${id}&assign=1&week=${mondayOf(isoDate(r.starts_at || c.starts_at))}`); else onDone();
+    }).catch(() => {}); };
   const decline = () => run(() => api('cover.decline', { id: c.id, reason: reason.trim(), scope: many ? 'series' : 'one' }), 'Declined').then(onDone).catch(() => {});
   const decide = (approve) => run(() => api('cover.decideChange', { id: c.id, approve, reason: reason.trim() }), approve ? 'Change approved' : 'Change declined').then(onDone).catch(() => {});
 
@@ -184,7 +190,7 @@ function Detail({ c, dates, base, onClose, onDone, onPrev, onNext }) {
               {many ? `Creates a published shift for each date${c.end_date ? '' : ', and new dates are booked automatically as the pattern rolls on'}. ` : `Creates a published shift for ${dateTime(c.starts_at)} with ${c.headcount} place${c.headcount > 1 ? 's' : ''}. `}
               The venue is told it is accepted.
             </p>
-            <Toggle label="Offer as open shifts" hint="Officers can ask to work them from the app" checked={asOpen} onChange={setAsOpen} />
+            <AcceptChoices value={how} onChange={setHow} />
           </div>
         )}
         {(mode === 'decline' || mode === 'refuse') && <Textarea label="Reason for the venue" rows={3} placeholder="e.g. No licensed officers free at that time" value={reason} onChange={(e) => setReason(e.target.value)} />}

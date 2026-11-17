@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, CalendarClock, CalendarDays, CalendarOff, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, FileSignature, Hand, History, Megaphone, Newspaper, RefreshCw, Settings, ShieldAlert, ShieldCheck,
-  Sparkles, TrendingUp, TriangleAlert, UserX, Wallet,
+  CalendarDays, CheckCircle2, ChevronLeft, History, Newspaper, RefreshCw, Settings, Sparkles, TrendingUp,
 } from 'lucide-react';
 import {
   AttentionDrawer, Button, LoadFail, anyFailed, Chip, IconButton, MoreMenu, Page, Pill, Stat, Tile, confirmState, cx, dayLabel, hours, isoDate, money0, range, time, useAction, useApi, useAttention, useMedia, useToast,
@@ -14,6 +13,7 @@ import { InstallCard } from '../../ui/pwa.jsx';
 import { PushCard } from '../officer/_notify.jsx';
 import { Floor, StatusChips, useLiveBoard } from '../shared/Live.jsx';
 import { Inbox } from './OpsAI.jsx';
+import { NEED_ICON, NeedRow } from './_needs.jsx';
 
 // Everyday lives on the Dashboard now; old links (and notification links) land on that tab
 export function EverydayRedirect() {
@@ -25,35 +25,16 @@ export function EverydayRedirect() {
   return <Navigate to={`${base}?${p}`} replace />;
 }
 
-const CHIP = { red: 'bg-red-soft text-red', amber: 'bg-amber-soft text-amber', blue: 'bg-blue-soft text-blue' };
+// Needs you is the shared to-do list (todo.summary via dashboard.get): the same rows, counts and actions as the bell and the
+// menu badges. The red ones go above Orb's cards in the queue, the rest below; Orb's own cards are the queue itself.
+const needsOf = (d) => (d?.todo?.items || []).filter((i) => i.needs);
+const countsOf = (d) => d?.counts || {};
 
-// What can be waiting on a manager besides Orb's cards, most urgent first; only the ones above zero are shown.
-// The red ones go above Orb's cards in the queue, the rest below.
-const NEEDS = [
-  { key: 'exceptions', to: '/exceptions', icon: TriangleAlert, tone: 'red', one: 'clock exception to check', many: 'clock exceptions to check' },
-  { key: 'unfilled', to: '/rota', icon: CalendarClock, tone: 'red', one: 'unfilled shift in the next 7 days', many: 'unfilled shifts in the next 7 days' },
-  { key: 'disputed', to: '/timesheets?status=disputed', icon: AlertTriangle, tone: 'red', one: 'disputed timesheet', many: 'disputed timesheets' },
-  { key: 'cantWork', to: '/people/compliance?view=cantwork', icon: UserX, tone: 'red', one: 'officer can’t work (compliance)', many: 'officers can’t work (compliance)', company: true },
-  { key: 'incidentsToSign', to: '/incidents?to_sign=1', icon: FileSignature, tone: 'amber', one: 'incident report to sign', many: 'incident reports to sign' },
-  { key: 'openIncidents', to: '/incidents', icon: ShieldAlert, tone: 'amber', one: 'open incident', many: 'open incidents' },
-  { key: 'pendingCover', to: '/cover', icon: Megaphone, tone: 'amber', one: 'cover request to answer', many: 'cover requests to answer' },
-  { key: 'graceEnding', to: '/people/compliance?view=cantwork', icon: CalendarClock, tone: 'amber', one: 'grace period ends within 3 days', many: 'grace periods end within 3 days', company: true },
-  { key: 'expiring', to: '/people/compliance', icon: ShieldCheck, tone: 'amber', one: 'officer with a licence or right to work expiring in 60 days', many: 'officers with a licence or right to work expiring in 60 days', company: true },
-  { key: 'toApprove', to: '/timesheets?status=pending', icon: ClipboardCheck, tone: 'blue', one: 'timesheet to approve', many: 'timesheets to approve' },
-  { key: 'requests', to: '/rota?tab=requests', icon: Hand, tone: 'blue', one: 'shift request', many: 'shift requests' },
-  { key: 'streamsToCheck', to: '/venues', icon: Wallet, tone: 'amber', one: 'new billing stream to check', many: 'new billing streams to check', company: true },
-  { key: 'timeOff', to: '/company/hr/time-off', abs: true, icon: CalendarOff, tone: 'amber', one: 'time off request to review', many: 'time off requests to review', company: true },
-];
-// The counts from dashboard.get, plus the two compliance ones (expiring comes as a list of at most 10)
-const countsOf = (d) => ({ ...(d?.counts || {}), cantWork: d?.nonCompliantCount || 0, expiring: (d?.expiring || []).length, streamCheckVenue: d?.streamCheckVenue });
-const needsFor = (c, isCompany) => NEEDS.filter((n) => (c[n.key] || 0) > 0 && (!n.company || isCompany));
-
-function summaryLine(d, isCompany, onSite, orb, failed) {
+function summaryLine(d, onSite, orb, failed) {
   const parts = [dayLabel(isoDate())];
   if (!d) return failed ? `${parts[0]} · couldn't check everything` : parts[0];
   if (onSite) parts.push(`${onSite} on site`);
-  const c = countsOf(d);
-  const n = needsFor(c, isCompany).reduce((a, x) => a + c[x.key], 0) + (orb || 0);
+  const n = needsOf(d).reduce((a, x) => a + x.count, 0) + (orb || 0);
   // A failed check never reads as all clear
   parts.push(n ? `${n} ${n === 1 ? 'thing needs' : 'things need'} you` : failed ? "couldn't check everything" : 'all clear');
   return parts.join(' · ');
@@ -93,9 +74,7 @@ export default function Dashboard() {
   const tab = feedOn && sp.get('tab') === 'everyday' ? 'everyday' : 'overview';
   const q = useApi('dashboard.get', {}, { poll: 30000 });
   const count = useApi('ops.count', {}, { poll: 30000 });
-  // Incident reports an officer signed that wait on a manager's signature (a dashboard count wins if the API sends one)
-  const toSign = useApi('incidents.list', { to_sign: true }, { poll: 60000 });
-  const dash = q.data && { ...q.data, counts: { incidentsToSign: toSign.data?.length || 0, ...(q.data.counts || {}) } };
+  const dash = q.data;
   const unread = useApi('everyday.unread', {}, { poll: 60000, skip: !feedOn });
   const board = useLiveBoard();
   const lg = useMedia('(min-width: 1024px)');
@@ -108,13 +87,13 @@ export default function Dashboard() {
   const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: 'numeric', hourCycle: 'h23' }).format(new Date()));
   const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const orb = count.data?.n || 0;
-  const failed = anyFailed(q, count, toSign);
-  const retry = () => { q.reload(); count.reload(); toSign.reload(); };
+  const failed = anyFailed(q, count) || !!dash?.todo?.failed;
+  const retry = () => { q.reload(); count.reload(); };
   const onSite = board.rows.filter((r) => ['on_shift', 'on_break'].includes(r.state)).length;
 
   // Any shift change or Orb decision anywhere in the app: the board, the counts and the cards catch up
   useEffect(() => {
-    const h = () => { board.q.reload(); count.reload(); q.reload(); toSign.reload(); setReloadKey((k) => k + 1); };
+    const h = () => { board.q.reload(); count.reload(); q.reload(); setReloadKey((k) => k + 1); };
     window.addEventListener('orb:ops', h);
     return () => window.removeEventListener('orb:ops', h);
   });
@@ -144,24 +123,24 @@ export default function Dashboard() {
   );
 
   return (
-    <Page backLabel="Today" title={`${greet}${first ? `, ${first}` : ''}`} subtitle={summaryLine(tab === 'everyday' ? null : dash, isCompany, onSite, orb, tab !== 'everyday' && failed)} wide photo="door" slim actions={actions || undefined}>
+    <Page backLabel="Today" title={`${greet}${first ? `, ${first}` : ''}`} subtitle={summaryLine(tab === 'everyday' ? null : dash, onSite, orb, tab !== 'everyday' && failed)} wide photo="door" slim actions={actions || undefined}>
       {tab !== 'everyday' && <PushCard className="mb-4" later="your account menu" />}
       {tab === 'everyday'
         ? <FeedBody lead={<Button size="sm" variant="ghost" icon={ChevronLeft} onClick={() => setSp({}, { replace: true })}>Today</Button>} />
-        : <Today d={dash} board={board} base={base} isCompany={isCompany} lg={lg} orb={orb} failed={failed} onRetry={retry} reloadKey={reloadKey} focus={sp.get('card')} onOrbChange={() => { count.reload(); q.reload(); }} />}
+        : <Today d={dash} board={board} base={base} lg={lg} orb={orb} failed={failed} onRetry={retry} reloadKey={reloadKey} focus={sp.get('card')} onOrbChange={() => { count.reload(); q.reload(); }} />}
       {tab !== 'everyday' && <InstallCard className="mt-4" later={isCompany ? 'Settings' : 'My account'} />}
     </Page>
   );
 }
 
-function Today({ d, board, base, isCompany, lg, orb, failed, onRetry, reloadKey, onOrbChange, focus }) {
+function Today({ d, board, base, lg, orb, failed, onRetry, reloadKey, onOrbChange, focus }) {
   const c = countsOf(d);
-  const list = needsFor(c, isCompany);
-  const total = list.reduce((a, x) => a + c[x.key], 0) + orb;
+  const list = needsOf(d);
+  const total = list.reduce((a, x) => a + x.count, 0) + orb;
   const next = upcoming(d);
   const rows = (tones) => {
     const l = list.filter((n) => tones.includes(n.tone));
-    return l.length > 0 && <NeedRows list={l} c={c} base={base} />;
+    return l.length > 0 && <NeedRows list={l} />;
   };
   // On phones a filter jumps to the board, which sits under the queue
   const setFilter = (v) => { board.setFilter(v); if (!lg) setTimeout(() => scrollTo('floor'), 50); };
@@ -191,8 +170,8 @@ function Today({ d, board, base, isCompany, lg, orb, failed, onRetry, reloadKey,
   const needsBar = (
     <AttentionDrawer id="needs" title="Needs you" count={total} failed={failed} onRetry={onRetry}
       tone={list.some((x) => x.tone === 'red') ? 'red' : orb > 0 ? 'blue' : top?.tone || 'blue'}
-      preview={[...list.filter((x) => x.tone === 'red'), ...(orb > 0 ? [{ icon: Sparkles, tone: 'blue' }] : []), ...list.filter((x) => x.tone !== 'red')]}
-      lead={top ? `${c[top.key]} ${c[top.key] === 1 ? top.one : top.many}${list.length > 1 || orb ? ' · and more' : ''}` : orb > 0 ? `${orb} from Orb to approve` : null}>
+      preview={[...list.filter((x) => x.tone === 'red'), ...(orb > 0 ? [{ key: 'decisions', tone: 'blue' }] : []), ...list.filter((x) => x.tone !== 'red')].map((x) => ({ icon: NEED_ICON[x.key] || Sparkles, tone: x.tone }))}
+      lead={top ? `${top.title}${list.length > 1 || orb ? ' · and more' : ''}` : orb > 0 ? `${orb} from Orb to approve` : null}>
       {queueOf('Orb and to-dos')}
     </AttentionDrawer>
   );
@@ -238,20 +217,12 @@ function Today({ d, board, base, isCompany, lg, orb, failed, onRetry, reloadKey,
   );
 }
 
-// The to-dos that aren't Orb cards: one row each, in the same card style as the queue
-function NeedRows({ list, c, base }) {
+// The to-dos that aren't Orb cards: one row each, in the same card style as the queue; the ones with a list open in place
+function NeedRows({ list }) {
   return (
     <div className="ui-panel mb-3 overflow-hidden rounded-tile border border-hairline bg-surface shadow-tile">
       <div className="divide-y divide-line">
-        {list.map((n) => (
-          <Link key={n.key} to={n.abs ? n.to : n.key === 'streamsToCheck' && c.streamCheckVenue ? `${base}/venues/${c.streamCheckVenue}?tab=streams` : `${base}${n.to}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-bg">
-            <span className={cx('grid h-9 w-9 shrink-0 place-items-center rounded-xl', CHIP[n.tone])}><n.icon size={18} /></span>
-            <div className="min-w-0 flex-1 text-subhead leading-snug">
-              <span className="num font-bold">{n.key === 'expiring' && c[n.key] >= 10 ? '10+' : c[n.key]}</span> {c[n.key] === 1 ? n.one : n.many}
-            </div>
-            <ChevronRight size={18} className="shrink-0 text-faint" />
-          </Link>
-        ))}
+        {list.map((n) => <NeedRow key={n.key} item={n} />)}
       </div>
     </div>
   );
