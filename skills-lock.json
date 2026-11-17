@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "skills": {
+    "ai-act-report": {
+      "source": "open-kbs/skills-ai-act-report",
+      "sourceType": "github",
+      "skillPath": "skills/ai-act-report/SKILL.md",
+      "computedHash": "70f53994577aae5821a90794f7c13be5859a4ec42f7aba08313a522caf6f20a6"
+    },
+    "demo-video": {
+      "source": "open-kbs/skills-demo-video",
+      "sourceType": "github",
+      "skillPath": "skills/demo-video/SKILL.md",
+      "computedHash": "dca9f126f3a411401d4d63b1d991c1f89f15b73a105a582d63e8abab68b673a1"
+    },
+    "file-transcribe": {
+      "source": "open-kbs/skills-file-transcribe",
+      "sourceType": "github",
+      "skillPath": "skills/file-transcribe/SKILL.md",
+      "computedHash": "6c793f28e5ba91b5e1d526b7bde1caf21acd813f2bdd7cd52563ff746c1c3628"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "computedHash": "7bc223e2aafbdbf6e50ea243ba6ef67fe432bb069ab439fea0390795dac0bf7f"
+    }
+  }
+}
