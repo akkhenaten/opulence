@@ -327,7 +327,7 @@ export function LoginList({ who, rows, search, status, me }) {
           <span className="min-w-0"><span className="block truncate font-semibold">{u.name}{u.id === me.id && <span className="ml-1.5 text-caption font-semibold text-faint">You</span>}</span>
             <span className="block truncate text-footnote text-muted">{u.email || 'No email'}</span></span></span>
       ) },
-      { key: 'apps', label: 'Can use', mobile: 'sub', render: (u) => <span className="flex flex-wrap items-center gap-1.5">{appsLine({ ...appsOf(u.role, u.officer_id), can_see_pay: u.can_see_pay })}{u.platform && <Pill tone="amber">Platform admin</Pill>}</span> },
+      { key: 'apps', label: 'Can use', mobile: 'sub', render: (u) => <span className="flex flex-wrap items-center gap-1.5">{appsLine({ ...appsOf(u.role, !!(u.role && u.officer_id)), can_see_pay: u.can_see_pay })}{u.platform && <Pill tone="amber">Platform admin</Pill>}</span> },
       { key: 'venues', label: 'Venues', mobile: who === 'all' ? false : 'sub', render: (u) => (u.role === 'company' ? 'All' : !u.venues?.length ? '—' : <span title={u.venues.join(', ')}>{u.venues.length === 1 ? u.venues[0] : `${u.venues.length} venues`}</span>) },
       { key: 'status', label: 'Status', mobile: 'value', render: (u) => (u.status ? statusPill(u) : <Pill tone="grey">No app</Pill>) },
       { key: 'seen', label: 'Last seen', mobile: false, render: (u) => <span className="text-footnote text-muted">{u.status ? seenWord(u) : '—'}</span> },

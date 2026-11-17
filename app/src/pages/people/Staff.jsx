@@ -151,7 +151,7 @@ function Officers({ picker }) {
           </>
         )}
       </Load>
-      {isCo && adding && <AddPersonSheet title="Add officer" preset={{ officer: true }} onClose={() => setAdding(false)} onDone={q.reload} />}
+      {isCo && adding && <AddPersonSheet preset={{ officer: true }} onClose={() => setAdding(false)} onDone={q.reload} />}
     </Page2>
   );
 }
