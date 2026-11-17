@@ -1,0 +1,1 @@
+import{aT as c,d as r,m as u}from"./index-DxXELY3b.js";function f(a="/venue"){const o=c(),[n,t]=r();return[(i,e="")=>n(async()=>{const{id:s}=await u("messages.office",{venue_id:i});e&&!sessionStorage.getItem(`orb:msg:${s}`)&&sessionStorage.setItem(`orb:msg:${s}`,e),o(`${a}/messages/${s}`)}).catch(()=>{}),t]}export{f as u};
