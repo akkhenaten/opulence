@@ -22,6 +22,7 @@ export const KINDS = [
   { key: 'graceEnding', roles: ['company'], nav: 'staff', tone: 'amber', one: 'grace period ends within 3 days', many: 'grace periods end within 3 days', link: '/people/compliance?view=cantwork' },
   { key: 'expiring', roles: ['company'], nav: 'staff', tone: 'amber', one: 'officer with a licence or right to work expiring in 60 days', many: 'officers with a licence or right to work expiring in 60 days', link: '/people/compliance' },
   { key: 'streams', roles: ['company'], nav: 'money', tone: 'amber', one: 'new billing stream to check', many: 'new billing streams to check', link: (x) => (x?.venue ? `/venues/${x.venue}?tab=streams` : '/venues') },
+  { key: 'staffForms', roles: ['company'], nav: 'staff', tone: 'amber', one: 'new staff form to check', many: 'new staff forms to check', link: '/staff?forms=1' },
   { key: 'timeOff', roles: ['company'], nav: 'staff', tone: 'amber', one: 'time off request to review', many: 'time off requests to review', link: '/hr/time-off' },
   { key: 'toApprove', roles: MGR, nav: 'money', tone: 'blue', one: 'timesheet to approve', many: 'timesheets to approve', link: (x) => `/timesheets?status=pending${x?.week ? `&week=${x.week}` : ''}` },
   { key: 'shiftRequests', roles: MGR, nav: 'rota', tone: 'blue', one: 'shift request from an officer', many: 'shift requests from officers', link: '/rota?tab=requests' },

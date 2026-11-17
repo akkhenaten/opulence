@@ -1,8 +1,8 @@
 // Staff details: the one-off shared links the platform admin sends when setting up the app — one for officers, one
-// for venue managers. No login. Each person fills in their own details; the submission waits in Staff setup (platform
-// admin only) until it becomes a staff profile, or a Venue Manager login.
+// for venue managers. No login yet. Officers fill in everything once, each answer in its section, and set their own
+// password; the office makes them live from People and they sign in with it. A venue manager's form becomes a login.
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { CheckCircle2, FileText, IdCard, Lock, Plus, UserRound, X } from 'lucide-react';
 import { api, staffFormUpload } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
@@ -11,12 +11,15 @@ import { Card, FilePick, Frame } from './Apply.jsx';
 
 const MAX = 10 * 1024 * 1024;
 const DOC_TYPES = 'image/*,.pdf';
-const FILES = [
-  { key: 'sia_front', label: 'SIA badge — front (optional)', hint: 'A clear photo with the name, number and expiry readable', icon: IdCard, accept: DOC_TYPES },
-  { key: 'rtw', label: 'Right to work — passport or share code screenshot (optional)', hint: 'PDF or a photo, up to 10 MB', icon: FileText, accept: DOC_TYPES },
-  { key: 'poa', label: 'Proof of address — a recent bill or bank statement (optional)', hint: 'PDF or a photo, up to 10 MB', icon: FileText, accept: DOC_TYPES },
-  { key: 'photo', label: 'Profile photo (optional)', hint: 'A clear photo of your face, like a passport photo', icon: UserRound, accept: 'image/*' },
-];
+// Each upload sits in the section it belongs to
+const FILES = {
+  sia_front: { label: 'Front of your SIA badge (optional)', hint: 'A clear photo with the name, number and expiry readable', icon: IdCard, accept: DOC_TYPES },
+  sia_back: { label: 'Back of your SIA badge (optional)', hint: 'A clear photo of the back of the card', icon: IdCard, accept: DOC_TYPES },
+  rtw: { label: 'Passport or ID photo page (optional)', hint: 'The page with your photo — PDF or a photo, up to 10 MB', icon: FileText, accept: DOC_TYPES },
+  poa: { label: 'Proof of address — a recent bill or bank statement (optional)', hint: 'PDF or a photo, up to 10 MB', icon: FileText, accept: DOC_TYPES },
+  photo: { label: 'A photo of you (optional)', hint: 'A clear photo of your face, like a passport photo', icon: UserRound, accept: 'image/*' },
+};
+const MIN_PASSWORD = 8;
 
 function Closed() {
   return (
@@ -30,13 +33,19 @@ function Closed() {
   );
 }
 
-function Done({ name, venue }) {
+function Done({ name, venue, email }) {
   return (
     <Frame>
       <div className="mx-auto mt-10 max-w-md rounded-tile bg-surface p-7 text-center shadow-tile">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-green-soft text-green"><CheckCircle2 size={28} /></div>
         <h1 className="mt-3 text-title2 font-bold">Thanks, {name}</h1>
-        <p className="mt-2 text-body text-muted">{venue ? "Your details have been sent to the office. The office will email you a link to set up your login." : 'Your details have been sent to the office.'}</p>
+        {venue
+          ? <p className="mt-2 text-body text-muted">Your details have been sent to the office. The office will email you a link to set up your login.</p>
+          : <>
+            <p className="mt-2 text-body text-muted">The office is checking your details.</p>
+            <p className="mt-2 text-body text-muted">You'll get an email when you're live. Then sign in with <span className="font-semibold text-ink">{email}</span> and the password you just set.</p>
+            <Link to="/login" className="mt-4 inline-block text-subhead font-semibold text-blue">Go to sign in</Link>
+          </>}
       </div>
     </Frame>
   );
@@ -135,46 +144,61 @@ function VenueForm({ token }) {
 
 function Form({ token }) {
   const { brand } = useAuth();
-  const { v, bind, set } = useForm({
+  const { v, bind: plain, set } = useForm({
     first_name: '', last_name: '', goes_by: '', email: '', phone: '', dob: '', address: '', postcode: '', ni_number: '',
     sia_number: '', sia_expiry: '', rtw_share_code: '', bank_name: '', bank_sort_code: '', bank_account: '',
-    ec_name: '', ec_relationship: '', ec_phone: '', consent: false, website: '',
+    ec_name: '', ec_relationship: '', ec_phone: '', password: '', password_confirm: '', consent: false, website: '',
   });
   const [files, setFiles] = useState({});
   const [fileErr, setFileErr] = useState({});
   const [err, setErr] = useState('');
+  // The field the server's message belongs to: shown under that field, which is scrolled into view
+  const [bad, setBad] = useState(null);
   const [stage, setStage] = useState(null); // null | 'uploading' | 'sending' | 'done'
+  const [sentTo, setSentTo] = useState('');
+  const bind = (k) => ({ ...plain(k), name: k, error: bad === k ? err : undefined });
 
   const setFile = (k) => (f) => {
     if (f && f.size > MAX) { setFileErr((e) => ({ ...e, [k]: 'This file is over 10 MB — please choose a smaller one' })); return; }
     setFileErr((e) => ({ ...e, [k]: null }));
     setFiles((s) => ({ ...s, [k]: f }));
   };
+  const pick = (k) => <FilePick label={FILES[k].label} hint={FILES[k].hint} accept={FILES[k].accept} icon={FILES[k].icon} file={files[k]} onChange={setFile(k)} error={fileErr[k]} />;
 
+  const fail = (message, field = null) => {
+    setStage(null);
+    setErr(message);
+    setBad(field);
+    if (field) requestAnimationFrame(() => document.querySelector(`[name="${field}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+  };
   const submit = async (e) => {
     e.preventDefault();
     setErr('');
+    setBad(null);
+    // Checked here first, so nothing is uploaded for a password they need to retype
+    if (v.password.length < MIN_PASSWORD) return fail(`Your password must be at least ${MIN_PASSWORD} characters`, 'password');
+    if (v.password !== v.password_confirm) return fail("The two passwords don't match", 'password_confirm');
     try {
       setStage('uploading');
       const keys = {};
-      for (const { key } of FILES) if (files[key]) keys[`${key}_key`] = await staffFormUpload(files[key], key, token);
+      for (const key of Object.keys(FILES)) if (files[key]) keys[`${key}_key`] = await staffFormUpload(files[key], key, token);
       setStage('sending');
-      await api('staffSetup.submit', { ...v, ...keys, token });
+      const r = await api('staffSetup.submit', { ...v, ...keys, token });
+      setSentTo(r?.email || v.email.trim().toLowerCase());
       setStage('done');
     } catch (x) {
-      setStage(null);
-      setErr(x.message);
+      fail(x.message, x.data?.field || null);
     }
   };
 
-  if (stage === 'done') return <Done name={v.goes_by || v.first_name} />;
+  if (stage === 'done') return <Done name={v.goes_by || v.first_name} email={sentTo} />;
   const busy = stage === 'uploading' || stage === 'sending';
   return (
     <Frame hero={<>
       <div className="text-caption font-semibold uppercase tracking-[0.14em] text-gold-light">Staff details</div>
       <h1 className="display text-title1 font-semibold leading-tight">Your details for {brand.name}</h1>
     </>}>
-      <p className="mb-5 text-body text-muted">We're setting up our staff app. Fill this in once so the office can create your staff profile. It takes about five minutes.</p>
+      <p className="mb-5 text-body text-muted">Fill this in once and set your password. The office checks it, makes you live, and you sign in to the Officer app. It takes about five minutes.</p>
       <form onSubmit={submit} className="space-y-4" noValidate>
         <Card title="You">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -184,12 +208,12 @@ function Form({ token }) {
             <Input label="Date of birth" type="date" autoComplete="bday" {...bind('dob')} />
           </div>
           {/* Honeypot: hidden from people, bots fill it in */}
-          <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden"><Input label="Website" tabIndex={-1} autoComplete="off" {...bind('website')} /></div>
+          <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden"><Input label="Website" tabIndex={-1} autoComplete="off" {...plain('website')} /></div>
         </Card>
 
         <Card title="Contact & address">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Email" type="email" autoComplete="email" inputMode="email" {...bind('email')} />
+            <Input label="Email" type="email" autoComplete="email" inputMode="email" hint="You sign in with this" {...bind('email')} />
             <Input label="Mobile" type="tel" autoComplete="tel" {...bind('phone')} />
           </div>
           <Input label="Home address" autoComplete="street-address" {...bind('address')} />
@@ -201,12 +225,15 @@ function Form({ token }) {
             <Input label="Licence number" inputMode="numeric" hint="16 digits — leave blank if you don't hold one" {...bind('sia_number')} />
             <Input label="Expiry date" type="date" {...bind('sia_expiry')} />
           </div>
+          {pick('sia_front')}
+          {pick('sia_back')}
         </Card>
 
         <Card title="Right to work">
           <Input label="Share code (optional)" autoCapitalize="characters" autoComplete="off" placeholder="W12 345 678"
-            hint="9 letters and numbers starting with W. British or Irish passport? Leave blank and add a photo of it below." {...bind('rtw_share_code')} />
+            hint="9 letters and numbers starting with W. British or Irish passport? Leave blank and add the photo page below." {...bind('rtw_share_code')} />
           <a href="https://www.gov.uk/prove-right-to-work" target="_blank" rel="noreferrer" className="text-subhead font-semibold text-blue">Get a share code on GOV.UK</a>
+          {pick('rtw')}
         </Card>
 
         <Card title="Pay details">
@@ -226,24 +253,32 @@ function Form({ token }) {
           </div>
         </Card>
 
-        <Card title="Documents">
-          {FILES.map((f) => (
-            <FilePick key={f.key} label={f.label} hint={f.hint} accept={f.accept} icon={f.icon} file={files[f.key]} onChange={setFile(f.key)} error={fileErr[f.key]} />
-          ))}
+        <Card title="Other documents">
+          {pick('poa')}
+          {pick('photo')}
+        </Card>
+
+        <Card title="Your password">
+          <p className="text-callout text-muted">You'll sign in to the Officer app with your email and this password once the office has checked your details.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input label="Password" type="password" autoComplete="new-password" hint={`At least ${MIN_PASSWORD} characters`} {...bind('password')} />
+            <Input label="Type it again" type="password" autoComplete="new-password" {...bind('password_confirm')} />
+          </div>
         </Card>
 
         <Card>
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3" data-field="consent">
             <Check checked={v.consent} onChange={(x) => set('consent', x)} label="Consent" className="mt-0.5" />
-            <span className="text-callout">I agree to {brand.name} storing these details to set up my staff profile.</span>
+            <span className="text-callout">I agree to {brand.name} storing these details to set up my staff profile and login.</span>
           </div>
           <p className="text-caption text-muted">
             Privacy: only the office can see what you send. Your details become your staff profile, which you can view and update in the app later.
-            If they aren't used, they are deleted after 60 days.
+            If they aren't used, they are deleted after 60 days, with your password.
           </p>
         </Card>
 
-        {err && <ErrorBox error={{ message: err }} />}
+        {err && (!bad || bad === 'consent') && <ErrorBox error={{ message: err }} />}
+        {err && bad && bad !== 'consent' && <p className="text-center text-callout text-red">Please check the field marked above.</p>}
         <Button type="submit" size="lg" className="w-full" busy={busy}>
           {stage === 'uploading' ? 'Uploading files…' : stage === 'sending' ? 'Sending…' : 'Send my details'}
         </Button>

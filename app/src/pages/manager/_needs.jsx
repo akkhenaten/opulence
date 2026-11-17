@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, CalendarClock, CalendarOff, Check, ChevronDown, ChevronRight, ClipboardCheck, FileSignature, Hand, Megaphone, PenLine, ReceiptText, ShieldAlert,
-  ShieldCheck, Smartphone, Sparkles, TriangleAlert, UserX, Wallet, X,
+  ShieldCheck, Smartphone, Sparkles, TriangleAlert, UserPlus, UserX, Wallet, X,
 } from 'lucide-react';
 import { Button, cx, Pressable, dayLabel, isoDate, mondayOf, range, Sheet, Textarea, useApi, useToast } from '../../ui/index.jsx';
 import { api } from '../../api.js';
@@ -14,7 +14,7 @@ import { AcceptSheet } from './_cover.jsx';
 export const TONE_CHIP = { red: 'bg-red-soft text-red', amber: 'bg-amber-soft text-amber', blue: 'bg-blue-soft text-blue' };
 export const NEED_ICON = {
   exceptions: TriangleAlert, unfilled: CalendarClock, disputed: AlertTriangle, cantWork: UserX, cover: Megaphone, coverChange: Megaphone,
-  incidentsToSign: FileSignature, openIncidents: ShieldAlert, graceEnding: CalendarClock, expiring: ShieldCheck, streams: Wallet, timeOff: CalendarOff,
+  incidentsToSign: FileSignature, openIncidents: ShieldAlert, graceEnding: CalendarClock, expiring: ShieldCheck, streams: Wallet, timeOff: CalendarOff, staffForms: UserPlus,
   toApprove: ClipboardCheck, shiftRequests: Hand, phones: Smartphone, decisions: Sparkles, timesheets: ClipboardCheck, reports: FileSignature,
   invoices: ReceiptText, answer: Hand, resign: PenLine,
 };

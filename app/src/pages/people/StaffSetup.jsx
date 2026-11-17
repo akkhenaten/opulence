@@ -1,18 +1,16 @@
 // Staff setup (platform admin only, checked on the server too): the one-off shared links officers and venue managers
-// use to send their own details, and the submissions waiting to become staff profiles or Venue Manager logins —
-// by hand here, or by asking Orb.
+// use to send their own details, and the forms waiting. Officers' forms are also in People for company managers,
+// who make them live; venue managers' forms become Venue Manager logins here, by hand or by asking Orb.
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Eye, FileText, RefreshCw, Send, Sparkles, Store, Trash2, UserPlus } from 'lucide-react';
+import { RefreshCw, Sparkles, Store, UserPlus } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  Avatar, Button, Callout, Chips, date, dateTime, Empty, KV, List, Load, Page, Pill, Row, Section, Sheet, SkeletonRows, Toggle, useAction, useApi, useConfirm,
+  Avatar, Button, Callout, date, Empty, List, Load, Page, Pill, Row, Section, SkeletonRows, Toggle, useAction, useApi, useConfirm,
 } from '../../ui/index.jsx';
-import { CopyLink, openUrl } from './_parts.jsx';
-
-const siaFmt = (n) => String(n || '').replace(/(\d{4})(?=\d)/g, '$1 ');
-const mask = (s) => (s ? `•••• ${String(s).slice(-2)}` : '');
+import { CopyLink } from './_parts.jsx';
+import { StaffFormSheet, siaFmt } from './_staffForm.jsx';
 
 export default function StaffSetup() {
   const { user } = useAuth();
@@ -29,7 +27,7 @@ export default function StaffSetup() {
         <LinkCard q={link} onChange={reload} label="Officers link" />
         <LinkCard q={venueLink} onChange={reload} kind="venue" label="Venue managers link" />
       </div>
-      <Callout icon={Sparkles} className="mt-4">Ask Orb: “Set up the staff setup submissions”. Each one shows on a card for you to confirm.</Callout>
+      <Callout icon={Sparkles} className="mt-4">Officers' forms also show in Staff → People for company managers, who check them and tap Make live. Or ask Orb: “Set up the staff setup submissions”.</Callout>
       <Section title="Officers" icon={UserPlus} count={of('officer').length}>
         <Load q={list} skeleton="rows" n={3}>
           {() => (of('officer').length ? (
@@ -58,7 +56,7 @@ export default function StaffSetup() {
           ) : <Empty icon={Store} title="Nothing waiting" body="When venue managers send the form, their details show here." />)}
         </Load>
       </Section>
-      <SubmissionSheet id={open} onClose={() => setOpen(null)} onDone={reload} />
+      <StaffFormSheet id={open} onClose={() => setOpen(null)} onDone={reload} />
     </Page>
   );
 }
@@ -81,116 +79,6 @@ function LinkCard({ q, onChange, kind = 'officer', label }) {
         <>
           <CopyLink link={`/app/staff-form/${l.token}`} label="Shared link" hint={`Send this to every ${kind === 'venue' ? 'venue manager' : 'officer'}, by WhatsApp or email.`} />
           <div className="flex justify-end"><Button variant="secondary" size="sm" icon={RefreshCw} busy={busy} onClick={rotate}>Replace link</Button></div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function SubmissionSheet({ id, onClose, onDone }) {
-  const q = useApi('staffSetup.get', { id }, { skip: !id });
-  const [run, busy] = useAction();
-  const confirm = useConfirm();
-  const [show, setShow] = useState(false);
-  const [venues, setVenues] = useState(null);
-  const [sent, setSent] = useState(null);
-  const s = q.data;
-  const d = s?.details || {};
-  const venue = s?.kind === 'venue';
-  const picked = venues ?? s?.matched ?? [];
-  const close = () => { if (sent) onDone(); onClose(); setTimeout(() => { setShow(false); setVenues(null); setSent(null); }, 300); };
-  const done = () => { onDone(); close(); };
-  const added = (r) => (r.kind === 'venue' ? `${r.name} added as a Venue Manager` : `${r.name} added to Staff`);
-  const create = (invite) => run(() => api('staffSetup.create', { id, ...(venue && { venue_ids: picked }), ...(invite && { invite: true }) }),
-    (r) => (!invite ? added(r) : r.emailed ? `${added(r)} — invite sent` : `${added(r)} — invite not sent`))
-    .then((r) => {
-      // Orb reads their SIA card and passport now, so the new profile is filled in without a manager step
-      if (!venue && r.id) api('docs.read', { officer_id: r.id }).catch(() => {});
-      return invite ? setSent(r) : done();
-    }).catch(() => {});
-  const discard = async () => {
-    if (!(await confirm({ title: 'Discard these details?', body: 'The submission and its files are deleted.', confirm: 'Discard', danger: true }))) return;
-    run(() => api('staffSetup.discard', { id }), 'Discarded').then(done).catch(() => {});
-  };
-  const priv = (v) => (show ? v : mask(v));
-  return (
-    <Sheet open={!!id} onClose={close} title={s?.name || 'Staff details'} size="lg"
-      footer={sent ? <Button onClick={close}>Done</Button> : s && <>
-        <Button variant="secondary" icon={Trash2} onClick={discard} disabled={busy}>Discard</Button>
-        <Button variant="secondary" icon={UserPlus} busy={busy} onClick={() => create(false)} disabled={venue && !picked.length}>{venue ? 'Create login' : 'Create profile'}</Button>
-        <Button icon={Send} busy={busy} onClick={() => create(true)} disabled={venue && !picked.length}>Create and send invite</Button>
-      </>}>
-      {sent ? <Sent r={sent} /> : <Load q={q}>
-        {() => (venue ? (
-          <div className="space-y-5">
-            {s.duplicate && <Callout tone="warning">{s.duplicate.name} already has a login with this email ({s.duplicate.status}). Discard this one, or change their access on their page in Staff → People.</Callout>}
-            <KV items={[
-              ['Name', `${d.first_name} ${d.last_name}${d.goes_by ? ` (${d.goes_by})` : ''}`],
-              ['Job title', d.job_title || '—'],
-              ['Email', d.email], ['Mobile', d.phone],
-              [d.venue_names?.length > 1 ? 'Venues they wrote' : 'Venue they wrote', (d.venue_names?.length ? d.venue_names : [d.venue_name]).filter(Boolean).join(', ') || '—'],
-              ['Sent', dateTime(s.created_at)],
-            ]} />
-            {s.files.find((f) => f.kind === 'photo') && (
-              <img src={s.files.find((f) => f.kind === 'photo').url} alt={`${s.name}'s profile photo`} className="h-24 w-24 rounded-full object-cover" />
-            )}
-            <Chips label="Link them to" options={(s.venues || []).map((x) => ({ value: x.id, label: x.name }))} value={picked} onChange={setVenues} />
-            {!picked.length && <p className="text-caption text-muted">Their venue name didn't match one of yours. Pick it above; if it isn't there yet, add it in Venues first.</p>}
-            <p className="text-caption text-muted">Create login adds them as a Venue Manager for these venues, with their photo and no email; send the invite later from their Access tab in Staff → People. Create and send invite also emails them a link to set their password.</p>
-          </div>
-        ) : (
-          <div className="space-y-5">
-            {s.duplicate && <Callout tone="warning">Possibly already on your staff: {s.duplicate.name} ({s.duplicate.status}). Creating a profile will stop if the email or SIA number matches.</Callout>}
-            <KV items={[
-              ['Name', `${d.first_name} ${d.last_name}${d.goes_by ? ` (${d.goes_by})` : ''}`],
-              ['Email', d.email], ['Mobile', d.phone],
-              ['Address', [d.address, d.postcode].filter(Boolean).join(', ')],
-              ['SIA licence', d.sia_number ? `${siaFmt(d.sia_number)}${d.sia_expiry ? ` · expires ${date(d.sia_expiry)}` : ''}` : '—'],
-              ['Emergency contact', d.ec_name ? `${d.ec_name}${d.ec_relationship ? ` (${d.ec_relationship})` : ''} · ${d.ec_phone}` : '—'],
-              ['Sent', dateTime(s.created_at)],
-            ]} />
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-footnote font-semibold uppercase tracking-wide text-muted">Private details</span>
-                <Button variant="plain" size="sm" icon={Eye} onClick={() => setShow((x) => !x)}>{show ? 'Hide' : 'Show'}</Button>
-              </div>
-              <KV items={[
-                ['Date of birth', d.dob ? (show ? date(d.dob) : '••••') : '—'],
-                ['NI number', d.ni_number ? priv(d.ni_number) : '—'],
-                ['Bank', d.bank_name || '—'],
-                ['Sort code / account', d.bank_account ? `${priv(d.bank_sort_code)} · ${priv(d.bank_account)}` : '—'],
-              ]} />
-            </div>
-            <div>
-              <div className="mb-2 text-footnote font-semibold uppercase tracking-wide text-muted">Documents</div>
-              {s.files.length ? (
-                <List>
-                  {s.files.map((f) => <Row key={f.kind} left={<FileText size={20} className="text-blue" />} title={f.title} onClick={() => openUrl(async () => ({ url: f.url }))} chevron />)}
-                </List>
-              ) : <p className="text-callout text-muted">No files sent.</p>}
-            </div>
-            <p className="text-caption text-muted">Create profile adds them to Staff as active, with no login invite. Create and send invite also emails them a link to set up the app. Documents arrive unverified.</p>
-          </div>
-        ))}
-      </Load>}
-    </Sheet>
-  );
-}
-
-// After Create and send invite: the invite link to share, and what to do if the email or the login didn't happen
-function Sent({ r }) {
-  const where = r.kind === 'venue' ? 'their Access tab in Staff → People' : 'their profile in Staff → People';
-  return (
-    <div className="space-y-4">
-      {r.invite_error ? (
-        <Callout tone="warning">{r.name} was added, but no invite went out: {r.invite_error} Sort it out from {where}.</Callout>
-      ) : (
-        <>
-          <Callout tone={r.emailed ? 'success' : 'warning'}>
-            {r.emailed ? `${r.name} was added and emailed a link to set their password.` : `${r.name} was added, but the email didn't send. Share this link with them instead.`}
-          </Callout>
-          <CopyLink link={r.invite_link} hint={r.emailed ? 'Already emailed. Copy it to send by WhatsApp or text too.' : undefined} />
-          <p className="text-caption text-muted">The link works once. Until they use it, you can send it again from {where} with Resend invite.</p>
         </>
       )}
     </div>

@@ -1,21 +1,26 @@
 // Staff setup: one-off shared links the platform admin sends when setting up a company's app — one for officers,
-// one for venue managers. Each person fills in their own details (no login); submissions wait on a page only the
-// platform admin sees and are turned (by hand, or through Orb) into staff profiles — active, with no login invite —
-// or invited Venue Manager logins, with no email sent. The submission is then deleted.
+// one for venue managers. Each person fills in their own details; officers also set their password. Officers' forms
+// wait in People for a company manager (or the platform admin), who taps Make live: an active staff profile and an
+// active Officer app login with the password they chose, and a "You're live" email. Venue managers' forms stay with
+// the platform admin and become invited Venue Manager logins. The submission is then deleted.
 import { one, q, tx, insert } from '../lib/db.mjs';
 import { fail, need, required } from '../lib/http.mjs';
+import { hashPassword, goesBy } from '../lib/auth.mjs';
 import { uploadUrl, headObject, deleteObject, downloadUrl } from '../lib/storage.mjs';
-import { notify } from '../lib/notify.mjs';
+import { notify, sendRawEmail, emailHtml } from '../lib/notify.mjs';
 import { newToken } from '../lib/signLinks.mjs';
 import { audit } from '../lib/audit.mjs';
 import { londonDate } from '../lib/time.mjs';
-import { plat, platformEmails, isPlatformEmail } from '../lib/platform.mjs';
+import { plat, platformEmails, isPlatformEmail, isPlatformAdmin } from '../lib/platform.mjs';
+import { getBrand } from '../lib/brand.mjs';
+import { welcomeDue } from '../lib/feed.mjs';
+import { celebrate } from './everydayJobs.mjs';
 import { officerName } from '../lib/names.mjs';
-import { cleanStaffDetails, cleanVenueManager, withoutPrivate, officerFromDetails, SETUP_FILES, DOC_KIND, SETUP_TYPES, PHOTO_TYPES, MAX_SETUP_FILE } from '../lib/staffSetup.mjs';
+import { cleanStaffDetails, cleanVenueManager, checkSetupPassword, withoutPrivate, officerFromDetails, SETUP_FILES, DOC_KIND, SETUP_TYPES, PHOTO_TYPES, MAX_SETUP_FILE } from '../lib/staffSetup.mjs';
 import { seedOnboarding, tickOnboarding, syncOnboarding } from './hr.mjs';
 import { assertNotDuplicate, createOfficerLogin } from './officers.mjs';
 import { createInvite, setVenues, sendInviteMail } from './users.mjs';
-import { pub } from './_def.mjs';
+import { pub, def, CO } from './_def.mjs';
 
 // The connection's own address: a forwarded-for header can be set by the visitor
 const ipOf = (ctx) => ctx.event?.requestContext?.http?.sourceIp || ctx.ip || '';
@@ -24,6 +29,9 @@ const nameOf = (d) => `${d.first_name} ${d.last_name}`.trim();
 // Row 1 is the officers' link, row 2 the venue managers'
 const LINK_ID = { officer: 1, venue: 2 };
 const kindOf = (k) => (k === 'venue' ? 'venue' : 'officer');
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+// Venue managers' forms are the platform admin's; officers' forms are for any company manager
+const ownsKind = (user, kind) => kind !== 'venue' || isPlatformAdmin(user);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const activeVenues = () => q('SELECT id, name FROM venues WHERE active ORDER BY name');
 // The venues a manager typed, matched to active venues by name (case and spacing ignored)
@@ -74,34 +82,66 @@ async function inviteOf(makeLogin) {
   }
 }
 
-/** Turn one submission into an active staff profile with its contact and documents, then delete it; with `invite`, also email them a login */
-export async function createFromSubmission(id, user, invite = false) {
-  const s = need(await one("SELECT * FROM staff_setup_submissions WHERE id = $1 AND kind = 'officer'", [id]), 'Submission not found — it may already be a staff profile');
+// The officer a form already became, for "Open their page" when a second manager taps Make live
+const madeFrom = async (id) => (await one("SELECT entity_id FROM audit_log WHERE action = 'officer.create' AND detail->>'submission' = $1 ORDER BY created_at DESC LIMIT 1", [String(id)]))?.entity_id || null;
+
+/** "You're live": they sign in with the email and the password they set on the form. False when the mail didn't go. */
+async function sendLiveMail(d) {
+  const { name } = await getBrand();
+  try {
+    return await sendRawEmail(d.email, `You're live at ${name}`, await emailHtml(`You're live, ${esc(d.goes_by || d.first_name)}`,
+      `The office has checked your details. Sign in to the Officer app with ${esc(d.email)} and the password you set on the form.`, '/login', 'Sign in'));
+  } catch (e) {
+    console.warn('[staff setup] live email failed', e.message);
+    return false;
+  }
+}
+
+/**
+ * Make live: one submission becomes an active staff profile with each answer in its section, then is deleted.
+ * A form with a password also becomes their active Officer app login (no invite); an older form without one gets
+ * the invite email instead. Two managers at once: the first claims the form, the second is told it is already live.
+ */
+export async function createFromSubmission(id, user) {
+  const s = await one("SELECT * FROM staff_setup_submissions WHERE id = $1 AND kind = 'officer'", [id]);
+  if (!s) fail(409, 'Already made live', { officer_id: await madeFrom(id) });
   const d = s.details;
   const files = s.files || {};
+  const name = nameOf(d);
   await assertNotDuplicate({ one }, { email: d.email, sia_number: d.sia_number || '' });
-  const officerId = await tx(async (t) => {
+  if (s.password_hash && await one('SELECT 1 FROM users WHERE email = lower($1)', [d.email])) fail(409, 'Someone already signs in with this email. Open Access on their page to link them.');
+  const { officerId, userId } = await tx(async (t) => {
+    if (!(await t.one('DELETE FROM staff_setup_submissions WHERE id = $1 RETURNING id', [id]))) fail(409, 'Already made live', { officer_id: null });
     const o = await insert('officers', officerFromDetails(d, files.photo || null), t);
     await seedOnboarding(t, o.id);
     if (d.ec_name) await t.q('INSERT INTO emergency_contacts (officer_id, name, relationship, phone) VALUES ($1,$2,$3,$4)', [o.id, d.ec_name, d.ec_relationship || '', d.ec_phone || '']);
     for (const [kind, key] of Object.entries(files)) {
       if (!DOC_KIND[kind]) continue;
       const h = await headObject(key);
+      const sia = kind === 'sia_front' || kind === 'sia_back';
       await t.q("INSERT INTO documents (owner_type, owner_id, kind, title, number, expiry, s3_key, mime, uploaded_by) VALUES ('officer',$1,$2,$3,$4,$5,$6,$7,$8)",
-        [o.id, DOC_KIND[kind], SETUP_FILES[kind], kind === 'sia_front' ? d.sia_number || '' : kind === 'rtw' ? d.rtw_share_code || '' : '', kind === 'sia_front' ? d.sia_expiry || null : null, key, h?.mime || null, user.id]);
+        [o.id, DOC_KIND[kind], SETUP_FILES[kind], sia ? d.sia_number || '' : '', sia ? d.sia_expiry || null : null, key, h?.mime || null, user.id]);
     }
-    // A share code sent without a picture still goes to Compliance, ready to check on GOV.UK
-    if (d.rtw_share_code && !files.rtw) {
+    // The share code goes to Right to work, ready to check on GOV.UK
+    if (d.rtw_share_code) {
       await t.q("INSERT INTO documents (owner_type, owner_id, kind, title, number, uploaded_by) VALUES ('officer',$1,'rtw','Right to work share code',$2,$3)", [o.id, d.rtw_share_code, user.id]);
     }
-    await t.q('DELETE FROM staff_setup_submissions WHERE id = $1', [id]);
-    return o.id;
+    if (!s.password_hash) return { officerId: o.id, userId: null };
+    const u = await t.one(
+      "INSERT INTO users (email, name, role, phone, password_hash, status, goes_by) VALUES (lower($1),$2,'officer',$3,$4,'active',$5) RETURNING id",
+      [d.email, name, d.phone || '', s.password_hash, goesBy(d.goes_by || '')]);
+    await t.q('UPDATE officers SET user_id = $2 WHERE id = $1', [o.id, u.id]);
+    return { officerId: o.id, userId: u.id };
   });
-  for (const kind of Object.keys(files)) if (DOC_KIND[kind]) await tickOnboarding(officerId, DOC_KIND[kind]);
+  for (const kind of new Set(Object.keys(files).map((k) => DOC_KIND[k]).filter(Boolean))) await tickOnboarding(officerId, kind);
   if (d.rtw_share_code) await tickOnboarding(officerId, 'rtw');
   await syncOnboarding(officerId);
-  await audit(user, 'officer.create', 'officer', officerId, { from: 'staff_setup' });
-  return { id: officerId, name: nameOf(d), ...(invite ? await inviteOf(() => createOfficerLogin(officerId)) : {}) };
+  await audit(user, 'officer.create', 'officer', officerId, { from: 'staff_setup', submission: String(id), login: userId ? 'active' : 'invited' });
+  if (!userId) return { id: officerId, name, live: true, invited: true, ...(await inviteOf(() => createOfficerLogin(officerId))) };
+  await audit(user, 'user.create', 'user', userId, { role: 'officer', from: 'staff_setup' });
+  const w = await one('SELECT id, name, email, role, status, system, feed_prefs FROM users WHERE id = $1', [userId]);
+  if (welcomeDue(w, { platform: isPlatformAdmin(w) })) await celebrate({ type: 'welcome', user_id: w.id, name: w.name, key: `welcome:${w.id}` });
+  return { id: officerId, name, live: true, emailed: await sendLiveMail(d) };
 }
 
 /** Turn a venue manager's submission into an invited Venue Manager login for their venues, with their photo, then delete it; the invite is emailed only with `invite` */
@@ -156,7 +196,14 @@ export const actions = {
     const kind = await openLink(b.token);
     const ip = ipOf(ctx);
     const c = kind === 'venue' ? cleanVenueManager(b) : cleanStaffDetails(b, londonDate(new Date()));
-    if (c.error) fail(400, c.error);
+    if (c.error) fail(400, c.error, c.field ? { field: c.field } : undefined);
+    if (kind === 'officer') {
+      const pw = checkSetupPassword(b.password, b.password_confirm);
+      if (pw.error) fail(400, pw.error, { field: pw.field });
+      if (await one('SELECT 1 FROM users WHERE email = lower($1)', [c.details.email])) {
+        fail(409, 'This email already has a login. Sign in, or ask the office to update your details.', { field: 'email' });
+      }
+    }
     const { n } = await one("SELECT count(*)::int AS n FROM staff_setup_submissions WHERE ip = $1 AND created_at > now() - interval '1 hour'", [ip]);
     if (n >= 5) fail(429, 'Too many forms sent — please try again later');
     // Every file must be one this visitor uploaded just now, and within the size limit
@@ -166,14 +213,19 @@ export const actions = {
       if (!h) fail(400, 'Please upload your files again');
       if (h.size > MAX_SETUP_FILE) fail(400, `${SETUP_FILES[kind]} must be under 10 MB`);
     }
-    const s = await one('INSERT INTO staff_setup_submissions (details, files, ip, kind) VALUES ($1,$2,$3,$4) RETURNING id', [c.details, c.files, ip, kind]);
+    // The password is kept only as a hash, in its own column, never with the details
+    const hash = kind === 'officer' ? hashPassword(b.password) : null;
+    const s = await one('INSERT INTO staff_setup_submissions (details, files, ip, kind, password_hash) VALUES ($1,$2,$3,$4,$5) RETURNING id', [c.details, c.files, ip, kind, hash]);
     await q('DELETE FROM staff_setup_uploads WHERE key = ANY($1)', [Object.values(c.files)]);
-    const admins = (await q("SELECT id FROM users WHERE lower(email) = ANY($1) AND status = 'active'", [platformEmails()])).map((u) => u.id);
-    await notify(admins, kind === 'venue'
+    // Officers' forms go to every company manager (and the platform admin); venue managers' to the platform admin
+    const to = (await q(kind === 'venue'
+      ? "SELECT id FROM users WHERE lower(email) = ANY($1) AND status = 'active'"
+      : "SELECT id FROM users WHERE (lower(email) = ANY($1) OR role = 'company') AND status = 'active' AND NOT system", [platformEmails()])).map((u) => u.id);
+    await notify(to, kind === 'venue'
       ? { kind: 'staff_setup', title: `Venue manager details from ${nameOf(c.details)}`, body: 'Ready to become a Venue Manager login in Staff setup.', link: '/company/staff-setup' }
-      : { kind: 'staff_setup', title: `Staff details from ${nameOf(c.details)}`, body: 'Ready to become a staff profile in Staff setup.', link: '/company/staff-setup' });
+      : { kind: 'staff_setup', title: `New staff form from ${nameOf(c.details)}`, body: 'Check their details and make them live.', link: `/company/staff?form=${s.id}` });
     await audit(null, 'staff_setup.submit', 'staff_setup', s.id, { ip, kind });
-    return { ok: true };
+    return { ok: true, email: c.details.email };
   }),
 
   // The platform admin's page: kind officer (default) | venue
@@ -206,35 +258,43 @@ export const actions = {
 
   // Waiting submissions (kind officer | venue), without date of birth, NI or bank details (this is also what Orb reads).
   // A venue manager's venues: those their typed venue names match; empty means it matched none, so the admin picks it.
-  'staffSetup.list': plat(async () => {
-    const rows = await q('SELECT * FROM staff_setup_submissions ORDER BY created_at');
+  // A company manager sees officers' forms only; the platform admin sees both
+  'staffSetup.list': def(CO, async (_b, { user }) => {
+    const rows = (await q('SELECT * FROM staff_setup_submissions ORDER BY created_at')).filter((s) => ownsKind(user, s.kind));
     const all = await activeVenues();
     return Promise.all(rows.map(async (s) => ({
       id: s.id, kind: s.kind, name: nameOf(s.details), ...withoutPrivate(s.details), created_at: s.created_at,
       ...(s.kind === 'venue' ? { venues: matchVenue(s.details, all).map((v) => v.name) } : {}),
-      files: Object.keys(s.files || {}).map((k) => SETUP_FILES[k] || k), duplicate: await duplicateOf(s),
+      files: Object.keys(s.files || {}).map((k) => SETUP_FILES[k] || k), has_password: !!s.password_hash, duplicate: await duplicateOf(s),
     })));
   }),
 
-  'staffSetup.get': plat(async (b) => {
+  'staffSetup.get': def(CO, async (b, { user }) => {
     required(b, 'id');
-    const s = need(await one('SELECT * FROM staff_setup_submissions WHERE id = $1', [b.id]), 'Submission not found');
+    const s = await one('SELECT * FROM staff_setup_submissions WHERE id = $1', [b.id]);
+    if (!s) fail(404, 'This form has already been made live or discarded', { officer_id: await madeFrom(b.id) });
+    if (!ownsKind(user, s.kind)) fail(403, 'You do not have access to this');
     const files = await Promise.all(Object.entries(s.files || {}).map(async ([kind, key]) => ({ kind, title: SETUP_FILES[kind] || kind, url: await downloadUrl(key, SETUP_FILES[kind]) })));
     const venues = s.kind === 'venue' ? await activeVenues() : undefined;
     const matched = venues && matchVenue(s.details, venues).map((v) => v.id);
-    return { id: s.id, kind: s.kind, name: nameOf(s.details), details: s.details, files, created_at: s.created_at, duplicate: await duplicateOf(s), venues, matched };
+    return { id: s.id, kind: s.kind, name: nameOf(s.details), details: s.details, files, created_at: s.created_at, has_password: !!s.password_hash, duplicate: await duplicateOf(s), venues, matched };
   }),
 
-  // venue_ids: for a venue manager, the venues to link (defaults to the venue their typed name matches).
-  // invite: also email them their login invite (invite_link comes back to share; invite_error if it couldn't be made)
-  'staffSetup.create': plat(async (b, { user }) => {
+  // Make live (officers) / create the login (venue managers). venue_ids: for a venue manager, the venues to link
+  // (defaults to the venue their typed name matches); invite: also email a venue manager their invite.
+  'staffSetup.create': def(CO, async (b, { user }) => {
     required(b, 'id');
-    const s = need(await one('SELECT kind FROM staff_setup_submissions WHERE id = $1', [b.id]), 'Submission not found — it may already have been set up');
-    return s.kind === 'venue' ? createVenueManager(b.id, b.venue_ids, user, b.invite === true) : createFromSubmission(b.id, user, b.invite === true);
+    const s = await one('SELECT kind FROM staff_setup_submissions WHERE id = $1', [b.id]);
+    if (!s) fail(409, 'Already made live', { officer_id: await madeFrom(b.id) });
+    if (!ownsKind(user, s.kind)) fail(403, 'You do not have access to this');
+    return s.kind === 'venue' ? createVenueManager(b.id, b.venue_ids, user, b.invite === true) : createFromSubmission(b.id, user);
   }),
 
-  'staffSetup.discard': plat(async (b, { user }) => {
+  // The form, its files and the saved password are deleted
+  'staffSetup.discard': def(CO, async (b, { user }) => {
     required(b, 'id');
+    const k = need(await one('SELECT kind FROM staff_setup_submissions WHERE id = $1', [b.id]), 'Submission not found');
+    if (!ownsKind(user, k.kind)) fail(403, 'You do not have access to this');
     const s = need(await one('DELETE FROM staff_setup_submissions WHERE id = $1 RETURNING files', [b.id]), 'Submission not found');
     await dropFiles(Object.values(s.files || {}));
     await audit(user, 'staff_setup.discard', 'staff_setup', b.id);

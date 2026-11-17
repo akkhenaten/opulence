@@ -43,6 +43,10 @@ export const actions = {
   'auth.login': pub(async (b) => {
     required(b, 'email', 'password');
     const u = await one('SELECT * FROM users WHERE email = lower($1)', [b.email.trim()]);
+    // Sent the staff form, not made live yet: their login is waiting on the office
+    if (!u && await one("SELECT 1 FROM staff_setup_submissions WHERE kind = 'officer' AND password_hash IS NOT NULL AND details->>'email' = lower($1)", [b.email.trim()])) {
+      fail(401, "The office hasn't finished checking your details yet. You'll get an email when you're live.");
+    }
     if (!u || u.status !== 'active' || !verifyPassword(b.password, u.password_hash)) fail(401, 'Incorrect email or password');
     await q('UPDATE users SET last_login = now() WHERE id = $1', [u.id]);
     return session(u.id);

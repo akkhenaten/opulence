@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanStaffDetails, cleanVenueManager, withoutPrivate, officerFromDetails } from '../lib/staffSetup.mjs';
+import { cleanStaffDetails, cleanVenueManager, checkSetupPassword, withoutPrivate, officerFromDetails, DOC_KIND, SETUP_FILES } from '../lib/staffSetup.mjs';
 import { catalogFor } from '../lib/orbCatalog.mjs';
 import { actions } from '../modules/staffSetup.mjs';
 
@@ -68,27 +68,56 @@ test('a blank "known as" becomes an empty name, never null (the column refuses n
   assert.equal(officerFromDetails(details).goes_by, '');
 });
 
-test('the form is public, everything else is platform admin only', () => {
+test('the form is public; the links are the platform admin\'s; forms are for company managers', () => {
   for (const k of ['staffSetup.info', 'staffSetup.uploadUrl', 'staffSetup.submit']) assert.equal(actions[k].public, true, k);
-  for (const k of ['staffSetup.link', 'staffSetup.toggle', 'staffSetup.rotate', 'staffSetup.list', 'staffSetup.get', 'staffSetup.create', 'staffSetup.discard']) {
-    assert.equal(actions[k].platform, true, k);
+  for (const k of ['staffSetup.link', 'staffSetup.toggle', 'staffSetup.rotate']) assert.equal(actions[k].platform, true, k);
+  for (const k of ['staffSetup.list', 'staffSetup.get', 'staffSetup.create', 'staffSetup.discard']) {
+    assert.equal(actions[k].platform, undefined, k);
+    assert.deepEqual(actions[k].roles, ['company'], k);
   }
 });
 
-test('a company manager is refused; the honeypot quietly accepts', async () => {
+test('a company manager cannot change the link; the honeypot quietly accepts', async () => {
   const boss = { id: 'u1', role: 'company', email: 'boss@example.com', status: 'active' };
-  for (const k of ['staffSetup.list', 'staffSetup.create', 'staffSetup.toggle']) {
+  for (const k of ['staffSetup.toggle', 'staffSetup.rotate', 'staffSetup.link']) {
     await assert.rejects(actions[k].fn({ id: 'x' }, { user: boss }), (e) => e.status === 403, k);
   }
   assert.deepEqual(await actions['staffSetup.submit'].fn({ website: 'spam' }, {}), { ok: true });
 });
 
-test('Orb offers staff setup only to the platform admin', () => {
-  const names = (user) => catalogFor(user, actions).map(([n]) => n);
+test('Orb offers the waiting forms to company managers, never to security managers', () => {
+  const names = (user) => catalogFor(user, actions).map(([n]) => n).sort();
   const boss = { id: 'u1', role: 'company', email: 'boss@example.com', status: 'active' };
+  const sec = { id: 'u3', role: 'security', email: 'sec@example.com', status: 'active' };
   const admin = { id: 'u2', role: 'company', email: 'info@orbsolutions.co.uk', status: 'active' };
-  assert.deepEqual(names(boss), []);
-  assert.deepEqual(names(admin).sort(), ['staffSetup.create', 'staffSetup.list']);
+  assert.deepEqual(names(boss), ['staffSetup.create', 'staffSetup.list']);
+  assert.deepEqual(names(sec), []);
+  assert.deepEqual(names(admin), ['staffSetup.create', 'staffSetup.list']);
+});
+
+test('a bad field says which field it is', () => {
+  const field = (patch) => cleanStaffDetails({ ...good, ...patch }, TODAY).field;
+  assert.equal(field({ postcode: '12345' }), 'postcode');
+  assert.equal(field({ email: 'nope' }), 'email');
+  assert.equal(field({ bank_account: '' }), 'bank_account');
+  assert.equal(field({ consent: false }), 'consent');
+  assert.equal(cleanStaffDetails(good, TODAY).field, undefined);
+});
+
+test('the password on the form: 8 characters, typed twice the same', () => {
+  assert.equal(checkSetupPassword('short', 'short').field, 'password');
+  assert.equal(checkSetupPassword(undefined, undefined).field, 'password');
+  assert.equal(checkSetupPassword('longenough1', 'longenough2').field, 'password_confirm');
+  assert.deepEqual(checkSetupPassword('longenough1', 'longenough1'), {});
+});
+
+test('both sides of the SIA card are filed under SIA, the passport under ID', () => {
+  assert.deepEqual(cleanStaffDetails({ ...good, sia_back_key: 'docs/staffsetup/c.jpg' }, TODAY).files.sia_back, 'docs/staffsetup/c.jpg');
+  assert.equal(DOC_KIND.sia_front, 'sia');
+  assert.equal(DOC_KIND.sia_back, 'sia');
+  assert.equal(DOC_KIND.rtw, 'id');
+  assert.match(SETUP_FILES.rtw, /Passport/);
+  assert.equal(DOC_KIND.photo, undefined);
 });
 
 const V1 = '11111111-1111-4111-8111-111111111111';

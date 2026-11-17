@@ -8,6 +8,7 @@ import {
 } from '../../ui/index.jsx';
 import { ComplianceBadge, OFFICER_STATUSES, complianceState, useBase, useRoles } from './_parts.jsx';
 import { AddPersonSheet, LoginList } from './_person.jsx';
+import { StaffForms } from './_staffForm.jsx';
 
 // What managers can chase about the app: a registered clock-in phone, and phone notifications
 const APP_SETUP = {
@@ -112,6 +113,7 @@ function Officers({ picker }) {
   return (
     <Page2 isCo={isCo} onAdd={() => setAdding(true)} tools={tools}>
       {picker}
+      {isCo && <StaffForms base={base} />}
       <Load q={q}>
         {() => (
           <>

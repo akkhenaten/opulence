@@ -1,7 +1,7 @@
 // What's new: every upgrade to the platform, told as what it means for the business
 import {
   ArrowRightLeft, BadgeCheck, Calculator, Ban, CalendarClock, CalendarCog, BellOff, BellRing, Building2, CalendarDays, Check, Compass, ClipboardCheck, ClipboardList, FilePen, FileSignature, Fingerprint, Globe, Images, GraduationCap, LayoutGrid, LayoutList, ListChecks, LogOut, Mail, MessageSquareHeart,
-  Megaphone, MessageCircleWarning, MousePointerClick, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Scale, Send, SlidersHorizontal, ShieldAlert, Store, Timer, UserRound, Siren, Smartphone, Sparkles, Users, UsersRound, Wallet, Zap,
+  Megaphone, MessageCircleWarning, MousePointerClick, MessagesSquare, Newspaper, Nfc, Palette, PenLine, Pin, Radar, Radio, ReceiptText, ScanLine, ScanSearch, Scale, Send, SlidersHorizontal, ShieldAlert, Store, Timer, UserPlus, UserRound, Siren, Smartphone, Sparkles, Users, UsersRound, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,18 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // Newest first; the first card is the latest release. `date` (the deploy day) puts a card in the login splash for two days.
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
+  {
+    month: 'November 2026', date: '2026-11-17', icon: UserPlus, title: 'New staff in one trip: they fill in the form, you tap Make live', image: 'staff-form-live',
+    lede: "The staff link now gets a new officer all the way to working. They fill in their details and set their own password; the office checks the form and taps Make live. No second email, no invite link to chase.",
+    points: [
+      "The form is in clear sections: You, Contact, SIA licence (with the front and the back of the badge), Right to work (share code or passport photo page), Pay, Emergency contact and Other documents",
+      "Officers choose their password on the form and type it twice. A mistake shows under the field it belongs to, and the last page says which email they sign in with",
+      "New forms show in Staff → People, in Needs you and on the bell, for company managers as well as the platform admin",
+      "Make live is one tap: their staff record and Officer app login are created, their documents are filed in the right places, and they get a \"You're live\" email. You land on their Compliance tab, ready to check right to work",
+      "Signing in before you make them live tells them the office is still checking. An email that already has a login can't send the form twice",
+      "Forms sent before this change have no password: Make live emails those people an invite link, as before",
+    ],
+  },
   {
     month: 'November 2026', date: '2026-11-17', icon: UserRound, title: 'One page for every person, and what they can use', image: 'person-page',
     lede: "Everyone now has one page in Staff → People: their profile, the apps they can use, their venues and their history, together. The Users & access tab in Settings has gone, and its old links open the right page.",

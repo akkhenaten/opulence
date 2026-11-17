@@ -32,6 +32,7 @@ export const SQL = {
   disputed: `SELECT count(*)::int AS n, min(s.starts_at) AS oldest FROM ${TS} WHERE t.status = 'disputed' AND ${scoped('s.venue_id')}`,
   phones: "SELECT count(*)::int AS n FROM officer_devices WHERE status = 'pending'",
   timeOff: "SELECT count(*)::int AS n FROM time_off WHERE status = 'pending'",
+  staffForms: "SELECT count(*)::int AS n FROM staff_setup_submissions WHERE kind = 'officer'",
   streams: "SELECT count(*)::int AS n, (array_agg(venue_id ORDER BY created_at))[1] AS venue FROM venue_streams WHERE status = 'active' AND checked_at IS NULL",
 };
 
@@ -64,7 +65,7 @@ async function managerCounts(ctx) {
   const extra = { toApprove: { week: week(toApprove) }, disputed: { week: week(disputed) } };
   if (user.role === 'company') {
     const today = londonDate(new Date());
-    const [people, timeOff, streams] = await Promise.all([
+    const [people, timeOff, streams, staffForms] = await Promise.all([
       safe(async () => {
         const [officers, cards] = await Promise.all([q("SELECT * FROM officers WHERE status = 'active'"), carded()]);
         const free = officers.filter((o) => !cards.has(o.id));
@@ -77,8 +78,9 @@ async function managerCounts(ctx) {
       }),
       safe(() => n(SQL.timeOff)),
       safe(() => one(SQL.streams)),
+      safe(() => n(SQL.staffForms)),
     ]);
-    Object.assign(counts, { cantWork: people?.cantWork ?? null, graceEnding: people?.graceEnding ?? null, expiring: people?.expiring ?? null, timeOff, streams: streams?.n ?? null });
+    Object.assign(counts, { cantWork: people?.cantWork ?? null, graceEnding: people?.graceEnding ?? null, expiring: people?.expiring ?? null, timeOff, streams: streams?.n ?? null, staffForms });
     extra.streams = { venue: streams?.venue };
   }
   return summarise(user.role, counts, extra);
