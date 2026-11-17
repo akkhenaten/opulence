@@ -1,6 +1,6 @@
 // Staff setup (platform admin only, checked on the server too): the one-off shared links officers and venue managers
-// use to send their own details, and the forms waiting. Officers' forms are also in People for company managers,
-// who make them live; venue managers' forms become Venue Manager logins here, by hand or by asking Orb.
+// use to send their own details, and the forms waiting. Both kinds are also in People for company managers, who make
+// them live in one tap (a Venue manager login with the password they set, for venue managers), here or by asking Orb.
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { RefreshCw, Sparkles, Store, UserPlus } from 'lucide-react';
@@ -27,7 +27,7 @@ export default function StaffSetup() {
         <LinkCard q={link} onChange={reload} label="Officers link" />
         <LinkCard q={venueLink} onChange={reload} kind="venue" label="Venue managers link" />
       </div>
-      <Callout icon={Sparkles} className="mt-4">Officers' forms also show in Staff → People for company managers, who check them and tap Make live. Or ask Orb: “Set up the staff setup submissions”.</Callout>
+      <Callout icon={Sparkles} className="mt-4">Officers' and venue managers' forms also show in Staff → People for company managers, who check them and tap Make live. A form that matches someone already on file opens that person instead. Or ask Orb: “Set up the staff setup submissions”.</Callout>
       <Section title="Officers" icon={UserPlus} count={of('officer').length}>
         <Load q={list} skeleton="rows" n={3}>
           {() => (of('officer').length ? (
@@ -36,7 +36,7 @@ export default function StaffSetup() {
                 <Row key={s.id} onClick={() => setOpen(s.id)} chevron left={<Avatar name={s.name} size={36} />}
                   title={s.name}
                   subtitle={[s.sia_number ? `SIA ${siaFmt(s.sia_number)}` : 'No SIA number', `sent ${date(s.created_at)}`].join(' · ')}
-                  right={s.duplicate && <Pill tone="amber">Possible duplicate</Pill>} />
+                  right={s.duplicate && <Pill tone="amber">Already on file: {s.duplicate.name}</Pill>} />
               ))}
             </List>
           ) : <Empty icon={UserPlus} title="Nothing waiting" body="When officers send the form, their details show here." />)}
@@ -49,8 +49,8 @@ export default function StaffSetup() {
               {of('venue').map((s) => (
                 <Row key={s.id} onClick={() => setOpen(s.id)} chevron left={<Avatar name={s.name} size={36} />}
                   title={s.name}
-                  subtitle={[s.venue_name || '—', `sent ${date(s.created_at)}`].join(' · ')}
-                  right={s.duplicate ? <Pill tone="amber">Already has a login</Pill> : !s.venues?.length && <Pill tone="amber">Pick venue</Pill>} />
+                  subtitle={[(s.venue_names?.length ? s.venue_names : [s.venue_name]).filter(Boolean).join(', ') || '—', `sent ${date(s.created_at)}`].join(' · ')}
+                  right={s.duplicate ? <Pill tone="amber">Already on file: {s.duplicate.name}</Pill> : !s.venues?.length && <Pill tone="amber">Pick venue</Pill>} />
               ))}
             </List>
           ) : <Empty icon={Store} title="Nothing waiting" body="When venue managers send the form, their details show here." />)}

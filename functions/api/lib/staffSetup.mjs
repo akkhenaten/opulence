@@ -99,10 +99,12 @@ export function cleanVenueManager(b) {
   s.venue_names = names.filter((n, i) => names.findIndex((m) => m.toLowerCase() === n.toLowerCase()) === i).slice(0, 10);
   s.venue_name = s.venue_names[0] || '';
   const photo = str(b.photo_key, 300);
-  if (!s.first_name || !s.last_name) return { error: 'Please add your first and last name' };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email)) return { error: 'Please check your email address' };
-  if (digits(s.phone).length < 10) return { error: 'Please check your phone number' };
-  if (!s.venue_name) return { error: 'Please add the name of the venue you manage' };
-  if (b.consent !== true) return { error: 'Please tick the box to agree to us storing your details' };
+  const bad = (field, error) => ({ error, field });
+  if (!s.first_name) return bad('first_name', 'Please add your first and last name');
+  if (!s.last_name) return bad('last_name', 'Please add your first and last name');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email)) return bad('email', 'Please check your email address');
+  if (digits(s.phone).length < 10) return bad('phone', 'Please check your phone number');
+  if (!s.venue_name) return bad('venue_names', 'Please add the name of the venue you manage');
+  if (b.consent !== true) return bad('consent', 'Please tick the box to agree to us storing your details');
   return { details: s, files: photo ? { photo } : {} };
 }

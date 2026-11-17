@@ -32,7 +32,7 @@ export const SQL = {
   disputed: `SELECT count(*)::int AS n, min(s.starts_at) AS oldest FROM ${TS} WHERE t.status = 'disputed' AND ${scoped('s.venue_id')}`,
   phones: "SELECT count(*)::int AS n FROM officer_devices WHERE status = 'pending'",
   timeOff: "SELECT count(*)::int AS n FROM time_off WHERE status = 'pending'",
-  staffForms: "SELECT count(*)::int AS n FROM staff_setup_submissions WHERE kind = 'officer'",
+  staffForms: 'SELECT count(*)::int AS n FROM staff_setup_submissions',
   streams: "SELECT count(*)::int AS n, (array_agg(venue_id ORDER BY created_at))[1] AS venue FROM venue_streams WHERE status = 'active' AND checked_at IS NULL",
 };
 

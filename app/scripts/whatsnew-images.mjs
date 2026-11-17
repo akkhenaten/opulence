@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'doubles-venue-live': 'Two identical brass-edged ID cards on a dark navy desk at night, one sliding neatly on top of the other into a single card under a softly glowing gold arrow, beside them a slim phone showing a calm venue dashboard and a small brass key, warm lamp light, dark navy and gold.',
   'staff-form-live': 'A phone on a dark navy table at night showing a short tidy form with neat section headings and a softly glowing gold checkmark, beside it a brass-edged SIA badge card and a closed passport, a single gold key resting on top of the passport, warm lamp light, dark navy and gold.',
   'person-page': 'A dark navy desk at night with a laptop showing one calm profile page: a round portrait softly out of focus at the top, a slim row of tabs beneath it and a short column of four neat gold toggle switches, two switched on, beside it a small brass key ring holding two keys and a single brass-edged ID card, warm lamp light, dark navy and gold.',
   'orb-credits-rules': 'A dark navy desk at night with a small brass balance scale, one pan holding a neat stack of gold-edged index cards and the other a single softly glowing gold orb, beside a tablet showing tidy rows of small check marks, warm lamp light, dark navy and gold.',

@@ -1,6 +1,6 @@
 // Staff details: the one-off shared links the platform admin sends when setting up the app — one for officers, one
-// for venue managers. No login yet. Officers fill in everything once, each answer in its section, and set their own
-// password; the office makes them live from People and they sign in with it. A venue manager's form becomes a login.
+// for venue managers. No login yet. Both fill in everything once, each answer in its section, and set their own
+// password; the office makes them live from People and they sign in with it (Officer app or Venue portal).
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { CheckCircle2, FileText, IdCard, Lock, Plus, UserRound, X } from 'lucide-react';
@@ -21,6 +21,41 @@ const FILES = {
 };
 const MIN_PASSWORD = 8;
 
+// The field a message belongs to: shown under that field, which is scrolled into view. Shared by both forms.
+function useFieldErrors(plain) {
+  const [err, setErr] = useState('');
+  const [bad, setBad] = useState(null);
+  const bind = (k) => ({ ...plain(k), name: k, error: bad === k ? err : undefined });
+  const fail = (message, field = null) => {
+    setErr(message);
+    setBad(field);
+    if (field) requestAnimationFrame(() => document.querySelector(`[name="${field}"], [data-field="${field}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+  };
+  const clear = () => { setErr(''); setBad(null); };
+  // Checked here first, so nothing is uploaded for a password they need to retype
+  const passwordProblem = (v) => {
+    if (v.password.length < MIN_PASSWORD) return [`Your password must be at least ${MIN_PASSWORD} characters`, 'password'];
+    if (v.password !== v.password_confirm) return ["The two passwords don't match", 'password_confirm'];
+    return null;
+  };
+  const summary = err && (!bad || bad === 'consent'
+    ? <ErrorBox error={{ message: err }} />
+    : <p className="text-center text-callout text-red">Please check the field marked above.</p>);
+  return { err, bad, bind, fail, clear, passwordProblem, summary };
+}
+
+function PasswordCard({ bind, where }) {
+  return (
+    <Card title="Your password">
+      <p className="text-callout text-muted">You'll sign in to {where} with your email and this password once the office has checked your details.</p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Input label="Password" type="password" autoComplete="new-password" hint={`At least ${MIN_PASSWORD} characters`} {...bind('password')} />
+        <Input label="Type it again" type="password" autoComplete="new-password" {...bind('password_confirm')} />
+      </div>
+    </Card>
+  );
+}
+
 function Closed() {
   return (
     <Frame>
@@ -39,13 +74,11 @@ function Done({ name, venue, email }) {
       <div className="mx-auto mt-10 max-w-md rounded-tile bg-surface p-7 text-center shadow-tile">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-green-soft text-green"><CheckCircle2 size={28} /></div>
         <h1 className="mt-3 text-title2 font-bold">Thanks, {name}</h1>
-        {venue
-          ? <p className="mt-2 text-body text-muted">Your details have been sent to the office. The office will email you a link to set up your login.</p>
-          : <>
-            <p className="mt-2 text-body text-muted">The office is checking your details.</p>
-            <p className="mt-2 text-body text-muted">You'll get an email when you're live. Then sign in with <span className="font-semibold text-ink">{email}</span> and the password you just set.</p>
-            <Link to="/login" className="mt-4 inline-block text-subhead font-semibold text-blue">Go to sign in</Link>
-          </>}
+        <p className="mt-2 text-body text-muted">The office is checking your details.</p>
+        <p className="mt-2 text-body text-muted">
+          You'll get an email when you're live. Then sign in to {venue ? 'the Venue portal' : 'the Officer app'} with <span className="font-semibold text-ink">{email}</span> and the password you just set.
+        </p>
+        <Link to="/login" className="mt-4 inline-block text-subhead font-semibold text-blue">Go to sign in</Link>
       </div>
     </Frame>
   );
@@ -57,17 +90,17 @@ export default function StaffForm() {
   return <Load q={info}>{(d) => (!d.open ? <Closed /> : d.kind === 'venue' ? <VenueForm token={token} /> : <Form token={token} />)}</Load>;
 }
 
-// Venue managers: who they are and the venue they look after (typed, never picked from a list); their login is set up from this
+// Venue managers: who they are, the venues they look after (typed, never picked from a list) and their password
 function VenueForm({ token }) {
   const { brand } = useAuth();
-  const { v, bind, set } = useForm({ first_name: '', last_name: '', goes_by: '', email: '', phone: '', job_title: '', consent: false, website: '' });
+  const { v, bind: plain, set } = useForm({ first_name: '', last_name: '', goes_by: '', email: '', phone: '', job_title: '', password: '', password_confirm: '', consent: false, website: '' });
+  const { err, bad, bind, fail, clear, passwordProblem, summary } = useFieldErrors(plain);
   // Managers of several venues add each one
   const [names, setNames] = useState(['']);
   const [photo, setPhoto] = useState(null);
   const [photoErr, setPhotoErr] = useState(null);
-  const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(false);
+  const [sentTo, setSentTo] = useState('');
   const pickPhoto = (f) => {
     if (f && f.size > MAX) { setPhotoErr('This file is over 10 MB — please choose a smaller one'); return; }
     setPhotoErr(null);
@@ -76,27 +109,29 @@ function VenueForm({ token }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    setErr('');
+    clear();
+    const pw = passwordProblem(v);
+    if (pw) return fail(...pw);
     setBusy(true);
     try {
       const photo_key = photo ? await staffFormUpload(photo, 'photo', token) : '';
       const venue_names = names.map((n) => n.trim()).filter(Boolean);
-      await api('staffSetup.submit', { ...v, venue_names, venue_name: venue_names[0] || '', photo_key, token });
-      setDone(true);
+      const r = await api('staffSetup.submit', { ...v, venue_names, venue_name: venue_names[0] || '', photo_key, token });
+      setSentTo(r?.email || v.email.trim().toLowerCase());
     } catch (x) {
-      setErr(x.message);
+      fail(x.message, x.data?.field || null);
     } finally {
       setBusy(false);
     }
   };
 
-  if (done) return <Done name={v.goes_by || v.first_name} venue />;
+  if (sentTo) return <Done name={v.goes_by || v.first_name} email={sentTo} venue />;
   return (
     <Frame hero={<>
       <div className="text-caption font-semibold uppercase tracking-[0.14em] text-gold-light">Venue manager details</div>
       <h1 className="display text-title1 font-semibold leading-tight">Your details for {brand.name}</h1>
     </>}>
-      <p className="mb-5 text-body text-muted">We're setting up your venue on our app. Fill this in so the office can create your venue manager login. It takes a minute.</p>
+      <p className="mb-5 text-body text-muted">Fill this in once and set your password. The office checks it, makes you live, and you sign in to the Venue portal. It takes a couple of minutes.</p>
       <form onSubmit={submit} className="space-y-4" noValidate>
         <Card title="You">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -104,10 +139,15 @@ function VenueForm({ token }) {
             <Input label="Last name" autoComplete="family-name" {...bind('last_name')} />
             <Input label="Known as (optional)" hint="If you go by another name" {...bind('goes_by')} />
             <Input label="Job title (optional)" hint="Like General Manager" autoComplete="organization-title" {...bind('job_title')} />
-            <Input label="Email" type="email" autoComplete="email" inputMode="email" hint="Your login is sent here" {...bind('email')} />
+          </div>
+          <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden"><Input label="Website" tabIndex={-1} autoComplete="off" {...plain('website')} /></div>
+        </Card>
+
+        <Card title="Contact">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input label="Email" type="email" autoComplete="email" inputMode="email" hint="You sign in with this" {...bind('email')} />
             <Input label="Mobile" type="tel" autoComplete="tel" {...bind('phone')} />
           </div>
-          <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden"><Input label="Website" tabIndex={-1} autoComplete="off" {...bind('website')} /></div>
         </Card>
 
         <Card title={names.length > 1 ? 'Your venues' : 'Your venue'}>
@@ -115,6 +155,7 @@ function VenueForm({ token }) {
             {names.map((n, i) => (
               <div key={i} className="flex items-end gap-2">
                 <Input className="min-w-0 flex-1" label={names.length > 1 ? `Venue ${i + 1}` : 'Venue name'} hint={names.length === 1 ? 'The venue you manage' : undefined}
+                  name={i === 0 ? 'venue_names' : undefined} error={i === 0 && bad === 'venue_names' ? err : undefined}
                   autoComplete="organization" value={n} onChange={(e) => setNames((x) => x.map((y, j) => (j === i ? e.target.value : y)))} />
                 {names.length > 1 && <IconButton icon={X} label={`Remove venue ${i + 1}`} onClick={() => setNames((x) => x.filter((_, j) => j !== i))} />}
               </div>
@@ -127,15 +168,17 @@ function VenueForm({ token }) {
           <FilePick label="Profile photo (optional)" hint="A clear photo of your face, so officers know who you are" accept="image/*" icon={UserRound} file={photo} onChange={pickPhoto} error={photoErr} />
         </Card>
 
+        <PasswordCard bind={bind} where="the Venue portal" />
+
         <Card>
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3" data-field="consent">
             <Check checked={v.consent} onChange={(x) => set('consent', x)} label="Consent" className="mt-0.5" />
             <span className="text-callout">I agree to {brand.name} storing these details to set up my login.</span>
           </div>
-          <p className="text-caption text-muted">Privacy: only the office can see what you send. If they aren't used, they are deleted after 60 days.</p>
+          <p className="text-caption text-muted">Privacy: only the office can see what you send. If they aren't used, they are deleted after 60 days, with your password.</p>
         </Card>
 
-        {err && <ErrorBox error={{ message: err }} />}
+        {summary}
         <Button type="submit" size="lg" className="w-full" busy={busy}>{busy ? 'Sending…' : 'Send my details'}</Button>
       </form>
     </Frame>
@@ -151,12 +194,10 @@ function Form({ token }) {
   });
   const [files, setFiles] = useState({});
   const [fileErr, setFileErr] = useState({});
-  const [err, setErr] = useState('');
-  // The field the server's message belongs to: shown under that field, which is scrolled into view
-  const [bad, setBad] = useState(null);
+  const fe = useFieldErrors(plain);
+  const { bind, summary } = fe;
   const [stage, setStage] = useState(null); // null | 'uploading' | 'sending' | 'done'
   const [sentTo, setSentTo] = useState('');
-  const bind = (k) => ({ ...plain(k), name: k, error: bad === k ? err : undefined });
 
   const setFile = (k) => (f) => {
     if (f && f.size > MAX) { setFileErr((e) => ({ ...e, [k]: 'This file is over 10 MB — please choose a smaller one' })); return; }
@@ -165,19 +206,12 @@ function Form({ token }) {
   };
   const pick = (k) => <FilePick label={FILES[k].label} hint={FILES[k].hint} accept={FILES[k].accept} icon={FILES[k].icon} file={files[k]} onChange={setFile(k)} error={fileErr[k]} />;
 
-  const fail = (message, field = null) => {
-    setStage(null);
-    setErr(message);
-    setBad(field);
-    if (field) requestAnimationFrame(() => document.querySelector(`[name="${field}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
-  };
+  const fail = (message, field = null) => { setStage(null); fe.fail(message, field); };
   const submit = async (e) => {
     e.preventDefault();
-    setErr('');
-    setBad(null);
-    // Checked here first, so nothing is uploaded for a password they need to retype
-    if (v.password.length < MIN_PASSWORD) return fail(`Your password must be at least ${MIN_PASSWORD} characters`, 'password');
-    if (v.password !== v.password_confirm) return fail("The two passwords don't match", 'password_confirm');
+    fe.clear();
+    const pw = fe.passwordProblem(v);
+    if (pw) return fail(...pw);
     try {
       setStage('uploading');
       const keys = {};
@@ -258,13 +292,7 @@ function Form({ token }) {
           {pick('photo')}
         </Card>
 
-        <Card title="Your password">
-          <p className="text-callout text-muted">You'll sign in to the Officer app with your email and this password once the office has checked your details.</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Password" type="password" autoComplete="new-password" hint={`At least ${MIN_PASSWORD} characters`} {...bind('password')} />
-            <Input label="Type it again" type="password" autoComplete="new-password" {...bind('password_confirm')} />
-          </div>
-        </Card>
+        <PasswordCard bind={bind} where="the Officer app" />
 
         <Card>
           <div className="flex items-start gap-3" data-field="consent">
@@ -277,8 +305,7 @@ function Form({ token }) {
           </p>
         </Card>
 
-        {err && (!bad || bad === 'consent') && <ErrorBox error={{ message: err }} />}
-        {err && bad && bad !== 'consent' && <p className="text-center text-callout text-red">Please check the field marked above.</p>}
+        {summary}
         <Button type="submit" size="lg" className="w-full" busy={busy}>
           {stage === 'uploading' ? 'Uploading files…' : stage === 'sending' ? 'Sending…' : 'Send my details'}
         </Button>

@@ -1,14 +1,15 @@
-// New staff forms: the details people sent through the shared staff link. Officers' forms are checked here by a
-// company manager (or the platform admin) and made live in one tap — an active staff profile and their Officer app
-// login with the password they set. Venue managers' forms stay with the platform admin (Staff setup).
+// New staff forms: the details officers and venue managers sent through the shared links. A company manager (or the
+// platform admin) checks each one and makes it live in one tap — an active staff profile with an Officer app login, or
+// a Venue manager login for the venues ticked — with the password they set. A form that matches someone already on
+// file (same email or SIA number) is never made live: "Discard and open" deletes it and opens that person instead.
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ExternalLink, Eye, FileText, Send, Trash2, UserCheck, UserPlus } from 'lucide-react';
+import { ExternalLink, Eye, FileText, Trash2, UserCheck, UserPlus, UserSearch } from 'lucide-react';
 import { api } from '../../api.js';
 import {
   Avatar, Button, Callout, Chips, date, dateTime, Empty, KV, List, Load, Pill, Row, Sheet, useAction, useApi, useConfirm, useUrlState,
 } from '../../ui/index.jsx';
-import { CopyLink, openUrl } from './_parts.jsx';
+import { openUrl } from './_parts.jsx';
 
 export const siaFmt = (n) => String(n || '').replace(/(\d{4})(?=\d)/g, '$1 ');
 const mask = (s) => (s ? `•••• ${String(s).slice(-2)}` : '');
@@ -43,7 +44,10 @@ function Files({ files, kinds }) {
   );
 }
 
-/** One form: officers are made live in one tap; venue managers become a login (platform admin) */
+/** Who a double matches, in words: "Same email" / "Same SIA number" */
+const matchText = (dup) => (dup.match === 'sia' ? 'Same SIA number' : 'Same email');
+
+/** One form: made live in one tap (officers and venue managers), or discarded — straight to the person it doubles */
 export function StaffFormSheet({ id, onClose, onDone, base = '/company' }) {
   const q = useApi('staffSetup.get', { id }, { skip: !id });
   const [run, busy] = useAction();
@@ -51,92 +55,112 @@ export function StaffFormSheet({ id, onClose, onDone, base = '/company' }) {
   const nav = useNavigate();
   const [show, setShow] = useState(false);
   const [venues, setVenues] = useState(null);
-  const [sent, setSent] = useState(null);
-  const [gone, setGone] = useState(null); // made live by someone else meanwhile: { officer_id }
+  const [late, setLate] = useState(null); // a double found only at Make live (someone was added meanwhile)
+  const [gone, setGone] = useState(null); // made live by someone else meanwhile: { id }
   const s = q.data;
   const d = s?.details || {};
   const venue = s?.kind === 'venue';
+  const dup = late || s?.duplicate || null;
   const picked = venues ?? s?.matched ?? [];
-  const reset = () => setTimeout(() => { setShow(false); setVenues(null); setSent(null); setGone(null); }, 300);
-  const close = () => { if (sent || gone) onDone(); onClose(); reset(); };
+  const lost = !s && q.error?.status === 404 && (q.error.data?.person_id || q.error.data?.officer_id);
+  const reset = () => setTimeout(() => { setShow(false); setVenues(null); setLate(null); setGone(null); }, 300);
+  const close = () => { if (gone || lost) onDone(); onClose(); reset(); };
   const done = () => { onDone(); onClose(); reset(); };
-  const page = (oid, tab) => nav(`${base}/staff/${oid}${tab ? `?tab=${tab}` : ''}`);
-  const taken = (e) => {
-    if (e?.status === 409 && /already made live/i.test(e.message)) setGone({ officer_id: e.data?.officer_id || null });
+  const page = (pid, tab) => nav(`${base}/staff/${pid}${tab ? `?tab=${tab}` : ''}`);
+  const failed = (e) => {
+    if (e?.status !== 409) return;
+    if (e.data?.duplicate) setLate(e.data.duplicate);
+    else if (/already made live/i.test(e.message)) setGone({ id: e.data?.person_id || e.data?.officer_id || null });
   };
 
-  const makeLive = () => run(() => api('staffSetup.create', { id }),
-    (r) => (r.invited ? `${r.name} is live — ${r.emailed ? 'invite emailed' : "invite didn't send, share it from their Access tab"}` : `${r.name} is live`))
+  const makeLive = () => run(() => api('staffSetup.create', venue ? { id, venue_ids: picked } : { id }),
+    (r) => (r.invited ? `${r.name} is live — ${r.emailed ? 'invite sent' : "invite didn't send, share it from their Access tab"}` : `${r.name} is live`))
     .then((r) => {
-      // Orb reads their SIA card and passport now, so SIA and right to work can be ticked without a manager step
-      api('docs.read', { officer_id: r.id }).catch(() => {});
-      onDone();
-      onClose();
-      reset();
-      page(r.id, 'compliance');
-    }).catch(taken);
-  const createVenue = (invite) => run(() => api('staffSetup.create', { id, venue_ids: picked, ...(invite && { invite: true }) }),
-    (r) => (!invite ? `${r.name} added as a Venue Manager` : `${r.name} added as a Venue Manager — ${r.emailed ? 'invite sent' : 'invite not sent'}`))
-    .then((r) => (invite ? setSent(r) : done())).catch(() => {});
+      // Orb reads an officer's SIA card and passport now, so SIA and right to work can be ticked without a manager step
+      if (!venue) api('docs.read', { officer_id: r.id }).catch(() => {});
+      done();
+      page(r.id, venue ? 'access' : 'compliance');
+    }).catch(failed);
   const discard = async () => {
     if (!(await confirm({ title: 'Discard this form?', body: 'The form, its files and the password they set are deleted.', confirm: 'Discard', danger: true }))) return;
     run(() => api('staffSetup.discard', { id }), 'Discarded').then(done).catch(() => {});
   };
+  // The double: delete the form and go to the record it matches, unchanged
+  const discardAndOpen = () => run(() => api('staffSetup.discard', { id }), (r) => `Form discarded — this is ${(r.duplicate || dup).name}`)
+    .then((r) => { const to = r.duplicate || dup; done(); page(to.id, to.tab); }).catch(() => {});
   const priv = (v) => (show ? v : mask(v));
 
-  const footer = sent || gone ? <Button onClick={close}>Done</Button> : s && (venue ? <>
+  const footer = gone || lost ? <Button onClick={close}>Done</Button> : s && (dup ? <>
     <Button variant="secondary" icon={Trash2} onClick={discard} disabled={busy}>Discard</Button>
-    <Button variant="secondary" icon={UserPlus} busy={busy} onClick={() => createVenue(false)} disabled={!picked.length}>Create login</Button>
-    <Button icon={Send} busy={busy} onClick={() => createVenue(true)} disabled={!picked.length}>Create and send invite</Button>
+    <Button icon={UserSearch} busy={busy} onClick={discardAndOpen}>Discard and open {dup.name}</Button>
   </> : <>
     <Button variant="secondary" icon={Trash2} onClick={discard} disabled={busy}>Discard</Button>
-    <Button icon={UserCheck} busy={busy} onClick={makeLive}>Make live</Button>
+    <Button icon={UserCheck} busy={busy} onClick={makeLive} disabled={venue && !picked.length}>Make live</Button>
   </>);
 
+  const gonePid = gone?.id || lost;
   return (
     <Sheet open={!!id} onClose={close} title={s?.name || 'Staff form'} size="lg" footer={footer}>
-      {gone ? (
-        <Callout tone="success" title="Already made live" action={gone.officer_id && <Button size="sm" variant="secondary" onClick={() => { close(); page(gone.officer_id); }}>Open their page</Button>}>
+      {gone || lost ? (
+        <Callout tone="success" title="Already made live" action={gonePid && <Button size="sm" variant="secondary" onClick={() => { close(); page(gonePid); }}>Open their page</Button>}>
           Someone else in the office made this person live a moment ago.
         </Callout>
-      ) : sent ? <Sent r={sent} /> : (
+      ) : (
         <Load q={q}>
-          {() => (venue ? (
+          {() => (
             <div className="space-y-5">
-              {s.duplicate && <Callout tone="warning">{s.duplicate.name} already has a login with this email ({s.duplicate.status}). Discard this one, or change their access on their page in Staff → People.</Callout>}
-              <KV items={[
-                ['Name', `${d.first_name} ${d.last_name}${d.goes_by ? ` (${d.goes_by})` : ''}`],
-                ['Job title', d.job_title || '—'],
-                ['Email', d.email], ['Mobile', d.phone],
-                [d.venue_names?.length > 1 ? 'Venues they wrote' : 'Venue they wrote', (d.venue_names?.length ? d.venue_names : [d.venue_name]).filter(Boolean).join(', ') || '—'],
-                ['Sent', dateTime(s.created_at)],
-              ]} />
-              {s.files.find((f) => f.kind === 'photo') && (
-                <img src={s.files.find((f) => f.kind === 'photo').url} alt={`${s.name}'s profile photo`} className="h-24 w-24 rounded-full object-cover" />
+              {dup && (
+                <Callout tone="warning" title={`This looks like ${dup.name}, already on file (${dup.status})`}>
+                  {matchText(dup)}. It can't be made live as a second record — Discard and open deletes this form and opens {dup.name}'s page, unchanged.
+                </Callout>
               )}
-              <Chips label="Link them to" options={(s.venues || []).map((x) => ({ value: x.id, label: x.name }))} value={picked} onChange={setVenues} />
-              {!picked.length && <p className="text-caption text-muted">Their venue name didn't match one of yours. Pick it above; if it isn't there yet, add it in Venues first.</p>}
-              <p className="text-caption text-muted">Create login adds them as a Venue Manager for these venues, with their photo and no email; send the invite later from their Access tab in Staff → People. Create and send invite also emails them a link to set their password.</p>
+              {venue ? (
+                <VenueManagerForm s={s} d={d} picked={picked} setVenues={setVenues} />
+              ) : (
+                <OfficerForm s={s} d={d} show={show} setShow={setShow} priv={priv} />
+              )}
             </div>
-          ) : (
-            <OfficerForm s={s} d={d} show={show} setShow={setShow} priv={priv} onOpen={(oid) => { close(); page(oid); }} />
-          ))}
+          )}
         </Load>
       )}
     </Sheet>
   );
 }
 
-function OfficerForm({ s, d, show, setShow, priv, onOpen }) {
+function VenueManagerForm({ s, d, picked, setVenues }) {
+  const photo = s.files.find((f) => f.kind === 'photo');
+  const typed = (d.venue_names?.length ? d.venue_names : [d.venue_name]).filter(Boolean);
+  return (
+    <>
+      {!s.has_password && <Callout tone="warning">No password on this form — Make live emails them an invite link to set one.</Callout>}
+      <Section title="You">
+        <KV items={[
+          ['Name', `${d.first_name} ${d.last_name}${d.goes_by ? ` (known as ${d.goes_by})` : ''}`],
+          ['Job title', d.job_title || '—'],
+        ]} />
+      </Section>
+      <Section title="Contact">
+        <KV items={[['Email', `${d.email}${s.has_password ? ' — they sign in with this' : ''}`], ['Mobile', d.phone]]} />
+      </Section>
+      <Section title="Venues">
+        <KV items={[['They wrote', typed.join(', ') || '—']]} />
+        <div className="mt-3">
+          <Chips label="Link them to" options={(s.venues || []).map((x) => ({ value: x.id, label: x.name }))} value={picked} onChange={setVenues} />
+        </div>
+        {!picked.length && <p className="mt-2 text-caption text-amber">Pick their venues. If one isn't there yet, add it in Venues first.</p>}
+      </Section>
+      {photo && <img src={photo.url} alt={`${s.name}'s profile photo`} className="h-24 w-24 rounded-full object-cover" />}
+      <p className="text-caption text-muted">
+        Sent {dateTime(s.created_at)}. Make live adds them as a Venue manager for the venues ticked, {s.has_password ? 'turns on their Venue portal login with the password they set, and emails them that they can sign in' : 'and emails them an invite to set a password'}.
+      </p>
+    </>
+  );
+}
+
+function OfficerForm({ s, d, show, setShow, priv }) {
   const need = stillNeeded(d, s.files);
   return (
-    <div className="space-y-5">
-      {s.duplicate && (
-        <Callout tone="warning" title={`Possibly already on your staff: ${s.duplicate.name}`}
-          action={<Button size="sm" variant="secondary" onClick={() => onOpen(s.duplicate.id)}>Open their page</Button>}>
-          The email or SIA number matches someone on file ({s.duplicate.status}). Make live stops if it does.
-        </Callout>
-      )}
+    <>
       <Callout tone={need.length ? 'info' : 'success'} title={need.length ? "Can sign in once live, can't be rostered until:" : 'Ready to work once live'}>
         {need.length > 0 && <ul className="list-disc pl-5">{need.map((n) => <li key={n}>{n}</li>)}</ul>}
       </Callout>
@@ -183,26 +207,7 @@ function OfficerForm({ s, d, show, setShow, priv, onOpen }) {
       <p className="text-caption text-muted">
         Sent {dateTime(s.created_at)}. Make live adds them to Staff as active with each answer in its section, {s.has_password ? 'turns on their Officer app login with the password they set, and emails them that they can sign in' : 'and emails them an invite to set a password'}. Orb then reads their SIA card and passport.
       </p>
-    </div>
-  );
-}
-
-// After Create and send invite (venue managers): the invite link to share, and what to do if the email didn't happen
-function Sent({ r }) {
-  return (
-    <div className="space-y-4">
-      {r.invite_error ? (
-        <Callout tone="warning">{r.name} was added, but no invite went out: {r.invite_error} Sort it out from their Access tab in Staff → People.</Callout>
-      ) : (
-        <>
-          <Callout tone={r.emailed ? 'success' : 'warning'}>
-            {r.emailed ? `${r.name} was added and emailed a link to set their password.` : `${r.name} was added, but the email didn't send. Share this link with them instead.`}
-          </Callout>
-          <CopyLink link={r.invite_link} hint={r.emailed ? 'Already emailed. Copy it to send by WhatsApp or text too.' : undefined} />
-          <p className="text-caption text-muted">The link works once. Until they use it, you can send it again from their Access tab with Resend invite.</p>
-        </>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -210,7 +215,7 @@ function Sent({ r }) {
 export function StaffForms({ base = '/company' }) {
   const list = useApi('staffSetup.list');
   const [url, setUrl] = useUrlState({ forms: '', form: '' });
-  const forms = (list.data || []).filter((s) => (s.kind || 'officer') === 'officer');
+  const forms = list.data || [];
   const n = forms.length;
   const listOpen = url.forms === '1';
   const close = () => setUrl({ form: null });
@@ -219,7 +224,7 @@ export function StaffForms({ base = '/company' }) {
       {n > 0 && (
         <Callout icon={UserPlus} className="mb-4" title={`${n} new staff ${n === 1 ? 'form' : 'forms'} to check`}
           action={<Button size="sm" onClick={() => (n === 1 ? setUrl({ form: forms[0].id }) : setUrl({ forms: '1' }))}>{n === 1 ? 'Check it' : 'Check them'}</Button>}>
-          {n === 1 ? `${forms[0].name} sent their details.` : 'They sent their details through the staff link.'} Check and make them live — they sign in with the password they set.
+          {n === 1 ? `${forms[0].name} sent their details.` : 'Officers and venue managers sent their details through the links.'} Check and make them live — they sign in with the password they set.
         </Callout>
       )}
       <Sheet open={listOpen} onClose={() => setUrl({ forms: null })} title="New staff forms" size="md">
@@ -229,11 +234,15 @@ export function StaffForms({ base = '/company' }) {
               {forms.map((s) => (
                 <Row key={s.id} onClick={() => setUrl({ forms: null, form: s.id })} chevron left={<Avatar name={s.name} size={36} />}
                   title={s.name}
-                  subtitle={[s.sia_number ? `SIA ${siaFmt(s.sia_number)}` : 'No SIA number', `sent ${date(s.created_at)}`].join(' · ')}
-                  right={s.duplicate && <Pill tone="amber">Possible duplicate</Pill>} />
+                  subtitle={[
+                    s.kind === 'venue' ? (s.venue_names?.length ? s.venue_names : [s.venue_name]).filter(Boolean).join(', ') || 'No venue written'
+                      : s.sia_number ? `SIA ${siaFmt(s.sia_number)}` : 'No SIA number',
+                    `sent ${date(s.created_at)}`,
+                  ].join(' · ')}
+                  right={s.duplicate ? <Pill tone="amber">Already on file: {s.duplicate.name}</Pill> : <Pill>{s.kind === 'venue' ? 'Venue manager' : 'Officer'}</Pill>} />
               ))}
             </List>
-          ) : <Empty icon={UserPlus} title="Nothing waiting" body="When staff send the form, their details show here." />)}
+          ) : <Empty icon={UserPlus} title="Nothing waiting" body="When officers or venue managers send the form, their details show here." />)}
         </Load>
       </Sheet>
       <StaffFormSheet id={url.form || null} onClose={close} onDone={list.reload} base={base} />

@@ -11,6 +11,18 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-17', icon: Store, title: 'Doubles go straight to the right person, and venue managers get the one-trip form', image: 'doubles-venue-live',
+    lede: "A staff form that matches someone you already have is now flagged with who it is, and one tap takes you to them. Venue managers now fill in their form, set a password, and you make them live, the same way as officers.",
+    points: [
+      "A form with the same email or SIA number as someone on file says so: \"This looks like Sam Okafor, already on file\", and whether it was the email or the SIA number",
+      "Discard and open deletes the form and opens that person's page, unchanged. Their record is never doubled",
+      "If someone is added while the form is open, Make live stops and offers the same Discard and open",
+      "Venue managers' forms now show in Staff → People with the officers' forms, for company managers as well as the platform admin. Each one is marked Officer or Venue manager",
+      "Venue managers set their password on the form. Make live creates their Venue manager login for the venues you tick, emails them that they can sign in to the Venue portal, and opens their Access tab",
+      "An email that already has a login can't send the venue managers' form, and the form asks them to sign in instead",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-17', icon: UserPlus, title: 'New staff in one trip: they fill in the form, you tap Make live', image: 'staff-form-live',
     lede: "The staff link now gets a new officer all the way to working. They fill in their details and set their own password; the office checks the form and taps Make live. No second email, no invite link to chase.",
     points: [

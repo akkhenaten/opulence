@@ -154,3 +154,23 @@ test('the venue managers link is platform admin only too', async () => {
     await assert.rejects(actions[k].fn({ kind: 'venue' }, { user: boss }), (e) => e.status === 403, k);
   }
 });
+
+test('a venue manager\'s bad field says which field it is', () => {
+  const field = (patch) => cleanVenueManager({ ...vm, ...patch }).field;
+  assert.equal(field({ email: 'x' }), 'email');
+  assert.equal(field({ venue_name: '' }), 'venue_names');
+  assert.equal(field({ consent: false }), 'consent');
+  assert.equal(cleanVenueManager(vm).field, undefined);
+});
+
+test('both forms take a password; a double is never made live and its discard says who it is', async () => {
+  const src = (await import('node:fs')).readFileSync(new URL('../modules/staffSetup.mjs', import.meta.url), 'utf8');
+  const submit = src.slice(src.indexOf("'staffSetup.submit'"), src.indexOf("'staffSetup.link'"));
+  assert.match(submit, /checkSetupPassword\(b\.password, b\.password_confirm\)/);
+  assert.doesNotMatch(submit, /kind === 'officer' \? hashPassword/);
+  const create = src.slice(src.indexOf("'staffSetup.create'"), src.indexOf("'staffSetup.discard'"));
+  assert.match(create, /fail\(409, `Already on file: \$\{dup\.name\}`, \{ duplicate: dup \}\)/);
+  const discard = src.slice(src.indexOf("'staffSetup.discard'"));
+  assert.match(discard, /return \{ ok: true, duplicate: dup \}/);
+  assert.doesNotMatch(src, /ownsKind/);
+});
