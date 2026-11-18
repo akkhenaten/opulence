@@ -4,20 +4,22 @@ import { Ban, CalendarDays, CalendarOff, Check, ChevronRight, FileWarning, Hand,
 import { api } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  addDays, Button, cx, Empty, isoDate, Load, MoreMenu, Page, Section, Spinner, Tabs, time, useAction, useApi, useConfirm, usePullRefresh, useUrlState,
+  addDays, Button, cx, Empty, isoDate, Load, MoreMenu, Page, Section, Spinner, Tabs, time, useAction, useApi, useConfirm, useMedia, usePullRefresh, useUrlState,
 } from '../../ui/index.jsx';
 import { ASSIGN_LABEL, assignTone, DeclineSheet, NotLinked, ShiftCard } from './_parts.jsx';
-import ShiftCalendar from './ShiftCalendar.jsx';
+import { CalendarBoard } from '../calendar/Calendar.jsx';
 import { BACKDATE_DAYS } from '../shared/incident/Props.jsx';
 
 export default function Shifts() {
   const { user } = useAuth();
-  const [url, set] = useUrlState({ tab: '' });
+  const [url, set] = useUrlState({ tab: '', event: '', show: '' });
+  const wide = useMedia('(min-width: 768px)');
   const open = useApi('shifts.open', {}, { skip: !user.officer_id });
   const ops = useOps(!user.officer_id);
   const offered = (ops.data?.offers || []).filter((o) => o.status === 'offered').length;
   // With no tab asked for, open on Offers once when any are waiting
-  const decided = useRef(!!url.tab);
+  // (a meeting or the invites list opened from a notice stays on the calendar)
+  const decided = useRef(!!(url.tab || url.event || url.show));
   useEffect(() => {
     if (decided.current || !ops.data) return;
     decided.current = true;
@@ -43,7 +45,7 @@ export default function Shifts() {
       {!user.officer_id ? <NotLinked /> : (
         <>
           <Tabs value={tab} onChange={setTab} tabs={[{ value: 'calendar', label: 'Calendar', icon: CalendarDays }, { value: 'mine', label: 'List', icon: ListIcon }, { value: 'offers', label: 'Offers', icon: Hand, count: offered }, { value: 'open', label: 'Open shifts', icon: Megaphone, count: open.data?.length }]} />
-          {waiting ? <Spinner /> : tab === 'calendar' ? <ShiftCalendar /> : tab === 'mine' ? <Mine /> : tab === 'offers' ? <OffersList ops={ops} /> : <Open q={open} />}
+          {waiting ? <Spinner /> : tab === 'calendar' ? <CalendarBoard defaultView={wide ? 'week' : 'agenda'} /> : tab === 'mine' ? <Mine /> : tab === 'offers' ? <OffersList ops={ops} /> : <Open q={open} />}
         </>
       )}
     </Page>

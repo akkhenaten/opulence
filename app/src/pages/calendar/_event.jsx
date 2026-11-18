@@ -1,0 +1,392 @@
+// A meeting, opened (who's coming, reply, propose a new time, reminders, Add to calendar) and the form it's made in,
+// with each person's free/busy for the day and the next free times. Shared by the Calendar page and the officer's Shifts.
+import { useEffect, useMemo, useState } from 'react';
+import {
+  AlarmClock, CalendarClock, CalendarPlus, Check, CircleHelp, Clock, ExternalLink, MapPin, Pencil, Phone, Plus, Send, Sparkles, TriangleAlert, Users, Video, X,
+} from 'lucide-react';
+import { api, API_BASE } from '../../api.js';
+import { useAuth } from '../../auth.jsx';
+import { ROLE_LABEL } from '../../layouts/nav.js';
+import {
+  addDays, Avatar, Button, Callout, Chips, cx, dayLabel, Empty, ErrorBox, Input, List, Load, Pill, Pressable, range, Row, SearchInput, Section, Select, Sheet, Spinner, Textarea, time, Toggle, useAction, useApi, useConfirm, nameMatches,
+} from '../../ui/index.jsx';
+import { londonIso, londonParts } from '../manager/_parts.jsx';
+
+export const RESPONSE = {
+  accepted: { label: 'Going', tone: 'green' },
+  maybe: { label: 'Maybe', tone: 'amber' },
+  declined: { label: 'Declined', tone: 'grey' },
+  pending: { label: 'Awaiting reply', tone: 'blue' },
+};
+const REMINDERS = [{ value: 1440, label: '1 day before' }, { value: 60, label: '1 hour' }, { value: 30, label: '30 min' }, { value: 10, label: '10 min' }, { value: 0, label: 'At the start' }];
+const WHERE = [
+  { value: 'none', label: 'No place' }, { value: 'venue', label: 'At a venue' }, { value: 'hq', label: 'Head office' },
+  { value: 'address', label: 'Another address' }, { value: 'phone', label: 'Phone call' }, { value: 'video', label: 'Video call (Teams, Zoom, Meet)' },
+];
+
+const lastDay = (e) => londonParts(new Date(new Date(e.ends_at).getTime() - 1)).date;
+/** "Thu 20 Nov · 14:00–15:00", an all-day span, or a meeting that runs past midnight. */
+export function whenText(e) {
+  const a = londonParts(e.starts_at).date;
+  if (e.all_day) return a === lastDay(e) ? `${dayLabel(e.starts_at)} · All day` : `${dayLabel(a)} – ${dayLabel(lastDay(e))}`;
+  return a === lastDay(e) ? `${dayLabel(e.starts_at)} · ${range(e.starts_at, e.ends_at)}` : `${dayLabel(e.starts_at)} ${time(e.starts_at)} – ${dayLabel(e.ends_at)} ${time(e.ends_at)}`;
+}
+export const roleLine = (p) => [ROLE_LABEL[p.role] || '', p.venue_names].filter(Boolean).join(' · ');
+const mapLink = (where) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(where)}`;
+const mins = (a, b) => Math.round((new Date(b) - new Date(a)) / 60000);
+
+// London date + times from a meeting, and back: an end at or before the start runs to the next day
+const toFields = (e) => ({
+  date: londonParts(e.starts_at).date, start: londonParts(e.starts_at).time, end: londonParts(e.ends_at).time, all_day: !!e.all_day, end_date: e.all_day ? lastDay(e) : londonParts(e.starts_at).date,
+});
+function fromFields(f) {
+  if (f.all_day) return { starts_at: londonIso(f.date, '00:00'), ends_at: londonIso(addDays(f.end_date < f.date ? f.date : f.end_date, 1), '00:00'), all_day: true };
+  const starts_at = londonIso(f.date, f.start);
+  let ends_at = londonIso(f.date, f.end);
+  if (new Date(ends_at) <= new Date(starts_at)) ends_at = londonIso(addDays(f.date, 1), f.end);
+  return { starts_at, ends_at, all_day: false };
+}
+
+function useDebounced(value, ms = 400) {
+  const [v, setV] = useState(value);
+  useEffect(() => { const t = setTimeout(() => setV(value), ms); return () => clearTimeout(t); }, [value, ms]);
+  return v;
+}
+
+function TimeFields({ f, set, allDay = true }) {
+  return (
+    <div className="space-y-3">
+      {allDay && <Toggle checked={f.all_day} onChange={(v) => set({ all_day: v })} label="All day" />}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <Input label={f.all_day ? 'From' : 'Date'} type="date" value={f.date} onChange={(e) => set({ date: e.target.value, ...(f.end_date < e.target.value ? { end_date: e.target.value } : {}) })} className="col-span-2 sm:col-span-1" />
+        {f.all_day
+          ? <Input label="To" type="date" min={f.date} value={f.end_date} onChange={(e) => set({ end_date: e.target.value })} className="col-span-2 sm:col-span-1" />
+          : <>
+            <Input label="Starts" type="time" step="300" value={f.start} onChange={(e) => {
+              // Moving the start keeps the length
+              const len = mins(londonIso(f.date, f.start), fromFields(f).ends_at);
+              const end = londonParts(new Date(new Date(londonIso(f.date, e.target.value)).getTime() + len * 60000)).time;
+              set({ start: e.target.value, end });
+            }} />
+            <Input label="Ends" type="time" step="300" value={f.end} onChange={(e) => set({ end: e.target.value })} />
+          </>}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- The meeting, opened ---------- */
+
+export function EventSheet({ id, onClose, onChanged, onEdit }) {
+  const { user } = useAuth();
+  const q = useApi('calendar.get', { id });
+  const [run, busy] = useAction();
+  const [note, setNote] = useState('');
+  const [proposing, setProposing] = useState(null);
+  const [cancelling, setCancelling] = useState(null);
+  const e = q.data;
+  const done = (r) => { q.setData(r); onChanged?.(); };
+  const act = (action, body, msg) => run(() => api(action, { id, ...body }), msg).then(done).catch(() => {});
+
+  const mine = e?.organiser_id === user.id;
+  const proposals = (e?.attendees || []).filter((a) => a.proposed_start);
+  const Icon = { venue: MapPin, hq: MapPin, address: MapPin, phone: Phone, video: Video }[e?.where_kind];
+
+  const footer = e && !e.cancelled_at && e.can_edit && !cancelling && !proposing && (
+    <>
+      <Button variant="secondary" className="text-red" onClick={() => setCancelling({ note: '' })}>Cancel meeting</Button>
+      <Button icon={Pencil} onClick={() => onEdit(e)}>Edit</Button>
+    </>
+  );
+
+  return (
+    <Sheet open onClose={onClose} title={e?.title || 'Meeting'} footer={footer} side>
+      {q.error && !e ? <ErrorBox error={q.error} retry={q.reload} /> : !e ? <Spinner /> : (
+        <div className="space-y-5">
+          <div className="space-y-2">
+            {e.cancelled_at && <Callout tone="warning" title="Cancelled">{e.cancel_note || 'Everyone on it was told.'}</Callout>}
+            <div className={cx('flex items-center gap-2 text-callout font-semibold', e.cancelled_at && 'line-through opacity-60')}><Clock size={18} className="shrink-0 text-muted" />{whenText(e)}</div>
+            {e.where && (
+              <div className="flex items-start gap-2 text-body">
+                <Icon size={18} className="mt-0.5 shrink-0 text-muted" />
+                <div className="min-w-0 flex-1">
+                  {e.where_kind === 'video'
+                    ? <Button variant="link" href={e.video_url} target="_blank" rel="noreferrer" iconRight={ExternalLink}>Join the call</Button>
+                    : e.where_kind === 'phone'
+                      ? <a className="text-blue" href={`tel:${e.phone.replace(/\s/g, '')}`}>{e.where}</a>
+                      : <><div>{e.where}</div><Button variant="link" size="sm" href={mapLink(e.where)} target="_blank" rel="noreferrer" iconRight={ExternalLink}>Map</Button></>}
+                </div>
+              </div>
+            )}
+            <div className="text-footnote text-muted">Organised by {mine ? 'you' : e.organiser_name}</div>
+          </div>
+
+          {/* My reply */}
+          {e.me && !mine && !e.cancelled_at && (
+            <Section title="Your reply">
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  {[['accepted', 'Accept', Check], ['maybe', 'Maybe', CircleHelp], ['declined', 'Decline', X]].map(([r, label, I]) => (
+                    <Button key={r} variant={e.me.response === r ? 'primary' : 'secondary'} icon={I} busy={busy} onClick={() => act('calendar.respond', { response: r, note }, r === 'declined' ? 'Declined. The organiser is told.' : 'Reply sent')}>{label}</Button>
+                  ))}
+                </div>
+                <Input placeholder="Add a note (optional)" value={note} onChange={(ev) => setNote(ev.target.value)} />
+                {e.me.proposed_start && !proposing && <Callout tone="info" icon={CalendarClock}>You proposed {whenText({ starts_at: e.me.proposed_start, ends_at: e.me.proposed_end })}. Waiting for {e.organiser_name}.</Callout>}
+                {!proposing
+                  ? <Button variant="soft" icon={CalendarClock} onClick={() => setProposing({ ...toFields(e), note: '' })}>Propose a new time</Button>
+                  : (
+                    <div className="space-y-3 rounded-2xl bg-fill/60 p-3">
+                      <TimeFields f={proposing} set={(p) => setProposing((s) => ({ ...s, ...p }))} allDay={false} />
+                      <Input placeholder={`A note for ${e.organiser_name} (optional)`} value={proposing.note} onChange={(ev) => setProposing((s) => ({ ...s, note: ev.target.value }))} />
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" onClick={() => setProposing(null)}>Back</Button>
+                        <Button icon={Send} busy={busy} onClick={() => act('calendar.propose', { ...fromFields(proposing), note: proposing.note }, `Sent to ${e.organiser_name}`).then(() => setProposing(null))}>Send proposal</Button>
+                      </div>
+                    </div>
+                  )}
+              </div>
+            </Section>
+          )}
+
+          {cancelling && (
+            <div className="space-y-3 rounded-2xl bg-red-soft/50 p-3">
+              <div className="text-subhead font-semibold">Cancel this meeting?</div>
+              <Textarea rows={2} placeholder="Why (optional) — everyone on it gets this" value={cancelling.note} onChange={(ev) => setCancelling({ note: ev.target.value })} />
+              {!mine && <p className="text-footnote text-muted">You're cancelling {e.organiser_name}'s meeting. It's recorded in history.</p>}
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setCancelling(null)}>Keep it</Button>
+                <Button variant="danger" busy={busy} onClick={() => act('calendar.cancel', { note: cancelling.note }, 'Cancelled. Everyone is told.').then(() => setCancelling(null))}>Cancel and tell everyone</Button>
+              </div>
+            </div>
+          )}
+
+          {/* Proposed times, for the organiser (or a company manager) to answer */}
+          {e.can_edit && proposals.length > 0 && (
+            <Section title="New times proposed" icon={CalendarClock} count={proposals.length}>
+              <div className="space-y-2">
+                {proposals.map((a) => (
+                  <div key={a.user_id} className="rounded-2xl bg-amber-soft/60 p-3">
+                    <div className="text-subhead"><span className="font-semibold">{a.name}</span> asks for <span className="font-semibold">{whenText({ starts_at: a.proposed_start, ends_at: a.proposed_end })}</span></div>
+                    {a.proposal_note && <p className="mt-1 text-footnote text-muted">“{a.proposal_note}”</p>}
+                    <div className="mt-2 flex flex-wrap justify-end gap-2">
+                      <Button size="sm" variant="secondary" busy={busy} onClick={() => act('calendar.decideProposal', { user_id: a.user_id, accept: false }, `Kept the time. ${a.name} is told.`)}>Keep current time</Button>
+                      <Button size="sm" icon={Check} busy={busy} onClick={() => act('calendar.decideProposal', { user_id: a.user_id, accept: true }, 'Moved. Everyone is asked again.')}>Use this time</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          <Section title="Who's coming" icon={Users} count={e.attendees.length}>
+            <List>
+              {e.attendees.map((a) => (
+                <Row key={a.user_id} left={<Avatar name={a.name} size={36} />} title={a.user_id === user.id ? `${a.name} (You)` : a.name}
+                  subtitle={[a.organiser ? 'Organiser' : roleLine(a), a.note && `“${a.note}”`].filter(Boolean).join(' · ')}
+                  right={!a.organiser && <Pill tone={RESPONSE[a.response].tone}>{a.proposed_start ? 'New time?' : RESPONSE[a.response].label}</Pill>} />
+              ))}
+            </List>
+          </Section>
+
+          {e.notes && <Section title="Notes"><p className="whitespace-pre-line rounded-2xl bg-surface p-3 text-body shadow-tile">{e.notes}</p></Section>}
+
+          {e.me && !e.cancelled_at && (
+            <Section title="Reminders" icon={AlarmClock}>
+              <Chips options={REMINDERS} value={e.me.reminders || []} onChange={(list) => act('calendar.reminders', { reminders: list }, list.length ? 'Reminders saved' : 'Reminders off')} />
+            </Section>
+          )}
+
+          {e.ics && <Button variant="secondary" icon={CalendarPlus} href={`${API_BASE}?ics=${encodeURIComponent(e.ics)}`} className="w-full">Add to Outlook, Apple or Google</Button>}
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
+/* ---------- Making or changing a meeting ---------- */
+
+/** init: { event } to edit, or { starts_at, ends_at, all_day, attendee_ids } for a new one. */
+export function EventForm({ init, onClose, onSaved }) {
+  const { user } = useAuth();
+  const opts = useApi('calendar.options', {});
+  const ev = init.event;
+  const [f, setF] = useState(() => ({
+    title: ev?.title || '', ...toFields(ev || init),
+    attendee_ids: ev ? ev.attendees.map((a) => a.user_id).filter((x) => x !== user.id || ev.organiser_id !== user.id) : init.attendee_ids || [],
+    where_kind: ev?.where_kind || 'none', venue_id: ev?.venue_id || '', address: ev?.address || '', phone: ev?.phone || '', video_url: ev?.video_url || '', notes: ev?.notes || '',
+    reminders: [1440, 30],
+  }));
+  const [dirty, setDirty] = useState(false);
+  const set = (p) => { setDirty(true); setF((s) => ({ ...s, ...p })); };
+  const [term, setTerm] = useState('');
+  const [run, busy] = useAction();
+  const confirm = useConfirm();
+
+  const people = opts.data?.people || [];
+  const known = useMemo(() => new Map([...people, ...(ev?.attendees || []).map((a) => ({ id: a.user_id, ...a }))].map((p) => [p.id, p])), [people, ev]);
+  const chosen = f.attendee_ids.map((id) => known.get(id)).filter(Boolean);
+  const pickable = people.filter((p) => !f.attendee_ids.includes(p.id) && nameMatches(p, term));
+  const times = fromFields(f);
+  const valid = f.title.trim() && f.date && (f.all_day || (f.start && f.end));
+
+  // Free/busy for everyone on it, a moment after the time or the list stops changing
+  const fbBody = useDebounced(useMemo(() => ({ user_ids: f.attendee_ids, ...times, where_kind: f.where_kind, venue_id: f.venue_id || null, exclude_id: ev?.id || null }),
+    [f.attendee_ids, times.starts_at, times.ends_at, f.where_kind, f.venue_id, ev?.id]));
+  const fb = useApi('calendar.freeBusy', fbBody, { skip: !f.date || (!f.all_day && (!f.start || !f.end)) });
+
+  const save = async () => {
+    const moved = ev && (times.starts_at !== new Date(ev.starts_at).toISOString() || times.ends_at !== new Date(ev.ends_at).toISOString());
+    if (moved && !(await confirm({ title: 'Change the time?', body: 'Everyone on it is asked to reply again.', confirm: 'Change time' }))) return;
+    const body = { ...f, ...times, venue_id: f.venue_id || null, ...(ev ? { id: ev.id, reminders: undefined } : {}) };
+    run(() => api('calendar.save', body), ev ? 'Saved. Everyone on it is told.' : f.attendee_ids.length ? 'Invites sent' : 'Added to your calendar').then(onSaved).catch(() => {});
+  };
+
+  const footer = <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button icon={ev ? Check : Send} busy={busy} disabled={!valid} onClick={save}>{ev ? 'Save' : f.attendee_ids.length ? 'Send invites' : 'Save'}</Button></>;
+
+  return (
+    <Sheet open onClose={onClose} title={ev ? 'Edit meeting' : 'New meeting'} footer={footer} dirty={dirty} size="lg">
+      {opts.error && !opts.data ? <ErrorBox error={opts.error} retry={opts.reload} /> : !opts.data ? <Spinner /> : (
+        <div className="space-y-5">
+          {ev && ev.organiser_id !== user.id && <Callout tone="info">You're changing {ev.organiser_name}'s meeting. It's recorded in history.</Callout>}
+          <Input label="Title" placeholder="e.g. Toolbox talk: radios" value={f.title} onChange={(e) => set({ title: e.target.value })} autoFocus={!ev} />
+          <TimeFields f={f} set={set} />
+
+          <Section title="Who" icon={Users} count={chosen.length || undefined}>
+            <div className="space-y-2">
+              {chosen.length > 0 && (
+                <List>
+                  {chosen.map((p) => (
+                    <Row key={p.id} left={<Avatar name={p.name} size={32} />} title={p.name} subtitle={roleLine(p)}
+                      right={<Button variant="ghost" size="sm" icon={X} iconOnly aria-label={`Remove ${p.name}`} onClick={() => set({ attendee_ids: f.attendee_ids.filter((x) => x !== p.id) })}>Remove</Button>} />
+                  ))}
+                </List>
+              )}
+              <SearchInput collapse={false} value={term} onChange={(e) => setTerm(e.target.value)} placeholder={opts.data.can_invite_anyone ? 'Add people' : 'Add a company manager'} />
+              {!opts.data.can_invite_anyone && <p className="px-1 text-footnote text-muted">You can invite the office's company managers.</p>}
+              {(term || !chosen.length) && pickable.length > 0 && (
+                <List>
+                  {pickable.slice(0, term ? 12 : 5).map((p) => (
+                    <Row key={p.id} left={<Avatar name={p.name} size={32} />} title={p.name} subtitle={roleLine(p)} right={<Plus size={18} className="text-blue" />}
+                      onClick={() => { set({ attendee_ids: [...f.attendee_ids, p.id] }); setTerm(''); }} />
+                  ))}
+                </List>
+              )}
+              {term && !pickable.length && <p className="px-1 text-footnote text-muted">No one by that name you can invite.</p>}
+            </div>
+          </Section>
+
+          <FreeBusy fb={fb} times={times} date={f.date} onPick={(s) => set(toFields({ ...s, all_day: false }))} />
+
+          <Section title="Where" icon={MapPin}>
+            <div className="space-y-3">
+              <Select value={f.where_kind} onChange={(e) => set({ where_kind: e.target.value })} options={WHERE} />
+              {f.where_kind === 'venue' && <Select value={f.venue_id} onChange={(e) => set({ venue_id: e.target.value })} placeholder="Choose the venue" options={opts.data.venues.map((v) => ({ value: v.id, label: v.name }))} />}
+              {f.where_kind === 'hq' && <p className="px-1 text-footnote text-muted">{opts.data.hq_address || 'Add the head office address in Settings to show it here.'}</p>}
+              {f.where_kind === 'address' && <Input placeholder="Address or postcode" value={f.address} onChange={(e) => set({ address: e.target.value })} />}
+              {f.where_kind === 'phone' && <Input type="tel" placeholder="Number to call" hint="Who calls whom? Say so in the notes." value={f.phone} onChange={(e) => set({ phone: e.target.value })} />}
+              {f.where_kind === 'video' && <Input type="url" placeholder="https://… (paste the Teams, Zoom or Meet link)" value={f.video_url} onChange={(e) => set({ video_url: e.target.value })} />}
+            </div>
+          </Section>
+
+          <Textarea label="Notes" rows={3} placeholder="What it's about, what to bring" value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
+          {!ev && <Chips label="Remind me" options={REMINDERS} value={f.reminders} onChange={(list) => set({ reminders: list })} />}
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
+// Each person's day as a bar from 07:00 to 22:00: shifts, other meetings and time off, the chosen time outlined
+const DAY_FROM = 7 * 60;
+const DAY_TO = 22 * 60;
+const BUSY_TONE = { shift: 'bg-green/70', meeting: 'bg-indigo/70', off: 'bg-faint/60' };
+function FreeBusy({ fb, times, date, onPick }) {
+  const at = (iso) => mins(londonIso(date, '00:00'), iso);
+  const pct = (m) => `${((Math.min(DAY_TO, Math.max(DAY_FROM, m)) - DAY_FROM) / (DAY_TO - DAY_FROM)) * 100}%`;
+  const span = (a, b) => ({ left: pct(at(a)), width: `calc(${pct(at(b))} - ${pct(at(a))})` });
+  const d = fb.data;
+  return (
+    <Section title="Free or busy" icon={CalendarClock}>
+      {!d ? (fb.error ? <ErrorBox error={fb.error} retry={fb.reload} /> : <Spinner className="py-6" />) : (
+        <div className="space-y-3">
+          <div className="rounded-2xl bg-surface p-3 shadow-tile">
+            <div className="mb-1 ml-[88px] flex justify-between text-caption2 text-faint"><span>07:00</span><span>12:00</span><span>17:00</span><span>22:00</span></div>
+            <div className="space-y-1.5">
+              {d.rows.map((r) => (
+                <div key={r.user_id} className="flex items-center gap-2">
+                  <div className="w-20 shrink-0 truncate text-caption font-semibold">{r.name}</div>
+                  <div className="relative h-6 flex-1 overflow-hidden rounded-md bg-fill">
+                    {r.busy.map((b, i) => <div key={i} title={`${b.label} · ${range(b.starts_at, b.ends_at)}`} className={cx('absolute inset-y-0', BUSY_TONE[b.kind])} style={span(b.starts_at, b.ends_at)} />)}
+                    <div className="absolute inset-y-0 rounded-md ring-2 ring-inset ring-blue" style={span(times.starts_at, times.ends_at)} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-caption2 text-muted">
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-green/70" />Shift</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-indigo/70" />Meeting</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-faint/60" />Time off</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm ring-2 ring-blue" />This meeting</span>
+            </div>
+          </div>
+          {d.clashes.length > 0 && (
+            <Callout tone="warning" icon={TriangleAlert} title="Clashes">
+              <ul className="space-y-0.5">{d.clashes.map((c) => <li key={c}>{c}</li>)}</ul>
+            </Callout>
+          )}
+          {d.suggestions.length > 0 && (
+            <div>
+              <div className="mb-1.5 flex items-center gap-1.5 text-footnote font-semibold text-muted"><Sparkles size={14} />Everyone is free</div>
+              <div className="flex flex-wrap gap-2">
+                {d.suggestions.map((s) => <Button key={s.starts_at} size="sm" variant="soft" onClick={() => onPick(s)}>{dayLabel(s.starts_at)} {range(s.starts_at, s.ends_at)}</Button>)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </Section>
+  );
+}
+
+/* ---------- Invites and proposed times waiting (from Needs you) ---------- */
+
+export function InboxSheet({ show, onClose, onOpen }) {
+  const q = useApi('calendar.upcoming', {});
+  const proposals = show === 'proposals';
+  return (
+    <Sheet open onClose={onClose} title={proposals ? 'New times proposed' : 'Invites to reply to'}>
+      <Load q={q} skeleton="rows">
+        {(d) => {
+          const list = proposals ? d.proposals : d.invites;
+          if (!list.length) return <Empty icon={CalendarClock} title={proposals ? 'No new times waiting' : 'All replied'} body={proposals ? 'When someone proposes another time for your meeting, it shows here.' : 'New invites show here until you reply.'} />;
+          return (
+            <List>
+              {list.map((m) => (
+                <Row key={`${m.id}:${m.user_id || ''}`} chevron onClick={() => onOpen(m.id)} left={<Avatar name={proposals ? m.name : m.organiser_name} size={36} />} title={m.title}
+                  subtitle={proposals ? `${m.name} asks for ${whenText({ starts_at: m.proposed_start, ends_at: m.proposed_end })}` : `${whenText(m)} · from ${m.organiser_name}`} />
+              ))}
+            </List>
+          );
+        }}
+      </Load>
+    </Sheet>
+  );
+}
+
+// The next meeting, for Home: "Next: Toolbox talk with Matthew · Thu 14:00"
+export function NextMeeting({ base }) {
+  const q = useApi('calendar.upcoming', {});
+  const n = q.data?.next;
+  const waiting = q.data?.invites?.length || 0;
+  if (!n && !waiting) return null;
+  return (
+    <Pressable card press to={n && !waiting ? `${base}?event=${n.id}` : `${base}?show=invites`} className="flex items-center gap-3 p-4">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-indigo-soft text-indigo"><CalendarClock size={20} /></div>
+      <div className="min-w-0 flex-1">
+        {n && <div className="truncate text-body font-semibold">Next: {n.title}{n.with_names ? ` with ${n.with_names}` : ''}</div>}
+        {n && <div className="truncate text-footnote text-muted">{whenText(n)}</div>}
+        {waiting > 0 && <div className="text-footnote font-semibold text-blue">{waiting} invite{waiting === 1 ? '' : 's'} to reply to</div>}
+      </div>
+    </Pressable>
+  );
+}

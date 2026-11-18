@@ -1,5 +1,5 @@
 import {
-  BarChart3, Banknote, ClipboardList, Bell, Building2, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
+  BarChart3, Banknote, ClipboardList, Bell, Building2, CalendarClock, CalendarDays, CircleUserRound, ClipboardCheck, Home, LayoutGrid, Megaphone,
   Radio, ReceiptText, Settings, ShieldAlert, UserPlus, Users, CalendarOff, TriangleAlert, ScrollText,
   GraduationCap, BookOpenCheck, Crown, Mail, BookText, Briefcase, FileSignature, MessagesSquare, Store, NotebookPen, Ban, ShieldCheck, MessageSquareHeart, LineChart, Siren, Star,
 } from 'lucide-react';
@@ -14,6 +14,7 @@ export const NAV = {
       { to: '/company', label: 'Today', icon: LayoutGrid, end: true, tab: true, badge: 'ops' },
       { hub: 'messages', label: 'Messages', icon: MessagesSquare, badge: 'inbox' },
       { hub: 'rota', label: 'Rota', icon: CalendarDays, tab: true, badge: 'rota' },
+      { to: '/company/calendar', label: 'Calendar', icon: CalendarClock, badge: 'calendar' },
       { hub: 'incidents', label: 'Incidents', icon: ShieldAlert, tab: true, badge: 'incidents' },
       { hub: 'staff', label: 'Staff', icon: Users, badge: 'staff' },
       { hub: 'venues', label: 'Venues', icon: Building2 },
@@ -31,6 +32,7 @@ export const NAV = {
       { to: '/security', label: 'Today', icon: LayoutGrid, end: true, tab: true, badge: 'ops' },
       { hub: 'messages', label: 'Messages', icon: MessagesSquare, badge: 'messages' },
       { hub: 'rota', label: 'Rota', icon: CalendarDays, tab: true, badge: 'rota' },
+      { to: '/security/calendar', label: 'Calendar', icon: CalendarClock, badge: 'calendar' },
       { hub: 'incidents', label: 'Incidents', icon: ShieldAlert, tab: true, badge: 'incidents' },
       { hub: 'staff', label: 'Staff', icon: Users, badge: 'staff' },
       { hub: 'venues', label: 'Venues', icon: Building2 },
@@ -47,6 +49,7 @@ export const NAV = {
       { to: '/venue', label: 'Overview', icon: LayoutGrid, end: true, tab: true },
       { to: '/venue/live', label: 'On site', icon: Radio, tab: true },
       { to: '/venue/rota', label: 'Rota', icon: CalendarDays, tab: true },
+      { to: '/venue/calendar', label: 'Calendar', icon: CalendarClock, badge: 'calendar' },
       { hub: 'logs', label: 'Logs', icon: NotebookPen, tab: true, badge: 'logs' },
       { hub: 'feedback', label: 'Feedback', icon: MessageSquareHeart },
       { hub: 'billing', label: 'Billing', icon: ReceiptText, badge: 'billing' },
@@ -57,7 +60,7 @@ export const NAV = {
   officer: [
     { items: [
       { to: '/officer', label: 'Home', icon: Home, end: true, tab: true },
-      { to: '/officer/shifts', label: 'Shifts', icon: CalendarDays, tab: true },
+      { to: '/officer/shifts', label: 'Shifts', icon: CalendarDays, tab: true, badge: 'calendar' },
       { to: '/officer/learn', label: 'Learn', icon: GraduationCap, tab: true, moduleAny: ['academy', 'toolbox'] },
       { to: '/officer/me', label: 'Me', icon: CircleUserRound, tab: true },
     ] },

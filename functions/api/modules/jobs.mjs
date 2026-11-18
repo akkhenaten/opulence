@@ -25,6 +25,7 @@ import { dropDraft } from './incidents.mjs';
 import { reminderDue } from '../lib/incidentDrafts.mjs';
 import { venueReminderDue, managerReminderDue } from '../lib/incidentSign.mjs';
 import { officerName } from '../lib/names.mjs';
+import { calendarReminders } from './calendar.mjs';
 
 // Late / no-show: published assignment, past grace, no valid clock-in.
 // Officers whose site pack isn't signed are left to the Orb pack check until they sign.
@@ -223,6 +224,8 @@ export async function runJobs() {
   result.voiceNotes = await transcriptSweep().catch((e) => `error: ${e.message}`);
   // Everyday: event reminders every run; morning celebrations and clean-up once an hour
   result.everyday = await feedJobs().catch((e) => `error: ${e.message}`);
+  // Meeting reminders: each person's own, 1 day and 30 minutes before unless they changed them
+  result.meetings = await calendarReminders().catch((e) => `error: ${e.message}`);
   // Pay review reminders and deadlines
   result.payRuns = await payRunJobs().catch((e) => `error: ${e.message}`);
   // Connected mailboxes: incremental sync into the inbox cache

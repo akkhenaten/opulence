@@ -34,6 +34,10 @@ export const SQL = {
   timeOff: "SELECT count(*)::int AS n FROM time_off WHERE status = 'pending'",
   staffForms: 'SELECT count(*)::int AS n FROM staff_setup_submissions',
   streams: "SELECT count(*)::int AS n, (array_agg(venue_id ORDER BY created_at))[1] AS venue FROM venue_streams WHERE status = 'active' AND checked_at IS NULL",
+  invites: `SELECT count(*)::int AS n, (array_agg(e.id ORDER BY e.starts_at))[1] AS event FROM calendar_attendees a JOIN calendar_events e ON e.id = a.event_id
+             WHERE a.user_id = $1 AND a.response = 'pending' AND e.cancelled_at IS NULL AND e.ends_at > now()`,
+  proposals: `SELECT count(*)::int AS n, (array_agg(e.id ORDER BY e.starts_at))[1] AS event FROM calendar_attendees a JOIN calendar_events e ON e.id = a.event_id
+               WHERE e.organiser_id = $1 AND a.proposed_start IS NOT NULL AND a.proposed_start > now() AND e.cancelled_at IS NULL`,
 };
 
 /** Officers with an open Orb compliance card: the card covers them, so the plain rows leave them out. */
@@ -116,12 +120,35 @@ async function officerCounts(ctx) {
   return summarise('officer', { answer, resign });
 }
 
+// Meeting invites waiting for this person's reply, and proposed times waiting on them as organiser
+async function meetingCounts(user) {
+  const [invites, proposals] = await Promise.all([
+    safe(() => one(SQL.invites, [user.id])),
+    safe(() => one(SQL.proposals, [user.id])),
+  ]);
+  const at = (r) => ({ role: user.role, event: r?.n === 1 ? r.event : null });
+  return { counts: { invites: invites?.n ?? null, proposals: proposals?.n ?? null }, extra: { invites: at(invites), proposals: at(proposals) } };
+}
+
 /** Everything waiting on this person: { items, byNav, failed }. */
 export async function todoSummary(b, ctx) {
   const role = ctx.user.role;
-  if (role === 'officer') return officerCounts(ctx);
-  if (role === 'venue') return venueCounts(b, ctx);
-  return managerCounts(ctx);
+  const [base, meet] = await Promise.all([
+    role === 'officer' ? officerCounts(ctx) : role === 'venue' ? venueCounts(b, ctx) : managerCounts(ctx),
+    meetingCounts(ctx.user),
+  ]);
+  return merge(role, base, meet);
+}
+
+// The meeting rows join the portal's own list in KINDS order, with their badges added
+const MEET = ['invites', 'proposals'];
+function merge(role, a, meet) {
+  const m = summarise(role, meet.counts, meet.extra).items.filter((i) => MEET.includes(i.key));
+  const order = kindsFor(role).map((k) => k.key);
+  const items = [...a.items, ...m].sort((x, y) => order.indexOf(x.key) - order.indexOf(y.key));
+  const byNav = { ...a.byNav };
+  for (const i of m) if (i.nav) byNav[i.nav] = (byNav[i.nav] || 0) + i.count;
+  return { items, byNav, failed: a.failed || MEET.some((k) => meet.counts[k] == null) };
 }
 
 // Rows behind a count, with what the inline buttons need. Kept short: "See all" opens the full page.

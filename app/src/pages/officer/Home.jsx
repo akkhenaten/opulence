@@ -17,6 +17,7 @@ import { InstallCard } from '../../ui/pwa.jsx';
 import { PushCard } from './_notify.jsx';
 import { PhoneCard } from './_phone.jsx';
 import { ShiftPanel } from '../shift/ShiftView.jsx';
+import { NextMeeting } from '../calendar/_event.jsx';
 
 // Not on shift: what to answer, what is confirmed, what is open, what to do.
 // Clocked in: the shift card takes over, with everything for that shift in one place.
@@ -179,6 +180,7 @@ function Body({ d, clock, ops, reload }) {
         )}
       </Section>
 
+      <NextMeeting base="/officer/shifts" />
       <ChaseBanner ops={ops} />
       <PhoneCard soon={next.some((s) => new Date(s.starts_at) - Date.now() < 864e5)} />
       {later && (

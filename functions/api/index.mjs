@@ -54,8 +54,9 @@ import * as staffSetup from './modules/staffSetup.mjs';
 import * as streams from './modules/streams.mjs';
 import * as todo from './modules/todo.mjs';
 import * as people from './modules/people.mjs';
+import * as calendar from './modules/calendar.mjs';
 
-export const ACTIONS = Object.assign({}, ...[auth, users, people, settings, venues, documents, officers, hr, rota, clock, clockProof, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, grace, venueSetup, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign, contractsPack, contractsUpload, signLinks, venuePacks, email, apply, sia, reviews, comments, analytics, appFeedback, staffSetup, streams, todo, exportsCsv].map((m) => m.actions));
+export const ACTIONS = Object.assign({}, ...[auth, users, people, settings, venues, documents, officers, hr, rota, clock, clockProof, timesheets, money, incidents, dashboard, notifications, ops, incidentAi, compliance, grace, venueSetup, toolbox, academy, everyday, cover, messages, shiftlog, bans, growth, payruns, assistant, orbVoice, demo, help, esign, contractsPack, contractsUpload, signLinks, venuePacks, email, apply, sia, reviews, comments, analytics, appFeedback, staffSetup, streams, todo, calendar, exportsCsv].map((m) => m.actions));
 // Orb runs real actions on confirm, through the same table and role checks
 assistant.useActions(ACTIONS);
 
@@ -72,6 +73,18 @@ export async function handler(event) {
   }
   const method = event.requestContext?.http?.method || event.httpMethod || 'POST';
   if (method === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
+  // Add to calendar: the .ics file behind a meeting email's button, from a signed per-person link
+  if (method === 'GET' && event.queryStringParameters?.ics) {
+    try {
+      await migrate();
+      const f = await calendar.icsFile(event.queryStringParameters.ics);
+      if (!f) return { statusCode: 404, headers: { ...CORS, 'content-type': 'text/plain' }, body: 'This calendar link is not valid.' };
+      return { statusCode: 200, headers: { ...CORS, 'content-type': 'text/calendar; charset=utf-8', 'content-disposition': `attachment; filename="${f.name}"`, 'cache-control': 'no-store' }, body: f.body };
+    } catch (e) {
+      console.error('[ics]', e);
+      return { statusCode: 500, headers: { ...CORS, 'content-type': 'text/plain' }, body: 'Something went wrong' };
+    }
+  }
 
   let body;
   try {

@@ -18,6 +18,8 @@ const ManagerDashboard = P(() => import('./pages/manager/Dashboard.jsx'));
 const Live = P(() => import('./pages/shared/Live.jsx'));
 const OrbPage = P(() => import('./pages/manager/OpsAI.jsx'));
 const Rota = P(() => import('./pages/manager/Rota.jsx'));
+const CalendarPage = P(() => import('./pages/calendar/Calendar.jsx'));
+const IcsLink = P(() => import('./pages/calendar/IcsLink.jsx'));
 const CoverManage = P(() => import('./pages/manager/Cover.jsx'));
 const Exceptions = P(() => import('./pages/manager/Exceptions.jsx'));
 const Phones = P(() => import('./pages/manager/Exceptions.jsx').then((m) => ({ default: m.PhonesPage })));
@@ -206,6 +208,7 @@ const managerRoutes = (
     <Route path="live" element={<LiveRedirect />} />
     <Route path="orb" element={<OrbPage />} />
     <Route path="rota" element={<Rota />} />
+    <Route path="calendar" element={<CalendarPage />} />
     <Route path="shifts/:id" element={<ShiftView />} />
     <Route path="cover" element={<CoverManage />} />
     <Route path="timesheets" element={<Timesheets />} />
@@ -252,6 +255,7 @@ function App() {
         <Route path="/sign/:token" element={<PublicSign />} />
         <Route path="/apply" element={<Apply />} />
         <Route path="/staff-form/:token" element={<StaffForm />} />
+        <Route path="/ics/:token" element={<IcsLink />} />
         <Route path="/guide/emergency/:screen?" element={<EmergencyGuide />} />
         <Route path="/guide/flow" element={<EmergencyFlow />} />
         <Route path="/guide/flow/map" element={<EmergencyFlowMap />} />
@@ -306,6 +310,7 @@ function App() {
             <Route index element={<VenueDashboard />} />
             <Route path="live" element={<Live />} />
             <Route path="rota" element={<Rota />} />
+            <Route path="calendar" element={<CalendarPage />} />
             <Route path="shifts/:id" element={<ShiftView />} />
             <Route path="cover" element={<OldVenueCover />} />
             <Route path="requests" element={<Navigate to="/venue/messages" replace />} />

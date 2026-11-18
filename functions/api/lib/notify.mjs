@@ -14,7 +14,7 @@ export const OPTIONAL_KINDS = ['comment', 'reaction', 'shoutout', 'tag', 'event'
 export const TIER = Object.fromEntries([
   'shift', 'open_shift', 'cover', 'late', 'clock_out', 'clock_exception', 'pack_blocked', 'venue_pack', 'contract', 'pay', 'timeoff', 'timesheet',
   'incident', 'message', 'mention', 'reminder', 'expiry', 'compliance', 'demo', 'staff_setup', 'announcement', 'hr', 'feed', 'reaction', 'comment',
-  'tag', 'shoutout', 'event', 'celebration', 'training', 'review', 'invoice', 'feedback', 'ops', 'applicant', 'app_feedback',
+  'tag', 'shoutout', 'event', 'celebration', 'training', 'review', 'invoice', 'feedback', 'ops', 'applicant', 'app_feedback', 'meeting',
 ].map((k) => [k, 'action']));
 export function tierOf(kind, severity, tier) {
   if (tier) return tier;

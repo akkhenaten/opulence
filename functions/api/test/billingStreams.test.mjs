@@ -71,5 +71,5 @@ test('streams: a role goes to the stream that claims it, else the default; venue
   assert.doesNotMatch(s.match(/const VENUE_FIELDS = \[[^\]]+\]/)[0], /roles/);
   assert.match(s, /checked_at: checked \? new Date\(\) : null/);
   assert.match(s, /'streams\.check': def\(CO/);
-  assert.match(read('../index.mjs'), /staffSetup, streams, todo, exportsCsv/);
+  assert.match(read('../index.mjs'), /staffSetup, streams, todo, [^\]]*exportsCsv\]/);
 });

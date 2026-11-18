@@ -30,7 +30,7 @@ export async function checkOfficerForShift(officerId, shift, { ignoreAssignment 
   // A grace period only lets them work up to its last day
   if (c.grace && shiftDay > c.grace.ends_on) blocking.push(`Grace period ends ${fmtDate(c.grace.ends_on)}; can't roster after it`);
 
-  const [ban, overlap, off, avail, hours] = await Promise.all([
+  const [ban, overlap, off, avail, hours, meeting] = await Promise.all([
     one('SELECT reason FROM venue_bans WHERE officer_id = $1 AND venue_id = $2', [officerId, shift.venue_id]),
     one(
       `SELECT s.starts_at, v.name FROM shift_assignments a JOIN shifts s ON s.id = a.shift_id JOIN venues v ON v.id = s.venue_id
@@ -47,7 +47,14 @@ export async function checkOfficerForShift(officerId, shift, { ignoreAssignment 
         WHERE a.officer_id = $1 AND a.status IN ('assigned','accepted') AND s.status <> 'cancelled' AND s.id <> $2
           AND s.starts_at >= date_trunc('week', $3::timestamptz) AND s.starts_at < date_trunc('week', $3::timestamptz) + interval '7 days'`,
       [officerId, shift.id || '00000000-0000-0000-0000-000000000000', shift.starts_at]),
+    // An accepted meeting in the shift's hours, unless it is at this venue (an on-site check-in)
+    one(
+      `SELECT e.title, e.starts_at FROM calendar_attendees ca JOIN calendar_events e ON e.id = ca.event_id
+        WHERE ca.user_id = $1 AND ca.response = 'accepted' AND e.cancelled_at IS NULL AND e.starts_at < $3 AND e.ends_at > $2
+          AND NOT (e.where_kind = 'venue' AND e.venue_id IS NOT DISTINCT FROM $4) ORDER BY e.starts_at LIMIT 1`,
+      [o.user_id, shift.starts_at, shift.ends_at, shift.venue_id]).catch(() => null),
   ]);
+  if (meeting) warnings.push(`In a meeting at ${fmtTime(meeting.starts_at)}: ${meeting.title}`);
   if (ban) blocking.push(`Banned from this venue${ban.reason ? `: ${ban.reason}` : ''}`);
   if (overlap) blocking.push(`Already booked at ${overlap.name} (${fmtTime(overlap.starts_at)})`);
   if (off) blocking.push(`On approved ${off.kind}`);

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  ArrowUpRight, Building2, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, Clock, Copy, Crown, FilePen, Hand, ListChecks, LogOut, NotebookPen, Plus, Printer, Repeat, Rows2, Rows4, Send, Trash2, UserMinus, UserPlus, UserRound, UserX, X,
+  ArrowUpRight, Building2, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, Clock, Copy, Crown, FilePen, Hand, ListChecks, LogOut, NotebookPen, Plus, Printer, Repeat, Rows2, Rows4, Send, Trash2, UserMinus, UserPlus, UserRound, Users, UserX, X,
 } from 'lucide-react';
 import {
   ActionBar, addDays, AssignPill, Avatar, Button, Chip, confirmState, cx, dateShort, dayLabel, Dot, Empty, ErrorBox, IconButton, Input, isoDate, KV, List, Load, mondayOf, MoreMenu, Page, Pill, Pressable, range, Row, Segmented, Select, Sheet, Spinner, Textarea, ToolField, ToolMenu, time, titleCase, Toggle, useAction, useApi, useConfirm, useForm, useMedia, useSelect, useToast, useUrlState, nameMatches, displayName,
@@ -75,6 +75,8 @@ export default function Rota() {
   const tabCounts = useRotaCounts(isVenue ? { cover, venue: true } : { reqs });
   const body = useMemo(() => ({ from: londonIso(week), to: londonIso(addDays(week, 7)), ...(venueId ? { venue_id: venueId } : {}) }), [week, venueId]);
   const shifts = useApi('shifts.list', body, isVenue ? { poll: 60000 } : undefined);
+  // Meetings officers are in, as thin bars in By officer (they can't be dragged here)
+  const meetQ = useApi('calendar.forRota', { from: body.from, to: body.to }, { skip: isVenue || view !== 'officers' });
   const [run, busy] = useAction();
   const confirm = useConfirm();
 
@@ -216,7 +218,7 @@ export default function Rota() {
         : <Requests q={reqs} roleName={roleName} onChanged={reload} onOpen={setOpenId} />) : (
         <>
           <Load q={shifts}>{() => {
-            const props = { rows: shown, all: rows, week, density, requests, onOpen: (s) => setOpenId(s.id), onRequest: setReq, onAdd, addWord: isVenue ? 'Request staff' : 'Add shift', onUnfilled: () => setUrl({ f: 'unfilled' }), pick: office ? pick : null };
+            const props = { rows: shown, all: rows, week, density, requests, onOpen: (s) => setOpenId(s.id), onRequest: setReq, onAdd, addWord: isVenue ? 'Request staff' : 'Add shift', onUnfilled: () => setUrl({ f: 'unfilled' }), pick: office ? pick : null, meets: meetQ.data || [] };
             const none = on.length
               ? <Empty icon={CalendarDays} title="No shifts match these filters" action={<Button variant="secondary" onClick={() => setUrl({ f: '' })}>Clear filters</Button>} />
               : isVenue
@@ -434,6 +436,17 @@ function OfficerChip({ s, oid, onOpen, pick, at }) {
   );
 }
 
+// A meeting the officer is in: opens it on the calendar. Not yet accepted shows dashed.
+function MeetingBar({ m }) {
+  const { base } = useBase();
+  return (
+    <Pressable press to={`${base}/calendar?event=${m.id}`} title={`${m.title} · ${range(m.starts_at, m.ends_at)}`}
+      className={cx('flex w-full items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-left text-caption2 font-semibold text-indigo', m.response === 'accepted' ? 'bg-indigo-soft' : 'border border-dashed border-indigo/50')}>
+      <Users size={14} className="shrink-0" /><span className="num">{time(m.starts_at)}</span><span className="truncate">{m.title}</span>
+    </Pressable>
+  );
+}
+
 function AddCell({ label, onClick }) {
   return (
     <Pressable press onClick={onClick} aria-label={label}
@@ -539,7 +552,7 @@ function DayGrid({ rows, all, week, density, requests, onOpen, onRequest, onAdd,
   );
 }
 
-function OfficerGrid({ rows, all, week, density, onOpen, onUnfilled, pick }) {
+function OfficerGrid({ rows, all, week, density, onOpen, onUnfilled, pick, meets }) {
   const today = isoDate();
   const officers = useOfficerRows(rows);
   const unfilled = rows.filter((s) => places(s) > 0);
@@ -562,6 +575,7 @@ function OfficerGrid({ rows, all, week, density, onOpen, onUnfilled, pick }) {
           {days.map((d) => (
             <div key={d} className={cx('min-w-0 space-y-1.5 border-l border-line p-1.5', cellTone(d, today))}>
               {cellShifts(o.mine, d).map((s) => <OfficerChip key={s.id} s={s} oid={o.id} onOpen={onOpen} pick={pick} at={{ row: i + 1, day: d }} />)}
+              {cellShifts(meets.filter((m) => m.officer_id === o.id), d).map((m) => <MeetingBar key={m.id} m={m} />)}
             </div>
           ))}
         </div>
@@ -629,7 +643,7 @@ function PhoneDay({ rows, week, venues, requests, onOpen, onRequest, onAdd, addW
   );
 }
 
-function OfficerAgenda({ rows, onOpen, pick }) {
+function OfficerAgenda({ rows, onOpen, pick, meets }) {
   const today = isoDate();
   const officers = useOfficerRows(rows);
   const unfilled = rows.filter((s) => places(s) > 0);
@@ -655,6 +669,9 @@ function OfficerAgenda({ rows, onOpen, pick }) {
           <div className="space-y-2">
             {o.mine.map((s) => (
               <div key={s.id} className="flex items-start gap-3"><DayTag days={[dayOf(s.starts_at)]} today={today} /><div className="min-w-0 flex-1"><OfficerChip s={s} oid={o.id} onOpen={onOpen} pick={pick} at={{ row: i + 1, day: dayOf(s.starts_at) }} /></div></div>
+            ))}
+            {meets.filter((m) => m.officer_id === o.id).map((m) => (
+              <div key={m.id} className="flex items-start gap-3"><DayTag days={[dayOf(m.starts_at)]} today={today} /><div className="min-w-0 flex-1"><MeetingBar m={m} /></div></div>
             ))}
           </div>
         </section>

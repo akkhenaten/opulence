@@ -11,6 +11,20 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-18', icon: CalendarClock, title: 'Calendar: book meetings, reply, or propose a new time', image: 'calendar-meetings',
+    lede: "Meetings now live next to the rota. Invite people, see who's free around their shifts, and everyone replies in the app: accept, maybe, decline or suggest another time. Everyone gets it in their own Outlook, Apple or Google calendar too.",
+    points: [
+      "Calendar is in the menu for company managers, security managers and venue managers, with Day, Week, Month and List views. Officers see meetings in Shifts, next to their shifts, and the next one on Home",
+      "Tap an empty slot or New meeting. Choose who, and where: a venue, head office, an address, a phone call or a video link",
+      "While you book, each person's day shows their shifts, other meetings and time off. A clash with a shift is named (\"Sam is on at The Loft 20:00–02:00\") and the next times everyone is free are one tap away",
+      "Company managers can invite anyone. Officers, security managers and venue managers can invite the office's company managers",
+      "Invites, changes and cancellations go to the bell, the phone and by email with an Add to calendar button. Replies and proposed times go to the bell and the phone",
+      "Propose a new time and the organiser can use it (the meeting moves and everyone is asked again) or keep the current time. Drag your meeting to move it, or its bottom edge to change its length",
+      "Reminders go 1 day and 30 minutes before; change them on any meeting. Invites waiting for you show in Needs you",
+      "Meetings show on the rota's By officer view, and assigning a shift over one warns you. Company managers can open anyone's calendar, and edit or cancel any meeting; that's recorded in history",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-17', icon: Store, title: 'Doubles go straight to the right person, and venue managers get the one-trip form', image: 'doubles-venue-live',
     lede: "A staff form that matches someone you already have is now flagged with who it is, and one tap takes you to them. Venue managers now fill in their form, set a password, and you make them live, the same way as officers.",
     points: [

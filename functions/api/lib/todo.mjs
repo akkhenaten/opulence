@@ -2,9 +2,15 @@
 // count is the same wherever it shows and clears everywhere once the work is done (counted from the work itself).
 const s = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const MGR = ['company', 'security'];
+const ALL = ['company', 'security', 'venue', 'officer'];
+// The calendar is under Shifts for officers and its own page elsewhere; a single invite opens on that meeting
+const calLink = (x, show) => {
+  const path = x?.role === 'officer' ? '/officer/shifts' : x?.role === 'venue' ? '/venue/calendar' : '/calendar';
+  return `${path}?${x?.event ? `event=${x.event}` : `show=${show}`}`;
+};
 
 /**
- * key: what is waiting · nav: the menu item whose badge it adds to (null = shown, not badged) · tone: red first, then
+ * key: what is waiting · apart: counted on its own for every portal (modules/todo.mjs meetingCounts) · nav: the menu item whose badge it adds to (null = shown, not badged) · tone: red first, then
  * amber, then blue · link: relative to the portal (managers) or absolute · needs: false = not a Needs you row (Orb's own
  * cards are listed by the inbox itself).
  */
@@ -32,6 +38,9 @@ export const KINDS = [
   { key: 'timesheets', roles: ['venue'], nav: 'billing', tone: 'amber', one: 'timesheet to sign', many: 'timesheets to sign', link: '/venue/timesheets?show=review' },
   { key: 'reports', roles: ['venue'], nav: 'logs', tone: 'amber', one: 'incident report to sign', many: 'incident reports to sign', link: '/venue/incidents?to_sign=1' },
   { key: 'invoices', roles: ['venue'], nav: 'billing', tone: 'blue', one: 'invoice to pay', many: 'invoices to pay', link: '/venue/invoices' },
+  // Everyone: meeting invites to reply to, and new times proposed for meetings they organised
+  { key: 'invites', roles: ALL, nav: 'calendar', tone: 'blue', one: 'meeting invite to reply to', many: 'meeting invites to reply to', link: (x) => calLink(x, 'invites'), apart: true },
+  { key: 'proposals', roles: ALL, nav: 'calendar', tone: 'amber', one: 'new meeting time proposed', many: 'new meeting times proposed', link: (x) => calLink(x, 'proposals'), apart: true },
   // Officers
   { key: 'answer', roles: ['officer'], nav: null, tone: 'blue', one: 'shift waiting for your answer', many: 'shifts waiting for your answer', link: '/officer#todo' },
   { key: 'resign', roles: ['officer'], nav: null, tone: 'amber', one: 'incident report to sign', many: 'incident reports to sign', link: '/officer/incidents?to_sign=1' },
@@ -58,7 +67,8 @@ export function summarise(role, counts = {}, extra = {}) {
   });
   const byNav = {};
   for (const i of items) if (i.nav) byNav[i.nav] = (byNav[i.nav] || 0) + i.count;
-  return { items, byNav, failed: kinds.some((k) => counts[k.key] == null) };
+  // Kinds counted apart (meetings, for every portal) only count as failed when they were asked for
+  return { items, byNav, failed: kinds.some((k) => counts[k.key] == null && (!k.apart || k.key in counts)) };
 }
 
 /** The bell's "Waiting for you" rows (kept for the older callers and tests). */

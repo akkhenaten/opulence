@@ -29,8 +29,9 @@ test('badges add up per menu item, and links point into the caller’s own porta
 });
 
 test('venues and officers only see their own kinds', () => {
-  assert.deepEqual(kindsFor('venue').map((k) => k.key).sort(), ['invoices', 'reports', 'timesheets']);
-  assert.deepEqual(kindsFor('officer').map((k) => k.key).sort(), ['answer', 'resign']);
+  // Meeting invites and proposed times are everyone's
+  assert.deepEqual(kindsFor('venue').map((k) => k.key).sort(), ['invites', 'invoices', 'proposals', 'reports', 'timesheets']);
+  assert.deepEqual(kindsFor('officer').map((k) => k.key).sort(), ['answer', 'invites', 'proposals', 'resign']);
   assert.ok(!kindsFor('security').some((k) => ['cantWork', 'timeOff', 'streams'].includes(k.key)));
 });
 
@@ -44,4 +45,12 @@ test('counts use the same filters as the pages they open', () => {
   assert.match(src, /sign_stage IS DISTINCT FROM \$2/);
   // Officers with an Orb compliance card are left out of the plain rows
   assert.match(src, /kind = 'compliance' AND status = 'pending'/);
+});
+
+test('meeting invites open each portal’s own calendar, and only count as failed when asked for', () => {
+  assert.equal(summarise('company', { invites: 2 }, { invites: { role: 'company' } }).items[0].link, '/company/calendar?show=invites');
+  assert.equal(summarise('venue', { invites: 1 }, { invites: { role: 'venue', event: 'e1' } }).items[0].link, '/venue/calendar?event=e1');
+  assert.equal(summarise('officer', { proposals: 1 }, { proposals: { role: 'officer' } }).items[0].link, '/officer/shifts?show=proposals');
+  assert.equal(summarise('officer', { answer: 0, resign: 0 }).failed, false);
+  assert.equal(summarise('officer', { invites: null }).failed, true);
 });
