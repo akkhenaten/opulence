@@ -41,6 +41,8 @@ export const KINDS = [
   // Everyone: meeting invites to reply to, and new times proposed for meetings they organised
   { key: 'invites', roles: ALL, nav: 'calendar', tone: 'blue', one: 'meeting invite to reply to', many: 'meeting invites to reply to', link: (x) => calLink(x, 'invites'), apart: true },
   { key: 'proposals', roles: ALL, nav: 'calendar', tone: 'amber', one: 'new meeting time proposed', many: 'new meeting times proposed', link: (x) => calLink(x, 'proposals'), apart: true },
+  // Company managers: paid meetings and tasks they organised that have ended, waiting on "Was this held?" before anyone is paid
+  { key: 'held', roles: ['company'], nav: 'calendar', tone: 'amber', one: 'paid meeting to confirm as held', many: 'paid meetings to confirm as held', link: (x) => calLink(x, 'held'), apart: true },
   // Officers
   { key: 'answer', roles: ['officer'], nav: null, tone: 'blue', one: 'shift waiting for your answer', many: 'shifts waiting for your answer', link: '/officer#todo' },
   { key: 'resign', roles: ['officer'], nav: null, tone: 'amber', one: 'incident report to sign', many: 'incident reports to sign', link: '/officer/incidents?to_sign=1' },

@@ -14,9 +14,12 @@ import { officerName } from '../lib/names.mjs';
 import { isPlatformEmail } from '../lib/platform.mjs';
 import {
   RESPONSES, WHERE, KINDS, KIND_LABEL, DEFAULT_REMINDERS, cleanReminders, invitable, passedReminders, icsToken, readIcsToken, buildIcs, calendarIcs, shiftClashes, suggestTimes, whereText,
-  cleanRepeat, repeatTimes, repeatText, newFeedToken, goodFeedToken,
+  cleanRepeat, repeatTimes, repeatText, newFeedToken, goodFeedToken, cleanPayRate, heldRows, payLineText,
 } from '../lib/calendar.mjs';
-import { ALL, MGR, def } from './_def.mjs';
+import { money } from '../lib/rates.mjs';
+import { getSettings } from './settings.mjs';
+import { draftStatement, tidy, LOCK } from './moneyFeed.mjs';
+import { ALL, MGR, CO, def } from './_def.mjs';
 
 const APP_URL = () => process.env.APP_URL || '';
 const isCo = (u) => u.role === 'company';
@@ -26,7 +29,7 @@ const RESPONSE_LABEL = { accepted: 'accepted', maybe: 'said maybe to', declined:
 const BASE = { company: '/company/calendar', security: '/security/calendar', venue: '/venue/calendar', officer: '/officer/shifts' };
 const linkFor = (role, email, id) => `${isPlatformEmail(email) ? BASE.company : BASE[role] || BASE.officer}?event=${id}`;
 
-const EVENT_SQL = `SELECT e.*, u.name AS organiser_name, v.name AS venue_name, NULLIF(concat_ws(', ', NULLIF(v.address, ''), NULLIF(v.postcode, '')), '') AS venue_address,
+const EVENT_SQL = `SELECT e.*, u.name AS organiser_name, u.role AS organiser_role, v.name AS venue_name, NULLIF(concat_ws(', ', NULLIF(v.address, ''), NULLIF(v.postcode, '')), '') AS venue_address,
     (SELECT company_address FROM settings WHERE id = 1) AS hq_address
   FROM calendar_events e JOIN users u ON u.id = e.organiser_id LEFT JOIN venues v ON v.id = e.venue_id`;
 
@@ -60,9 +63,65 @@ async function eventFor(id, user) {
       proposed_start: a.proposed_start, proposed_end: a.proposed_end, proposal_note: a.proposal_note, responded_at: a.responded_at,
     })),
     me: me ? { response: me.response, note: me.note, reminders: me.reminders, proposed_start: me.proposed_start, proposed_end: me.proposed_end } : null,
-    can_edit: !e.cancelled_at && mayEdit(e, user),
+    can_edit: !e.cancelled_at && !e.held_at && mayEdit(e, user),
     ics: me ? icsToken(e.id, user.id) : null,
+    ...(await payInfo(e, attendees, user)),
   };
+}
+
+const HELD_LOCKED = 'This is confirmed as held. Change who came and for how long in Was this held?';
+
+/**
+ * Paid time on it. Everyone on it sees that it is paid; only company managers see rates, what was confirmed and whether
+ * its pay run has gone (then it can no longer be changed).
+ */
+async function payInfo(e, attendees, user) {
+  if (!e.paid) return { paid: false };
+  const base = { paid: true, held_at: e.held_at, ended: new Date(e.ends_at) <= new Date() };
+  if (!isCo(user)) return base;
+  const officers = attendees.filter((a) => a.officer_id && a.user_id !== e.organiser_id);
+  const ids = officers.map((a) => a.officer_id);
+  const [rows, rates] = await Promise.all([
+    q(`SELECT p.*, (p.statement_id IS NOT NULL AND timesheet_billed(p.statement_id, NULL)) AS locked FROM calendar_pay p WHERE p.event_id = $1`, [e.id]),
+    usualRates(ids, londonDate(e.starts_at)),
+  ]);
+  const by = Object.fromEntries(rows.map((r) => [r.officer_id, r]));
+  const held = e.held_at ? await one('SELECT name FROM users WHERE id = $1', [e.held_by]) : null;
+  return {
+    ...base,
+    pay_rate: e.pay_rate == null ? null : Number(e.pay_rate),
+    held_by_name: held?.name || null,
+    locked: rows.some((r) => r.locked),
+    pay: officers.map((a) => {
+      const r = by[a.officer_id];
+      return {
+        officer_id: a.officer_id, user_id: a.user_id, name: a.name, response: a.response, usual_rate: rates[a.officer_id] ?? null,
+        ...(r ? { attended: r.attended, starts_at: r.starts_at, ends_at: r.ends_at, hours: Number(r.hours), rate: r.rate == null ? null : Number(r.rate), amount: Number(r.amount), locked: r.locked } : {}),
+      };
+    }),
+  };
+}
+
+// Each officer's usual hourly pay on a date: their own rate card (not a venue's), for their main role first
+async function usualRates(officerIds, date, db = { q }) {
+  if (!officerIds.length) return {};
+  const rows = await db.q(
+    `SELECT DISTINCT ON (r.officer_id) r.officer_id, r.rate FROM officer_rates r JOIN officers o ON o.id = r.officer_id
+      WHERE r.officer_id = ANY($1::uuid[]) AND r.venue_id IS NULL AND r.effective_from <= $2
+      ORDER BY r.officer_id, (r.role = o.roles[1]) DESC, r.effective_from DESC`, [officerIds, date]);
+  return Object.fromEntries(rows.map((r) => [r.officer_id, Number(r.rate)]));
+}
+
+// Paid time is set by a company manager, on a meeting or task a company manager organises; anyone else keeps what it was
+function payFields(b, user, kind, organiserRole, was = null) {
+  const keep = { paid: !!was?.paid, pay_rate: was?.pay_rate ?? null };
+  if (!isCo(user) || kind === 'block' || organiserRole !== 'company' || b.paid === undefined) return keep;
+  if (!b.paid) return { paid: false, pay_rate: null };
+  try {
+    return { paid: true, pay_rate: cleanPayRate(b.pay_rate) };
+  } catch (err) {
+    return fail(400, err.message);
+  }
 }
 
 // The organiser changes it; company managers too, for anyone, except someone's own time block
@@ -242,7 +301,8 @@ const word = (e) => (e.kind === 'task'
 // The times a series change reaches: this one, or this and the ones after it still on
 async function seriesRows(e, scope) {
   if (scope !== 'following' || !e.series_id) return [e];
-  return q('SELECT * FROM calendar_events WHERE series_id = $1 AND starts_at >= $2 AND cancelled_at IS NULL ORDER BY starts_at', [e.series_id, e.starts_at]);
+  // Ones already confirmed as held stay as they were
+  return q('SELECT * FROM calendar_events WHERE series_id = $1 AND starts_at >= $2 AND cancelled_at IS NULL AND held_at IS NULL ORDER BY starts_at', [e.series_id, e.starts_at]);
 }
 
 /**
@@ -254,7 +314,8 @@ async function save(b, user) {
   const before = await loadEvent(b.id);
   if (before.cancelled_at) fail(409, `This ${KIND_LABEL[before.kind]} was cancelled`);
   if (!mayEdit(before, user)) fail(403, `Only the organiser can change ${word(before).it}`);
-  const f = clean(b, user, before.kind);
+  if (before.held_at) fail(409, HELD_LOCKED);
+  const f = { ...clean(b, user, before.kind), ...payFields(b, user, before.kind, before.organiser_role, before) };
   const wanted = before.kind === 'block' ? [] : [...new Set((Array.isArray(b.attendee_ids) ? b.attendee_ids : []).filter(Boolean))].slice(0, 50);
   const had = await attendeeIds(before.id);
   // The organiser stays on it, whoever is editing
@@ -276,8 +337,8 @@ async function save(b, user) {
       const ends = new Date(new Date(starts).getTime() + length).toISOString();
       await t.q(
         `UPDATE calendar_events SET title = $2, starts_at = $3, ends_at = $4, all_day = $5, where_kind = $6, venue_id = $7, address = $8, phone = $9, video_url = $10,
-                notes = $11, private = $13, seq = seq + $12::int, updated_at = now() WHERE id = $1`,
-        [row.id, f.title, starts, ends, f.all_day, f.where_kind, f.venue_id, f.address, f.phone, f.video_url, f.notes, moved || changed ? 1 : 0, f.private]);
+                notes = $11, private = $13, paid = $14, pay_rate = $15, seq = seq + $12::int, updated_at = now() WHERE id = $1`,
+        [row.id, f.title, starts, ends, f.all_day, f.where_kind, f.venue_id, f.address, f.phone, f.video_url, f.notes, moved || changed ? 1 : 0, f.private, f.paid, f.pay_rate]);
       if (removed.length) await t.q('DELETE FROM calendar_attendees WHERE event_id = $1 AND user_id = ANY($2::uuid[])', [row.id, removed]);
       for (const id of [...keep]) {
         await t.q('INSERT INTO calendar_attendees (event_id, user_id, reminders, reminded) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING', [row.id, id, DEFAULT_REMINDERS, passedReminders(DEFAULT_REMINDERS, starts)]);
@@ -303,6 +364,7 @@ async function save(b, user) {
   await tell(removed.filter((id) => id !== user.id), { ...e, cancelled_at: new Date() }, { title: `Removed: ${e.title}`, body: `${by} took you off ${w.it} · ${when(before)}.${also}`, mail: true });
   await audit(user, 'calendar.update', 'calendar_event', e.id, {
     moved: moved ? { from: before.starts_at, to: f.starts_at } : undefined, changed: changed || undefined, added, removed,
+    ...(f.paid !== !!before.paid || String(f.pay_rate ?? '') !== String(before.pay_rate == null ? '' : Number(before.pay_rate)) ? { paid: f.paid, pay_rate: f.pay_rate } : {}),
     ...(rows.length > 1 ? { following: rows.length } : {}),
     ...(user.id !== before.organiser_id ? { on_behalf_of: before.organiser_id } : {}),
   });
@@ -311,6 +373,7 @@ async function save(b, user) {
 
 async function create(b, user) {
   const f = clean(b, user);
+  Object.assign(f, payFields(b, user, f.kind, user.role));
   const ids = f.kind === 'block' ? [] : [...new Set((Array.isArray(b.attendee_ids) ? b.attendee_ids : []).filter(Boolean))].slice(0, 50).filter((id) => id !== user.id);
   if (f.kind === 'task' && !ids.length) fail(400, 'Choose who to book for the task');
   await checkInvites(user, ids);
@@ -329,9 +392,9 @@ async function create(b, user) {
     let head = null;
     for (const time of times) {
       const row = await t.one(
-        `INSERT INTO calendar_events (kind, title, starts_at, ends_at, all_day, where_kind, venue_id, address, phone, video_url, notes, private, series_id, repeat, organiser_id, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15) RETURNING *`,
-        [f.kind, f.title, time.starts_at, time.ends_at, f.all_day, f.where_kind, f.venue_id, f.address, f.phone, f.video_url, f.notes, f.private, seriesId, rule, user.id]);
+        `INSERT INTO calendar_events (kind, title, starts_at, ends_at, all_day, where_kind, venue_id, address, phone, video_url, notes, private, series_id, repeat, organiser_id, created_by, paid, pay_rate)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15,$16,$17) RETURNING *`,
+        [f.kind, f.title, time.starts_at, time.ends_at, f.all_day, f.where_kind, f.venue_id, f.address, f.phone, f.video_url, f.notes, f.private, seriesId, rule, user.id, f.paid, f.pay_rate]);
       await t.q(`INSERT INTO calendar_attendees (event_id, user_id, response, responded_at, reminders, reminded) VALUES ($1,$2,'accepted',now(),$3,$4)`,
         [row.id, user.id, reminders, passedReminders(reminders, time.starts_at)]);
       for (const id of ids) {
@@ -345,7 +408,10 @@ async function create(b, user) {
   const w = word(full);
   // One notice and one email for a whole series; its Add to calendar file holds every time
   await tell(ids, full, { title: `${w.invite}: ${f.title}`, body: `${user.name} ${w.invited} · ${line(full)}${rule ? ` · ${repeatText(rule, times.length)}` : ''}`, mail: true });
-  await audit(user, 'calendar.create', 'calendar_event', first.id, { kind: f.kind, title: f.kind === 'block' && f.private ? undefined : f.title, starts_at: f.starts_at, attendees: ids, ...(rule ? { repeat: rule, times: times.length } : {}) });
+  await audit(user, 'calendar.create', 'calendar_event', first.id, {
+    kind: f.kind, title: f.kind === 'block' && f.private ? undefined : f.title, starts_at: f.starts_at, attendees: ids, ...(rule ? { repeat: rule, times: times.length } : {}),
+    ...(f.paid ? { paid: true, pay_rate: f.pay_rate } : {}),
+  });
   return eventFor(first.id, user);
 }
 
@@ -493,6 +559,7 @@ export const actions = {
     const e = await loadEvent(need(b.id, 'Meeting not found'));
     if (e.cancelled_at) return eventFor(e.id, user);
     if (!mayEdit(e, user)) fail(403, `Only the organiser can cancel ${word(e).it}`);
+    if (e.held_at) fail(409, 'This is confirmed as held, so it stays on the calendar');
     const rows = await seriesRows(e, b.scope);
     const ids = rows.map((r) => r.id);
     if (e.kind === 'block') {
@@ -598,7 +665,13 @@ export const actions = {
       if (r.series_id && seen.has(r.series_id)) seen.get(r.series_id).more += 1;
       else invites.push(r.series_id ? (seen.set(r.series_id, { ...r, more: 0 }), seen.get(r.series_id)) : r);
     }
-    return { next: rows.find((r) => r.response !== 'pending' && r.kind !== 'block') || null, invites: invites.slice(0, 20), proposals };
+    // Paid ones this company manager organised that have ended: Was this held?
+    const toConfirm = isCo(user) ? await q(
+      `SELECT e.id, e.kind, e.title, e.starts_at, e.ends_at, e.all_day,
+              (SELECT count(*)::int FROM calendar_attendees y JOIN officers o ON o.user_id = y.user_id WHERE y.event_id = e.id AND y.user_id <> e.organiser_id) AS officers
+         FROM calendar_events e WHERE e.organiser_id = $1 AND e.paid AND e.held_at IS NULL AND e.cancelled_at IS NULL AND e.ends_at <= now()
+        ORDER BY e.ends_at LIMIT 20`, [user.id]) : [];
+    return { next: rows.find((r) => r.response !== 'pending' && r.kind !== 'block') || null, invites: invites.slice(0, 20), proposals, to_confirm: toConfirm };
   }),
 
   // The rota's By officer view: meetings, tasks and time blocks officers are in, as bars. Titles only for company managers, never a private block's.
@@ -614,6 +687,11 @@ export const actions = {
     return rows.map((r) => ({ ...r, title: isCo(user) && !r.private ? r.title : r.kind === 'block' ? 'Busy' : 'Meeting' }));
   }),
 
+  // Was this held? After a paid meeting or task ends, its organiser (or another company manager) confirms who came and for
+  // how long. Confirmed time is an hours line on each officer's draft pay statement; it can be changed until that pay run
+  // leaves draft, like a timesheet. choices: { [officer_id]: 'booked' | 'absent' | { starts_at, ends_at } }, or all: true.
+  'calendar.held': def(CO, (b, { user }) => confirmHeld(b, user)),
+
   // My subscribe link (made the first time it is asked for), and a reset that turns the old one off
   'calendar.feed': def(ALL, async (_b, { user }) => feedFor(user)),
   'calendar.feedReset': def(ALL, async (_b, { user }) => {
@@ -622,5 +700,84 @@ export const actions = {
     return row;
   }),
 };
+
+async function confirmHeld(b, user) {
+  const e = await loadEvent(need(b.id, 'Meeting not found'));
+  if (!e.paid) fail(400, `This ${KIND_LABEL[e.kind]} is not paid`);
+  if (e.cancelled_at) fail(409, `This ${KIND_LABEL[e.kind]} was cancelled`);
+  if (new Date(e.ends_at) > new Date()) fail(400, 'You can confirm it once it has ended');
+  const attendees = await q(ATTENDEES_SQL, [e.id, e.organiser_id]);
+  const people = attendees.filter((a) => a.officer_id && a.user_id !== e.organiser_id);
+  if (!people.length) fail(400, 'No officers are on it, so there is no paid time to confirm');
+  let rows;
+  try {
+    rows = heldRows(e, people, b.all ? {} : (b.choices && typeof b.choices === 'object' ? b.choices : {}));
+  } catch (err) {
+    fail(400, err.message);
+  }
+  const s = await getSettings();
+  const today = londonDate(new Date());
+  const day = londonDate(e.starts_at);
+  const name = Object.fromEntries(people.map((p) => [p.officer_id, p.name]));
+  const changed = await tx(async (t) => {
+    await t.q('SELECT pg_advisory_xact_lock($1)', [LOCK]);
+    const had = await t.q(
+      `SELECT p.*, (p.statement_id IS NOT NULL AND timesheet_billed(p.statement_id, NULL)) AS locked FROM calendar_pay p WHERE p.event_id = $1 FOR UPDATE`, [e.id]);
+    if (had.some((r) => r.locked)) fail(409, 'Its pay run has been finalised, so this can no longer be changed');
+    const rates = await usualRates(people.map((p) => p.officer_id), day, t);
+    const fixed = e.pay_rate == null ? null : Number(e.pay_rate);
+    const missing = rows.filter((r) => r.attended && fixed == null && rates[r.officer_id] == null);
+    if (missing.length) fail(400, `${missing.map((r) => name[r.officer_id]).join(', ')} ${missing.length === 1 ? 'has' : 'have'} no usual pay rate. Edit it and type a rate per hour.`);
+    const stIds = new Set(had.map((r) => r.statement_id).filter(Boolean));
+    const out = [];
+    for (const r of rows) {
+      const rate = r.attended ? fixed ?? rates[r.officer_id] : null;
+      const amount = r.attended ? money(r.hours * rate) : 0;
+      const pay = await t.one(
+        `INSERT INTO calendar_pay (event_id, officer_id, attended, starts_at, ends_at, hours, rate, amount, confirmed_by, confirmed_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,now())
+         ON CONFLICT (event_id, officer_id) DO UPDATE SET attended = $3, starts_at = $4, ends_at = $5, hours = $6, rate = $7, amount = $8, confirmed_by = $9, confirmed_at = now()
+         RETURNING id, statement_id`, [e.id, r.officer_id, r.attended, r.starts_at, r.ends_at, r.hours, rate, amount, user.id]);
+      const line = await t.one('SELECT id, statement_id FROM statement_lines WHERE calendar_pay_id = $1', [pay.id]);
+      if (r.attended && amount > 0) {
+        const vals = [payLineText(e, r.starts_at, r.ends_at), day, r.hours, rate, amount];
+        let st = line?.statement_id;
+        if (line) await t.q('UPDATE statement_lines SET description = $2, work_date = $3, hours = $4, rate = $5, amount = $6 WHERE id = $1', [line.id, ...vals]);
+        else {
+          st = await draftStatement(t, { officer_id: r.officer_id }, day, today, s);
+          await t.q(`INSERT INTO statement_lines (statement_id, kind, calendar_pay_id, description, work_date, hours, rate, amount) VALUES ($1,'hours',$2,$3,$4,$5,$6,$7)`, [st, pay.id, ...vals]);
+        }
+        await t.q('UPDATE calendar_pay SET statement_id = $2 WHERE id = $1', [pay.id, st]);
+        stIds.add(st);
+      } else {
+        if (line) await t.q('DELETE FROM statement_lines WHERE id = $1', [line.id]);
+        await t.q('UPDATE calendar_pay SET statement_id = NULL WHERE id = $1', [pay.id]);
+      }
+      out.push({ ...r, rate, amount });
+    }
+    // Someone taken off it since: their paid time goes
+    const gone = had.filter((h) => !rows.some((r) => r.officer_id === h.officer_id));
+    for (const g of gone) {
+      await t.q('DELETE FROM statement_lines WHERE calendar_pay_id = $1', [g.id]);
+      await t.q('DELETE FROM calendar_pay WHERE id = $1', [g.id]);
+    }
+    await tidy(t, [], [...stIds]);
+    await t.q('UPDATE calendar_events SET held_at = COALESCE(held_at, now()), held_by = $2, updated_at = now() WHERE id = $1', [e.id, user.id]);
+    return { out, again: had.length > 0 };
+  });
+  const byOfficer = Object.fromEntries(people.map((p) => [p.officer_id, p.user_id]));
+  for (const r of changed.out.filter((x) => x.attended)) {
+    await tell([byOfficer[r.officer_id]], e, {
+      title: `Paid time ${changed.again ? 'updated' : 'confirmed'}: ${e.title}`,
+      body: `${r.hours} h · ${fmtDate(r.starts_at)} ${fmtTime(r.starts_at)}–${fmtTime(r.ends_at)}. It will be on your next payslip.`,
+    });
+  }
+  await audit(user, 'calendar.held', 'calendar_event', e.id, {
+    again: changed.again || undefined,
+    pay: changed.out.map((r) => ({ officer_id: r.officer_id, attended: r.attended, starts_at: r.starts_at || undefined, ends_at: r.ends_at || undefined, hours: r.hours, rate: r.rate, amount: r.amount })),
+    ...(user.id !== e.organiser_id ? { on_behalf_of: e.organiser_id } : {}),
+  });
+  return eventFor(e.id, user);
+}
 
 export { buildIcs };

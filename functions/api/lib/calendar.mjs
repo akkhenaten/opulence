@@ -201,3 +201,39 @@ export function suggestTimes(from, minutes, busy, { count = 3, now = Date.now(),
   }
   return out;
 }
+
+// Paid meetings and tasks: the rate typed for one (blank: each officer's usual rate), and what was held
+export const MAX_PAY_RATE = 500;
+export function cleanPayRate(v) {
+  if (v === null || v === undefined || String(v).trim() === '') return null;
+  const n = Math.round(Number(String(v).replace(/[£,\s]/g, '')) * 100) / 100;
+  if (!Number.isFinite(n) || n <= 0) throw new Error('Type the rate per hour, e.g. 12.50, or leave it blank for each officer’s usual rate');
+  if (n > MAX_PAY_RATE) throw new Error(`A rate can be up to £${MAX_PAY_RATE} an hour`);
+  return n;
+}
+
+export const payHours = (start, end) => Math.round(((new Date(end) - new Date(start)) / 3600000) * 100) / 100;
+
+/**
+ * Who was paid for what. people: the officers on it ({ officer_id, response }); choices: { [officer_id]: 'booked' |
+ * 'absent' | { starts_at, ends_at } } (missing: as booked unless they declined). Times must be within 12 hours of the
+ * booked ones and last up to 16 hours.
+ */
+export function heldRows(e, people, choices = {}) {
+  return people.map((p) => {
+    const c = choices[p.officer_id] ?? (p.response === 'declined' ? 'absent' : 'booked');
+    if (c === 'absent') return { officer_id: p.officer_id, attended: false, starts_at: null, ends_at: null, hours: 0 };
+    const t = c === 'booked' ? { starts_at: e.starts_at, ends_at: e.ends_at } : c;
+    const start = new Date(t?.starts_at);
+    const end = new Date(t?.ends_at);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) throw new Error('Choose the times they were there');
+    if (end <= start) throw new Error('The end must be after the start');
+    if (end - start > 16 * 3600000) throw new Error('Paid time can be up to 16 hours');
+    const far = 12 * 3600000;
+    if (Math.abs(start - new Date(e.starts_at)) > far || Math.abs(end - new Date(e.ends_at)) > far) throw new Error('The times must be on the day it was booked');
+    return { officer_id: p.officer_id, attended: true, starts_at: start.toISOString(), ends_at: end.toISOString(), hours: payHours(start, end) };
+  });
+}
+
+/** The pay statement line: "Meeting: Toolbox talk · 20 Nov 2026 14:00–15:30" */
+export const payLineText = (e, start, end) => `${e.kind === 'task' ? 'Task' : 'Meeting'}: ${e.title} · ${fmtDate(start)} ${fmtTime(start)}–${fmtTime(end)}`;

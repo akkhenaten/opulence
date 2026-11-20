@@ -8,7 +8,7 @@ import { getSettings } from './settings.mjs';
 import { payFor, chargeFor, bankHolidaySet, recalcInvoice, recalcStatement, lineDesc, upliftNote } from './money.mjs';
 import { wanted, billed, pickTarget, lineChanged, unsignedLines } from '../lib/moneyFeedRules.mjs';
 
-const LOCK = 424243;
+export const LOCK = 424243;
 /** SQL to hand a timesheet back to the feed */
 export const FEED_AGAIN = 'feed_dirty = true, feed_since = now()';
 
@@ -41,7 +41,7 @@ async function draftInvoice(t, r, date, today, s) {
 }
 
 // The officer's draft statement in the open pay run for this date (or the next one), opened if there is none
-async function draftStatement(t, r, date, today, s) {
+export async function draftStatement(t, r, date, today, s) {
   const runs = await t.q('SELECT id, period_start, period_end, status FROM pay_runs WHERE period_end >= $1::date - 62', [date]);
   const pick = pickTarget({ kind: cycle(s.pay_period), date, today, drafts: runs.filter((x) => x.status === 'draft'), closed: runs.filter((x) => x.status !== 'draft') });
   const run = pick.use ? runs.find((x) => x.id === pick.use)
@@ -142,7 +142,7 @@ export async function syncTimesheets(ids) {
 }
 
 // Totals follow the lines; a draft the feed has emptied goes (with its pay run, if that is empty too)
-async function tidy(t, invIds, stIds) {
+export async function tidy(t, invIds, stIds) {
   for (const id of invIds) await recalcInvoice(t, id);
   for (const id of stIds) await recalcStatement(t, id);
   if (invIds.length) {

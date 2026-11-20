@@ -67,7 +67,7 @@ test('tasks, blocks, series and the feed on the server', () => {
   assert.match(src, /const mayEdit = \(e, user\) => e\.organiser_id === user\.id \|\| \(isCo\(user\) && e\.kind !== 'block'\)/);
   assert.match(src, /e\.kind === 'block'\) \{\s+await q\('DELETE FROM calendar_events/);
   // Series: this one or this and the following; replies for all upcoming; one invite per series
-  assert.match(src, /starts_at >= \$2 AND cancelled_at IS NULL ORDER BY starts_at/);
+  assert.match(src, /starts_at >= \$2 AND cancelled_at IS NULL AND held_at IS NULL ORDER BY starts_at/);
   assert.match(src, /b\.scope === 'all' && e\.series_id/);
   assert.match(todo, /count\(DISTINCT coalesce\(e\.series_id, e\.id\)\)/);
   assert.match(rota, /Time blocked out at/);

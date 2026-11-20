@@ -11,6 +11,18 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-20', icon: Wallet, title: 'Paid meetings: confirm who came, and it goes on their payslip', image: 'calendar-paid-meetings',
+    lede: "Tick Paid on a meeting or task with officers in it. Once it ends you confirm who came and for how long, and that time is paid on their next pay run. No timesheet needed.",
+    points: [
+      "Company managers see Paid when making or editing a meeting or task. Officers are paid their usual hourly rate, or type one rate for this meeting",
+      "After it ends, Was this held? shows in Needs you. Held as booked confirms it in one tap. You can also give each officer other times, or mark that they didn't attend",
+      "Confirmed time goes on the officer's next draft pay run as a line like \"Meeting: Toolbox talk · 1.5 h × £12.50\". It shows on their payslip and in their own pay",
+      "It's an office cost and is never billed to a venue. Officers see that a meeting is paid, but only company managers see rates",
+      "Made a mistake? Change it until the pay run is finalised, as with timesheets. Once confirmed, the meeting can't be moved or cancelled",
+      "Every confirmation is recorded in History",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-20', icon: CalendarCog, title: 'Calendar: tasks, private time blocks, repeats, and your calendar on your phone', image: 'calendar-tasks-repeat',
     lede: "Book someone's time for a task, block out your own time, set meetings to repeat, and see it all in Outlook, Apple or Google from your own private link.",
     points: [

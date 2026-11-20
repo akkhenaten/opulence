@@ -355,6 +355,7 @@ export const actions = {
       const l = need(await t.one("SELECT l.*, st.status, st.officer_id FROM statement_lines l JOIN statements st ON st.id = l.statement_id WHERE l.id = $1", [b.id]));
       if (l.status !== 'draft') fail(400, 'Only draft statements can be changed');
       if (l.timesheet_id) fail(400, 'This line follows its timesheet — change it on the Timesheets page');
+      if (l.calendar_pay_id) fail(400, 'This line is paid time from a meeting: change it in the calendar under Was this held?');
       if ((await guardSelf(user, l.officer_id, { companyOnly: true, message: OWN_PAY })).selfApproved) await t.q('UPDATE statements SET self_approved = true WHERE id = $1', [l.statement_id]);
       await t.q('DELETE FROM statement_lines WHERE id = $1', [b.id]);
       await recalcStatement(t, l.statement_id);

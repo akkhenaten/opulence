@@ -157,6 +157,7 @@ export const actions = {
       // Correct the hours on a line (amount follows the line's rate)
       if (b.line_hours != null && d.line_id) {
         const l = need(await t.one("SELECT * FROM statement_lines WHERE id = $1 AND kind = 'hours'", [d.line_id]), 'Only hours lines can be corrected');
+        if (l.calendar_pay_id) fail(400, 'This line is paid time from a meeting: change it in the calendar under Was this held?');
         const hours = Number(b.line_hours);
         if (!(hours >= 0 && hours <= 24)) fail(400, 'Hours must be between 0 and 24');
         await t.q('UPDATE statement_lines SET hours = $2, amount = $3 WHERE id = $1', [l.id, hours, money(hours * Number(l.rate))]);
@@ -279,6 +280,9 @@ export const actions = {
       if (issued.n || ['issued', 'paid'].includes(run.status)) fail(400, 'Issued pay runs cannot be deleted');
       if (run.status === 'draft' && await t.one('SELECT 1 FROM statement_lines l JOIN statements st ON st.id = l.statement_id WHERE st.pay_run_id = $1 AND l.timesheet_id IS NOT NULL LIMIT 1', [b.id])) {
         fail(400, 'This draft run follows approved timesheets. Decline or query them on the Timesheets page and their lines drop off.');
+      }
+      if (run.status === 'draft' && await t.one('SELECT 1 FROM statement_lines l JOIN statements st ON st.id = l.statement_id WHERE st.pay_run_id = $1 AND l.calendar_pay_id IS NOT NULL LIMIT 1', [b.id])) {
+        fail(400, 'This draft run holds paid time from meetings. Change those in the calendar under Was this held?');
       }
       // Its hours go back to the feed and land on the next draft run
       await t.q(`UPDATE timesheets SET statement_id = NULL, ${FEED_AGAIN} WHERE statement_id IN (SELECT id FROM statements WHERE pay_run_id = $1)`, [b.id]);

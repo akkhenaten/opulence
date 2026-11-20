@@ -3,13 +3,13 @@
 // a change then applies to this time or this and the following. Shared by the Calendar page and the officer's Shifts.
 import { useEffect, useMemo, useState } from 'react';
 import {
-  AlarmClock, CalendarClock, CalendarPlus, Check, CircleHelp, Clock, ExternalLink, Lock, MapPin, Pencil, Phone, Plus, Repeat, Send, Sparkles, Trash2, TriangleAlert, Users, Video, X,
+  AlarmClock, BadgeCheck, CalendarClock, CalendarPlus, Check, CircleHelp, Clock, ExternalLink, Lock, MapPin, Pencil, Phone, Plus, PoundSterling, Repeat, Send, Sparkles, Trash2, TriangleAlert, Users, Video, X,
 } from 'lucide-react';
 import { api, API_BASE } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
 import {
-  addDays, Avatar, Button, Callout, Chips, cx, dayLabel, Empty, ErrorBox, Input, List, Load, Pill, Pressable, range, Row, SearchInput, Section, Segmented, Select, Sheet, Spinner, Textarea, time, Toggle, useAction, useApi, useConfirm, nameMatches,
+  addDays, Avatar, Button, Callout, Chips, cx, dayLabel, Empty, ErrorBox, Input, List, Load, money, Pill, Pressable, range, Row, SearchInput, Section, Segmented, Select, Sheet, Spinner, Textarea, time, Toggle, useAction, useApi, useConfirm, nameMatches,
 } from '../../ui/index.jsx';
 import { londonIso, londonParts } from '../manager/_parts.jsx';
 
@@ -92,6 +92,7 @@ export function EventSheet({ id, onClose, onChanged, onEdit }) {
   const [proposing, setProposing] = useState(null);
   const [cancelling, setCancelling] = useState(null);
   const [replyAll, setReplyAll] = useState(true);
+  const [holding, setHolding] = useState(false);
   const e = q.data;
   const done = (r) => {
     // A time block is taken off rather than crossed out
@@ -140,11 +141,15 @@ export function EventSheet({ id, onClose, onChanged, onEdit }) {
             )}
             <div className="flex flex-wrap items-center gap-2 text-footnote text-muted">
               {kind !== 'meeting' && <Pill tone={block ? 'grey' : 'blue'}>{KIND[kind]}</Pill>}
+              {e.paid && <Pill tone="green">{e.pay ? (e.pay_rate != null ? `Paid · ${money(e.pay_rate)}/h` : 'Paid · usual rates') : 'Paid'}</Pill>}
               {e.private && <span className="inline-flex items-center gap-1"><Lock size={13} />{mine ? 'Private: others see Busy' : 'Private'}</span>}
               {!block && <span>{kind === 'task' ? 'Booked by' : 'Organised by'} {mine ? 'you' : e.organiser_name}</span>}
               {block && !mine && <span>{e.organiser_name}'s own time</span>}
             </div>
           </div>
+
+          {/* Paid time: after it ends the organiser (or another company manager) confirms who came */}
+          {e.pay && e.ended && !e.cancelled_at && <HeldSummary e={e} busy={busy} onAsBooked={() => act('calendar.held', { all: true }, 'Confirmed. Their pay is on the next pay run.')} onChange={() => setHolding(true)} />}
 
           {/* My reply */}
           {e.me && !mine && !e.cancelled_at && (
@@ -229,6 +234,96 @@ export function EventSheet({ id, onClose, onChanged, onEdit }) {
           {e.ics && <Button variant="secondary" icon={CalendarPlus} href={`${API_BASE}?ics=${encodeURIComponent(e.ics)}`} className="w-full">Add to Outlook, Apple or Google</Button>}
         </div>
       )}
+      {holding && e && <HeldSheet e={e} onClose={() => setHolding(false)} onDone={(r) => { setHolding(false); done(r); }} />}
+    </Sheet>
+  );
+}
+
+/* ---------- Paid time: Was this held? ---------- */
+
+const payText = (p) => (p.attended ? `${p.hours} h × ${money(p.rate)} = ${money(p.amount)}` : 'Didn\u2019t attend');
+
+function HeldSummary({ e, busy, onAsBooked, onChange }) {
+  const word = KIND_WORD[e.kind];
+  if (!e.pay.length) return <Callout tone="info" icon={PoundSterling}>Paid, but no officers are on this {word}, so there is nothing to confirm.</Callout>;
+  if (!e.held_at) {
+    return (
+      <Section title="Was this held?" icon={PoundSterling}>
+        <div className="space-y-3 rounded-2xl bg-amber-soft/60 p-3">
+          <p className="text-subhead">It has ended. Confirm who came and for how long, and their paid time goes on the next pay run.</p>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="secondary" onClick={onChange}>Other times or not there</Button>
+            <Button icon={Check} busy={busy} onClick={onAsBooked}>Held as booked</Button>
+          </div>
+        </div>
+      </Section>
+    );
+  }
+  return (
+    <Section title="Held" icon={BadgeCheck}>
+      <div className="space-y-2">
+        <List>
+          {e.pay.map((p) => <Row key={p.officer_id} left={<Avatar name={p.name} size={32} />} title={p.name}
+            subtitle={p.attended ? `${range(p.starts_at, p.ends_at)} · ${payText(p)}` : payText(p)} />)}
+        </List>
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <span className="text-footnote text-muted">Confirmed{e.held_by_name ? ` by ${e.held_by_name}` : ''} · {dayLabel(e.held_at)}{e.locked ? ' · its pay run is finalised' : ''}</span>
+          {!e.locked && <Button size="sm" variant="soft" icon={Pencil} onClick={onChange}>Change</Button>}
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+const HELD = [{ value: 'booked', label: 'As booked' }, { value: 'times', label: 'Other times' }, { value: 'absent', label: 'Didn\u2019t attend' }];
+
+// Per officer: there as booked, there for other times, or not there. What each is paid shows as it changes.
+function HeldSheet({ e, onClose, onDone }) {
+  const [run, busy] = useAction();
+  const date = londonParts(e.starts_at).date;
+  const booked = { start: londonParts(e.starts_at).time, end: londonParts(e.ends_at).time };
+  const [rows, setRows] = useState(() => Object.fromEntries(e.pay.map((p) => {
+    const was = p.attended != null;
+    const same = was && p.attended && new Date(p.starts_at).getTime() === new Date(e.starts_at).getTime() && new Date(p.ends_at).getTime() === new Date(e.ends_at).getTime();
+    const choice = was ? (!p.attended ? 'absent' : same ? 'booked' : 'times') : p.response === 'declined' ? 'absent' : 'booked';
+    return [p.officer_id, { choice, start: p.attended ? londonParts(p.starts_at).time : booked.start, end: p.attended ? londonParts(p.ends_at).time : booked.end }];
+  })));
+  const set = (id, patch) => setRows((r) => ({ ...r, [id]: { ...r[id], ...patch } }));
+  const timesOf = (r) => (r.choice === 'booked' ? { starts_at: e.starts_at, ends_at: e.ends_at } : fromFields({ date, start: r.start, end: r.end }));
+  const hoursOf = (r) => (r.choice === 'absent' ? 0 : Math.round(mins(timesOf(r).starts_at, timesOf(r).ends_at) / 0.6) / 100);
+  const choices = Object.fromEntries(Object.entries(rows).map(([id, r]) => [id, r.choice === 'times' ? timesOf(r) : r.choice]));
+  const footer = <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button icon={Check} busy={busy} onClick={() => run(() => api('calendar.held', { id: e.id, choices }), 'Confirmed. Their pay is on the next pay run.').then(onDone).catch(() => {})}>Confirm</Button></>;
+  return (
+    <Sheet open layer="top" onClose={onClose} title="Was this held?" footer={footer}>
+      <div className="space-y-4">
+        <p className="text-subhead text-muted">{e.title} · {whenText(e)}. Only confirmed time is paid. It is an office cost, never billed to a venue.</p>
+        {e.pay.map((p) => {
+          const r = rows[p.officer_id];
+          const rate = e.pay_rate ?? p.usual_rate;
+          const h = hoursOf(r);
+          return (
+            <div key={p.officer_id} className="space-y-3 rounded-2xl bg-surface p-3 shadow-tile">
+              <div className="flex items-center gap-2">
+                <Avatar name={p.name} size={32} />
+                <div className="min-w-0 flex-1 truncate text-body font-semibold">{p.name}</div>
+                {p.response === 'declined' && <Pill tone="grey">Declined</Pill>}
+              </div>
+              <Segmented full value={r.choice} onChange={(v) => set(p.officer_id, { choice: v })} options={HELD} />
+              {r.choice === 'times' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Input label="Came" type="time" step="300" value={r.start} onChange={(ev) => set(p.officer_id, { start: ev.target.value })} />
+                  <Input label="Left" type="time" step="300" value={r.end} onChange={(ev) => set(p.officer_id, { end: ev.target.value })} />
+                </div>
+              )}
+              <div className="text-footnote text-muted">
+                {r.choice === 'absent' ? 'Not paid'
+                  : rate == null ? <span className="text-red">No usual rate. Edit the {KIND_WORD[e.kind]} and type a rate per hour.</span>
+                    : `${h} h × ${money(rate)} = ${money(h * rate)}`}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </Sheet>
   );
 }
@@ -246,6 +341,7 @@ export function EventForm({ init, onClose, onSaved }) {
     where_kind: ev?.where_kind || 'none', venue_id: ev?.venue_id || '', address: ev?.address || '', phone: ev?.phone || '', video_url: ev?.video_url || '', notes: ev?.notes || '',
     reminders: (ev?.kind || init.kind) === 'block' ? [] : [1440, 30], kind: ev?.kind || init.kind || 'meeting', private: ev ? !!ev.private : true,
     freq: '', ends: 'count', count: '10', until: '', scope: 'one',
+    paid: !!ev?.paid, pay_rate: ev?.pay_rate != null ? String(ev.pay_rate) : '',
   }));
   const [dirty, setDirty] = useState(false);
   const set = (p) => { setDirty(true); setF((s) => ({ ...s, ...p })); };
@@ -266,6 +362,8 @@ export function EventForm({ init, onClose, onSaved }) {
     && (!repeat || (repeat.until ? repeat.until > f.date : repeat.count >= 2 && repeat.count <= 100));
   const kinds = [{ value: 'meeting', label: 'Meeting' }, ...(opts.data?.can_invite_anyone ? [{ value: 'task', label: 'Task' }] : []), { value: 'block', label: 'Block time' }];
   const following = ev?.series?.later > 0 && f.scope === 'following';
+  // Paid time: company managers, on a meeting or task a company manager organises
+  const canPay = !!opts.data?.can_invite_anyone && !block && (!ev || ev.organiser_role === 'company');
 
   // Free/busy for everyone on it, a moment after the time or the list stops changing
   const fbBody = useDebounced(useMemo(() => ({ user_ids: block ? [] : f.attendee_ids, ...times, where_kind: f.where_kind, venue_id: f.venue_id || null, exclude_id: ev?.id || null }),
@@ -276,8 +374,8 @@ export function EventForm({ init, onClose, onSaved }) {
     const moved = ev && (times.starts_at !== new Date(ev.starts_at).toISOString() || times.ends_at !== new Date(ev.ends_at).toISOString());
     const others = !block && f.attendee_ids.length > 0;
     if (moved && others && !(await confirm({ title: 'Change the time?', body: `Everyone on it is asked to reply again${following ? ', for this and the following times' : ''}.`, confirm: 'Change time' }))) return;
-    const { freq, ends, count, until, ...rest } = f;
-    const body = { ...rest, ...times, venue_id: f.venue_id || null, attendee_ids: block ? [] : f.attendee_ids, ...(ev ? { id: ev.id, reminders: undefined } : { repeat }) };
+    const { freq, ends, count, until, paid, pay_rate, ...rest } = f;
+    const body = { ...rest, ...times, venue_id: f.venue_id || null, attendee_ids: block ? [] : f.attendee_ids, ...(ev ? { id: ev.id, reminders: undefined } : { repeat }), ...(canPay ? { paid, pay_rate: paid ? pay_rate : '' } : {}) };
     const msg = ev ? (others ? 'Saved. Everyone on it is told.' : 'Saved') : task ? 'Booked. They are asked to accept.' : others ? 'Invites sent' : 'Added to your calendar';
     run(() => api('calendar.save', body), msg).then(onSaved).catch(() => {});
   };
@@ -347,6 +445,17 @@ export function EventForm({ init, onClose, onSaved }) {
             </div>
           </Section>}
 
+          {canPay && (
+            <Section title="Pay" icon={PoundSterling}>
+              <div className="space-y-3">
+                <Toggle checked={f.paid} onChange={(v) => set({ paid: v })} label="Paid"
+                  hint={f.paid ? 'After it ends you confirm who came; their time goes on the next pay run. Never billed to a venue.' : 'Officers on it are paid for their time'} />
+                {f.paid && <Input label="Rate per hour (optional)" inputMode="decimal" placeholder="Each officer’s usual rate" value={f.pay_rate} onChange={(e) => set({ pay_rate: e.target.value })}
+                  hint="Leave blank to pay each officer their usual rate" />}
+              </div>
+            </Section>
+          )}
+
           <Textarea label="Notes" rows={3} placeholder={block ? 'Only you see these' : "What it's about, what to bring"} value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
           {!ev && <Chips label="Remind me" options={REMINDERS} value={f.reminders} onChange={(list) => set({ reminders: list })} />}
         </div>
@@ -412,6 +521,24 @@ function FreeBusy({ fb, times, date, onPick, self }) {
 export function InboxSheet({ show, onClose, onOpen }) {
   const q = useApi('calendar.upcoming', {});
   const proposals = show === 'proposals';
+  if (show === 'held') {
+    return (
+      <Sheet open onClose={onClose} title="Paid meetings to confirm">
+        <Load q={q} skeleton="rows">
+          {(d) => (!d.to_confirm?.length
+            ? <Empty icon={BadgeCheck} title="All confirmed" body="Paid meetings and tasks you organised show here once they end, until you confirm who came." />
+            : (
+              <List>
+                {d.to_confirm.map((m) => (
+                  <Row key={m.id} chevron onClick={() => onOpen(m.id)} left={<div className="grid h-9 w-9 place-items-center rounded-full bg-amber-soft text-amber"><PoundSterling size={18} /></div>}
+                    title={m.title} subtitle={[whenText(m), `${m.officers} officer${m.officers === 1 ? '' : 's'}`].join(' · ')} />
+                ))}
+              </List>
+            ))}
+        </Load>
+      </Sheet>
+    );
+  }
   return (
     <Sheet open onClose={onClose} title={proposals ? 'New times proposed' : 'Invites to reply to'}>
       <Load q={q} skeleton="rows">
