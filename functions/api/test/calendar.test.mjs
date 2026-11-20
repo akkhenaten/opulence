@@ -97,5 +97,5 @@ test('a new time resets replies; notes and place changes do not; everything is a
 
 test('the rota warns when a shift is assigned over an accepted meeting', () => {
   assert.match(rota, /ca.response = 'accepted'[\s\S]*NOT \(e.where_kind = 'venue'/);
-  assert.match(rota, /warnings.push\(`In a meeting at/);
+  assert.match(rota, /'In a meeting'\} at/);
 });

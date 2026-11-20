@@ -1,12 +1,13 @@
-// The calendar: meetings next to shifts and time off, as a day, a week, a month or a list. Tap an empty slot to book,
-// drag your own meeting to move it or its bottom edge to change its length. Company managers can open anyone's.
+// The calendar: meetings, tasks and time blocks next to shifts and time off, as a day, a week, a month or a list. Tap an
+// empty slot to book, drag your own to move it or its bottom edge to change its length. Company managers can open
+// anyone's. Subscribe puts it all in Outlook, Apple or Google from a private link.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarClock, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { api } from '../../api.js';
+import { CalendarClock, ChevronLeft, ChevronRight, Copy, ExternalLink, Plus, RefreshCw, Rss } from 'lucide-react';
+import { api, API_BASE } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import {
-  addDays, Button, cx, dateShort, dayLabel, Empty, ErrorBox, IconButton, isoDate, mondayOf, Page, Segmented, Select, Spinner, time, useAction, useApi, useMedia, useUrlState,
+  addDays, Button, Callout, cx, dateShort, dateTime, dayLabel, Empty, ErrorBox, IconButton, isoDate, Load, mondayOf, Page, Segmented, Select, Sheet, Spinner, time, useAction, useApi, useConfirm, useMedia, useToast, useUrlState,
 } from '../../ui/index.jsx';
 import { londonIso, londonParts, useBase } from '../manager/_parts.jsx';
 import { EventForm, EventSheet, InboxSheet } from './_event.jsx';
@@ -39,16 +40,30 @@ const MEET = {
   declined: 'bg-fill text-muted line-through',
   cancelled: 'bg-fill text-muted line-through opacity-70',
 };
+// Tasks in sky; my own time blocks grey, hatched
+const TASK = {
+  mine: 'bg-sky text-white',
+  accepted: 'bg-sky text-white',
+  maybe: 'border border-dashed border-sky/60 bg-sky-soft text-sky',
+  pending: 'border border-dashed border-sky/60 bg-sky-soft text-sky',
+  declined: MEET.declined,
+  cancelled: MEET.cancelled,
+};
+const BLOCK = 'border border-faint/40 bg-fill-strong text-muted bg-[repeating-linear-gradient(135deg,transparent_0_6px,rgb(0_0_0/0.04)_6px_12px)]';
+const BAR = { meeting: 'bg-indigo', task: 'bg-sky', block: 'bg-faint', shift: 'bg-green', off: 'bg-faint' };
 const SHIFT = { accepted: 'bg-green-soft text-green border-l-[3px] border-green', assigned: 'bg-amber-soft text-amber border-l-[3px] border-amber', other: 'bg-blue-soft text-blue border-l-[3px] border-blue' };
 
 /** Meetings, shifts and time off as one list of blocks, each knowing where it opens. */
 function toItems(d, base) {
   if (!d) return [];
-  const meet = d.events.map((e) => ({
-    key: `e${e.id}`, type: 'meeting', id: e.id, starts_at: e.starts_at, ends_at: e.ends_at, all_day: e.all_day, title: e.title,
-    sub: e.venue_name || (e.attendee_count > 1 ? `${e.attendee_count} people` : ''), mine: e.organiser, drag: e.organiser && !e.cancelled && !e.all_day,
-    cls: e.cancelled ? MEET.cancelled : e.organiser ? MEET.mine : MEET[e.response] || MEET.pending,
-  }));
+  const meet = d.events.map((e) => {
+    const tone = e.kind === 'task' ? TASK : MEET;
+    return {
+      key: `e${e.id}`, type: 'meeting', kind: e.kind || 'meeting', id: e.id, starts_at: e.starts_at, ends_at: e.ends_at, all_day: e.all_day, title: e.title,
+      sub: e.venue_name || (e.attendee_count > 1 ? `${e.attendee_count} people` : ''), mine: e.organiser, drag: e.organiser && !e.cancelled && !e.all_day, repeats: e.repeats,
+      cls: e.kind === 'block' ? BLOCK : e.cancelled ? tone.cancelled : e.organiser ? tone.mine : tone[e.response] || tone.pending,
+    };
+  });
   const shifts = d.shifts.map((s) => ({
     key: `s${s.id}`, type: 'shift', id: s.id, starts_at: s.starts_at, ends_at: s.ends_at, title: s.venue_name, sub: s.role_name, to: `${base}/shifts/${s.id}`,
     cls: new Date(s.ends_at) < new Date() ? 'bg-fill text-muted' : SHIFT[s.assignment_status] || SHIFT.other,
@@ -109,6 +124,7 @@ export function CalendarBoard({ who = '', people, defaultView = 'week' }) {
   const q = useApi('calendar.range', { from: londonIso(start, '00:00'), to: londonIso(addDays(start, days), '00:00'), ...(who ? { user_id: who } : {}) }, { poll: 60000 });
   const items = useMemo(() => toItems(q.data, base), [q.data, base]);
   const [form, setForm] = useState(null);
+  const [subscribe, setSubscribe] = useState(false);
   const [run] = useAction();
 
   const open = (it) => (it.type === 'meeting' ? setUrl({ event: it.id }) : null);
@@ -121,7 +137,7 @@ export function CalendarBoard({ who = '', people, defaultView = 'week' }) {
     const h = day === today ? Math.min(Number(now.time.slice(0, 2)) + 1, 22) : 10;
     create(londonIso(day, hhmm(h * 60)));
   };
-  const move = (it, startsAt, endsAt) => run(() => api('calendar.move', { id: it.id, starts_at: startsAt, ends_at: endsAt }), 'Moved. Everyone on it is asked again.')
+  const move = (it, startsAt, endsAt) => run(() => api('calendar.move', { id: it.id, starts_at: startsAt, ends_at: endsAt }), it.kind === 'block' ? 'Moved' : 'Moved. Everyone on it is asked again.')
     .then(() => q.reload()).catch(() => q.reload());
 
   const label = view === 'day' ? dayLabel(anchor) : view === 'week' ? `${dateShort(start)} – ${dateShort(addDays(start, 6))}` : view === 'month' ? monthName(anchor) : `${dateShort(start)} – ${dateShort(addDays(start, 29))}`;
@@ -140,7 +156,8 @@ export function CalendarBoard({ who = '', people, defaultView = 'week' }) {
           <Select aria-label="Whose calendar" className="w-full sm:w-56" value={who} onChange={(e) => setUrl({ who: e.target.value })}
             options={[{ value: '', label: 'My calendar' }, ...people.map((p) => ({ value: p.id, label: p.name }))]} />
         )}
-        <Button icon={Plus} iconOnly="phone" onClick={createNext}>New meeting</Button>
+        {!who && <IconButton icon={Rss} label="Subscribe in Outlook, Apple or Google" onClick={() => setSubscribe(true)} />}
+        <Button icon={Plus} iconOnly="phone" onClick={createNext}>New</Button>
       </div>
 
       {q.error && !q.data ? <ErrorBox error={q.error} retry={q.reload} /> : !q.data ? <Spinner /> : (
@@ -151,6 +168,8 @@ export function CalendarBoard({ who = '', people, defaultView = 'week' }) {
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-muted">
         <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-indigo" />Meeting</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-sky" />Task</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm border border-faint/40 bg-fill-strong" />Time block</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm border border-dashed border-indigo bg-indigo-soft" />Awaiting reply</span>
         {user.role !== 'venue' && <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-green" />Shift</span>}
         {user.role !== 'venue' && <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-faint" />Time off</span>}
@@ -158,6 +177,7 @@ export function CalendarBoard({ who = '', people, defaultView = 'week' }) {
 
       {url.event && <EventSheet id={url.event} onClose={() => setUrl({ event: '' })} onChanged={q.reload} onEdit={(e) => { setUrl({ event: '' }); setForm({ event: e }); }} />}
       {url.show && !url.event && <InboxSheet show={url.show} onClose={() => setUrl({ show: '' })} onOpen={(id) => setUrl({ event: id })} />}
+      {subscribe && <SubscribeSheet onClose={() => setSubscribe(false)} />}
       {form && <EventForm init={form} onClose={() => setForm(null)} onSaved={(e) => { setForm(null); q.reload(); if (e?.id) setUrl({ event: e.id, d: londonParts(e.starts_at).date }); }} />}
     </div>
   );
@@ -331,7 +351,7 @@ function MonthGrid({ dates, anchor, today, items, open, pickDay }) {
 
 function Agenda({ dates, today, items, open, create }) {
   const groups = dates.map((d) => ({ d, list: items.filter((it) => onDay(it, d)) })).filter((g) => g.list.length);
-  if (!groups.length) return <Empty icon={CalendarClock} title="Nothing booked" body="Meetings, shifts and time off in the next 30 days show here." action={<Button icon={Plus} onClick={create}>New meeting</Button>} />;
+  if (!groups.length) return <Empty icon={CalendarClock} title="Nothing booked" body="Meetings, tasks, shifts and time off in the next 30 days show here." action={<Button icon={Plus} onClick={create}>New</Button>} />;
   return (
     <div className="space-y-4">
       {groups.map(({ d, list }) => (
@@ -345,10 +365,13 @@ function Agenda({ dates, today, items, open, create }) {
                   <div className="num w-14 shrink-0 text-footnote">
                     {allDay ? <span className="text-muted">All day</span> : <><div className="font-semibold">{time(it.starts_at)}</div><div className="text-muted">{time(it.ends_at)}</div></>}
                   </div>
-                  <span className={cx('w-1 self-stretch rounded-full', it.type === 'meeting' ? 'bg-indigo' : it.type === 'shift' ? 'bg-green' : 'bg-faint')} />
+                  <span className={cx('w-1 self-stretch rounded-full', BAR[it.type === 'meeting' ? it.kind : it.type])} />
                   <div className="min-w-0 flex-1">
                     <div className={cx('truncate text-body font-semibold', /line-through/.test(it.cls) && 'line-through text-muted')}>{it.title}</div>
-                    <div className="truncate text-footnote text-muted">{[it.type === 'shift' ? 'Shift' : it.type === 'off' ? '' : it.mine ? 'You organise' : /dashed/.test(it.cls) ? 'Awaiting your reply' : '', it.sub].filter(Boolean).join(' · ')}</div>
+                    <div className="truncate text-footnote text-muted">{[
+                      it.type === 'shift' ? 'Shift' : it.type === 'off' ? '' : it.kind === 'block' ? 'Time block' : it.mine ? (it.kind === 'task' ? 'Task you booked' : 'You organise') : /dashed/.test(it.cls) ? 'Awaiting your reply' : it.kind === 'task' ? 'Task' : '',
+                      it.repeats && 'Repeats', it.sub,
+                    ].filter(Boolean).join(' · ')}</div>
                   </div>
                 </>
               );
@@ -360,5 +383,50 @@ function Agenda({ dates, today, items, open, create }) {
         </section>
       ))}
     </div>
+  );
+}
+
+/* ---------- Subscribe: my calendar in Outlook, Apple or Google ---------- */
+
+function SubscribeSheet({ onClose }) {
+  const q = useApi('calendar.feed', {});
+  const [run, busy] = useAction();
+  const confirm = useConfirm();
+  const toast = useToast();
+  const reset = async () => {
+    if (!(await confirm({ title: 'Reset the link?', body: 'The old link stops working. Calendars subscribed with it stop updating until you add the new one.', confirm: 'Reset link', danger: true }))) return;
+    run(() => api('calendar.feedReset', {}), 'New link made. The old one is off.').then(q.setData).catch(() => {});
+  };
+  return (
+    <Sheet open onClose={onClose} title="Subscribe to my calendar">
+      <Load q={q} skeleton="rows">
+        {(d) => {
+          const url = `${API_BASE}${API_BASE.includes('?') ? '&' : '?'}feed=${d.token}`;
+          const copy = () => navigator.clipboard.writeText(url).then(() => toast('Link copied'), () => toast('Could not copy. Select it and copy it by hand.', 'error'));
+          return (
+            <div className="space-y-4">
+              <p className="text-body">Your meetings, tasks, time blocks and shifts, in the calendar on your phone or computer. It updates by itself, about every hour. It only shows; reply and change things here.</p>
+              <div className="space-y-2">
+                <code className="block break-all rounded-xl bg-bg px-3 py-2 font-mono text-caption">{url}</code>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="secondary" icon={Copy} onClick={copy}>Copy link</Button>
+                  <Button variant="secondary" icon={ExternalLink} href={url.replace(/^https?:/, 'webcal:')}>Open in my calendar</Button>
+                </div>
+              </div>
+              <ul className="space-y-1.5 text-footnote text-muted">
+                <li><span className="font-semibold text-ink">Outlook:</span> Add calendar → Subscribe from web → paste the link.</li>
+                <li><span className="font-semibold text-ink">iPhone or Mac:</span> tap Open in my calendar, or File → New Calendar Subscription.</li>
+                <li><span className="font-semibold text-ink">Google:</span> Other calendars → + → From URL → paste the link. Google checks it every few hours.</li>
+              </ul>
+              <Callout tone="warning" title="Keep it private">Anyone with the link can see your calendar. If it gets out, reset it: the old link stops working.</Callout>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-footnote text-muted">{d.last_used_at ? `Last read by a calendar ${dateTime(d.last_used_at)}` : 'Not added to a calendar yet'}</span>
+                <Button variant="danger" size="sm" icon={RefreshCw} busy={busy} onClick={reset}>Reset link</Button>
+              </div>
+            </div>
+          );
+        }}
+      </Load>
+    </Sheet>
   );
 }

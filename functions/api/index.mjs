@@ -86,6 +86,19 @@ export async function handler(event) {
     }
   }
 
+  // Subscribe: someone's whole calendar from their secret link, read by Outlook, Apple or Google every hour or so
+  if (method === 'GET' && event.queryStringParameters?.feed) {
+    try {
+      await migrate();
+      const body = await calendar.feedFile(event.queryStringParameters.feed);
+      if (!body) return { statusCode: 404, headers: { ...CORS, 'content-type': 'text/plain' }, body: 'This calendar link is not valid. It may have been reset: copy the new one from the calendar.' };
+      return { statusCode: 200, headers: { ...CORS, 'content-type': 'text/calendar; charset=utf-8', 'content-disposition': 'inline; filename="calendar.ics"', 'cache-control': 'no-store' }, body };
+    } catch (e) {
+      console.error('[feed]', e);
+      return { statusCode: 500, headers: { ...CORS, 'content-type': 'text/plain' }, body: 'Something went wrong' };
+    }
+  }
+
   let body;
   try {
     body = event.body ? JSON.parse(event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString() : event.body) : {};

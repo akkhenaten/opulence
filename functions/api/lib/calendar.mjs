@@ -2,9 +2,12 @@
 // clash wording and the next free times. modules/calendar.mjs does the reading and writing.
 import crypto from 'node:crypto';
 import { hmac } from './auth.mjs';
-import { fmtTime, londonParts } from './time.mjs';
+import { fmtTime, fmtDate, londonParts, addDays } from './time.mjs';
 
 export const RESPONSES = ['accepted', 'maybe', 'declined'];
+// A meeting; a task (a company manager books someone's time for a job); a block of my own time, which others see as Busy
+export const KINDS = ['meeting', 'task', 'block'];
+export const KIND_LABEL = { meeting: 'meeting', task: 'task', block: 'time block' };
 export const WHERE = ['none', 'venue', 'hq', 'address', 'phone', 'video'];
 export const DEFAULT_REMINDERS = [1440, 30];
 // Up to a week before, at most four per person
@@ -61,10 +64,9 @@ export function whereText(e) {
   return '';
 }
 
-/** One event as an .ics file Outlook, Apple and Google can add. Published, not an invite: replies are made in the app. */
-export function buildIcs(e, { company = 'Opulence', appUrl = '' } = {}) {
+/** The VEVENT lines for one event. Published, not an invite: replies are made in the app. */
+export function icsEvent(e, { appUrl = '' } = {}) {
   const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//${icsText(company)}//Calendar//EN`, 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     'BEGIN:VEVENT', `UID:${e.id}@calendar`, `SEQUENCE:${e.seq || 0}`, `DTSTAMP:${icsDate(e.updated_at || new Date())}`,
     ...(e.all_day
       // All-day events run from local midnight to the midnight after their last day, which is DTEND as the spec wants it
@@ -74,13 +76,94 @@ export function buildIcs(e, { company = 'Opulence', appUrl = '' } = {}) {
   ];
   const where = whereText(e);
   if (where) lines.push(`LOCATION:${icsText(where)}`);
-  const desc = [e.organiser_name && `Organiser: ${e.organiser_name}`, e.notes, e.video_url && e.where_kind === 'video' && `Join: ${e.video_url}`, appUrl && `Reply or see who's coming: ${appUrl}`].filter(Boolean).join('\n\n');
+  const desc = [e.organiser_name && e.kind !== 'block' && `Organiser: ${e.organiser_name}`, e.notes, e.video_url && e.where_kind === 'video' && `Join: ${e.video_url}`, appUrl && `Reply or see who's coming: ${appUrl}`].filter(Boolean).join('\n\n');
   if (desc) lines.push(`DESCRIPTION:${icsText(desc)}`);
   if (e.video_url && e.where_kind === 'video') lines.push(`URL:${icsText(e.video_url)}`);
-  lines.push(`STATUS:${e.cancelled_at ? 'CANCELLED' : 'CONFIRMED'}`);
+  if (e.private) lines.push('CLASS:PRIVATE');
+  if (e.transparent) lines.push('TRANSP:TRANSPARENT');
+  lines.push(`STATUS:${e.cancelled_at ? 'CANCELLED' : e.tentative ? 'TENTATIVE' : 'CONFIRMED'}`);
   for (const m of e.reminders || []) lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsText(e.title)}`, `TRIGGER:-PT${m}M`, 'END:VALARM');
-  lines.push('END:VEVENT', 'END:VCALENDAR');
+  lines.push('END:VEVENT');
+  return lines;
+}
+
+/** Several events as one calendar: a repeating meeting's file, or someone's subscribe feed (name and refresh set). */
+export function calendarIcs(events, { company = 'Opulence', name = '', appUrl = () => '' } = {}) {
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//${icsText(company)}//Calendar//EN`, 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+  // Outlook, Apple and Google check a subscribed calendar about every hour (Google decides for itself)
+  if (name) lines.push(`X-WR-CALNAME:${icsText(name)}`, 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H');
+  for (const e of events) lines.push(...icsEvent(e, { appUrl: appUrl(e) }));
+  lines.push('END:VCALENDAR');
   return `${lines.map(fold).join('\r\n')}\r\n`;
+}
+
+/** One event as an .ics file Outlook, Apple and Google can add. */
+export const buildIcs = (e, { company = 'Opulence', appUrl = '' } = {}) => calendarIcs([e], { company, appUrl: () => appUrl });
+
+// The subscribe link: a long random token per person, kept in calendar_feeds; resetting it turns the old link off
+export const newFeedToken = () => crypto.randomBytes(32).toString('base64url');
+export const goodFeedToken = (t) => /^[A-Za-z0-9_-]{43}$/.test(String(t || ''));
+
+// ---- Repeating meetings: each time is its own row sharing a series_id, so one can be moved or cancelled alone ----
+export const REPEATS = { daily: 'daily', weekly: 'weekly', fortnightly: 'every two weeks', monthly: 'monthly' };
+export const MAX_REPEATS = 100;
+export const MAX_REPEAT_DAYS = 366;
+
+// London wall-clock time to an instant, right on both sides of the clock change
+function fromLondon(date, hour, minute) {
+  const wall = Date.parse(`${date}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00Z`);
+  const offset = (t) => {
+    const p = londonParts(t);
+    return Date.parse(`${p.date}T${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}:00Z`) - Math.floor(t / 60000) * 60000;
+  };
+  const first = wall - offset(wall);
+  return new Date(wall - offset(first));
+}
+const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86400000);
+function addMonths(date, n, day) {
+  const [y, m] = date.split('-').map(Number);
+  const first = new Date(Date.UTC(y, m - 1 + n, 1));
+  const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  first.setUTCDate(Math.min(day, last));
+  return first.toISOString().slice(0, 10);
+}
+
+/** The repeat rule from the form, checked: { freq, count } or { freq, until } (a London date), or null for no repeat. */
+export function cleanRepeat(r, startsAt, now = Date.now()) {
+  if (!r || !REPEATS[r.freq]) return null;
+  const startDay = londonParts(startsAt).date;
+  if (r.until) {
+    const until = String(r.until).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(until) || until <= startDay) throw new Error('The repeat must end after the first date');
+    if (daysBetween(londonParts(now).date, until) > MAX_REPEAT_DAYS) throw new Error('Repeats can run up to a year ahead');
+    return { freq: r.freq, until };
+  }
+  const count = Math.trunc(Number(r.count));
+  if (!(count >= 2)) throw new Error('Choose how many times it repeats');
+  if (count > MAX_REPEATS) throw new Error(`Repeats can run up to ${MAX_REPEATS} times`);
+  return { freq: r.freq, count };
+}
+
+/** Every time of a repeating event, first one included: London time kept across the clock change, monthly on the same day (or the month's last). */
+export function repeatTimes(startsAt, endsAt, rule) {
+  const s = londonParts(startsAt);
+  const e = londonParts(endsAt);
+  const endDays = daysBetween(s.date, e.date);
+  const day = Number(s.date.slice(8, 10));
+  const out = [];
+  for (let i = 0; out.length < MAX_REPEATS; i++) {
+    const date = rule.freq === 'monthly' ? addMonths(s.date, i, day) : addDays(s.date, i * { daily: 1, weekly: 7, fortnightly: 14 }[rule.freq]);
+    if (rule.until && date > rule.until) break;
+    if (rule.count && out.length >= rule.count) break;
+    out.push({ starts_at: fromLondon(date, s.hour, s.minute).toISOString(), ends_at: fromLondon(addDays(date, endDays), e.hour, e.minute).toISOString() });
+  }
+  return out;
+}
+
+/** "Repeats weekly, 10 times" / "Repeats monthly until 20 Mar 2027" */
+export function repeatText(rule, times) {
+  if (!rule) return '';
+  return `Repeats ${REPEATS[rule.freq]}, ${rule.until ? `until ${fmtDate(rule.until)}` : `${times ?? rule.count} times`}`;
 }
 
 const overlaps = (a, b) => new Date(a.starts_at) < new Date(b.ends_at) && new Date(a.ends_at) > new Date(b.starts_at);

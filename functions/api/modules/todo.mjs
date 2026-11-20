@@ -34,7 +34,8 @@ export const SQL = {
   timeOff: "SELECT count(*)::int AS n FROM time_off WHERE status = 'pending'",
   staffForms: 'SELECT count(*)::int AS n FROM staff_setup_submissions',
   streams: "SELECT count(*)::int AS n, (array_agg(venue_id ORDER BY created_at))[1] AS venue FROM venue_streams WHERE status = 'active' AND checked_at IS NULL",
-  invites: `SELECT count(*)::int AS n, (array_agg(e.id ORDER BY e.starts_at))[1] AS event FROM calendar_attendees a JOIN calendar_events e ON e.id = a.event_id
+  // A repeating invite counts once
+  invites: `SELECT count(DISTINCT coalesce(e.series_id, e.id))::int AS n, (array_agg(e.id ORDER BY e.starts_at))[1] AS event FROM calendar_attendees a JOIN calendar_events e ON e.id = a.event_id
              WHERE a.user_id = $1 AND a.response = 'pending' AND e.cancelled_at IS NULL AND e.ends_at > now()`,
   proposals: `SELECT count(*)::int AS n, (array_agg(e.id ORDER BY e.starts_at))[1] AS event FROM calendar_attendees a JOIN calendar_events e ON e.id = a.event_id
                WHERE e.organiser_id = $1 AND a.proposed_start IS NOT NULL AND a.proposed_start > now() AND e.cancelled_at IS NULL`,

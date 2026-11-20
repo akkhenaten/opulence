@@ -47,14 +47,18 @@ export async function checkOfficerForShift(officerId, shift, { ignoreAssignment 
         WHERE a.officer_id = $1 AND a.status IN ('assigned','accepted') AND s.status <> 'cancelled' AND s.id <> $2
           AND s.starts_at >= date_trunc('week', $3::timestamptz) AND s.starts_at < date_trunc('week', $3::timestamptz) + interval '7 days'`,
       [officerId, shift.id || '00000000-0000-0000-0000-000000000000', shift.starts_at]),
-    // An accepted meeting in the shift's hours, unless it is at this venue (an on-site check-in)
+    // An accepted meeting, task or time block in the shift's hours, unless it is at this venue (an on-site check-in)
     one(
-      `SELECT e.title, e.starts_at FROM calendar_attendees ca JOIN calendar_events e ON e.id = ca.event_id
+      `SELECT e.title, e.starts_at, e.kind, e.private FROM calendar_attendees ca JOIN calendar_events e ON e.id = ca.event_id
         WHERE ca.user_id = $1 AND ca.response = 'accepted' AND e.cancelled_at IS NULL AND e.starts_at < $3 AND e.ends_at > $2
           AND NOT (e.where_kind = 'venue' AND e.venue_id IS NOT DISTINCT FROM $4) ORDER BY e.starts_at LIMIT 1`,
       [o.user_id, shift.starts_at, shift.ends_at, shift.venue_id]).catch(() => null),
   ]);
-  if (meeting) warnings.push(`In a meeting at ${fmtTime(meeting.starts_at)}: ${meeting.title}`);
+  if (meeting) {
+    // Their own time block: busy, with the title only if they didn't make it private
+    if (meeting.kind === 'block') warnings.push(`Time blocked out at ${fmtTime(meeting.starts_at)}${meeting.private ? '' : `: ${meeting.title}`}`);
+    else warnings.push(`${meeting.kind === 'task' ? 'Booked for a task' : 'In a meeting'} at ${fmtTime(meeting.starts_at)}: ${meeting.title}`);
+  }
   if (ban) blocking.push(`Banned from this venue${ban.reason ? `: ${ban.reason}` : ''}`);
   if (overlap) blocking.push(`Already booked at ${overlap.name} (${fmtTime(overlap.starts_at)})`);
   if (off) blocking.push(`On approved ${off.kind}`);

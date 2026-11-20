@@ -1,5 +1,8 @@
 // Calendar: meetings with invites, replies and proposed times, next to each person's shifts and time off.
-// Company managers invite anyone and can open anyone's calendar; everyone else invites company managers and sees their own.
+// Company managers invite anyone, book people for tasks and can open anyone's calendar; everyone else invites company
+// managers and sees their own. Anyone can block out their own time (others see Busy). Meetings can repeat; each person
+// has a private link to subscribe from Outlook, Apple or Google.
+import crypto from 'node:crypto';
 import { one, q, tx } from '../lib/db.mjs';
 import { fail, need } from '../lib/http.mjs';
 import { audit } from '../lib/audit.mjs';
@@ -10,7 +13,8 @@ import { fmtDateTime, fmtTime, fmtDate, londonDate } from '../lib/time.mjs';
 import { officerName } from '../lib/names.mjs';
 import { isPlatformEmail } from '../lib/platform.mjs';
 import {
-  RESPONSES, WHERE, DEFAULT_REMINDERS, cleanReminders, invitable, passedReminders, icsToken, readIcsToken, buildIcs, shiftClashes, suggestTimes, whereText,
+  RESPONSES, WHERE, KINDS, KIND_LABEL, DEFAULT_REMINDERS, cleanReminders, invitable, passedReminders, icsToken, readIcsToken, buildIcs, calendarIcs, shiftClashes, suggestTimes, whereText,
+  cleanRepeat, repeatTimes, repeatText, newFeedToken, goodFeedToken,
 } from '../lib/calendar.mjs';
 import { ALL, MGR, def } from './_def.mjs';
 
@@ -41,18 +45,28 @@ async function eventFor(id, user) {
   const attendees = await q(ATTENDEES_SQL, [id, e.organiser_id]);
   const me = attendees.find((a) => a.user_id === user.id);
   if (!me && !isCo(user)) fail(404, 'Meeting not found');
+  // Someone's private time block: a company manager sees that they are busy, nothing more
+  const hidden = e.private && !me;
+  const series = e.series_id ? await one(
+    `SELECT count(*)::int AS total, count(*) FILTER (WHERE starts_at <= $2)::int AS n, count(*) FILTER (WHERE starts_at > $2)::int AS later
+       FROM calendar_events WHERE series_id = $1 AND cancelled_at IS NULL`, [e.series_id, e.starts_at]) : null;
   return {
     ...e,
-    where: whereText(e),
+    ...(hidden ? { title: 'Busy', notes: '', where_kind: 'none', address: '', phone: '', video_url: '', venue_id: null, venue_name: null } : {}),
+    series: series ? { ...series, text: repeatText(e.repeat, series.total) } : null,
+    where: hidden ? '' : whereText(e),
     attendees: attendees.map((a) => ({
       user_id: a.user_id, name: a.name, role: a.role, venue_names: a.venue_names, response: a.response, note: a.note, organiser: a.user_id === e.organiser_id,
       proposed_start: a.proposed_start, proposed_end: a.proposed_end, proposal_note: a.proposal_note, responded_at: a.responded_at,
     })),
     me: me ? { response: me.response, note: me.note, reminders: me.reminders, proposed_start: me.proposed_start, proposed_end: me.proposed_end } : null,
-    can_edit: !e.cancelled_at && (e.organiser_id === user.id || isCo(user)),
+    can_edit: !e.cancelled_at && mayEdit(e, user),
     ics: me ? icsToken(e.id, user.id) : null,
   };
 }
+
+// The organiser changes it; company managers too, for anyone, except someone's own time block
+const mayEdit = (e, user) => e.organiser_id === user.id || (isCo(user) && e.kind !== 'block');
 
 // Who this person may invite, with what the picker shows under each name
 async function people(user) {
@@ -99,7 +113,7 @@ async function timeOffOf(userIds, from, to) {
 async function meetingsOf(userIds, from, to, { exclude = null, cancelled = false } = {}) {
   if (!userIds.length) return [];
   return q(
-    `SELECT a.user_id, a.response, e.id, e.kind, e.title, e.starts_at, e.ends_at, e.all_day, e.private, e.where_kind, e.venue_id, e.cancelled_at, e.organiser_id,
+    `SELECT a.user_id, a.response, e.id, e.kind, e.title, e.starts_at, e.ends_at, e.all_day, e.private, e.where_kind, e.venue_id, e.cancelled_at, e.organiser_id, e.series_id,
             v.name AS venue_name, (SELECT count(*)::int FROM calendar_attendees x WHERE x.event_id = e.id) AS attendee_count
        FROM calendar_attendees a JOIN calendar_events e ON e.id = a.event_id LEFT JOIN venues v ON v.id = e.venue_id
       WHERE a.user_id = ANY($1::uuid[]) AND e.starts_at < $3 AND e.ends_at > $2 AND ($4::uuid IS NULL OR e.id <> $4)
@@ -146,32 +160,37 @@ export async function freeBusy(user, { user_ids = [], starts_at, ends_at, where_
   const clashes = shiftClashes(meeting, shifts.map((s) => (s.user_id === user.id ? { ...s, person: 'You', self: true } : s)));
   const offClash = off.filter((t) => iso(t.start_date) <= day && iso(t.end_date) >= day).map((t) => `${name[t.user_id] === 'You' ? 'You are' : `${name[t.user_id]} is`} on time off that day`);
   const meetClash = meetings.filter((m) => new Date(m.starts_at) < end && new Date(m.ends_at) > start)
-    .map((m) => `${name[m.user_id] === 'You' ? 'You have' : `${name[m.user_id]} has`} ${show(m.user_id) && !m.private ? `“${m.title}”` : 'another meeting'} at ${fmtTime(m.starts_at)}`);
+    .map((m) => `${name[m.user_id] === 'You' ? 'You have' : `${name[m.user_id]} has`} ${show(m.user_id) && !m.private ? `“${m.title}”` : m.kind === 'block' ? 'time blocked out' : 'another meeting'} at ${fmtTime(m.starts_at)}`);
   const busy = [...shifts, ...meetings, ...off.map(offAsBusy)];
   const suggestions = suggestTimes(start, Math.round((end - start) / 60000), busy);
   return { rows, clashes: [...new Set([...clashes, ...offClash, ...meetClash])], suggestions };
 }
 
-// The fields a meeting is saved from, checked
-function clean(b) {
-  const title = String(b.title || '').trim().slice(0, 200);
-  if (!title) fail(400, 'Give the meeting a title');
+// The fields a meeting, task or time block is saved from, checked. The kind is set when it is made.
+function clean(b, user, kindWas = null) {
+  const kind = kindWas || (KINDS.includes(b.kind) ? b.kind : 'meeting');
+  if (!kindWas && kind === 'task' && !isCo(user)) fail(403, 'Only company managers can book someone for a task');
+  const block = kind === 'block';
+  // A time block needs no title: it shows as Busy
+  const title = String(b.title || '').trim().slice(0, 200) || (block ? 'Busy' : '');
+  if (!title) fail(400, `Give the ${KIND_LABEL[kind]} a title`);
   const start = new Date(b.starts_at);
   const end = new Date(b.ends_at);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) fail(400, 'Choose a date and time');
   if (end <= start) fail(400, 'The end must be after the start');
-  if (end - start > 14 * 86400000) fail(400, 'A meeting can last up to two weeks');
-  const where_kind = WHERE.includes(b.where_kind) ? b.where_kind : 'none';
+  if (end - start > 14 * 86400000) fail(400, `A ${KIND_LABEL[kind]} can last up to two weeks`);
+  const where_kind = !block && WHERE.includes(b.where_kind) ? b.where_kind : 'none';
   const video = String(b.video_url || '').trim().slice(0, 500);
   if (where_kind === 'video' && video && !/^https:\/\//i.test(video)) fail(400, 'Paste the full video link, starting https://');
   if (where_kind === 'venue' && !b.venue_id) fail(400, 'Choose the venue');
   return {
-    title, kind: 'meeting', starts_at: start.toISOString(), ends_at: end.toISOString(), all_day: !!b.all_day, where_kind,
+    title, kind, starts_at: start.toISOString(), ends_at: end.toISOString(), all_day: !!b.all_day, where_kind,
     venue_id: where_kind === 'venue' ? b.venue_id : null,
     address: where_kind === 'address' ? String(b.address || '').trim().slice(0, 300) : '',
     phone: where_kind === 'phone' ? String(b.phone || '').trim().slice(0, 60) : '',
     video_url: where_kind === 'video' ? video : '',
     notes: String(b.notes || '').trim().slice(0, 4000),
+    private: block && !!b.private,
   };
 }
 
@@ -215,35 +234,28 @@ async function attendeeIds(eventId) {
   return (await q('SELECT user_id FROM calendar_attendees WHERE event_id = $1', [eventId])).map((r) => r.user_id);
 }
 
-/** Create or change a meeting. A new time asks everyone again; notes or place changes keep their replies. */
-async function save(b, user) {
-  const f = clean(b);
-  const wanted = [...new Set((Array.isArray(b.attendee_ids) ? b.attendee_ids : []).filter(Boolean))].slice(0, 50);
-  const reminders = b.reminders === undefined ? DEFAULT_REMINDERS : cleanReminders(b.reminders);
-  if (!b.id) {
-    await checkInvites(user, wanted.filter((id) => id !== user.id));
-    const ids = wanted.filter((id) => id !== user.id);
-    const e = await tx(async (t) => {
-      const row = await t.one(
-        `INSERT INTO calendar_events (kind, title, starts_at, ends_at, all_day, where_kind, venue_id, address, phone, video_url, notes, organiser_id, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12) RETURNING *`,
-        [f.kind, f.title, f.starts_at, f.ends_at, f.all_day, f.where_kind, f.venue_id, f.address, f.phone, f.video_url, f.notes, user.id]);
-      await t.q(`INSERT INTO calendar_attendees (event_id, user_id, response, responded_at, reminders, reminded) VALUES ($1,$2,'accepted',now(),$3,$4)`,
-        [row.id, user.id, reminders, passedReminders(reminders, f.starts_at)]);
-      for (const id of ids) {
-        await t.q('INSERT INTO calendar_attendees (event_id, user_id, reminders, reminded) VALUES ($1,$2,$3,$4)', [row.id, id, DEFAULT_REMINDERS, passedReminders(DEFAULT_REMINDERS, f.starts_at)]);
-      }
-      return row;
-    });
-    const full = await loadEvent(e.id);
-    await tell(ids, full, { title: `Invite: ${f.title}`, body: `${user.name} invited you · ${line(full)}`, mail: true });
-    await audit(user, 'calendar.create', 'calendar_event', e.id, { title: f.title, starts_at: f.starts_at, attendees: ids });
-    return eventFor(e.id, user);
-  }
+// What the notices call it: an invite to a meeting, a booking for a task
+const word = (e) => (e.kind === 'task'
+  ? { invite: 'Booked', invited: 'booked your time', it: 'this task' }
+  : { invite: 'Invite', invited: 'invited you', it: 'this meeting' });
 
+// The times a series change reaches: this one, or this and the ones after it still on
+async function seriesRows(e, scope) {
+  if (scope !== 'following' || !e.series_id) return [e];
+  return q('SELECT * FROM calendar_events WHERE series_id = $1 AND starts_at >= $2 AND cancelled_at IS NULL ORDER BY starts_at', [e.series_id, e.starts_at]);
+}
+
+/**
+ * Create or change a meeting, task or time block. A new time asks everyone again; notes or place changes keep their
+ * replies. A repeating one is made as a series in one go; a change applies to this time or this and the following.
+ */
+async function save(b, user) {
+  if (!b.id) return create(b, user);
   const before = await loadEvent(b.id);
-  if (before.cancelled_at) fail(409, 'This meeting was cancelled');
-  if (before.organiser_id !== user.id && !isCo(user)) fail(403, 'Only the organiser can change this meeting');
+  if (before.cancelled_at) fail(409, `This ${KIND_LABEL[before.kind]} was cancelled`);
+  if (!mayEdit(before, user)) fail(403, `Only the organiser can change ${word(before).it}`);
+  const f = clean(b, user, before.kind);
+  const wanted = before.kind === 'block' ? [] : [...new Set((Array.isArray(b.attendee_ids) ? b.attendee_ids : []).filter(Boolean))].slice(0, 50);
   const had = await attendeeIds(before.id);
   // The organiser stays on it, whoever is editing
   const keep = new Set([...wanted, before.organiser_id]);
@@ -251,55 +263,151 @@ async function save(b, user) {
   const removed = had.filter((id) => !keep.has(id));
   // Someone who isn't a company manager can only add company managers; the ones already on it stay
   await checkInvites(user, added.filter((id) => id !== user.id));
-  const moved = new Date(before.starts_at).getTime() !== new Date(f.starts_at).getTime() || new Date(before.ends_at).getTime() !== new Date(f.ends_at).getTime() || before.all_day !== f.all_day;
-  const changed = ['title', 'where_kind', 'venue_id', 'address', 'phone', 'video_url', 'notes'].some((k) => String(before[k] ?? '') !== String(f[k] ?? ''));
+  const shift = new Date(f.starts_at) - new Date(before.starts_at);
+  const length = new Date(f.ends_at) - new Date(f.starts_at);
+  const moved = shift !== 0 || new Date(before.ends_at) - new Date(before.starts_at) !== length || before.all_day !== f.all_day;
+  const changed = ['title', 'where_kind', 'venue_id', 'address', 'phone', 'video_url', 'notes', 'private'].some((k) => String(before[k] ?? '') !== String(f[k] ?? ''));
+  const scope = b.scope === 'following' && before.series_id ? 'following' : 'one';
+  const rows = await seriesRows(before, scope);
   await tx(async (t) => {
-    await t.q(
-      `UPDATE calendar_events SET title = $2, starts_at = $3, ends_at = $4, all_day = $5, where_kind = $6, venue_id = $7, address = $8, phone = $9, video_url = $10,
-              notes = $11, seq = seq + $12::int, updated_at = now() WHERE id = $1`,
-      [before.id, f.title, f.starts_at, f.ends_at, f.all_day, f.where_kind, f.venue_id, f.address, f.phone, f.video_url, f.notes, moved || changed ? 1 : 0]);
-    if (removed.length) await t.q('DELETE FROM calendar_attendees WHERE event_id = $1 AND user_id = ANY($2::uuid[])', [before.id, removed]);
-    for (const id of added) {
-      await t.q('INSERT INTO calendar_attendees (event_id, user_id, reminders, reminded) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING', [before.id, id, DEFAULT_REMINDERS, passedReminders(DEFAULT_REMINDERS, f.starts_at)]);
-    }
-    if (moved) {
-      // Everyone but the organiser is asked again; proposals for the old time are dropped; reminders start over
+    for (const row of rows) {
+      // Each later time moves by as much as this one did and takes its new length
+      const starts = new Date(new Date(row.starts_at).getTime() + shift).toISOString();
+      const ends = new Date(new Date(starts).getTime() + length).toISOString();
       await t.q(
-        `UPDATE calendar_attendees SET response = CASE WHEN user_id = $2 THEN response ELSE 'pending' END, responded_at = CASE WHEN user_id = $2 THEN responded_at END,
-                note = CASE WHEN user_id = $2 THEN note ELSE '' END, proposed_start = NULL, proposed_end = NULL, proposal_note = '',
-                reminded = ARRAY(SELECT m FROM unnest(reminders) m WHERE $3::timestamptz - make_interval(mins => m) <= now())
-          WHERE event_id = $1`, [before.id, before.organiser_id, f.starts_at]);
+        `UPDATE calendar_events SET title = $2, starts_at = $3, ends_at = $4, all_day = $5, where_kind = $6, venue_id = $7, address = $8, phone = $9, video_url = $10,
+                notes = $11, private = $13, seq = seq + $12::int, updated_at = now() WHERE id = $1`,
+        [row.id, f.title, starts, ends, f.all_day, f.where_kind, f.venue_id, f.address, f.phone, f.video_url, f.notes, moved || changed ? 1 : 0, f.private]);
+      if (removed.length) await t.q('DELETE FROM calendar_attendees WHERE event_id = $1 AND user_id = ANY($2::uuid[])', [row.id, removed]);
+      for (const id of [...keep]) {
+        await t.q('INSERT INTO calendar_attendees (event_id, user_id, reminders, reminded) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING', [row.id, id, DEFAULT_REMINDERS, passedReminders(DEFAULT_REMINDERS, starts)]);
+      }
+      if (moved) {
+        // Everyone but the organiser is asked again; proposals for the old time are dropped; reminders start over
+        await t.q(
+          `UPDATE calendar_attendees SET response = CASE WHEN user_id = $2 THEN response ELSE 'pending' END, responded_at = CASE WHEN user_id = $2 THEN responded_at END,
+                  note = CASE WHEN user_id = $2 THEN note ELSE '' END, proposed_start = NULL, proposed_end = NULL, proposal_note = '',
+                  reminded = ARRAY(SELECT m FROM unnest(reminders) m WHERE $3::timestamptz - make_interval(mins => m) <= now())
+            WHERE event_id = $1`, [row.id, before.organiser_id, starts]);
+      }
     }
   });
   const e = await loadEvent(before.id);
+  const w = word(e);
   const stay = had.filter((id) => keep.has(id) && id !== user.id);
   const by = user.id === before.organiser_id ? user.name : `${user.name} for ${before.organiser_name}`;
-  if (moved) await tell(stay, e, { title: `New time: ${e.title}`, body: `${by} moved it to ${line(e)}. Please reply again.`, mail: true });
-  else if (changed) await tell(stay, e, { title: `Updated: ${e.title}`, body: `${by} changed the details · ${line(e)}`, mail: true });
-  await tell(added.filter((id) => id !== user.id), e, { title: `Invite: ${e.title}`, body: `${by} invited you · ${line(e)}`, mail: true });
-  await tell(removed.filter((id) => id !== user.id), { ...e, cancelled_at: new Date() }, { title: `Removed: ${e.title}`, body: `${by} took you off this meeting · ${when(before)}`, mail: true });
+  const also = rows.length > 1 ? ` This and the ${rows.length - 1} time${rows.length === 2 ? '' : 's'} after it.` : '';
+  if (moved) await tell(stay, e, { title: `New time: ${e.title}`, body: `${by} moved it to ${line(e)}.${also} Please reply again.`, mail: true });
+  else if (changed) await tell(stay, e, { title: `Updated: ${e.title}`, body: `${by} changed the details · ${line(e)}.${also}`, mail: true });
+  await tell(added.filter((id) => id !== user.id), e, { title: `${w.invite}: ${e.title}`, body: `${by} ${w.invited} · ${line(e)}.${also}`, mail: true });
+  await tell(removed.filter((id) => id !== user.id), { ...e, cancelled_at: new Date() }, { title: `Removed: ${e.title}`, body: `${by} took you off ${w.it} · ${when(before)}.${also}`, mail: true });
   await audit(user, 'calendar.update', 'calendar_event', e.id, {
     moved: moved ? { from: before.starts_at, to: f.starts_at } : undefined, changed: changed || undefined, added, removed,
+    ...(rows.length > 1 ? { following: rows.length } : {}),
     ...(user.id !== before.organiser_id ? { on_behalf_of: before.organiser_id } : {}),
   });
   return eventFor(e.id, user);
 }
 
-/** One event as an .ics file, from a signed per-person link (the email's Add to calendar button). */
+async function create(b, user) {
+  const f = clean(b, user);
+  const ids = f.kind === 'block' ? [] : [...new Set((Array.isArray(b.attendee_ids) ? b.attendee_ids : []).filter(Boolean))].slice(0, 50).filter((id) => id !== user.id);
+  if (f.kind === 'task' && !ids.length) fail(400, 'Choose who to book for the task');
+  await checkInvites(user, ids);
+  // My own time block reminds me of nothing unless I ask
+  const reminders = b.reminders === undefined ? (f.kind === 'block' ? [] : DEFAULT_REMINDERS) : cleanReminders(b.reminders);
+  let rule = null;
+  try {
+    rule = cleanRepeat(b.repeat, f.starts_at);
+  } catch (err) {
+    fail(400, err.message);
+  }
+  const times = rule ? repeatTimes(f.starts_at, f.ends_at, rule) : [{ starts_at: f.starts_at, ends_at: f.ends_at }];
+  if (rule && times.length < 2) fail(400, 'The repeat ends before a second time');
+  const seriesId = rule ? crypto.randomUUID() : null;
+  const first = await tx(async (t) => {
+    let head = null;
+    for (const time of times) {
+      const row = await t.one(
+        `INSERT INTO calendar_events (kind, title, starts_at, ends_at, all_day, where_kind, venue_id, address, phone, video_url, notes, private, series_id, repeat, organiser_id, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15) RETURNING *`,
+        [f.kind, f.title, time.starts_at, time.ends_at, f.all_day, f.where_kind, f.venue_id, f.address, f.phone, f.video_url, f.notes, f.private, seriesId, rule, user.id]);
+      await t.q(`INSERT INTO calendar_attendees (event_id, user_id, response, responded_at, reminders, reminded) VALUES ($1,$2,'accepted',now(),$3,$4)`,
+        [row.id, user.id, reminders, passedReminders(reminders, time.starts_at)]);
+      for (const id of ids) {
+        await t.q('INSERT INTO calendar_attendees (event_id, user_id, reminders, reminded) VALUES ($1,$2,$3,$4)', [row.id, id, DEFAULT_REMINDERS, passedReminders(DEFAULT_REMINDERS, time.starts_at)]);
+      }
+      head ||= row;
+    }
+    return head;
+  });
+  const full = await loadEvent(first.id);
+  const w = word(full);
+  // One notice and one email for a whole series; its Add to calendar file holds every time
+  await tell(ids, full, { title: `${w.invite}: ${f.title}`, body: `${user.name} ${w.invited} · ${line(full)}${rule ? ` · ${repeatText(rule, times.length)}` : ''}`, mail: true });
+  await audit(user, 'calendar.create', 'calendar_event', first.id, { kind: f.kind, title: f.kind === 'block' && f.private ? undefined : f.title, starts_at: f.starts_at, attendees: ids, ...(rule ? { repeat: rule, times: times.length } : {}) });
+  return eventFor(first.id, user);
+}
+
+/**
+ * One event as an .ics file, from a signed per-person link (the email's Add to calendar button). For a repeating one,
+ * every time still to come that this person is on.
+ */
 export async function icsFile(token) {
   const t = readIcsToken(token);
   if (!t) return null;
-  const a = await one('SELECT reminders FROM calendar_attendees WHERE event_id = $1 AND user_id = $2', [t.eventId, t.userId]);
   const e = await one(`${EVENT_SQL} WHERE e.id = $1`, [t.eventId]);
   if (!e) return null;
+  const rows = e.series_id
+    ? await q(`${EVENT_SQL} WHERE e.series_id = $1 AND (e.id = $2 OR e.ends_at > now()) ORDER BY e.starts_at`, [e.series_id, e.id])
+    : [e];
+  const mine = Object.fromEntries((await q('SELECT event_id, reminders FROM calendar_attendees WHERE event_id = ANY($1::uuid[]) AND user_id = $2', [rows.map((r) => r.id), t.userId])).map((a) => [a.event_id, a]));
   const { name } = await getBrand();
-  // Someone taken off the meeting gets it as cancelled, so their own calendar drops it
-  const cancelled = e.cancelled_at || !a ? e.cancelled_at || new Date() : null;
   const role = (await one('SELECT role, email FROM users WHERE id = $1', [t.userId])) || {};
+  // Someone taken off the meeting gets it as cancelled, so their own calendar drops it
+  const list = rows.filter((r) => r.id === e.id || mine[r.id]).map((r) => ({ ...r, cancelled_at: r.cancelled_at || (!mine[r.id] ? new Date() : null), reminders: mine[r.id]?.reminders || [] }));
   return {
     name: `${e.title.replace(/[^\w\s-]/g, '').trim().slice(0, 40) || 'meeting'}.ics`,
-    body: buildIcs({ ...e, cancelled_at: cancelled, reminders: a?.reminders || [] }, { company: name, appUrl: `${APP_URL()}/app${linkFor(role.role, role.email, e.id)}` }),
+    body: calendarIcs(list, { company: name, appUrl: (r) => `${APP_URL()}/app${linkFor(role.role, role.email, r.id)}` }),
   };
+}
+
+/**
+ * Someone's subscribe feed, from their secret link: their meetings, tasks and time blocks (not the ones they declined;
+ * cancelled ones as cancelled so the calendar drops them) and their published shifts, two months back and a year ahead.
+ */
+export async function feedFile(token) {
+  if (!goodFeedToken(token)) return null;
+  const feed = await one(
+    `UPDATE calendar_feeds f SET last_used_at = now() FROM users u WHERE f.token = $1 AND u.id = f.user_id AND u.status = 'active'
+     RETURNING u.id, u.name, u.role, u.email`, [token]);
+  if (!feed) return null;
+  const from = new Date(Date.now() - 60 * 86400000).toISOString();
+  const to = new Date(Date.now() + 366 * 86400000).toISOString();
+  const [events, shifts, { name }] = await Promise.all([
+    q(`${EVENT_SQL.replace('FROM calendar_events e', 'FROM calendar_attendees a JOIN calendar_events e ON e.id = a.event_id')
+        .replace('SELECT e.*', 'SELECT e.*, a.response, a.reminders')}
+        WHERE a.user_id = $1 AND e.starts_at < $3 AND e.ends_at > $2 AND (a.response <> 'declined' OR e.organiser_id = a.user_id)
+        ORDER BY e.starts_at LIMIT 2000`, [feed.id, from, to]),
+    feed.role === 'venue' ? [] : shiftsOf([feed.id], from, to),
+    getBrand(),
+  ]);
+  const list = [
+    ...events.map((e) => ({ ...e, tentative: ['pending', 'maybe'].includes(e.response) })),
+    ...shifts.map((s) => ({
+      id: `shift-${s.id}`, title: `Shift · ${s.venue_name}`, starts_at: s.starts_at, ends_at: s.ends_at, where_kind: 'none', notes: s.role_name, seq: 0,
+    })),
+  ];
+  return calendarIcs(list, { company: name, name: `${name} — ${feed.name}`, appUrl: (e) => (String(e.id).startsWith('shift-') ? '' : `${APP_URL()}/app${linkFor(feed.role, feed.email, e.id)}`) });
+}
+
+async function feedFor(user, reset = false) {
+  const row = reset
+    ? await one(`INSERT INTO calendar_feeds (user_id, token) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET token = EXCLUDED.token, created_at = now(), last_used_at = NULL
+                 RETURNING token, created_at, last_used_at`, [user.id, newFeedToken()])
+    : await one(`INSERT INTO calendar_feeds (user_id, token) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
+                 RETURNING token, created_at, last_used_at`, [user.id, newFeedToken()]);
+  return row;
 }
 
 // Reminders: every 5 minutes, each person's own (1 day and 30 minutes before unless they changed them). When several
@@ -345,7 +453,7 @@ export const actions = {
       user: who,
       events: meetings.map((m) => ({
         id: m.id, kind: m.kind, starts_at: m.starts_at, ends_at: m.ends_at, all_day: m.all_day, cancelled: !!m.cancelled_at, response: m.response,
-        organiser: m.organiser_id === uid, venue_name: m.venue_name, attendee_count: m.attendee_count,
+        organiser: m.organiser_id === uid, venue_name: m.venue_name, attendee_count: m.attendee_count, repeats: !!m.series_id,
         title: !mine && m.private ? 'Busy' : m.title,
       })),
       shifts: shifts.map((s) => ({ id: s.id, starts_at: s.starts_at, ends_at: s.ends_at, venue_name: s.venue_name, role_name: s.role_name, status: s.status, assignment_status: s.assignment_status })),
@@ -380,16 +488,25 @@ export const actions = {
     return save({ ...e, starts_at: b.starts_at, ends_at: b.ends_at, attendee_ids: e.attendees.map((a) => a.user_id), reminders: undefined }, user);
   }),
 
+  // Cancel this time, or this and the following ones of a series. A time block is simply taken off.
   'calendar.cancel': def(ALL, async (b, { user }) => {
     const e = await loadEvent(need(b.id, 'Meeting not found'));
     if (e.cancelled_at) return eventFor(e.id, user);
-    if (e.organiser_id !== user.id && !isCo(user)) fail(403, 'Only the organiser can cancel this meeting');
+    if (!mayEdit(e, user)) fail(403, `Only the organiser can cancel ${word(e).it}`);
+    const rows = await seriesRows(e, b.scope);
+    const ids = rows.map((r) => r.id);
+    if (e.kind === 'block') {
+      await q('DELETE FROM calendar_events WHERE id = ANY($1::uuid[])', [ids]);
+      await audit(user, 'calendar.removeBlock', 'calendar_event', e.id, { times: ids.length });
+      return { removed: true };
+    }
     const note = String(b.note || '').trim().slice(0, 500);
-    await q('UPDATE calendar_events SET cancelled_at = now(), cancelled_by = $2, cancel_note = $3, seq = seq + 1, updated_at = now() WHERE id = $1', [e.id, user.id, note]);
+    await q('UPDATE calendar_events SET cancelled_at = now(), cancelled_by = $2, cancel_note = $3, seq = seq + 1, updated_at = now() WHERE id = ANY($1::uuid[])', [ids, user.id, note]);
     const after = await loadEvent(e.id);
     const by = user.id === e.organiser_id ? user.name : `${user.name} for ${e.organiser_name}`;
-    await tell((await attendeeIds(e.id)).filter((id) => id !== user.id), after, { title: `Cancelled: ${e.title}`, body: `${by} cancelled ${when(e)}${note ? `: “${note}”` : ''}`, mail: true, severity: 'warning' });
-    await audit(user, 'calendar.cancel', 'calendar_event', e.id, { note, ...(user.id !== e.organiser_id ? { on_behalf_of: e.organiser_id } : {}) });
+    const also = ids.length > 1 ? ` and the ${ids.length - 1} time${ids.length === 2 ? '' : 's'} after it` : '';
+    await tell((await attendeeIds(e.id)).filter((id) => id !== user.id), after, { title: `Cancelled: ${e.title}`, body: `${by} cancelled ${when(e)}${also}${note ? `: “${note}”` : ''}`, mail: true, severity: 'warning' });
+    await audit(user, 'calendar.cancel', 'calendar_event', e.id, { note, ...(ids.length > 1 ? { following: ids.length } : {}), ...(user.id !== e.organiser_id ? { on_behalf_of: e.organiser_id } : {}) });
     return eventFor(e.id, user);
   }),
 
@@ -402,8 +519,16 @@ export const actions = {
     const note = String(b.note || '').trim().slice(0, 500);
     const a = need(await one(
       `UPDATE calendar_attendees SET response = $3, note = $4, responded_at = now() WHERE event_id = $1 AND user_id = $2 RETURNING *`, [e.id, user.id, b.response, note]), 'You are not on this meeting');
-    await tell([e.organiser_id], e, { title: `${user.name} ${RESPONSE_LABEL[b.response]} ${e.title}`, body: [when(e), note && `“${note}”`].filter(Boolean).join(' · ') });
-    await audit(user, 'calendar.respond', 'calendar_event', e.id, { response: a.response, note: note || undefined });
+    // A repeating one: the same answer for every time still to come, unless one was moved and is waiting on its own
+    let more = 0;
+    if (b.scope === 'all' && e.series_id) {
+      more = (await q(
+        `UPDATE calendar_attendees a SET response = $3, note = $4, responded_at = now() FROM calendar_events e
+          WHERE e.id = a.event_id AND e.series_id = $1 AND a.user_id = $2 AND e.id <> $5 AND e.starts_at > now() AND e.cancelled_at IS NULL RETURNING a.event_id`,
+        [e.series_id, user.id, b.response, note, e.id])).length;
+    }
+    await tell([e.organiser_id], e, { title: `${user.name} ${RESPONSE_LABEL[b.response]} ${e.title}`, body: [more ? `${when(e)} and ${more} more time${more === 1 ? '' : 's'}` : when(e), note && `“${note}”`].filter(Boolean).join(' · ') });
+    await audit(user, 'calendar.respond', 'calendar_event', e.id, { response: a.response, note: note || undefined, ...(more ? { also: more } : {}) });
     return eventFor(e.id, user);
   }),
 
@@ -455,31 +580,46 @@ export const actions = {
   // The next meeting for Home, and the invites waiting for a reply
   'calendar.upcoming': def(ALL, async (_b, { user }) => {
     const rows = await q(
-      `SELECT e.id, e.title, e.starts_at, e.ends_at, e.all_day, a.response, u.name AS organiser_name, e.organiser_id = $1 AS organiser,
+      `SELECT e.id, e.kind, e.series_id, e.title, e.starts_at, e.ends_at, e.all_day, a.response, u.name AS organiser_name, e.organiser_id = $1 AS organiser,
               (SELECT string_agg(x.name, ', ' ORDER BY x.name) FROM calendar_attendees y JOIN users x ON x.id = y.user_id WHERE y.event_id = e.id AND y.user_id <> $1) AS with_names
          FROM calendar_attendees a JOIN calendar_events e ON e.id = a.event_id JOIN users u ON u.id = e.organiser_id
         WHERE a.user_id = $1 AND e.cancelled_at IS NULL AND e.ends_at > now() AND a.response <> 'declined'
-        ORDER BY e.starts_at LIMIT 20`, [user.id]);
+        ORDER BY e.starts_at LIMIT 100`, [user.id]);
     // New times people proposed for meetings this person organised, waiting on their answer
     const proposals = await q(
       `SELECT e.id, e.title, e.starts_at, e.ends_at, a.user_id, u.name, a.proposed_start, a.proposed_end, a.proposal_note
          FROM calendar_attendees a JOIN calendar_events e ON e.id = a.event_id JOIN users u ON u.id = a.user_id
         WHERE e.organiser_id = $1 AND a.proposed_start IS NOT NULL AND a.proposed_start > now() AND e.cancelled_at IS NULL
         ORDER BY e.starts_at LIMIT 20`, [user.id]);
-    return { next: rows.find((r) => r.response !== 'pending') || null, invites: rows.filter((r) => r.response === 'pending'), proposals };
+    // A repeating invite is one item: its first time, and how many more are waiting
+    const invites = [];
+    const seen = new Map();
+    for (const r of rows.filter((x) => x.response === 'pending')) {
+      if (r.series_id && seen.has(r.series_id)) seen.get(r.series_id).more += 1;
+      else invites.push(r.series_id ? (seen.set(r.series_id, { ...r, more: 0 }), seen.get(r.series_id)) : r);
+    }
+    return { next: rows.find((r) => r.response !== 'pending' && r.kind !== 'block') || null, invites: invites.slice(0, 20), proposals };
   }),
 
-  // The rota's By officer view: meetings officers are in, as bars. Titles only for company managers.
+  // The rota's By officer view: meetings, tasks and time blocks officers are in, as bars. Titles only for company managers, never a private block's.
   'calendar.forRota': def(MGR, async (b, { user }) => {
     const from = new Date(b.from);
     const to = new Date(b.to);
     if (Number.isNaN(from.getTime()) || !(to > from) || to - from > 45 * 86400000) fail(400, 'Choose a date range');
     const rows = await q(
-      `SELECT o.id AS officer_id, e.id, e.title, e.starts_at, e.ends_at, e.private, a.response
+      `SELECT o.id AS officer_id, e.id, e.kind, e.title, e.starts_at, e.ends_at, e.private, a.response
          FROM calendar_attendees a JOIN calendar_events e ON e.id = a.event_id JOIN officers o ON o.user_id = a.user_id
         WHERE e.cancelled_at IS NULL AND a.response <> 'declined' AND e.starts_at < $2 AND e.ends_at > $1
         ORDER BY e.starts_at`, [from.toISOString(), to.toISOString()]);
-    return rows.map((r) => ({ ...r, title: isCo(user) && !r.private ? r.title : 'Meeting' }));
+    return rows.map((r) => ({ ...r, title: isCo(user) && !r.private ? r.title : r.kind === 'block' ? 'Busy' : 'Meeting' }));
+  }),
+
+  // My subscribe link (made the first time it is asked for), and a reset that turns the old one off
+  'calendar.feed': def(ALL, async (_b, { user }) => feedFor(user)),
+  'calendar.feedReset': def(ALL, async (_b, { user }) => {
+    const row = await feedFor(user, true);
+    await audit(user, 'calendar.feedReset', 'user', user.id, {});
+    return row;
   }),
 };
 

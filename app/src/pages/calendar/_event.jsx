@@ -1,14 +1,15 @@
-// A meeting, opened (who's coming, reply, propose a new time, reminders, Add to calendar) and the form it's made in,
-// with each person's free/busy for the day and the next free times. Shared by the Calendar page and the officer's Shifts.
+// A meeting, task or time block, opened (who's coming, reply, propose a new time, reminders, Add to calendar) and the
+// form it's made in, with each person's free/busy for the day and the next free times. Meetings and tasks can repeat;
+// a change then applies to this time or this and the following. Shared by the Calendar page and the officer's Shifts.
 import { useEffect, useMemo, useState } from 'react';
 import {
-  AlarmClock, CalendarClock, CalendarPlus, Check, CircleHelp, Clock, ExternalLink, MapPin, Pencil, Phone, Plus, Send, Sparkles, TriangleAlert, Users, Video, X,
+  AlarmClock, CalendarClock, CalendarPlus, Check, CircleHelp, Clock, ExternalLink, Lock, MapPin, Pencil, Phone, Plus, Repeat, Send, Sparkles, Trash2, TriangleAlert, Users, Video, X,
 } from 'lucide-react';
 import { api, API_BASE } from '../../api.js';
 import { useAuth } from '../../auth.jsx';
 import { ROLE_LABEL } from '../../layouts/nav.js';
 import {
-  addDays, Avatar, Button, Callout, Chips, cx, dayLabel, Empty, ErrorBox, Input, List, Load, Pill, Pressable, range, Row, SearchInput, Section, Select, Sheet, Spinner, Textarea, time, Toggle, useAction, useApi, useConfirm, nameMatches,
+  addDays, Avatar, Button, Callout, Chips, cx, dayLabel, Empty, ErrorBox, Input, List, Load, Pill, Pressable, range, Row, SearchInput, Section, Segmented, Select, Sheet, Spinner, Textarea, time, Toggle, useAction, useApi, useConfirm, nameMatches,
 } from '../../ui/index.jsx';
 import { londonIso, londonParts } from '../manager/_parts.jsx';
 
@@ -23,6 +24,12 @@ const WHERE = [
   { value: 'none', label: 'No place' }, { value: 'venue', label: 'At a venue' }, { value: 'hq', label: 'Head office' },
   { value: 'address', label: 'Another address' }, { value: 'phone', label: 'Phone call' }, { value: 'video', label: 'Video call (Teams, Zoom, Meet)' },
 ];
+
+// What it is: a meeting; a task (a company manager books someone's time); my own time block, which others see as Busy
+export const KIND = { meeting: 'Meeting', task: 'Task', block: 'Time block' };
+const KIND_WORD = { meeting: 'meeting', task: 'task', block: 'time block' };
+const REPEAT = [{ value: '', label: 'Doesn\u2019t repeat' }, { value: 'daily', label: 'Every day' }, { value: 'weekly', label: 'Every week' }, { value: 'fortnightly', label: 'Every two weeks' }, { value: 'monthly', label: 'Every month' }];
+const SCOPE = [{ value: 'one', label: 'This time only' }, { value: 'following', label: 'This and the following' }];
 
 const lastDay = (e) => londonParts(new Date(new Date(e.ends_at).getTime() - 1)).date;
 /** "Thu 20 Nov · 14:00–15:00", an all-day span, or a meeting that runs past midnight. */
@@ -84,23 +91,33 @@ export function EventSheet({ id, onClose, onChanged, onEdit }) {
   const [note, setNote] = useState('');
   const [proposing, setProposing] = useState(null);
   const [cancelling, setCancelling] = useState(null);
+  const [replyAll, setReplyAll] = useState(true);
   const e = q.data;
-  const done = (r) => { q.setData(r); onChanged?.(); };
+  const done = (r) => {
+    // A time block is taken off rather than crossed out
+    if (r?.removed) { onChanged?.(); onClose(); return; }
+    q.setData(r);
+    onChanged?.();
+  };
   const act = (action, body, msg) => run(() => api(action, { id, ...body }), msg).then(done).catch(() => {});
 
   const mine = e?.organiser_id === user.id;
+  const kind = e?.kind || 'meeting';
+  const block = kind === 'block';
+  const series = e?.series;
+  const later = series?.later || 0;
   const proposals = (e?.attendees || []).filter((a) => a.proposed_start);
   const Icon = { venue: MapPin, hq: MapPin, address: MapPin, phone: Phone, video: Video }[e?.where_kind];
 
   const footer = e && !e.cancelled_at && e.can_edit && !cancelling && !proposing && (
     <>
-      <Button variant="secondary" className="text-red" onClick={() => setCancelling({ note: '' })}>Cancel meeting</Button>
+      <Button variant="secondary" className="text-red" icon={block ? Trash2 : undefined} onClick={() => setCancelling({ note: '', scope: 'one' })}>{block ? 'Remove' : `Cancel ${KIND_WORD[kind]}`}</Button>
       <Button icon={Pencil} onClick={() => onEdit(e)}>Edit</Button>
     </>
   );
 
   return (
-    <Sheet open onClose={onClose} title={e?.title || 'Meeting'} footer={footer} side>
+    <Sheet open onClose={onClose} title={e?.title || KIND[kind]} footer={footer} side>
       {q.error && !e ? <ErrorBox error={q.error} retry={q.reload} /> : !e ? <Spinner /> : (
         <div className="space-y-5">
           <div className="space-y-2">
@@ -118,7 +135,15 @@ export function EventSheet({ id, onClose, onChanged, onEdit }) {
                 </div>
               </div>
             )}
-            <div className="text-footnote text-muted">Organised by {mine ? 'you' : e.organiser_name}</div>
+            {series && (
+              <div className="flex items-center gap-2 text-subhead"><Repeat size={18} className="shrink-0 text-muted" />{series.text}{series.total > 1 && <span className="text-muted">· time {series.n} of {series.total}</span>}</div>
+            )}
+            <div className="flex flex-wrap items-center gap-2 text-footnote text-muted">
+              {kind !== 'meeting' && <Pill tone={block ? 'grey' : 'blue'}>{KIND[kind]}</Pill>}
+              {e.private && <span className="inline-flex items-center gap-1"><Lock size={13} />{mine ? 'Private: others see Busy' : 'Private'}</span>}
+              {!block && <span>{kind === 'task' ? 'Booked by' : 'Organised by'} {mine ? 'you' : e.organiser_name}</span>}
+              {block && !mine && <span>{e.organiser_name}'s own time</span>}
+            </div>
           </div>
 
           {/* My reply */}
@@ -127,9 +152,11 @@ export function EventSheet({ id, onClose, onChanged, onEdit }) {
               <div className="space-y-3">
                 <div className="grid grid-cols-3 gap-2">
                   {[['accepted', 'Accept', Check], ['maybe', 'Maybe', CircleHelp], ['declined', 'Decline', X]].map(([r, label, I]) => (
-                    <Button key={r} variant={e.me.response === r ? 'primary' : 'secondary'} icon={I} busy={busy} onClick={() => act('calendar.respond', { response: r, note }, r === 'declined' ? 'Declined. The organiser is told.' : 'Reply sent')}>{label}</Button>
+                    <Button key={r} variant={e.me.response === r ? 'primary' : 'secondary'} icon={I} busy={busy}
+                      onClick={() => act('calendar.respond', { response: r, note, ...(later && replyAll ? { scope: 'all' } : {}) }, r === 'declined' ? 'Declined. The organiser is told.' : 'Reply sent')}>{label}</Button>
                   ))}
                 </div>
+                {later > 0 && <Toggle checked={replyAll} onChange={setReplyAll} label="The same for every time after this" hint={`${later} more time${later === 1 ? '' : 's'} to come`} />}
                 <Input placeholder="Add a note (optional)" value={note} onChange={(ev) => setNote(ev.target.value)} />
                 {e.me.proposed_start && !proposing && <Callout tone="info" icon={CalendarClock}>You proposed {whenText({ starts_at: e.me.proposed_start, ends_at: e.me.proposed_end })}. Waiting for {e.organiser_name}.</Callout>}
                 {!proposing
@@ -150,12 +177,15 @@ export function EventSheet({ id, onClose, onChanged, onEdit }) {
 
           {cancelling && (
             <div className="space-y-3 rounded-2xl bg-red-soft/50 p-3">
-              <div className="text-subhead font-semibold">Cancel this meeting?</div>
-              <Textarea rows={2} placeholder="Why (optional) — everyone on it gets this" value={cancelling.note} onChange={(ev) => setCancelling({ note: ev.target.value })} />
-              {!mine && <p className="text-footnote text-muted">You're cancelling {e.organiser_name}'s meeting. It's recorded in history.</p>}
+              <div className="text-subhead font-semibold">{block ? 'Remove this time block?' : `Cancel this ${KIND_WORD[kind]}?`}</div>
+              {later > 0 && <Segmented full value={cancelling.scope} onChange={(v) => setCancelling((c) => ({ ...c, scope: v }))} options={SCOPE} />}
+              {!block && <Textarea rows={2} placeholder="Why (optional) — everyone on it gets this" value={cancelling.note} onChange={(ev) => setCancelling((c) => ({ ...c, note: ev.target.value }))} />}
+              {!mine && <p className="text-footnote text-muted">You're cancelling {e.organiser_name}'s {KIND_WORD[kind]}. It's recorded in history.</p>}
               <div className="flex justify-end gap-2">
                 <Button variant="ghost" onClick={() => setCancelling(null)}>Keep it</Button>
-                <Button variant="danger" busy={busy} onClick={() => act('calendar.cancel', { note: cancelling.note }, 'Cancelled. Everyone is told.').then(() => setCancelling(null))}>Cancel and tell everyone</Button>
+                <Button variant="danger" busy={busy} onClick={() => act('calendar.cancel', { note: cancelling.note, scope: cancelling.scope }, block ? 'Removed' : 'Cancelled. Everyone is told.').then(() => setCancelling(null))}>
+                  {block ? 'Remove' : e.attendees.length > 1 ? 'Cancel and tell everyone' : 'Cancel it'}
+                </Button>
               </div>
             </div>
           )}
@@ -178,7 +208,7 @@ export function EventSheet({ id, onClose, onChanged, onEdit }) {
             </Section>
           )}
 
-          <Section title="Who's coming" icon={Users} count={e.attendees.length}>
+          {!block && <Section title={kind === 'task' ? 'Booked' : "Who's coming"} icon={Users} count={e.attendees.length}>
             <List>
               {e.attendees.map((a) => (
                 <Row key={a.user_id} left={<Avatar name={a.name} size={36} />} title={a.user_id === user.id ? `${a.name} (You)` : a.name}
@@ -186,7 +216,7 @@ export function EventSheet({ id, onClose, onChanged, onEdit }) {
                   right={!a.organiser && <Pill tone={RESPONSE[a.response].tone}>{a.proposed_start ? 'New time?' : RESPONSE[a.response].label}</Pill>} />
               ))}
             </List>
-          </Section>
+          </Section>}
 
           {e.notes && <Section title="Notes"><p className="whitespace-pre-line rounded-2xl bg-surface p-3 text-body shadow-tile">{e.notes}</p></Section>}
 
@@ -203,9 +233,9 @@ export function EventSheet({ id, onClose, onChanged, onEdit }) {
   );
 }
 
-/* ---------- Making or changing a meeting ---------- */
+/* ---------- Making or changing a meeting, task or time block ---------- */
 
-/** init: { event } to edit, or { starts_at, ends_at, all_day, attendee_ids } for a new one. */
+/** init: { event } to edit, or { starts_at, ends_at, all_day, attendee_ids, kind } for a new one. */
 export function EventForm({ init, onClose, onSaved }) {
   const { user } = useAuth();
   const opts = useApi('calendar.options', {});
@@ -214,7 +244,8 @@ export function EventForm({ init, onClose, onSaved }) {
     title: ev?.title || '', ...toFields(ev || init),
     attendee_ids: ev ? ev.attendees.map((a) => a.user_id).filter((x) => x !== user.id || ev.organiser_id !== user.id) : init.attendee_ids || [],
     where_kind: ev?.where_kind || 'none', venue_id: ev?.venue_id || '', address: ev?.address || '', phone: ev?.phone || '', video_url: ev?.video_url || '', notes: ev?.notes || '',
-    reminders: [1440, 30],
+    reminders: (ev?.kind || init.kind) === 'block' ? [] : [1440, 30], kind: ev?.kind || init.kind || 'meeting', private: ev ? !!ev.private : true,
+    freq: '', ends: 'count', count: '10', until: '', scope: 'one',
   }));
   const [dirty, setDirty] = useState(false);
   const set = (p) => { setDirty(true); setF((s) => ({ ...s, ...p })); };
@@ -227,31 +258,59 @@ export function EventForm({ init, onClose, onSaved }) {
   const chosen = f.attendee_ids.map((id) => known.get(id)).filter(Boolean);
   const pickable = people.filter((p) => !f.attendee_ids.includes(p.id) && nameMatches(p, term));
   const times = fromFields(f);
-  const valid = f.title.trim() && f.date && (f.all_day || (f.start && f.end));
+  const block = f.kind === 'block';
+  const task = f.kind === 'task';
+  const word = KIND_WORD[f.kind];
+  const repeat = !ev && f.freq ? (f.ends === 'until' ? { freq: f.freq, until: f.until } : { freq: f.freq, count: Number(f.count) }) : null;
+  const valid = (block || f.title.trim()) && f.date && (f.all_day || (f.start && f.end)) && (!task || f.attendee_ids.length)
+    && (!repeat || (repeat.until ? repeat.until > f.date : repeat.count >= 2 && repeat.count <= 100));
+  const kinds = [{ value: 'meeting', label: 'Meeting' }, ...(opts.data?.can_invite_anyone ? [{ value: 'task', label: 'Task' }] : []), { value: 'block', label: 'Block time' }];
+  const following = ev?.series?.later > 0 && f.scope === 'following';
 
   // Free/busy for everyone on it, a moment after the time or the list stops changing
-  const fbBody = useDebounced(useMemo(() => ({ user_ids: f.attendee_ids, ...times, where_kind: f.where_kind, venue_id: f.venue_id || null, exclude_id: ev?.id || null }),
-    [f.attendee_ids, times.starts_at, times.ends_at, f.where_kind, f.venue_id, ev?.id]));
+  const fbBody = useDebounced(useMemo(() => ({ user_ids: block ? [] : f.attendee_ids, ...times, where_kind: f.where_kind, venue_id: f.venue_id || null, exclude_id: ev?.id || null }),
+    [block, f.attendee_ids, times.starts_at, times.ends_at, f.where_kind, f.venue_id, ev?.id]));
   const fb = useApi('calendar.freeBusy', fbBody, { skip: !f.date || (!f.all_day && (!f.start || !f.end)) });
 
   const save = async () => {
     const moved = ev && (times.starts_at !== new Date(ev.starts_at).toISOString() || times.ends_at !== new Date(ev.ends_at).toISOString());
-    if (moved && !(await confirm({ title: 'Change the time?', body: 'Everyone on it is asked to reply again.', confirm: 'Change time' }))) return;
-    const body = { ...f, ...times, venue_id: f.venue_id || null, ...(ev ? { id: ev.id, reminders: undefined } : {}) };
-    run(() => api('calendar.save', body), ev ? 'Saved. Everyone on it is told.' : f.attendee_ids.length ? 'Invites sent' : 'Added to your calendar').then(onSaved).catch(() => {});
+    const others = !block && f.attendee_ids.length > 0;
+    if (moved && others && !(await confirm({ title: 'Change the time?', body: `Everyone on it is asked to reply again${following ? ', for this and the following times' : ''}.`, confirm: 'Change time' }))) return;
+    const { freq, ends, count, until, ...rest } = f;
+    const body = { ...rest, ...times, venue_id: f.venue_id || null, attendee_ids: block ? [] : f.attendee_ids, ...(ev ? { id: ev.id, reminders: undefined } : { repeat }) };
+    const msg = ev ? (others ? 'Saved. Everyone on it is told.' : 'Saved') : task ? 'Booked. They are asked to accept.' : others ? 'Invites sent' : 'Added to your calendar';
+    run(() => api('calendar.save', body), msg).then(onSaved).catch(() => {});
   };
 
-  const footer = <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button icon={ev ? Check : Send} busy={busy} disabled={!valid} onClick={save}>{ev ? 'Save' : f.attendee_ids.length ? 'Send invites' : 'Save'}</Button></>;
+  const footer = <><Button variant="secondary" onClick={onClose}>Cancel</Button><Button icon={ev ? Check : Send} busy={busy} disabled={!valid} onClick={save}>{ev ? 'Save' : task ? 'Book' : !block && f.attendee_ids.length ? 'Send invites' : 'Save'}</Button></>;
 
   return (
-    <Sheet open onClose={onClose} title={ev ? 'Edit meeting' : 'New meeting'} footer={footer} dirty={dirty} size="lg">
+    <Sheet open onClose={onClose} title={ev ? `Edit ${word}` : `New ${word}`} footer={footer} dirty={dirty} size="lg">
       {opts.error && !opts.data ? <ErrorBox error={opts.error} retry={opts.reload} /> : !opts.data ? <Spinner /> : (
         <div className="space-y-5">
-          {ev && ev.organiser_id !== user.id && <Callout tone="info">You're changing {ev.organiser_name}'s meeting. It's recorded in history.</Callout>}
-          <Input label="Title" placeholder="e.g. Toolbox talk: radios" value={f.title} onChange={(e) => set({ title: e.target.value })} autoFocus={!ev} />
+          {!ev && <Segmented full value={f.kind} onChange={(v) => set({ kind: v, reminders: v === 'block' ? [] : f.kind === 'block' ? [1440, 30] : f.reminders })} options={kinds} />}
+          {!ev && task && <p className="-mt-3 px-1 text-footnote text-muted">Book someone's time for a job. They accept, decline or propose another time, like an invite.</p>}
+          {ev && ev.organiser_id !== user.id && <Callout tone="info">You're changing {ev.organiser_name}'s {word}. It's recorded in history.</Callout>}
+          {ev?.series?.later > 0 && <Segmented full value={f.scope} onChange={(v) => setF((s) => ({ ...s, scope: v }))} options={SCOPE} />}
+          <Input label={block ? 'What for (optional)' : 'Title'} placeholder={block ? 'e.g. Dentist. Others only see Busy' : task ? 'e.g. Stock-take at The Loft' : 'e.g. Toolbox talk: radios'} value={f.title} onChange={(e) => set({ title: e.target.value })} autoFocus={!ev} />
           <TimeFields f={f} set={set} />
+          {block && <Toggle checked={f.private} onChange={(v) => set({ private: v })} label="Private" hint={f.private ? 'Everyone else sees Busy, the office included' : 'The office sees what it is for'} />}
 
-          <Section title="Who" icon={Users} count={chosen.length || undefined}>
+          {!ev && (
+            <div className="space-y-2">
+              <Select label="Repeat" value={f.freq} onChange={(e) => set({ freq: e.target.value })} options={REPEAT} />
+              {f.freq && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Select label="Ends" value={f.ends} onChange={(e) => set({ ends: e.target.value })} options={[{ value: 'count', label: 'After a number of times' }, { value: 'until', label: 'On a date' }]} />
+                  {f.ends === 'until'
+                    ? <Input label="Last date" type="date" min={addDays(f.date, 1)} value={f.until} onChange={(e) => set({ until: e.target.value })} />
+                    : <Input label="Times" type="number" min="2" max="100" inputMode="numeric" value={f.count} onChange={(e) => set({ count: e.target.value })} />}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!block && <Section title={task ? 'Who to book' : 'Who'} icon={Users} count={chosen.length || undefined}>
             <div className="space-y-2">
               {chosen.length > 0 && (
                 <List>
@@ -273,11 +332,11 @@ export function EventForm({ init, onClose, onSaved }) {
               )}
               {term && !pickable.length && <p className="px-1 text-footnote text-muted">No one by that name you can invite.</p>}
             </div>
-          </Section>
+          </Section>}
 
-          <FreeBusy fb={fb} times={times} date={f.date} onPick={(s) => set(toFields({ ...s, all_day: false }))} />
+          <FreeBusy fb={fb} times={times} date={f.date} self={block} onPick={(s) => set(toFields({ ...s, all_day: false }))} />
 
-          <Section title="Where" icon={MapPin}>
+          {!block && <Section title="Where" icon={MapPin}>
             <div className="space-y-3">
               <Select value={f.where_kind} onChange={(e) => set({ where_kind: e.target.value })} options={WHERE} />
               {f.where_kind === 'venue' && <Select value={f.venue_id} onChange={(e) => set({ venue_id: e.target.value })} placeholder="Choose the venue" options={opts.data.venues.map((v) => ({ value: v.id, label: v.name }))} />}
@@ -286,9 +345,9 @@ export function EventForm({ init, onClose, onSaved }) {
               {f.where_kind === 'phone' && <Input type="tel" placeholder="Number to call" hint="Who calls whom? Say so in the notes." value={f.phone} onChange={(e) => set({ phone: e.target.value })} />}
               {f.where_kind === 'video' && <Input type="url" placeholder="https://… (paste the Teams, Zoom or Meet link)" value={f.video_url} onChange={(e) => set({ video_url: e.target.value })} />}
             </div>
-          </Section>
+          </Section>}
 
-          <Textarea label="Notes" rows={3} placeholder="What it's about, what to bring" value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
+          <Textarea label="Notes" rows={3} placeholder={block ? 'Only you see these' : "What it's about, what to bring"} value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
           {!ev && <Chips label="Remind me" options={REMINDERS} value={f.reminders} onChange={(list) => set({ reminders: list })} />}
         </div>
       )}
@@ -300,7 +359,7 @@ export function EventForm({ init, onClose, onSaved }) {
 const DAY_FROM = 7 * 60;
 const DAY_TO = 22 * 60;
 const BUSY_TONE = { shift: 'bg-green/70', meeting: 'bg-indigo/70', off: 'bg-faint/60' };
-function FreeBusy({ fb, times, date, onPick }) {
+function FreeBusy({ fb, times, date, onPick, self }) {
   const at = (iso) => mins(londonIso(date, '00:00'), iso);
   const pct = (m) => `${((Math.min(DAY_TO, Math.max(DAY_FROM, m)) - DAY_FROM) / (DAY_TO - DAY_FROM)) * 100}%`;
   const span = (a, b) => ({ left: pct(at(a)), width: `calc(${pct(at(b))} - ${pct(at(a))})` });
@@ -326,7 +385,7 @@ function FreeBusy({ fb, times, date, onPick }) {
               <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-green/70" />Shift</span>
               <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-indigo/70" />Meeting</span>
               <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-faint/60" />Time off</span>
-              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm ring-2 ring-blue" />This meeting</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm ring-2 ring-blue" />{self ? 'This time' : 'This meeting'}</span>
             </div>
           </div>
           {d.clashes.length > 0 && (
@@ -336,7 +395,7 @@ function FreeBusy({ fb, times, date, onPick }) {
           )}
           {d.suggestions.length > 0 && (
             <div>
-              <div className="mb-1.5 flex items-center gap-1.5 text-footnote font-semibold text-muted"><Sparkles size={14} />Everyone is free</div>
+              <div className="mb-1.5 flex items-center gap-1.5 text-footnote font-semibold text-muted"><Sparkles size={14} />{self ? 'You are free' : 'Everyone is free'}</div>
               <div className="flex flex-wrap gap-2">
                 {d.suggestions.map((s) => <Button key={s.starts_at} size="sm" variant="soft" onClick={() => onPick(s)}>{dayLabel(s.starts_at)} {range(s.starts_at, s.ends_at)}</Button>)}
               </div>
@@ -363,7 +422,8 @@ export function InboxSheet({ show, onClose, onOpen }) {
             <List>
               {list.map((m) => (
                 <Row key={`${m.id}:${m.user_id || ''}`} chevron onClick={() => onOpen(m.id)} left={<Avatar name={proposals ? m.name : m.organiser_name} size={36} />} title={m.title}
-                  subtitle={proposals ? `${m.name} asks for ${whenText({ starts_at: m.proposed_start, ends_at: m.proposed_end })}` : `${whenText(m)} · from ${m.organiser_name}`} />
+                  subtitle={proposals ? `${m.name} asks for ${whenText({ starts_at: m.proposed_start, ends_at: m.proposed_end })}`
+                    : [whenText(m), m.more ? `and ${m.more} more time${m.more === 1 ? '' : 's'}` : '', `${m.kind === 'task' ? 'booked by' : 'from'} ${m.organiser_name}`].filter(Boolean).join(' · ')} />
               ))}
             </List>
           );

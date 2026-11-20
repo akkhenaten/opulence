@@ -11,6 +11,19 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-20', icon: CalendarCog, title: 'Calendar: tasks, private time blocks, repeats, and your calendar on your phone', image: 'calendar-tasks-repeat',
+    lede: "Book someone's time for a task, block out your own time, set meetings to repeat, and see it all in Outlook, Apple or Google from your own private link.",
+    points: [
+      "New → Task: company managers book someone for a job (an audit, a training session, a site visit). It works like an invite: they accept, decline or propose another time",
+      "New → Block time: hold time for yourself. Everyone else sees Busy, and a private block hides its title and notes even from company managers",
+      "Repeat daily, weekly, every two weeks or monthly, ending on a date or after a number of times. Change or cancel just this one, or this and the ones after it",
+      "A repeating invite asks once: reply to one, or tick The same for every time after this",
+      "Subscribe (top of the calendar) gives you a private link with your meetings, tasks, blocks and shifts. Your phone or Outlook keeps it up to date by itself",
+      "Anyone with the link can see your calendar, so keep it to yourself. Reset makes a new link and the old one stops working",
+      "Blocks and tasks show on the rota's By officer view, and assigning a shift over one warns you",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-20', icon: Sparkles, title: 'New venues are welcomed on the website for a week', image: 'new-venue-highlight',
     lede: "When a venue first appears on the landing page, it's announced: a gold welcome ribbon under the top of the page, and its tile marked New. After seven days the page goes back to normal by itself.",
     points: [
