@@ -9,6 +9,7 @@ const STYLE = 'Premium cinematic photo-illustration for a luxury nightlife secur
   + 'Absolutely no text, no letters, no numbers, no logos, no brand names. People only seen from behind or softly out of focus, no recognisable faces. No weapons, no violence.';
 
 export const PROMPTS = {
+  'new-venue-highlight': 'An elegant Scottish bar entrance at dusk seen on a laptop screen as a website, a slim glowing gold ribbon across the page and one venue photo tile with a small gold New badge, the laptop on a dark navy table beside a brass key and a folded welcome card, warm lamp light, dark navy and gold.',
   'calendar-meetings': 'A dark navy desk at night with a laptop showing an elegant week calendar: thin indigo meeting blocks and soft green shift bars in neat columns, one block outlined in gold as if being moved, beside it a phone showing a small invite card with three round reply buttons, a brass desk bell and a fountain pen, warm lamp light, dark navy and gold.',
   'doubles-venue-live': 'Two identical brass-edged ID cards on a dark navy desk at night, one sliding neatly on top of the other into a single card under a softly glowing gold arrow, beside them a slim phone showing a calm venue dashboard and a small brass key, warm lamp light, dark navy and gold.',
   'staff-form-live': 'A phone on a dark navy table at night showing a short tidy form with neat section headings and a softly glowing gold checkmark, beside it a brass-edged SIA badge card and a closed passport, a single gold key resting on top of the passport, warm lamp light, dark navy and gold.',

@@ -280,7 +280,7 @@ export const actions = {
     const [published, praise, venues, counts] = await Promise.all([
       q("SELECT * FROM reviews WHERE status = 'published'"),
       tickedPraise(),
-      q('SELECT id, name, city, address, postcode, photo_key, site_client, active, on_website, website_blurb, website_url, website_photo_url FROM venues ORDER BY name'),
+      q('SELECT id, name, city, address, postcode, photo_key, site_client, active, on_website, website_blurb, website_url, website_photo_url, website_since FROM venues ORDER BY name'),
       one("SELECT (SELECT count(*) FROM venues WHERE active)::int AS venues, (SELECT count(*) FROM officers o JOIN users u ON u.id = o.user_id WHERE o.status = 'active' AND u.status <> 'disabled' AND NOT u.system)::int AS staff"),
     ]);
     const shown = venues.filter((v) => v.active && v.on_website);

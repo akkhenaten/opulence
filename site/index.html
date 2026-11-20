@@ -315,8 +315,20 @@
     @media (max-width: 1020px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, 1fr); gap: 12px; } .cap b { font-size: 18px; } }
     @media (max-width: 480px) { .tiles { grid-template-columns: 1fr; } :is(.vt, .vt-sk) { aspect-ratio: 4 / 4.2; } }
+    /* A venue new to the website: a gold New badge and ring for its first week, and a welcome ribbon under the hero */
+    .vt.new .face.front { border-color: rgba(201,164,92,.7); box-shadow: inset 0 0 0 1px rgba(226,200,142,.35); }
+    .vt .new-badge { position: absolute; top: 14px; left: 14px; z-index: 2; padding: 5px 10px; border-radius: 999px; background: var(--gold); color: var(--ink); font: 700 10px var(--sans); letter-spacing: .2em; text-transform: uppercase; box-shadow: 0 6px 18px -6px rgba(201,164,92,.7); }
+    .vt.pulse { animation: newpulse 1.6s ease-out; }
+    @keyframes newpulse { 0% { box-shadow: 0 0 0 0 rgba(201,164,92,.75); } 70% { box-shadow: 0 0 0 18px rgba(201,164,92,0); } 100% { box-shadow: 0 0 0 0 rgba(201,164,92,0); } }
+    .new-ribbon { border-block: 1px solid rgba(201,164,92,.35); background: linear-gradient(90deg, rgba(201,164,92,.14), var(--ink-2) 40%, rgba(201,164,92,.14)); }
+    .new-ribbon a { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 12px; padding: 14px 20px; color: var(--text); text-decoration: none; text-align: center; font-size: 15px; }
+    .new-ribbon .k { color: var(--gold); font: 700 11px var(--sans); letter-spacing: .22em; text-transform: uppercase; }
+    .new-ribbon b { font: 500 18px/1.2 var(--serif); color: var(--gold-2); }
+    .new-ribbon .go { color: var(--gold-2); font: 600 12px var(--sans); letter-spacing: .16em; text-transform: uppercase; border-bottom: 1px solid rgba(201,164,92,.45); padding-bottom: 2px; }
+    .new-ribbon a:hover .go, .new-ribbon a:focus-visible .go { border-color: var(--gold-2); }
+    .new-ribbon a:focus-visible { outline: 2px solid var(--gold); outline-offset: -4px; }
     @media (prefers-reduced-motion: reduce) {
-      .vt-sk { animation: none; }
+      .vt-sk, .vt.pulse { animation: none; }
       .face { transition: opacity .25s, visibility .25s; }
       .back, :is(.vt, .svc).flip .front { opacity: 0; }
       :is(.vt, .svc).flip .back { opacity: 1; }
@@ -1115,6 +1127,10 @@
           var ph = el('div', 'ph', initials(v.name)); ph.setAttribute('aria-hidden', 'true'); front.append(ph);
         }
         var cap = el('div', 'cap'); cap.append(el('b', null, v.name), el('small', null, v.city || 'Scotland')); front.append(cap);
+        if (v.isNew) {
+          t.classList.add('new'); t.setAttribute('aria-label', v.name + ', new venue, tap for more');
+          var badge = el('span', 'new-badge', 'New'); badge.setAttribute('aria-hidden', 'true'); front.append(badge);
+        }
         back.setAttribute('aria-hidden', 'true');
         var about = el('div', 'about'); about.append(el('b', null, v.name), el('p', null, v.blurb));
         if (!(v.reviews && v.reviews.length)) about.append(el('div', 'soon', 'Reviews coming soon'));
@@ -1140,6 +1156,36 @@
         if (last) box.insertBefore(g, last); else box.append(g);
         return grid;
       }
+      // A ribbon under the hero for a venue's first week on the website (the API says which are new, so it ends by itself).
+      // Built from the feed, never in the HTML, so it can't show stale; the link takes you to the tile and pulses it.
+      function welcome(news, tile) {
+        var hero = document.querySelector('.hero');
+        if (!news.length || !tile || !hero || document.querySelector('.new-ribbon')) return;
+        var names = news.map(function (v) { return v.name; });
+        var bar = el('div', 'new-ribbon'), a = el('a');
+        a.href = '#clients';
+        a.append(el('span', 'k', names.length > 1 ? 'New venues' : 'New venue'));
+        var line = el('span');
+        if (names.length > 2) line.append('Welcome to our ', el('b', null, names.length + ' newest venues'));
+        else {
+          line.append('Welcome to ', el('b', null, names[0]));
+          if (names[1]) line.append(' and ', el('b', null, names[1]));
+          line.append(names[1] ? ': our newest venues' : ': our newest venue');
+        }
+        var go = el('span', 'go', 'See it '), arrow = el('span', null, '→');
+        arrow.setAttribute('aria-hidden', 'true'); go.append(arrow);
+        a.append(line, go);
+        a.addEventListener('click', function (e) {
+          e.preventDefault();
+          var calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+          tile.scrollIntoView({ block: 'center', behavior: calm ? 'auto' : 'smooth' });
+          tile.focus({ preventScroll: true });
+          tile.classList.remove('pulse'); void tile.offsetWidth; tile.classList.add('pulse');
+          setTimeout(function () { tile.classList.remove('pulse'); }, 1700);
+        });
+        bar.append(a);
+        hero.after(bar);
+      }
       // Every tile comes from a venue in the app; placeholders hold the space until they arrive.
       // If the feed can't be reached (after one retry) the section is hidden rather than left empty.
       var loadVenues = function (retry) {
@@ -1153,6 +1199,9 @@
             var list = ((d && d.tiles) || []).filter(function (v) { return v && v.name; });
             if (!list.length) throw new Error('no tiles');
             box.querySelectorAll('.vt-sk').forEach(function (s) { s.remove(); });
+            // Venues new to the website go first in their town, the rest keep their order
+            list = list.filter(function (v) { return v.isNew; }).concat(list.filter(function (v) { return !v.isNew; }));
+            var firstNew = null;
             list.forEach(function (v) {
               if (v.photo && !/^(https:\/\/|\/[^/])/.test(v.photo)) v.photo = null;
               var t = makeTile(v);
@@ -1161,7 +1210,9 @@
               slide(t, grid.children.length - 1);
               wire(t, tiles);
               reviewed(t, v.reviews);
+              if (v.isNew && !firstNew) firstNew = t;
             });
+            welcome(list.filter(function (v) { return v.isNew; }), firstNew);
             box.querySelectorAll('.city').forEach(function (g) { var grid = g.querySelector('.tiles'); if (!grid || !grid.children.length) g.remove(); });
             box.removeAttribute('aria-busy');
           })

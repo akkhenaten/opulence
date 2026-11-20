@@ -11,6 +11,17 @@ import { Button, Pill, Sheet } from '../../ui/index.jsx';
 // `image` is the card's picture in app/public/whatsnew (made with app/scripts/whatsnew-images.mjs); `icon` stands in without one
 export const UPDATES = [
   {
+    month: 'November 2026', date: '2026-11-20', icon: Sparkles, title: 'New venues are welcomed on the website for a week', image: 'new-venue-highlight',
+    lede: "When a venue first appears on the landing page, it's announced: a gold welcome ribbon under the top of the page, and its tile marked New. After seven days the page goes back to normal by itself.",
+    points: [
+      "Automatic for every venue: it starts the day a venue is first active with Show on website ticked, and nobody has to remember to switch it off",
+      "The ribbon says \"Welcome to Fingal: our newest venue\". See it takes visitors to the venue's tile, which glows gold for a moment",
+      "In Clients, the new venue's tile goes first in its town with a gold New badge",
+      "Hiding a venue and showing it again doesn't make it new again",
+      "Give the venue a photo, a town and a welcome line in its Details → Website, so it looks its best in its first week",
+    ],
+  },
+  {
     month: 'November 2026', date: '2026-11-18', icon: CalendarClock, title: 'Calendar: book meetings, reply, or propose a new time', image: 'calendar-meetings',
     lede: "Meetings now live next to the rota. Invite people, see who's free around their shifts, and everyone replies in the app: accept, maybe, decline or suggest another time. Everyone gets it in their own Outlook, Apple or Google calendar too.",
     points: [

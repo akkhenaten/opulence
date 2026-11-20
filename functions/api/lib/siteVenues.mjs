@@ -33,11 +33,17 @@ export function cityOf(v) {
   return TOWNS.find((t) => new RegExp(`\\b${t}\\b`, 'i').test(addr)) || null;
 }
 
-export const publicTile = (v, reviews = []) => ({
+// A venue is welcomed as new on the landing page for a week after it first appears there, then goes back to normal by itself
+export const NEW_DAYS = 7;
+export const isNewVenue = (since, now = new Date()) => !!since && now - new Date(since) < NEW_DAYS * 864e5;
+
+export const publicTile = (v, reviews = [], now = new Date()) => ({
   name: v.name,
   city: cityOf(v),
   blurb: v.website_blurb || DEFAULT_BLURB(v.name),
   photo: v.website_photo_url || null,
   url: v.website_url || null,
   reviews,
+  // Only the flag, never the date
+  ...(isNewVenue(v.website_since, now) ? { isNew: true } : {}),
 });
